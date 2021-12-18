@@ -14,7 +14,7 @@ backtrader的改动版本，主要实现下面的三个目标：
 ```
 # 如果python包在C:\ProgramData\Anaconda3\Lib\site-packages，则
 cd C:\ProgramData\Anaconda3\Lib\site-packages
-git clone https://gitee.com/yunjinqi/pyfolio.git
+git clone https://gitee.com/yunjinqi/backtrader.git
 ```
 
 #### 使用说明
