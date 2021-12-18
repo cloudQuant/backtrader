@@ -19,8 +19,8 @@ git clone https://gitee.com/yunjinqi/pyfolio.git
 
 #### 使用说明
 
-1.  ![参考官方的文档和论坛](https://www.backtrader.com/)
-2.  ![参考我在csdn的付费专栏](https://blog.csdn.net/qq_26948675/category_10220116.html)
+1. [参考官方的文档和论坛](https://www.backtrader.com/)
+2. [参考我在csdn的付费专栏](https://blog.csdn.net/qq_26948675/category_10220116.html)
 3.  网络上也有很多的backtrader的学习资源，大家可以百度
 
 
