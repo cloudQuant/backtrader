@@ -1,37 +1,28 @@
-# backtrader
+### backtrader
 
 #### 介绍
-backtrader的魔改版本
 
-#### 软件架构
-软件架构说明
+backtrader的改动版本，主要实现下面的三个目标：
+
+1. backtrader源码学习，对backtrader的源码进行注释和讲解
+2. bakctrader对接vnpy，实现实盘交易接口
+3. 使用numpy优化backtrader的line的数据结构，使用numba优化backtrader的算法，希望backtader能够接近C的速度
 
 
 #### 安装教程
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
+```
+# 如果python包在C:\ProgramData\Anaconda3\Lib\site-packages，则
+cd C:\ProgramData\Anaconda3\Lib\site-packages
+git clone https://gitee.com/yunjinqi/pyfolio.git
+```
 
 #### 使用说明
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
+1.  ![参考官方的文档和论坛](https://www.backtrader.com/)
+2.  ![参考我在csdn的付费专栏](https://blog.csdn.net/qq_26948675/category_10220116.html)
+3.  网络上也有很多的backtrader的学习资源，大家可以百度
 
 
-#### 特技
 
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+
