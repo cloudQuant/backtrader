@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, MovingAverageBase, MovAv
 
-
+# 零滞后指数移动平均线
 class ZeroLagExponentialMovingAverage(MovingAverageBase):
     '''
     The zero-lag exponential moving average (ZLEMA) is a variation of the EMA

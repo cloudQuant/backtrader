@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, MovingAverageBase, MovAv
 
-
+# 双指数平均值
 class DoubleExponentialMovingAverage(MovingAverageBase):
     '''
     DEMA was first time introduced in 1994, in the article "Smoothing Data with
@@ -51,7 +51,7 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
 
         super(DoubleExponentialMovingAverage, self).__init__()
 
-
+# 三重指数平均值
 class TripleExponentialMovingAverage(MovingAverageBase):
     '''
     TEMA was first time introduced in 1994, in the article "Smoothing Data with

@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, Max, MovAv
 
-
+# 两均线差
 class _PriceOscBase(Indicator):
     params = (('period1', 12), ('period2', 26),
               ('_movav', MovAv.Exponential),)
@@ -37,7 +37,7 @@ class _PriceOscBase(Indicator):
 
         super(_PriceOscBase, self).__init__()
 
-
+# 均线差
 class PriceOscillator(_PriceOscBase):
     '''
     Shows the difference between a short and long exponential moving
@@ -52,7 +52,7 @@ class PriceOscillator(_PriceOscBase):
     alias = ('PriceOsc', 'AbsolutePriceOscillator', 'APO', 'AbsPriceOsc',)
     lines = ('po',)
 
-
+# 类似于macd的一个指标，以百分比形式表达
 class PercentagePriceOscillator(_PriceOscBase):
     '''
     Shows the difference between a short and long exponential moving

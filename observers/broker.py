@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from .. import Observer
 
-
+# 获取cash
 class Cash(Observer):
     '''This observer keeps track of the current amount of cash in the broker
 
@@ -38,7 +38,7 @@ class Cash(Observer):
     def next(self):
         self.lines[0][0] = self._owner.broker.getcash()
 
-
+# 获取value
 class Value(Observer):
     '''This observer keeps track of the current portfolio value in the broker
     including the cash
@@ -77,7 +77,7 @@ class Value(Observer):
         else:
             self.lines[0][0] = self._owner.broker.fundvalue
 
-
+# 同时获取cash和value
 class Broker(Observer):
     '''This observer keeps track of the current cash amount and portfolio value in
     the broker (including the cash)
@@ -112,7 +112,7 @@ class Broker(Observer):
         else:
             self.lines.value[0] = self._owner.broker.fundvalue
 
-
+# fundvalue
 class FundValue(Observer):
     '''This observer keeps track of the current fund-like value
 
@@ -128,7 +128,7 @@ class FundValue(Observer):
     def next(self):
         self.lines.fundval[0] = self._owner.broker.fundvalue
 
-
+# 基金份额
 class FundShares(Observer):
     '''This observer keeps track of the current fund-like shares
 

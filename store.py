@@ -40,20 +40,21 @@ class MetaSingleton(MetaParams):
 
         return cls._singleton
 
-
+# 创建一个store类
 class Store(with_metaclass(MetaSingleton, object)):
     '''Base class for all Stores'''
-
+    # 开始，默认是False
     _started = False
-
+    # 参数
     params = ()
-
+    # 获取数据
     def getdata(self, *args, **kwargs):
         '''Returns ``DataCls`` with args, kwargs'''
         data = self.DataCls(*args, **kwargs)
         data._store = self
         return data
 
+    # 获取broker
     @classmethod
     def getbroker(cls, *args, **kwargs):
         '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
@@ -64,30 +65,35 @@ class Store(with_metaclass(MetaSingleton, object)):
     BrokerCls = None  # broker class will autoregister
     DataCls = None  # data class will auto register
 
+    # 开始
     def start(self, data=None, broker=None):
+        # 如果还没有开始，就初始化
         if not self._started:
             self._started = True
             self.notifs = collections.deque()
             self.datas = list()
             self.broker = None
-
+        # 如果数据不是None
         if data is not None:
             self._cerebro = self._env = data._env
             self.datas.append(data)
-
+            # 如果self.broker不是None的话
             if self.broker is not None:
                 if hasattr(self.broker, 'data_started'):
                     self.broker.data_started(data)
-
+        # 如果broker不是None的话
         elif broker is not None:
             self.broker = broker
 
+    # 结束
     def stop(self):
         pass
 
+    # 把信息添加到通知
     def put_notification(self, msg, *args, **kwargs):
         self.notifs.append((msg, args, kwargs))
 
+    # 获取通知的信息
     def get_notifications(self):
         '''Return the pending "store" notifications'''
         self.notifs.append(None)  # put a mark / threads could still append

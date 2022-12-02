@@ -28,7 +28,7 @@ from ..utils.py3 import with_metaclass
 
 from ..trade import Trade
 
-
+# 这个类保存所有的trade和trade关闭的时候画出来pnl
 class Trades(Observer):
     '''This observer keeps track of full trades and plot the PnL level achieved
     when a trade is closed.
@@ -43,17 +43,18 @@ class Trades(Observer):
         Show net/profit and loss, i.e.: after commission. If set to ``False``
         if will show the result of trades before commission
     '''
+    # 属性
     _stclock = True
-
+    # 两条line
     lines = ('pnlplus', 'pnlminus')
-
+    # 参数
     params = dict(pnlcomm=True)
-
+    # 画图的时候的plotinfo
     plotinfo = dict(plot=True, subplot=True,
                     plotname='Trades - Net Profit/Loss',
                     plotymargin=0.10,
                     plothlines=[0.0])
-
+    # 画图的时候line的设置
     plotlines = dict(
         pnlplus=dict(_name='Positive',
                      ls='', marker='o', color='blue',
@@ -62,7 +63,7 @@ class Trades(Observer):
                       ls='', marker='o', color='red',
                       markersize=8.0, fillstyle='full')
     )
-
+    # 初始化具trades相关的值
     def __init__(self):
 
         self.trades = 0
@@ -89,58 +90,64 @@ class Trades(Observer):
         self.trades_length_min = 0
 
     def next(self):
+        # 对于存在的trade
         for trade in self._owner._tradespending:
+            # 如果trade的data没有数据了，忽略
             if trade.data not in self.ddatas:
                 continue
-
+            # 如果trade并不是平仓，忽略
             if not trade.isclosed:
                 continue
-
+            # 如果是平仓，如果trade的净利润存在，pnl就等于净利润，如果不存在，pnl就等于利润
             pnl = trade.pnlcomm if self.p.pnlcomm else trade.pnl
-
+            # 如果pnl大于0，就画到pnlplus这条线上，如果小于0，就画到pnlminus这条线上
             if pnl >= 0.0:
                 self.lines.pnlplus[0] = pnl
             else:
                 self.lines.pnlminus[0] = pnl
 
-
+# DataTrades的元类，继承Observer后创建类的时候处理一些脏活
 class MetaDataTrades(Observer.__class__):
     def donew(cls, *args, **kwargs):
         _obj, args, kwargs = super(MetaDataTrades, cls).donew(*args, **kwargs)
 
         # Recreate the lines dynamically
+        # 动态的重新创建line的名字
         if _obj.params.usenames:
             lnames = tuple(x._name for x in _obj.datas)
         else:
             lnames = tuple('data{}'.format(x) for x in range(len(_obj.datas)))
 
         # Generate a new lines class
+        # 创建一个新的line class
         linescls = cls.lines._derive(uuid.uuid4().hex, lnames, 0, ())
 
         # Instantiate lines
+        # 实例化，并赋值给_obj
         _obj.lines = linescls()
 
         # Generate plotlines info
+        # 画图的一些配置信息
         markers = ['o', 'v', '^', '<', '>', '1', '2', '3', '4', '8', 's', 'p',
                    '*', 'h', 'H', '+', 'x', 'D', 'd']
 
         colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm',
                   'y', 'k', 'b', 'g', 'r', 'c', 'm']
-
+        # 信息
         basedict = dict(ls='', markersize=8.0, fillstyle='full')
-
+        # 把相关的信息更新后赋值给plines
         plines = dict()
         for lname, marker, color in zip(lnames, markers, colors):
             plines[lname] = d = basedict.copy()
             d.update(marker=marker, color=color)
-
+        # plotlines
         plotlines = cls.plotlines._derive(
             uuid.uuid4().hex, plines, [], recurse=True)
         _obj.plotlines = plotlines()
 
         return _obj, args, kwargs  # return the instantiated object and args
 
-
+# DataTrades 这个类好像没有使用
 class DataTrades(with_metaclass(MetaDataTrades, Observer)):
     _stclock = True
 
@@ -158,5 +165,5 @@ class DataTrades(with_metaclass(MetaDataTrades, Observer)):
 
             if not trade.isclosed:
                 continue
-
+            # 设置pnl
             self.lines[trade.data._id - 1][0] = trade.pnl

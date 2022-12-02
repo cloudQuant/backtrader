@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import MovingAverageBase, MovAv, ZeroLagIndicator
 
-
+# Dickson均线
 class DicksonMovingAverage(MovingAverageBase):
     '''By Nathan Dickson
 

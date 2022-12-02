@@ -26,11 +26,12 @@ import sys
 from . import Indicator, MovingAverage
 
 
+# 装饰其他指标，给其他指标值设定了一个百分比的上下限
 class EnvelopeMixIn(object):
     '''
     MixIn class to create a subclass with another indicator. The main line of
     that indicator will be surrounded by an upper and lower band separated a
-    given "perc"entage from the input main line
+    given "percentage“ from the input main line
 
     The usage is:
 
@@ -58,7 +59,7 @@ class EnvelopeMixIn(object):
 
         super(EnvelopeMixIn, self).__init__()
 
-
+# 基础类
 class _EnvelopeBase(Indicator):
     lines = ('src',)
 

@@ -29,6 +29,7 @@ from backtrader.utils.py3 import MAXINT
 from . import MovingAverageBase, MovAv
 
 
+# 零滞后均线
 class ZeroLagIndicator(MovingAverageBase):
     '''By John Ehlers and Ric Way
 

@@ -34,6 +34,7 @@ from backtrader.utils.py3 import (integer_types, queue, string_types,
 from backtrader.stores import vcstore
 
 
+
 class MetaVCData(DataBase.__class__):
     def __init__(cls, name, bases, dct):
         '''Class has already been created ... register'''
@@ -43,7 +44,7 @@ class MetaVCData(DataBase.__class__):
         # Register with the store
         vcstore.VCStore.DataCls = cls
 
-
+# vc数据
 class VCData(with_metaclass(MetaVCData, DataBase)):
     '''VisualChart Data Feed.
 

@@ -40,7 +40,7 @@ class MetaOandaData(DataBase.__class__):
         # Register with the store
         oandastore.OandaStore.DataCls = cls
 
-
+# 处理oanda数据，忽略这篇源代码s
 class OandaData(with_metaclass(MetaOandaData, DataBase)):
     '''Oanda Data Feed.
 

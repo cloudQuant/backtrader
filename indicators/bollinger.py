@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, MovAv, StdDev
 
-
+# 布林带指标
 class BollingerBands(Indicator):
     '''
     Defined by John Bollinger in the 80s. It measures volatility by defining
@@ -63,7 +63,7 @@ class BollingerBands(Indicator):
 
         super(BollingerBands, self).__init__()
 
-
+# 布林带百分比指标
 class BollingerBandsPct(BollingerBands):
     '''
     Extends the Bollinger Bands with a Percentage line

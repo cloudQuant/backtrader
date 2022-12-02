@@ -26,7 +26,7 @@ from .version import __version__, __btversion__
 from .errors import *
 from . import errors as errors
 
-from .utils import num2date, date2num, time2num, num2time
+from .utils import num2date, date2num, time2num, num2time,num2dt
 
 from .linebuffer import *
 from .functions import *

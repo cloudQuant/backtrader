@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, CmpEx
 
-
+# 一些价格中枢的算法
 class PivotPoint(Indicator):
     '''
     Defines a level of significance by taking into account the average of price

@@ -24,6 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 from . import Indicator, And
 
 
+# 非0差分，记录最近一个不是0的差
 class NonZeroDifference(Indicator):
     '''
     Keeps track of the difference between two data inputs skipping, memorizing
@@ -58,7 +59,7 @@ class NonZeroDifference(Indicator):
             d = d0array[i] - d1array[i]
             larray[i] = prev = d if d else prev
 
-
+# 交叉基础类
 class _CrossBase(Indicator):
     _mindatas = 2
 
@@ -78,7 +79,7 @@ class _CrossBase(Indicator):
 
         self.lines.cross = And(before, after)
 
-
+# 分析是否金叉
 class CrossUp(_CrossBase):
     '''
     This indicator gives a signal if the 1st provided data crosses over the 2nd
@@ -93,7 +94,7 @@ class CrossUp(_CrossBase):
     '''
     _crossup = True
 
-
+# 分析是否死叉
 class CrossDown(_CrossBase):
     '''
     This indicator gives a signal if the 1st provided data crosses over the 2nd
@@ -108,7 +109,7 @@ class CrossDown(_CrossBase):
     '''
     _crossup = False
 
-
+# 分析是否交叉
 class CrossOver(Indicator):
     '''
     This indicator gives a signal if the provided datas (2) cross up or down.

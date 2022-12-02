@@ -26,7 +26,7 @@ from . import Indicator
 
 __all__ = ['PercentChange', 'PctChange']
 
-
+# 变动百分比
 class PercentChange(Indicator):
     '''
       Measures the perccentage change of the current value with respect to that

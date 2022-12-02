@@ -26,7 +26,7 @@ from . import PeriodN
 
 __all__ = ['HurstExponent', 'Hurst']
 
-
+# 赫斯特指标
 class HurstExponent(PeriodN):
     '''
     References:

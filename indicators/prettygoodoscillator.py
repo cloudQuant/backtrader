@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, MovAv, ATR
 
-
+# 价格与均线的距离除以ATR的值
 class PrettyGoodOscillator(Indicator):
     '''
     The "Pretty Good Oscillator" (PGO) by Mark Johnson measures the distance of

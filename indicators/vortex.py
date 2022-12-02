@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import backtrader as bt
 
-
+# vortex指标
 class Vortex(bt.Indicator):
     '''
     See:

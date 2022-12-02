@@ -26,9 +26,11 @@ from collections import OrderedDict
 from backtrader.utils.py3 import range
 from backtrader.utils.date import num2date
 from backtrader import Analyzer
-import pandas as pd 
 
 
+
+
+# 计算每年的收益率，感觉算法实现有些复杂，后面写了一个用pandas实现的版本MyAnnualReturn，逻辑上简单了很多
 class AnnualReturn(Analyzer):
     '''
     This analyzer calculates the AnnualReturns by looking at the beginning
@@ -51,22 +53,27 @@ class AnnualReturn(Analyzer):
 
     def stop(self):
         # Must have stats.broker
+        # 当前年份
         cur_year = -1
-
+        # 开始value
         value_start = 0.0
+        # 当前value
         value_cur = 0.0
+        # 结束value
         value_end = 0.0
-
-        self.rets = list()
+        # 保存收益率数据
+        self.rets = list()  # todo 这个其实看起来并没有用到
         self.ret = OrderedDict()
-
+        # 从开始到现在，循环数据
         for i in range(len(self.data) - 1, -1, -1):
-            
+            # 获取i的时候的时间和当前价值
             dt = self.data.datetime.date(-i)
             value_cur = self.strategy.stats.broker.value[-i]
-            if i == 0:
-              print(dt)
-              print(value_cur)
+            # if i == 0:
+            #   print(dt)
+            #   print(value_cur)
+            # 如果i的时候的年份大于当前年份，如果当前年份大于0，计算收益率，并保存到self.ret中，并且开始价值等于结束价值
+            # 当年份不等的时候，表明当前i是新的一年
             if dt.year > cur_year:
                 if cur_year >= 0:
                     annualret = (value_end / value_start) - 1.0
@@ -83,7 +90,7 @@ class AnnualReturn(Analyzer):
 
             # No matter what, the last value is always the last loaded value
             value_end = value_cur
-
+        # 如果当前年份还没有结束，收益率还没有计算，在最后即使不满足一年的条件下，也进行计算下
         if cur_year not in self.ret:
             # finish calculating pending data
             annualret = (value_end / value_start) - 1.0
@@ -122,6 +129,8 @@ class MyAnnualReturn(Analyzer):
         # 获取账户的资产
         value_list = self.strategy.stats.broker.value.get(0, size=len(self.data))
         # 转化为pandas格式
+        import numpy as np
+        import pandas as pd
         df = pd.DataFrame([dt_list,value_list]).T
         df.columns=['datetime','value']
         df['pre_value']=df['value'].shift(1)
@@ -135,3 +144,4 @@ class MyAnnualReturn(Analyzer):
         
     def get_analysis(self):
         return self.ret
+   

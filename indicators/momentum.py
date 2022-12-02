@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator
 
-
+# 动量指标，动量震荡指标，ROC指标，ROC指标乘以100
 class Momentum(Indicator):
     '''
     Measures the change in price by calculating the difference between the

@@ -27,7 +27,7 @@ from datetime import datetime
 import backtrader as bt
 from backtrader.utils.py3 import range
 
-
+# 创建一个chainer的元类
 class MetaChainer(bt.DataBase.__class__):
     def __init__(cls, name, bases, dct):
         '''Class has already been created ... register'''
@@ -45,18 +45,19 @@ class MetaChainer(bt.DataBase.__class__):
 
         return _obj, args, kwargs
 
-
+#
 class Chainer(bt.with_metaclass(MetaChainer, bt.DataBase)):
     '''Class that chains datas'''
-
+    # 当数据是实时数据的时候 ，会避免preloading 和 runonce行为
     def islive(self):
         '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
         should be deactivated'''
         return True
-
+    # 初始化
     def __init__(self, *args):
         self._args = args
 
+    # 开始
     def start(self):
         super(Chainer, self).start()
         for d in self._args:
@@ -68,21 +69,24 @@ class Chainer(bt.with_metaclass(MetaChainer, bt.DataBase)):
         self._d = self._ds.pop(0) if self._ds else None
         self._lastdt = datetime.min
 
+    # 停止
     def stop(self):
         super(Chainer, self).stop()
         for d in self._args:
             d.stop()
 
+    # 通知
     def get_notifications(self):
         return [] if self._d is None else self._d.get_notifications()
 
+    # 获取时区
     def _gettz(self):
         '''To be overriden by subclasses which may auto-calculate the
         timezone'''
         if self._args:
             return self._args[0]._gettz()
         return bt.utils.date.Localizer(self.p.tz)
-
+    # load数据，这个处理看起挺巧妙的，后续准备对期货数据的换月做一个处理或者数据到期之后就剔除这个数据
     def _load(self):
         while self._d is not None:
             if not self._d.next():  # no values from current data source

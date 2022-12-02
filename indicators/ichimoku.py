@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 import backtrader as bt
 from . import Highest, Lowest
 
-
+# 日本云图指标
 class Ichimoku(bt.Indicator):
     '''
     Developed and published in his book in 1969 by journalist Goichi Hosoda

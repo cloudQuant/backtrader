@@ -35,7 +35,7 @@ from ..utils import date2num
 
 __all__ = ['QuandlCSV', 'Quandl']
 
-
+#  处理quandlcsv数据
 class QuandlCSV(feed.CSVDataBase):
     '''
     Parses pre-downloaded Quandl CSV Data Feeds (or locally generated if they

@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import backtrader as bt
 
-
+# 持仓价值
 class PositionsValue(bt.Analyzer):
     '''This analyzer reports the value of the positions of the current set of
     datas
@@ -60,26 +60,32 @@ class PositionsValue(bt.Analyzer):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     '''
+    # 参数
     params = (
         ('headers',  False),
         ('cash', False),
     )
-
+    # 开始
     def start(self):
+        # 如果headers参数是True,每个data的命字作为header
         if self.p.headers:
             headers = [d._name or 'Data%d' % i
                        for i, d in enumerate(self.datas)]
-            
+            # 如果cash是True的话，也会保存cash
             self.rets['Datetime'] = headers + ['cash'] * self.p.cash
-
+        # 时间周期
         tf = min(d._timeframe for d in self.datas)
+        # 如果时间周期大于等于日，usedate参数设置成True
         self._usedate = tf >= bt.TimeFrame.Days
 
+    # 每个bar调用一次
     def next(self):
+        # 获取每个数据的value
         pvals = [self.strategy.broker.get_value([d]) for d in self.datas]
+        # 如果cash是True的话，保存cash
         if self.p.cash:
             pvals.append(self.strategy.broker.get_cash())
-
+        # 如果usedate是True,使用date作为key,否则使用datetime作为key
         if self._usedate:
             self.rets[self.strategy.datetime.date()] = pvals
         else:

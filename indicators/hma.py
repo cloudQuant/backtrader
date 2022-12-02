@@ -26,6 +26,7 @@ from . import MovingAverageBase, MovAv
 
 
 # Inherits from MovingAverageBase to auto-register as MovingAverage type
+# HullMovingAverage指标
 class HullMovingAverage(MovingAverageBase):
     '''By Alan Hull
 

@@ -25,7 +25,7 @@ from __future__ import (absolute_import, division, print_function,
 import backtrader as bt
 from . import EMA
 
-
+# 真正强度指标
 class TrueStrengthIndicator(bt.Indicator):
     '''
     The True Strength Indicators was first introduced in Stocks & Commodities

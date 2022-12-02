@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import MovingAverageBase, ExponentialSmoothing
 
-
+# 指数移动平均线
 class ExponentialMovingAverage(MovingAverageBase):
     '''
     A Moving Average that smoothes data exponentially over time.

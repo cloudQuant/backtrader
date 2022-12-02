@@ -29,17 +29,19 @@ from .utils.py3 import cmp, range
 
 
 # Generate a List equivalent which uses "is" for contains
+# 创建一个新的List类,改写了__contains__方法,如果list中有一个元素的哈希值等于other的哈希值，那么就返回True
 class List(list):
     def __contains__(self, other):
         return any(x.__hash__() == other.__hash__() for x in self)
 
-
+# 创建一个类，把其中的元素进行序列化
 class Logic(LineActions):
     def __init__(self, *args):
         super(Logic, self).__init__()
         self.args = [self.arrayize(arg) for arg in args]
 
 
+# 避免两个line想除的时候有值是0，如果分母是0,除以得到的值是0
 class DivByZero(Logic):
     '''This operation is a Lines object and fills it values by executing a
     division on the numerator / denominator arguments and avoiding a division
@@ -73,6 +75,7 @@ class DivByZero(Logic):
             dst[i] = srca[i] / b if b else zero
 
 
+# 考虑分母分子都可能是0的两个line的想除操作
 class DivZeroByZero(Logic):
     '''This operation is a Lines object and fills it values by executing a
     division on the numerator / denominator arguments and avoiding a division
@@ -116,7 +119,7 @@ class DivZeroByZero(Logic):
             else:
                 dst[i] = a / b
 
-
+# 对比a和b,a和b很可能是line
 class Cmp(Logic):
     def __init__(self, a, b):
         super(Cmp, self).__init__(a, b)
@@ -135,7 +138,8 @@ class Cmp(Logic):
         for i in range(start, end):
             dst[i] = cmp(srca[i], srcb[i])
 
-
+# 对比两个line,a和b，a<b的时候，返回r1相应的值，a=b的时候，返回r2相应的值，a>b的时候，返回r3相应的值
+# todo 在backtrader量化交流群中有一个朋友指出了这个问题
 class CmpEx(Logic):
     def __init__(self, a, b, r1, r2, r3):
         super(CmpEx, self).__init__(a, b, r1, r2, r3)
@@ -146,7 +150,13 @@ class CmpEx(Logic):
         self.r3 = self.args[4]
 
     def next(self):
-        self[0] = cmp(self.a[0], self.b[0])
+        # self[0] = cmp(self.a[0], self.b[0])
+        if self.a[0]<self.b[0]:
+            self[0] = self.r1[0]
+        elif self.a[0]>self.b[0]:
+            self[0] = self.r3[0]
+        else:
+            self[0] = self.r2[0]
 
     def once(self, start, end):
         # cache python dictionary lookups
@@ -168,7 +178,7 @@ class CmpEx(Logic):
             else:
                 dst[i] = r2[i]
 
-
+# if判断，对于cond满足的时候，返回a相应的值，不满足的时候，返回b相应的值
 class If(Logic):
     def __init__(self, cond, a, b):
         super(If, self).__init__(a, b)
@@ -189,7 +199,7 @@ class If(Logic):
         for i in range(start, end):
             dst[i] = srca[i] if cond[i] else srcb[i]
 
-
+# 一个逻辑应用到多个元素上
 class MultiLogic(Logic):
     def next(self):
         self[0] = self.flogic([arg[0] for arg in self.args])
@@ -204,6 +214,7 @@ class MultiLogic(Logic):
             dst[i] = flogic([arr[i] for arr in arrays])
 
 
+# 主要是调用了functools.partial生成偏函数，functools.reduce,对一个sequence迭代使用function
 class MultiLogicReduce(MultiLogic):
     def __init__(self, *args, **kwargs):
         super(MultiLogicReduce, self).__init__(*args)
@@ -213,7 +224,7 @@ class MultiLogicReduce(MultiLogic):
             self.flogic = functools.partial(functools.reduce, self.flogic,
                                             initializer=kwargs['initializer'])
 
-
+# 继承类，对flogic进行处理
 class Reduce(MultiLogicReduce):
     def __init__(self, flogic, *args, **kwargs):
         self.flogic = flogic
@@ -222,37 +233,39 @@ class Reduce(MultiLogicReduce):
 
 # The _xxxlogic functions are defined at module scope to make them
 # pickable and therefore compatible with multiprocessing
+
+# 判断x和y是不是都是True
 def _andlogic(x, y):
     return bool(x and y)
 
-
+# 判断是否是所有的元素都是True的
 class And(MultiLogicReduce):
     flogic = staticmethod(_andlogic)
 
-
+# 判断x或者y中有没有一个是真的
 def _orlogic(x, y):
     return bool(x or y)
 
-
+# 判断序列中是否有一个是真的
 class Or(MultiLogicReduce):
     flogic = staticmethod(_orlogic)
 
-
+# 求最大值
 class Max(MultiLogic):
     flogic = max
 
-
+# 求最小值
 class Min(MultiLogic):
     flogic = min
 
-
+# 求和
 class Sum(MultiLogic):
     flogic = math.fsum
 
-
+# 是否有一个
 class Any(MultiLogic):
     flogic = any
 
-
+# 是否所有的
 class All(MultiLogic):
     flogic = all

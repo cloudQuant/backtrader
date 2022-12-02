@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, MovAv
 
-
+# 三重指数移动平均斜率
 class Trix(Indicator):
     '''
     Defined by Jack Hutson in the 80s and shows the Rate of Change (%) or slope

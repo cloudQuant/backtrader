@@ -22,12 +22,14 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import backtrader as bt
+import math
 from . import TimeDrawDown
 
 
 __all__ = ['Calmar']
 
-
+# 计算calmar比例，总体上来看，这个calmar计算的并不算是太成功，或者说analyzer,observer等系列指标，使用效率并不是很高，
+# 可以考虑做一个类似pyfolio的分析模块
 class Calmar(bt.TimeFrameAnalyzerBase):
     '''This analyzer calculates the CalmarRatio
     timeframe which can be different from the one used in the underlying data
@@ -71,42 +73,49 @@ class Calmar(bt.TimeFrameAnalyzerBase):
     Attributes:
       - ``calmar`` the latest calculated calmar ratio
     '''
-
+    # 使用到的模块
     packages = ('collections', 'math',)
-
+    # 参数
     params = (
         ('timeframe', bt.TimeFrame.Months),  # default in calmar
         ('period', 36),
         ('fund', None),
     )
-
+    # 计算最大回撤
     def __init__(self):
         self._maxdd = TimeDrawDown(timeframe=self.p.timeframe,
                                    compression=self.p.compression)
-
+    # 开始
     def start(self):
+        # 最大回撤率
         self._mdd = float('-inf')
+        # 双向队列，保存period个值，默认是36个
         self._values = collections.deque([float('Nan')] * self.p.period,
                                          maxlen=self.p.period)
+        # fundmode
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-
+        # 根据fundmode添加不同的值到self._values中
         if not self._fundmode:
             self._values.append(self.strategy.broker.getvalue())
         else:
             self._values.append(self.strategy.broker.fundvalue)
 
     def on_dt_over(self):
+        # 最大回撤率
         self._mdd = max(self._mdd, self._maxdd.maxdd)
+        # 添加值到self._values中
         if not self._fundmode:
             self._values.append(self.strategy.broker.getvalue())
         else:
             self._values.append(self.strategy.broker.fundvalue)
+        # 默认情况下计算得到平均每个月的收益率
         rann = math.log(self._values[-1] / self._values[0]) / len(self._values)
+        # 计算calmar指标
         self.calmar = calmar = rann / (self._mdd or float('Inf'))
-
+        # 保存结果
         self.rets[self.dtkey] = calmar
 
     def stop(self):

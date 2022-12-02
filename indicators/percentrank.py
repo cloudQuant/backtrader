@@ -28,7 +28,7 @@ from . import BaseApplyN
 
 __all__ = ['PercentRank', 'PctRank']
 
-
+# 计算百分比排序，如果依次升高，值是0，如果依次下降，值是1
 class PercentRank(BaseApplyN):
     '''
     Measures the percent rank of the current value with respect to that of

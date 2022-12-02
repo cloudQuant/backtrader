@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import MovingAverageBase, ExponentialSmoothing
 
-
+# 指数平滑移动平均线
 class SmoothedMovingAverage(MovingAverageBase):
     '''
     Smoothing Moving Average used by Wilder in his 1978 book `New Concepts in

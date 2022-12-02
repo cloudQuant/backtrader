@@ -92,20 +92,20 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     '''
-
+    # 参数
     params = (
         ('data', None),
         ('firstopen', True),
         ('fund', None),
     )
-
+    # 开始
     def start(self):
         super(LogReturnsRolling, self).start()
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-
+        # 比较特殊的地方在于self._values设置成了一个队列，这里面self.compression这个参数用于控制队列保存多少个元素
         self._values = collections.deque([float('Nan')] * self.compression,
                                          maxlen=self.compression)
 
@@ -122,6 +122,7 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
         else:
             self._value = fundvalue if self.p.data is None else self.p.data[0]
 
+    # 在一个新的timeframe中调用一次
     def _on_dt_over(self):
         # next is called in a new timeframe period
         if self.p.data is None or len(self.p.data) > 1:
@@ -136,5 +137,11 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
     def next(self):
         # Calculate the return
         super(LogReturnsRolling, self).next()
-        self.rets[self.dtkey] = math.log(self._value / self._values[0])
+        # print(self._value,self._values[0])
+        # 策略运行的时候如果亏损太多，可能导致self._value / self._values[0]的值是0,避免这种情况
+        try:
+            self.rets[self.dtkey] = math.log(self._value / self._values[0])
+        except:
+            self.rets[self.dtkey] = 0
+            # print("计算对数收益率的时候,相应的值小于0")
         self._lastvalue = self._value  # keep last value

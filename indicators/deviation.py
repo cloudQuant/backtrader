@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, MovAv
 
-
+# 计算标准差
 class StandardDeviation(Indicator):
     '''
     Calculates the standard deviation of the passed data for a given period
@@ -69,7 +69,7 @@ class StandardDeviation(Indicator):
         else:
             self.lines.stddev = pow(meansq - sqmean, 0.5)
 
-
+# 平均偏差
 class MeanDeviation(Indicator):
     '''MeanDeviation (alias MeanDev)
 

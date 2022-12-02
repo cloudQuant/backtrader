@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 from . import (Indicator, Highest, Lowest, If, UpDay, DownDay, Accum, TrueLow,
                TrueHigh)
 
-
+# 威廉指标
 class WilliamsR(Indicator):
     '''
     Developed by Larry Williams to show the relation of closing prices to

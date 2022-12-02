@@ -28,7 +28,7 @@ from backtrader.utils.py3 import range
 
 __all__ = ['HeikinAshi']
 
-
+# HeikinAshi 形成另类的K线
 class HeikinAshi(bt.Indicator):
     '''
     Heikin Ashi candlesticks in the forms of lines

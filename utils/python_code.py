@@ -1,95 +1,9 @@
-#!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
+# python部分代码
 import datetime
 import math
 import time as _time
-from .py3 import string_types
-# from numba import jit 
-
-# 0的时间差
-ZERO = datetime.timedelta(0)
-# 使用time模块的timezone属性可以返回当地时区（未启动夏令时）距离格林威治的偏移秒数（>0，美洲<=0大部分欧洲，亚洲，非洲）
-# STDOFFSET代表非夏令时时候的偏移量
-STDOFFSET = datetime.timedelta(seconds=-_time.timezone)
-# time.daylight为0的时候代表没有夏令时，非0代表是夏令时
-if _time.daylight:
-    # time.altzone 返回当地的DST时区的偏移，在UTC西部秒数(如果有一个定义)
-    # DSTOFFSET 夏令时时的偏移量
-    DSTOFFSET = datetime.timedelta(seconds=-_time.altzone) 
-else:
-    DSTOFFSET = STDOFFSET
-# DSTDIFF 代表夏令时与非夏令时的偏移量的差
-DSTDIFF = DSTOFFSET - STDOFFSET
-
-# To avoid rounding errors taking dates to next day
-# 为了避免四舍五入偏差导致日期进入下一天，设定TIME_MAX
-TIME_MAX = datetime.time(23, 59, 59, 999990)
-
-# To avoid rounding errors taking dates to next day
-# 为了避免四舍五入偏差导致日期进入下一天，设定TIME_MIN
-TIME_MIN = datetime.time.min
 
 
-def tzparse(tz):
-    # 这个函数尝试对tz进行转换
-    # If no object has been provided by the user and a timezone can be
-    # found via contractdtails, then try to get it from pytz, which may or
-    # may not be available.
-    tzstr = isinstance(tz, string_types)
-    if tz is None or not tzstr:
-        return Localizer(tz)
-
-    try:
-        import pytz  # keep the import very local
-    except ImportError:
-        return Localizer(tz)    # nothing can be done
-
-    tzs = tz
-    if tzs == 'CST':  # usual alias
-        tzs = 'CST6CDT'
-
-    try:
-        tz = pytz.timezone(tzs)
-    except pytz.UnknownTimeZoneError:
-        return Localizer(tz)    # nothing can be done
-
-    return tz
-
-
-def Localizer(tz):
-    # 这个函数是给tz增加一个localize的方法，这个localize的方法是给dt添加一个时区信息
-    # tzparse和Localizer主要是实盘的时候处理不同的时区的时候考虑到的
-    import types
-
-    def localize(self, dt):
-        return dt.replace(tzinfo=self)
-
-    if tz is not None and not hasattr(tz, 'localize'):
-        # patch the tz instance with a bound method
-        tz.localize = types.MethodType(localize, tz)
-
-    return tz
 
 
 # A UTC class, same as the one in the Python Docs
@@ -97,56 +11,23 @@ class _UTC(datetime.tzinfo):
     """UTC"""
     # UTC 类
     def utcoffset(self, dt):
-        return ZERO
+        return datetime.timedelta(0)
 
     def tzname(self, dt):
         return "UTC"
 
     def dst(self, dt):
-        return ZERO
+        return datetime.timedelta(0)
 
     def localize(self, dt):
         return dt.replace(tzinfo=self)
 
 
-class _LocalTimezone(datetime.tzinfo):
-    '''本地时区相关的处理'''
-    # 时区的偏移量
-    def utcoffset(self, dt):
-        if self._isdst(dt):
-            return DSTOFFSET
-        else:
-            return STDOFFSET
-    # 夏令时的偏移量，不是夏令时，偏移量为0
-    def dst(self, dt):
-        if self._isdst(dt):
-            return DSTDIFF
-        else:
-            return ZERO
-        
-    # 可能是时区名称
-    def tzname(self, dt):
-        return _time.tzname[self._isdst(dt)]
 
-    # 判断当前时间是否是夏令时
-    def _isdst(self, dt):
-        tt = (dt.year, dt.month, dt.day,
-              dt.hour, dt.minute, dt.second,
-              dt.weekday(), 0, 0)
-        try:
-            stamp = _time.mktime(tt)
-        except (ValueError, OverflowError):
-            return False  # Too far in the future, not relevant
-
-        tt = _time.localtime(stamp)
-        return tt.tm_isdst > 0
-    # 给dt增加一个时区信息
-    def localize(self, dt):
-        return dt.replace(tzinfo=self)
 
 
 UTC = _UTC()
-TZLocal = _LocalTimezone()
+
 
 
 HOURS_PER_DAY = 24.0                                        # 一天24小时
@@ -159,7 +40,6 @@ MUSECONDS_PER_DAY = MUSECONDS_PER_SECOND * SECONDS_PER_DAY  # 1天有多少微�
 
 
 # 下面这四个函数是经常使用的，注释完成之后，尝试使用cython进行改写，看能提高多少的运算速度
-
 def num2date(x, tz=None, naive=True):
     # Same as matplotlib except if tz is None a naive datetime object
     # will be returned.
@@ -209,17 +89,14 @@ def num2date(x, tz=None, naive=True):
     return dt
 
 # 数字转换成日期
-
 def num2dt(num, tz=None, naive=True):
     return num2date(num, tz=tz, naive=naive).date()
 
 # 数字转换成时间
-
 def num2time(num, tz=None, naive=True):
     return num2date(num, tz=tz, naive=naive).time()
 
 # 日期时间转换成数字
-
 def date2num(dt, tz=None):
     """
     Convert :mod:`datetime` to the Gregorian date as UTC float days,
@@ -248,7 +125,6 @@ def date2num(dt, tz=None):
     return base
 
 # 时间转成数字
-
 def time2num(tm):
     """
     Converts the hour/minute/second/microsecond part of tm (datetime.datetime
@@ -260,3 +136,6 @@ def time2num(tm):
            tm.microsecond / MUSECONDS_PER_DAY)
 
     return num
+
+if __name__=="__main__":
+    pass 

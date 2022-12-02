@@ -23,6 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, And, If, MovAv, ATR
 
+# ADX相关的指标
 
 class UpMove(Indicator):
     '''

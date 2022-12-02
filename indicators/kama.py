@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import (SumN, MovingAverageBase, ExponentialSmoothingDynamic)
 
-
+# 自适应均线
 class AdaptiveMovingAverage(MovingAverageBase):
     '''
     Defined by Perry Kaufman in his book `"Smarter Trading"`.

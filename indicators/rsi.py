@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 from . import Indicator, Max, MovAv
 from . import DivZeroByZero
 
-
+# 计算RSI指标
 class UpDay(Indicator):
     '''
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in

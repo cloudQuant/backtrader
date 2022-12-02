@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, MovAv
 
-
+# macd相关的指标
 class MACD(Indicator):
     '''
     Moving Average Convergence Divergence. Defined by Gerald Appel in the 70s.

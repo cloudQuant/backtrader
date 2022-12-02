@@ -27,7 +27,7 @@ from backtrader import Analyzer
 from backtrader.mathsupport import average, standarddev
 from backtrader.utils import AutoOrderedDict
 
-
+# 获取SQN指标
 class SQN(Analyzer):
     '''SQN or SystemQualityNumber. Defined by Van K. Tharp to categorize trading
     systems.
@@ -53,23 +53,28 @@ class SQN(Analyzer):
         considered trades)
 
     '''
+    # 系统质量数
     alias = ('SystemQualityNumber',)
 
+    # 创建分析
     def create_analysis(self):
         '''Replace default implementation to instantiate an AutoOrdereDict
         rather than an OrderedDict'''
         self.rets = AutoOrderedDict()
 
+    # 开始，初始化pnl和count
     def start(self):
         super(SQN, self).start()
         self.pnl = list()
         self.count = 0
 
+    # 交易通知，如果trade是关闭的，添加盈亏
     def notify_trade(self, trade):
         if trade.status == trade.Closed:
             self.pnl.append(trade.pnlcomm)
             self.count += 1
 
+    # 停止，计算sqn指标，如果交易次数大于0，sqn等于交易盈利的平均值*交易次数的平方根/交易盈利的标准差
     def stop(self):
         if self.count > 1:
             pnl_av = average(self.pnl)
@@ -80,6 +85,6 @@ class SQN(Analyzer):
                 sqn = None
         else:
             sqn = 0
-
+        # 设置sqn的值和trades的值
         self.rets.sqn = sqn
         self.rets.trades = self.count

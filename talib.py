@@ -29,7 +29,7 @@ import sys
 import backtrader as bt
 from backtrader.utils.py3 import with_metaclass
 
-
+# 如果import talib正常，运行else下面的代码，否则，运行except下面的代码
 try:
     import talib
 except ImportError:
@@ -38,9 +38,11 @@ else:
     import numpy as np  # talib dependency
     import talib.abstract
 
+    # MA_Type
     MA_Type = talib.MA_Type
 
     # Reverse TA_FUNC_FLAGS dict
+    # 把TA_FUNC_FLAGS字典进行反转
     R_TA_FUNC_FLAGS = dict(
         zip(talib.abstract.TA_FUNC_FLAGS.values(),
             talib.abstract.TA_FUNC_FLAGS.keys()))
@@ -48,7 +50,7 @@ else:
     FUNC_FLAGS_SAMESCALE = 16777216
     FUNC_FLAGS_UNSTABLE = 134217728
     FUNC_FLAGS_CANDLESTICK = 268435456
-
+    # 把TA_OUTPUT_FLAGS字典进行反转
     R_TA_OUTPUT_FLAGS = dict(
         zip(talib.abstract.TA_OUTPUT_FLAGS.values(),
             talib.abstract.TA_OUTPUT_FLAGS.keys()))
@@ -61,20 +63,25 @@ else:
     OUT_FLAGS_LOWER = 4096
 
     # Generate all indicators as subclasses
-
+    # talib指标元类
     class _MetaTALibIndicator(bt.Indicator.__class__):
+        # 名字
         _refname = '_taindcol'
+        # 指标列
         _taindcol = dict()
 
         _KNOWN_UNSTABLE = ['SAR']
-
+        # postinit
         def dopostinit(cls, _obj, *args, **kwargs):
             # Go to parent
-            res = super(_MetaTALibIndicator, cls).dopostinit(_obj,
-                                                             *args, **kwargs)
-            _obj, args, kwargs = res
+            # todo 省略了res,结果一样，表达更简洁
+            _obj, args, kwargs = super(_MetaTALibIndicator, cls).dopostinit(_obj, *args, **kwargs)
+            # res = super(_MetaTALibIndicator, cls).dopostinit(_obj,
+            #                                                  *args, **kwargs)
+            # _obj, args, kwargs = res
 
             # Get the minimum period by using the abstract interface and params
+            # 通过抽象的接口和参数，获取需要的最小周期
             _obj._tabstract.set_function_args(**_obj.p._getkwargs())
             _obj._lookback = lookback = _obj._tabstract.lookback + 1
             _obj.updateminperiod(lookback)
@@ -83,29 +90,33 @@ else:
 
             elif cls.__name__ in cls._KNOWN_UNSTABLE:
                 _obj._lookback = 0
-
+            # findowner用于发现_obj的父类，但是是bt.Cerebro的实例
             cerebro = bt.metabase.findowner(_obj, bt.Cerebro)
             tafuncinfo = _obj._tabstract.info
             _obj._tafunc = getattr(talib, tafuncinfo['name'], None)
             return _obj, args, kwargs  # return the object and args
 
+    # talib指标类
     class _TALibIndicator(with_metaclass(_MetaTALibIndicator, bt.Indicator)):
         CANDLEOVER = 1.02  # 2% over
         CANDLEREF = 1  # Open, High, Low, Close (0, 1, 2, 3)
 
+        # 类方法
         @classmethod
         def _subclass(cls, name):
             # Module where the class has to end (namely this one)
+            # 类模块
             clsmodule = sys.modules[cls.__module__]
 
             # Create an abstract interface to get lines names
+            # 通过抽象接口获取line的名字
             _tabstract = talib.abstract.Function(name)
-
-            # Variables about the the info learnt from func_flags
+            # Variables about the  info learnt from func_flags
             iscandle = False
             unstable = False
 
             # Prepare plotinfo
+            # 准备画图信息
             plotinfo = dict()
             fflags = _tabstract.function_flags or []
             for fflag in fflags:
@@ -120,6 +131,7 @@ else:
                     iscandle = True
 
             # Prepare plotlines
+            # 准备画图的line
             lines = _tabstract.output_names
             output_flags = _tabstract.output_flags
             plotlines = dict()
@@ -153,7 +165,7 @@ else:
 
                 if pline:  # the dict has something
                     plotlines[lname] = pline
-
+            # 如果是K线
             if iscandle:
                 # This is the line that will be plotted when the output of the
                 # indicator is a candle. The values of a candle (100) will be
@@ -170,6 +182,7 @@ else:
                 plotlines[lname] = pline
 
             # Prepare dictionary for subclassing
+            # 准备创建子类的字典
             clsdict = {
                 '__module__': cls.__module__,
                 '__doc__': str(_tabstract),
@@ -184,9 +197,11 @@ else:
             newcls = type(str(name), (cls,), clsdict)  # subclass
             setattr(clsmodule, str(name), newcls)  # add to module
 
+        # oncestart
         def oncestart(self, start, end):
             pass  # if not ... a call with a single value to once will happen
 
+        # 运行一次
         def once(self, start, end):
             import array
 
@@ -208,7 +223,7 @@ else:
             else:
                 for i, o in enumerate(output):
                     self.lines[i].array = array.array(str('d'), o)
-
+        # 每个bar运行
         def next(self):
             # prepare the data arrays - single shot
             size = self._lookback or len(self)

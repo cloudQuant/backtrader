@@ -25,7 +25,7 @@ from __future__ import (absolute_import, division, print_function,
 import backtrader as bt
 from backtrader.indicators import SumN, TrueLow, TrueRange
 
-
+# 最终震荡指标
 class UltimateOscillator(bt.Indicator):
     '''
     Formula:

@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 import backtrader as bt
 from .. import Observer
 
-
+# 回撤
 class DrawDown(Observer):
     '''This observer keeps track of the current drawdown level (plotted) and
     the maxdrawdown (not plotted) levels
@@ -57,12 +57,12 @@ class DrawDown(Observer):
         kwargs = self.p._getkwargs()
         self._dd = self._owner._addanalyzer_slave(bt.analyzers.DrawDown,
                                                   **kwargs)
-
+    # 设置回撤和最大回撤的值
     def next(self):
         self.lines.drawdown[0] = self._dd.rets.drawdown  # update drawdown
         self.lines.maxdrawdown[0] = self._dd.rets.max.drawdown  # update max
 
-
+# 回撤的长度
 class DrawDownLength(Observer):
     '''This observer keeps track of the current drawdown length (plotted) and
     the drawdown max length (not plotted)
@@ -80,11 +80,12 @@ class DrawDownLength(Observer):
     def __init__(self):
         self._dd = self._owner._addanalyzer_slave(bt.analyzers.DrawDown)
 
+    # 设置回撤长度和最大回撤长度
     def next(self):
         self.lines.len[0] = self._dd.rets.len  # update drawdown length
         self.lines.maxlen[0] = self._dd.rets.max.len  # update max length
 
-
+# 最大回撤旧的方法，通过在这个类里面计算，而不是调用analyzers中的DrawDown
 class DrawDown_Old(Observer):
     '''This observer keeps track of the current drawdown level (plotted) and
     the maxdrawdown (not plotted) levels

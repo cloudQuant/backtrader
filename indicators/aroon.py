@@ -24,6 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 from . import Indicator, FindFirstIndexHighest, FindFirstIndexLowest
 
 
+# 这个文件是设计了几个计算AROON相关指标的类
 class _AroonBase(Indicator):
     '''
     Base class which does the calculation of the AroonUp/AroonDown values and

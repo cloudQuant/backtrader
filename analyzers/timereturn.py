@@ -69,6 +69,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
         price)
 
         Else the initial close will be used.
+        # 计算第一个period的收益率的时候，是否使用第一个开盘价计算，如果参数是False,就会使用第一个收盘价
 
       - ``fund`` (default: ``None``)
 
@@ -86,22 +87,24 @@ class TimeReturn(TimeFrameAnalyzerBase):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     '''
-
+    # 参数
     params = (
         ('data', None),
         ('firstopen', True),
         ('fund', None),
     )
-
+    # 开始
     def start(self):
         super(TimeReturn, self).start()
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-
+        # 开始价值
         self._value_start = 0.0
+        # 结束价值
         self._lastvalue = None
+        # 如果参数data是None的时候
         if self.p.data is None:
             # keep the initial portfolio value if not tracing a data
             if not self._fundmode:
@@ -109,6 +112,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
             else:
                 self._lastvalue = self.strategy.broker.fundvalue
 
+    # 通知fund信息
     def notify_fund(self, cash, value, fundvalue, shares):
         if not self._fundmode:
             # Record current value
@@ -121,7 +125,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
                 self._value = fundvalue  # the fund value if tracking no data
             else:
                 self._value = self.p.data[0]  # the data value if tracking data
-
+    # on_dt_over
     def on_dt_over(self):
         # next is called in a new timeframe period
         # if self.p.data is None or len(self.p.data) > 1:
@@ -134,10 +138,11 @@ class TimeReturn(TimeFrameAnalyzerBase):
                 self._value_start = self.p.data.open[0]
             else:
                 self._value_start = self.p.data[0]
-
+    # 调用next
     def next(self):
         # Calculate the return
         super(TimeReturn, self).next()
+        # self.dtkey是analyzer中设置的属性值，一般是一个period结束的日期
         self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
         # self.rets[self.dtkey] = (float(self._value) / float(self._value_start)) - 1.0
         self._lastvalue = self._value  # keep last value

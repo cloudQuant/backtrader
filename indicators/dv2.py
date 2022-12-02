@@ -28,6 +28,7 @@ from . import Indicator, SMA, PercentRank
 __all__ = ['DV2']
 
 
+# RSI指标的替代品
 class DV2(Indicator):
     '''
     RSI(2) alternative

@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, Max, MovAv, MeanDev
 
-
+# CCI指标
 class CommodityChannelIndex(Indicator):
     '''
     Introduced by Donald Lambert in 1980 to measure variations of the

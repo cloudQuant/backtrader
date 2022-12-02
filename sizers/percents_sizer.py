@@ -26,6 +26,7 @@ import backtrader as bt
 __all__ = ['PercentSizer', 'AllInSizer', 'PercentSizerInt', 'AllInSizerInt']
 
 
+# 百分比手数，根据可以利用的现金的百分比下单
 class PercentSizer(bt.Sizer):
     '''This sizer return percents of available cash
 
@@ -33,6 +34,7 @@ class PercentSizer(bt.Sizer):
       - ``percents`` (default: ``20``)
     '''
 
+    # 参数
     params = (
         ('percents', 20),
         ('retint', False),  # return an int size or rather the float value
@@ -41,6 +43,9 @@ class PercentSizer(bt.Sizer):
     def __init__(self):
         pass
 
+    # 如果当前没有持仓，根据现金的百分比计算可以下单的数目
+    # 如果当前有持仓，根据，直接使用持仓的大小作为下单的手数
+    # 如果需要转化成整数，那么就转化为整数
     def _getsizing(self, comminfo, cash, data, isbuy):
         position = self.broker.getposition(data)
         if not position:
@@ -53,7 +58,7 @@ class PercentSizer(bt.Sizer):
 
         return size
 
-
+# 利用所有的现金进行下单
 class AllInSizer(PercentSizer):
     '''This sizer return all available cash of broker
 
@@ -64,7 +69,7 @@ class AllInSizer(PercentSizer):
         ('percents', 100),
     )
 
-
+# 按照百分比进行计算下单的手数，然后要取整
 class PercentSizerInt(PercentSizer):
     '''This sizer return percents of available cash in form of size truncated
     to an int
@@ -77,7 +82,7 @@ class PercentSizerInt(PercentSizer):
         ('retint', True),  # return an int size or rather the float value
     )
 
-
+# 根据所有的现金进行下单，手数要取整
 class AllInSizerInt(PercentSizerInt):
     '''This sizer return all available cash of broker with the
     size truncated to an int

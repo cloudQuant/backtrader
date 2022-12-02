@@ -27,6 +27,10 @@ import time as _time
 import json
 import threading
 
+
+
+
+
 import oandapy
 import requests  # oandapy depdendency
 
@@ -62,6 +66,7 @@ class OandaNetworkError(oandapy.OandaError):
         super(self.__class__, self).__init__(er)
 
 
+# oanda已经暂停国内的业务，并且这个API也不能使用了，忽略这个源代码
 class API(oandapy.API):
     def request(self, endpoint, method='GET', params=None):
         # Overriden to make something sensible out of a

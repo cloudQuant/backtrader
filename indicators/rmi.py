@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import RSI
 
-
+# 计算RelativeMomentumIndex指标
 class RelativeMomentumIndex(RSI):
     '''
     Description:

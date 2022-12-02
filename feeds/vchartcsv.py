@@ -25,9 +25,9 @@ import datetime
 
 from .. import feed
 from .. import TimeFrame
-from ..utils import date2num
+from ..utils import date
 
-
+# 处理vc chart csv文件
 class VChartCSVData(feed.CSVDataBase):
     '''
     Parses a `VisualChart <http://www.visualchart.com>`_ CSV exported file.

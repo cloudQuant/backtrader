@@ -27,6 +27,7 @@ from .utils.py3 import with_metaclass
 from .metabase import MetaParams
 
 
+# 佣金类
 class CommInfoBase(with_metaclass(MetaParams)):
     '''Base Class for the Commission Schemes.
 
@@ -35,12 +36,18 @@ class CommInfoBase(with_metaclass(MetaParams)):
       - ``commission`` (def: ``0.0``): base commission value in percentage or
         monetary units
 
+        # 基础佣金，以百分比形式或者货币单位形式
+
       - ``mult`` (def ``1.0``): multiplier applied to the asset for
         value/profit
+
+        # 乘数，用于资产上计算市值或者利润
 
       - ``margin`` (def: ``None``): amount of monetary units needed to
         open/hold an operation. It only applies if the final ``_stocklike``
         attribute in the class is set to ``False``
+
+        # 保证金，如果_stocklike是False的时候，在开仓或者持有一个操作的时候需要的保证金
 
       - ``automargin`` (def: ``False``): Used by the method ``get_margin``
         to automatically calculate the margin/guarantees needed with the
@@ -51,6 +58,11 @@ class CommInfoBase(with_metaclass(MetaParams)):
           - Use param ``mult`` * ``price`` if ``automargin < 0``
 
           - Use param ``automargin`` * ``price`` if ``automargin > 0``
+
+        # automargin默认是False,在get_margin的时候，根据下面的方法自动计算保证金：
+        # 如果automargin是False，直接使用margin
+        # 如果automargin<0,直接使用乘数乘以价格
+        # 如果automargin>0,直接使用automargin*automargin
 
       - ``commtype`` (def: ``None``): Supported values are
         ``CommInfoBase.COMM_PERC`` (commission to be understood as %) and
@@ -74,8 +86,15 @@ class CommInfoBase(with_metaclass(MetaParams)):
         done with the param ``stocklike`` and the internal attribute
         ``_stocklike``
 
+        # commtype 佣金类型，默认是None,有两种佣金类型，一种是CommInfoBase.COMM_PERC，佣金将会当成百分比形式
+        # 一种是CommInfoBase.COMM_FIXED，佣金将会被当成货币单位。
+        # 如果commtype是None的话，如果margin是None,内部的佣金类型将会使用百分比形式，并且_stocklike将会被设置成True
+        # 如果commtype是None的话，如果margin不是None,内部的佣金类型将会按照固定形式，并且_stocklike被设置成False
+
       - ``stocklike`` (def: ``False``): Indicates if the instrument is
         Stock-like or Futures-like (see the ``commtype`` discussion above)
+
+        # stocklike设置成True的时候，将会按照股票的形式来；如果设置成False的时候，将会按照期货的形式来
 
       - ``percabs`` (def: ``False``): when ``commtype`` is set to COMM_PERC,
         whether the parameter ``commission`` has to be understood as XX% or
@@ -83,6 +102,10 @@ class CommInfoBase(with_metaclass(MetaParams)):
 
         If this param is ``True``: 0.XX
         If this param is ``False``: XX%
+
+        # percabs被设置成False
+        # 如果commtype被设置成百分比形式了，如果pecabs是True的话，commission被理解为其本身的值
+        # 如果commtype被设置成百分比形式了，如果pecabs是False的话，commission被理解为是一个百分比形式的值，真实值需要除以100
 
       - ``interest`` (def: ``0.0``)
 
@@ -95,6 +118,10 @@ class CommInfoBase(with_metaclass(MetaParams)):
 
         .. note:: the behavior can be changed by overriding the method:
                  ``_get_credit_interest``
+        # interest 默认是0 代表利息费用，如果是非0的话，通常代表卖空股票的时候，每年被收取的利息费用
+        # 可以使用公式：days * price * abs(size) * (interest / 365)计算持有仓位需要缴纳的利息费用
+        # interest必须是绝对值形式
+        # 计算方法可以通过重写_get_credit_interest改变
 
       - ``interest_long`` (def: ``False``)
 
@@ -102,9 +129,13 @@ class CommInfoBase(with_metaclass(MetaParams)):
         positions. If ths is ``True`` and ``interest`` is non-zero the interest
         will be charged on both directions
 
+        # 如果interest_long被设置成True的话，多空两个方向都是需要收取费用的
+
       - ``leverage`` (def: ``1.0``)
 
         Amount of leverage for the asset with regards to the needed cash
+
+        # 杠杆水平，用于计算一个资产需要的现金
 
     Attributes:
 
@@ -117,8 +148,9 @@ class CommInfoBase(with_metaclass(MetaParams)):
 
     '''
 
+    # 百分比佣金，固定佣金
     COMM_PERC, COMM_FIXED = range(2)
-
+    # 参数
     params = (
         ('commission', 0.0), ('mult', 1.0), ('margin', None),
         ('commtype', None),
@@ -129,7 +161,7 @@ class CommInfoBase(with_metaclass(MetaParams)):
         ('leverage', 1.0),
         ('automargin', False),
     )
-
+    # 初始化
     def __init__(self):
         super(CommInfoBase, self).__init__()
 
@@ -166,6 +198,7 @@ class CommInfoBase(with_metaclass(MetaParams)):
     def stocklike(self):
         return self._stocklike
 
+    # 获取margin todo 这个算法个人不太确定对不对，感觉有点不符合逻辑，后续回来检查
     def get_margin(self, price):
         '''Returns the actual margin/guarantees needed for a single item of the
         asset at the given price. The default implementation has this policy:
@@ -176,6 +209,7 @@ class CommInfoBase(with_metaclass(MetaParams)):
 
           - Use param ``automargin`` * ``price`` if ``automargin > 0``
         '''
+        # print("运行的是backtrader的get_margin")
         if not self.p.automargin:
             return self.p.margin
 
@@ -184,33 +218,46 @@ class CommInfoBase(with_metaclass(MetaParams)):
 
         return price * self.p.automargin  # int/float expected
 
+    # 获取杠杆
     def get_leverage(self):
 
         '''Returns the level of leverage allowed for this comission scheme'''
         return self.p.leverage
 
+    # 根据cash和size计算手数
     def getsize(self, price, cash):
-        '''Returns the needed size to meet a cash operation at a given price'''
+        # Returns the needed size to meet a cash operation at a given price
+        # todo 此处原版代码做了取整，在实际使用中，可能并不是很符合场景，这里去除取整
+        # if not self._stocklike:
+        #     return int(self.p.leverage * (cash // self.get_margin(price)))
+        #
+        # return int(self.p.leverage * (cash // price))
         if not self._stocklike:
-            return int(self.p.leverage * (cash // self.get_margin(price)))
+            return self.p.leverage * (cash // self.get_margin(price))
 
-        return int(self.p.leverage * (cash // price))
+        return self.p.leverage * (cash // price)
 
+    # 获取操作成本
     def getoperationcost(self, size, price):
-        '''Returns the needed amount of cash an operation would cost'''
+        # Returns the needed amount of cash an operation would cost
+        # print(f"当前运行的是{'getoperationcost'}")
         if not self._stocklike:
             return abs(size) * self.get_margin(price)
 
         return abs(size) * price
 
+    # 获取size的市值
     def getvaluesize(self, size, price):
         '''Returns the value of size for given a price. For future-like
         objects it is fixed at size * margin'''
+        # print(f"当前运行的是{'getvaluesize'}")
+        # print(size, self.get_margin(price))
         if not self._stocklike:
             return abs(size) * self.get_margin(price)
 
         return size * price
 
+    # 获取持仓的市值
     def getvalue(self, position, price):
         '''Returns the value of a position given a price. For future-like
         objects it is fixed at size * margin'''
@@ -226,6 +273,7 @@ class CommInfoBase(with_metaclass(MetaParams)):
         value += (position.price - price) * size  # increased value
         return value
 
+    # 获取佣金
     def _getcommission(self, size, price, pseudoexec):
         '''Calculates the commission of an operation at a given price
 
@@ -236,18 +284,22 @@ class CommInfoBase(with_metaclass(MetaParams)):
 
         return abs(size) * self.p.commission
 
+    # 获取佣金的接口
     def getcommission(self, size, price):
         '''Calculates the commission of an operation at a given price
         '''
         return self._getcommission(size, price, pseudoexec=True)
 
+    # 确认交易执行
     def confirmexec(self, size, price):
         return self._getcommission(size, price, pseudoexec=False)
 
+    # 计算pnl
     def profitandloss(self, size, price, newprice):
         '''Return actual profit and loss a position has'''
         return size * (newprice - price) * self.p.mult
 
+    # 调整现金
     def cashadjust(self, size, price, newprice):
         '''Calculates cash adjustment for a given price difference'''
         if not self._stocklike:
@@ -255,6 +307,7 @@ class CommInfoBase(with_metaclass(MetaParams)):
 
         return 0.0
 
+    # 计算利息费用
     def get_credit_interest(self, data, pos, dt):
         '''Calculates the credit due for short selling or product specific'''
         size, price = pos.size, pos.price
@@ -271,6 +324,7 @@ class CommInfoBase(with_metaclass(MetaParams)):
         return self._get_credit_interest(data, size, price,
                                          (dt0 - dt1).days, dt0, dt1)
 
+    # 计算利息的方法，可以重写
     def _get_credit_interest(self, data, size, price, days, dt0, dt1):
         '''
         This method returns  the cost in terms of credit interest charged by
@@ -305,6 +359,7 @@ class CommInfoBase(with_metaclass(MetaParams)):
         return days * self._creditrate * abs(size) * price
 
 
+# 佣金类，commission大小使用其本身
 class CommissionInfo(CommInfoBase):
     '''Base Class for the actual Commission Schemes.
 
@@ -326,3 +381,77 @@ class CommissionInfo(CommInfoBase):
     params = (
         ('percabs', True),  # Original CommissionInfo took 0.xx for percentages
     )
+
+
+class ComminfoDC(CommInfoBase):
+    '''实现一个数字货币的佣金类
+    '''
+    params = (
+        ('stocklike', False),
+        ('commtype', CommInfoBase.COMM_PERC),
+        ('percabs', True),
+        ("interest",3),
+    )
+
+    def _getcommission(self, size, price, pseudoexec):
+        return abs(size) * price * self.p.mult * self.p.commission
+
+    def get_margin(self, price):
+        return price * self.p.mult * self.p.margin
+
+    # 计算利息费用,这里面涉及到一些简化
+    def get_credit_interest(self, data, pos, dt):
+        ''' 例如我持有100U，要买300U的BTC，杠杆为三倍，这时候我只需要借入2*100U的钱就可以了，
+       所以利息应该是200U * interest，同理，对于n倍开多，需要付（n-1）*base的利息
+        如果我要开空，我只有100U，我必须借入BTC先卖掉，就算是一倍开空，也得借入100U的BTC，
+        所以对于n倍开空，需要付n*base的利息'''
+        # 仓位及价格
+        size, price = pos.size, pos.price
+        # 持仓时间
+        dt0 = dt
+        dt1 = pos.datetime
+        gap_seconds = (dt0 - dt1).seconds
+        days = gap_seconds/(24*60*60)
+        # 计算当前的持仓价值
+        position_value = size * price * self.p.mult
+        # 如果当前的持仓是多头，并且持仓价值大于1倍杠杆，超过1倍杠杆的部分将会收取利息费用
+        total_value = self.getvalue()
+        if size > 0 and position_value > total_value:
+            return days * self.self._creditrate * (position_value-total_value)
+        # 如果持仓是多头，但是在一倍杠杆之内
+        if size > 0 and position_value <= total_value:
+            return 0
+        # 如果当前是做空的交易，计算利息
+        if size < 0 :
+            return days * self.self._creditrate * position_value
+
+class ComminfoFuturesPercent(CommInfoBase):
+    '''write by myself,using in the future backtest,it means we should give a percent comminfo to broker'''
+    params = (
+        ('stocklike', False),
+        ('commtype', CommInfoBase.COMM_PERC),
+        ('percabs', True)
+    )
+    # print("运行的是ComminfoFuturesPercent的get_margin")
+    def _getcommission(self, size, price, pseudoexec):
+        return abs(size) * price * self.p.mult * self.p.commission
+
+    def get_margin(self, price):
+        return price * self.p.mult * self.p.margin
+
+# comm_rb = CommInfoFutures(commission=1e-4, margin=0.09, mult=10.0)
+# cerebro = bt.Cerebro()
+# cerebro.broker.addcommissioninfo(comm_rb, name='RB')
+
+class ComminfoFuturesFixed(CommInfoBase):
+    '''write by myself,using in the future backtest,it means we should give a fixed comminfo evey lot to broker'''
+    params = (
+        ('stocklike', False),
+        ('commtype', CommInfoBase.COMM_FIXED),
+        ('percabs', True)
+        )
+    def _getcommission(self, size, price, pseudoexec):
+        return abs(size) *  self.p.commission
+
+    def get_margin(self, price):
+        return price * self.p.mult * self.p.margin

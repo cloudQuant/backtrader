@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, MovAv
 
-
+# 去除趋势后的价格波动
 class DetrendedPriceOscillator(Indicator):
     '''
     Defined by Joe DiNapoli in his book *"Trading with DiNapoli levels"*

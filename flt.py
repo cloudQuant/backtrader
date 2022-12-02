@@ -28,11 +28,12 @@ from .utils.py3 import with_metaclass
 
 __all__ = ['Filter']
 
-
+# Filter元类
 class MetaFilter(MetaParams):
     pass
 
 
+# filter类
 class Filter(with_metaclass(MetaParams, object)):
 
     _firsttime = True
@@ -41,10 +42,11 @@ class Filter(with_metaclass(MetaParams, object)):
         pass
 
     def __call__(self, data):
+        # 如果是第一次，就调用nextstart,然后把_firsttime设置成False
         if self._firsttime:
             self.nextstart(data)
             self._firsttime = False
-
+        # 调用next
         self.next(data)
 
     def nextstart(self, data):

@@ -26,6 +26,7 @@ import backtrader.feed as feed
 from ..utils import date2num
 import datetime as dt
 
+# 时间周期的对应
 TIMEFRAMES = dict(
     (
         (bt.TimeFrame.Seconds, 's'),
@@ -38,12 +39,14 @@ TIMEFRAMES = dict(
 )
 
 
+# backtrader从influxDB获取数据
 class InfluxDB(feed.DataBase):
+    # 导入包
     frompackages = (
         ('influxdb', [('InfluxDBClient', 'idbclient')]),
         ('influxdb.exceptions', 'InfluxDBClientError')
     )
-
+    # 参数
     params = (
         ('host', '127.0.0.1'),
         ('port', '8086'),
@@ -60,18 +63,20 @@ class InfluxDB(feed.DataBase):
         ('ointerest', 'oi'),
     )
 
+    # 开始
     def start(self):
         super(InfluxDB, self).start()
+        # 尝试连接数据库
         try:
             self.ndb = idbclient(self.p.host, self.p.port, self.p.username,
                                  self.p.password, self.p.database)
         except InfluxDBClientError as err:
             print('Failed to establish connection to InfluxDB: %s' % err)
-
+        # 具体的时间周期                                                                                    
         tf = '{multiple}{timeframe}'.format(
             multiple=(self.p.compression if self.p.compression else 1),
             timeframe=TIMEFRAMES.get(self.p.timeframe, 'd'))
-
+        # 开始时间
         if not self.p.startdate:
             st = '<= now()'
         else:
@@ -79,6 +84,7 @@ class InfluxDB(feed.DataBase):
 
         # The query could already consider parameters like fromdate and todate
         # to have the database skip them and not the internal code
+        # 具体的数据库获取数据需要设置的命令
         qstr = ('SELECT mean("{open_f}") AS "open", mean("{high_f}") AS "high", '
                 'mean("{low_f}") AS "low", mean("{close_f}") AS "close", '
                 'mean("{vol_f}") AS "volume", mean("{oi_f}") AS "openinterest" '
@@ -89,15 +95,16 @@ class InfluxDB(feed.DataBase):
                     low_f=self.p.low, close_f=self.p.close,
                     vol_f=self.p.volume, oi_f=self.p.ointerest,
                     timeframe=tf, begin=st, dataname=self.p.dataname)
-
+        # 获取数据
         try:
             dbars = list(self.ndb.query(qstr).get_points())
         except InfluxDBClientError as err:
             print('InfluxDB query failed: %s' % err)
-
+        # 迭代数据
         self.biter = iter(dbars)
 
     def _load(self):
+        # 尝试获取下个bar的数据，然后添加到line中
         try:
             bar = next(self.biter)
         except StopIteration:

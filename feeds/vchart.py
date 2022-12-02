@@ -29,7 +29,7 @@ from .. import feed
 from .. import TimeFrame
 from ..utils import date2num
 
-
+# 处理 vc chart的二进制数据，支持天或者日内数据格式
 class VChartData(feed.DataBase):
     '''
     Support for `Visual Chart <www.visualchart.com>`_ binary on-disk files for

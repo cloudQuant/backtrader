@@ -30,6 +30,7 @@ from ..utils.py3 import map, range
 from . import Indicator
 
 
+# PeriodN这个类给整个系统增加了需要满足的最小的周期
 class PeriodN(Indicator):
     '''
     Base class for indicators which take a period (__init__ has to be called
@@ -44,6 +45,7 @@ class PeriodN(Indicator):
         self.addminperiod(self.p.period)
 
 
+# 使用func计算过去N个周期的数据，func是一个可调用的函数
 class OperationN(PeriodN):
     '''
     Calculates "func" for a given period
@@ -69,7 +71,7 @@ class OperationN(PeriodN):
         for i in range(start, end):
             dst[i] = func(src[i - period + 1: i + 1])
 
-
+# 设置计算指标的时候的可调用函数
 class BaseApplyN(OperationN):
     '''
     Base class for ApplyN and others which may take a ``func`` as a parameter
@@ -89,7 +91,7 @@ class BaseApplyN(OperationN):
         self.func = self.p.func
         super(BaseApplyN, self).__init__()
 
-
+# 根据设置的可调用函数计算具体的line
 class ApplyN(BaseApplyN):
     '''
     Calculates ``func`` for a given period
@@ -100,6 +102,7 @@ class ApplyN(BaseApplyN):
     lines = ('apply',)
 
 
+# 计算过去N个周期的最高价
 class Highest(OperationN):
     '''
     Calculates the highest value for the data in a given period
@@ -114,6 +117,7 @@ class Highest(OperationN):
     func = max
 
 
+# 计算过去N个周期的最低价
 class Lowest(OperationN):
     '''
     Calculates the lowest value for the data in a given period
@@ -128,6 +132,7 @@ class Lowest(OperationN):
     func = min
 
 
+# 模仿python的reduce功能
 class ReduceN(OperationN):
     '''
     Calculates the Reduced value of the ``period`` data points applying
@@ -158,6 +163,7 @@ class ReduceN(OperationN):
         super(ReduceN, self).__init__()
 
 
+# 求过去N周期的和
 class SumN(OperationN):
     '''
     Calculates the Sum of the data values over a given period
@@ -172,6 +178,7 @@ class SumN(OperationN):
     func = math.fsum
 
 
+# 如果过去N周期有一个是True，就返回True
 class AnyN(OperationN):
     '''
     Has a value of ``True`` (stored as ``1.0`` in the lines) if *any* of the
@@ -185,7 +192,7 @@ class AnyN(OperationN):
     lines = ('anyn',)
     func = any
 
-
+# 如果过去N周期所有的都是True，就返回True
 class AllN(OperationN):
     '''
     Has a value of ``True`` (stored as ``1.0`` in the lines) if *all* of the
@@ -199,7 +206,7 @@ class AllN(OperationN):
     lines = ('alln',)
     func = all
 
-
+# 返回满足条件的最早出现的数据
 class FindFirstIndex(OperationN):
     '''
     Returns the index of the last data that satisfies equality with the
@@ -219,7 +226,7 @@ class FindFirstIndex(OperationN):
         m = self.p._evalfunc(iterable)
         return next(i for i, v in enumerate(reversed(iterable)) if v == m)
 
-
+# 获取过去当中最早出现的最高的价格
 class FindFirstIndexHighest(FindFirstIndex):
     '''
     Returns the index of the first data that is the highest in the period
@@ -233,7 +240,7 @@ class FindFirstIndexHighest(FindFirstIndex):
     '''
     params = (('_evalfunc', max),)
 
-
+# 获取过去当中最早出现的最低的价格
 class FindFirstIndexLowest(FindFirstIndex):
     '''
     Returns the index of the first data that is the lowest in the period
@@ -248,6 +255,7 @@ class FindFirstIndexLowest(FindFirstIndex):
     params = (('_evalfunc', min),)
 
 
+# 获取满足条件的最后一个的index
 class FindLastIndex(OperationN):
     '''
     Returns the index of the last data that satisfies equality with the
@@ -271,7 +279,7 @@ class FindLastIndex(OperationN):
         # period - index = 1 ... and must be zero!
         return self.p.period - index - 1
 
-
+# 获取过去当中最晚出现的最高的价格
 class FindLastIndexHighest(FindLastIndex):
     '''
     Returns the index of the last data that is the highest in the period
@@ -285,7 +293,7 @@ class FindLastIndexHighest(FindLastIndex):
     '''
     params = (('_evalfunc', max),)
 
-
+# 获取过去当中最晚出现的最低的价格
 class FindLastIndexLowest(FindLastIndex):
     '''
     Returns the index of the last data that is the lowest in the period
@@ -299,7 +307,7 @@ class FindLastIndexLowest(FindLastIndex):
     '''
     params = (('_evalfunc', min),)
 
-
+# 计算累计值
 class Accum(Indicator):
     '''
     Cummulative sum of the data values
@@ -337,7 +345,7 @@ class Accum(Indicator):
         for i in range(start, end):
             dst[i] = prev = prev + src[i]
 
-
+# 计算平均值
 class Average(PeriodN):
     '''
     Averages a given data arithmetically over a period
@@ -363,7 +371,7 @@ class Average(PeriodN):
         for i in range(start, end):
             dst[i] = math.fsum(src[i - period + 1:i + 1]) / period
 
-
+# 计算指数平均值
 class ExponentialSmoothing(Average):
     '''
     Averages a given data over a period using exponential smoothing
@@ -411,7 +419,7 @@ class ExponentialSmoothing(Average):
         for i in range(start, end):
             larray[i] = prev = prev * alpha1 + darray[i] * alpha
 
-
+# 动态指数移动平均值
 class ExponentialSmoothingDynamic(ExponentialSmoothing):
     '''
     Averages a given data over a period using exponential smoothing
@@ -454,7 +462,7 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
         for i in range(start, end):
             larray[i] = prev = prev * alpha1[i] + darray[i] * alpha[i]
 
-
+# 加权移动平均值
 class WeightedAverage(PeriodN):
     '''
     Calculates the weighted average of the given data over a period

@@ -39,6 +39,7 @@ class MetaVChartFile(bt.DataBase.__class__):
         bt.stores.VChartFile.DataCls = cls
 
 
+
 class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
     '''
     Support for `Visual Chart <www.visualchart.com>`_ binary on-disk files for

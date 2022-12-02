@@ -26,6 +26,7 @@ from . import PeriodN
 
 __all__ = ['ParabolicSAR', 'PSAR']
 
+# 这个用于计算SAR指标
 
 class _SarStatus(object):
     sar = None

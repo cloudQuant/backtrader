@@ -28,7 +28,7 @@ from . import MovAv
 
 __all__ = ['haDelta', 'haD']
 
-
+# haDelta指标
 class haDelta(bt.Indicator):
     '''Heikin Ashi Delta. Defined by Dan Valcu in his book "Heikin-Ashi: How to
     Trade Without Candlestick Patterns ".

@@ -25,6 +25,7 @@ from __future__ import (absolute_import, division, print_function,
 from . import GenericCSVData
 
 
+#  时间格式是'%Y/%m/%d'的读取方式
 class SierraChartCSVData(GenericCSVData):
     '''
     Parses a `SierraChart <http://www.sierrachart.com>`_ CSV exported file.

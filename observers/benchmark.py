@@ -24,7 +24,7 @@ from __future__ import (absolute_import, division, print_function,
 import backtrader as bt
 from . import TimeReturn
 
-
+# 基准
 class Benchmark(TimeReturn):
     '''This observer stores the *returns* of the strategy and the *return* of a
     reference asset which is one of the datas passed to the system.
@@ -95,7 +95,7 @@ class Benchmark(TimeReturn):
         labels = super(Benchmark, self)._plotlabel()
         labels.append(self.p.data._name)
         return labels
-
+    # 初始化，如果没有设置data,用第一个data
     def __init__(self):
         if self.p.data is None:  # use the 1st data in the system if none given
             self.p.data = self.data0
@@ -104,16 +104,18 @@ class Benchmark(TimeReturn):
         # Create a time return object without the data
         kwargs = self.p._getkwargs()
         kwargs.update(data=None)  # to create a return for the stratey
+        # 获取收益率
         t = self._owner._addanalyzer_slave(bt.analyzers.TimeReturn, **kwargs)
 
         # swap for consistency
         self.treturn, self.tbench = t, self.treturn
 
+    # 设置benchmark的值
     def next(self):
         super(Benchmark, self).next()
         self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey,
                                                        float('NaN'))
-
+    # prenext
     def prenext(self):
         if self.p._doprenext:
             super(TimeReturn, self).prenext()

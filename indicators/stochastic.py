@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import Indicator, Max, MovAv, Highest, Lowest, DivByZero
 
-
+# kdj随机指标
 class _StochasticBase(Indicator):
     lines = ('percK', 'percD',)
     params = (('period', 14), ('period_dfast', 3), ('movav', MovAv.Simple),

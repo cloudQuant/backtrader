@@ -36,12 +36,11 @@ from matplotlib.dates import (HOURS_PER_DAY, MIN_PER_HOUR, SEC_PER_MIN,
                               MONTHS_PER_YEAR, DAYS_PER_WEEK,
                               SEC_PER_HOUR, SEC_PER_DAY,
                               num2date, rrulewrapper, YearLocator,
-                              # MicrosecondLocator, warnings)
                               MicrosecondLocator)
-import warnings 
+
 from dateutil.relativedelta import relativedelta
 import numpy as np
-
+import warnings 
 
 def _idx2dt(idx, dates, tz):
     if isinstance(idx, datetime.date):
@@ -245,4 +244,4 @@ class AutoDateFormatter(ADFormatter):
 
         ix = self._dates[x]
 
-        return super(AutoDateFormatter, self).__call__(ix, pos)
+        return super(AutoDateFormatter, self)

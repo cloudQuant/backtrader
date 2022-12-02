@@ -26,7 +26,7 @@ import sys
 
 from . import Indicator, MovingAverage
 
-
+# 创造震荡指标
 class OscillatorMixIn(Indicator):
     '''
     MixIn class to create a subclass with another indicator. The main line of
