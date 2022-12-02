@@ -1,21 +1,26 @@
 # backtrader
 
 #### 介绍
-使用cython\numba\numpy提高backtrader的回测效率
+基于backtrader打造最好用的量化投研工具
 
+
+#### 改进升级计划
+
+- [x] 对backtrader源代码进行解读注释
+- [ ] 2023年实现对接vnpy\qmt\wxty\ctp等实现实盘交易
+- [ ] 基于numpy\cython\numba\c\c++等对backtrader源代码进行改进优化，提高回测速度
 
 
 #### 安装教程
-如果使用的是anaconda创建的虚拟环境，可以参考下面的方法
-1.  cd ./anaconda3/envs/backtrader_cython/lib/python3.7/site-packages/
+进入到目标路径下面，通常是/xxx/site-packages,然后进行clone
+1.  cd  site-packages
 2.  git clone https://gitee.com/quant-yunjinqi/backtrader.git
-
-
-
 
 #### 使用说明
 
-使用方法参考backtrader系列教程：https://blog.csdn.net/qq_26948675/category_10220116.html
+1. [参考官方的文档和论坛](https://www.backtrader.com/)
+2. [参考我在csdn的付费专栏](https://blog.csdn.net/qq_26948675/category_10220116.html)
+3.  网络上也有很多的backtrader的学习资源，大家可以百度
 
 #### 相关改动
 
