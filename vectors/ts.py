@@ -1,0 +1,370 @@
+import copy
+
+import pandas as pd
+import numpy as np
+# import numpy as np
+# import matplotlib.pyplot as plt
+from pyecharts import options as opts
+# from pyecharts.commons.utils import JsCode
+from pyecharts.charts import Kline, Line, Bar, Grid, EffectScatter
+# from pyecharts.globals import SymbolType
+# from typing import List, Union
+from pyecharts.faker import Faker
+import warnings
+warnings.filterwarnings("ignore")
+
+def get_symbol(contract_name):
+    # 根据具体的期货合约获取标的资产的代码
+    """
+    返回的数据是：大写字母
+    输入的数据是具体的合约，如：A0501.XDCE，返回A
+    """
+    return ''.join([i for i in contract_name.split('.')[0] if i.isalpha()]).upper()
+
+def get_rate_sharpe_drawdown(data):
+
+    # 计算夏普率，复利年化收益率，最大回撤率
+    # 对于小于日线周期的，抽取每日最后的value作为一个交易日的最终的value，
+    # 对于期货的分钟数据而言，并不是按照15：00收盘算，可能会影响一点点夏普率等指标的计算，但是影响不大。
+    # 判断数据中是否有nan
+    data = data[['total_value']]
+    data = data.copy()
+    # print(data.isnull().values.any())
+    # if data.isnull().values.any():
+    #     assert 0
+    #     print(data)
+    #     print(data.isnull().values.any())
+    data.loc[:,'date'] = [i.date() for i in data.index]
+    data1 = data.drop_duplicates("date", keep='last')
+    # data1.index = pd.to_datetime(data1['date'])
+    data1['pre_total_value'] = data1['total_value'].shift(1)
+    data1 = data1.dropna()
+    # print(data1)
+    if len(data1) == 0:
+        return np.NaN, np.NaN, np.NaN
+    # 假设一年的交易日为252天
+    data1.loc[:, 'rate1'] = np.log(data1['total_value']/data1['pre_total_value'])
+
+    # data['rate2']=data['total_value'].pct_change()
+    data1 = data1.dropna()
+    sharpe_ratio = data1['rate1'].mean() * 252 ** 0.5 / (data1['rate1'].std())
+    # 年化收益率为：
+    value_list = list(data['total_value'])
+    begin_value = value_list[0]
+    end_value = value_list[-1]
+    begin_date = data.index[0]
+    end_date = data.index[-1]
+    days = (end_date - begin_date).days
+    # print(begin_date,begin_value,end_date,end_value,1/(days/365))
+    # 如果计算的实际收益率为负数的话，就默认为最大为0,收益率不能为负数
+    total_rate = max((end_value - begin_value) / begin_value, -0.9999)
+    average_rate = (1 + total_rate) ** (1 / (days / 365)) - 1
+    # 计算最大回撤
+    data['pre_total_value'] = data['total_value'].shift(1)
+    data.loc[:, 'rate1'] = np.log(data['total_value']/data['pre_total_value'])
+
+    df = data['rate1'].cumsum().dropna()
+    index_j = np.argmax(np.array(np.maximum.accumulate(df) - df))
+    index_i = np.argmax(np.array(df[:index_j]))  # 开始位置
+    # print("最大回撤开始时间",index_i)
+    max_drawdown = (np.e ** df[index_j] - np.e ** df[index_i]) / np.e ** df[index_i]
+
+    return sharpe_ratio, average_rate, max_drawdown
+
+# 创建一个时间序列的类，用于采用向量的方法计算时间序列的
+class AlphaTs(object):
+    # 传入具体的数据和函数进行初始化
+    def __init__(self, datas, alpha_func, signal_func):
+        # datas是字典格式，key是品种的名字，value是df格式，index是datetime,包含open,high,low,close,volume,openinterest
+        self.datas = datas
+        self.alpha_func = alpha_func
+        self.signal_func = signal_func
+
+    # 根据高开低收的数据和具体的信号，计算收益率、累计收益率和净值
+    def cal_factor_return(self,data):
+        data.loc[:, 'return'] = data['ret'] * data['signal']
+        data.loc[:, 'sum_ret'] = data['return'].cumsum()
+        data.loc[:, 'total_value'] = data['sum_ret'] + 1
+        data = data.drop(['return', 'sum_ret'], axis=1 )
+        return data
+
+    # 计算具体的alpha值并根据具体的alpha值计算信号，并计算具体的收益
+    def cal_alpha_signal_return(self):
+        datas = {}
+        for key in self.datas:
+            df = self.datas[key]
+            df = self.alpha_func(df)
+            df = self.signal_func(df)
+            df = self.cal_factor_return(df)
+            datas[key] = df
+        self.datas = datas
+
+    def run(self,plot=False):
+        self.cal_alpha_signal_return()
+        # 计算各个品种的夏普率之类的数据，保存到结果中
+        result = []
+        for key in self.datas:
+            # print(key)
+            sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.datas[key])
+            result.append([key, sharpe_ratio, average_rate, max_drawdown])
+        result_df = pd.DataFrame(result,columns=['symbol', 'sharpe_ratio', 'average_rate', 'max_drawdown'])
+        return result_df
+
+    # 打印某个品种的信号
+    def plot_signal(self, symbol, save_path=""):
+        data = self.datas[symbol]
+        length = len(data)
+        datetime_list = list(data.index)
+        open_list = list(data['open'])
+        high_list = list(data['high'])
+        low_list = list(data['low'])
+        close_list = list(data['close'])
+        volume_list = list(data['volume'])
+        # openinterest_list = list(data['open_interest'])
+        x_data = datetime_list
+        y_data = [[m, n, x, y, z] for m, n, x, y, z in zip(open_list, close_list, low_list, high_list, volume_list)]
+        color_list = [1 if m < n else -1 for m, n, x, y, z in
+                          zip(open_list, close_list, low_list, high_list, volume_list)]
+        index_list = list(range(len(x_data)))
+        vol_data = [[x, y, z] for x, y, z in zip(index_list, volume_list, color_list)]
+        # 画出来具体的K线
+        kline = (
+            Kline()
+            .add_xaxis(xaxis_data=x_data)
+            .add_yaxis(
+                series_name=symbol,
+                y_axis=y_data,
+                itemstyle_opts=opts.ItemStyleOpts(
+                    color="#ef232a",
+                    color0="#14b143",
+                    border_color="#ef232a",
+                    border_color0="#14b143",
+                ),
+                markpoint_opts=opts.MarkPointOpts(
+
+                    data=[
+                        opts.MarkPointItem(type_="max", name="最大值"),
+                        opts.MarkPointItem(type_="min", name="最小值"),
+                    ]
+                )
+            )
+            .set_global_opts(
+                legend_opts=opts.LegendOpts(
+                    is_show=False, pos_bottom=10, pos_left="center"
+                ),
+                datazoom_opts=[
+                    opts.DataZoomOpts(
+                        is_show=False,
+                        type_="inside",
+                        xaxis_index=[0, 1],
+                        range_start=98,
+                        range_end=100,
+                    ),
+                    opts.DataZoomOpts(
+                        is_show=True,
+                        xaxis_index=[0, 1],
+                        type_="slider",
+                        pos_top="85%",
+                        range_start=98,
+                        range_end=100,
+                    ),
+                ],
+                yaxis_opts=opts.AxisOpts(
+                    is_scale=True,
+                    splitarea_opts=opts.SplitAreaOpts(
+                        is_show=True, areastyle_opts=opts.AreaStyleOpts(opacity=1)
+                    ),
+                ),
+                tooltip_opts=opts.TooltipOpts(
+                    trigger="axis",
+                    axis_pointer_type="cross",
+                    background_color="rgba(245, 245, 245, 0.8)",
+                    border_width=1,
+                    border_color="#ccc",
+                    textstyle_opts=opts.TextStyleOpts(color="#000"),
+                ),
+                visualmap_opts=opts.VisualMapOpts(
+                    is_show=False,
+                    dimension=2,
+                    series_index=5,
+                    is_piecewise=True,
+                    pieces=[
+                        {"value": 1, "color": "#00da3c"},
+                        {"value": -1, "color": "#ec0000"},
+                    ],
+                ),
+                axispointer_opts=opts.AxisPointerOpts(
+                    is_show=True,
+                    link=[{"xAxisIndex": "all"}],
+                    label=opts.LabelOpts(background_color="#777"),
+                ),
+                brush_opts=opts.BrushOpts(
+                    x_axis_index="all",
+                    brush_link="all",
+                    out_of_brush={"colorAlpha": 0.1},
+                    brush_type="lineX",
+                ),
+            )
+        )
+
+        # 分析bar的颜色，并进行设置
+        y = []
+        for idx, item in enumerate(vol_data):
+            # print(idx, item)
+            t = item[2]
+            if t > 0:
+                y.append(
+                    opts.BarItem(
+                        name="volume",
+                        value=item[1],
+                        itemstyle_opts=opts.ItemStyleOpts(color="red"),
+                    )
+                )
+            else:
+                y.append(
+                    opts.BarItem(
+                        name="volume",
+                        value=item[1],
+                        itemstyle_opts=opts.ItemStyleOpts(color="green"),
+                    )
+                )
+        bar = (
+            Bar()
+            .add_xaxis(xaxis_data=x_data)
+            .add_yaxis(
+                series_name="Volume",
+                y_axis=y,
+                xaxis_index=1,
+                yaxis_index=1,
+                label_opts=opts.LabelOpts(is_show=False),
+                category_gap=0,
+                color=Faker.rand_color())
+
+            .set_global_opts(
+                xaxis_opts=opts.AxisOpts(
+                    type_="category",
+                    is_scale=True,
+                    grid_index=1,
+                    boundary_gap=False,
+                    axisline_opts=opts.AxisLineOpts(is_on_zero=False),
+                    axistick_opts=opts.AxisTickOpts(is_show=False),
+                    splitline_opts=opts.SplitLineOpts(is_show=False),
+                    axislabel_opts=opts.LabelOpts(is_show=False),
+                    split_number=20,
+                    min_="dataMin",
+                    max_="dataMax",
+                ),
+                yaxis_opts=opts.AxisOpts(
+                    grid_index=1,
+                    is_scale=True,
+                    split_number=2,
+                    axislabel_opts=opts.LabelOpts(is_show=False),
+                    axisline_opts=opts.AxisLineOpts(is_show=False),
+                    axistick_opts=opts.AxisTickOpts(is_show=False),
+                    splitline_opts=opts.SplitLineOpts(is_show=False),
+                ),
+                legend_opts=opts.LegendOpts(is_show=False),
+            )
+        )
+
+        # 画出来具体的交易的线段
+        first_signal = None
+        # print(data[['signal']])
+        data.to_csv("测试signal.csv")
+        for datetime_, signal, high_, low_ in zip(data.index, data['signal'], data['high'], data['low']):
+            if first_signal is None:
+                first_signal = signal
+                first_datetime = datetime_
+                first_high = high_
+                first_low = low_
+            print(f"first_datetime:{first_datetime},first_signal:{first_signal}, datetime:{datetime_},signal:{signal}")
+            # 如果信号发生了变化,画出来具体的线段
+            if signal != first_signal:
+
+                if first_signal == 1:
+                    long_line = (
+                        Line()
+                        .add_xaxis(xaxis_data=[first_datetime,datetime_])
+                        .add_yaxis(
+                            series_name="long_signal",
+                            y_axis=[first_low*0.99, high_*1.01],
+                            is_smooth=False,
+                            # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
+                            linestyle_opts=opts.LineStyleOpts(color="red", width=5, type_='dotted'),
+                            label_opts=opts.LabelOpts(is_show=False),
+                            symbol='arrow'
+                        )
+                        .set_global_opts(
+                            xaxis_opts=opts.AxisOpts(
+                                type_="category",
+                                grid_index=1,
+                                axislabel_opts=opts.LabelOpts(is_show=False),
+                            ),
+                            yaxis_opts=opts.AxisOpts(
+                                grid_index=1,
+                                split_number=3,
+                                axisline_opts=opts.AxisLineOpts(is_on_zero=False),
+                                axistick_opts=opts.AxisTickOpts(is_show=False),
+                                splitline_opts=opts.SplitLineOpts(is_show=False),
+                                axislabel_opts=opts.LabelOpts(is_show=True),
+                            ),
+                        )
+                    )
+                    kline = kline.overlap(long_line)
+                if first_signal == -1:
+                    # 测试
+                    short_line = (
+                        Line()
+                        .add_xaxis(xaxis_data=[first_datetime,datetime_])
+                        .add_yaxis(
+                            series_name="short_signal",
+                            y_axis=[first_high*1.01, low_*0.99],
+                            is_smooth=False,
+                            # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
+                            linestyle_opts=opts.LineStyleOpts(color="green", width=5, type_='dotted'),
+                            label_opts=opts.LabelOpts(is_show=False),
+                            symbol='arrow'
+                        )
+                        .set_global_opts(
+                            xaxis_opts=opts.AxisOpts(
+                                type_="category",
+                                grid_index=1,
+                                axislabel_opts=opts.LabelOpts(is_show=False),
+                            ),
+                            yaxis_opts=opts.AxisOpts(
+                                grid_index=1,
+                                split_number=3,
+                                axisline_opts=opts.AxisLineOpts(is_on_zero=False),
+                                axistick_opts=opts.AxisTickOpts(is_show=False),
+                                splitline_opts=opts.SplitLineOpts(is_show=False),
+                                axislabel_opts=opts.LabelOpts(is_show=True),
+                            ),
+                        )
+                    )
+                    kline = kline.overlap(short_line)
+                first_signal = signal
+                first_datetime = datetime_
+                first_high = high_
+                first_low = low_
+
+
+        # Grid Overlap + Bar
+        grid_chart = Grid(
+            init_opts=opts.InitOpts(
+                width="2000px",
+                height="1000px",
+                animation_opts=opts.AnimationOpts(animation=False),
+            )
+        )
+        grid_chart.add(
+            kline,
+            grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%", height="50%"),
+        )
+        grid_chart.add(
+            bar,
+            grid_opts=opts.GridOpts(
+                pos_left="10%", pos_right="8%", pos_top="63%", height="16%"
+            ),
+        )
+
+        grid_chart.render(save_path+f"{symbol}_ts_signal.html")
