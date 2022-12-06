@@ -1,18 +1,19 @@
-import copy
-
+# import copy
 import pandas as pd
-import numpy as np
+# import numpy as np
 # import numpy as np
 # import matplotlib.pyplot as plt
-from backtrader.vectors.cal_performance import  get_symbol, get_rate_sharpe_drawdown
+from backtrader.vectors.cal_performance import cal_factor_return, get_rate_sharpe_drawdown
 from pyecharts import options as opts
 # from pyecharts.commons.utils import JsCode
-from pyecharts.charts import Kline, Line, Bar, Grid, EffectScatter
+from pyecharts.charts import Kline, Line, Bar, Grid
 # from pyecharts.globals import SymbolType
 # from typing import List, Union
 from pyecharts.faker import Faker
 import warnings
+
 warnings.filterwarnings("ignore")
+
 
 # 创建一个时间序列的类，用于采用向量的方法计算时间序列的
 class AlphaTs(object):
@@ -23,19 +24,11 @@ class AlphaTs(object):
         self.datas = datas
         self.params = params
 
-    def cal_alpha(self):
+    def cal_alpha(self, data):
         pass
 
-    def cal_signal(self):
+    def cal_signal(self, data):
         pass
-
-    # 根据高开低收的数据和具体的信号，计算收益率、累计收益率和净值
-    def cal_factor_return(self,data):
-        data.loc[:, 'return'] = data['ret'] * data['signal']
-        data.loc[:, 'sum_ret'] = data['return'].cumsum()
-        data.loc[:, 'total_value'] = data['sum_ret'] + 1
-        data = data.drop(['return', 'sum_ret'], axis=1 )
-        return data
 
     # 计算具体的alpha值并根据具体的alpha值计算信号，并计算具体的收益
     def cal_alpha_signal_return(self):
@@ -44,11 +37,11 @@ class AlphaTs(object):
             df = self.datas[key]
             df = self.cal_alpha(df)
             df = self.cal_signal(df)
-            df = self.cal_factor_return(df)
+            df = cal_factor_return(df)
             datas[key] = df
         self.datas = datas
 
-    def run(self,plot=False):
+    def run(self):
         self.cal_alpha_signal_return()
         # 计算各个品种的夏普率之类的数据，保存到结果中
         result = []
@@ -56,13 +49,12 @@ class AlphaTs(object):
             # print(key)
             sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.datas[key])
             result.append([key, sharpe_ratio, average_rate, max_drawdown])
-        result_df = pd.DataFrame(result,columns=['symbol', 'sharpe_ratio', 'average_rate', 'max_drawdown'])
+        result_df = pd.DataFrame(result, columns=['symbol', 'sharpe_ratio', 'average_rate', 'max_drawdown'])
         return result_df
 
     # 打印某个品种的信号
     def plot_signal(self, symbol, save_path=""):
         data = self.datas[symbol]
-        length = len(data)
         datetime_list = list(data.index)
         open_list = list(data['open'])
         high_list = list(data['high'])
@@ -73,7 +65,7 @@ class AlphaTs(object):
         x_data = datetime_list
         y_data = [[m, n, x, y, z] for m, n, x, y, z in zip(open_list, close_list, low_list, high_list, volume_list)]
         color_list = [1 if m < n else -1 for m, n, x, y, z in
-                          zip(open_list, close_list, low_list, high_list, volume_list)]
+                      zip(open_list, close_list, low_list, high_list, volume_list)]
         index_list = list(range(len(x_data)))
         vol_data = [[x, y, z] for x, y, z in zip(index_list, volume_list, color_list)]
         # 画出来具体的K线
@@ -218,6 +210,9 @@ class AlphaTs(object):
 
         # 画出来具体的交易的线段
         first_signal = None
+        first_datetime = None
+        first_high = None
+        first_low = None
         # print(data[['signal']])
         data.to_csv("测试signal.csv")
         for datetime_, signal, high_, low_ in zip(data.index, data['signal'], data['high'], data['low']):
@@ -233,10 +228,10 @@ class AlphaTs(object):
                 if first_signal == 1:
                     long_line = (
                         Line()
-                        .add_xaxis(xaxis_data=[first_datetime,datetime_])
+                        .add_xaxis(xaxis_data=[first_datetime, datetime_])
                         .add_yaxis(
                             series_name="long_signal",
-                            y_axis=[first_low*0.99, high_*1.01],
+                            y_axis=[first_low * 0.99, high_ * 1.01],
                             is_smooth=False,
                             # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
                             linestyle_opts=opts.LineStyleOpts(color="red", width=5, type_='dotted'),
@@ -264,10 +259,10 @@ class AlphaTs(object):
                     # 测试
                     short_line = (
                         Line()
-                        .add_xaxis(xaxis_data=[first_datetime,datetime_])
+                        .add_xaxis(xaxis_data=[first_datetime, datetime_])
                         .add_yaxis(
                             series_name="short_signal",
-                            y_axis=[first_high*1.01, low_*0.99],
+                            y_axis=[first_high * 1.01, low_ * 0.99],
                             is_smooth=False,
                             # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
                             linestyle_opts=opts.LineStyleOpts(color="green", width=5, type_='dotted'),
@@ -296,7 +291,6 @@ class AlphaTs(object):
                 first_high = high_
                 first_low = low_
 
-
         # Grid Overlap + Bar
         grid_chart = Grid(
             init_opts=opts.InitOpts(
@@ -316,4 +310,4 @@ class AlphaTs(object):
             ),
         )
 
-        grid_chart.render(save_path+f"{symbol}_ts_signal.html")
+        grid_chart.render(save_path + f"{symbol}_ts_signal.html")

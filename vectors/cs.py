@@ -1,21 +1,27 @@
 import pandas as pd
 import numpy as np
-import os
-import copy
 import matplotlib.pyplot as plt
 import alphalens
-from backtrader.vectors.cal_performance import  get_symbol, get_rate_sharpe_drawdown
+from backtrader.vectors.cal_performance import cal_quantile, get_rate_sharpe_drawdown
+
 # 排除的品种
 remove_symbol = ["BB", "PG", "BB", "ER", "FB", "JR", "LR", "NR", "PM", "RR", "RS", "WH", "WR", "WS"]
+
 
 class AlphaCs(object):
     def __init__(self, datas, params):
         # datas是字典格式，key是品种的名字，value是df格式，index是datetime,包含open,high,low,close,volume,openinterest
         self.datas = datas
         self.params = params
+        # 初始化后续可能使用到的属性
+        self.factors = None
+        self.prices = None
+        self.returns = None
+        self.alphalens_factors = None
 
-    def cal_alpha(self):
-        pass
+    def cal_alpha(self, data):
+        # 生成实例的时候覆盖这个函数，用于计算具体的因子
+        return data
 
     # 计算信号，默认按照一定的比例进行多空排列
     def cal_signal(self):
@@ -24,8 +30,8 @@ class AlphaCs(object):
         factors = self.factors
         # 计算多空信号
         col_list = list(factors.columns)
-        factors['low'] = factors.apply(self.cal_quantile, axis=1, args=(percent,))
-        factors['high'] = factors.apply(self.cal_quantile, axis=1, args=(1-percent,))
+        factors['low'] = factors.apply(cal_quantile, axis=1, args=(percent,))
+        factors['high'] = factors.apply(cal_quantile, axis=1, args=(1 - percent,))
         result = []
         for col in col_list:
             a = np.where(factors[col] <= factors['low'], -1, 0)
@@ -49,7 +55,6 @@ class AlphaCs(object):
 
     # 根据高开低收的数据和具体的信号，计算资产的收益率和因子值，保存到self.returns和self.factors
     def cal_factor_return(self):
-        look_back_days = self.params['look_back_days']
         self.factors = pd.DataFrame()
         self.returns = pd.DataFrame()
         for symbol in self.datas:
@@ -66,14 +71,6 @@ class AlphaCs(object):
             df.columns = [symbol]
             self.factors = pd.concat([self.factors, df], axis=1, join="outer")
 
-    # 计算分位数的值
-    def cal_quantile(self, s, a=0.2):
-        if isinstance(s, pd.Series):
-            return s.dropna().quantile(a)
-        else:
-            print(s)
-
-
     # 根据收益和signal计算最终的收益率
     def cal_last_return(self):
         for col in self.returns.columns:
@@ -88,7 +85,7 @@ class AlphaCs(object):
         percent = self.params['percent']
         return [look_back_days, hold_days, percent, sharpe_ratio, average_rate, max_drawdown]
 
-    def run(self, plot=False):
+    def run(self):
         self.cal_factor_return()
         self.cal_signal()
         return self.cal_last_return()
@@ -98,19 +95,19 @@ class AlphaCs(object):
         plt.show()
 
     def run_alphalens(self,
-                    groupby=None,
-                    binning_by_group=False,
-                    quantiles=5,
-                    bins=None,
-                    periods=(1, 5, 10),
-                    filter_zscore=20,
-                    groupby_labels=None,
-                    max_loss=0.35,
-                    zero_aware=False,
-                    cumulative_returns=True,
-                    long_short=True,
-                    group_neutral=False,
-                    by_group=False):
+                      groupby=None,
+                      binning_by_group=False,
+                      quantiles=5,
+                      bins=None,
+                      periods=(1, 5, 10),
+                      filter_zscore=20,
+                      groupby_labels=None,
+                      max_loss=0.35,
+                      zero_aware=False,
+                      cumulative_returns=True,
+                      long_short=True,
+                      group_neutral=False,
+                      by_group=False):
         self.alphalens_factors = pd.DataFrame()
         self.prices = pd.DataFrame()
         for symbol in self.datas:
@@ -137,6 +134,5 @@ class AlphaCs(object):
                                                                     zero_aware=zero_aware,
                                                                     cumulative_returns=cumulative_returns)
 
-        alphalens.tears.create_full_tear_sheet(data,long_short=long_short,group_neutral=group_neutral,by_group=by_group)
-
-
+        alphalens.tears.create_full_tear_sheet(data, long_short=long_short, group_neutral=group_neutral,
+                                               by_group=by_group)
