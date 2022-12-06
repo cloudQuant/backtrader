@@ -14,14 +14,12 @@ from pyecharts.faker import Faker
 import warnings
 warnings.filterwarnings("ignore")
 
-
-
 # 创建一个时间序列的类，用于采用向量的方法计算时间序列的
 class AlphaTs(object):
     # 传入具体的数据和函数进行初始化
     def __init__(self, datas, params):
         # datas是字典格式，key是品种的名字，value是df格式，index是datetime,包含open,high,low,close,volume,openinterest
-        # params是测试的时候使用的变量
+        # params是测试的时候使用的参数
         self.datas = datas
         self.params = params
 
