@@ -3,6 +3,7 @@ import numpy as np
 import os
 import copy
 import matplotlib.pyplot as plt
+import alphalens
 from backtrader.vectors.cal_performance import  get_symbol, get_rate_sharpe_drawdown
 # 排除的品种
 remove_symbol = ["BB", "PG", "BB", "ER", "FB", "JR", "LR", "NR", "PM", "RR", "RS", "WH", "WR", "WS"]
@@ -95,4 +96,47 @@ class AlphaCs(object):
     def plot(self):
         self.returns[['total_value']].plot()
         plt.show()
+
+    def run_alphalens(self,
+                    groupby=None,
+                    binning_by_group=False,
+                    quantiles=5,
+                    bins=None,
+                    periods=(1, 5, 10),
+                    filter_zscore=20,
+                    groupby_labels=None,
+                    max_loss=0.35,
+                    zero_aware=False,
+                    cumulative_returns=True,
+                    long_short=True,
+                    group_neutral=False,
+                    by_group=False):
+        self.alphalens_factors = pd.DataFrame()
+        self.prices = pd.DataFrame()
+        for symbol in self.datas:
+            # look_back_days = self.params['look_back_days']
+            df = self.datas[symbol]
+            df = self.cal_alpha(df)
+            df['asset'] = symbol
+            new_df = df[['close']]
+            new_df.columns = [symbol]
+            self.prices = pd.concat([self.prices, new_df], axis=1, join="outer")
+            df = df[['trading_date', 'asset', 'factor']]
+            self.alphalens_factors = pd.concat([self.alphalens_factors, df])
+        self.alphalens_factors = self.alphalens_factors.sort_values(by=['trading_date', 'asset'])
+        self.alphalens_factors = self.alphalens_factors.set_index(['trading_date', 'asset'])
+        data = alphalens.utils.get_clean_factor_and_forward_returns(self.alphalens_factors, self.prices,
+                                                                    groupby=groupby,
+                                                                    binning_by_group=binning_by_group,
+                                                                    quantiles=quantiles,
+                                                                    bins=bins,
+                                                                    periods=periods,
+                                                                    filter_zscore=filter_zscore,
+                                                                    groupby_labels=groupby_labels,
+                                                                    max_loss=max_loss,
+                                                                    zero_aware=zero_aware,
+                                                                    cumulative_returns=cumulative_returns)
+
+        alphalens.tears.create_full_tear_sheet(data,long_short=long_short,group_neutral=group_neutral,by_group=by_group)
+
 
