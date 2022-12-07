@@ -42,6 +42,7 @@ from .tradingcal import (TradingCalendarBase, TradingCalendar,
                          PandasMarketCalendar)
 from .timer import Timer
 
+
 # Defined here to make it pickable. Ideally it could be defined inside Cerebro
 class OptReturn(object):
     def __init__(self, params, **kwargs):
@@ -51,7 +52,7 @@ class OptReturn(object):
 
 
 class Cerebro(with_metaclass(MetaParams, object)):
-    '''Params:
+    """Params:
 
       - ``preload`` (default: ``True``)
 
@@ -107,7 +108,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
         - ``True``: use the deprecated behavior in which the buy / sell signals
           are plotted where the average price of the order executions for the
           given moment in time is. This will of course be on top of an OHLC bar
-          or on a Line on Cloe bar, difficulting the recognition of the plot.
+          or on a Line on Cloe bar, difficult the recognition of the plot.
            # 如果stdstats设置成True了，那么，oldbuysell的默认值就无关紧要了，都是使用的``BuySell``
 
         # 如果stdstats设置成True了，如果``oldbuysell``是默认值False，画图的时候，买卖点的位置就会画在K线的
@@ -148,7 +149,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
             - This setting will deactivate ``preload`` and ``runonce``
             - Using this setting also deactivates **plotting**
 
-          - ``-1``: datafreeds and indicators/operations at strategy level will
+          - ``-1``: datafeeds and indicators/operations at strategy level will
             keep all data in memory.
 
             For example: a ``RSI`` internally uses the indicator ``UpDay`` to
@@ -285,11 +286,11 @@ class Cerebro(with_metaclass(MetaParams, object)):
         The ``next_open`` method of strategies will be called. This happens
         before ``next`` and before the broker has had a chance to evaluate
         orders. The indicators have not yet been recalculated. This allows
-        issuing an orde which takes into account the indicators of the previous
+        issuing an order which takes into account the indicators of the previous
         day but uses the ``open`` price for stake calculations
 
         For cheat_on_open order execution, it is also necessary to make the
-        call ``cerebro.broker.set_coo(True)`` or instantite a broker with
+        call ``cerebro.broker.set_coo(True)`` or instantiate a broker with
         ``BackBroker(coo=True)`` (where *coo* stands for cheat-on-open) or set
         the ``broker_coo`` parameter to ``True``. Cerebro will do it
         automatically unless disabled below.
@@ -321,7 +322,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
         # quicknotify，控制broker发送通知的时间，如果设置成False，那么，只有在next的时候才会发送
         # 设置成True的时候，产生就会立刻发送。
 
-    '''
+    """
     # 参数
     params = (
         ('preload', True),
@@ -347,7 +348,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 初始化
     def __init__(self):
-        # 是否是实盘，初始化的时候，默认不是实盘
+        # 是否实盘，初始化的时候，默认不是实盘
         self._dolive = False
         # 是否replay,初始化的时候，默认不replay
         self._doreplay = False
@@ -405,9 +406,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
     # 这个函数会把可迭代对象中的每个元素变成都是可迭代的
     @staticmethod
     def iterize(iterable):
-        '''Handy function which turns things into things that can be iterated upon
-        including iterables
-        '''
+        # Handy function which turns things into things that can be iterated upon including iterables
         niterable = list()
         for elem in iterable:
             if isinstance(elem, string_types):
@@ -421,7 +420,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 设置fund历史，其中fund是一个可迭代对象，每个元素包含三个元素，时间，每份价值，净资产价值
     def set_fund_history(self, fund):
-        '''
+        """
         Add a history of orders to be directly executed in the broker for
         performance evaluation
 
@@ -439,16 +438,16 @@ class Cerebro(with_metaclass(MetaParams, object)):
               - ``datetime`` is a python ``date/datetime`` instance or a string
                 with format YYYY-MM-DD[THH:MM:SS[.us]] where the elements in
                 brackets are optional
-              - ``share_value`` is an float/integer
+              - ``share_value`` is a float/integer
               - ``net_asset_value`` is a float/integer
-        '''
+        """
         self._fhistory = fund
 
     # 增加order历史，orders是一个可迭代对象，每个元素是包含时间、大小、价格三个变量，还可以额外加入data变量
     # data可能是第一个数据，也可能是一个整数，代表在datas中的index,也可能是一个字符串，代表添加数据的名字
     # notify如果设置的是True的话，cerebro中添加的第一个策略将会通知订单信息
     def add_order_history(self, orders, notify=True):
-        '''
+        """
         Add a history of orders to be directly executed in the broker for
         performance evaluation
 
@@ -485,19 +484,19 @@ class Cerebro(with_metaclass(MetaParams, object)):
         **Note**: Implicit in the description is the need to add a data feed
           which is the target of the orders. This is for example needed by
           analyzers which track for example the returns
-        '''
+        """
         self._ohistory.append((orders, notify))
 
     # 定时器信息通知
     def notify_timer(self, timer, when, *args, **kwargs):
-        '''Receives a timer notification where ``timer`` is the timer which was
+        """Receives a timer notification where ``timer`` is the timer which was
         returned by ``add_timer``, and ``when`` is the calling time. ``args``
         and ``kwargs`` are any additional arguments passed to ``add_timer``
 
         The actual ``when`` time can be later, but the system may have not be
         able to call the timer before. This value is the timer value and no the
         system time.
-        '''
+        """
         pass
 
     # 添加定时器
@@ -508,9 +507,9 @@ class Cerebro(with_metaclass(MetaParams, object)):
                    allow=None,
                    tzdata=None, strats=False, cheat=False,
                    *args, **kwargs):
-        '''Internal method to really create the timer (not started yet) which
+        """Internal method to really create the timer (not started yet) which
         can be called by cerebro instances or other objects which can access
-        cerebro'''
+        cerebro"""
 
         timer = Timer(
             tid=len(self._pretimers),
@@ -536,7 +535,8 @@ class Cerebro(with_metaclass(MetaParams, object)):
                   allow=None,
                   tzdata=None, strats=False, cheat=False,
                   *args, **kwargs):
-        '''
+
+        """
         Schedules a timer to invoke ``notify_timer``
 
         Arguments:
@@ -604,8 +604,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
               in the system (aka ``self.data0``) will be used as the reference
               to find out the session times.
 
-          - ``strats`` (default: ``False``) call also the ``notify_timer`` of
-            strategies
+          - ``strats`` (default: ``False``) call also the ``notify_timer`` of strategies
 
           - ``cheat`` (default ``False``) if ``True`` the timer will be called
             before the broker has a chance to evaluate the orders. This opens
@@ -619,7 +618,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
           - The created timer
 
-        '''
+        """
         return self._add_timer(
             owner=self, when=when, offset=offset, repeat=repeat,
             weekdays=weekdays, weekcarry=weekcarry,
@@ -631,8 +630,8 @@ class Cerebro(with_metaclass(MetaParams, object)):
     # 添加时区,参数含义参考
     # tz的参数和add_timer中比较类似
     def addtz(self, tz):
-        '''
-        This can also be done with the parameter ``tz``
+
+        """This can also be done with the parameter ``tz``
 
         Adds a global timezone for strategies. The argument ``tz`` can be
 
@@ -648,24 +647,24 @@ class Cerebro(with_metaclass(MetaParams, object)):
             corresponding ``data`` in the ``self.datas`` iterable (``0`` would
             use the timezone from ``data0``)
 
-        '''
+        """
         self.p.tz = tz
 
     # 增加日历，具体参数可以参考
     # https://blog.csdn.net/qq_26948675/article/details/124652314
     # cal可以是字符串，TradingCalendar的实例，pandas_market_calendars的实例，或者TradingCalendar的子类
     def addcalendar(self, cal):
-        '''Adds a global trading calendar to the system. Individual data feeds
+        """Adds a global trading calendar to the system. Individual data feeds
         may have separate calendars which override the global one
 
         ``cal`` can be an instance of ``TradingCalendar`` a string or an
-        instance of ``pandas_market_calendars``. A string will be will be
+        instance of ``pandas_market_calendars``. A string will be
         instantiated as a ``PandasMarketCalendar`` (which needs the module
-        ``pandas_market_calendar`` installed in the system.
+        ``pandas_market_calendar`` installed in the system).
 
         If a subclass of `TradingCalendarBase` is passed (not an instance) it
         will be instantiated
-        '''
+        """
         # 如果是字符串或者具有valid_days属性，使用PandasMarketCalendar实例化
         if isinstance(cal, string_types):
             cal = PandasMarketCalendar(calendar=cal)
@@ -683,105 +682,97 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 增加信号，这些信号会在后面添加到SignalStrategy中
     def add_signal(self, sigtype, sigcls, *sigargs, **sigkwargs):
-        '''Adds a signal to the system which will be later added to a
-        ``SignalStrategy``'''
+        # Adds a signal to the system which will be later added to a ``SignalStrategy``
         self.signals.append((sigtype, sigcls, sigargs, sigkwargs))
 
     # 信号策略及其参数
     def signal_strategy(self, stratcls, *args, **kwargs):
-        '''Adds a SignalStrategy subclass which can accept signals'''
+        # Adds a SignalStrategy subclass which can accept signals
         self._signal_strat = (stratcls, args, kwargs)
 
     # 是否允许在订单没有成交的时候执行新的信号或者订单
     def signal_concurrent(self, onoff):
-        '''If signals are added to the system and the ``concurrent`` value is
-        set to True, concurrent orders will be allowed'''
+        # If signals are added to the system and the ``concurrent`` value is
+        # set to True, concurrent orders will be allowed
         self._signal_concurrent = onoff
 
     # 是否允许在有持仓的情况下执行新的订单
     def signal_accumulate(self, onoff):
-        '''If signals are added to the system and the ``accumulate`` value is
+        """If signals are added to the system and the ``accumulate`` value is
         set to True, entering the market when already in the market, will be
-        allowed to increase a position'''
+        allowed to increase a position"""
         self._signal_accumulate = onoff
 
     # 增加新的store
     def addstore(self, store):
-        '''Adds an ``Store`` instance to the if not already present'''
+        # Adds an ``Store`` instance to the if not already present
         if store not in self.stores:
             self.stores.append(store)
 
     # 增加新的writer
     def addwriter(self, wrtcls, *args, **kwargs):
-        '''Adds an ``Writer`` class to the mix. Instantiation will be done at
-        ``run`` time in cerebro
-        '''
+        """Adds an ``Writer`` class to the mix. Instantiation will be done at
+        ``run`` time in cerebro"""
         self.writers.append((wrtcls, args, kwargs))
 
     # 设置sizer,sizer只能有一个
     def addsizer(self, sizercls, *args, **kwargs):
-        '''Adds a ``Sizer`` class (and args) which is the default sizer for any
+        """Adds a ``Sizer`` class (and args) which is the default sizer for any
         strategy added to cerebro
-        '''
+        """
         self.sizers[None] = (sizercls, args, kwargs)
 
     # 根据策略的顺序添加sizer,策略和sizer是根据idx对应的，各个sizer会应用到对应的策略中
     def addsizer_byidx(self, idx, sizercls, *args, **kwargs):
-        '''Adds a ``Sizer`` class by idx. This idx is a reference compatible to
+        """Adds a ``Sizer`` class by idx. This idx is a reference compatible to
         the one returned by ``addstrategy``. Only the strategy referenced by
         ``idx`` will receive this size
-        '''
+        """
         self.sizers[idx] = (sizercls, args, kwargs)
 
     # 添加指标
     def addindicator(self, indcls, *args, **kwargs):
-        '''
-        Adds an ``Indicator`` class to the mix. Instantiation will be done at
-        ``run`` time in the passed strategies
-        '''
+        # Adds an ``Indicator`` class to the mix. Instantiation will be done at ``run`` time in the passed strategies
         self.indicators.append((indcls, args, kwargs))
 
     # 添加analyzer
     def addanalyzer(self, ancls, *args, **kwargs):
-        '''
-        Adds an ``Analyzer`` class to the mix. Instantiation will be done at
-        ``run`` time
-        '''
+        # Adds an ``Analyzer`` class to the mix. Instantiation will be done at``run`` time
         self.analyzers.append((ancls, args, kwargs))
 
     # 添加observer
     def addobserver(self, obscls, *args, **kwargs):
-        '''
+        """
         Adds an ``Observer`` class to the mix. Instantiation will be done at
         ``run`` time
-        '''
+        """
         self.observers.append((False, obscls, args, kwargs))
 
     # 给每个数据都增加一个observer
     def addobservermulti(self, obscls, *args, **kwargs):
-        '''
+        """
 
         It will be added once per "data" in the system. A use case is a
         buy/sell observer which observes individual datas.
 
         A counter-example is the CashValue, which observes system-wide values
-        '''
+        """
         self.observers.append((True, obscls, args, kwargs))
 
     # 增加一个callback用于获取notify_store方法处理的信息
     def addstorecb(self, callback):
-        '''Adds a callback to get messages which would be handled by the
+        """Adds a callback to get messages which would be handled by the
         notify_store method
 
         The signature of the callback must support the following:
 
-          - callback(msg, \*args, \*\*kwargs)
+          - callback(msg, *args, *kwargs)
 
         The actual ``msg``, ``*args`` and ``**kwargs`` received are
         implementation defined (depend entirely on the *data/broker/store*) but
         in general one should expect them to be *printable* to allow for
         reception and experimentation.
-        '''
+        """
         self.storecbs.append(callback)
 
     # 通知store的信息
@@ -793,7 +784,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 通知store的信息，可以在cerebro的子类中重写
     def notify_store(self, msg, *args, **kwargs):
-        '''Receive store notifications in cerebro
+        """Receive store notifications in cerebro
 
         This method can be overridden in ``Cerebro`` subclasses
 
@@ -801,7 +792,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
         implementation defined (depend entirely on the *data/broker/store*) but
         in general one should expect them to be *printable* to allow for
         reception and experimentation.
-        '''
+        """
         pass
 
     # 对store中的信息进行通知，并传递到每个运行的策略中
@@ -816,18 +807,18 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 增加一个callable用于获取notify_data通知的信息
     def adddatacb(self, callback):
-        '''Adds a callback to get messages which would be handled by the
+        """Adds a callback to get messages which would be handled by the
         notify_data method
 
         The signature of the callback must support the following:
 
-          - callback(data, status, \*args, \*\*kwargs)
+          - callback(data, status, *args, *kwargs)
 
         The actual ``*args`` and ``**kwargs`` received are implementation
         defined (depend entirely on the *data/broker/store*) but in general one
         should expect them to be *printable* to allow for reception and
         experimentation.
-        '''
+        """
         self.datacbs.append(callback)
 
     # 数据信息通知
@@ -848,7 +839,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 通知数据信息
     def notify_data(self, data, status, *args, **kwargs):
-        '''Receive data notifications in cerebro
+        """Receive data notifications in cerebro
 
         This method can be overridden in ``Cerebro`` subclasses
 
@@ -856,17 +847,17 @@ class Cerebro(with_metaclass(MetaParams, object)):
         implementation defined (depend entirely on the *data/broker/store*) but
         in general one should expect them to be *printable* to allow for
         reception and experimentation.
-        '''
+        """
         pass
 
     # 增加数据，这个是比较常用的功能
     def adddata(self, data, name=None):
-        '''
+        """
         Adds a ``Data Feed`` instance to the mix.
 
         If ``name`` is not None it will be put into ``data._name`` which is
         meant for decoration/plotting purposes.
-        '''
+        """
         # 如果name不是None的话，就把name赋值给data._name
         if name is not None:
             data._name = name
@@ -895,14 +886,14 @@ class Cerebro(with_metaclass(MetaParams, object)):
     # chaindata的使用方法，把几个数据拼接起来
     # https://blog.csdn.net/qq_26948675/article/details/124461126
     def chaindata(self, *args, **kwargs):
-        '''
+        """
         Chains several data feeds into one
 
         If ``name`` is passed as named argument and is not None it will be put
         into ``data._name`` which is meant for decoration/plotting purposes.
 
         If ``None``, then the name of the 1st data will be used
-        '''
+        """
         dname = kwargs.pop('name', None)
         if dname is None:
             dname = args[0]._dataname
@@ -913,7 +904,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # rollover的用法，满足一定条件之后，在不同数据之间切换
     def rolloverdata(self, *args, **kwargs):
-        '''Chains several data feeds into one
+        """Chains several data feeds into one
 
         If ``name`` is passed as named argument and is not None it will be put
         into ``data._name`` which is meant for decoration/plotting purposes.
@@ -922,7 +913,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
         Any other kwargs will be passed to the RollOver class
 
-        '''
+        """
         dname = kwargs.pop('name', None)
         if dname is None:
             dname = args[0]._dataname
@@ -933,7 +924,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # replay的使用
     def replaydata(self, dataname, name=None, **kwargs):
-        '''
+        """
         Adds a ``Data Feed`` to be replayed by the system
 
         If ``name`` is not None it will be put into ``data._name`` which is
@@ -941,7 +932,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
         Any other kwargs like ``timeframe``, ``compression``, ``todate`` which
         are supported by the replay filter will be passed transparently
-        '''
+        """
         if any(dataname is x for x in self.datas):
             dataname = dataname.clone()
 
@@ -953,7 +944,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # resample的使用
     def resampledata(self, dataname, name=None, **kwargs):
-        '''
+        """
         Adds a ``Data Feed`` to be resample by the system
 
         If ``name`` is not None it will be put into ``data._name`` which is
@@ -961,7 +952,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
         Any other kwargs like ``timeframe``, ``compression``, ``todate`` which
         are supported by the resample filter will be passed transparently
-        '''
+        """
         if any(dataname is x for x in self.datas):
             dataname = dataname.clone()
 
@@ -973,17 +964,17 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 优化的callback
     def optcallback(self, cb):
-        '''
+        """
         Adds a *callback* to the list of callbacks that will be called with the
         optimizations when each of the strategies has been run
 
         The signature: cb(strategy)
-        '''
+        """
         self.optcbs.append(cb)
 
     # 优化策略，不推荐使用这个方法，大家考虑忽略
     def optstrategy(self, strategy, *args, **kwargs):
-        '''
+        """
         Adds a ``Strategy`` class to the mix for optimization. Instantiation
         will happen during ``run`` time.
 
@@ -1014,7 +1005,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
           - cerebro.optstrategy(MyStrategy, period=15)
 
         and will create an internal pseudo-iterable if possible
-        '''
+        """
         self._dooptimize = True
         args = self.iterize(args)
         optargs = itertools.product(*args)
@@ -1033,7 +1024,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 添加策略
     def addstrategy(self, strategy, *args, **kwargs):
-        '''
+        """
         Adds a ``Strategy`` class to the mix for a single pass run.
         Instantiation will happen during ``run`` time.
 
@@ -1042,27 +1033,27 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
         Returns the index with which addition of other objects (like sizers)
         can be referenced
-        '''
+        """
         self.strats.append([(strategy, args, kwargs)])
         return len(self.strats) - 1
 
     # 设置broker
     def setbroker(self, broker):
-        '''
+        """
         Sets a specific ``broker`` instance for this strategy, replacing the
         one inherited from cerebro.
-        '''
+        """
         self._broker = broker
         broker.cerebro = self
         return broker
 
     # 获取broker
     def getbroker(self):
-        '''
+        """
         Returns the broker instance.
 
         This is also available as a ``property`` by the name ``broker``
-        '''
+        """
         return self._broker
 
     broker = property(getbroker, setbroker)
@@ -1073,7 +1064,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
     def plot(self, plotter=None, numfigs=1, iplot=True, start=None, end=None,
              width=16, height=9, dpi=300, tight=True, use=None,
              **kwargs):
-        '''
+        """
         Plots the strategies inside cerebro
 
         If ``plotter`` is None a default ``Plot`` instance is created and
@@ -1103,7 +1094,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
         ``dpi``: quality in dots per inches of the saved figure
 
         ``tight``: only save actual content and not the frame of the figure
-        '''
+        """
         if self._exactbars > 0:
             return
 
@@ -1136,36 +1127,36 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 在优化的时候传递给cerebro多进程的模块
     def __call__(self, iterstrat):
-        '''
-        Used during optimization to pass the cerebro over the multiprocesing
+        """
+        Used during optimization to pass the cerebro over the multiprocessing
         module without complains
-        '''
+        """
 
         predata = self.p.optdatas and self._dopreload and self._dorunonce
         return self.runstrategies(iterstrat, predata=predata)
 
     # 删除runstrats,
     def __getstate__(self):
-        '''
+        """
         Used during optimization to prevent optimization result `runstrats`
         from being pickled to subprocesses
-        '''
+        """
 
         rv = vars(self).copy()
         if 'runstrats' in rv:
-            del(rv['runstrats'])
+            del (rv['runstrats'])
         return rv
 
     # 当在策略内部或者其他地方调用这个函数的时候，将会很快停止执行
     def runstop(self):
-        '''If invoked from inside a strategy or anywhere else, including other
-        threads the execution will stop as soon as possible.'''
+        """If invoked from inside a strategy or anywhere else, including other
+        threads the execution will stop as soon as possible."""
         self._event_stop = True  # signal a stop has been requested
 
     # 执行回测的核心方法，任何传递的参数将会影响cerebro中的标准参数，如果没有添加数据，将会立即停止
     # 根据是否是优化参数，返回的结果不同
     def run(self, **kwargs):
-        '''The core method to perform backtesting. Any ``kwargs`` passed to it
+        """The core method to perform backtesting. Any ``kwargs`` passed to it
         will affect the value of the standard parameters ``Cerebro`` was
         instantiated with.
 
@@ -1178,7 +1169,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
           - For Optimization: a list of lists which contain instances of the
             Strategy classes added with ``addstrategy``
-        '''
+        """
         self._event_stop = False  # Stop is requested
         # 如果没有数据，直接返回空的列表
         if not self.datas:
@@ -1252,7 +1243,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
                     if not isinstance(signalst, SignalStrategy):
                         # no signal ... reinsert at the beginning
                         self.strats.insert(0, (signalst, sargs, skwargs))
-                        signalst = None  # flag as not presetn
+                        signalst = None  # flag as not present
 
             if signalst is None:  # recheck
                 # Still None, create a default one
@@ -1330,9 +1321,9 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 运行策略
     def runstrategies(self, iterstrat, predata=False):
-        '''
+        """
         Internal method invoked by ``run``` to run a set of strategies
-        '''
+        """
         # 初始化计数
         self._init_stcount()
         # 初始化运行的策略为空列表
@@ -1544,10 +1535,10 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 通知broker信息
     def _brokernotify(self):
-        '''
+        """
         Internal method which kicks the broker and delivers any broker
         notification to the strategy
-        '''
+        """
         # 调用broker的next
         self._broker.next()
         while True:
@@ -1564,10 +1555,10 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 就得runnext方法，和runnext很相似
     def _runnext_old(self, runstrats):
-        '''
+        """
         Actual implementation of run in full next mode. All objects have its
         ``next`` method invoke on each data arrival
-        '''
+        """
         data0 = self.datas[0]
         d0ret = True
         while d0ret or d0ret is None:
@@ -1631,11 +1622,11 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 旧的runonce方法，和runonce差不多
     def _runonce_old(self, runstrats):
-        '''
+        """
         Actual implementation of run in vector mode.
         Strategies are still invoked on a pseudo-event mode in which ``next``
         is called for each data arrival
-        '''
+        """
         for strat in runstrats:
             strat._once()
 
@@ -1684,15 +1675,15 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 禁止runonce
     def _disable_runonce(self):
-        '''API for lineiterators to disable runonce (see HeikinAshi)'''
+        """API for lineiterators to disable runonce (see HeikinAshi)"""
         self._dorunonce = False
 
     # runnext方法
     def _runnext(self, runstrats):
-        '''
+        """
         Actual implementation of run in full next mode. All objects have its
         ``next`` method invoke on each data arrival
-        '''
+        """
         # 对数据的时间周期进行排序
         datas = sorted(self.datas,
                        key=lambda x: (x._timeframe, x._compression))
@@ -1701,10 +1692,11 @@ class Cerebro(with_metaclass(MetaParams, object)):
         # 主数据
         data0 = datas[0]
         d0ret = True
+        # todo rs 和 rp 并没有使用到，进行注释掉
         # resample的index
-        rs = [i for i, x in enumerate(datas) if x.resampling]
+        # rs = [i for i, x in enumerate(datas) if x.resampling]
         # replaying的index
-        rp = [i for i, x in enumerate(datas) if x.replaying]
+        # rp = [i for i, x in enumerate(datas) if x.replaying]
         # 仅仅只做resample,不做replay得index
         rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
         # 判断是否仅仅做resample
@@ -1717,7 +1709,8 @@ class Cerebro(with_metaclass(MetaParams, object)):
         ldatas = len(datas)
         # 没有克隆的数据量
         ldatas_noclones = ldatas - clonecount
-        lastqcheck = False
+        # todo lastqcheck 没有使用到，注释掉
+        # lastqcheck = False
         # 默认dt0在最大时间
         dt0 = date2num(datetime.datetime.max) - 2  # default at max
         # while循环
@@ -1873,12 +1866,12 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # runonce
     def _runonce(self, runstrats):
-        '''
+        """
         Actual implementation of run in vector mode.
 
         Strategies are still invoked on a pseudo-event mode in which ``next``
         is called for each data arrival
-        '''
+        """
         # 遍历策略，调用_once和reset
         for strat in runstrats:
             strat._once()
@@ -1903,7 +1896,8 @@ class Cerebro(with_metaclass(MetaParams, object)):
             # Timemaster if needed be
             # dmaster = datas[dts.index(dt0)]  # and timemaster
             # 第一个策略现在的长度slen
-            slen = len(runstrats[0])
+            # todo 变量slen没有使用到，进行注释掉
+            # slen = len(runstrats[0])
             # 对于每个数据的时间，如果时间小于即将到来的最小的时间，数据向前一位，否则，忽略
             for i, dti in enumerate(dts):
                 if dti <= dt0:
