@@ -25,7 +25,7 @@ import collections
 import datetime
 
 import backtrader as bt
-from backtrader.comminfo import CommInfoBase
+# from backtrader.comminfo import CommInfoBase
 from backtrader.order import Order, BuyOrder, SellOrder
 from backtrader.position import Position
 from backtrader.utils.py3 import string_types, integer_types
@@ -35,7 +35,7 @@ __all__ = ['BackBroker', 'BrokerBack']
 
 # 这个是回测的时候使用的类
 class BackBroker(bt.BrokerBase):
-    '''Broker Simulator
+    """Broker Simulator
 
       The simulation supports different order types, checking a submitted order
       cash requirements against current cash, keeping track of cash and value
@@ -43,10 +43,10 @@ class BackBroker(bt.BrokerBase):
       different datas.
 
       *cash* is adjusted on each iteration for instruments like ``futures`` for
-       which a price change implies in real brokers the addition/substracion of
+       which a price change implies in real brokers the addition/subtraction of
        cash.
         # 这个回测模拟类支持不同的订单类型，检查现在的现金是否满足提交订单的现金需求，在每个bar的时候
-        # 检查cash和vakue,以及不同的数据上的持仓
+        # 检查cash和value,以及不同的数据上的持仓
 
       Supported order types:
 
@@ -148,7 +148,7 @@ class BackBroker(bt.BrokerBase):
           # https://yunjinqi.blog.csdn.net/article/details/113445040
 
 
-        - ``slip_perc`` (default: ``0.0``) Percentage in absolute termns (and
+        - ``slip_perc`` (default: ``0.0``) Percentage in absolute terms (and
           positive) that should be used to slip prices up/down for buy/sell
           orders
 
@@ -162,7 +162,7 @@ class BackBroker(bt.BrokerBase):
         - ``slip_fixed`` (default: ``0.0``) Percentage in units (and positive)
           that should be used to slip prices up/down for buy/sell orders
 
-          Note: if ``slip_perc`` is non zero, it takes precendence over this.
+          Note: if ``slip_perc`` is non zero, it takes precedence over this.
 
             # 固定滑点形式，如果百分比滑点不是0的话，只考虑百分比滑点
 
@@ -198,7 +198,7 @@ class BackBroker(bt.BrokerBase):
 
           If ``False`` and slippage exceeds the cap, then there will be no
           match
-            # 限价单将会寻求严格的匹配，即使slip_mathch是False的时候
+            # 限价单将会寻求严格的匹配，即使slip_match是False的时候
             # slip_limit设置成True的话，限价单如果在最高价和最低价之间，将会成交
             # 如果设置成False,限价单加上滑点超过了最高价和最低价，将不会成交
 
@@ -249,7 +249,7 @@ class BackBroker(bt.BrokerBase):
           This parameter controls the start value for measuring the performance
           in a fund-like way, i.e.: cash can be added and deducted increasing
           the amount of shares. Performance is not measured using the net
-          asset value of the porftoflio but using the value of the fund
+          asset value of the portfolio but using the value of the fund
           # fundstartval，将会按照fund的模式计算绩效
 
         - ``fundmode`` (default: ``False``)
@@ -259,7 +259,7 @@ class BackBroker(bt.BrokerBase):
           the total net asset value
           # 如果fundmode设置成True的话，一些analyzers，比如TimeReturn将会使用fund value计算收益
 
-    '''
+    """
     # 参数
     params = (
         ('cash', 10000.0),
@@ -348,51 +348,51 @@ class BackBroker(bt.BrokerBase):
 
     # 设置fund模式
     def set_fundmode(self, fundmode, fundstartval=None):
-        '''Set the actual fundmode (True or False)
+        """Set the actual fundmode (True or False)
 
-        If the argument fundstartval is not ``None``, it will used
-        '''
+        If the argument fundstartval is not ``None``, it will use
+        """
         self.p.fundmode = fundmode
         if fundstartval is not None:
             self.set_fundstartval(fundstartval)
 
     # 获取fundmode
     def get_fundmode(self):
-        '''Returns the actual fundmode (True or False)'''
+        # Returns the actual fundmode (True or False)
         return self.p.fundmode
     # 把fundmode变成属性
     fundmode = property(get_fundmode, set_fundmode)
 
     # 设置fund的开始价值
     def set_fundstartval(self, fundstartval):
-        '''Set the starting value of the fund-like performance tracker'''
+        # Set the starting value of the fund-like performance tracker
         self.p.fundstartval = fundstartval
 
     # 把利息费用转移到pnl
     def set_int2pnl(self, int2pnl):
-        '''Configure assignment of interest to profit and loss'''
+        # Configure assignment of interest to profit and loss
         self.p.int2pnl = int2pnl
 
     # 设置Cheat-On-Close
     def set_coc(self, coc):
-        '''Configure the Cheat-On-Close method to buy the close on order bar'''
+        # Configure the Cheat-On-Close method to buy the close on order bar
         self.p.coc = coc
 
     # 设置Cheat-On-Open
     def set_coo(self, coo):
-        '''Configure the Cheat-On-Open method to buy the close on order bar'''
+        # Configure the Cheat-On-Open method to buy the close on order bar
         self.p.coo = coo
 
     # 设置shortcash参数
     def set_shortcash(self, shortcash):
-        '''Configure the shortcash parameters'''
+        # Configure the shortcash parameters
         self.p.shortcash = shortcash
 
     # 设置百分比滑点相关的信息
     def set_slippage_perc(self, perc,
                           slip_open=True, slip_limit=True,
                           slip_match=True, slip_out=False):
-        '''Configure slippage to be percentage based'''
+        # Configure slippage to be percentage based
         self.p.slip_perc = perc
         self.p.slip_fixed = 0.0
         self.p.slip_open = slip_open
@@ -404,7 +404,7 @@ class BackBroker(bt.BrokerBase):
     def set_slippage_fixed(self, fixed,
                            slip_open=True, slip_limit=True,
                            slip_match=True, slip_out=False):
-        '''Configure slippage to be fixed points based'''
+        # Configure slippage to be fixed points based
         self.p.slip_perc = 0.0
         self.p.slip_fixed = fixed
         self.p.slip_open = slip_open
@@ -414,31 +414,31 @@ class BackBroker(bt.BrokerBase):
 
     # 设置根据成交量限制决定订单成交大小的可调用对象
     def set_filler(self, filler):
-        '''Sets a volume filler for volume filling execution'''
+        # Sets a volume filler for volume filling execution
         self.p.filler = filler
 
     # 设置checksubmit参数
     def set_checksubmit(self, checksubmit):
-        '''Sets the checksubmit parameter'''
+        # Sets the checksubmit parameter
         self.p.checksubmit = checksubmit
 
     # 设置eosbar参数
     def set_eosbar(self, eosbar):
-        '''Sets the eosbar parameter (alias: ``seteosbar``'''
+        # Sets the eosbar parameter (alias: ``seteosbar``
         self.p.eosbar = eosbar
 
     seteosbar = set_eosbar
 
     # 获取现金
     def get_cash(self):
-        '''Returns the current cash (alias: ``getcash``)'''
+        # Returns the current cash (alias: ``getcash``)
         return self.cash
 
     getcash = get_cash
 
     # 设置现金
     def set_cash(self, cash):
-        '''Sets the cash parameter (alias: ``setcash``)'''
+        # Sets the cash parameter (alias: ``setcash``)
         self.startingcash = self.cash = self.p.cash = cash
         self._value = cash
 
@@ -446,19 +446,19 @@ class BackBroker(bt.BrokerBase):
 
     # 增加现金
     def add_cash(self, cash):
-        '''Add/Remove cash to the system (use a negative value to remove)'''
+        # Add/Remove cash to the system (use a negative value to remove)
         self._cash_addition.append(cash)
 
     # 获取基金份额
     def get_fundshares(self):
-        '''Returns the current number of shares in the fund-like mode'''
+        # Returns the current number of shares in the fund-like mode
         return self._fundshares
 
     fundshares = property(get_fundshares)
 
     # 获取基金价值
     def get_fundvalue(self):
-        '''Returns the Fund-like share value'''
+        # Returns the Fund-like share value
         return self._fundval
 
     fundvalue = property(get_fundvalue)
@@ -480,9 +480,9 @@ class BackBroker(bt.BrokerBase):
 
     # 获取价值，如果没有指定data,就获取的是整个账户的价值
     def get_value(self, datas=None, mkt=False, lever=False):
-        '''Returns the portfolio value of the given datas (if datas is ``None``, then
+        """Returns the portfolio value of the given datas (if datas is ``None``, then
         the total portfolio value will be returned (alias: ``getvalue``)
-        '''
+        """
         if datas is None:
             if mkt:
                 return self._valuemkt if not lever else self._valuemktlever
@@ -553,7 +553,9 @@ class BackBroker(bt.BrokerBase):
                 pos_value_unlever += dvalue
         # 如果不是fundhist模式，计算_value，fundval
         if not self._fundhist:
-            self._value = v = self.cash + pos_value_unlever
+            # todo 注释掉没有使用的v
+            # self._value = v = self.cash + pos_value_unlever
+            self._value = self.cash + pos_value_unlever
             self._fundval = self._value / self._fundshares  # update fundvalue
         # 如果是fundhist模式
         else:
@@ -595,13 +597,13 @@ class BackBroker(bt.BrokerBase):
 
     # 获取未成交的订单
     def get_orders_open(self, safe=False):
-        '''Returns an iterable with the orders which are still open (either not
-        executed or partially executed
+        """Returns an iterable with the orders which are still open (either not
+        executed or partially executed)
 
         The orders returned must not be touched.
 
         If order manipulation is needed, set the parameter ``safe`` to True
-        '''
+        """
         if safe:
             os = [x.clone() for x in self.pending]
         else:
@@ -611,8 +613,8 @@ class BackBroker(bt.BrokerBase):
 
     # 获取data的持仓
     def getposition(self, data):
-        '''Returns the current position status (a ``Position`` instance) for
-        the given ``data``'''
+        """Returns the current position status (a ``Position`` instance) for
+        the given ``data``"""
         return self.positions[data]
 
     # 获取order的状态
@@ -689,7 +691,8 @@ class BackBroker(bt.BrokerBase):
             if self._take_children(order) is None:  # children not taken
                 continue
             # 获取佣金信息类
-            comminfo = self.getcommissioninfo(order.data)
+            # comminfo = self.getcommissioninfo(order.data)
+            # todo 注释掉了没有使用的comminfo
             # 获取持仓
             position = positions.setdefault(
                 order.data, self.positions[order.data].clone())
@@ -740,7 +743,7 @@ class BackBroker(bt.BrokerBase):
         else:  # not cancel -> parent exec'd
             # 清空parent订单，然后把子订单的状态变为不激活
             pc.popleft()  # remove parent
-            for o in pc:  # activate childnre
+            for o in pc:  # activate children
                 self._toactivate.append(o)
 
     # oco订单的检查
@@ -967,7 +970,7 @@ class BackBroker(bt.BrokerBase):
                     # use that as new adjustment base, because it already is
                     # for the new futures At the end of the cycle the
                     # adjustment to the close price will be done for all open
-                    # futures from a common base price with regards to the
+                    # futures from a common base price with regard to the
                     # close price
                     # 需要调整的size
                     adjsize = psize - opened
@@ -1036,7 +1039,8 @@ class BackBroker(bt.BrokerBase):
 
     # 尝试执行市价单
     def _try_exec_market(self, order, popen, phigh, plow):
-        ago = 0
+        # ago = 0
+        # todo 注释掉了没有使用的ago
         # 如果cheat_on_close是True，或者order里面cheat_on_open是True的话
         if self.p.coc and order.info.get('coc', True):
             # 订单创建时间
@@ -1088,7 +1092,7 @@ class BackBroker(bt.BrokerBase):
                 self._execute(order, ago=ago, price=execprice)
                 return
 
-        # If no exexcution has taken place ... annotate the closing price
+        # If no execution has taken place ... annotate the closing price
         # 如果dt0小于等于订单创建时间，更新order的pannotated为价格
         order.pannotated = pclose
 
@@ -1102,7 +1106,7 @@ class BackBroker(bt.BrokerBase):
                 # 计算pmax
                 pmax = min(phigh, plimit)
                 # 计算算上滑点之后的价格
-                p = self._slip_up(pmax, popen, doslip=self.p.slip_open,lim=True)
+                p = self._slip_up(pmax, popen, doslip=self.p.slip_open, lim=True)
                 # 执行订单
                 self._execute(order, ago=0, price=p)
             # 如果plimit大于等于plow,执行订单
@@ -1115,7 +1119,8 @@ class BackBroker(bt.BrokerBase):
             if plimit <= popen:
                 # open greater/equal than requested - sell more expensive
                 # 计算pmin
-                pmin = max(plow, plimit)
+                # todo 注释掉了没有使用的pmin
+                # pmin = max(plow, plimit)
                 # 计算算上滑点之后的价格
                 p = self._slip_down(plimit, popen, doslip=self.p.slip_open,
                                     lim=True)
@@ -1364,7 +1369,7 @@ class BackBroker(bt.BrokerBase):
                     d = self.cerebro.datasbyname[dataidx]
 
                 if not len(d):
-                    break  # may start later as oter data feeds
+                    break  # may start later than other data feeds
 
                 dt = uhorder[0]  # date/datetime instance
                 if isinstance(dt, string_types):
@@ -1390,18 +1395,12 @@ class BackBroker(bt.BrokerBase):
                 price = uhorder[2]
                 owner = self.cerebro.runningstrats[0]
                 if size > 0:
-                    o = self.buy(owner=owner, data=d,
-                                 size=size, price=price,
-                                 exectype=Order.Historical,
-                                 histnotify=uhnotify,
-                                 _checksubmit=False)
+                    self.buy(owner=owner, data=d, size=size, price=price, exectype=Order.Historical,
+                             histnotify=uhnotify, _checksubmit=False)
 
                 elif size < 0:
-                    o = self.sell(owner=owner, data=d,
-                                  size=abs(size), price=price,
-                                  exectype=Order.Historical,
-                                  histnotify=uhnotify,
-                                  _checksubmit=False)
+                    self.sell(owner=owner, data=d, size=abs(size), price=price, exectype=Order.Historical,
+                              histnotify=uhnotify, _checksubmit=False)
 
                 # update to next potential order
                 uhist[0] = uhorder = next(uhorders, None)

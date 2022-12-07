@@ -25,15 +25,14 @@ from backtrader.comminfo import CommInfoBase
 from backtrader.metabase import MetaParams
 from backtrader.utils.py3 import with_metaclass
 
-from . import fillers as fillers
-from . import fillers as filler
+# from . import fillers as fillers
+# from . import fillers as filler
+
 
 # broker元类，使得get_cash与getcash,get_value与getvalue方法相同
 class MetaBroker(MetaParams):
     def __init__(cls, name, bases, dct):
-        '''
-        Class has already been created ... fill missing methods if needed be
-        '''
+        # Class has already been created ... fill missing methods if needed be
         # Initialize the class
         super(MetaBroker, cls).__init__(name, bases, dct)
         translations = {
@@ -45,12 +44,14 @@ class MetaBroker(MetaParams):
             if not hasattr(cls, attr):
                 setattr(cls, name, getattr(cls, trans))
 
+
 # broker基类
 class BrokerBase(with_metaclass(MetaBroker, object)):
     # 参数
     params = (
         ('commission', CommInfoBase(percabs=True)),
     )
+
     # 初始化
     def __init__(self):
         self.comminfo = dict()
@@ -61,6 +62,7 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
         # called from init and from start
         if None not in self.comminfo:
             self.comminfo = dict({None: self.p.commission})
+
     # 开始
     def start(self):
         self.init()
@@ -71,20 +73,22 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
 
     # 增加历史order
     def add_order_history(self, orders, notify=False):
-        '''Add order history. See cerebro for details'''
+        # Add order history. See cerebro for details
         raise NotImplementedError
 
     # 设置历史fund
     def set_fund_history(self, fund):
-        '''Add fund history. See cerebro for details'''
+        # Add fund history. See cerebro for details
         raise NotImplementedError
 
     # 获取佣金信息，如果data._name在佣金信息字典中，获取相应的值，否则用默认的self.p.commission
     def getcommissioninfo(self, data):
-        '''Retrieves the ``CommissionInfo`` scheme associated with the given
-        ``data``'''
-        if data._name in self.comminfo:
-            return self.comminfo[data._name]
+        # Retrieves the ``CommissionInfo`` scheme associated with the given ``data``
+        # if data._name in self.comminfo:
+        #     return self.comminfo[data._name]
+        # todo 避免访问被保护的属性._name,在加载数据的时候，已经增加了.name属性，用.name替代_name,避免pycharm弹出警告信息
+        if data.name in self.comminfo:
+            return self.comminfo[data.name]
 
         return self.comminfo[None]
 
@@ -96,13 +100,13 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
                       automargin=False,
                       name=None):
 
-        '''This method sets a `` CommissionInfo`` object for assets managed in
+        """This method sets a `` CommissionInfo`` object for assets managed in
         the broker with the parameters. Consult the reference for
         ``CommInfoBase``
 
         If name is ``None``, this will be the default for assets for which no
         other ``CommissionInfo`` scheme can be found
-        '''
+        """
 
         comm = CommInfoBase(commission=commission, margin=margin, mult=mult,
                             commtype=commtype, stocklike=stocklike,
@@ -113,8 +117,7 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
 
     # 增加佣金信息
     def addcommissioninfo(self, comminfo, name=None):
-        '''Adds a ``CommissionInfo`` object that will be the default for all assets if
-        ``name`` is ``None``'''
+        # Adds a ``CommissionInfo`` object that will be the default for all assets if ``name`` is ``None``
         self.comminfo[name] = comminfo
 
     # 获取现金
@@ -127,7 +130,7 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
 
     # 获取基金份额
     def get_fundshares(self):
-        '''Returns the current number of shares in the fund-like mode'''
+        # Returns the current number of shares in the fund-like mode
         return 1.0  # the abstract mode has only 1 share
 
     fundshares = property(get_fundshares)
@@ -140,15 +143,15 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
 
     # 设置基金模式
     def set_fundmode(self, fundmode, fundstartval=None):
-        '''Set the actual fundmode (True or False)
+        """Set the actual fundmode (True or False)
 
-        If the argument fundstartval is not ``None``, it will used
-        '''
+        If the argument fundstartval is not ``None``, it will use
+        """
         pass  # do nothing, not all brokers can support this
 
     # 获取基金模式
     def get_fundmode(self):
-        '''Returns the actual fundmode (True or False)'''
+        # Returns the actual fundmode (True or False)
         return False
 
     fundmode = property(get_fundmode, set_fundmode)
