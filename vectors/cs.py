@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import alphalens
-from backtrader.vectors.cal_performance import cal_quantile, get_rate_sharpe_drawdown
+from backtrader.vectors.cal_performance import cal_mean, cal_percent, get_rate_sharpe_drawdown
 
 # 排除的品种
 remove_symbol = ["BB", "PG", "BB", "ER", "FB", "JR", "LR", "NR", "PM", "RR", "RS", "WH", "WR", "WS"]
@@ -30,8 +30,9 @@ class AlphaCs(object):
         factors = self.factors
         # 计算多空信号
         col_list = list(factors.columns)
-        factors['low'] = factors.apply(cal_quantile, axis=1, args=(percent,))
-        factors['high'] = factors.apply(cal_quantile, axis=1, args=(1 - percent,))
+        factors['low'] = factors.apply(cal_percent, axis=1, args=(percent,))
+        factors['high'] = factors.apply(cal_percent, axis=1, args=(1 - percent,))
+        factors.to_csv("d:/result/test_quantile.csv")
         result = []
         for col in col_list:
             a = np.where(factors[col] <= factors['low'], -1, 0)
@@ -40,6 +41,7 @@ class AlphaCs(object):
             result.append(c)
         factors = pd.DataFrame(result).T
         factors.columns = col_list
+        factors.to_csv("d:/result/true_signal.csv")
         # 对多空信号进行处理
         index_list = list(factors.index)
         for i in range(len(factors) // hold_days + 1, 0, -1):
@@ -51,6 +53,7 @@ class AlphaCs(object):
             # print(target)
             factors.iloc[target, :] = factors.iloc[first_index, :]
         factors.index = self.returns.index
+        factors.to_csv("d:/result/test_signal.csv")
         self.factors = factors
 
     # 根据高开低收的数据和具体的信号，计算资产的收益率和因子值，保存到self.returns和self.factors
@@ -60,7 +63,7 @@ class AlphaCs(object):
         for symbol in self.datas:
             df = self.datas[symbol]
             df['ret'] = df['close'].pct_change()
-            # df['ret'] = df['ret'].shift(1)
+            df['ret'] = df['ret'].shift(-1)
             df = self.cal_alpha(df)
             df['asset'] = symbol
             df = df.dropna()
@@ -75,7 +78,7 @@ class AlphaCs(object):
     def cal_last_return(self):
         for col in self.returns.columns:
             self.returns[col] = self.returns[col] * self.factors[col]
-        self.returns['ret'] = self.returns.mean(axis=1)
+        self.returns['ret'] = self.returns.apply(cal_mean, axis=1)
         self.returns['total_value'] = self.returns['ret'].cumsum() + 1
         self.returns.index.name = "datetime"
         sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.returns[['total_value']])

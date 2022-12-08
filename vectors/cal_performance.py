@@ -9,6 +9,28 @@ def cal_quantile(s, a=0.2):
     else:
         print(s)
 
+# 根据具体的百分比进行排序,得到相应的临界值
+def cal_percent(s, a=0.2):
+    # 计算的时候并不能完全精确，如果排序的时候，在num的时候两个因子值相等，就可能导致信号多
+    if isinstance(s, pd.Series):
+        s = list(s.dropna())
+        num = min(int(len(s)*a), int(len(s)*(1-a)))
+        s = sorted(s)
+        if a <= 0.5:
+            return s[num-1]
+        if a >= 0.5:
+            return s[-num]
+    else:
+        print(s)
+
+# 计算平均收益率
+def cal_mean(s):
+    if isinstance(s, pd.Series):
+        s = s.dropna().mean()
+        return s
+    else:
+        print(s)
+
 
 # 根据高开低收的数据和具体的信号，计算收益率、累计收益率和净值
 def cal_factor_return(data):
