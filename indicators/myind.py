@@ -5,7 +5,7 @@ import backtrader as bt
 import numpy as np
 
 
-# 这个文件夹中保存一些自定义的指标算法
+# 这个文件中保存一些自定义的指标算法
 
 class MaBetweenHighAndLow(bt.Indicator):
     # 判断均线是否在最高价和最低价之间
