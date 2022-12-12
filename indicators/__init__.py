@@ -88,3 +88,6 @@ from .ichimoku import *
 from .hurst import *
 from .ols import *
 from .hadelta import *
+
+# 增加一些自定义的指标
+from .myind import *
