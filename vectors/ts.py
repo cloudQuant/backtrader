@@ -3,7 +3,7 @@ import pandas as pd
 # import numpy as np
 # import numpy as np
 # import matplotlib.pyplot as plt
-from backtrader.vectors.cal_performance import cal_factor_return, get_rate_sharpe_drawdown
+from backtrader.vectors.cal_performance import *
 from pyecharts import options as opts
 # from pyecharts.commons.utils import JsCode
 from pyecharts.charts import Kline, Line, Bar, Grid
@@ -18,11 +18,12 @@ warnings.filterwarnings("ignore")
 # 创建一个时间序列的类，用于采用向量的方法计算时间序列的
 class AlphaTs(object):
     # 传入具体的数据和函数进行初始化
-    def __init__(self, datas, params):
+    def __init__(self, datas, params, fund_type="normal"):
         # datas是字典格式，key是品种的名字，value是df格式，index是datetime,包含open,high,low,close,volume,openinterest
         # params是测试的时候使用的参数
         self.datas = datas
         self.params = params
+        self.fund_type = fund_type
 
     def cal_alpha(self, data):
         pass
@@ -37,7 +38,14 @@ class AlphaTs(object):
             df = self.datas[key]
             df = self.cal_alpha(df)
             df = self.cal_signal(df)
-            df = cal_factor_return(df)
+            if self.fund_type == "same_percent":
+                df = cal_factor_return_by_percent(df)
+            if self.fund_type == "same_value":
+                df = cal_factor_return_by_value(df)
+            if self.fund_type == "open":
+                df = cal_factor_return_by_open(df)
+            if self.fund_type == "normal":
+                df = cal_factor_return(df)
             datas[key] = df
         self.datas = datas
 
