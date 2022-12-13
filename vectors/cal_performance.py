@@ -9,19 +9,21 @@ def cal_quantile(s, a=0.2):
     else:
         print(s)
 
+
 # 根据具体的百分比进行排序,得到相应的临界值
 def cal_percent(s, a=0.2):
     # 计算的时候并不能完全精确，如果排序的时候，在num的时候两个因子值相等，就可能导致信号多
     if isinstance(s, pd.Series):
         s = list(s.dropna())
-        num = min(int(len(s)*a), int(len(s)*(1-a)))
+        num = min(int(len(s) * a), int(len(s) * (1 - a)))
         s = sorted(s)
         if a <= 0.5:
-            return s[num-1]
+            return s[num - 1]
         if a >= 0.5:
             return s[-num]
     else:
         print(s)
+
 
 # 计算平均收益率
 def cal_mean(s):
@@ -31,15 +33,142 @@ def cal_mean(s):
     else:
         print(s)
 
+# 根据信号值计算具体的收益率，剔除部分信号值一样的bar,每次使用一倍资金
+def cal_factor_return_by_percent(data):
+    # 对ret进行修改，当signal发生变化的时候，对发生变化的两根bar调整收益率
+    # 当前信号
+    data.loc[:, "signal"] = data['signal'].shift(1)
+    # 前一个信号
+    data.loc[:, "pre_signal"] = data['signal'].shift(1)
+    # 下个信号
+    data.loc[:, "next_signal"] = data['signal'].shift(-1)
+    # 删除信号相同的bar
+    data = data[data['signal'] != data['pre_signal']]
+    # 获取最后收盘价
+    last_close = list(data['close'])[-1]
+    data['next_open'] = data['open'].shift(-1)
+    data.loc[list(data.index)[-1], 'next_open'] = last_close
+    # 计算每次交易的价格收益率
+    data['ret'] = (data['next_open'] - data['open'])/data['open']
+    # 计算每次交易信号的收益率
+    data.loc[:, 'return'] = data['ret'] * data['signal']
+    # 单个bar的收益率转换成多个bar的收益率
+    data.loc[:, "new_return"] = data['return'] + 1
+    # data.loc[:, 'return'] = data['ret'].shift(1) * data['signal']
+    # data.loc[:, 'sum_ret'] = data['return'].cumsum()
+    # 计算累计乘
+    data.loc[:, 'total_value'] = data['new_return'].cumprod()
+    data.to_csv("d:/result/test_ts.csv")
+    data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
+    data = data.dropna()
+    return data
+
+# 根据信号值计算具体的收益率，剔除部分信号值一样的bar,每次使用固定资金
+def cal_factor_return_by_value(data):
+    # 对ret进行修改，当signal发生变化的时候，对发生变化的两根bar调整收益率
+    # 当前信号
+    data.loc[:, "signal"] = data['signal'].shift(1)
+    # 前一个信号
+    data.loc[:, "pre_signal"] = data['signal'].shift(1)
+    # 下个信号
+    data.loc[:, "next_signal"] = data['signal'].shift(-1)
+    # 删除信号相同的bar
+    data = data[data['signal'] != data['pre_signal']]
+    # 获取最后收盘价
+    last_close = list(data['close'])[-1]
+    data['next_open'] = data['open'].shift(-1)
+    data.loc[list(data.index)[-1], 'next_open'] = last_close
+    # 计算每次交易的价格收益率
+    data['ret'] = (data['next_open'] - data['open'])/data['open']
+    # 计算每次交易信号的收益率
+    data.loc[:, 'return'] = data['ret'] * data['signal']
+    # 单个bar的收益率转换成多个bar的收益率
+    data.loc[:, "new_return"] = data['return']
+    # data.loc[:, 'return'] = data['ret'].shift(1) * data['signal']
+    # data.loc[:, 'sum_ret'] = data['return'].cumsum()
+    # 计算累计乘
+    data.loc[:, 'total_value'] = data['new_return'].cumsum() + 1
+    data.to_csv("d:/result/test_ts.csv")
+    data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
+    data = data.dropna()
+    return data
 
 # 根据高开低收的数据和具体的信号，计算收益率、累计收益率和净值
 def cal_factor_return(data):
+    # 对ret进行修改，当signal发生变化的时候，对发生变化的两根bar调整收益率
+    # 当前信号
+    data.loc[:, "signal"] = data['signal'].shift(1)
+    # 前一个信号
+    data.loc[:, "pre_signal"] = data['signal'].shift(1)
+    # 下个信号
+    data.loc[:, "next_signal"] = data['signal'].shift(-1)
+    # # 删除信号相同的bar
+    # data = data[data['signal'] != data['pre_signal']]
+    # 计算收益率
+    data['ret'] = data['close'].pct_change()
+    # print(a)
+    data['next_open'] = data['open'].shift(-1)
+    # 上一个收盘价
+    data.loc[:, "pre_close"] = data['close'].shift(1)
+    # 前一个收盘价到下个开盘价之间的收益率
+    data.loc[:,"next_open_pre_close_rate"] = data['next_open']/data['pre_close'] - 1
+    # 当前开盘到收盘的收益率
+    data.loc[:, "close_open_rate"] = data['close']/data['open'] - 1
+    # 当前开盘价到下个开盘价的收益率
+    data.loc[:, "next_open_open_rate"] = data['next_open']/data['open'] - 1
+    # 对信号收益率进行修改，逻辑比较绕，手写出来，一点点梳理
+    # 信号变换一次
+    data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
+                            data['next_open_pre_close_rate'], data['ret'])
+    data['ret'] = np.where((data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
+                            data['close_open_rate'],data['ret'])
+    # 信号变换两次
+    data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal']),
+                           data['next_open_open_rate'], data['ret'])
+
+    # 计算每个bar的收益率
     data.loc[:, 'return'] = data['ret'] * data['signal']
-    data.loc[:, 'sum_ret'] = data['return'].cumsum()
-    data.loc[:, 'total_value'] = data['sum_ret'] + 1
-    data = data.drop(['return', 'sum_ret'], axis=1)
+    # 单个bar的收益率转换成多个bar的收益率
+    data.loc[:, "new_return"] = data['return'] + 1
+    # data.loc[:, 'return'] = data['ret'].shift(1) * data['signal']
+    # data.loc[:, 'sum_ret'] = data['return'].cumsum()
+    # 计算累计乘
+    data.loc[:, 'total_value'] = data['new_return'].cumprod()
+    # data.to_csv("d:/result/test_ts.csv")
+    data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open', 'pre_close'], axis=1)
+    data = data.dropna()
+    data.to_csv("d:/result/test_ts.csv")
     return data
 
+# 根据开盘价计算每个bar的收益率
+def cal_factor_return_by_open(data):
+    # 对ret进行修改，当signal发生变化的时候，对发生变化的两根bar调整收益率
+    # 当前信号
+    data.loc[:, "signal"] = data['signal'].shift(1)
+    # 前一个信号
+    data.loc[:, "pre_signal"] = data['signal'].shift(1)
+    # 下个信号
+    data.loc[:, "next_signal"] = data['signal'].shift(-1)
+    # # 删除信号相同的bar
+    # data = data[data['signal'] != data['pre_signal']]
+    # 获取最后收盘价
+    last_close = list(data['close'])[-1]
+    data['next_open'] = data['open'].shift(-1)
+    data.loc[list(data.index)[-1], 'next_open'] = last_close
+    # 计算每次交易的价格收益率
+    data['ret'] = (data['next_open'] - data['open']) / data['open']
+    # 计算每个bar的收益率
+    data.loc[:, 'return'] = data['ret'] * data['signal']
+    # 单个bar的收益率转换成多个bar的收益率
+    data.loc[:, "new_return"] = data['return'] + 1
+    # data.loc[:, 'return'] = data['ret'].shift(1) * data['signal']
+    # data.loc[:, 'sum_ret'] = data['return'].cumsum()
+    # 计算累计乘
+    data.loc[:, 'total_value'] = data['new_return'].cumprod()
+    data.to_csv("d:/result/test_ts.csv")
+    data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
+    data = data.dropna()
+    return data
 
 def get_symbol(contract_name):
     # 根据具体的期货合约获取标的资产的代码
@@ -71,8 +200,8 @@ def get_rate_sharpe_drawdown(data):
     if len(data1) == 0:
         return np.NaN, np.NaN, np.NaN
     # 假设一年的交易日为252天
-    data1.loc[:, 'rate1'] = np.log(data1['total_value'] / data1['pre_total_value'])
-
+    # data1.loc[:, 'rate1'] = np.log(data1['total_value'] / data1['pre_total_value'])
+    data1.loc[:, 'rate1'] = data1['total_value'].pct_change()
     # data['rate2']=data['total_value'].pct_change()
     data1 = data1.dropna()
     sharpe_ratio = data1['rate1'].mean() * 252 ** 0.5 / (data1['rate1'].std())
