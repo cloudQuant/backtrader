@@ -7,8 +7,8 @@
 #### 改进升级计划
 
 - [x] 对backtrader源代码进行解读注释
-- [ ] 2023年实现对接vnpy\qmt\wxty\ctp等实现实盘交易
-- [ ] 基于numpy\cython\numba\c\c++等对backtrader源代码进行改进优化，提高回测速度
+- [ ] 2023年实现对接`vnpy` \ `qmt` \ `wxty` \ `ctp` 等实现实盘交易
+- [ ] 基于`numpy` \ `cython` \ `numba` \ `c` \ `c++` \ `codon` 等对`backtrader`源代码进行改进优化，提高回测速度
 - [ ] 增加向量化回测函数, 进行因子回测，快速验证想法
 
 #### 安装教程
@@ -26,7 +26,8 @@
 
 记录从2022年之后对backtrader的改动
 
+- [x]    2022-12-13 调整了sharpe.py的部分代码格式以便更好符合pep8规范，并且去掉了self.ratio的赋值
 - [x]    2022-12-05 增加了基于pandas的向量化的单因子回测类，已经可以继承具体的类，编写alpha和signal实现简单回测了
-- [x]    2022-12-1  修改plot中drowdown的拼写错误，改为drawdown
+- [x]    2022-12-1  修改plot中`drowdown`的拼写错误，改为drawdown
 - [x]    2022-11-21 修改了comminfo.py中的getsize函数，把下单的时候取整数给去掉了，如果要下整数，在策略里面自己取整去控制
 - [x]    2022-11-8 给data增加了name属性，使得data.name = data._name,方便写策略的时候规范调用
