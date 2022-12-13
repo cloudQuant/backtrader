@@ -31,8 +31,8 @@ from backtrader.analyzers import TimeReturn, AnnualReturn
 
 
 class SharpeRatio(Analyzer):
-  # 相对来说，backtrader计算夏普率的方式其实蛮复杂的，考虑了很多的参数
-    '''This analyzer calculates the SharpeRatio of a strategy using a risk free
+    # 相对来说，backtrader计算夏普率的方式其实蛮复杂的，考虑了很多的参数
+    """This analyzer calculates the SharpeRatio of a strategy using a risk-free
     asset which is simply an interest rate
 
     See also:
@@ -59,7 +59,7 @@ class SharpeRatio(Analyzer):
 
       - ``factor`` (default: ``None``)          # factor如果没有指定，将会按照指定的日期去转化，1年等于12个月等于52周等于252个交易日
 
-        If ``None``, the conversion factor for the riskfree rate from *annual*
+        If ``None``, the conversion factor for the risk-free rate from *annual*
         to the chosen timeframe will be chosen from a predefined table
 
           Days: 252, Weeks: 52, Months: 12, Years: 1
@@ -109,7 +109,7 @@ class SharpeRatio(Analyzer):
 
         Returns a dictionary with key "sharperatio" holding the ratio
 
-    '''
+    """
     # 默认的参数
     params = (
         ('timeframe', TimeFrame.Years),
@@ -150,7 +150,9 @@ class SharpeRatio(Analyzer):
             rate = self.p.riskfreerate
             retavg = average([r - rate for r in self.anret.rets])
             retdev = standarddev(self.anret.rets)
-            self.ratio = retavg / retdev
+            # todo 把self.ratio改成ratio
+            # self.ratio = retavg / retdev
+            ratio = retavg / retdev
         # 如果不是以年为单位计算收益率和夏普率
         else:
             # Get the returns from the subanalyzer
@@ -195,7 +197,7 @@ class SharpeRatio(Analyzer):
                 # 计算得到每日的超额收益率的平均值
                 ret_free_avg = average(ret_free)
                 # 计算得到每日超额收益率的波动率
-                retdev = standarddev(ret_free, avgx=ret_free_avg,bessel=self.p.stddev_sample)
+                retdev = standarddev(ret_free, avgx=ret_free_avg, bessel=self.p.stddev_sample)
                 # ret_avg = average(returns)
                 # retdev = standarddev(returns, avgx=ret_avg,bessel=self.p.stddev_sample)
 
@@ -212,21 +214,21 @@ class SharpeRatio(Analyzer):
             else:
                 # no returns or stddev_sample was active and 1 return
                 ratio = None
-
-            self.ratio = ratio
+            # todo 这里面self.ratio并没有用到，赋值直接用ratio就好了，还能提高运行速度
+            # self.ratio = ratio
         # 保存夏普率
-        self.rets['sharperatio'] = self.ratio
+        self.rets['sharperatio'] = ratio
 
 
 class SharpeRatio_A(SharpeRatio):
-    '''Extension of the SharpeRatio which returns the Sharpe Ratio directly in
+    """Extension of the SharpeRatio which returns the Sharpe Ratio directly in
     annualized form
 
     The following param has been changed from ``SharpeRatio``
 
       - ``annualize`` (default: ``True``)
 
-    '''
+    """
     # 计算年化的夏普率
     params = (
         ('annualize', True),
