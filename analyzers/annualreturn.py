@@ -28,11 +28,9 @@ from backtrader.utils.date import num2date
 from backtrader import Analyzer
 
 
-
-
 # 计算每年的收益率，感觉算法实现有些复杂，后面写了一个用pandas实现的版本MyAnnualReturn，逻辑上简单了很多
 class AnnualReturn(Analyzer):
-    '''
+    """
     This analyzer calculates the AnnualReturns by looking at the beginning
     and end of the year
 
@@ -49,7 +47,7 @@ class AnnualReturn(Analyzer):
     **get_analysis**:
 
       - Returns a dictionary of annual returns (key: year)
-    '''
+    """
 
     def stop(self):
         # Must have stats.broker
@@ -57,13 +55,18 @@ class AnnualReturn(Analyzer):
         cur_year = -1
         # 开始value
         value_start = 0.0
-        # 当前value
-        value_cur = 0.0
+        # todo 这个值没有使用到，注释掉
+        # value_cur = 0.0   # 当前value
         # 结束value
         value_end = 0.0
         # 保存收益率数据
-        self.rets = list()  # todo 这个其实看起来并没有用到
-        self.ret = OrderedDict()
+        # todo 直接设置在pycharm中会警告，提示在__init__外面设置属性值, 使用hasattr和setattr设置具体的属性值
+        # self.rets = list()  #
+        # self.ret = OrderedDict()
+        if not hasattr(self, 'rets'):
+            setattr(self, "rets", list())
+        if not hasattr(self, 'ret'):
+            setattr(self, "ret", OrderedDict())
         # 从开始到现在，循环数据
         for i in range(len(self.data) - 1, -1, -1):
             # 获取i的时候的时间和当前价值
@@ -100,8 +103,9 @@ class AnnualReturn(Analyzer):
     def get_analysis(self):
         return self.ret
 
+
 class MyAnnualReturn(Analyzer):
-    '''
+    """
     This analyzer calculates the AnnualReturns by looking at the beginning
     and end of the year
 
@@ -118,30 +122,29 @@ class MyAnnualReturn(Analyzer):
     **get_analysis**:
 
       - Returns a dictionary of annual returns (key: year)
-    '''
+    """
 
     def stop(self):
         # 保存数据的容器---字典
-        self.ret =OrderedDict()
+        if not hasattr(self, 'ret'):
+            setattr(self, "ret", OrderedDict())
         # 获取数据的时间，并转化为date
         dt_list = self.data.datetime.get(0, size=len(self.data))
-        dt_list =[num2date(i) for i in dt_list]
+        dt_list = [num2date(i) for i in dt_list]
         # 获取账户的资产
         value_list = self.strategy.stats.broker.value.get(0, size=len(self.data))
         # 转化为pandas格式
-        import numpy as np
         import pandas as pd
-        df = pd.DataFrame([dt_list,value_list]).T
-        df.columns=['datetime','value']
-        df['pre_value']=df['value'].shift(1)
+        df = pd.DataFrame([dt_list, value_list]).T
+        df.columns = ['datetime', 'value']
+        df['pre_value'] = df['value'].shift(1)
         # 计算每年的持有获得的简单收益率
-        df['year']=[i.year for i in df['datetime']]
-        for year,data in df.groupby("year"):
-          begin_value = list(data['pre_value'])[0]
-          end_value = list(data['value'])[-1]
-          annual_return = (end_value/begin_value)-1
-          self.ret[year]=annual_return
-        
+        df['year'] = [i.year for i in df['datetime']]
+        for year, data in df.groupby("year"):
+            begin_value = list(data['pre_value'])[0]
+            end_value = list(data['value'])[-1]
+            annual_return = (end_value / begin_value) - 1
+            self.ret[year] = annual_return
+
     def get_analysis(self):
         return self.ret
-   
