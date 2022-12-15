@@ -25,6 +25,25 @@ def cal_percent(s, a=0.2):
         print(s)
 
 
+def cal_signal_by_percent(s, a=0.2):
+    if isinstance(s, pd.Series):
+        s = s.dropna()
+        num = int(len(s) * a)
+        s = s.sort_values()
+        s = list(zip(s.index, s))
+        signal_dict = {}
+        long_signal_list = s[-num:]
+        short_signal_list = s[:num]
+        signal_dict.update({i[0]: 1 for i in long_signal_list})
+        signal_dict.update({i[0]: -1 for i in short_signal_list})
+        # print(len(signal_dict))
+        return signal_dict
+
+
+def get_value_from_dict(a, b):
+    return b.get(a, 0)
+
+
 # 计算平均收益率
 def cal_mean(s):
     if isinstance(s, pd.Series):
@@ -32,6 +51,7 @@ def cal_mean(s):
         return s
     else:
         print(s)
+
 
 # 根据信号值计算具体的收益率，剔除部分信号值一样的bar,每次使用一倍资金
 def cal_factor_return_by_percent(data):
@@ -49,7 +69,7 @@ def cal_factor_return_by_percent(data):
     data['next_open'] = data['open'].shift(-1)
     data.loc[list(data.index)[-1], 'next_open'] = last_close
     # 计算每次交易的价格收益率
-    data['ret'] = (data['next_open'] - data['open'])/data['open']
+    data['ret'] = (data['next_open'] - data['open']) / data['open']
     # 计算每次交易信号的收益率
     data.loc[:, 'return'] = data['ret'] * data['signal']
     # 单个bar的收益率转换成多个bar的收益率
@@ -62,6 +82,7 @@ def cal_factor_return_by_percent(data):
     data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
     data = data.dropna()
     return data
+
 
 # 根据信号值计算具体的收益率，剔除部分信号值一样的bar,每次使用固定资金
 def cal_factor_return_by_value(data):
@@ -79,7 +100,7 @@ def cal_factor_return_by_value(data):
     data['next_open'] = data['open'].shift(-1)
     data.loc[list(data.index)[-1], 'next_open'] = last_close
     # 计算每次交易的价格收益率
-    data['ret'] = (data['next_open'] - data['open'])/data['open']
+    data['ret'] = (data['next_open'] - data['open']) / data['open']
     # 计算每次交易信号的收益率
     data.loc[:, 'return'] = data['ret'] * data['signal']
     # 单个bar的收益率转换成多个bar的收益率
@@ -92,6 +113,7 @@ def cal_factor_return_by_value(data):
     data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
     data = data.dropna()
     return data
+
 
 # 根据高开低收的数据和具体的信号，计算收益率、累计收益率和净值
 def cal_factor_return(data):
@@ -111,17 +133,17 @@ def cal_factor_return(data):
     # 上一个收盘价
     data.loc[:, "pre_close"] = data['close'].shift(1)
     # 前一个收盘价到下个开盘价之间的收益率
-    data.loc[:,"next_open_pre_close_rate"] = data['next_open']/data['pre_close'] - 1
+    data.loc[:, "next_open_pre_close_rate"] = data['next_open'] / data['pre_close'] - 1
     # 当前开盘到收盘的收益率
-    data.loc[:, "close_open_rate"] = data['close']/data['open'] - 1
+    data.loc[:, "close_open_rate"] = data['close'] / data['open'] - 1
     # 当前开盘价到下个开盘价的收益率
-    data.loc[:, "next_open_open_rate"] = data['next_open']/data['open'] - 1
+    data.loc[:, "next_open_open_rate"] = data['next_open'] / data['open'] - 1
     # 对信号收益率进行修改，逻辑比较绕，手写出来，一点点梳理
     # 信号变换一次
     data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
-                            data['next_open_pre_close_rate'], data['ret'])
+                           data['next_open_pre_close_rate'], data['ret'])
     data['ret'] = np.where((data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
-                            data['close_open_rate'],data['ret'])
+                           data['close_open_rate'], data['ret'])
     # 信号变换两次
     data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal']),
                            data['next_open_open_rate'], data['ret'])
@@ -139,6 +161,7 @@ def cal_factor_return(data):
     data = data.dropna()
     data.to_csv("d:/result/test_ts.csv")
     return data
+
 
 # 根据开盘价计算每个bar的收益率
 def cal_factor_return_by_open(data):
@@ -169,6 +192,7 @@ def cal_factor_return_by_open(data):
     data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
     data = data.dropna()
     return data
+
 
 def get_symbol(contract_name):
     # 根据具体的期货合约获取标的资产的代码
