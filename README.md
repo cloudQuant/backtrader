@@ -9,7 +9,7 @@
 - [x] 对backtrader源代码进行解读注释
 - [ ] 2023年实现对接`vnpy` \ `qmt` \ `wxty` \ `ctp` 等实现实盘交易
 - [ ] 基于`numpy` \ `cython` \ `numba` \ `c` \ `c++` \ `codon` 等对`backtrader`源代码进行改进优化，提高回测速度
-- [ ] 增加向量化回测函数, 进行因子回测，快速验证想法
+- [x] 增加向量化回测函数, 进行因子回测，快速验证想法
 
 #### 安装教程
 进入到目标路径下面，通常是/xxx/site-packages,然后进行clone
