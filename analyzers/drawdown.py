@@ -24,12 +24,12 @@ from __future__ import (absolute_import, division, print_function,
 import backtrader as bt
 from backtrader.utils import AutoOrderedDict
 
-
 __all__ = ['DrawDown', 'TimeDrawDown']
+
 
 # 分析回撤的情况
 class DrawDown(bt.Analyzer):
-    '''This analyzer calculates trading system drawdowns stats such as drawdown
+    """This analyzer calculates trading system drawdowns stats such as drawdown
     values in %s and in dollars, max drawdown in %s and in dollars, drawdown
     length and drawdown max length
 
@@ -58,18 +58,22 @@ class DrawDown(bt.Analyzer):
         - ``max.drawdown`` - max drawdown value in 0.xx %
         - ``max.moneydown`` - max drawdown value in monetary units
         - ``max.len`` - max drawdown length
-    '''
+    """
 
     params = (
         ('fund', None),
     )
+
     # 开始，获取fundmode
     def start(self):
         super(DrawDown, self).start()
         if self.p.fund is None:
-            self._fundmode = self.strategy.broker.fundmode
+            # self._fundmode = self.strategy.broker.fundmode
+            setattr(self, "_fundmode", self.strategy.broker.fundmode)
         else:
-            self._fundmode = self.p.fund
+            # self._fundmode = self.p.fund
+            setattr(self, "_fundmode", self.p.fund)
+
     # 创建需要分析的指标值
     def create_analysis(self):
         self.rets = AutoOrderedDict()  # dict with . notation
@@ -83,6 +87,7 @@ class DrawDown(bt.Analyzer):
         self.rets.max.moneydown = 0.0
 
         self._maxvalue = float('-inf')  # any value will outdo it
+
     # 停止
     def stop(self):
         self.rets._close()  # . notation cannot create more keys
@@ -110,9 +115,10 @@ class DrawDown(bt.Analyzer):
         r.len = r.len + 1 if drawdown else 0
         r.max.len = max(r.max.len, r.len)
 
+
 # 分析时间回撤情况(最大回撤)
 class TimeDrawDown(bt.TimeFrameAnalyzerBase):
-    '''This analyzer calculates trading system drawdowns on the chosen
+    """This analyzer calculates trading system drawdowns on the chosen
     timeframe which can be different from the one used in the underlying data
     Params:
 
@@ -156,7 +162,7 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
         - ``dd``
         - ``maxdd``
         - ``maxddlen``
-    '''
+    """
 
     params = (
         ('fund', None),
@@ -195,6 +201,7 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
         # update the maxdrawdown if needed
         self.maxdd = max(self.maxdd, dd)
         self.maxddlen = max(self.maxddlen, self.ddlen)
+
     # 停止的时候，把最大回撤和最大回撤长度添加到字典中
     def stop(self):
         self.rets['maxdrawdown'] = self.maxdd

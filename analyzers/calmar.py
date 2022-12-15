@@ -25,13 +25,13 @@ import backtrader as bt
 import math
 from . import TimeDrawDown
 
-
 __all__ = ['Calmar']
+
 
 # 计算calmar比例，总体上来看，这个calmar计算的并不算是太成功，或者说analyzer,observer等系列指标，使用效率并不是很高，
 # 可以考虑做一个类似pyfolio的分析模块
 class Calmar(bt.TimeFrameAnalyzerBase):
-    '''This analyzer calculates the CalmarRatio
+    """This analyzer calculates the CalmarRatio
     timeframe which can be different from the one used in the underlying data
     Params:
 
@@ -72,7 +72,7 @@ class Calmar(bt.TimeFrameAnalyzerBase):
 
     Attributes:
       - ``calmar`` the latest calculated calmar ratio
-    '''
+    """
     # 使用到的模块
     packages = ('collections', 'math',)
     # 参数
@@ -81,10 +81,12 @@ class Calmar(bt.TimeFrameAnalyzerBase):
         ('period', 36),
         ('fund', None),
     )
+
     # 计算最大回撤
     def __init__(self):
         self._maxdd = TimeDrawDown(timeframe=self.p.timeframe,
                                    compression=self.p.compression)
+
     # 开始
     def start(self):
         # 最大回撤率

@@ -23,9 +23,10 @@ from __future__ import (absolute_import, division, print_function,
 
 from . import MovingAverageBase, Average
 
+
 # 移动平均线指标
 class MovingAverageSimple(MovingAverageBase):
-    '''
+    """
     Non-weighted average of the last n periods
 
     Formula:
@@ -33,7 +34,7 @@ class MovingAverageSimple(MovingAverageBase):
 
     See also:
       - http://en.wikipedia.org/wiki/Moving_average#Simple_moving_average
-    '''
+    """
     alias = ('SMA', 'SimpleMovingAverage',)
     lines = ('sma',)
 
