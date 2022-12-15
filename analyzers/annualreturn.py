@@ -63,10 +63,8 @@ class AnnualReturn(Analyzer):
         # todo 直接设置在pycharm中会警告，提示在__init__外面设置属性值, 使用hasattr和setattr设置具体的属性值
         # self.rets = list()  #
         # self.ret = OrderedDict()
-        if not hasattr(self, 'rets'):
-            setattr(self, "rets", list())
-        if not hasattr(self, 'ret'):
-            setattr(self, "ret", OrderedDict())
+        setattr(self, "rets", list())
+        setattr(self, "ret", OrderedDict())
         # 从开始到现在，循环数据
         for i in range(len(self.data) - 1, -1, -1):
             # 获取i的时候的时间和当前价值
