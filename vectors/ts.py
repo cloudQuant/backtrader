@@ -54,8 +54,11 @@ class AlphaTs(object):
         # 计算各个品种的夏普率之类的数据，保存到结果中
         result = []
         for key in self.datas:
-            # print(key)
-            sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.datas[key])
+            data = self.datas[key]
+            # data = data[['total_value']]
+            # # print(data)
+            # data = data.dropna()
+            sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(data)
             result.append([key, sharpe_ratio, average_rate, max_drawdown])
         result_df = pd.DataFrame(result, columns=['symbol', 'sharpe_ratio', 'average_rate', 'max_drawdown'])
         return result_df

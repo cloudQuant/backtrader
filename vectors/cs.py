@@ -64,8 +64,12 @@ class AlphaCs(object):
                 end_index = len(signals)
             first_index = (i - 1) * hold_days + 1
             target = index_list[first_index:end_index]
-            # print(target)
-            signals.iloc[target, :] = signals.iloc[first_index, :]
+            # print(first_index, end_index, target)
+            if first_index == end_index:
+                pass
+            else:
+                # print(first_index, target, signals)
+                signals.iloc[target, :] = signals.iloc[first_index, :]
         signals.index = self.factors.index
         # signals.to_csv("d:/result/test_signal.csv")
         self.signals = signals
@@ -164,10 +168,12 @@ class AlphaCs(object):
         self.values.index = self.returns.index
         # self.values.to_csv("d:/result/test_total_value.csv")
         sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values)
-        print(f"夏普率为:{sharpe_ratio},年化收益率为:{average_rate},最大回撤为:{max_drawdown}")
         look_back_days = self.params['look_back_days']
         hold_days = self.params['hold_days']
         percent = self.params['percent']
+        print(f"look_back_days:{look_back_days}, hold_days:{hold_days}, percent:{percent}"
+              f"夏普率为:{sharpe_ratio},年化收益率为:{average_rate},最大回撤为:{max_drawdown}")
+
         return [look_back_days, hold_days, percent, sharpe_ratio, average_rate, max_drawdown]
 
     def run(self):
