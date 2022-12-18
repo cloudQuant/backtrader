@@ -10,6 +10,9 @@
 - [ ] 2023年实现对接`vnpy` \ `qmt` \ `wxty` \ `ctp` 等实现实盘交易
 - [ ] 基于`numpy` \ `cython` \ `numba` \ `c` \ `c++` \ `codon` 等对`backtrader`源代码进行改进优化，提高回测速度
 - [x] 增加向量化回测函数, 进行因子回测，快速验证想法
+- [ ] 优化backtrader滑点设置，实现可以和comminfo一样对于不同的data收取不同的滑点
+- [ ] 优化backtrader涨跌停成交机制，增加一个参数控制是否限制一字涨停不允许成交
+- [ ] 使用pyecharts\plotly\dash\bokeh优化backtrader的画图功能
 
 #### 安装教程
 进入到目标路径下面，通常是/xxx/site-packages,然后进行clone
@@ -25,7 +28,7 @@
 #### 相关改动
 
 记录从2022年之后对backtrader的改动
-
+- [x]    2022-12-18 修改了ts,cs回测框架的部分代码，避免部分bug
 - [x]    2022-12-13 调整了sharpe.py的部分代码格式以便更好符合pep8规范，并且去掉了self.ratio的赋值
 - [x]    2022-12-05 增加了基于pandas的向量化的单因子回测类，已经可以继承具体的类，编写alpha和signal实现简单回测了
 - [x]    2022-12-1  修改plot中`drowdown`的拼写错误，改为drawdown
