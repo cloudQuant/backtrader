@@ -13,6 +13,7 @@
 - [ ] 优化backtrader滑点设置，实现可以和comminfo一样对于不同的data收取不同的滑点
 - [ ] 优化backtrader涨跌停成交机制，增加一个参数控制是否限制一字涨停不允许成交
 - [ ] 使用pyecharts\plotly\dash\bokeh优化backtrader的画图功能
+- [ ] 针对期货和期权等有到期日的数据，增加功能在数据退市之后，自动剔除该数据，以提高速度
 
 #### 安装教程
 进入到目标路径下面，通常是/xxx/site-packages,然后进行clone
