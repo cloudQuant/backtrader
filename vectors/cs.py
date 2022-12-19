@@ -21,6 +21,7 @@ class AlphaCs(object):
         self.returns = None
         self.values = None
         self.prices = None
+        self.symbol = None
         self.alphalens_factors = None
 
     def cal_alpha(self, data):
@@ -32,11 +33,14 @@ class AlphaCs(object):
         # 根据自定义的alpha公式，计算因子值
         self.factors = pd.DataFrame()
         for symbol in self.datas:
+            self.symbol = symbol
+            # print("cal_factors", self.symbol)
             df = self.datas[symbol]
             df = self.cal_alpha(df)
             df = df[['factor']]
             df.columns = [symbol]
             self.factors = pd.concat([self.factors, df], axis=1, join="outer")
+        # self.factors.to_csv("d:/result/test_factors.csv")
 
     def cal_signals(self):
         # 计算得到的信号已经和backtrader进行过对比,两者关于信号是一致的，目前暂时没有发现这个函数有问题，后期可能需要改进算法，提高运算效率
@@ -80,6 +84,7 @@ class AlphaCs(object):
         # 根据高开低收的数据和具体的信号，计算资产的收益率和因子值，保存到self.returns和self.factors
         self.returns = pd.DataFrame()
         for symbol in self.datas:
+            self.symbol = symbol
             data = self.datas[symbol]
             signal_df = self.signals[[symbol]]
             signal_df.columns = ['signal']
@@ -203,8 +208,10 @@ class AlphaCs(object):
         self.alphalens_factors = pd.DataFrame()
         self.prices = pd.DataFrame()
         for symbol in self.datas:
+            self.symbol = symbol
             # look_back_days = self.params['look_back_days']
             df = self.datas[symbol]
+            # print("cs", symbol)
             df = self.cal_alpha(df)
             df['asset'] = symbol
             new_df = df[['close']]
@@ -214,6 +221,9 @@ class AlphaCs(object):
             self.alphalens_factors = pd.concat([self.alphalens_factors, df])
         self.alphalens_factors = self.alphalens_factors.sort_values(by=['trading_date', 'asset'])
         self.alphalens_factors = self.alphalens_factors.set_index(['trading_date', 'asset'])
+        # print(self.alphalens_factors.tail())
+        # print(self.prices.tail())
+        # self.alphalens_factors.to_csv("d:/result/test_factor.csv")
         data = alphalens.utils.get_clean_factor_and_forward_returns(self.alphalens_factors, self.prices,
                                                                     groupby=groupby,
                                                                     binning_by_group=binning_by_group,
