@@ -48,16 +48,18 @@ class AlphaCs(object):
         percent = self.params['percent']
         hold_days = self.params['hold_days']
         factors = self.factors
-        # 计算多空信号,此处计算多空的方式存在问题，可能导致多空品种个数不一致,c尝试使用新的方法
+        # 计算多空信号,此处计算多空的方式存在问题，可能导致多空品种个数不一致,尝试使用新的方法
         col_list = list(factors.columns)
         factors['signal_dict'] = factors.apply(cal_signal_by_percent, axis=1, args=(percent,))
         for col in col_list:
             factors[col] = factors.apply(lambda row: get_value_from_dict(col, row['signal_dict']), axis=1)
         # 对所有的信号进行下移一位
-        signals = copy.deepcopy(factors)
-        signals = signals.drop("signal_dict", axis=1)
-        for col in col_list:
-            signals[col] = signals[col].shift(1)
+        # signals = copy.deepcopy(factors)
+        # signals = signals.drop("signal_dict", axis=1)
+        # for col in col_list:
+        #     signals[col] = signals[col].shift(1)
+        signals = factors.shift(1).drop(columns="signal_dict")
+        # assert signals.equals(signals_1)
         signals.index = range(len(signals))
         # signals.to_csv("d:/result/true_signal.csv")
         # 对多空信号进行处理
@@ -173,13 +175,19 @@ class AlphaCs(object):
         self.values.index = self.returns.index
         # self.values.to_csv("d:/result/test_total_value.csv")
         sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values)
-        look_back_days = self.params['look_back_days']
-        hold_days = self.params['hold_days']
-        percent = self.params['percent']
-        print(f"look_back_days:{look_back_days}, hold_days:{hold_days}, percent:{percent}"
-              f"夏普率为:{sharpe_ratio},年化收益率为:{average_rate},最大回撤为:{max_drawdown}")
+        # look_back_days = self.params['look_back_days']
+        # hold_days = self.params['hold_days']
+        # percent = self.params['percent']
+        file_name = ""
+        result_list = []
+        for key in self.params:
+            file_name = file_name + f"{key}: {self.params[key]} "
+            result_list.append(self.params[key])
+        file_name += f"夏普率为:{sharpe_ratio},年化收益率为:{average_rate},最大回撤为:{max_drawdown}"
+        print(file_name)
+        result_list += [sharpe_ratio, average_rate, max_drawdown]
 
-        return [look_back_days, hold_days, percent, sharpe_ratio, average_rate, max_drawdown]
+        return result_list
 
     def run(self):
         self.cal_factors()
@@ -188,6 +196,7 @@ class AlphaCs(object):
         return self.cal_total_value()
 
     def plot(self):
+        self.values[['total_value']].to_csv("d:/result/test_returns.csv")
         self.values[['total_value']].plot()
         plt.show()
 
