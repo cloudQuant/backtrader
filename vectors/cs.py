@@ -29,60 +29,40 @@ class AlphaCs(object):
         return data
 
     def cal_factors(self):
-        # 这个目前看也是没问题的
         # 根据自定义的alpha公式，计算因子值
         self.factors = pd.DataFrame()
         for symbol in self.datas:
             self.symbol = symbol
-            # print("cal_factors", self.symbol)
-            df = self.datas[symbol]
-            df = self.cal_alpha(df)
-            df = df[['factor']]
-            df.columns = [symbol]
+            df = self.cal_alpha(self.datas[symbol])[['factor']].rename(columns={"factor": symbol})
             self.factors = pd.concat([self.factors, df], axis=1, join="outer")
-        # self.factors.to_csv("d:/result/test_factors.csv")
 
     def cal_signals(self):
-        # 计算得到的信号已经和backtrader进行过对比,两者关于信号是一致的，目前暂时没有发现这个函数有问题，后期可能需要改进算法，提高运算效率
         # 计算信号，默认按照一定的比例进行多空排列生成信号并持有一定时间
         percent = self.params['percent']
         hold_days = self.params['hold_days']
         factors = self.factors
-        # 计算多空信号,此处计算多空的方式存在问题，可能导致多空品种个数不一致,尝试使用新的方法
+        # 计算多空信号
         col_list = list(factors.columns)
         factors['signal_dict'] = factors.apply(cal_signal_by_percent, axis=1, args=(percent,))
         for col in col_list:
             factors[col] = factors.apply(lambda row: get_value_from_dict(col, row['signal_dict']), axis=1)
         # 对所有的信号进行下移一位
-        # signals = copy.deepcopy(factors)
-        # signals = signals.drop("signal_dict", axis=1)
-        # for col in col_list:
-        #     signals[col] = signals[col].shift(1)
         signals = factors.shift(1).drop(columns="signal_dict")
-        # assert signals.equals(signals_1)
+        # 根据持有的天数对信号进行向下复制
         signals.index = range(len(signals))
-        # signals.to_csv("d:/result/true_signal.csv")
-        # 对多空信号进行处理
         index_list = list(signals.index)
         for i in range(1, len(signals) // hold_days + 2):
             end_index = i * hold_days + 1
-            if end_index >= len(signals):
-                end_index = len(signals)
+            if end_index >= len(signals)-1:
+                end_index = len(signals)-1
             first_index = (i - 1) * hold_days + 1
             target = index_list[first_index:end_index]
-            # print(first_index, end_index, target)
-            if first_index == end_index:
-                pass
-            else:
-                # print(first_index, target, signals)
+            if first_index < end_index:
                 signals.iloc[target, :] = signals.iloc[first_index, :]
         signals.index = self.factors.index
-        # signals.to_csv("d:/result/test_signal.csv")
         self.signals = signals
-        # self.signals.to_csv("d:/result/test_signals.csv")
 
     def cal_returns(self):
-        # 经过测试，signal和return计算结果都是和backtrader计算结果保持一致，那出问题的部分应该就是total_value部分的计算了
         # 根据高开低收的数据和具体的信号，计算资产的收益率和因子值，保存到self.returns和self.factors
         self.returns = pd.DataFrame()
         for symbol in self.datas:
@@ -150,28 +130,29 @@ class AlphaCs(object):
             # print(target)
             new_df = returns.iloc[target, :]
             new_signal = signals.iloc[target, :]
-            new_df = new_df + 1
-            new_df = new_df.cumprod()
-            new_df = new_df - 1
-            # 去除所有列都是0的列
-            new_df = new_df.dropna(axis=1)
-            new_df = new_df.loc[:, ~(new_df == 0).all(axis=0)]
-            # print(new_df)
-            # print(new_signal)
-            for col in new_df.columns:
-                signal_list = new_signal[col].unique()
-                # print(col,signal_list)
-                # assert len(signal_list) == 1
-                signal = signal_list[0]
-                new_df.loc[:, col] = new_df[col] * signal
-            # print(i, new_factor, new_df)
-            new_df['total_value'] = new_df.mean(axis=1) + 1
-            new_df['total_value'] = new_df['total_value'] * new_factor
-            # new_df.to_csv(f"d:/result/{i}_returns.csv")
-            # assert 0
-            last_value = list(new_df['total_value'])[-1]
-            new_factor = last_value
-            self.values = pd.concat([self.values, new_df[['total_value']]])
+            if len(new_df) >0:
+                new_df = new_df + 1
+                new_df = new_df.cumprod()
+                new_df = new_df - 1
+                # 去除所有列都是0的列
+                new_df = new_df.dropna(axis=1)
+                new_df = new_df.loc[:, ~(new_df == 0).all(axis=0)]
+                # print(new_df)
+                # print(new_signal)
+                for col in new_df.columns:
+                    signal_list = new_signal[col].unique()
+                    # print(col,signal_list)
+                    # assert len(signal_list) == 1
+                    signal = signal_list[0]
+                    new_df.loc[:, col] = new_df[col] * signal
+                # print(i, new_factor, new_df)
+                new_df['total_value'] = new_df.mean(axis=1) + 1
+                new_df['total_value'] = new_df['total_value'] * new_factor
+                # new_df.to_csv(f"d:/result/{i}_returns.csv")
+                # assert 0
+                last_value = list(new_df['total_value'])[-1]
+                new_factor = last_value
+                self.values = pd.concat([self.values, new_df[['total_value']]])
         self.values.index = self.returns.index
         # self.values.to_csv("d:/result/test_total_value.csv")
         sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values)
@@ -181,9 +162,10 @@ class AlphaCs(object):
         file_name = ""
         result_list = []
         for key in self.params:
-            file_name = file_name + f"{key}: {self.params[key]} "
-            result_list.append(self.params[key])
-        file_name += f"夏普率为:{sharpe_ratio},年化收益率为:{average_rate},最大回撤为:{max_drawdown}"
+            if "df" not in key:
+                file_name = file_name + f"{key}: {self.params[key]} "
+                result_list.append(self.params[key])
+        file_name += f"夏普率为:{round(sharpe_ratio,3)},年化收益率为:{round(average_rate,3)},最大回撤为:{round(max_drawdown,3)}"
         print(file_name)
         result_list += [sharpe_ratio, average_rate, max_drawdown]
 
@@ -196,7 +178,7 @@ class AlphaCs(object):
         return self.cal_total_value()
 
     def plot(self):
-        self.values[['total_value']].to_csv("d:/result/test_returns.csv")
+        # self.values[['total_value']].to_csv("d:/result/test_returns.csv")
         self.values[['total_value']].plot()
         plt.show()
 

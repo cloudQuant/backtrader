@@ -26,18 +26,17 @@ def cal_percent(s, a=0.2):
 
 
 def cal_signal_by_percent(s, a=0.2):
-    if isinstance(s, pd.Series):
-        s = s.dropna()
-        num = int(len(s) * a)
-        s = s.sort_values()
-        s = list(zip(s.index, s))
-        signal_dict = {}
-        long_signal_list = s[-num:]
-        short_signal_list = s[:num]
-        signal_dict.update({i[0]: 1 for i in long_signal_list})
-        signal_dict.update({i[0]: -1 for i in short_signal_list})
-        # print(len(signal_dict))
-        return signal_dict
+    # 采用这种方法排序的时候，如果两个因子的值是一样的，从小到大排列的时候，会按照品种字母靠前的进行排列
+    s = s.dropna()
+    num = int(len(s) * a)
+    s = s.sort_values()
+    s = list(zip(s.index, s))
+    signal_dict = {}
+    long_signal_list = s[-num:]
+    short_signal_list = s[:num]
+    signal_dict.update({i[0]: 1 for i in long_signal_list})
+    signal_dict.update({i[0]: -1 for i in short_signal_list})
+    return signal_dict
 
 
 def get_value_from_dict(a, b):
@@ -78,7 +77,7 @@ def cal_factor_return_by_percent(data):
     # data.loc[:, 'sum_ret'] = data['return'].cumsum()
     # 计算累计乘
     data.loc[:, 'total_value'] = data['new_return'].cumprod()
-    data.to_csv("d:/result/test_ts.csv")
+    # data.to_csv("d:/result/test_ts.csv")
     data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
     data = data.dropna()
     return data
@@ -109,7 +108,7 @@ def cal_factor_return_by_value(data):
     # data.loc[:, 'sum_ret'] = data['return'].cumsum()
     # 计算累计乘
     data.loc[:, 'total_value'] = data['new_return'].cumsum() + 1
-    data.to_csv("d:/result/test_ts.csv")
+    # data.to_csv("d:/result/test_ts.csv")
     data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
     data = data.dropna()
     return data
@@ -156,10 +155,10 @@ def cal_factor_return(data):
     # data.loc[:, 'sum_ret'] = data['return'].cumsum()
     # 计算累计乘
     data.loc[:, 'total_value'] = data['new_return'].cumprod()
-    # data.to_csv("d:/result/test_ts.csv")
+    # data.to_csv("d:/result/test_ts_1.csv")
     data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open', 'pre_close'], axis=1)
     data = data.dropna()
-    data.to_csv("d:/result/test_ts.csv")
+    # data.to_csv("d:/result/test_ts.csv")
     return data
 
 
@@ -188,7 +187,7 @@ def cal_factor_return_by_open(data):
     # data.loc[:, 'sum_ret'] = data['return'].cumsum()
     # 计算累计乘
     data.loc[:, 'total_value'] = data['new_return'].cumprod()
-    data.to_csv("d:/result/test_ts.csv")
+    # data.to_csv("d:/result/test_ts_1.csv")
     data = data.drop(['return', 'new_return', 'pre_signal', 'signal', 'next_signal', 'next_open'], axis=1)
     data = data.dropna()
     return data
@@ -243,11 +242,15 @@ def get_rate_sharpe_drawdown(data):
     # 计算最大回撤
     data['pre_total_value'] = data['total_value'].shift(1)
     data.loc[:, 'rate1'] = np.log(data['total_value'] / data['pre_total_value'])
-
+    # print(data)
     df = data['rate1'].cumsum().dropna()
-    index_j = np.argmax(np.array(np.maximum.accumulate(df) - df))
-    index_i = np.argmax(np.array(df[:index_j]))  # 开始位置
-    # print("最大回撤开始时间",index_i)
-    max_drawdown = (np.e ** df[index_j] - np.e ** df[index_i]) / np.e ** df[index_i]
-
+    try:
+        index_j = np.argmax(np.array(np.maximum.accumulate(df) - df))
+        # print(index_j)
+        # print(df)
+        index_i = np.argmax(np.array(df[:index_j]))  # 开始位置
+        # print("最大回撤开始时间",index_i)
+        max_drawdown = (np.e ** df[index_j] - np.e ** df[index_i]) / np.e ** df[index_i]
+    except:
+        max_drawdown = np.nan
     return sharpe_ratio, average_rate, max_drawdown
