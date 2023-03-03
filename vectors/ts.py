@@ -2,7 +2,7 @@
 import pandas as pd
 # import numpy as np
 # import numpy as np
-# import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 from backtrader.vectors.cal_performance import *
 from pyecharts import options as opts
 # from pyecharts.commons.utils import JsCode
@@ -62,6 +62,10 @@ class AlphaTs(object):
             result.append([key, sharpe_ratio, average_rate, max_drawdown])
         result_df = pd.DataFrame(result, columns=['symbol', 'sharpe_ratio', 'average_rate', 'max_drawdown'])
         return result_df
+
+    def plot(self, symbol):
+        self.datas[symbol]['total_value'].plot()
+        plt.show()
 
     # 打印某个品种的信号
     def plot_signal(self, symbol, save_path=""):

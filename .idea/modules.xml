@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/../alphalens/.idea/alphalens.iml" filepath="$PROJECT_DIR$/../alphalens/.idea/alphalens.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/backtrader.iml" filepath="$PROJECT_DIR$/.idea/backtrader.iml" />
+      <module fileurl="file://D:/搜狗高速下载/btplotting-master/.idea/btplotting-master.iml" filepath="D:/搜狗高速下载/btplotting-master/.idea/btplotting-master.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../empyrical/.idea/empyrical.iml" filepath="$PROJECT_DIR$/../empyrical/.idea/empyrical.iml" />
+      <module fileurl="file://E:/my_backtest_projectsm/.idea/my_backtest_projectsm.iml" filepath="E:/my_backtest_projectsm/.idea/my_backtest_projectsm.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../pyfinance/.idea/pyfinance.iml" filepath="$PROJECT_DIR$/../pyfinance/.idea/pyfinance.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../pyfolio/.idea/pyfolio.iml" filepath="$PROJECT_DIR$/../pyfolio/.idea/pyfolio.iml" />
+    </modules>
+  </component>
+</project>
