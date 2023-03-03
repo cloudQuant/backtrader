@@ -30,11 +30,13 @@ class AlphaCs(object):
 
     def cal_factors(self):
         # 根据自定义的alpha公式，计算因子值
-        self.factors = pd.DataFrame()
+        # self.factors = pd.DataFrame()
+        factor_list = []
         for symbol in self.datas:
             self.symbol = symbol
             df = self.cal_alpha(self.datas[symbol])[['factor']].rename(columns={"factor": symbol})
-            self.factors = pd.concat([self.factors, df], axis=1, join="outer")
+            factor_list.append(df)
+        self.factors = pd.concat(factor_list, axis=1, join="outer")
 
     def cal_signals(self):
         # 计算信号，默认按照一定的比例进行多空排列生成信号并持有一定时间
@@ -50,21 +52,28 @@ class AlphaCs(object):
         signals = factors.shift(1).drop(columns="signal_dict")
         # 根据持有的天数对信号进行向下复制
         signals.index = range(len(signals))
-        index_list = list(signals.index)
-        for i in range(1, len(signals) // hold_days + 2):
-            end_index = i * hold_days + 1
-            if end_index >= len(signals)-1:
-                end_index = len(signals)-1
-            first_index = (i - 1) * hold_days + 1
-            target = index_list[first_index:end_index]
-            if first_index < end_index:
-                signals.iloc[target, :] = signals.iloc[first_index, :]
+        # index_list = list(signals.index)
+        # for i in range(1, len(signals) // hold_days + 2):
+        #     end_index = i * hold_days + 1
+        #     if end_index >= len(signals)-1:
+        #         end_index = len(signals)-1
+        #     first_index = (i - 1) * hold_days + 1
+        #     target = index_list[first_index:end_index]
+        #     if first_index < end_index:
+        #         signals.iloc[target, :] = signals.iloc[first_index, :]
+        # 陈鑫博改进优化部分
+        index_list = [i for i in signals.index]
+        NotNan_list = [i for i in range(1, len(signals), hold_days)]
+        Nan_list = list(set(index_list) - set(NotNan_list))
+        signals.iloc[Nan_list] = np.nan
+        signals.fillna(method='ffill', inplace=True)
         signals.index = self.factors.index
         self.signals = signals
 
     def cal_returns(self):
         # 根据高开低收的数据和具体的信号，计算资产的收益率和因子值，保存到self.returns和self.factors
-        self.returns = pd.DataFrame()
+        # self.returns = pd.DataFrame()
+        return_list = []
         for symbol in self.datas:
             self.symbol = symbol
             data = self.datas[symbol]
@@ -91,20 +100,29 @@ class AlphaCs(object):
             # 当前开盘价到下个开盘价的收益率
             data.loc[:, "next_open_open_rate"] = data['next_open'] / data['open'] - 1
             # 对信号收益率进行修改，逻辑比较绕，手写出来，一点点梳理
-            # 信号变换一次
-            data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
-                                   data['next_open_pre_close_rate'], data['ret'])
-            data['ret'] = np.where((data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
-                                   data['close_open_rate'], data['ret'])
-            # 信号变换两次
-            data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal']),
-                                   data['next_open_open_rate'], data['ret'])
+            # # 信号变换一次
+            # data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
+            #                        data['next_open_pre_close_rate'], data['ret'])
+            # data['ret'] = np.where((data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
+            #                        data['close_open_rate'], data['ret'])
+            # # 信号变换两次
+            # data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal']),
+            #                        data['next_open_open_rate'], data['ret'])
+            # 陈鑫博改进优化部分
+            condlist = [(data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
+                        (data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
+                        (data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal'])]
+            choicelist = [data['next_open_pre_close_rate'], data['close_open_rate'],
+                          data['next_open_open_rate']]
+            data['ret'] = np.select(condlist, choicelist, default=data['ret'])
 
             data['ret'] = data['ret'] * data['signal'] * data['signal']
-            data = data[['ret']]
-            data.columns = [symbol]
-            data = data.dropna()
-            self.returns = pd.concat([self.returns, data], axis=1, join="outer")
+            # data = data[['ret']]
+            # data.columns = [symbol]
+            # data = data.dropna()
+            new_data = data.loc[:, "ret"].rename(symbol).dropna()
+            return_list.append(new_data)
+        self.returns = pd.concat(return_list, axis=1, join="outer")
         # self.returns.to_csv("d:/result/test_returns.csv")
 
     def cal_total_value(self):
@@ -118,7 +136,8 @@ class AlphaCs(object):
         signals = signals.dropna()
         signals.index = range(len(signals))
         # 保存每次持仓的累计收益率
-        self.values = pd.DataFrame()
+        # self.values = pd.DataFrame()
+        value_list = []
         new_factor = 1
         index_list = list(returns.index)
         for i in range(1, len(returns) // hold_days + 2):
@@ -152,7 +171,9 @@ class AlphaCs(object):
                 # assert 0
                 last_value = list(new_df['total_value'])[-1]
                 new_factor = last_value
-                self.values = pd.concat([self.values, new_df[['total_value']]])
+                value_list.append(new_df[['total_value']])
+        # self.values = pd.concat([self.values, new_df[['total_value']]])
+        self.values = pd.concat(value_list)
         self.values.index = self.returns.index
         # self.values.to_csv("d:/result/test_total_value.csv")
         sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values)
