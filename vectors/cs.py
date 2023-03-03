@@ -32,14 +32,17 @@ class AlphaCs(object):
         # 这个目前看也是没问题的
         # 根据自定义的alpha公式，计算因子值
         self.factors = pd.DataFrame()
+        factor_list = []
         for symbol in self.datas:
             self.symbol = symbol
             # print("cal_factors", self.symbol)
             df = self.datas[symbol]
             df = self.cal_alpha(df)
-            df = df[['factor']]
-            df.columns = [symbol]
-            self.factors = pd.concat([self.factors, df], axis=1, join="outer")
+            # df = df[['factor']]
+            # df.columns = [symbol]
+            df = df.loc[:, "factor"].rename(symbol)
+            factor_list.append(df)
+        self.factors = pd.concat(factor_list, axis=1, join="outer")
         # self.factors.to_csv("d:/result/test_factors.csv")
 
     def cal_signals(self):
@@ -48,7 +51,7 @@ class AlphaCs(object):
         percent = self.params['percent']
         hold_days = self.params['hold_days']
         factors = self.factors
-        # 计算多空信号,此处计算多空的方式存在问题，可能导致多空品种个数不一致,c尝试使用新的方法
+        # 计算多空信号,此处计算多空的方式存在问题，可能导致多空品种个数不一致,尝试使用新的方法
         col_list = list(factors.columns)
         factors['signal_dict'] = factors.apply(cal_signal_by_percent, axis=1, args=(percent,))
         for col in col_list:
@@ -56,24 +59,31 @@ class AlphaCs(object):
         # 对所有的信号进行下移一位
         signals = copy.deepcopy(factors)
         signals = signals.drop("signal_dict", axis=1)
-        for col in col_list:
-            signals[col] = signals[col].shift(1)
+        # for col in col_list:
+        #     signals[col] = signals[col].shift(1)
+        signals = signals.shift(1)
         signals.index = range(len(signals))
         # signals.to_csv("d:/result/true_signal.csv")
         # 对多空信号进行处理
-        index_list = list(signals.index)
-        for i in range(1, len(signals) // hold_days + 2):
-            end_index = i * hold_days + 1
-            if end_index >= len(signals):
-                end_index = len(signals)
-            first_index = (i - 1) * hold_days + 1
-            target = index_list[first_index:end_index]
-            # print(first_index, end_index, target)
-            if first_index == end_index:
-                pass
-            else:
-                # print(first_index, target, signals)
-                signals.iloc[target, :] = signals.iloc[first_index, :]
+        # index_list = list(signals.index)
+        # for i in range(1, len(signals) // hold_days + 2):
+        #     end_index = i * hold_days + 1
+        #     if end_index >= len(signals):
+        #         end_index = len(signals)
+        #     first_index = (i - 1) * hold_days + 1
+        #     target = index_list[first_index:end_index]
+        #     # print(first_index, end_index, target)
+        #     if first_index == end_index:
+        #         pass
+        #     else:
+        #         # print(first_index, target, signals)
+        #         signals.iloc[target, :] = signals.iloc[first_index, :]
+        # 陈鑫博改进优化
+        index_list = [i for i in signals.index]
+        NotNan_list = [i for i in range(1, len(signals), hold_days)]
+        Nan_list = list(set(index_list) - set(NotNan_list))
+        signals.iloc[Nan_list] = np.nan
+        signals.fillna(method='ffill', inplace=True)
         signals.index = self.factors.index
         # signals.to_csv("d:/result/test_signal.csv")
         self.signals = signals
@@ -82,12 +92,14 @@ class AlphaCs(object):
     def cal_returns(self):
         # 经过测试，signal和return计算结果都是和backtrader计算结果保持一致，那出问题的部分应该就是total_value部分的计算了
         # 根据高开低收的数据和具体的信号，计算资产的收益率和因子值，保存到self.returns和self.factors
-        self.returns = pd.DataFrame()
+        # self.returns = pd.DataFrame()
+        return_list = []
         for symbol in self.datas:
             self.symbol = symbol
             data = self.datas[symbol]
-            signal_df = self.signals[[symbol]]
-            signal_df.columns = ['signal']
+            # signal_df = self.signals[[symbol]]
+            # signal_df.columns = ['signal']
+            signal_df = self.signals.loc[:, symbol].rename("signal")
             data = pd.concat([data, signal_df], axis=1, join="inner")
             # data['signal'] = self.signals[symbol]
             # 前一个信号
@@ -110,19 +122,28 @@ class AlphaCs(object):
             data.loc[:, "next_open_open_rate"] = data['next_open'] / data['open'] - 1
             # 对信号收益率进行修改，逻辑比较绕，手写出来，一点点梳理
             # 信号变换一次
-            data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
-                                   data['next_open_pre_close_rate'], data['ret'])
-            data['ret'] = np.where((data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
-                                   data['close_open_rate'], data['ret'])
-            # 信号变换两次
-            data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal']),
-                                   data['next_open_open_rate'], data['ret'])
-
+            # data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
+            #                        data['next_open_pre_close_rate'], data['ret'])
+            # data['ret'] = np.where((data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
+            #                        data['close_open_rate'], data['ret'])
+            # # 信号变换两次
+            # data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal']),
+            #                        data['next_open_open_rate'], data['ret'])
+            # 陈鑫博改进优化
+            condlist = [(data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
+                        (data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
+                        (data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal'])]
+            choicelist = [data['next_open_pre_close_rate'], data['close_open_rate'],
+                          data['next_open_open_rate']]
+            data['ret'] = np.select(condlist, choicelist, default=data['ret'])
+            # 计算收益率
             data['ret'] = data['ret'] * data['signal'] * data['signal']
-            data = data[['ret']]
-            data.columns = [symbol]
-            data = data.dropna()
-            self.returns = pd.concat([self.returns, data], axis=1, join="outer")
+            new_data = data.loc[:,"ret"].rename(symbol).dropna()
+            # data = data[['ret']]
+            # data.columns = [symbol]
+            # data = data.dropna()
+            return_list.append(new_data)
+        self.returns = pd.concat(return_list, axis=1, join="outer")
         # self.returns.to_csv("d:/result/test_returns.csv")
 
     def cal_total_value(self):
@@ -137,6 +158,7 @@ class AlphaCs(object):
         signals.index = range(len(signals))
         # 保存每次持仓的累计收益率
         self.values = pd.DataFrame()
+        value_list = []
         new_factor = 1
         index_list = list(returns.index)
         for i in range(1, len(returns) // hold_days + 2):
@@ -169,7 +191,9 @@ class AlphaCs(object):
             # assert 0
             last_value = list(new_df['total_value'])[-1]
             new_factor = last_value
-            self.values = pd.concat([self.values, new_df[['total_value']]])
+            value_list.append(new_df[['total_value']])
+            # self.values = pd.concat([self.values, new_df[['total_value']]])
+        self.values = pd.concat(value_list)
         self.values.index = self.returns.index
         # self.values.to_csv("d:/result/test_total_value.csv")
         sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values)
@@ -178,7 +202,6 @@ class AlphaCs(object):
         percent = self.params['percent']
         print(f"look_back_days:{look_back_days}, hold_days:{hold_days}, percent:{percent}"
               f"夏普率为:{sharpe_ratio},年化收益率为:{average_rate},最大回撤为:{max_drawdown}")
-
         return [look_back_days, hold_days, percent, sharpe_ratio, average_rate, max_drawdown]
 
     def run(self):
