@@ -203,6 +203,37 @@ class AlphaCs(object):
         self.values[['total_value']].plot()
         plt.show()
 
+    def rank_func(self, rank_func, rank_name):
+        # rank函数的实现,对所有品种高开低收成交量等数据应用rank_func后的值进行排序
+        """
+        :param rank_func:具体的函数，以df为参数，返回一列值
+        :param rank_name: 排序返回结果的名称，可以通过这个值和具体的品种名获取因子
+        :return:
+        :example:
+        if not hasattr(self, "rank_a"):
+            self.rank_func(lambda df: df.eval("-1*(1-(open/close))**2").shift(1).rolling(look_back_days).corr(
+                    df['close']), "rank_a")
+        data['factor'] = self.rank_a[symbol]
+        """
+        datas = self.datas
+        symbol = self.symbol
+        # print(symbol)
+        look_back_days = self.params['look_back_days']
+        if look_back_days == 1:
+            look_back_days = 2
+        begin_date = self.params["begin_date"]
+        result_1 = []
+        for symbol in self.datas:
+            df = self.datas[symbol]
+            df = df[df['trading_date'] >= pd.to_datetime(begin_date, utc=True)]
+            df['func'] = rank_func(df)
+            # e = df[['func']]
+            # e.columns = [symbol]
+            # result_1.append(e)
+            result_1.append(df.loc[:,"func"].rename(symbol))
+        df1 = pd.concat(result_1, axis=1, join="outer").rank(axis=1, ascending=True)
+        setattr(self, rank_name, df1)
+
     def run_alphalens(self,
                       groupby=None,
                       binning_by_group=False,
