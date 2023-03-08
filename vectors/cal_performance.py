@@ -214,7 +214,8 @@ def get_rate_sharpe_drawdown(data):
     #     assert 0
     #     print(data)
     #     print(data.isnull().values.any())
-    data.loc[:, 'date'] = [i.date() for i in data.index]
+    # data.loc[:, 'date'] = [i.date() for i in data.index]
+    data.loc[:, 'date'] = data.index.date
     data1 = data.drop_duplicates("date", keep='last')
     # data1.index = pd.to_datetime(data1['date'])
     data1['pre_total_value'] = data1['total_value'].shift(1)
