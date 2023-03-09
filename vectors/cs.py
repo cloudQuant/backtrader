@@ -23,6 +23,9 @@ class AlphaCs(object):
         self.prices = None
         self.symbol = None
         self.alphalens_factors = None
+        # 默认是日线数据，这个在计算夏普率的时候会用到，如果不是每日的，需要继承的时候进行设置
+        # 小时线设置为“Hours”, 分钟线设置为"Minutes", 秒设置为"seconds"
+        self.time_frame = "Days"
 
     def cal_alpha(self, data):
         # 生成实例的时候覆盖这个函数，用于计算具体的因子，列名为factor
@@ -176,7 +179,7 @@ class AlphaCs(object):
         self.values = pd.concat(value_list)
         self.values.index = self.returns.index
         # self.values.to_csv("d:/result/test_total_value.csv")
-        sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values)
+        sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values, time_frame=self.time_frame)
         # look_back_days = self.params['look_back_days']
         # hold_days = self.params['hold_days']
         # percent = self.params['percent']
