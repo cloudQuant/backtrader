@@ -46,32 +46,73 @@ class AlphaCs(object):
         percent = self.params['percent']
         hold_days = self.params['hold_days']
         factors = self.factors
+        # factors = self.factors.fillna(method="ffill")
         # 计算多空信号
-        col_list = list(factors.columns)
-        factors['signal_dict'] = factors.apply(cal_signal_by_percent, axis=1, args=(percent,))
+        col_list = sorted(factors.columns.tolist())
+        factors = factors[col_list]
+        data_length = len(factors)
+        new_df = pd.DataFrame({col_list[i]:[-0.00000000000001*i]*data_length for i in range(len(col_list))},index=factors.index)
+        # short_df = pd.DataFrame({col_list[i]:[0] * data_length for i in range(len(col_list))},index=factors.index)
+        # long_df = pd.DataFrame({col_list[i]: [0] * data_length for i in range(len(col_list))}, index=factors.index)
+        short_df = pd.DataFrame(index=factors.index)
+        long_df = pd.DataFrame(index=factors.index)
+        factors = factors + new_df
+        signal_dict = factors.apply(cal_long_short_factor_value, axis=1, args=(percent,))
+        lower_value, upper_value = signal_dict.str
+        # print(factors,signal_dict)
         for col in col_list:
-            factors[col] = factors.apply(lambda row: get_value_from_dict(col, row['signal_dict']), axis=1)
-        # 对所有的信号进行下移一位
-        signals = factors.shift(1).drop(columns="signal_dict")
+            short_df[col] = np.where(factors[col] <= lower_value,-1,0)
+            long_df[col] = np.where(factors[col] >= upper_value, 1, 0)
+        signals = short_df + long_df
+        signals = signals.shift(1)
         # 根据持有的天数对信号进行向下复制
         signals.index = range(len(signals))
-        # index_list = list(signals.index)
-        # for i in range(1, len(signals) // hold_days + 2):
-        #     end_index = i * hold_days + 1
-        #     if end_index >= len(signals)-1:
-        #         end_index = len(signals)-1
-        #     first_index = (i - 1) * hold_days + 1
-        #     target = index_list[first_index:end_index]
-        #     if first_index < end_index:
-        #         signals.iloc[target, :] = signals.iloc[first_index, :]
         # 陈鑫博改进优化部分
         index_list = [i for i in signals.index]
         NotNan_list = [i for i in range(1, len(signals), hold_days)]
         Nan_list = list(set(index_list) - set(NotNan_list))
         signals.iloc[Nan_list] = np.nan
         signals.fillna(method='ffill', inplace=True)
-        signals.index = self.factors.index
+        signals.index = factors.index
         self.signals = signals
+        # print(signals[signals_true!=signals])
+
+
+    # @profile
+    # def cal_signals(self):
+    #     self.factors.to_csv("c:/result/true_factors.csv")
+    #     # 计算信号，默认按照一定的比例进行多空排列生成信号并持有一定时间
+    #     percent = self.params['percent']
+    #     hold_days = self.params['hold_days']
+    #     factors = self.factors
+    #     # 计算多空信号
+    #     col_list = list(factors.columns)
+    #     factors['signal_dict'] = factors.apply(cal_signal_by_percent, axis=1, args=(percent,))
+    #     for col in col_list:
+    #         factors[col] = factors.apply(lambda row: get_value_from_dict(col, row['signal_dict']), axis=1)
+    #     # 对所有的信号进行下移一位
+    #     signals = factors.shift(1).drop(columns="signal_dict")
+    #     # 输出具体的信息
+    #     signals.to_csv("c:/result/true_signals.csv")
+    #     # 根据持有的天数对信号进行向下复制
+    #     signals.index = range(len(signals))
+    #     # index_list = list(signals.index)
+    #     # for i in range(1, len(signals) // hold_days + 2):
+    #     #     end_index = i * hold_days + 1
+    #     #     if end_index >= len(signals)-1:
+    #     #         end_index = len(signals)-1
+    #     #     first_index = (i - 1) * hold_days + 1
+    #     #     target = index_list[first_index:end_index]
+    #     #     if first_index < end_index:
+    #     #         signals.iloc[target, :] = signals.iloc[first_index, :]
+    #     # 陈鑫博改进优化部分
+    #     index_list = [i for i in signals.index]
+    #     NotNan_list = [i for i in range(1, len(signals), hold_days)]
+    #     Nan_list = list(set(index_list) - set(NotNan_list))
+    #     signals.iloc[Nan_list] = np.nan
+    #     signals.fillna(method='ffill', inplace=True)
+    #     signals.index = self.factors.index
+    #     self.signals = signals
 
     def cal_returns(self):
         # 根据高开低收的数据和具体的信号，计算资产的收益率和因子值，保存到self.returns和self.factors
@@ -139,7 +180,6 @@ class AlphaCs(object):
         signals = signals.dropna()
         signals.index = range(len(signals))
         # 保存每次持仓的累计收益率
-        # self.values = pd.DataFrame()
         value_list = []
         new_factor = 1
         index_list = list(returns.index)
@@ -153,26 +193,19 @@ class AlphaCs(object):
             new_df = returns.iloc[target, :]
             new_signal = signals.iloc[target, :]
             if len(new_df) >0:
+                # 计算收益率
                 new_df = new_df + 1
                 new_df = new_df.cumprod()
                 new_df = new_df - 1
-                # 去除所有列都是0的列
+                new_df = new_df * new_signal
+                # 去除每列全部等于0或者包含nan的，nan代表没上市，全部等于0代表信号是0
                 new_df = new_df.dropna(axis=1)
                 new_df = new_df.loc[:, ~(new_df == 0).all(axis=0)]
-                # print(new_df)
-                # print(new_signal)
-                for col in new_df.columns:
-                    signal_list = new_signal[col].unique()
-                    # print(col,signal_list)
-                    # assert len(signal_list) == 1
-                    signal = signal_list[0]
-                    new_df.loc[:, col] = new_df[col] * signal
-                # print(i, new_factor, new_df)
+                # 计算累计净值
                 new_df['total_value'] = new_df.mean(axis=1) + 1
                 new_df['total_value'] = new_df['total_value'] * new_factor
-                # new_df.to_csv(f"d:/result/{i}_returns.csv")
-                # assert 0
-                last_value = list(new_df['total_value'])[-1]
+                # 赋值并保存
+                last_value = new_df['total_value'].tolist()[-1]
                 new_factor = last_value
                 value_list.append(new_df[['total_value']])
         # self.values = pd.concat([self.values, new_df[['total_value']]])

@@ -48,28 +48,12 @@ def get_rate_sharpe_drawdown(data,time_frame="Days"):
     max_drawdown = get_maxdrawdown(data)
     return sharpe_ratio, average_rate, max_drawdown
 
-# 计算分位数的值
-def cal_quantile(s, a=0.2):
+# 计算持有多头的时候最小的factor值
+def cal_long_short_factor_value(s,a=0.2):
     if isinstance(s, pd.Series):
-        return s.dropna().quantile(a)
-    else:
-        print(s)
-
-
-# 根据具体的百分比进行排序,得到相应的临界值
-def cal_percent(s, a=0.2):
-    # 计算的时候并不能完全精确，如果排序的时候，在num的时候两个因子值相等，就可能导致信号多
-    if isinstance(s, pd.Series):
-        s = list(s.dropna())
-        num = min(int(len(s) * a), int(len(s) * (1 - a)))
-        s = sorted(s)
-        if a <= 0.5:
-            return s[num - 1]
-        if a >= 0.5:
-            return s[-num]
-    else:
-        print(s)
-
+        s = s.dropna().sort_values()
+        num = int(len(s)*a)
+        return [s[num-1], s[-1*num]]
 
 def cal_signal_by_percent(s, a=0.2):
     # 采用这种方法排序的时候，如果两个因子的值是一样的，从小到大排列的时候，会按照品种字母靠前的进行排列
@@ -83,6 +67,15 @@ def cal_signal_by_percent(s, a=0.2):
     signal_dict.update({i[0]: 1 for i in long_signal_list})
     signal_dict.update({i[0]: -1 for i in short_signal_list})
     return signal_dict
+
+# 计算分位数的值
+def cal_quantile(s, a=0.2):
+    if isinstance(s, pd.Series):
+        return s.dropna().quantile(a)
+    else:
+        print(s)
+
+
 
 
 def get_value_from_dict(a, b):
