@@ -74,8 +74,9 @@ class AlphaCs(object):
         signals.iloc[Nan_list] = np.nan
         signals.fillna(method='ffill', inplace=True)
         signals.index = factors.index
-        self.signals = signals
-        # print(signals[signals_true!=signals])
+        self.signals = signals.dropna(axis=0)
+        # print(self.signals)
+        # assert 0
 
 
     # @profile
@@ -167,65 +168,114 @@ class AlphaCs(object):
             new_data = data.loc[:, "ret"].rename(symbol).dropna()
             return_list.append(new_data)
         self.returns = pd.concat(return_list, axis=1, join="outer")
+        # print(self.returns)
         # self.returns.to_csv("d:/result/test_returns.csv")
 
+    # def cal_total_value(self):
+    #     # 根据再平衡的天数计算具体的收益率
+    #     # 这个计算有问题，需要计算出来每个bar的累计收益率，最后再乘以信号，最后再乘以因子
+    #     hold_days = self.params['hold_days']
+    #     # 复制新的returns序列并设置index
+    #     returns = copy.deepcopy(self.returns)
+    #     returns.index = range(len(returns))
+    #     signals = copy.deepcopy(self.signals)
+    #     # signals = signals.dropna()
+    #     signals.index = range(len(signals))
+    #
+    #     # 保存每次持仓的累计收益率
+    #     value_list = []
+    #     new_factor = 1
+    #     index_list = list(returns.index)
+    #     for i in range(1, len(returns) // hold_days + 2):
+    #         end_index = i * hold_days
+    #         if end_index >= len(returns):
+    #             end_index = len(returns)
+    #         first_index = (i - 1) * hold_days
+    #         target = index_list[first_index:end_index]
+    #         # print(target)
+    #         new_df = returns.iloc[target, :]
+    #         new_signal = signals.iloc[target, :]
+    #         if len(new_df) >0:
+    #             # 计算收益率
+    #             new_df = new_df + 1
+    #             new_df = new_df.cumprod()
+    #             new_df = new_df - 1
+    #             new_df = new_df * new_signal
+    #             # 去除每列全部等于0或者包含nan的，nan代表没上市，全部等于0代表信号是0
+    #             new_df = new_df.dropna(axis=1)
+    #             new_df = new_df.loc[:, ~(new_df == 0).all(axis=0)]
+    #             # 计算累计净值
+    #             new_df['total_value'] = new_df.mean(axis=1) + 1
+    #             new_df['total_value'] = new_df['total_value'] * new_factor
+    #             # 赋值并保存
+    #             # 赋值并保存
+    #             last_value = new_df['total_value'].tolist()
+    #             new_factor = last_value[-1]
+    #             value_list.append(new_df[['total_value']])
+    #     # self.values = pd.concat([self.values, new_df[['total_value']]])
+    #     self.values = pd.concat(value_list)
+    #     self.values.index = self.returns.index
+    #     # self.values.to_csv("d:/result/test_total_value.csv")
+    #     sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values, time_frame=self.time_frame)
+    #     # look_back_days = self.params['look_back_days']
+    #     # hold_days = self.params['hold_days']
+    #     # percent = self.params['percent']
+    #     file_name = ""
+    #     result_list = []
+    #     for key in self.params:
+    #         if "df" not in key:
+    #             file_name = file_name + f"{key}: {self.params[key]} "
+    #             result_list.append(self.params[key])
+    #     file_name += f"夏普率为:{round(sharpe_ratio,3)},年化收益率为:{round(average_rate,3)},最大回撤为:{round(max_drawdown,3)}"
+    #     print(file_name)
+    #     result_list += [sharpe_ratio, average_rate, max_drawdown]
+    #
+    #     return result_list
+    # @profile
     def cal_total_value(self):
         # 根据再平衡的天数计算具体的收益率
-        # 这个计算有问题，需要计算出来每个bar的累计收益率，最后再乘以信号，最后再乘以因子
         hold_days = self.params['hold_days']
-        # 复制新的returns序列并设置index
-        returns = copy.deepcopy(self.returns)
-        returns.index = range(len(returns))
-        signals = copy.deepcopy(self.signals)
-        signals = signals.dropna()
-        signals.index = range(len(signals))
+        # 把信号和收益率序列转化成numpy的array
+        returns = np.array(self.returns)
+        signals = np.array(self.signals.loc[returns.index])
         # 保存每次持仓的累计收益率
         value_list = []
         new_factor = 1
-        index_list = list(returns.index)
-        for i in range(1, len(returns) // hold_days + 2):
-            end_index = i * hold_days
-            if end_index >= len(returns):
-                end_index = len(returns)
-            first_index = (i - 1) * hold_days
-            target = index_list[first_index:end_index]
-            # print(target)
-            new_df = returns.iloc[target, :]
-            new_signal = signals.iloc[target, :]
-            if len(new_df) >0:
-                # 计算收益率
-                new_df = new_df + 1
-                new_df = new_df.cumprod()
-                new_df = new_df - 1
-                new_df = new_df * new_signal
-                # 去除每列全部等于0或者包含nan的，nan代表没上市，全部等于0代表信号是0
-                new_df = new_df.dropna(axis=1)
-                new_df = new_df.loc[:, ~(new_df == 0).all(axis=0)]
-                # 计算累计净值
-                new_df['total_value'] = new_df.mean(axis=1) + 1
-                new_df['total_value'] = new_df['total_value'] * new_factor
-                # 赋值并保存
-                last_value = new_df['total_value'].tolist()[-1]
-                new_factor = last_value
-                value_list.append(new_df[['total_value']])
-        # self.values = pd.concat([self.values, new_df[['total_value']]])
-        self.values = pd.concat(value_list)
+        # 陈鑫博改进循环
+        for i in range(0, (len(returns) + 2 + (hold_days - (len(returns) % hold_days))), hold_days):
+            if i != 0:
+                new_df = returns[i - hold_days:i]
+                new_signal = signals[i - hold_days:i]
+                if len(new_df) > 0:
+                    # 计算收益率
+                    new_df = new_df + 1
+                    new_df = new_df.cumprod(axis=0)
+                    new_df = new_df - 1
+                    new_df = new_df * new_signal
+                    # 去除每列全部等于0或者包含nan的，nan代表没上市，全部等于0代表信号是0
+                    new_df = np.delete(new_df, np.where(~new_df.any(axis=0))[0], axis=1)
+                    new_df = np.delete(new_df, np.where(np.isnan(new_df).any(axis=0))[0], axis=1)
+                    # 计算累计净值
+                    total_value = new_df.mean(axis=1) + 1
+                    total_value = total_value * new_factor
+                    # 赋值并保存
+                    # last_value = total_value[-1]
+                    # new_factor = last_value
+                    new_factor = total_value[-1]
+                    value_list.extend(list(total_value))
+        self.values = pd.DataFrame(value_list).rename(columns={0: 'total_value'})
         self.values.index = self.returns.index
-        # self.values.to_csv("d:/result/test_total_value.csv")
+        # 计算夏普率等指标
         sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values, time_frame=self.time_frame)
-        # look_back_days = self.params['look_back_days']
-        # hold_days = self.params['hold_days']
-        # percent = self.params['percent']
         file_name = ""
         result_list = []
         for key in self.params:
             if "df" not in key:
                 file_name = file_name + f"{key}: {self.params[key]} "
                 result_list.append(self.params[key])
-        file_name += f"夏普率为:{round(sharpe_ratio,3)},年化收益率为:{round(average_rate,3)},最大回撤为:{round(max_drawdown,3)}"
-        print(file_name)
+        file_name += f"夏普率为:{round(sharpe_ratio, 4)},年化收益率为:{round(average_rate, 4)},最大回撤为:{round(max_drawdown, 4)}"
+        # print(file_name)
         result_list += [sharpe_ratio, average_rate, max_drawdown]
-
         return result_list
 
     def run(self):

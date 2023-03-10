@@ -29,7 +29,7 @@ def get_average_rate(data):
     average_rate = (1 + total_rate) ** (365 / days) - 1
     return average_rate
 
-def get_maxdrawdown(data):
+def get_maxdrawdown_old(data):
     # 计算最大回撤
     data.loc[:, 'rate1'] = np.log(data['total_value'] / data['total_value'].shift(1))
     df = data['rate1'].cumsum().dropna()
@@ -40,6 +40,17 @@ def get_maxdrawdown(data):
     except:
         max_drawdown = np.nan
     return max_drawdown
+
+def get_maxdrawdown(data):
+    X = data['total_value']
+    # 计算最大回撤，直接传递净值
+    endDate = np.argmax((np.maximum.accumulate(X) - X) / np.maximum.accumulate(X))
+    if endDate == 0:
+        return 0, len(X), endDate
+    else:
+        startDate = np.argmax(X[:endDate])
+
+    return (X[endDate]- X[startDate]) / X[startDate]
 
 def get_rate_sharpe_drawdown(data,time_frame="Days"):
     # 计算夏普率，复利年化收益率，最大回撤率
@@ -53,7 +64,10 @@ def cal_long_short_factor_value(s,a=0.2):
     if isinstance(s, pd.Series):
         s = s.dropna().sort_values()
         num = int(len(s)*a)
-        return [s[num-1], s[-1*num]]
+        if num>0:
+            return [s[num-1], s[-1*num]]
+        else:
+            return [np.NaN, np.NaN]
 
 def cal_signal_by_percent(s, a=0.2):
     # 采用这种方法排序的时候，如果两个因子的值是一样的，从小到大排列的时候，会按照品种字母靠前的进行排列
