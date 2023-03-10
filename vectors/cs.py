@@ -236,7 +236,7 @@ class AlphaCs(object):
         # 根据再平衡的天数计算具体的收益率
         hold_days = self.params['hold_days']
         # 把信号和收益率序列转化成numpy的array
-        signals = np.array(self.signals.loc[returns.index])
+        signals = np.array(self.signals.loc[self.returns.index])
         returns = np.array(self.returns)
         # 保存每次持仓的累计收益率
         value_list = []
