@@ -274,7 +274,7 @@ class AlphaCs(object):
                 file_name = file_name + f"{key}: {self.params[key]} "
                 result_list.append(self.params[key])
         file_name += f"夏普率为:{round(sharpe_ratio, 4)},年化收益率为:{round(average_rate, 4)},最大回撤为:{round(max_drawdown, 4)}"
-        # print(file_name)
+        print(file_name)
         result_list += [sharpe_ratio, average_rate, max_drawdown]
         return result_list
 
@@ -309,16 +309,20 @@ class AlphaCs(object):
             look_back_days = 2
         begin_date = self.params["begin_date"]
         result_1 = []
-        for symbol in self.datas:
-            df = self.datas[symbol]
+        # 陈鑫博 字典循环从symbol改成key,避免symbol出现问题
+        for key in self.datas:
+            df = self.datas[key]
             df = df[df['trading_date'] >= pd.to_datetime(begin_date, utc=True)]
             df['func'] = rank_func(df)
             # e = df[['func']]
             # e.columns = [symbol]
             # result_1.append(e)
-            result_1.append(df.loc[:,"func"].rename(symbol))
-        df1 = pd.concat(result_1, axis=1, join="outer").rank(axis=1, ascending=True)
-        setattr(self, rank_name, df1)
+            result_1.append(df.loc[:,"func"].rename(key))
+        df1 = pd.concat(result_1, axis=1, join="outer")
+        # print("计算的因子值",df1)
+        df2 = df1.rank(axis=1, ascending=True)
+        # print(rank_name,df2)
+        setattr(self, rank_name, df2)
 
     def run_alphalens(self,
                       groupby=None,
