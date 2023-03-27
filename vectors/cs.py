@@ -26,6 +26,8 @@ class AlphaCs(object):
         # 默认是日线数据，这个在计算夏普率的时候会用到，如果不是每日的，需要继承的时候进行设置
         # 小时线设置为“Hours”, 分钟线设置为"Minutes", 秒设置为"seconds"
         self.time_frame = "Days"
+        # 保存total_value的地址
+        self.total_value_save_path = self.params.get('total_value_save_path',None)
 
     def cal_alpha(self, data):
         # 生成实例的时候覆盖这个函数，用于计算具体的因子，列名为factor
@@ -232,7 +234,7 @@ class AlphaCs(object):
     #
     #     return result_list
     # @profile
-    def cal_total_value(self):
+    def cal_total_value(self,total_value_save_path=None):
         # 根据再平衡的天数计算具体的收益率
         hold_days = self.params['hold_days']
         # 把信号和收益率序列转化成numpy的array
@@ -270,19 +272,23 @@ class AlphaCs(object):
         file_name = ""
         result_list = []
         for key in self.params:
-            if "df" not in key:
-                file_name = file_name + f"{key}: {self.params[key]} "
+            if "df" not in key and "save_path" not in key:
+                file_name = file_name + f"{key}__{self.params[key]} "
                 result_list.append(self.params[key])
-        file_name += f"夏普率为:{round(sharpe_ratio, 4)},年化收益率为:{round(average_rate, 4)},最大回撤为:{round(max_drawdown, 4)}"
-        print(file_name)
+        if total_value_save_path is not None:
+            target_file = total_value_save_path + file_name + ".csv"
+            self.values.to_csv(target_file)
+        file_name += f"夏普率为__{round(sharpe_ratio, 4)}__年化收益率为:{round(average_rate, 4)}__最大回撤为:{round(max_drawdown, 4)}"
+        # print(file_name)
         result_list += [sharpe_ratio, average_rate, max_drawdown]
+
         return result_list
 
     def run(self):
         self.cal_factors()
         self.cal_signals()
         self.cal_returns()
-        return self.cal_total_value()
+        return self.cal_total_value(self.total_value_save_path)
 
     def plot(self):
         # self.values[['total_value']].to_csv("d:/result/test_returns.csv")

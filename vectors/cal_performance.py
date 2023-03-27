@@ -46,7 +46,7 @@ def get_maxdrawdown(data):
     # 计算最大回撤，直接传递净值
     endDate = np.argmax((np.maximum.accumulate(X) - X) / np.maximum.accumulate(X))
     if endDate == 0:
-        return 0, len(X), endDate
+        return np.NaN
     else:
         startDate = np.argmax(X[:endDate])
 
