@@ -2,7 +2,7 @@
 import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
-
+from backtrader.analyzers import my_corr
 
 def estimated_sharpe_ratio(returns):
     """
@@ -227,8 +227,9 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
         m = trials_returns.shape[1]
         
     if p is None:
-        corr_matrix = trials_returns.corr()
-        p = corr_matrix.values[np.triu_indices_from(corr_matrix.values,1)].mean()
+        # corr_matrix = trials_returns.corr()
+        # p = corr_matrix.values[np.triu_indices_from(corr_matrix.values,1)].mean()
+        p = my_corr.main(trials_returns)
         
     n = p + (1 - p) * m
     
@@ -276,7 +277,7 @@ def expected_maximum_sr(trials_returns=None, expected_mean_sr=0.0, *, independen
     return expected_max_sr
 
 
-def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_mean_sr=0.0, *, expected_max_sr=None):
+def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_mean_sr=0.0, independent_trials=10, expected_max_sr=None):
     """
     Calculate the Deflated Sharpe Ratio (PSR).
 
@@ -308,7 +309,9 @@ def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_m
     https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551
     """
     if expected_max_sr is None:
-        expected_max_sr = expected_maximum_sr(trials_returns, expected_mean_sr)
+        expected_max_sr = expected_maximum_sr(trials_returns = trials_returns,
+                                              expected_mean_sr = expected_mean_sr,
+                                              independent_trials = independent_trials)
         
     dsr = probabilistic_sharpe_ratio(returns=returns_selected, sr_benchmark=expected_max_sr)
 
