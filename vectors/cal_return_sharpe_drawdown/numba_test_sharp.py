@@ -8,7 +8,7 @@ cc = CC('my_numba_cal_performance')
 #cc.verbose = True
 
 
-@cc.export('get_sharpe', 'f8(f8[:])')
+@cc.export('get_sharpe_by_numba', 'f8(f8[:])')
 def get_sharpe(arr):
     # 计算夏普率，如果是日线数据，直接进行，如果不是日线数据，需要获取每日最后一个bar的数据用于计算每日收益率，然后计算夏普率
     # 对于期货的分钟数据而言，并不是按照15：00收盘算，可能会影响一点点夏普率等指标的计算，但是影响不大。
@@ -28,16 +28,17 @@ def get_sharpe(arr):
     # print(v_mean,std_dev)
     return v_mean*252**0.5/std_dev
 
-@cc.export('get_average_rate', 'f8(f8[:])')
+@cc.export('get_average_rate_by_numba', 'f8(f8[:])')
 def get_average_rate(arr):
     # 计算复利年化收益率
     arr_len = len(arr)
     begin_value = arr[0]
-    end_value = arr[arr_len-1]
-    total_rate = max((end_value - begin_value) / begin_value, -0.9999)
-    return (1 + total_rate) ** (365 / arr_len) - 1
+    end_value = arr[-1]
+    total_rate = max((end_value - begin_value) / begin_value,-0.9999)
+    # if total_rate < -1.0: return -1.0
+    return (1 + total_rate) ** (252 / arr_len) - 1
 
-@cc.export('get_maxdrawdown', 'f8(f8[:])')
+@cc.export('get_maxdrawdown_by_numba', 'f8(f8[:])')
 def get_maxdrawdown(arr):
     # 计算最大回撤，直接传递净值
     arr_len = len(arr)
