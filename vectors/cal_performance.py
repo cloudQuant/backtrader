@@ -6,8 +6,8 @@ from backtrader.vectors.cal_return_sharpe_drawdown import cal_return_sharpe_draw
 def get_rate_sharpe_drawdown(arr):
     # 计算夏普率、复利年化收益率、最大回撤率
     # arr是每日的净值序列
-    if isinstance(arr, pd.Series):
-        arr = arr.to_numpy()
+    # if isinstance(arr, pd.Series):
+    #     arr = arr.to_numpy()
     return [ts.cal_sharpe_ratio_cy(arr), ts.cal_average_rate_cy(arr), ts.cal_max_drawdown_cy(arr)]
 
 def get_sharpe(arr):
@@ -32,6 +32,16 @@ def get_symbol(contract_name):
     输入的数据是具体的合约，如：A0501.XDCE，返回A
     """
     return ''.join([i for i in contract_name.split('.')[0] if i.isalpha()]).upper()
+
+# 计算持有多头的时候最小的factor值
+def cal_long_short_factor_value(s,a=0.2):
+    if isinstance(s, pd.Series):
+        s = s.dropna().sort_values()
+        num = int(len(s)*a)
+        if num>0:
+            return [s[num-1], s[-1*num]]
+        else:
+            return [np.NaN, np.NaN]
 
 # def get_sharpe(data):
 #         # 计算夏普率，如果是日线数据，直接进行，如果不是日线数据，需要获取每日最后一个bar的数据用于计算每日收益率，然后计算夏普率

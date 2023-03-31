@@ -268,7 +268,7 @@ class AlphaCs(object):
         self.values = pd.DataFrame(value_list).rename(columns={0: 'total_value'})
         self.values.index = self.returns.index
         # 计算夏普率等指标
-        sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values['total_value'].to_numpy())
+        sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values['total_value'])
         file_name = ""
         result_list = []
         for key in self.params:
