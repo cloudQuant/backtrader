@@ -60,6 +60,7 @@ class AlphaCs(object):
         long_df = pd.DataFrame(index=factors.index)
         factors = factors + new_df
         signal_dict = factors.apply(cal_long_short_factor_value, axis=1, args=(percent,))
+        # signal_dict = factors.apply(cal_long_short_factor_value_c, axis=1, args=(percent,))  # 使用Cython优化
         lower_value, upper_value = signal_dict.str
         # print(factors,signal_dict)
         for col in col_list:

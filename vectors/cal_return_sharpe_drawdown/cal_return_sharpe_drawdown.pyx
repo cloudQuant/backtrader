@@ -228,7 +228,16 @@ def cal_max_drawdown_cy(ss:pd.Series):
 #     return daily_returns(arr)
 #def
 
-
+cpdef cal_long_short_factor_value_cy(np.ndarray s, double a):
+     #cdef vector[double]
+     cdef np.ndarray[double] ss = s[~np.isnan(s)]
+     ss.sort()
+     cdef int num = int(ss.size*a)
+     if num > 0:
+        return [ss[num-1], ss[-1*num]]
+     else:
+        return [np.NaN, np.NaN]
+#def
 
 
 def main(df:pd.DataFrame):

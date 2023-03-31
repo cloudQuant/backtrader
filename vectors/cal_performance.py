@@ -43,6 +43,10 @@ def cal_long_short_factor_value(s,a=0.2):
         else:
             return [np.NaN, np.NaN]
 
+def cal_long_short_factor_value_c(s, a = 0.2):
+    s = s.values
+    return ts.cal_long_short_factor_value_cy(s, a)
+
 # def get_sharpe(data):
 #         # 计算夏普率，如果是日线数据，直接进行，如果不是日线数据，需要获取每日最后一个bar的数据用于计算每日收益率，然后计算夏普率
 #         # 对于期货的分钟数据而言，并不是按照15：00收盘算，可能会影响一点点夏普率等指标的计算，但是影响不大。
