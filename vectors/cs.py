@@ -4,292 +4,169 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import alphalens
-from backtrader.vectors.cal_performance import *
-
+from backtrader.vectors.cal_functions import *
 # 排除的品种
 remove_symbol = ["BB", "PG", "BB", "ER", "FB", "JR", "LR", "NR", "PM", "RR", "RS", "WH", "WR", "WS"]
 
-
 class AlphaCs(object):
     def __init__(self, datas, params):
-        # datas是字典格式，key是品种的名字，value是df格式，index是datetime,包含open,high,low,close,volume,openinterest
+        '''
+        :param datas: 字典格式，key是品种的名字，value是df格式，index是datetime,包含open,high,low,close,volume,openinterest
+        :param params: 字典格式，key是参数名称，value是参数的值
+        '''
         self.datas = datas
         self.params = params
         # 初始化后续可能使用到的属性
-        self.factors = None
-        self.signals = None
-        self.returns = None
-        self.values = None
-        self.prices = None
-        self.symbol = None
-        self.alphalens_factors = None
+        self.commission = self.params.get('commission',0.0)
+        self.initial_capital = self.params.get("initial_capital",1000000.0)
+        self.factors = None                     # 保存因子值
+        self.signals = None                     # 保存信号值
+        self.values = None                      # 保存净值
+        self.prices = None                      # 保存价格
+        self.symbol = None                      # 保存运行的品种
+        self.alphalens_factors = None           # 保存alphalens分析需要的因子数据
         # 默认是日线数据，这个在计算夏普率的时候会用到，如果不是每日的，需要继承的时候进行设置
         # 小时线设置为“Hours”, 分钟线设置为"Minutes", 秒设置为"seconds"
-        self.time_frame = "Days"
-        # 保存total_value的地址
+        self.time_frame = self.params.get("time_frame","Days")
+        # 计算净值数据的保存地址，如果是None的话，代表不保存
         self.total_value_save_path = self.params.get('total_value_save_path',None)
 
     def cal_alpha(self, data):
         # 生成实例的时候覆盖这个函数，用于计算具体的因子，列名为factor
         return data
 
+    # @profile
     def cal_factors(self):
         # 根据自定义的alpha公式，计算因子值
-        # self.factors = pd.DataFrame()
         factor_list = []
-        for symbol in self.datas:
+        symbol_list = sorted(self.datas.keys())
+        for symbol in symbol_list:
             self.symbol = symbol
-            df = self.cal_alpha(self.datas[symbol])[['factor']].rename(columns={"factor": symbol})
+            # df = self.cal_alpha(self.datas[symbol])[['factor']].rename(columns={"factor": symbol})
+            df = self.cal_alpha(self.datas[symbol])
             factor_list.append(df)
         self.factors = pd.concat(factor_list, axis=1, join="outer")
-
-    def cal_signals(self):
-        # 计算信号，默认按照一定的比例进行多空排列生成信号并持有一定时间
-        percent = self.params['percent']
-        hold_days = self.params['hold_days']
-        factors = self.factors
-        # factors = self.factors.fillna(method="ffill")
-        # 计算多空信号
-        col_list = sorted(factors.columns.tolist())
-        factors = factors[col_list]
-        data_length = len(factors)
-        new_df = pd.DataFrame({col_list[i]:[-0.00000000000001*i]*data_length for i in range(len(col_list))},index=factors.index)
-        # short_df = pd.DataFrame({col_list[i]:[0] * data_length for i in range(len(col_list))},index=factors.index)
-        # long_df = pd.DataFrame({col_list[i]: [0] * data_length for i in range(len(col_list))}, index=factors.index)
-        short_df = pd.DataFrame(index=factors.index)
-        long_df = pd.DataFrame(index=factors.index)
-        factors = factors + new_df
-        signal_dict = factors.apply(cal_long_short_factor_value, axis=1, args=(percent,))
-        # signal_dict = factors.apply(cal_long_short_factor_value_c, axis=1, args=(percent,))  # 使用Cython优化
-        lower_value, upper_value = signal_dict.str
-        # print(factors,signal_dict)
-        for col in col_list:
-            short_df[col] = np.where(factors[col] <= lower_value,-1,0)
-            long_df[col] = np.where(factors[col] >= upper_value, 1, 0)
-        signals = short_df + long_df
-        signals = signals.shift(1)
-        # 根据持有的天数对信号进行向下复制
-        signals.index = range(len(signals))
-        # 陈鑫博改进优化部分
-        index_list = [i for i in signals.index]
-        NotNan_list = [i for i in range(1, len(signals), hold_days)]
-        Nan_list = list(set(index_list) - set(NotNan_list))
-        signals.iloc[Nan_list] = np.nan
-        signals.fillna(method='ffill', inplace=True)
-        signals.index = factors.index
-        self.signals = signals.dropna(axis=0)
-        # print(self.signals)
-        # assert 0
+        self.factors = self.factors.fillna(method="ffill") # 增加一个填充
+        return self.factors
 
 
-    # @profile
-    # def cal_signals(self):
-    #     self.factors.to_csv("c:/result/true_factors.csv")
-    #     # 计算信号，默认按照一定的比例进行多空排列生成信号并持有一定时间
-    #     percent = self.params['percent']
-    #     hold_days = self.params['hold_days']
-    #     factors = self.factors
-    #     # 计算多空信号
-    #     col_list = list(factors.columns)
-    #     factors['signal_dict'] = factors.apply(cal_signal_by_percent, axis=1, args=(percent,))
-    #     for col in col_list:
-    #         factors[col] = factors.apply(lambda row: get_value_from_dict(col, row['signal_dict']), axis=1)
-    #     # 对所有的信号进行下移一位
-    #     signals = factors.shift(1).drop(columns="signal_dict")
-    #     # 输出具体的信息
-    #     signals.to_csv("c:/result/true_signals.csv")
-    #     # 根据持有的天数对信号进行向下复制
-    #     signals.index = range(len(signals))
-    #     # index_list = list(signals.index)
-    #     # for i in range(1, len(signals) // hold_days + 2):
-    #     #     end_index = i * hold_days + 1
-    #     #     if end_index >= len(signals)-1:
-    #     #         end_index = len(signals)-1
-    #     #     first_index = (i - 1) * hold_days + 1
-    #     #     target = index_list[first_index:end_index]
-    #     #     if first_index < end_index:
-    #     #         signals.iloc[target, :] = signals.iloc[first_index, :]
-    #     # 陈鑫博改进优化部分
-    #     index_list = [i for i in signals.index]
-    #     NotNan_list = [i for i in range(1, len(signals), hold_days)]
-    #     Nan_list = list(set(index_list) - set(NotNan_list))
-    #     signals.iloc[Nan_list] = np.nan
-    #     signals.fillna(method='ffill', inplace=True)
-    #     signals.index = self.factors.index
-    #     self.signals = signals
+    def cal_signals(self,factors_df,engine="numpy"):
+        # 计算信号值
+        if engine == "numba":
+            _signals = cal_signals_by_numba.cal_signals_by_numba(factors_df.to_numpy(),self.params['percent'],self.params['hold_days'])
+        else:
+            _signals = cal_signals_by_numpy(self.factors.to_numpy(),self.params['percent'],self.params['hold_days'])
+        return _signals,self.factors.index,self.factors.index
 
-    def cal_returns(self):
-        # 根据高开低收的数据和具体的信号，计算资产的收益率和因子值，保存到self.returns和self.factors
-        # self.returns = pd.DataFrame()
-        return_list = []
-        for symbol in self.datas:
-            self.symbol = symbol
-            data = self.datas[symbol]
-            signal_df = self.signals[[symbol]]
-            signal_df.columns = ['signal']
-            data = pd.concat([data, signal_df], axis=1, join="inner")
-            # data['signal'] = self.signals[symbol]
-            # 前一个信号
-            data.loc[:, "pre_signal"] = data['signal'].shift(1)
-            # 下个信号
-            data.loc[:, "next_signal"] = data['signal'].shift(-1)
-            # # 删除信号相同的bar
-            # data = data[data['signal'] != data['pre_signal']]
-            # 计算收益率
-            data['ret'] = data['close'].pct_change()
-            # print(a)
-            data['next_open'] = data['open'].shift(-1)
-            # 上一个收盘价
-            data.loc[:, "pre_close"] = data['close'].shift(1)
-            # 前一个收盘价到下个开盘价之间的收益率
-            data.loc[:, "next_open_pre_close_rate"] = data['next_open'] / data['pre_close'] - 1
-            # 当前开盘到收盘的收益率
-            data.loc[:, "close_open_rate"] = data['close'] / data['open'] - 1
-            # 当前开盘价到下个开盘价的收益率
-            data.loc[:, "next_open_open_rate"] = data['next_open'] / data['open'] - 1
-            # 对信号收益率进行修改，逻辑比较绕，手写出来，一点点梳理
-            # # 信号变换一次
-            # data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
-            #                        data['next_open_pre_close_rate'], data['ret'])
-            # data['ret'] = np.where((data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
-            #                        data['close_open_rate'], data['ret'])
-            # # 信号变换两次
-            # data['ret'] = np.where((data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal']),
-            #                        data['next_open_open_rate'], data['ret'])
-            # 陈鑫博改进优化部分
-            condlist = [(data['signal'] != data['next_signal']) & (data['signal'] == data['pre_signal']),
-                        (data['signal'] != data['pre_signal']) & (data['signal'] == data['next_signal']),
-                        (data['signal'] != data['next_signal']) & (data['signal'] != data['pre_signal'])]
-            choicelist = [data['next_open_pre_close_rate'], data['close_open_rate'],
-                          data['next_open_open_rate']]
-            data['ret'] = np.select(condlist, choicelist, default=data['ret'])
 
-            data['ret'] = data['ret'] * data['signal'] * data['signal']
-            # data = data[['ret']]
-            # data.columns = [symbol]
-            # data = data.dropna()
-            new_data = data.loc[:, "ret"].rename(symbol).dropna()
-            return_list.append(new_data)
-        self.returns = pd.concat(return_list, axis=1, join="outer")
-        # print(self.returns)
-        # self.returns.to_csv("d:/result/test_returns.csv")
 
-    # def cal_total_value(self):
-    #     # 根据再平衡的天数计算具体的收益率
-    #     # 这个计算有问题，需要计算出来每个bar的累计收益率，最后再乘以信号，最后再乘以因子
-    #     hold_days = self.params['hold_days']
-    #     # 复制新的returns序列并设置index
-    #     returns = copy.deepcopy(self.returns)
-    #     returns.index = range(len(returns))
-    #     signals = copy.deepcopy(self.signals)
-    #     # signals = signals.dropna()
-    #     signals.index = range(len(signals))
-    #
-    #     # 保存每次持仓的累计收益率
-    #     value_list = []
-    #     new_factor = 1
-    #     index_list = list(returns.index)
-    #     for i in range(1, len(returns) // hold_days + 2):
-    #         end_index = i * hold_days
-    #         if end_index >= len(returns):
-    #             end_index = len(returns)
-    #         first_index = (i - 1) * hold_days
-    #         target = index_list[first_index:end_index]
-    #         # print(target)
-    #         new_df = returns.iloc[target, :]
-    #         new_signal = signals.iloc[target, :]
-    #         if len(new_df) >0:
-    #             # 计算收益率
-    #             new_df = new_df + 1
-    #             new_df = new_df.cumprod()
-    #             new_df = new_df - 1
-    #             new_df = new_df * new_signal
-    #             # 去除每列全部等于0或者包含nan的，nan代表没上市，全部等于0代表信号是0
-    #             new_df = new_df.dropna(axis=1)
-    #             new_df = new_df.loc[:, ~(new_df == 0).all(axis=0)]
-    #             # 计算累计净值
-    #             new_df['total_value'] = new_df.mean(axis=1) + 1
-    #             new_df['total_value'] = new_df['total_value'] * new_factor
-    #             # 赋值并保存
-    #             # 赋值并保存
-    #             last_value = new_df['total_value'].tolist()
-    #             new_factor = last_value[-1]
-    #             value_list.append(new_df[['total_value']])
-    #     # self.values = pd.concat([self.values, new_df[['total_value']]])
-    #     self.values = pd.concat(value_list)
-    #     self.values.index = self.returns.index
-    #     # self.values.to_csv("d:/result/test_total_value.csv")
-    #     sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values, time_frame=self.time_frame)
-    #     # look_back_days = self.params['look_back_days']
-    #     # hold_days = self.params['hold_days']
-    #     # percent = self.params['percent']
-    #     file_name = ""
-    #     result_list = []
-    #     for key in self.params:
-    #         if "df" not in key:
-    #             file_name = file_name + f"{key}: {self.params[key]} "
-    #             result_list.append(self.params[key])
-    #     file_name += f"夏普率为:{round(sharpe_ratio,3)},年化收益率为:{round(average_rate,3)},最大回撤为:{round(max_drawdown,3)}"
-    #     print(file_name)
-    #     result_list += [sharpe_ratio, average_rate, max_drawdown]
-    #
-    #     return result_list
-    # @profile
-    def cal_total_value(self,total_value_save_path=None):
-        # 根据再平衡的天数计算具体的收益率
-        hold_days = self.params['hold_days']
-        # 把信号和收益率序列转化成numpy的array
-        signals = np.array(self.signals.loc[self.returns.index])
-        returns = np.array(self.returns)
-        # 保存每次持仓的累计收益率
-        value_list = []
-        new_factor = 1
-        # 陈鑫博改进循环
-        for i in range(0, (len(returns) + 2 + (hold_days - (len(returns) % hold_days))), hold_days):
-            if i != 0:
-                new_df = returns[i - hold_days:i]
-                new_signal = signals[i - hold_days:i]
-                if len(new_df) > 0:
-                    # 计算收益率
-                    new_df = new_df + 1
-                    new_df = new_df.cumprod(axis=0)
-                    new_df = new_df - 1
-                    new_df = new_df * new_signal
-                    # 去除每列全部等于0或者包含nan的，nan代表没上市，全部等于0代表信号是0
-                    new_df = np.delete(new_df, np.where(~new_df.any(axis=0))[0], axis=1)
-                    new_df = np.delete(new_df, np.where(np.isnan(new_df).any(axis=0))[0], axis=1)
-                    # 计算累计净值
-                    total_value = new_df.mean(axis=1) + 1
-                    total_value = total_value * new_factor
-                    # 赋值并保存
-                    # last_value = total_value[-1]
-                    # new_factor = last_value
-                    new_factor = total_value[-1]
-                    value_list.extend(list(total_value))
-        self.values = pd.DataFrame(value_list).rename(columns={0: 'total_value'})
-        self.values.index = self.returns.index
-        # 计算夏普率等指标
-        sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(self.values['total_value'])
+    def cal_values(self,datas,signals_arr,hold_days):
+        commission = self.commission
+        initial_capital = self.initial_capital
+        # 数据行数
+        signals_arr = np.delete(signals_arr,0,axis=0)
+        data_rows = signals_arr.shape[0]
+        data_cols = signals_arr.shape[1]
+        # 初始化values_arr
+        values_arr = np.zeros(signals_arr.shape)
+        # 把各个品种的开盘价和收盘价数据转化成array
+        opens_arr = self.params.get("opens_arr",None)
+        if opens_arr is not None:
+            opens_arr = self.params['opens_arr']
+            closes_arr = self.params['closes_arr']
+        else:
+            opens_arr,closes_arr = convert_datas_to_array(datas)
+        # 删除部分由于open_arr行数比signals_arr行数多的行
+        delete = range(opens_arr.shape[0] - signals_arr.shape[0])
+        opens_arr = np.delete(opens_arr, delete, axis=0)
+        closes_arr = np.delete(closes_arr, delete, axis=0)
+        # 初始化第一行的数据
+        # 当前bar的信号，是根据factors计算出来每个bar的signals向下移动一位形成，意味着当前bar应该持有的仓位，1代表多，-1代表空
+        sig_arr = signals_arr[0]
+        # 计算这一行当中非0的元素的个数
+        count = np.count_nonzero(sig_arr)
+        # 计算出来每个品种开仓后的资金
+        symbol_value = initial_capital / count * (1 - commission)
+        # 记录每个品种的价值
+        symbol_value_arr = np.array([symbol_value] * data_cols) * sig_arr * sig_arr
+        # assert symbol_value_arr.sum()==initial_capital
+        # 记录每个品种的开仓价
+        symbol_open_price_arr = opens_arr[0]
+        # 开始循环每一行,最后一行不循环，避免出现index越界
+        for i in range(data_rows-1):
+            # 如果当前bar持有到期，在下个bar开仓的时候需要平仓并进行新开仓，则
+            if (i+1) % hold_days == 0:
+                # 当前bar的信号
+                sig_arr = signals_arr[i]
+                # 下个bar的开盘价
+                open_arr = opens_arr[i+1]
+                # 计算收益率时候用到的收盘价
+                symbol_close_price_arr = open_arr
+                # print("初始资金分配：", symbol_value_arr)
+                # 计算当前每个品种的value并保存到values_arr中
+                return_arr = (symbol_close_price_arr-symbol_open_price_arr)/symbol_open_price_arr*sig_arr
+                # print("计算得到的return_arr",return_arr)
+                symbol_value_arr_cur = (1-commission)*symbol_value_arr*(1.0+return_arr)
+                values_arr[i] =  symbol_value_arr_cur
+                # 计算接下来预计要分给每个品种的资金
+                new_sig_arr = signals_arr[i + 1]
+                total_value_val =  np.nansum(symbol_value_arr_cur)
+                count = np.count_nonzero(new_sig_arr)
+                symbol_value = (1-commission)*total_value_val / count
+                symbol_value_arr = np.array([symbol_value] * data_cols)*new_sig_arr*new_sig_arr
+                # 保存开仓的信号
+                symbol_open_price_arr = open_arr
+
+            else:
+                sig_arr = signals_arr[i]
+                symbol_close_price_arr = closes_arr[i]
+                return_arr = (symbol_close_price_arr - symbol_open_price_arr) / symbol_open_price_arr * sig_arr
+                symbol_value_arr_cur = symbol_value_arr * (1 + return_arr)
+                values_arr[i] = symbol_value_arr_cur
+
+        # 最后一行的数据
+        sig_arr = signals_arr[data_rows-1]
+        close_arr = closes_arr[data_rows-1]
+        return_arr = (symbol_close_price_arr - symbol_open_price_arr) / symbol_open_price_arr * sig_arr
+        # print("计算得到的return_arr",return_arr)
+        symbol_value_arr_cur = symbol_value_arr * (1 + return_arr)
+        values_arr[data_rows-1] = symbol_value_arr_cur
+        total_value_arr = np.nansum(values_arr,axis=1)
+        return total_value_arr
+
+
+    def cal_performance(self,total_value_arr,index_list,total_value_save_path=None):
+        # print(total_value_arr)
+        values_df = pd.DataFrame(total_value_arr).rename(columns={0: 'total_value'})
+        values_df.index = index_list[1:]
+        # 计算夏普率等指标,如果是日数据，直接计算，如果是分钟数据，抽样成日之后计算
+        if self.time_frame == "Days":
+            sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(values_df['total_value'])
+        else:
+            values_df['date'] = values_df.index.date
+            values_df = values_df.drop_duplicates(["date"],keep="last")
+            sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(values_df['total_value'])
         file_name = ""
         result_list = []
         for key in self.params:
-            if "df" not in key and "save_path" not in key:
+            if "df" not in key and "save_path" not in key and "opens_arr" not in key and "closes_arr" not in key:
                 file_name = file_name + f"{key}__{self.params[key]} "
                 result_list.append(self.params[key])
         if total_value_save_path is not None:
             target_file = total_value_save_path + file_name + ".csv"
             self.values.to_csv(target_file)
         file_name += f"夏普率为__{round(sharpe_ratio, 4)}__年化收益率为:{round(average_rate, 4)}__最大回撤为:{round(max_drawdown, 4)}"
-        # print(file_name)
+        print(file_name)
         result_list += [sharpe_ratio, average_rate, max_drawdown]
 
         return result_list
 
+
     def run(self):
-        self.cal_factors()
-        self.cal_signals()
-        self.cal_returns()
-        return self.cal_total_value(self.total_value_save_path)
+        factors_df = self.cal_factors()
+        _signals_arr,index_list,col_list = self.cal_signals(factors_df)
+        total_value_arr = self.cal_values(self.datas, _signals_arr, self.params['hold_days'])
+        return self.cal_performance(total_value_arr,index_list,self.total_value_save_path)
 
     def plot(self):
         # self.values[['total_value']].to_csv("d:/result/test_returns.csv")

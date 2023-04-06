@@ -3,7 +3,7 @@ import pandas as pd
 # import numpy as np
 # import numpy as np
 import matplotlib.pyplot as plt
-from backtrader.vectors.cal_performance import *
+from backtrader.vectors.cal_functions import *
 from pyecharts import options as opts
 # from pyecharts.commons.utils import JsCode
 from pyecharts.charts import Kline, Line, Bar, Grid

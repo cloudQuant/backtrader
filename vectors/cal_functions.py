@@ -1,6 +1,6 @@
 import pandas as pd
 import numpy as np
-from backtrader.vectors.cal_return_sharpe_drawdown import cal_return_sharpe_drawdown as ts
+from backtrader.utils.cal_return_sharpe_drawdown import cal_return_sharpe_drawdown as ts
 
 # 调用cal_return_sharpe_drawdown需要先去文件夹中编译cal_return_sharpe_drawdown，计算三个指标的速度比python提高了16.5倍左右
 def get_rate_sharpe_drawdown(arr):
@@ -46,6 +46,49 @@ def cal_long_short_factor_value(s,a=0.2):
 def cal_long_short_factor_value_c(s, a = 0.2):
     s = s.values
     return ts.cal_long_short_factor_value_cy(s, a)
+
+# 使用numpy计算具体的信号
+def cal_signals_by_numpy(factors_arr, percent, hold_days):
+    signals = np.zeros(factors_arr.shape)
+    data_length = factors_arr.shape[0]
+    col_len = factors_arr.shape[1]
+    diff_arr = np.array([-0.00000000000001 * i for i in range(col_len)])
+    short_arr = np.zeros(col_len)
+    long_arr = np.zeros(col_len)
+    signals[0] = np.array([np.NaN for i in range(col_len)])
+    for i in range(data_length - 1):
+        if i % hold_days == 0:
+            s = factors_arr[i,] + diff_arr
+            ss = s[~np.isnan(s)]
+            ss.sort()
+            num = int(ss.size * percent)
+            if num > 0:
+                lower_value, upper_value = ss[num - 1], ss[-1 * num]
+            else:
+                lower_value, upper_value = np.NaN, np.NaN
+
+            short_arr = np.where(s <= lower_value, -1, 0)
+            long_arr = np.where(s >= upper_value, 1, 0)
+            signals[i+1] = short_arr + long_arr
+        else:
+            signals[i+1] = signals[i]
+    # signals = np.delete(signals,0,axis=0)
+    return signals
+
+# 把datas合并生成具体的array
+def convert_datas_to_array(datas):
+    # 把各个品种的开盘价和收盘价数据转化成array
+    open_list = []
+    close_list = []
+    symbol_list = sorted(datas.keys())
+    for symbol in symbol_list:
+        open_list.append(datas[symbol].loc[:, "open"])
+        close_list.append(datas[symbol].loc[:, "close"])
+
+    opens_arr = pd.concat(open_list, join="outer", axis=1).fillna(method="ffill").to_numpy()
+    closes_arr = pd.concat(close_list, join="outer", axis=1).fillna(method="ffill").to_numpy()
+
+    return opens_arr,closes_arr
 
 # def get_sharpe(data):
 #         # 计算夏普率，如果是日线数据，直接进行，如果不是日线数据，需要获取每日最后一个bar的数据用于计算每日收益率，然后计算夏普率
