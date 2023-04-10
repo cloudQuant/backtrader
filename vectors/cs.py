@@ -63,8 +63,13 @@ class AlphaCs(object):
     def cal_values(self,datas,signals_arr,hold_days):
         commission = self.commission
         initial_capital = self.initial_capital
+        print("当前的commission为:",commission)
         # 数据行数
         signals_arr = np.delete(signals_arr,0,axis=0)
+        # print("before",signals_arr.shape,signals_arr[:100])
+        # todo 分析下为啥signals前些行所有的列都是0
+        signals_arr = signals_arr[~np.all(np.isnan(signals_arr) | np.equal(signals_arr, 0), axis=1)]
+        # print("after",signals_arr.shape)
         data_rows = signals_arr.shape[0]
         data_cols = signals_arr.shape[1]
         # 初始化values_arr
@@ -138,7 +143,7 @@ class AlphaCs(object):
     def cal_performance(self,total_value_arr,index_list,total_value_save_path=None):
         # print(total_value_arr)
         values_df = pd.DataFrame(total_value_arr).rename(columns={0: 'total_value'})
-        values_df.index = index_list[1:]
+        values_df.index = index_list[-1*total_value_arr.shape[0]:]
         # 计算夏普率等指标,如果是日数据，直接计算，如果是分钟数据，抽样成日之后计算
         if self.time_frame == "Days":
             sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(values_df['total_value'])
@@ -154,7 +159,7 @@ class AlphaCs(object):
                 result_list.append(self.params[key])
         if total_value_save_path is not None:
             target_file = total_value_save_path + file_name + ".csv"
-            self.values.to_csv(target_file)
+            values_df.to_csv(target_file)
         file_name += f"夏普率为__{round(sharpe_ratio, 4)}__年化收益率为:{round(average_rate, 4)}__最大回撤为:{round(max_drawdown, 4)}"
         print(file_name)
         result_list += [sharpe_ratio, average_rate, max_drawdown]
