@@ -91,7 +91,7 @@ def run_strategy(n_rows=100000):
     cerebro.addanalyzer(bt.analyzers.PyFolio)
     # 运行回测
     results = cerebro.run()
-
+    # cerebro.plot()
     pyfoliozer = results[0].analyzers.getbyname('pyfolio')
     total_value = results[0].analyzers.getbyname('_TotalValue').get_analysis()
     total_value = pd.DataFrame([total_value]).T
