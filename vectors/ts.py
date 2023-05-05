@@ -1,328 +1,210 @@
 # import copy
 import pandas as pd
-# import numpy as np
-# import numpy as np
+import numpy as np
 import matplotlib.pyplot as plt
 from backtrader.vectors.cal_functions import *
-from pyecharts import options as opts
-# from pyecharts.commons.utils import JsCode
-from pyecharts.charts import Kline, Line, Bar, Grid
-# from pyecharts.globals import SymbolType
-# from typing import List, Union
-from pyecharts.faker import Faker
 import warnings
-
 warnings.filterwarnings("ignore")
 
 
-# 创建一个时间序列的类，用于采用向量的方法计算时间序列的
+# 创建一个时间序列的类，用于快速计算具体策略的收益情况
 class AlphaTs(object):
     # 传入具体的数据和函数进行初始化
-    def __init__(self, datas, params, fund_type="normal"):
+    def __init__(self, datetime_arr,open_arr, high_arr, low_arr, close_arr, volume_arr,
+                 params, signal_arr=None,engine="python"):
         # datas是字典格式，key是品种的名字，value是df格式，index是datetime,包含open,high,low,close,volume,openinterest
         # params是测试的时候使用的参数
-        self.datas = datas
+        self.datetime_arr = datetime_arr
+        self.open_arr = open_arr
+        self.high_arr = high_arr
+        self.low_arr = low_arr
+        self.close_arr = close_arr
+        self.volume_arr = volume_arr
         self.params = params
-        self.fund_type = fund_type
+        self.signal_arr = signal_arr
+        self.commission = params.get("commission",None)
+        self.init_value = params.get("init_value",None)
+        self.percent = params.get("percent",None)
+        self.engine = engine
 
-    def cal_alpha(self, data):
-        pass
-
-    def cal_signal(self, data):
+    def cal_signal(self):
         pass
 
     # 计算具体的alpha值并根据具体的alpha值计算信号，并计算具体的收益
-    def cal_alpha_signal_return(self):
-        datas = {}
-        for key in self.datas:
-            df = self.datas[key]
-            df = self.cal_alpha(df)
-            df = self.cal_signal(df)
-            if self.fund_type == "same_percent":
-                df = cal_factor_return_by_percent(df)
-            if self.fund_type == "same_value":
-                df = cal_factor_return_by_value(df)
-            if self.fund_type == "open":
-                df = cal_factor_return_by_open(df)
-            if self.fund_type == "normal":
-                df = cal_factor_return(df)
-            datas[key] = df
-        self.datas = datas
+    def cal_value(self):
+        if self.commission is None:
+            commission = 0.0
+        else:
+            commission = self.commission
+        if self.init_value is None:
+            init_value = 1000000
+        else:
+            init_value = self.init_value
+        if self.percent is None:
+            percent=1.0
+        else:
+            percent = self.percent
+        # 如果传入的signal_arr是None的话，就自己计算一下signal
+        if self.signal_arr is None:
+            self.signal_arr = self.cal_signal()
+        # 如果传入的signal_arr不是None的话，就计算具体的value
+        if self.engine == "python":
+            value_arr = self._cal_value(self.open_arr, self.high_arr, self.low_arr, self.close_arr,self.volume_arr,
+                                        self.signal_arr, commission=commission, init_value=init_value,percent=percent)
+        if self.engine == "numba":
+            # from backtrader.utils.ts_cal_value.cal_value_by_numba import cal_value_by_numba
+            from backtrader.utils.ts_cal_value.my_numba_module import cal_value_by_numba
+            value_arr = cal_value_by_numba(self.open_arr, self.high_arr, self.low_arr, self.close_arr,self.volume_arr,
+                                        self.signal_arr, commission, init_value, percent)
+        if self.engine == "cython":
+            from backtrader.utils.ts_cal_value_cython.my_cython_module import cal_value_by_cython
+            value_arr = cal_value_by_cython(self.open_arr, self.high_arr, self.low_arr, self.close_arr, self.volume_arr,
+                                           self.signal_arr, commission, init_value, percent)
+        return value_arr
+
+    def _cal_value(self, open_arr, high_arr, low_arr, close_arr,volume_arr,
+                   signal_arr, commission, init_value,percent=1.0):
+        # 循环计算具体的持仓，盈亏，value的情况
+        # 初始化持仓，可用资金，持仓盈亏，价值
+        symbol_open_price_arr = np.zeros(signal_arr.shape)
+        symbol_open_value_arr = np.zeros(signal_arr.shape)
+        value_arr = np.zeros(signal_arr.shape)
+        now_commission = 0.0
+        # print("-----------计算第一个bar相关的信号--------------")
+        # 计算第一个bar的信号
+        now_signal = signal_arr[0]
+        # 如果第一个bar的信号是0的话
+        if now_signal ==0:
+            symbol_open_price_arr[0] = open_arr[1]
+            symbol_open_value_arr[0] = init_value
+            value_arr[0] = init_value
+        # 如果第一个bar的信号不是0的话，需要准备开仓，计算手续费
+        else:
+            open_price = open_arr[1]
+            open_value = init_value
+            now_commission = open_value * percent * commission
+            value_arr[0] = open_value - now_commission
+            symbol_open_price_arr[0] = open_price
+            symbol_open_value_arr[0] = open_value
+        # print("-----------计算第二个bar到倒数第二个bar相关的信号--------------")
+        # 从第二个bar开始计算
+        for i in range(1,len(open_arr)-1):
+            pre_signal = signal_arr[i-1]
+            now_signal = signal_arr[i]
+            # 如果信号保持不变
+            if pre_signal == now_signal:
+                # 如果信号不是0
+                if pre_signal!=0:
+                    # 开仓价格
+                    open_price = symbol_open_price_arr[i-1]
+                    # 开仓使用资金
+                    open_value = symbol_open_value_arr[i-1]
+                    # 开仓时的账户资金
+                    symbol_open_value_arr[i] = open_value
+                    # 保存开仓价格
+                    symbol_open_price_arr[i] = open_price
+                    # 价值变化
+                    value_change = (close_arr[i] - open_price)/open_price*pre_signal*open_value*percent
+                    # 当前的价格
+                    value_arr[i] = open_value + value_change - now_commission
+                    # print("-----------------------------")
+                    # print("datatime:",self.datetime_arr[i])
+                    # print("当前进入pre_signal==now_signal")
+                    # print("open_price", open_price)
+                    # print("open_value",open_value)
+                    # print("value_change:",value_change)
+                    # print("now value:",value_arr[i])
+                    # print("-----------------------------")
+                else:
+                    value_arr[i] = value_arr[i-1]
+            # 如果信号发生了变化
+            if pre_signal != now_signal:
+                # 如果前一个信号不是0，现在是0了，代表这个bar出现平仓信号，下个bar平仓
+                if pre_signal!=0 and now_signal==0:
+                    open_price = symbol_open_price_arr[i - 1]
+                    open_value = symbol_open_value_arr[i - 1]
+                    value_change = (open_arr[i+1] - open_price) / open_price * pre_signal * open_value*percent
+                    value_arr[i] = open_value + value_change - now_commission
+                    now_commission = open_arr[i+1]/open_price * open_value*percent*commission
+                    value_arr[i] = value_arr[i] - now_commission
+                    symbol_open_price_arr[i] = 0
+                    symbol_open_value_arr[i] = 0
+                    # print("-----------------------------")
+                    # print("datatime:", self.datetime_arr[i])
+                    # print("当前进入pre_signal!=0 and now_signal==0")
+                    # print("open_price",open_price)
+                    # print("open_value", open_value)
+                    # print("value_change:", value_change)
+                    # print("now value:", value_arr[i])
+                    # print("-----------------------------")
+                # 如果前一个信号是0，但是现在不是0了，代表这个bar要新开仓
+                if pre_signal==0 and now_signal!=0:
+                    open_price = open_arr[i+1]
+                    open_value = value_arr[i-1]
+                    now_commission = open_value * percent * commission
+                    value_arr[i] = open_value-now_commission
+                    symbol_open_price_arr[i] = open_price
+                    symbol_open_value_arr[i] = open_value
+                    # print("-----------------------------")
+                    # print("datatime:", self.datetime_arr[i])
+                    # print("当前进入pre_signal==0 and now_signal!=0")
+                    # print("open_price", open_price)
+                    # print("open_value", open_value)
+                    # print("now value:", value_arr[i])
+                    # print("-----------------------------")
+                # 如果前后信号都不等于0，但是信号不一样，代表要反手进行交易
+                if pre_signal*now_signal==-1:
+                    # 平旧仓位
+                    open_price = symbol_open_price_arr[i - 1]
+                    open_value = symbol_open_value_arr[i - 1]
+                    value_change = (open_arr[i + 1] - open_price) / open_price * pre_signal * open_value*percent
+                    value_arr[i] = value_arr[i - 1] + value_change - now_commission
+                    # 新开仓
+                    open_value = value_arr[i]
+                    now_commission = open_value * percent * commission
+                    value_arr[i] = open_value-now_commission
+                    symbol_open_price_arr[i] = open_arr[i+1]
+                    symbol_open_value_arr[i] = open_value
+                    # print("-----------------------------")
+                    # print("datatime:", self.datetime_arr[i])
+                    # print("当前进入pre_signal*now_signal==-1")
+                    # print("open_price", open_price)
+                    # print("open_value", open_value)
+                    # print("value_change:", value_change)
+                    # print("now value:", value_arr[i])
+                    # print("-----------------------------")
+        # print("-----------计算最后一个bar相关的信号--------------")
+        # 如果是最后一个bar,按照收盘价进行平仓
+        pre_signal = signal_arr[i]
+        now_signal = signal_arr[i+1]
+        if now_signal==pre_signal:
+            if pre_signal==0:
+                value_arr[i + 1] = value_arr[i]
+            else:
+                open_price = symbol_open_price_arr[i]
+                open_value = symbol_open_value_arr[i]
+                symbol_open_price_arr[i+1] = open_price
+                value_change = (close_arr[i+1] - open_price) / open_price * pre_signal * open_value*percent
+                value_arr[i+1] = open_value + value_change
+                symbol_open_value_arr[i+1] = open_value
+                # print("-----------------------------")
+                # print("datatime:", self.datetime_arr[i+1])
+                # print("当前进入pre_signal*now_signal==-1")
+                # print("open_price", open_price)
+                # print("open_value", open_value)
+                # print("value_change:", value_change)
+                # print("now value:", value_arr[i+1])
+                # print("-----------------------------")
+        else:
+            value_arr[i + 1] = value_arr[i]
+        return value_arr
 
     def run(self):
-        self.cal_alpha_signal_return()
-        # 计算各个品种的夏普率之类的数据，保存到结果中
-        result = []
-        for key in self.datas:
-            data = self.datas[key]
-            # data = data[['total_value']]
-            # # print(data)
-            # data = data.dropna()
-            sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(data)
-            result.append([key, sharpe_ratio, average_rate, max_drawdown])
-        result_df = pd.DataFrame(result, columns=['symbol', 'sharpe_ratio', 'average_rate', 'max_drawdown'])
-        return result_df
+        value_arr = self.cal_value()
+        value_df = pd.DataFrame(value_arr,index=self.datetime_arr,columns=['total_value'])
+        # print(value_df)
+        sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(value_df['total_value'])
+        # print(f"sharpe_ratio:{sharpe_ratio}, average_rate:{average_rate}, max_drawdown:{max_drawdown}")
+        return value_df
 
-    def plot(self, symbol):
-        self.datas[symbol]['total_value'].plot()
-        plt.show()
 
-    # 打印某个品种的信号
-    def plot_signal(self, symbol, save_path=""):
-        data = self.datas[symbol]
-        datetime_list = list(data.index)
-        open_list = list(data['open'])
-        high_list = list(data['high'])
-        low_list = list(data['low'])
-        close_list = list(data['close'])
-        volume_list = list(data['volume'])
-        # openinterest_list = list(data['open_interest'])
-        x_data = datetime_list
-        y_data = [[m, n, x, y, z] for m, n, x, y, z in zip(open_list, close_list, low_list, high_list, volume_list)]
-        color_list = [1 if m < n else -1 for m, n, x, y, z in
-                      zip(open_list, close_list, low_list, high_list, volume_list)]
-        index_list = list(range(len(x_data)))
-        vol_data = [[x, y, z] for x, y, z in zip(index_list, volume_list, color_list)]
-        # 画出来具体的K线
-        kline = (
-            Kline()
-            .add_xaxis(xaxis_data=x_data)
-            .add_yaxis(
-                series_name=symbol,
-                y_axis=y_data,
-                itemstyle_opts=opts.ItemStyleOpts(
-                    color="#ef232a",
-                    color0="#14b143",
-                    border_color="#ef232a",
-                    border_color0="#14b143",
-                ),
-                markpoint_opts=opts.MarkPointOpts(
-
-                    data=[
-                        opts.MarkPointItem(type_="max", name="最大值"),
-                        opts.MarkPointItem(type_="min", name="最小值"),
-                    ]
-                )
-            )
-            .set_global_opts(
-                legend_opts=opts.LegendOpts(
-                    is_show=False, pos_bottom=10, pos_left="center"
-                ),
-                datazoom_opts=[
-                    opts.DataZoomOpts(
-                        is_show=False,
-                        type_="inside",
-                        xaxis_index=[0, 1],
-                        range_start=98,
-                        range_end=100,
-                    ),
-                    opts.DataZoomOpts(
-                        is_show=True,
-                        xaxis_index=[0, 1],
-                        type_="slider",
-                        pos_top="85%",
-                        range_start=98,
-                        range_end=100,
-                    ),
-                ],
-                yaxis_opts=opts.AxisOpts(
-                    is_scale=True,
-                    splitarea_opts=opts.SplitAreaOpts(
-                        is_show=True, areastyle_opts=opts.AreaStyleOpts(opacity=1)
-                    ),
-                ),
-                tooltip_opts=opts.TooltipOpts(
-                    trigger="axis",
-                    axis_pointer_type="cross",
-                    background_color="rgba(245, 245, 245, 0.8)",
-                    border_width=1,
-                    border_color="#ccc",
-                    textstyle_opts=opts.TextStyleOpts(color="#000"),
-                ),
-                visualmap_opts=opts.VisualMapOpts(
-                    is_show=False,
-                    dimension=2,
-                    series_index=5,
-                    is_piecewise=True,
-                    pieces=[
-                        {"value": 1, "color": "#00da3c"},
-                        {"value": -1, "color": "#ec0000"},
-                    ],
-                ),
-                axispointer_opts=opts.AxisPointerOpts(
-                    is_show=True,
-                    link=[{"xAxisIndex": "all"}],
-                    label=opts.LabelOpts(background_color="#777"),
-                ),
-                brush_opts=opts.BrushOpts(
-                    x_axis_index="all",
-                    brush_link="all",
-                    out_of_brush={"colorAlpha": 0.1},
-                    brush_type="lineX",
-                ),
-            )
-        )
-
-        # 分析bar的颜色，并进行设置
-        y = []
-        for idx, item in enumerate(vol_data):
-            # print(idx, item)
-            t = item[2]
-            if t > 0:
-                y.append(
-                    opts.BarItem(
-                        name="volume",
-                        value=item[1],
-                        itemstyle_opts=opts.ItemStyleOpts(color="red"),
-                    )
-                )
-            else:
-                y.append(
-                    opts.BarItem(
-                        name="volume",
-                        value=item[1],
-                        itemstyle_opts=opts.ItemStyleOpts(color="green"),
-                    )
-                )
-        bar = (
-            Bar()
-            .add_xaxis(xaxis_data=x_data)
-            .add_yaxis(
-                series_name="Volume",
-                y_axis=y,
-                xaxis_index=1,
-                yaxis_index=1,
-                label_opts=opts.LabelOpts(is_show=False),
-                category_gap=0,
-                color=Faker.rand_color())
-
-            .set_global_opts(
-                xaxis_opts=opts.AxisOpts(
-                    type_="category",
-                    is_scale=True,
-                    grid_index=1,
-                    boundary_gap=False,
-                    axisline_opts=opts.AxisLineOpts(is_on_zero=False),
-                    axistick_opts=opts.AxisTickOpts(is_show=False),
-                    splitline_opts=opts.SplitLineOpts(is_show=False),
-                    axislabel_opts=opts.LabelOpts(is_show=False),
-                    split_number=20,
-                    min_="dataMin",
-                    max_="dataMax",
-                ),
-                yaxis_opts=opts.AxisOpts(
-                    grid_index=1,
-                    is_scale=True,
-                    split_number=2,
-                    axislabel_opts=opts.LabelOpts(is_show=False),
-                    axisline_opts=opts.AxisLineOpts(is_show=False),
-                    axistick_opts=opts.AxisTickOpts(is_show=False),
-                    splitline_opts=opts.SplitLineOpts(is_show=False),
-                ),
-                legend_opts=opts.LegendOpts(is_show=False),
-            )
-        )
-
-        # 画出来具体的交易的线段
-        first_signal = None
-        first_datetime = None
-        first_high = None
-        first_low = None
-        # print(data[['signal']])
-        data.to_csv("测试signal.csv")
-        for datetime_, signal, high_, low_ in zip(data.index, data['signal'], data['high'], data['low']):
-            if first_signal is None:
-                first_signal = signal
-                first_datetime = datetime_
-                first_high = high_
-                first_low = low_
-            print(f"first_datetime:{first_datetime},first_signal:{first_signal}, datetime:{datetime_},signal:{signal}")
-            # 如果信号发生了变化,画出来具体的线段
-            if signal != first_signal:
-
-                if first_signal == 1:
-                    long_line = (
-                        Line()
-                        .add_xaxis(xaxis_data=[first_datetime, datetime_])
-                        .add_yaxis(
-                            series_name="long_signal",
-                            y_axis=[first_low * 0.99, high_ * 1.01],
-                            is_smooth=False,
-                            # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
-                            linestyle_opts=opts.LineStyleOpts(color="red", width=5, type_='dotted'),
-                            label_opts=opts.LabelOpts(is_show=False),
-                            symbol='arrow'
-                        )
-                        .set_global_opts(
-                            xaxis_opts=opts.AxisOpts(
-                                type_="category",
-                                grid_index=1,
-                                axislabel_opts=opts.LabelOpts(is_show=False),
-                            ),
-                            yaxis_opts=opts.AxisOpts(
-                                grid_index=1,
-                                split_number=3,
-                                axisline_opts=opts.AxisLineOpts(is_on_zero=False),
-                                axistick_opts=opts.AxisTickOpts(is_show=False),
-                                splitline_opts=opts.SplitLineOpts(is_show=False),
-                                axislabel_opts=opts.LabelOpts(is_show=True),
-                            ),
-                        )
-                    )
-                    kline = kline.overlap(long_line)
-                if first_signal == -1:
-                    # 测试
-                    short_line = (
-                        Line()
-                        .add_xaxis(xaxis_data=[first_datetime, datetime_])
-                        .add_yaxis(
-                            series_name="short_signal",
-                            y_axis=[first_high * 1.01, low_ * 0.99],
-                            is_smooth=False,
-                            # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
-                            linestyle_opts=opts.LineStyleOpts(color="green", width=5, type_='dotted'),
-                            label_opts=opts.LabelOpts(is_show=False),
-                            symbol='arrow'
-                        )
-                        .set_global_opts(
-                            xaxis_opts=opts.AxisOpts(
-                                type_="category",
-                                grid_index=1,
-                                axislabel_opts=opts.LabelOpts(is_show=False),
-                            ),
-                            yaxis_opts=opts.AxisOpts(
-                                grid_index=1,
-                                split_number=3,
-                                axisline_opts=opts.AxisLineOpts(is_on_zero=False),
-                                axistick_opts=opts.AxisTickOpts(is_show=False),
-                                splitline_opts=opts.SplitLineOpts(is_show=False),
-                                axislabel_opts=opts.LabelOpts(is_show=True),
-                            ),
-                        )
-                    )
-                    kline = kline.overlap(short_line)
-                first_signal = signal
-                first_datetime = datetime_
-                first_high = high_
-                first_low = low_
-
-        # Grid Overlap + Bar
-        grid_chart = Grid(
-            init_opts=opts.InitOpts(
-                width="2000px",
-                height="1000px",
-                animation_opts=opts.AnimationOpts(animation=False),
-            )
-        )
-        grid_chart.add(
-            kline,
-            grid_opts=opts.GridOpts(pos_left="10%", pos_right="8%", height="50%"),
-        )
-        grid_chart.add(
-            bar,
-            grid_opts=opts.GridOpts(
-                pos_left="10%", pos_right="8%", pos_top="63%", height="16%"
-            ),
-        )
-
-        grid_chart.render(save_path + f"{symbol}_ts_signal.html")
