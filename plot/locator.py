@@ -222,9 +222,18 @@ class AutoDateLocator(ADLocator):
 
         locator.set_axis(self.axis)
         # print(dir(locator))
-        # todo 因backtrader和matplotlib兼容性问题，导致下面两行出问题，需要debug
-        # locator.set_view_interval(*self.axis.get_view_interval())
-        # locator.set_data_interval(*self.axis.get_data_interval())
+        try:
+            # try for matplotlib < 3.6.0
+            locator.set_view_interval(*self.axis.get_view_interval())
+            locator.set_data_interval(*self.axis.get_data_interval())
+        except Exception as e:
+            try:
+                # try for matplotlib >= 3.6.0
+                self.axis.set_view_interval(*self.axis.get_view_interval())
+                self.axis.set_data_interval(*self.axis.get_data_interval())
+                locator.set_axis(self.axis)
+            except Exception as e:
+                print("Error:", e)
         return locator
 
 
