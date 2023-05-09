@@ -25,7 +25,10 @@ import collections
 import io
 import itertools
 import sys
-
+try:  # For new Python versions
+    collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
+except AttributeError:  # For old Python versions
+    collectionsAbc = collections
 import backtrader as bt
 from backtrader.utils.py3 import (map, with_metaclass, string_types,
                                   integer_types)
@@ -267,7 +270,8 @@ class WriterFile(WriterBase):
                 # 写入字典
                 self.writedict(val, level=level + 1, recurse=True)
             # 如果val是一个可迭代对象
-            elif isinstance(val, (list, tuple, collections.Iterable)):
+            # elif isinstance(val, (list, tuple, collections.Iterable)):
+            elif isinstance(val, (list, tuple, collectionsAbc.Iterable)):
                 # 形成line,并保存到self.out中
                 line = ', '.join(map(str, val))
                 self.writeline(kline + ' ' + line)
