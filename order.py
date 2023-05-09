@@ -365,13 +365,15 @@ class OrderBase(with_metaclass(MetaParams, object)):
 
         # Set a reference price if price is not set using
         # the close price
-        # 如果当前不是simulated的话，pclose等于收盘价，否则等于price
-        pclose = self.data.close[0] if not self.simulated else self.price
-        # 如果self.price是None，并且self.pricelimit是None的话，价格等于pclose,否则价格等于self.price
-        if not self.price and not self.pricelimit:
-            price = pclose
-        else:
-            price = self.price
+        # # 如果当前不是simulated的话，pclose等于收盘价，否则等于price
+        # pclose = self.data.close[0] if not self.simulated else self.price
+        # # 如果self.price是None，并且self.pricelimit是None的话，价格等于pclose,否则价格等于self.price
+        # if not self.price and not self.pricelimit:
+        #     price = pclose
+        # else:
+        #     price = self.price
+        pclose = self.data.close[0] if not self.p.simulated else self.price
+        price = pclose if not self.price and not self.pricelimit else self.price
         # 如果不是simulated的话，订单创建时间等于当前数据的时间，否则就是0
         dcreated = self.data.datetime[0] if not self.p.simulated else 0.0
         # 订单创建
@@ -535,19 +537,25 @@ class OrderBase(with_metaclass(MetaParams, object)):
             return False
 
         self.status = Order.Rejected
-        self.executed.dt = self.data.datetime[0]
+        # self.executed.dt = self.data.datetime[0]
         self.broker = broker
+        if not self.p.simulated:
+            self.executed.dt = self.data.datetime[0]
         return True
     # 取消订单
     def cancel(self):
         '''Marks an order as cancelled'''
         self.status = Order.Canceled
-        self.executed.dt = self.data.datetime[0]
+        # self.executed.dt = self.data.datetime[0]
+        if not self.p.simulated:
+            self.executed.dt = self.data.datetime[0]
     # 保证金不够，增加保证金
     def margin(self):
         '''Marks an order as having met a margin call'''
         self.status = Order.Margin
-        self.executed.dt = self.data.datetime[0]
+        # self.executed.dt = self.data.datetime[0]
+        if not self.p.simulated:
+            self.executed.dt = self.data.datetime[0]
     # 完成
     def completed(self):
         '''Marks an order as completely filled'''
