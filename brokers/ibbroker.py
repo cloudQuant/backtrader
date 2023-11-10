@@ -92,8 +92,8 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
     '''
 
     def __str__(self):
-        '''Get the printout from the base class and add some ib.Order specific
-        fields'''
+        """Get the printout from the base class and add some ib.Order specific
+        fields"""
         basetxt = super(IBOrder, self).__str__()
         tojoin = [basetxt]
         tojoin.append('Ref: {}'.format(self.ref))

@@ -89,4 +89,4 @@ from . import talib as talib
 import backtrader.indicators.contrib
 import backtrader.studies.contrib
 
-from backtrader import vectors
+# from backtrader import vectors
