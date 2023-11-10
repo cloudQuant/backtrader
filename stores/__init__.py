@@ -41,3 +41,8 @@ except ImportError:
 
 
 from .vchartfile import VChartFile
+
+# 增加ctp的引用
+# from backtrader.stores.ctpstore import *
+# from backtrader.brokers.ctpbroker import *
+# from backtrader.feeds.ctpdata import *
