@@ -108,7 +108,7 @@ class SmaCross(bt.Strategy):
 
 # 主程序开始
 if __name__ == '__main__':
-    with open('./params_01.json', 'r') as f:
+    with open('./params_02.json', 'r') as f:
         ctp_setting = json.load(f)
 
     cerebro = bt.Cerebro(live=True)
