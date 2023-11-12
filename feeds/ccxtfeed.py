@@ -19,23 +19,20 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-#import time
-#from collections import deque
+import time
+from collections import deque
 from datetime import datetime
 
 import backtrader as bt
 from backtrader.feed import DataBase
 from backtrader.utils.py3 import queue, with_metaclass
-
 from backtrader.stores.ccxtstore import CCXTStore
+from backtrader.utils.date import get_last_timeframe_timestamp
 
 
 class MetaCCXTFeed(DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaCCXTFeed, cls).__init__(name, bases, dct)
 
@@ -66,7 +63,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
     """
 
     params = (
-        ('historical', False),      # only historical download
+        ('historical', False),  # only historical download
         ('backfill_start', False),  # do backfilling at the start
         ('fetch_ohlcv_params', {}),
         ('ohlcv_limit', 20),
@@ -84,8 +81,8 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
         # self.store = CCXTStore(exchange, config, retries)
         self.store = self._store(**kwargs)
         self._data = queue.Queue()  # data queue for price data
-        self._last_id = ''          # last processed trade id for ohlcv
-        self._last_ts = self.utc_to_ts(datetime.utcnow()) # last processed timestamp for ohlcv
+        self._last_id = ''  # last processed trade id for ohlcv
+        self._last_ts = self.utc_to_ts(datetime.utcnow())  # last processed timestamp for ohlcv
         self._last_update_bar_time = 0
 
     def utc_to_ts(self, dt):
@@ -114,14 +111,31 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
         #
         while True:
             if self._state == self._ST_LIVE:
-                #===========================================
+                # ===========================================
                 # 其实这段代码最好放到独立的工作线程中做,这里纯粹偷懒
                 # 每隔一分钟就更新一次bar
-                nts = datetime.now().timestamp()
-                if nts - self._last_update_bar_time > 60:
+                # 这段代码原作者写的有一些小问题，有一些其他周期的策略并不一定是每分钟更新一次
+                timeframe = self._timeframe
+                compression = self._compression
+                # 如果是分钟级别
+                if timeframe == 4:
+                    time_diff = 60 * compression
+                # 如果是日线级别
+                elif timeframe == 5:
+                    time_diff = 86400 * compression
+                # 如果是其他周期，默认是一分钟
+                else:
+                    time_diff = 60
+                # 因为本地时间和交易所时间可能有差距，所以需要考虑增加一个功能，把本地时间和交易所时间进行对齐
+                # 我本地时间和交易所时间差70ms左右，所以，这里面我需要增加5s的延时，以方便接收到最新的bar
+                # 大家需要根据自己的实际情况进行修改
+                nts = time.time()
+                if nts - self._last_update_bar_time >= time_diff+5:
+                    nts = get_last_timeframe_timestamp(int(nts), time_diff)
+                    print(f"上个bar结束时间为:{datetime.fromtimestamp(nts)}")
                     self._last_update_bar_time = nts
                     self._update_bar(livemode=True)
-                #===========================================
+                # ===========================================
                 return self._load_bar()
             elif self._state == self._ST_HISTORBACK:
                 ret = self._load_bar()
@@ -140,45 +154,48 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
 
     def _update_bar(self, fromdate=None, livemode=False):
         """Fetch OHLCV data into self._data queue"""
-        #想要获取哪个时间粒度下的bar
+        # 想要获取哪个时间粒度下的bar
         granularity = self.store.get_granularity(self._timeframe, self._compression)
-        #从哪个时间点开始获取bar
+        # 从哪个时间点开始获取bar
         if fromdate:
             self._last_ts = self.utc_to_ts(fromdate)
-        #每次获取bar数目的最高限制
-        limit = max(3, self.p.ohlcv_limit) #最少不能少于三个,原因:每次头bar时间重复要忽略,尾bar未完整要去掉,只保留中间的,所以最少三个
+        # 每次获取bar数目的最高限制
+        limit = max(3, self.p.ohlcv_limit)  # 最少不能少于三个,原因:每次头bar时间重复要忽略,尾bar未完整要去掉,只保留中间的,所以最少三个
         #
         while True:
-            #先获取数据长度
+            # 先获取数据长度
             dlen = self._data.qsize()
             #
-            bars = sorted(self.store.fetch_ohlcv(self.p.dataname, timeframe=granularity, since=self._last_ts, limit=limit, params=self.p.fetch_ohlcv_params))
+            bars = sorted(
+                self.store.fetch_ohlcv(self.p.dataname, timeframe=granularity, since=self._last_ts, limit=limit,
+                                       params=self.p.fetch_ohlcv_params))
+            print([datetime.fromtimestamp(i[0]/1000) for i in bars])
             # Check to see if dropping the latest candle will help with
             # exchanges which return partial data
             if self.p.drop_newest and len(bars) > 0:
                 del bars[-1]
             #
             for bar in bars:
-                #获取的bar不能有空值
+                # 获取的bar不能有空值
                 if None in bar:
                     continue
-                #bar的时间戳
+                # bar的时间戳
                 tstamp = bar[0]
-                #通过时间戳判断bar是否为新的bar
+                # 通过时间戳判断bar是否为新的bar
                 if tstamp > self._last_ts:
-                    self._data.put(bar) #将新的bar保存到队列中
+                    self._data.put(bar)  # 将新的bar保存到队列中
                     self._last_ts = tstamp
-                    #print(datetime.utcfromtimestamp(tstamp//1000))
-            #如果数据长度没有增长,那证明已经是当前最后一根bar,退出
+                    # print(datetime.utcfromtimestamp(tstamp//1000))
+            # 如果数据长度没有增长,那证明已经是当前最后一根bar,退出
             if dlen == self._data.qsize():
                 break
-            #实时模式下,就没必须判断是否是最后一根bar,减少网络通信
+            # 实时模式下,就没必须判断是否是最后一根bar,减少网络通信
             if livemode:
                 break
 
     def _load_bar(self):
         try:
-            bar = self._data.get(block=False) #不阻塞
+            bar = self._data.get(block=False)  # 不阻塞
         except queue.Empty:
             return None  # no data in the queue
         tstamp, open_, high, low, close, volume = bar

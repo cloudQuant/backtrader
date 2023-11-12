@@ -12,7 +12,6 @@ from ctpbee import CtpbeeApi, CtpBee, helper
 from ctpbee.constant import *
 
 
-
 class MyCtpbeeApi(CtpbeeApi):
 
     def __init__(self, name, md_queue=None):

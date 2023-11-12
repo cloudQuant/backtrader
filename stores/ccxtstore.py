@@ -46,14 +46,14 @@ class MetaSingleton(MetaParams):
 
 
 class CCXTStore(with_metaclass(MetaSingleton, object)):
-    '''API provider for CCXT feed and broker classes.
+    """API provider for CCXT feed and broker classes.
 
     Added a new get_wallet_balance method. This will allow manual checking of the balance.
         The method will allow setting parameters. Useful for getting margin balances
 
     Added new private_end_point method to allow using any private non-unified end point
 
-    '''
+    """
 
     # Supported granularities
     _GRANULARITIES = {
@@ -85,12 +85,12 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
 
     @classmethod
     def getdata(cls, *args, **kwargs):
-        '''Returns ``DataCls`` with args, kwargs'''
+        """Returns ``DataCls`` with args, kwargs"""
         return cls.DataCls(*args, **kwargs)
 
     @classmethod
     def getbroker(cls, *args, **kwargs):
-        '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
+        """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self, exchange, currency, config, retries, debug=False, sandbox=False):
@@ -177,9 +177,11 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         return self.exchange.fetch_trades(symbol)
 
     @retry
-    def fetch_ohlcv(self, symbol, timeframe, since, limit, params={}):
+    def fetch_ohlcv(self, symbol, timeframe, since, limit, params=None):
         if self.debug:
             print('Fetching: {}, TF: {}, Since: {}, Limit: {}'.format(symbol, timeframe, since, limit))
+        if params is None:
+            params = {}
         return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit, params=params)
 
     @retry
