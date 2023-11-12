@@ -13,6 +13,17 @@ class TestStrategy(bt.Strategy):
         self.sma = bt.indicators.SMA(self.data, period=21)
         self.bought = False
 
+    def timestamp2datetime(timestamp):
+        # 将时间戳转换为datetime对象
+        dt_object = datetime.fromtimestamp(timestamp)
+        # 将datetime对象格式化为字符串形式
+        formatted_time = dt_object.strftime('%Y-%m-%d %H:%M:%S.%f')
+        return formatted_time
+
+    def log(self, msg):
+        now_time = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')
+        print(f"{now_time} === {msg}")
+
     def next(self):
         # Get cash and balance
         # New broker method that will let you get the cash and balance for
@@ -47,11 +58,11 @@ class TestStrategy(bt.Strategy):
             # Slow things down.
             cash = 'NA'
 
-        print('---------------------------------------')
+        self.log('---------------------------------------')
         for data in self.datas:
-            print('{} - {} | Cash {} | O: {}  C: {}, len:{}'.format(data.datetime.datetime(),
-                                                                      data._name, cash, data.open[0],
-                                                                      data.close[0], len(data)))
+            self.log('{} - {} | Cash {} | O: {}  C: {}, len:{}'.format(data.datetime.datetime(),
+                                                                    data._name, cash, data.open[0],
+                                                                    data.close[0], len(data)))
 
     def notify_data(self, data, status, *args, **kwargs):
         dn = data._name

@@ -127,13 +127,13 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
                 else:
                     time_diff = 60
                 # 因为本地时间和交易所时间可能有差距，所以需要考虑增加一个功能，把本地时间和交易所时间进行对齐
-                # 我本地时间和交易所时间差70ms左右，所以，这里面我需要增加5s的延时，以方便接收到最新的bar
+                # 我本地时间和交易所时间差70ms左右，所以，这里面我需要增加2s的延时，以方便接收到最新的bar
                 # 大家需要根据自己的实际情况进行修改
                 nts = time.time()
-                if nts - self._last_update_bar_time >= time_diff+5:
-                    nts = get_last_timeframe_timestamp(int(nts), time_diff)
-                    print(f"上个bar结束时间为:{datetime.fromtimestamp(nts)}")
-                    self._last_update_bar_time = nts
+                if nts - self._last_update_bar_time/1000 >= time_diff+2:
+                    # nts = get_last_timeframe_timestamp(int(nts), time_diff)
+                    # # print(f"上个bar结束时间为:{datetime.fromtimestamp(nts)}")
+                    # self._last_update_bar_time = nts
                     self._update_bar(livemode=True)
                 # ===========================================
                 return self._load_bar()
@@ -169,7 +169,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
             bars = sorted(
                 self.store.fetch_ohlcv(self.p.dataname, timeframe=granularity, since=self._last_ts, limit=limit,
                                        params=self.p.fetch_ohlcv_params))
-            print([datetime.fromtimestamp(i[0]/1000) for i in bars])
+            # print([datetime.fromtimestamp(i[0]/1000) for i in bars])
             # Check to see if dropping the latest candle will help with
             # exchanges which return partial data
             if self.p.drop_newest and len(bars) > 0:
@@ -185,6 +185,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
                 if tstamp > self._last_ts:
                     self._data.put(bar)  # 将新的bar保存到队列中
                     self._last_ts = tstamp
+                    self._last_update_bar_time = tstamp
                     # print(datetime.utcfromtimestamp(tstamp//1000))
             # 如果数据长度没有增长,那证明已经是当前最后一根bar,退出
             if dlen == self._data.qsize():
