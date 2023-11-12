@@ -18,19 +18,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import math
-
 import backtrader as bt
 from backtrader import TimeFrameAnalyzerBase
 from . import Returns
 from ..mathsupport import standarddev
 
+
 # 获取VMR指标
 class VWR(TimeFrameAnalyzerBase):
-    '''Variability-Weighted Return: Better SharpeRatio with Log Returns
+    """Variability-Weighted Return: Better SharpeRatio with Log Returns
 
     Alias:
 
@@ -95,7 +92,7 @@ class VWR(TimeFrameAnalyzerBase):
         The returned dict contains the following keys:
 
           - ``vwr``: Variability-Weighted Return
-    '''
+    """
 
     # 参数
     params = (
@@ -119,6 +116,7 @@ class VWR(TimeFrameAnalyzerBase):
         self._returns = Returns(timeframe=self.p.timeframe,
                                 compression=self.p.compression,
                                 tann=self.p.tann)
+
     # 开始
     def start(self):
         super(VWR, self).start()

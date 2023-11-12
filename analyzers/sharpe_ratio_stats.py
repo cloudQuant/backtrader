@@ -4,13 +4,14 @@ import pandas as pd
 from scipy import stats as scipy_stats
 from backtrader.analyzers import my_corr
 
+
 def estimated_sharpe_ratio(returns):
     """
     Calculate the estimated sharpe ratio (risk_free=0).
 
     Parameters
     ----------
-    returns: np.array, pd.Series, pd.DataFrame
+    returns: `np.array`, pd.Series, pd.DataFrame
 
     Returns
     -------
@@ -25,13 +26,13 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
 
     Parameters
     ----------
-    returns: np.array, pd.Series, pd.DataFrame
+    returns: `np.array`, pd.Series, pd.DataFrame
 
     periods: int
         How many items in `returns` complete a Year.
         If returns are daily: 261, weekly: 52, monthly: 12, ...
 
-    sr: float, np.array, pd.Series, pd.DataFrame
+    sr: float, `np.array`, pd.Series, pd.DataFrame
         Sharpe ratio to be annualized, it's frequency must be coherent with `periods`
 
     Returns
@@ -50,21 +51,21 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
 
     Parameters
     ----------
-    returns: np.array, pd.Series, pd.DataFrame
+    returns: `np.array`, pd.Series, pd.DataFrame
         If no `returns` are passed it is mandatory to pass the other 4 parameters.
 
     n: int
         Number of returns samples used for calculating `skew`, `kurtosis` and `sr`.
 
-    skew: float, np.array, pd.Series, pd.DataFrame
+    skew: float, `np.array`, pd.Series, pd.DataFrame
         The third moment expressed in the same frequency as the other parameters.
         `skew`=0 for normal returns.
 
-    kurtosis: float, np.array, pd.Series, pd.DataFrame
+    kurtosis: float, `np.array`, pd.Series, pd.DataFrame
         The fourth moment expressed in the same frequency as the other parameters.
         `kurtosis`=3 for normal returns.
 
-    sr: float, np.array, pd.Series, pd.DataFrame
+    sr: float, `np.array`, pd.Series, pd.DataFrame
         Sharpe ratio expressed in the same frequency as the other parameters.
 
     Returns
@@ -76,7 +77,12 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
     This formula generalizes for both normal and non-normal returns.
     https://papers.ssrn.com/sol3/papers.cfm?abstract_id=1821643
     """
-    if type(returns) != pd.DataFrame:
+    # if type(returns) != pd.DataFrame:
+    #     _returns = pd.DataFrame(returns)
+    # else:
+    #     _returns = returns.copy()
+
+    if isinstance(returns, pd.DataFrame):
         _returns = pd.DataFrame(returns)
     else:
         _returns = returns.copy()
@@ -92,7 +98,7 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
 
     sr_std = np.sqrt((1 + (0.5 * sr ** 2) - (skew * sr) + (((kurtosis - 3) / 4) * sr ** 2)) / (n - 1))
 
-    if type(returns) == pd.DataFrame:
+    if isinstance(returns, pd.DataFrame):
         sr_std = pd.Series(sr_std, index=returns.columns)
     elif type(sr_std) not in (float, np.float64, pd.DataFrame):
         sr_std = sr_std.values[0]
@@ -106,17 +112,17 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
 
     Parameters
     ----------
-    returns: np.array, pd.Series, pd.DataFrame
+    returns: `np.array`, pd.Series, pd.DataFrame
         If no `returns` are passed it is mandatory to pass a `sr` and `sr_std`.
 
     sr_benchmark: float
         Benchmark sharpe ratio expressed in the same frequency as the other parameters.
-        By default set to zero (comparing against no investment skill).
+        By default, set to zero (comparing against no investment skill).
 
-    sr: float, np.array, pd.Series, pd.DataFrame
+    sr: float, `np.array`, pd.Series, pd.DataFrame
         Sharpe ratio expressed in the same frequency as the other parameters.
 
-    sr_std: float, np.array, pd.Series, pd.DataFrame
+    sr_std: float, `np.array`, pd.Series, pd.DataFrame
         Standard deviation fo the Estimated sharpe ratio,
         expressed in the same frequency as the other parameters.
 
@@ -139,7 +145,7 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
 
     psr = scipy_stats.norm.cdf((sr - sr_benchmark) / sr_std)
 
-    if type(returns) == pd.DataFrame:
+    if isinstance(returns, pd.DataFrame):
         psr = pd.Series(psr, index=returns.columns)
     elif type(psr) not in (float, np.float64):
         psr = psr[0]
@@ -153,12 +159,12 @@ def min_track_record_length(returns=None, sr_benchmark=0.0, prob=0.95, *, n=None
 
     Parameters
     ----------
-    returns: np.array, pd.Series, pd.DataFrame
+    returns: `np.array`, pd.Series, pd.DataFrame
         If no `returns` are passed it is mandatory to pass a `sr` and `sr_std`.
 
     sr_benchmark: float
         Benchmark sharpe ratio expressed in the same frequency as the other parameters.
-        By default set to zero (comparing against no investment skill).
+        By default, set to zero (comparing against no investment skill).
 
     prob: float
         Confidence level used for calculating the minTRL.
@@ -167,10 +173,10 @@ def min_track_record_length(returns=None, sr_benchmark=0.0, prob=0.95, *, n=None
     n: int
         Number of returns samples used for calculating `sr` and `sr_std`.
 
-    sr: float, np.array, pd.Series, pd.DataFrame
+    sr: float, `np.array`, pd.Series, pd.DataFrame
         Sharpe ratio expressed in the same frequency as the other parameters.
 
-    sr_std: float, np.array, pd.Series, pd.DataFrame
+    sr_std: float, `np.array`, pd.Series, pd.DataFrame
         Standard deviation fo the Estimated sharpe ratio,
         expressed in the same frequency as the other parameters.
 
@@ -196,7 +202,7 @@ def min_track_record_length(returns=None, sr_benchmark=0.0, prob=0.95, *, n=None
 
     min_trl = 1 + (sr_std ** 2 * (n - 1)) * (scipy_stats.norm.ppf(prob) / (sr - sr_benchmark)) ** 2
 
-    if type(returns) == pd.DataFrame:
+    if isinstance(returns, pd.DataFrame):
         min_trl = pd.Series(min_trl, index=returns.columns)
     elif type(min_trl) not in (float, np.float64):
         min_trl = min_trl[0]
@@ -225,16 +231,16 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
     """
     if m is None:
         m = trials_returns.shape[1]
-        
+
     if p is None:
         # corr_matrix = trials_returns.corr()
         # p = corr_matrix.values[np.triu_indices_from(corr_matrix.values,1)].mean()
         p = my_corr.main(trials_returns)
-        
+
     n = p + (1 - p) * m
-    
-    n = int(n)+1  # round up
-    
+
+    n = int(n) + 1  # round up
+
     return n
 
 
@@ -262,22 +268,24 @@ def expected_maximum_sr(trials_returns=None, expected_mean_sr=0.0, *, independen
     -------
     float
     """
-    emc = 0.5772156649 # Euler-Mascheroni constant
-    
+    emc = 0.5772156649  # Euler-Mascheroni constant
+
     if independent_trials is None:
         independent_trials = num_independent_trials(trials_returns)
-    
+
     if trials_sr_std is None:
         srs = estimated_sharpe_ratio(trials_returns)
         trials_sr_std = srs.std()
-    
-    maxZ = (1 - emc) * scipy_stats.norm.ppf(1 - 1./independent_trials) + emc * scipy_stats.norm.ppf(1 - 1./(independent_trials * np.e))
-    expected_max_sr = expected_mean_sr + (trials_sr_std * maxZ)
-    
+
+    max_z = (1 - emc) * scipy_stats.norm.ppf(1 - 1. / independent_trials) + emc * scipy_stats.norm.ppf(
+        1 - 1. / (independent_trials * np.e))
+    expected_max_sr = expected_mean_sr + (trials_sr_std * max_z)
+
     return expected_max_sr
 
 
-def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_mean_sr=0.0, independent_trials=10, expected_max_sr=None):
+def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_mean_sr=0.0, independent_trials=10,
+                          expected_max_sr=None):
     """
     Calculate the Deflated Sharpe Ratio (PSR).
 
@@ -295,6 +303,7 @@ def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_m
     expected_max_sr: float
         The expected maximum sharpe ratio expected after running all the trials,
         expressed in the same frequency as the other parameters.
+    independent_trials: int
 
     Returns
     -------
@@ -309,12 +318,10 @@ def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_m
     https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551
     """
     if expected_max_sr is None:
-        expected_max_sr = expected_maximum_sr(trials_returns = trials_returns,
-                                              expected_mean_sr = expected_mean_sr,
-                                              independent_trials = independent_trials)
-        
+        expected_max_sr = expected_maximum_sr(trials_returns=trials_returns,
+                                              expected_mean_sr=expected_mean_sr,
+                                              independent_trials=independent_trials)
+
     dsr = probabilistic_sharpe_ratio(returns=returns_selected, sr_benchmark=expected_max_sr)
 
     return dsr
-
-

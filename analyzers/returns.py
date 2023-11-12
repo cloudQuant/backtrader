@@ -18,17 +18,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import math
-
 import backtrader as bt
 from backtrader import TimeFrameAnalyzerBase
 
+
 # 使用对数方法计算总的，平均，复合和年化收益率
 class Returns(TimeFrameAnalyzerBase):
-    '''Total, Average, Compound and Annualized Returns calculated using a
+    """Total, Average, Compound and Annualized Returns calculated using a
     logarithmic approach
 
     See:
@@ -87,7 +84,7 @@ class Returns(TimeFrameAnalyzerBase):
           - ``rnorm``: Annualized/Normalized return
           - ``rnorm100``: Annualized/Normalized return expressed in 100%
 
-    '''
+    """
     # 参数
     params = (
         ('tann', None),
@@ -100,6 +97,7 @@ class Returns(TimeFrameAnalyzerBase):
         bt.TimeFrame.Months: 12.0,
         bt.TimeFrame.Years: 1.0,
     }
+
     # 开始
     def start(self):
         super(Returns, self).start()

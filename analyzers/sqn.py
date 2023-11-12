@@ -18,18 +18,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import math
-
 from backtrader import Analyzer
 from backtrader.mathsupport import average, standarddev
 from backtrader.utils import AutoOrderedDict
 
+
 # 获取SQN指标
 class SQN(Analyzer):
-    '''SQN or SystemQualityNumber. Defined by Van K. Tharp to categorize trading
+    """SQN or SystemQualityNumber. Defined by Van K. Tharp to categorize trading
     systems.
 
       - 1.6 - 1.9 Below average
@@ -52,14 +49,14 @@ class SQN(Analyzer):
         Returns a dictionary with keys "sqn" and "trades" (number of
         considered trades)
 
-    '''
+    """
     # 系统质量数
     alias = ('SystemQualityNumber',)
 
     # 创建分析
     def create_analysis(self):
-        '''Replace default implementation to instantiate an AutoOrdereDict
-        rather than an OrderedDict'''
+        """Replace default implementation to instantiate an AutoOrderedDict
+        rather than an OrderedDict"""
         self.rets = AutoOrderedDict()
 
     # 开始，初始化pnl和count

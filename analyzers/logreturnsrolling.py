@@ -18,20 +18,16 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import collections
 import math
 
 import backtrader as bt
 
-
 __all__ = ['LogReturnsRolling']
 
 
 class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
-    '''This analyzer calculates rolling returns for a given timeframe and
+    """This analyzer calculates rolling returns for a given timeframe and
     compression
 
     Params:
@@ -91,13 +87,14 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
-    '''
+    """
     # 参数
     params = (
         ('data', None),
         ('firstopen', True),
         ('fund', None),
     )
+
     # 开始
     def start(self):
         super(LogReturnsRolling, self).start()

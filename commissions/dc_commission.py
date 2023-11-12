@@ -1,12 +1,14 @@
 import backtrader as bt
+
+
 class ComminfoDC(bt.CommInfoBase):
-    '''实现一个数字货币的佣金类
-    '''
+    """实现一个数字货币的佣金类
+    """
     params = (
         ('stocklike', False),
-        ('commtype', CommInfoBase.COMM_PERC),
+        ('commtype', bt.CommInfoBase.COMM_PERC),
         ('percabs', True),
-        ("interest",3),
+        ("interest", 3),
     )
 
     def _getcommission(self, size, price, pseudoexec):
@@ -17,10 +19,10 @@ class ComminfoDC(bt.CommInfoBase):
 
     # 计算利息费用,这里面涉及到一些简化
     def get_credit_interest(self, data, pos, dt):
-        ''' 例如我持有100U，要买300U的BTC，杠杆为三倍，这时候我只需要借入2*100U的钱就可以了，
+        """例如我持有100U，要买300U的BTC，杠杆为三倍，这时候我只需要借入2*100U的钱就可以了，
        所以利息应该是200U * interest，同理，对于n倍开多，需要付（n-1）*base的利息
         如果我要开空，我只有100U，我必须借入BTC先卖掉，就算是一倍开空，也得借入100U的BTC，
-        所以对于n倍开空，需要付n*base的利息'''
+        所以对于n倍开空，需要付n*base的利息"""
         # 仓位及价格
         size, price = pos.size, pos.price
         # 持仓时间
@@ -40,7 +42,3 @@ class ComminfoDC(bt.CommInfoBase):
         # 如果当前是做空的交易，计算利息
         if size < 0:
             return days * self.self._creditrate * position_value
-
-
-
-

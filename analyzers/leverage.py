@@ -18,14 +18,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import backtrader as bt
+
 
 # 使用资金的比率
 class GrossLeverage(bt.Analyzer):
-    '''This analyzer calculates the Gross Leverage of the current strategy
+    """This analyzer calculates the Gross Leverage of the current strategy
     on a timeframe basis
 
     Params:
@@ -45,17 +43,19 @@ class GrossLeverage(bt.Analyzer):
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
-    '''
+    """
     # 参数
     params = (
         ('fund', None),
     )
+
     # 开始
     def start(self):
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
+
     # fund通知
     def notify_fund(self, cash, value, fundvalue, shares):
         self._cash = cash
@@ -63,6 +63,7 @@ class GrossLeverage(bt.Analyzer):
             self._value = value
         else:
             self._value = fundvalue
+
     # 每个bar运行一次，得到使用资金的比率
     def next(self):
         # Updates the leverage for "dtkey" (see base class) for each cycle
