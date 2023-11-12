@@ -18,21 +18,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-
 import backtrader as bt
 from backtrader.utils.py3 import itervalues
 from backtrader.mathsupport import average, standarddev
 from . import TimeReturn
 
-
 __all__ = ['PeriodStats']
+
 
 # 阶段统计
 class PeriodStats(bt.Analyzer):
-    '''Calculates basic statistics for given timeframe
+    """Calculates basic statistics for given timeframe
 
     Params:
 
@@ -73,7 +69,7 @@ class PeriodStats(bt.Analyzer):
 
     If the parameter ``zeroispos`` is set to ``True``, periods with no change
     will be counted as positive
-    '''
+    """
 
     # 参数
     params = (

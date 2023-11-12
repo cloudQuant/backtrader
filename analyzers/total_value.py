@@ -4,8 +4,9 @@ from __future__ import (absolute_import, division, print_function,
 from collections import OrderedDict
 from backtrader import Analyzer
 
+
 class TotalValue(Analyzer):
-    '''This analyzer will get total value from every next.
+    """This analyzer will get total value from every next.
 
     Params:
     Methods:
@@ -14,9 +15,10 @@ class TotalValue(Analyzer):
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
-    '''
+    """
 
-    params = ( )
+    params = ()
+    rets = None
 
     def start(self):
         super(TotalValue, self).start()
@@ -26,6 +28,6 @@ class TotalValue(Analyzer):
         # Calculate the return
         super(TotalValue, self).next()
         self.rets[self.datas[0].datetime.datetime()] = self.strategy.broker.getvalue()
-        
+
     def get_analysis(self):
         return self.rets

@@ -31,7 +31,6 @@ import sys
 
 import backtrader as bt
 
-
 DATAFORMATS = dict(
     btcsv=bt.feeds.BacktraderCSVData,
     vchartcsv=bt.feeds.VChartCSVData,
@@ -57,7 +56,6 @@ try:
     DATAFORMATS['oandadata'] = bt.feeds.OandaData,
 except AttributeError:
     pass  # no oandapy available
-
 
 TIMEFRAMES = dict(
     microseconds=bt.TimeFrame.MicroSeconds,
@@ -262,7 +260,7 @@ def getmodclasses(mod, clstype, clsname=None):
 
 def getmodfunctions(mod, funcname=None):
     members = inspect.getmembers(mod, inspect.isfunction) + \
-        inspect.getmembers(mod, inspect.ismethod)
+              inspect.getmembers(mod, inspect.ismethod)
 
     funclist = list()
     for name, member in members:
@@ -369,6 +367,7 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
             retobjects.append((loaded[0], kwargs))
 
     return retobjects
+
 
 def getfunctions(iterable, modbase):
     retfunctions = list()

@@ -18,14 +18,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from backtrader import TimeFrameAnalyzerBase
 
 
 class TimeReturn(TimeFrameAnalyzerBase):
-    '''This analyzer calculates the Returns by looking at the beginning
+    """This analyzer calculates the Returns by looking at the beginning
     and end of the timeframe
 
     Params:
@@ -49,7 +46,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
         Reference asset to track instead of the portfolio value.
 
-        .. note:: this data must have been added to a ``cerebro`` instance with
+        - note:: this data must have been added to a ``cerebro`` instance with
                   ``addata``, ``resampledata`` or ``replaydata``
 
       - ``firstopen`` (default: ``True``)
@@ -86,13 +83,14 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
-    '''
+    """
     # 参数
     params = (
         ('data', None),
         ('firstopen', True),
         ('fund', None),
     )
+
     # 开始
     def start(self):
         super(TimeReturn, self).start()
@@ -125,6 +123,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
                 self._value = fundvalue  # the fund value if tracking no data
             else:
                 self._value = self.p.data[0]  # the data value if tracking data
+
     # on_dt_over
     def on_dt_over(self):
         # next is called in a new timeframe period
@@ -138,6 +137,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
                 self._value_start = self.p.data.open[0]
             else:
                 self._value_start = self.p.data[0]
+
     # 调用next
     def next(self):
         # Calculate the return

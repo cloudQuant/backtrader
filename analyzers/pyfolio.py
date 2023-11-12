@@ -18,23 +18,17 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-
-import collections
-
+# import collections
 import backtrader as bt
-from backtrader.utils.py3 import items, iteritems
-import numpy as np
-import pandas as pd 
+from backtrader.utils.py3 import iteritems
+import pandas as pd
 
 from . import TimeReturn, PositionsValue, Transactions, GrossLeverage
 
+
 # pyfolio的分析模块
 class PyFolio(bt.Analyzer):
-
-    '''This analyzer uses 4 children analyzers to collect data and transforms it
+    """This analyzer uses 4 children analyzers to collect data and transforms it
     in to a data set compatible with ``pyfolio``
 
     Children Analyzer
@@ -80,7 +74,7 @@ class PyFolio(bt.Analyzer):
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
-    '''
+    """
     # 参数
     params = (
         ('timeframe', bt.TimeFrame.Days),
@@ -107,7 +101,7 @@ class PyFolio(bt.Analyzer):
 
     # 对上面四个analyzer的结果进行调整，以便得到pyfolio需要的输入的信息
     def get_pf_items(self):
-        '''Returns a tuple of 4 elements which can be used for further processing with
+        """Returns a tuple of 4 elements which can be used for further processing with
           ``pyfolio``
 
           returns, positions, transactions, gross_leverage
@@ -118,13 +112,13 @@ class PyFolio(bt.Analyzer):
         by, for example, ``pyfolio.create_full_tear_sheet``
 
         The method will break if ``pandas`` is not installed
-        '''
+        """
         # keep import local to avoid disturbing installations with no pandas
         # Returns
         # 处理returns
         cols = ['index', 'return']
         returns = pd.DataFrame.from_records(iteritems(self.rets['returns']),
-                                  index=cols[0], columns=cols)
+                                            index=cols[0], columns=cols)
         returns.index = pd.to_datetime(returns.index)
         returns.index = returns.index.tz_localize('UTC')
         rets = returns['return']
@@ -162,7 +156,7 @@ class PyFolio(bt.Analyzer):
         # 处理leverage
         cols = ['index', 'gross_lev']
         gross_lev = pd.DataFrame.from_records(iteritems(self.rets['gross_lev']),
-                                    index=cols[0], columns=cols)
+                                              index=cols[0], columns=cols)
 
         gross_lev.index = pd.to_datetime(gross_lev.index)
         gross_lev.index = gross_lev.index.tz_localize('UTC')

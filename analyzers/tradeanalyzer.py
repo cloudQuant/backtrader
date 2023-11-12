@@ -18,18 +18,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-import sys
-
 from backtrader import Analyzer
 from backtrader.utils import AutoOrderedDict, AutoDict
 from backtrader.utils.py3 import MAXINT
 
+
 # 分析交易
 class TradeAnalyzer(Analyzer):
-    '''
+    """
     Provides statistics on closed trades (keeps also the count of open ones)
 
       - Total Open/Closed Trades
@@ -56,7 +52,7 @@ class TradeAnalyzer(Analyzer):
 
     Note:
 
-      The analyzer uses an "auto"dict for the fields, which means that if no
+      The analyzer uses an autodict for the fields, which means that if no
       trades are executed, no statistics will be generated.
 
       In that case there will be a single field/subfield in the dictionary
@@ -64,11 +60,14 @@ class TradeAnalyzer(Analyzer):
 
         - dictname['total']['total'] which will have a value of 0 (the field is
           also reachable with dot notation dictname.total.total
-    '''
+    """
+    rets = None
+
     # 创建分析
     def create_analysis(self):
         self.rets = AutoOrderedDict()
         self.rets.total.total = 0
+
     # 停止
     def stop(self):
         super(TradeAnalyzer, self).stop()
@@ -208,7 +207,7 @@ class TradeAnalyzer(Analyzer):
                 barlen = trade.barlen * ls
 
                 trls.total += barlen  # trades.len.long.total
-                total_ls = trades[lsname].total   # trades.long.total
+                total_ls = trades[lsname].total  # trades.long.total
                 trls.average = trls.total / (total_ls or 1.0)
 
                 # max/min

@@ -18,15 +18,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-
 import backtrader as bt
+
 
 # 持仓价值
 class PositionsValue(bt.Analyzer):
-    '''This analyzer reports the value of the positions of the current set of
+    """This analyzer reports the value of the positions of the current set of
     datas
 
     Params:
@@ -46,7 +43,7 @@ class PositionsValue(bt.Analyzer):
       - headers (default: ``False``)
 
         Add an initial key to the dictionary holding the results with the names
-        of the datas ('Datetime' as key
+        of the datas 'Datetime' as key
 
       - cash (default: ``False``)
 
@@ -59,12 +56,13 @@ class PositionsValue(bt.Analyzer):
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
-    '''
+    """
     # 参数
     params = (
-        ('headers',  False),
+        ('headers', False),
         ('cash', False),
     )
+
     # 开始
     def start(self):
         # 如果headers参数是True,每个data的命字作为header
@@ -90,4 +88,3 @@ class PositionsValue(bt.Analyzer):
             self.rets[self.strategy.datetime.date()] = pvals
         else:
             self.rets[self.strategy.datetime.datetime()] = pvals
-    
