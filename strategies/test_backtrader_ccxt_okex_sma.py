@@ -49,11 +49,9 @@ class TestStrategy(bt.Strategy):
 
         print('---------------------------------------')
         for data in self.datas:
-            print('{} - {} | Cash {} | O: {} H: {} L: {} C: {} V:{} SMA:{}'.format(data.datetime.datetime(),
-                                                                                   data._name, cash, data.open[0],
-                                                                                   data.high[0], data.low[0],
-                                                                                   data.close[0], data.volume[0],
-                                                                                   self.sma[0]))
+            print('{} - {} | Cash {} | O: {}  C: {}, len:{}'.format(data.datetime.datetime(),
+                                                                      data._name, cash, data.open[0],
+                                                                      data.close[0], len(data)))
 
     def notify_data(self, data, status, *args, **kwargs):
         dn = data._name
@@ -115,11 +113,15 @@ cerebro.setbroker(broker)
 
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
-hist_start_date = datetime.utcnow() - timedelta(minutes=1440)
+hist_start_date = datetime.utcnow() - timedelta(minutes=100)
 for symbol in ["BTC/USDT", 'LPT/USDT', 'EOS/USDT']:
+    # for symbol in ["BTC/USDT"]:
     data = store.getdata(dataname=symbol, name=symbol,
                          timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
-                         compression=1, ohlcv_limit=1000, drop_newest=True)
+                         compression=3, ohlcv_limit=100, drop_newest=False)
+    # data = store.getdata(dataname=symbol, name=symbol,
+    #                      timeframe=bt.TimeFrame.Days, fromdate=hist_start_date,
+    #                      compression=1, ohlcv_limit=100, drop_newest=True)
     # Add the feed
     cerebro.adddata(data)
 

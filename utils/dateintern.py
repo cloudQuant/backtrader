@@ -25,7 +25,8 @@ import datetime
 import math
 import time as _time
 from .py3 import string_types
-# from numba import jit 
+
+# from numba import jit
 
 # 0的时间差
 ZERO = datetime.timedelta(0)
@@ -36,7 +37,7 @@ STDOFFSET = datetime.timedelta(seconds=-_time.timezone)
 if _time.daylight:
     # time.altzone 返回当地的DST时区的偏移，在UTC西部秒数(如果有一个定义)
     # DSTOFFSET 夏令时时的偏移量
-    DSTOFFSET = datetime.timedelta(seconds=-_time.altzone) 
+    DSTOFFSET = datetime.timedelta(seconds=-_time.altzone)
 else:
     DSTOFFSET = STDOFFSET
 # DSTDIFF 代表夏令时与非夏令时的偏移量的差
@@ -51,6 +52,19 @@ TIME_MAX = datetime.time(23, 59, 59, 999990)
 TIME_MIN = datetime.time.min
 
 
+# 获取最近的一个bar更新的时间点
+def get_last_timeframe_timestamp(timestamp, time_diff):
+    """根据当前时间戳，获取上一个整分钟的时间戳
+    :params timestamp int, calculate from int(time.time())
+    :params time_diff int, e.g. 1m timeframe using 60
+    :returns timestamp int
+    """
+    while True:
+        if timestamp % time_diff == 0:
+            return timestamp
+        timestamp -= 1
+
+
 def tzparse(tz):
     # 这个函数尝试对tz进行转换
     # If no object has been provided by the user and a timezone can be
@@ -63,7 +77,7 @@ def tzparse(tz):
     try:
         import pytz  # keep the import very local
     except ImportError:
-        return Localizer(tz)    # nothing can be done
+        return Localizer(tz)  # nothing can be done
 
     tzs = tz
     if tzs == 'CST':  # usual alias
@@ -72,7 +86,7 @@ def tzparse(tz):
     try:
         tz = pytz.timezone(tzs)
     except pytz.UnknownTimeZoneError:
-        return Localizer(tz)    # nothing can be done
+        return Localizer(tz)  # nothing can be done
 
     return tz
 
@@ -95,6 +109,7 @@ def Localizer(tz):
 # A UTC class, same as the one in the Python Docs
 class _UTC(datetime.tzinfo):
     """UTC"""
+
     # UTC 类
     def utcoffset(self, dt):
         return ZERO
@@ -111,19 +126,21 @@ class _UTC(datetime.tzinfo):
 
 class _LocalTimezone(datetime.tzinfo):
     '''本地时区相关的处理'''
+
     # 时区的偏移量
     def utcoffset(self, dt):
         if self._isdst(dt):
             return DSTOFFSET
         else:
             return STDOFFSET
+
     # 夏令时的偏移量，不是夏令时，偏移量为0
     def dst(self, dt):
         if self._isdst(dt):
             return DSTDIFF
         else:
             return ZERO
-        
+
     # 可能是时区名称
     def tzname(self, dt):
         return _time.tzname[self._isdst(dt)]
@@ -140,6 +157,7 @@ class _LocalTimezone(datetime.tzinfo):
 
         tt = _time.localtime(stamp)
         return tt.tm_isdst > 0
+
     # 给dt增加一个时区信息
     def localize(self, dt):
         return dt.replace(tzinfo=self)
@@ -148,13 +166,12 @@ class _LocalTimezone(datetime.tzinfo):
 UTC = _UTC()
 TZLocal = _LocalTimezone()
 
-
-HOURS_PER_DAY = 24.0                                        # 一天24小时
-MINUTES_PER_HOUR = 60.0                                     # 1小时60分钟
-SECONDS_PER_MINUTE = 60.0                                   # 1分钟60秒
-MUSECONDS_PER_SECOND = 1e6                                  # 1秒有多少微秒
-MINUTES_PER_DAY = MINUTES_PER_HOUR * HOURS_PER_DAY          # 1天有多少分钟
-SECONDS_PER_DAY = SECONDS_PER_MINUTE * MINUTES_PER_DAY      # 1天有多少秒
+HOURS_PER_DAY = 24.0  # 一天24小时
+MINUTES_PER_HOUR = 60.0  # 1小时60分钟
+SECONDS_PER_MINUTE = 60.0  # 1分钟60秒
+MUSECONDS_PER_SECOND = 1e6  # 1秒有多少微秒
+MINUTES_PER_DAY = MINUTES_PER_HOUR * HOURS_PER_DAY  # 1天有多少分钟
+SECONDS_PER_DAY = SECONDS_PER_MINUTE * MINUTES_PER_DAY  # 1天有多少秒
 MUSECONDS_PER_DAY = MUSECONDS_PER_SECOND * SECONDS_PER_DAY  # 1天有多少微秒
 
 
@@ -176,19 +193,19 @@ def num2date(x, tz=None, naive=True):
     be returned.
     """
 
-    ix = int(x)                                                     # 对x进行取整数
-    dt = datetime.datetime.fromordinal(ix)                          # 返回对应 Gregorian 日历时间对应的 datetime 对象
-    remainder = float(x) - ix                                       # x的小数部分
-    hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)          # 小时
-    minute, remainder = divmod(MINUTES_PER_HOUR * remainder, 1)     # 分钟
-    second, remainder = divmod(SECONDS_PER_MINUTE * remainder, 1)   # 秒
-    microsecond = int(MUSECONDS_PER_SECOND * remainder)             # 微妙
+    ix = int(x)  # 对x进行取整数
+    dt = datetime.datetime.fromordinal(ix)  # 返回对应 Gregorian 日历时间对应的 datetime 对象
+    remainder = float(x) - ix  # x的小数部分
+    hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)  # 小时
+    minute, remainder = divmod(MINUTES_PER_HOUR * remainder, 1)  # 分钟
+    second, remainder = divmod(SECONDS_PER_MINUTE * remainder, 1)  # 秒
+    microsecond = int(MUSECONDS_PER_SECOND * remainder)  # 微妙
     # 如果微秒数小于10,舍去
     if microsecond < 10:
         microsecond = 0  # compensate for rounding errors
     # 这个写的不怎么样，True应该去掉的，没有意义
     # if True and tz is not None:
-    if  tz is not None:
+    if tz is not None:
         # 合成时间
         dt = datetime.datetime(
             dt.year, dt.month, dt.day, int(hour), int(minute), int(second),
@@ -208,15 +225,18 @@ def num2date(x, tz=None, naive=True):
 
     return dt
 
+
 # 数字转换成日期
 
 def num2dt(num, tz=None, naive=True):
     return num2date(num, tz=tz, naive=naive).date()
 
+
 # 数字转换成时间
 
 def num2time(num, tz=None, naive=True):
     return num2date(num, tz=tz, naive=naive).time()
+
 
 # 日期时间转换成数字
 
@@ -246,6 +266,7 @@ def date2num(dt, tz=None):
              dt.second / SECONDS_PER_DAY, dt.microsecond / MUSECONDS_PER_DAY))
 
     return base
+
 
 # 时间转成数字
 
