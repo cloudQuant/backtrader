@@ -42,4 +42,3 @@ from .logreturnsrolling import *
 from .calmar import *
 from .periodstats import *
 from .total_value import *
-from .order_trade_value import * 
