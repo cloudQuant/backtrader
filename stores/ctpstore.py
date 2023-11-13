@@ -45,12 +45,12 @@ class MyCtpbeeApi(CtpbeeApi):
             self._data_name = dataname
             print(f"-----订阅数据成功{dataname},{timeframe},{compression}--------")
             if self._bar_timeframe == 4:
-                time_diff = 60 * self._bar_compression
-                self._bar_interval = str(time_diff) + "_s"
+                self.time_diff = 60 * self._bar_compression
+                self._bar_interval = str(self.time_diff) + "_s"
             # 如果是日线级别
             elif self._bar_timeframe == 5:
-                time_diff = 86400 * self._bar_compression
-                self._bar_interval = str(time_diff) + "_s"
+                self.time_diff = 86400 * self._bar_compression
+                self._bar_interval = str(self.time_diff) + "_s"
             # 如果是其他周期，默认是一分钟
             else:
                 self.time_diff = 60
@@ -80,12 +80,14 @@ class MyCtpbeeApi(CtpbeeApi):
         # local_symbol = rb2405.SHFE, low_price = 3866.0000000000005, name = rb2405, open_interest = 514903.0,
         # open_price = 3905.0, pre_close = 3898.0, pre_open_interest = 509281.0, pre_settlement_price = 3894.0,
         # settlement_price = 1.7976931348623157e+308, symbol = rb2405, turnover = 7782533720.0, volume = 199661, )
+        print(f"进入on_tick, {tick.datetime}")
         # 如果bar结束时间是None的话,需要计算出bar结束时间
         if self._bar_end_time is None:
             # 获取最近一次bar更新的时间,然后计算bar结束的时间
             nts = time.time()
             self._bar_begin_time = get_last_timeframe_timestamp(int(nts), self.time_diff)
             self._bar_end_time = self._bar_begin_time + self.time_diff
+            print("self._bar_begin_time", self._bar_begin_time)
             self._bar_end_time = timestamp2datetime(self._bar_begin_time)
         # 如果当前的tick的时间大于等于了bar结束的时间,就push bar到队列中,否则就更新k线
         nts = tick.datetime
@@ -100,13 +102,14 @@ class MyCtpbeeApi(CtpbeeApi):
                                          "low_price": self.bar_low_price,
                                          "close_price": self.bar_close_price})
             self.md_queue[self._data_name].put(bar)
-            self.bar_datetime = self._bar_end_time
+            self.bar_datetime = self._bar_begin_time
             self.bar_open_price = tick.last_price
             self.bar_high_price = tick.last_price
             self.bar_low_price = tick.last_price
             self.bar_close_price = tick.last_price
             self.bar_volume = tick.volume
-            self._bar_end_time = timestamp2datetime(datetime2timestamp(self._bar_begin_time) + self.time_diff)
+            self._bar_begin_time = self._bar_end_time
+            self._bar_end_time = timestamp2datetime(datetime2timestamp(self._bar_end_time) + self.time_diff)
         else:
             self.bar_datetime = self._bar_begin_time
             self.bar_high_price = max(self.bar_high_price, tick.last_price)

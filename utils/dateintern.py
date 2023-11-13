@@ -86,12 +86,34 @@ def timestamp2datetime(timestamp):
     """
     # 将时间戳转换为datetime对象
     dt_object = datetime.datetime.fromtimestamp(timestamp)
+    return dt_object
+
+
+def timestamp2datestr(timestamp):
+    """把时间戳转化成字符串时间
+    param: timestamp 时间戳
+    param: string_format (str): string format
+    Return: formatted_time (Str): timestamp
+    """
+    # 将时间戳转换为datetime对象
+    dt_object = datetime.datetime.fromtimestamp(timestamp)
     # 将datetime对象格式化为字符串形式
     formatted_time = dt_object.strftime('%Y-%m-%d %H:%M:%S.%f')
     return formatted_time
 
 
-def datetime2timestamp(datetime_string="2023-06-01 09:30:00.0", string_format='%Y-%m-%d %H:%M:%S.%f'):
+def datetime2timestamp(time_date, string_format='%Y-%m-%d %H:%M:%S.%f'):
+    """把时间转化成时间戳
+    param: datetime_string (str): timezone in pytz.common_timezones
+    param: string_format (str): string format
+    Return: timestamp
+    """
+    # 将datetime对象格式化为时间戳
+    timestamp = time_date.timestamp()
+    return timestamp
+
+
+def datestr2timestamp(datetime_string="2023-06-01 09:30:00.0", string_format='%Y-%m-%d %H:%M:%S.%f'):
     """把时间转化成时间戳
     param: datetime_string (str): timezone in pytz.common_timezones
     param: string_format (str): string format
