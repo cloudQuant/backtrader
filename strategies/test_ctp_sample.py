@@ -113,24 +113,22 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro(**backtrader_params)
 
     store = CTPStore(ctp_setting, debug=True)
-    print("store:", store)
-    print("store:", dir(store))
-    print("store_DataCls:", store.DataCls)
     cerebro.addstrategy(SmaCross, store=store)
 
     # 由于历史回填数据从akshare拿，最细1分钟bar，所以以下实盘也只接收1分钟bar
     # https://www.akshare.xyz/zh_CN/latest/data/futures/futures.html#id106
 
-    # data0 = store.getdata(dataname='ag2401.SHFE', timeframe=bt.TimeFrame.Minutes,  # 注意符号必须带交易所代码。
-    #                       num_init_backfill=100 if is_trading_period() else 0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
+    # data0 = store.getdata(dataname='ag2401.SHFE', timeframe=bt.TimeFrame.Ticks,  # 注意符号必须带交易所代码。
+    #                       num_init_backfill=0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
 
-    data1 = store.getdata(dataname='rb2401.SHFE', timeframe=bt.TimeFrame.Minutes,  # 注意符号必须带交易所代码。
-                          num_init_backfill=100 if is_trading_period() else 0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
+    data1 = store.getdata(dataname='rb2405.SHFE', timeframe=bt.TimeFrame.Minutes,  compression=1,  # 注意符号必须带交易所代码。
+                          num_init_backfill=10 if is_trading_period() else 0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
 
     # data1 = store.getdata(dataname='rb2401.SHFE', timeframe=bt.TimeFrame.Minutes,  # 注意符号必须带交易所代码。
     #                       num_init_backfill=0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
 
     # cerebro.adddata(data0)
     cerebro.adddata(data1)
+    # cerebro.resampledata(data0, timeframe=bt.TimeFrame.Minutes, compression=1, name="1m")
 
     cerebro.run()

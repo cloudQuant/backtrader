@@ -59,7 +59,8 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
         """
         super(CTPData, self).start()
         # 订阅标的行情
-        self.o.subscribe(data=self)
+        # self.o.subscribe(data=self)
+        self.o.main_ctpbee_api.subscribe(self.p.dataname, self._timeframe, self._compression)
         self._get_backfill_data()
         self._state = self._ST_HISTORBACK
 
