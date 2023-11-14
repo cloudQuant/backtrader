@@ -74,7 +74,14 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
         CHINA_TZ = pytz.timezone("Asia/Shanghai")
         #
         symbol = (self.p.dataname).split('.')[0]
-        futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period="1").tail(self.p.num_init_backfill)
+        if self._timeframe == 4:
+            futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period=str(self._compression)).tail(self.p.num_init_backfill)
+        # 如果是日线级别
+        elif self._bar_timeframe == 5:
+            futures_sina_df = ak.futures_zh_daily_sina(symbol=symbol)
+        # 如果是其他周期，默认是一分钟
+        else:
+            futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period="1").tail(self.p.num_init_backfill)
         # 改列名
         futures_sina_df.columns = ['datetime', 'OpenPrice', 'HighPrice', 'LowPrice', 'LastPrice', 'BarVolume', 'hold']
         # 增加symbol列
@@ -92,7 +99,7 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
             msg['BarVolume'] = int(msg['BarVolume'])
             msg['hold'] = int(msg['hold'])
             msg["OpenInterest"] = 0
-            print('回填', msg)
+            # print('回填', msg)
             self.qhist.put(msg)
         # 放一个空字典,表示回填结束
         self.qhist.put({})
@@ -123,7 +130,6 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
                 except queue.Empty:
                     return None
                 if msg:
-                    print('load 1min bar 实盘')
                     if self._load_candle(msg):
                         return True  # loading worked
 
@@ -154,6 +160,9 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
     def _load_candle(self, msg):
         if msg.symbol != self.p.dataname.split('.')[0]:
             print('return', msg.symbol, self.p.dataname)
+            return
+        if msg.open_price == 0:
+            print("return, msg.symbol open_price is 0")
             return
         dt = date2num(msg.datetime)
         # time already seen
