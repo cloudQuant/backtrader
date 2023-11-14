@@ -53,16 +53,16 @@ class SmaCross(bt.Strategy):
     def prenext(self):
         print('in prenext')
         for d in self.datas:
-            print(d._name, d.datetime.datetime(0), 'o h l c ', d.open[0], d.high[0], d.low[0], d.close[0], ' vol ',
-                  d.volume[0])
+            data_name = d._name
+            print(f"data_name={data_name},datetime={d.datetime.datetime(0)}, close={d.close[0]}")
 
     def next(self):
-        print('------------------------------------------ next start')
-
+        print('--------next start-------')
         for d in self.datas:
-            print('d._name', d._name, 'd._dataname', d._dataname, d.datetime.datetime(0), 'o h l c ', d.open[0],
-                  d.high[0], d.low[0], d.close[0], ' vol ', d.volume[0])
-            pos = self.beeapi.app.center.get_position(d._dataname)
+            data_name = d._name
+            print(f"data_name={data_name},datetime={d.datetime.datetime(0)}, open={d.open[0]}, high={d.high[0]}, "
+                  f"low = {d.low[0]}, close={d.close[0]}")
+            pos = self.beeapi.app.center.get_position(data_name)
             print('position', pos)
             # 可以访问持仓、成交、订单等各种实盘信息，如何访问参考http://docs.ctpbee.com/modules/rec.html
             trades = self.beeapi.app.center.trades
@@ -121,8 +121,8 @@ if __name__ == '__main__':
     # data0 = store.getdata(dataname='ag2401.SHFE', timeframe=bt.TimeFrame.Ticks,  # 注意符号必须带交易所代码。
     #                       num_init_backfill=0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
 
-    data1 = store.getdata(dataname='rb2405.SHFE', timeframe=bt.TimeFrame.Minutes,  compression=2,  # 注意符号必须带交易所代码。
-                          num_init_backfill=10 if is_trading_period() else 0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
+    data1 = store.getdata(dataname='rb2405.SHFE', timeframe=bt.TimeFrame.Minutes,  compression=1,  # 注意符号必须带交易所代码。
+                          num_init_backfill=5 if is_trading_period() else 0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
 
     # data1 = store.getdata(dataname='rb2401.SHFE', timeframe=bt.TimeFrame.Minutes,  # 注意符号必须带交易所代码。
     #                       num_init_backfill=0)  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0

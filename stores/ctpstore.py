@@ -46,14 +46,15 @@ class MyCtpbeeApi(CtpbeeApi):
             print(f"-----订阅数据成功{dataname},{timeframe},{compression}--------")
             if self._bar_timeframe == 4:
                 self.time_diff = 60 * self._bar_compression
-                self._bar_interval = str(self.time_diff) + "_s"
+                self._bar_interval = str(self._bar_compression) + "m"
             # 如果是日线级别
             elif self._bar_timeframe == 5:
                 self.time_diff = 86400 * self._bar_compression
-                self._bar_interval = str(self.time_diff) + "_s"
+                self._bar_interval = str(self._bar_compression) + "d"
             # 如果是其他周期，默认是一分钟
             else:
                 self.time_diff = 60
+                self._bar_interval = "1m"
 
     def on_contract(self, contract: ContractData):
         """ 处理推送的合约信息 """
@@ -67,30 +68,18 @@ class MyCtpbeeApi(CtpbeeApi):
     def on_tick(self, tick: TickData) -> None:
         """ 处理推送的tick """
         # print('on_tick: ', tick)
-        # on_tick: TickData(ask_price_1=3887.0000000000005, ask_price_2=1.7976931348623157e+308,
-        #                   ask_price_3=1.7976931348623157e+308, ask_price_4=1.7976931348623157e+308,
-        #                   ask_price_5=1.7976931348623157e+308, ask_volume_1=22, ask_volume_2=0, ask_volume_3=0,
-        #                   ask_volume_4=0, ask_volume_5=0, average_price=38978.73756016448,
-        #                   bid_price_1=3886.0000000000005, bid_price_2=1.7976931348623157e+308,
-        #                   bid_price_3=1.7976931348623157e+308, bid_price_4=1.7976931348623157e+308,
-        #                   bid_price_5=1.7976931348623157e+308, bid_volume_1=150, bid_volume_2=0, bid_volume_3=0,
-        #                   bid_volume_4=0, bid_volume_5=0, datetime=2023 - 11 - 13
-        # 14: 11:54.500000, exchange = Exchange.SHFE, gateway_name = ctp, high_price = 3935.0000000000005,
-        # last_price = 3887.0000000000005, last_volume = 0, limit_down = 3699.0, limit_up = 4088.0,
-        # local_symbol = rb2405.SHFE, low_price = 3866.0000000000005, name = rb2405, open_interest = 514903.0,
-        # open_price = 3905.0, pre_close = 3898.0, pre_open_interest = 509281.0, pre_settlement_price = 3894.0,
-        # settlement_price = 1.7976931348623157e+308, symbol = rb2405, turnover = 7782533720.0, volume = 199661, )
-        print(f"进入on_tick, {tick.datetime}")
+        # print(f"进入on_tick, {tick.datetime}")
         # 如果bar结束时间是None的话,需要计算出bar结束时间
         if self._bar_end_time is None:
             # 获取最近一次bar更新的时间,然后计算bar结束的时间
-            nts = time.time()
+            nts = datetime2timestamp(tick.datetime)
             self._bar_begin_time = get_last_timeframe_timestamp(int(nts), self.time_diff)
             self._bar_end_time = self._bar_begin_time + self.time_diff
-            print("self._bar_begin_time", self._bar_begin_time)
             self._bar_end_time = timestamp2datetime(self._bar_begin_time)
+
         # 如果当前的tick的时间大于等于了bar结束的时间,就push bar到队列中,否则就更新k线
         nts = tick.datetime
+        # print(f"nts = {nts}, self._bar_begin_time = {self._bar_begin_time}, self._bar_end_time = {self._bar_end_time}")
         if nts >= self._bar_end_time:
             bar = BarData._create_class({"symbol": tick.symbol,
                                          "exchange": tick.exchange,
