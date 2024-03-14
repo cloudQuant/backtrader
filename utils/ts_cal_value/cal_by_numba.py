@@ -1,36 +1,21 @@
-#cython: language_level=3
-#distutils:language=c++
-#cython: c_string_type=unicode, c_string_encoding=utf8
-cimport numpy as np
-cimport cython
-from libcpp.vector cimport vector
-from libc.stdlib cimport malloc, free
+import numpy as np
+from numba import njit
+from numba.pycc import CC
 
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
-@cython.nonecheck(False)
-@cython.initializedcheck(False)
-def cal_value_by_cython(np.ndarray[double, ndim=1] open_arr,
-                        np.ndarray[double, ndim=1] high_arr,
-                        np.ndarray[double, ndim=1] low_arr,
-                        np.ndarray[double, ndim=1] close_arr,
-                        np.ndarray[double, ndim=1] volume_arr,
-                        np.ndarray[int, ndim=1] signal_arr,
-                        double commission, double init_value, double percent):
-    # 循环计算具体的持仓，盈亏，value的情况
+cc = CC('calculation_by_numba')
+cc.verbose = True
+
+
+@cc.export('cal_value_by_numba', 'f8[:](f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8, f8, f8)')
+@njit
+def cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signal_arr, commission, init_value, percent):
+    # 循环计算具体地持仓，盈亏，value的情况
     # 初始化持仓，可用资金，持仓盈亏，价值
-    cdef int n = signal_arr.shape[0]
-    cdef double *symbol_open_price_arr = <double*>malloc(n * sizeof(double))
-    cdef double *symbol_open_value_arr = <double*>malloc(n * sizeof(double))
-    cdef double *value_arr = <double*>malloc(n * sizeof(double))
-    cdef double now_commission = 0.0
-    cdef int i
-    cdef int pre_signal
-    cdef int now_signal
-    cdef double open_price
-    cdef double open_value
-    cdef double value_change
+    symbol_open_price_arr = np.zeros(signal_arr.shape)
+    symbol_open_value_arr = np.zeros(signal_arr.shape)
+    value_arr = np.zeros(signal_arr.shape)
+    now_commission = 0.0
+    # print("-----------计算第一个bar相关的信号--------------")
     # 计算第一个bar的信号
     now_signal = signal_arr[0]
     # 如果第一个bar的信号是0的话
@@ -46,10 +31,9 @@ def cal_value_by_cython(np.ndarray[double, ndim=1] open_arr,
         value_arr[0] = open_value - now_commission
         symbol_open_price_arr[0] = open_price
         symbol_open_value_arr[0] = open_value
-
+    # print("-----------计算第二个bar到倒数第二个bar相关的信号--------------")
     # 从第二个bar开始计算
-
-    for i in range(1, n - 1):
+    for i in range(1, len(open_arr) - 1):
         pre_signal = signal_arr[i - 1]
         now_signal = signal_arr[i]
         # 如果信号保持不变
@@ -122,12 +106,27 @@ def cal_value_by_cython(np.ndarray[double, ndim=1] open_arr,
 
     else:
         value_arr[i + 1] = value_arr[i]
+    return value_arr
 
-    # 释放内存
-    free(symbol_open_price_arr)
-    free(symbol_open_value_arr)
-    cdef np.ndarray[double, ndim=1] new_value_arr = open_arr
-    for i in range(n):
-        new_value_arr[i] = value_arr[i]
-    return new_value_arr
 
+# # 定义输入输出类型
+# input_types = (
+#     types.float64[:],  # open_arr
+#     types.float64[:],  # high_arr
+#     types.float64[:],  # low_arr
+#     types.float64[:],  # close_arr
+#     types.float64[:],  # volume_arr
+#     types.int32[:],    # signal_arr
+#     types.float64,     # commission
+#     types.float64,     # init_value
+#     types.float64      # percent
+# )
+# output_type = types.float64[:]
+if __name__ == "__main__":
+    cc.compile()
+# 提前编译函数
+# compiled_cal_value_by_numba = numba.compile((output_type,) + input_types)(cal_value_by_numba)
+
+# 使用提前编译的函数
+# result = compiled_cal_value_by_numba(open_arr, high_arr, low_arr, close_arr,
+# volume_arr, signal_arr, commission, init_value, percent)

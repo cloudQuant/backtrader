@@ -119,7 +119,7 @@ class CloseMaCs(bt.Strategy):
             self.log(f"Margin : order_ref:{order.ref}  data_name:{order.p.data.name}")
 
         if order.status == order.Cancelled:
-            self.log(f"Concelled : order_ref:{order.ref}  data_name:{order.p.data.name}")
+            self.log(f"Cancelled : order_ref:{order.ref}  data_name:{order.p.data.name}")
 
         if order.status == order.Partial:
             self.log(f"Partial : order_ref:{order.ref}  data_name:{order.p.data.name}")
@@ -195,7 +195,7 @@ def run(n_rows=10000,n_data=1000):
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='my_sharpe', timeframe=bt.TimeFrame.Days, riskfreerate=0.00,
                         annualize=True, factor=250)
     # SharpeRatio_A
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='my_sharpe_ratio_a')
+    cerebro.addanalyzer(bt.analyzers.SharpeRatioA, _name='my_sharpe_ratio_a')
     # SQN
     cerebro.addanalyzer(bt.analyzers.SQN, _name='my_sqn')
     # TimeReturn

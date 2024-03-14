@@ -1,5 +1,3 @@
-#include <cmath>
-#include <omp.h> // openmp线程库
 
 namespace itdog{
     inline double div(double x,double y){

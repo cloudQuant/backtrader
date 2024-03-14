@@ -3,7 +3,7 @@
 <html>
 <head>
     <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>Cython: cal_value.pyx</title>
+    <title>Cython: cal_by_cython.pyx</title>
     <style type="text/css">
     
 body.cython { font-family: courier; font-size: 12; }
@@ -305,7 +305,6 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 .cython .cs { color: #3D7B7B; font-style: italic } /* Comment.Special */
 .cython .gd { color: #A00000 } /* Generic.Deleted */
 .cython .ge { font-style: italic } /* Generic.Emph */
-.cython .ges { font-weight: bold; font-style: italic } /* Generic.EmphStrong */
 .cython .gr { color: #E40000 } /* Generic.Error */
 .cython .gh { color: #000080; font-weight: bold } /* Generic.Heading */
 .cython .gi { color: #008400 } /* Generic.Inserted */
@@ -369,7 +368,7 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
     <span style="background-color: #FFFF00">Yellow lines</span> hint at Python interaction.<br />
     Click on a line that starts with a "<code>+</code>" to see the C code that Cython generated for it.
 </p>
-<p>Raw output: <a href="cal_value.cpp">cal_value.cpp</a></p>
+<p>Raw output: <a href="cal_by_cython.cpp">cal_by_cython.cpp</a></p>
 <div class="cython"><pre class="cython line score-8" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">001</span>: <span class="c">#cython: language_level=3</span></pre>
 <pre class='cython code score-8 '>  __pyx_t_2 = <span class='pyx_c_api'>__Pyx_PyDict_NewPresized</span>(0);<span class='error_goto'> if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 1, __pyx_L1_error)</span>
   <span class='refnanny'>__Pyx_GOTREF</span>(__pyx_t_2);
@@ -384,15 +383,15 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 <pre class="cython line score-0">&#xA0;<span class="">008</span>: </pre>
 <pre class="cython line score-255" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">009</span>: <span class="nd">@cython</span><span class="o">.</span><span class="n">boundscheck</span><span class="p">(</span><span class="bp">False</span><span class="p">)</span></pre>
 <pre class='cython code score-255 '>/* Python wrapper */
-static PyObject *__pyx_pw_16my_cython_module_1cal_value_by_cython(PyObject *__pyx_self, 
+static PyObject *__pyx_pw_21calculation_by_cython_1cal_value_by_cython(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
 PyObject *__pyx_args, PyObject *__pyx_kwds
 #endif
 ); /*proto*/
-static PyMethodDef __pyx_mdef_16my_cython_module_1cal_value_by_cython = {"cal_value_by_cython", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_16my_cython_module_1cal_value_by_cython, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
-static PyObject *__pyx_pw_16my_cython_module_1cal_value_by_cython(PyObject *__pyx_self, 
+static PyMethodDef __pyx_mdef_21calculation_by_cython_1cal_value_by_cython = {"cal_value_by_cython", (PyCFunction)(void*)(__Pyx_PyCFunction_FastCallWithKeywords)__pyx_pw_21calculation_by_cython_1cal_value_by_cython, __Pyx_METH_FASTCALL|METH_KEYWORDS, 0};
+static PyObject *__pyx_pw_21calculation_by_cython_1cal_value_by_cython(PyObject *__pyx_self, 
 #if CYTHON_METH_FASTCALL
 PyObject *const *__pyx_args, Py_ssize_t __pyx_nargs, PyObject *__pyx_kwds
 #else
@@ -579,7 +578,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
       <span class='pyx_c_api'>__Pyx_Arg_XDECREF_FASTCALL</span>(values[__pyx_temp]);
     }
   }
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("my_cython_module.cal_value_by_cython", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("calculation_by_cython.cal_value_by_cython", __pyx_clineno, __pyx_lineno, __pyx_filename);
   <span class='refnanny'>__Pyx_RefNannyFinishContext</span>();
   return NULL;
   __pyx_L4_argument_unpacking_done:;
@@ -589,7 +588,7 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   if (unlikely(!<span class='pyx_c_api'>__Pyx_ArgTypeTest</span>(((PyObject *)__pyx_v_close_arr), __pyx_ptype_5numpy_ndarray, 1, "close_arr", 0))) <span class='error_goto'>__PYX_ERR(0, 17, __pyx_L1_error)</span>
   if (unlikely(!<span class='pyx_c_api'>__Pyx_ArgTypeTest</span>(((PyObject *)__pyx_v_volume_arr), __pyx_ptype_5numpy_ndarray, 1, "volume_arr", 0))) <span class='error_goto'>__PYX_ERR(0, 18, __pyx_L1_error)</span>
   if (unlikely(!<span class='pyx_c_api'>__Pyx_ArgTypeTest</span>(((PyObject *)__pyx_v_signal_arr), __pyx_ptype_5numpy_ndarray, 1, "signal_arr", 0))) <span class='error_goto'>__PYX_ERR(0, 19, __pyx_L1_error)</span>
-  __pyx_r = __pyx_pf_16my_cython_module_cal_value_by_cython(__pyx_self, __pyx_v_open_arr, __pyx_v_high_arr, __pyx_v_low_arr, __pyx_v_close_arr, __pyx_v_volume_arr, __pyx_v_signal_arr, __pyx_v_commission, __pyx_v_init_value, __pyx_v_percent);
+  __pyx_r = __pyx_pf_21calculation_by_cython_cal_value_by_cython(__pyx_self, __pyx_v_open_arr, __pyx_v_high_arr, __pyx_v_low_arr, __pyx_v_close_arr, __pyx_v_volume_arr, __pyx_v_signal_arr, __pyx_v_commission, __pyx_v_init_value, __pyx_v_percent);
   int __pyx_lineno = 0;
   const char *__pyx_filename = NULL;
   int __pyx_clineno = 0;
@@ -609,15 +608,15 @@ PyObject *__pyx_args, PyObject *__pyx_kwds
   return __pyx_r;
 }
 
-static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED PyObject *__pyx_self, PyArrayObject *__pyx_v_open_arr, CYTHON_UNUSED PyArrayObject *__pyx_v_high_arr, CYTHON_UNUSED PyArrayObject *__pyx_v_low_arr, PyArrayObject *__pyx_v_close_arr, CYTHON_UNUSED PyArrayObject *__pyx_v_volume_arr, PyArrayObject *__pyx_v_signal_arr, double __pyx_v_commission, double __pyx_v_init_value, double __pyx_v_percent) {
+static PyObject *__pyx_pf_21calculation_by_cython_cal_value_by_cython(CYTHON_UNUSED PyObject *__pyx_self, PyArrayObject *__pyx_v_open_arr, CYTHON_UNUSED PyArrayObject *__pyx_v_high_arr, CYTHON_UNUSED PyArrayObject *__pyx_v_low_arr, PyArrayObject *__pyx_v_close_arr, CYTHON_UNUSED PyArrayObject *__pyx_v_volume_arr, PyArrayObject *__pyx_v_signal_arr, double __pyx_v_commission, double __pyx_v_init_value, double __pyx_v_percent) {
   int __pyx_v_n;
   double *__pyx_v_symbol_open_price_arr;
   double *__pyx_v_symbol_open_value_arr;
   double *__pyx_v_value_arr;
   double __pyx_v_now_commission;
   int __pyx_v_i;
-  int __pyx_v_pre_signal;
-  int __pyx_v_now_signal;
+  double __pyx_v_pre_signal;
+  double __pyx_v_now_signal;
   double __pyx_v_open_price;
   double __pyx_v_open_value;
   double __pyx_v_value_change;
@@ -692,7 +691,7 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
   __pyx_pybuffernd_volume_arr.diminfo[0].strides = __pyx_pybuffernd_volume_arr.rcbuffer-&gt;pybuffer.strides[0]; __pyx_pybuffernd_volume_arr.diminfo[0].shape = __pyx_pybuffernd_volume_arr.rcbuffer-&gt;pybuffer.shape[0];
   {
     __Pyx_BufFmt_StackElem __pyx_stack[1];
-    if (unlikely(<span class='pyx_c_api'>__Pyx_GetBufferAndValidate</span>(&amp;__pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer, (PyObject*)__pyx_v_signal_arr, &amp;__Pyx_TypeInfo_int, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) <span class='error_goto'>__PYX_ERR(0, 9, __pyx_L1_error)</span>
+    if (unlikely(<span class='pyx_c_api'>__Pyx_GetBufferAndValidate</span>(&amp;__pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer, (PyObject*)__pyx_v_signal_arr, &amp;__Pyx_TypeInfo_double, PyBUF_FORMAT| PyBUF_STRIDES, 1, 0, __pyx_stack) == -1)) <span class='error_goto'>__PYX_ERR(0, 9, __pyx_L1_error)</span>
   }
   __pyx_pybuffernd_signal_arr.diminfo[0].strides = __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.strides[0]; __pyx_pybuffernd_signal_arr.diminfo[0].shape = __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.shape[0];
 /* … */
@@ -710,7 +709,7 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
     <span class='pyx_c_api'>__Pyx_SafeReleaseBuffer</span>(&amp;__pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer);
     <span class='pyx_c_api'>__Pyx_SafeReleaseBuffer</span>(&amp;__pyx_pybuffernd_volume_arr.rcbuffer-&gt;pybuffer);
   <span class='pyx_c_api'>__Pyx_ErrRestore</span>(__pyx_type, __pyx_value, __pyx_tb);}
-  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("my_cython_module.cal_value_by_cython", __pyx_clineno, __pyx_lineno, __pyx_filename);
+  <span class='pyx_c_api'>__Pyx_AddTraceback</span>("calculation_by_cython.cal_value_by_cython", __pyx_clineno, __pyx_lineno, __pyx_filename);
   __pyx_r = NULL;
   goto __pyx_L2;
   __pyx_L0:;
@@ -732,7 +731,7 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
   <span class='refnanny'>__Pyx_GOTREF</span>(__pyx_tuple__3);
   <span class='refnanny'>__Pyx_GIVEREF</span>(__pyx_tuple__3);
 /* … */
-  __pyx_t_2 = <span class='pyx_c_api'>__Pyx_CyFunction_New</span>(&amp;__pyx_mdef_16my_cython_module_1cal_value_by_cython, 0, __pyx_n_s_cal_value_by_cython, NULL, __pyx_n_s_my_cython_module, __pyx_d, ((PyObject *)__pyx_codeobj__4));<span class='error_goto'> if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 9, __pyx_L1_error)</span>
+  __pyx_t_2 = <span class='pyx_c_api'>__Pyx_CyFunction_New</span>(&amp;__pyx_mdef_21calculation_by_cython_1cal_value_by_cython, 0, __pyx_n_s_cal_value_by_cython, NULL, __pyx_n_s_calculation_by_cython, __pyx_d, ((PyObject *)__pyx_codeobj__4));<span class='error_goto'> if (unlikely(!__pyx_t_2)) __PYX_ERR(0, 9, __pyx_L1_error)</span>
   <span class='refnanny'>__Pyx_GOTREF</span>(__pyx_t_2);
   if (<span class='py_c_api'>PyDict_SetItem</span>(__pyx_d, __pyx_n_s_cal_value_by_cython, __pyx_t_2) &lt; 0) <span class='error_goto'>__PYX_ERR(0, 9, __pyx_L1_error)</span>
   <span class='pyx_macro_api'>__Pyx_DECREF</span>(__pyx_t_2); __pyx_t_2 = 0;
@@ -745,9 +744,9 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
 <pre class="cython line score-0">&#xA0;<span class="">016</span>:                         <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">double</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mf">1</span><span class="p">]</span> <span class="n">low_arr</span><span class="p">,</span></pre>
 <pre class="cython line score-0">&#xA0;<span class="">017</span>:                         <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">double</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mf">1</span><span class="p">]</span> <span class="n">close_arr</span><span class="p">,</span></pre>
 <pre class="cython line score-0">&#xA0;<span class="">018</span>:                         <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">double</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mf">1</span><span class="p">]</span> <span class="n">volume_arr</span><span class="p">,</span></pre>
-<pre class="cython line score-0">&#xA0;<span class="">019</span>:                         <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="nb">int</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mf">1</span><span class="p">]</span> <span class="n">signal_arr</span><span class="p">,</span></pre>
+<pre class="cython line score-0">&#xA0;<span class="">019</span>:                         <span class="n">np</span><span class="o">.</span><span class="n">ndarray</span><span class="p">[</span><span class="n">double</span><span class="p">,</span> <span class="n">ndim</span><span class="o">=</span><span class="mf">1</span><span class="p">]</span> <span class="n">signal_arr</span><span class="p">,</span></pre>
 <pre class="cython line score-0">&#xA0;<span class="">020</span>:                         <span class="n">double</span> <span class="n">commission</span><span class="p">,</span> <span class="n">double</span> <span class="n">init_value</span><span class="p">,</span> <span class="n">double</span> <span class="n">percent</span><span class="p">):</span></pre>
-<pre class="cython line score-0">&#xA0;<span class="">021</span>:     <span class="c"># 循环计算具体的持仓，盈亏，value的情况</span></pre>
+<pre class="cython line score-0">&#xA0;<span class="">021</span>:     <span class="c"># 循环计算具体地持仓，盈亏，value的情况</span></pre>
 <pre class="cython line score-0">&#xA0;<span class="">022</span>:     <span class="c"># 初始化持仓，可用资金，持仓盈亏，价值</span></pre>
 <pre class="cython line score-5" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">023</span>:     <span class="k">cdef</span> <span class="kt">int</span> <span class="nf">n</span> <span class="o">=</span> <span class="n">signal_arr</span><span class="o">.</span><span class="n">shape</span><span class="p">[</span><span class="mf">0</span><span class="p">]</span></pre>
 <pre class='cython code score-5 '>  __pyx_t_1 = __pyx_f_5numpy_7ndarray_5shape_shape(((PyArrayObject *)__pyx_v_signal_arr)); if (unlikely(__pyx_t_1 == ((npy_intp *)NULL) &amp;&amp; <span class='py_c_api'>PyErr_Occurred</span>())) <span class='error_goto'>__PYX_ERR(0, 23, __pyx_L1_error)</span>
@@ -761,18 +760,18 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
 </pre><pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">027</span>:     <span class="k">cdef</span> <span class="kt">double</span> <span class="nf">now_commission</span> <span class="o">=</span> <span class="mf">0.0</span></pre>
 <pre class='cython code score-0 '>  __pyx_v_now_commission = 0.0;
 </pre><pre class="cython line score-0">&#xA0;<span class="">028</span>:     <span class="k">cdef</span> <span class="kt">int</span> <span class="nf">i</span></pre>
-<pre class="cython line score-0">&#xA0;<span class="">029</span>:     <span class="k">cdef</span> <span class="kt">int</span> <span class="nf">pre_signal</span></pre>
-<pre class="cython line score-0">&#xA0;<span class="">030</span>:     <span class="k">cdef</span> <span class="kt">int</span> <span class="nf">now_signal</span></pre>
+<pre class="cython line score-0">&#xA0;<span class="">029</span>:     <span class="k">cdef</span> <span class="kt">double</span> <span class="nf">pre_signal</span></pre>
+<pre class="cython line score-0">&#xA0;<span class="">030</span>:     <span class="k">cdef</span> <span class="kt">double</span> <span class="nf">now_signal</span></pre>
 <pre class="cython line score-0">&#xA0;<span class="">031</span>:     <span class="k">cdef</span> <span class="kt">double</span> <span class="nf">open_price</span></pre>
 <pre class="cython line score-0">&#xA0;<span class="">032</span>:     <span class="k">cdef</span> <span class="kt">double</span> <span class="nf">open_value</span></pre>
 <pre class="cython line score-0">&#xA0;<span class="">033</span>:     <span class="k">cdef</span> <span class="kt">double</span> <span class="nf">value_change</span></pre>
 <pre class="cython line score-0">&#xA0;<span class="">034</span>:     <span class="c"># 计算第一个bar的信号</span></pre>
 <pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">035</span>:     <span class="n">now_signal</span> <span class="o">=</span> <span class="n">signal_arr</span><span class="p">[</span><span class="mf">0</span><span class="p">]</span></pre>
 <pre class='cython code score-0 '>  __pyx_t_2 = 0;
-  __pyx_v_now_signal = (*__Pyx_BufPtrStrided1d(int *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
+  __pyx_v_now_signal = (*__Pyx_BufPtrStrided1d(double *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
 </pre><pre class="cython line score-0">&#xA0;<span class="">036</span>:     <span class="c"># 如果第一个bar的信号是0的话</span></pre>
 <pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">037</span>:     <span class="k">if</span> <span class="n">now_signal</span> <span class="o">==</span> <span class="mf">0</span><span class="p">:</span></pre>
-<pre class='cython code score-0 '>  __pyx_t_3 = (__pyx_v_now_signal == 0);
+<pre class='cython code score-0 '>  __pyx_t_3 = (__pyx_v_now_signal == 0.0);
   if (__pyx_t_3) {
 /* … */
     goto __pyx_L3;
@@ -812,10 +811,10 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
     __pyx_v_i = __pyx_t_6;
 </pre><pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">053</span>:         <span class="n">pre_signal</span> <span class="o">=</span> <span class="n">signal_arr</span><span class="p">[</span><span class="n">i</span> <span class="o">-</span> <span class="mf">1</span><span class="p">]</span></pre>
 <pre class='cython code score-0 '>    __pyx_t_2 = (__pyx_v_i - 1);
-    __pyx_v_pre_signal = (*__Pyx_BufPtrStrided1d(int *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
+    __pyx_v_pre_signal = (*__Pyx_BufPtrStrided1d(double *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
 </pre><pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">054</span>:         <span class="n">now_signal</span> <span class="o">=</span> <span class="n">signal_arr</span><span class="p">[</span><span class="n">i</span><span class="p">]</span></pre>
 <pre class='cython code score-0 '>    __pyx_t_2 = __pyx_v_i;
-    __pyx_v_now_signal = (*__Pyx_BufPtrStrided1d(int *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
+    __pyx_v_now_signal = (*__Pyx_BufPtrStrided1d(double *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
 </pre><pre class="cython line score-0">&#xA0;<span class="">055</span>:         <span class="c"># 如果信号保持不变</span></pre>
 <pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">056</span>:         <span class="k">if</span> <span class="n">pre_signal</span> <span class="o">==</span> <span class="n">now_signal</span><span class="p">:</span></pre>
 <pre class='cython code score-0 '>    __pyx_t_3 = (__pyx_v_pre_signal == __pyx_v_now_signal);
@@ -824,7 +823,7 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
     }
 </pre><pre class="cython line score-0">&#xA0;<span class="">057</span>:             <span class="c"># 如果信号不是0</span></pre>
 <pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">058</span>:             <span class="k">if</span> <span class="n">pre_signal</span> <span class="o">!=</span> <span class="mf">0</span><span class="p">:</span></pre>
-<pre class='cython code score-0 '>      __pyx_t_3 = (__pyx_v_pre_signal != 0);
+<pre class='cython code score-0 '>      __pyx_t_3 = (__pyx_v_pre_signal != 0.0);
       if (__pyx_t_3) {
 /* … */
         goto __pyx_L7;
@@ -864,13 +863,13 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
   }
 </pre><pre class="cython line score-0">&#xA0;<span class="">076</span>:             <span class="c"># 如果前一个信号不是0，现在是0了，代表这个bar出现平仓信号，下个bar平仓</span></pre>
 <pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">077</span>:             <span class="k">if</span> <span class="n">pre_signal</span> <span class="o">!=</span> <span class="mf">0</span> <span class="ow">and</span> <span class="n">now_signal</span> <span class="o">==</span> <span class="mf">0</span><span class="p">:</span></pre>
-<pre class='cython code score-0 '>      __pyx_t_7 = (__pyx_v_pre_signal != 0);
+<pre class='cython code score-0 '>      __pyx_t_7 = (__pyx_v_pre_signal != 0.0);
       if (__pyx_t_7) {
       } else {
         __pyx_t_3 = __pyx_t_7;
         goto __pyx_L10_bool_binop_done;
       }
-      __pyx_t_7 = (__pyx_v_now_signal == 0);
+      __pyx_t_7 = (__pyx_v_now_signal == 0.0);
       __pyx_t_3 = __pyx_t_7;
       __pyx_L10_bool_binop_done:;
       if (__pyx_t_3) {
@@ -897,13 +896,13 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
 </pre><pre class="cython line score-0">&#xA0;<span class="">086</span>: </pre>
 <pre class="cython line score-0">&#xA0;<span class="">087</span>:             <span class="c"># 如果前一个信号是0，但是现在不是0了，代表这个bar要新开仓</span></pre>
 <pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">088</span>:             <span class="k">if</span> <span class="n">pre_signal</span> <span class="o">==</span> <span class="mf">0</span> <span class="ow">and</span> <span class="n">now_signal</span> <span class="o">!=</span> <span class="mf">0</span><span class="p">:</span></pre>
-<pre class='cython code score-0 '>      __pyx_t_7 = (__pyx_v_pre_signal == 0);
+<pre class='cython code score-0 '>      __pyx_t_7 = (__pyx_v_pre_signal == 0.0);
       if (__pyx_t_7) {
       } else {
         __pyx_t_3 = __pyx_t_7;
         goto __pyx_L13_bool_binop_done;
       }
-      __pyx_t_7 = (__pyx_v_now_signal != 0);
+      __pyx_t_7 = (__pyx_v_now_signal != 0.0);
       __pyx_t_3 = __pyx_t_7;
       __pyx_L13_bool_binop_done:;
       if (__pyx_t_3) {
@@ -924,7 +923,7 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
 <pre class='cython code score-0 '>        (__pyx_v_symbol_open_value_arr[__pyx_v_i]) = __pyx_v_open_value;
 </pre><pre class="cython line score-0">&#xA0;<span class="">095</span>:             <span class="c"># 如果前后信号都不等于0，但是信号不一样，代表要反手进行交易</span></pre>
 <pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">096</span>:             <span class="k">if</span> <span class="n">pre_signal</span> <span class="o">*</span> <span class="n">now_signal</span> <span class="o">==</span> <span class="o">-</span><span class="mf">1</span><span class="p">:</span></pre>
-<pre class='cython code score-0 '>      __pyx_t_3 = ((__pyx_v_pre_signal * __pyx_v_now_signal) == -1L);
+<pre class='cython code score-0 '>      __pyx_t_3 = ((__pyx_v_pre_signal * __pyx_v_now_signal) == -1.0);
       if (__pyx_t_3) {
 /* … */
       }
@@ -954,10 +953,10 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
 <pre class="cython line score-0">&#xA0;<span class="">109</span>:     <span class="c"># 如果是最后一个bar,按照收盘价进行平仓</span></pre>
 <pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">110</span>:     <span class="n">pre_signal</span> <span class="o">=</span> <span class="n">signal_arr</span><span class="p">[</span><span class="n">i</span><span class="p">]</span></pre>
 <pre class='cython code score-0 '>  __pyx_t_2 = __pyx_v_i;
-  __pyx_v_pre_signal = (*__Pyx_BufPtrStrided1d(int *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
+  __pyx_v_pre_signal = (*__Pyx_BufPtrStrided1d(double *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
 </pre><pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">111</span>:     <span class="n">now_signal</span> <span class="o">=</span> <span class="n">signal_arr</span><span class="p">[</span><span class="n">i</span> <span class="o">+</span> <span class="mf">1</span><span class="p">]</span></pre>
 <pre class='cython code score-0 '>  __pyx_t_2 = (__pyx_v_i + 1);
-  __pyx_v_now_signal = (*__Pyx_BufPtrStrided1d(int *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
+  __pyx_v_now_signal = (*__Pyx_BufPtrStrided1d(double *, __pyx_pybuffernd_signal_arr.rcbuffer-&gt;pybuffer.buf, __pyx_t_2, __pyx_pybuffernd_signal_arr.diminfo[0].strides));
 </pre><pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">112</span>:     <span class="k">if</span> <span class="n">now_signal</span> <span class="o">==</span> <span class="n">pre_signal</span><span class="p">:</span></pre>
 <pre class='cython code score-0 '>  __pyx_t_3 = (__pyx_v_now_signal == __pyx_v_pre_signal);
   if (__pyx_t_3) {
@@ -965,7 +964,7 @@ static PyObject *__pyx_pf_16my_cython_module_cal_value_by_cython(CYTHON_UNUSED P
     goto __pyx_L16;
   }
 </pre><pre class="cython line score-0" onclick="(function(s){s.display=s.display==='block'?'none':'block'})(this.nextElementSibling.style)">+<span class="">113</span>:         <span class="k">if</span> <span class="n">pre_signal</span> <span class="o">==</span> <span class="mf">0</span><span class="p">:</span></pre>
-<pre class='cython code score-0 '>    __pyx_t_3 = (__pyx_v_pre_signal == 0);
+<pre class='cython code score-0 '>    __pyx_t_3 = (__pyx_v_pre_signal == 0.0);
     if (__pyx_t_3) {
 /* … */
       goto __pyx_L17;
