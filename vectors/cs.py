@@ -162,18 +162,18 @@ class AlphaCs(object):
         file_name += f"夏普率为__{round(sharpe_ratio, 4)}__年化收益率为:{round(average_rate, 4)}__最大回撤为:{round(max_drawdown, 4)}"
         print(file_name)
         result_list += [sharpe_ratio, average_rate, max_drawdown]
-
         return result_list
 
     def run(self):
         factors_df = self.cal_factors()
         _signals_arr, index_list, col_list = self.cal_signals(factors_df)
         total_value_arr = self.cal_values(self.datas, _signals_arr, self.params['hold_days'])
+        self.values = total_value_arr
         return self.cal_performance(total_value_arr, index_list, self.total_value_save_path)
 
     def plot(self):
         # self.values[['total_value']].to_csv("d:/result/test_returns.csv")
-        self.values[['total_value']].plot()
+        pd.Series(self.values).plot()
         plt.show()
 
     def rank_func(self, rank_func, rank_name):
