@@ -1,11 +1,14 @@
 from numba import njit
 from numba.pycc import CC
 import numpy as np
+
 # import math
 
 cc = CC('calculation_by_numba')
+
+
 # Uncomment the following line to print out the compilation steps
-#cc.verbose = True
+# cc.verbose = True
 
 @cc.export('cal_signals_by_numba', 'f8(f8[:,:], int64, int64)')
 def my_cal_signals(factors_arr, percent, hold_days):
@@ -29,10 +32,11 @@ def my_cal_signals(factors_arr, percent, hold_days):
 
             short_arr = np.where(s <= lower_value, -1, 0)
             long_arr = np.where(s >= upper_value, 1, 0)
-            signals[i+1] = short_arr + long_arr
+            signals[i + 1] = short_arr + long_arr
         else:
-            signals[i+1] = signals[i]
+            signals[i + 1] = signals[i]
     return signals
+
 
 @cc.export('get_sharpe_by_numba', 'f8(f8[:])')
 def get_sharpe(arr):
@@ -40,19 +44,20 @@ def get_sharpe(arr):
     # 对于期货的分钟数据而言，并不是按照15：00收盘算，可能会影响一点点夏普率等指标的计算，但是影响不大。
     # rate = (arr[1:] - arr[:-1]) / arr[:-1]
     arr_len = len(arr)
-    new_array = np.empty(arr_len-1)
+    new_array = np.empty(arr_len - 1)
     for i in range(arr_len):
-        new_array[i] = (arr[i+1] - arr[i])/arr[i]
-    #v_mean = np.mean(rate)
-    v_mean = sum(new_array) / (arr_len-1)
+        new_array[i] = (arr[i + 1] - arr[i]) / arr[i]
+    # v_mean = np.mean(rate)
+    v_mean = sum(new_array) / (arr_len - 1)
     v_sum = 0
     for x in new_array:
-        v_sum+=(x - v_mean) ** 2
+        v_sum += (x - v_mean) ** 2
     variance = v_sum / (arr_len - 2)
-    std_dev = variance**0.5
+    std_dev = variance ** 0.5
     # std = 1.0
     # print(v_mean,std_dev)
-    return v_mean*252**0.5/std_dev
+    return v_mean * 252 ** 0.5 / std_dev
+
 
 @cc.export('get_average_rate_by_numba', 'f8(f8[:])')
 def get_average_rate(arr):
@@ -60,9 +65,10 @@ def get_average_rate(arr):
     arr_len = len(arr)
     begin_value = arr[0]
     end_value = arr[-1]
-    total_rate = max((end_value - begin_value) / begin_value,-0.9999)
+    total_rate = max((end_value - begin_value) / begin_value, -0.9999)
     # if total_rate < -1.0: return -1.0
     return (1 + total_rate) ** (252 / arr_len) - 1
+
 
 @cc.export('get_maxdrawdown_by_numba', 'f8(f8[:])')
 def get_maxdrawdown(arr):
@@ -74,7 +80,7 @@ def get_maxdrawdown(arr):
         t = max(t, arr[i])
         r[i] = t
     a = r - arr
-    b = a/r
+    b = a / r
     e = np.argmax(b)
     if e == 0:
         return 0.0
@@ -82,6 +88,7 @@ def get_maxdrawdown(arr):
         s = np.argmax(arr[:e])
 
     return (arr[e] - arr[s]) / arr[s]
+
 
 if __name__ == "__main__":
     cc.compile()

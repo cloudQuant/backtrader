@@ -1,14 +1,14 @@
 """用于测试backtrader在横截面上运行的效率"""
 import math
-import os
+# import os
 import backtrader as bt
 import numpy as np
 # import numpy as np
 import pandas as pd
-from itertools import product
-from backtrader.vectors.cal_functions import get_symbol
+# from itertools import product
+# from backtrader.vectors.cal_functions import get_symbol
 from backtrader.comminfo import ComminfoFuturesPercent, ComminfoFuturesFixed  # 期货交易的手续费用，按照比例或者按照金额
-from multiprocessing import Pool
+# from multiprocessing import Pool
 import time
 
 # 编写backtrader策略
