@@ -2,12 +2,14 @@ import numpy as np
 from numba import njit
 from numba.pycc import CC
 
-cc = CC('my_numba_module')
+cc = CC('calculation_by_numba')
 cc.verbose = True
-@cc.export('cal_value_by_numba', 'f8[:](f8[:], f8[:], f8[:], f8[:], f8[:], i4[:], f8, f8, f8)')
+
+
+@cc.export('cal_value_by_numba', 'f8[:](f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8, f8, f8)')
 @njit
 def cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signal_arr, commission, init_value, percent):
-    # 循环计算具体的持仓，盈亏，value的情况
+    # 循环计算具体地持仓，盈亏，value的情况
     # 初始化持仓，可用资金，持仓盈亏，价值
     symbol_open_price_arr = np.zeros(signal_arr.shape)
     symbol_open_value_arr = np.zeros(signal_arr.shape)
@@ -105,6 +107,8 @@ def cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signa
     else:
         value_arr[i + 1] = value_arr[i]
     return value_arr
+
+
 # # 定义输入输出类型
 # input_types = (
 #     types.float64[:],  # open_arr
@@ -124,4 +128,5 @@ if __name__ == "__main__":
 # compiled_cal_value_by_numba = numba.compile((output_type,) + input_types)(cal_value_by_numba)
 
 # 使用提前编译的函数
-# result = compiled_cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signal_arr, commission, init_value, percent)
+# result = compiled_cal_value_by_numba(open_arr, high_arr, low_arr, close_arr,
+# volume_arr, signal_arr, commission, init_value, percent)

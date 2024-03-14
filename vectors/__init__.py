@@ -1,2 +1,2 @@
-from backtrader.vectors.ts import AlphaTs
-from backtrader.vectors.cs import AlphaCs
+from .ts import AlphaTs
+from .cs import AlphaCs
