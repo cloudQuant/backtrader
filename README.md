@@ -23,6 +23,7 @@
 1.  cd  site-packages
 2.  git clone https://gitee.com/quant-yunjinqi/backtrader.git
 
+3. 进入到backtrader中，运行`python -W ignore compile_cython_numba_files.py`
 #### 使用说明
 
 1. [参考官方的文档和论坛](https://www.backtrader.com/)
