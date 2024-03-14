@@ -116,7 +116,7 @@ class CommInfoBase(with_metaclass(MetaParams)):
 
         It must be specified in absolute terms: 0.05 -> 5%
 
-        .. note:: the behavior can be changed by overriding the method:
+        note:: the behavior can be changed by overriding the method:
                  ``_get_credit_interest``
         # interest 默认是0 代表利息费用，如果是非0的话，通常代表卖空股票的时候，每年被收取的利息费用
         # 可以使用公式：days * price * abs(size) * (interest / 365)计算持有仓位需要缴纳的利息费用
@@ -426,6 +426,7 @@ class ComminfoDC(CommInfoBase):
 
 class ComminfoFuturesPercent(CommInfoBase):
     # write by myself,using in the future backtest,it means we should give a percent comminfo to broker
+
     params = (
         ('commission', 0.0), ('mult', 1.0), ('margin', None),
         ('stocklike', False),
@@ -433,7 +434,17 @@ class ComminfoFuturesPercent(CommInfoBase):
         ('percabs', True)
     )
 
-    # print("运行的是ComminfoFuturesPercent的get_margin")
+    def __init__(self, commission=0.0002, margin=1, mult=1, **kwargs):
+        super(ComminfoFuturesPercent, self).__init__()
+        self.params.commission = commission
+        self.params.margin = margin
+        self.params.mult = mult
+        self._init_kwargs(kwargs)
+
+    def _init_kwargs(self, kwargs):
+        for k, v in kwargs.items():
+            setattr(self.params, k, v)
+
     def _getcommission(self, size, price, pseudoexec):
         return abs(size) * price * self.p.mult * self.p.commission
 

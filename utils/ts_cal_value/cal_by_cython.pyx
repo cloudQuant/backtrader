@@ -1,33 +1,33 @@
 #cython: language_level=3
 #distutils:language=c++
 #cython: c_string_type=unicode, c_string_encoding=utf8
-import numpy as np
 cimport numpy as np
 cimport cython
 from libcpp.vector cimport vector
+from libc.stdlib cimport malloc, free
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
+@cython.cdivision(True)
+@cython.nonecheck(False)
+@cython.initializedcheck(False)
 def cal_value_by_cython(np.ndarray[double, ndim=1] open_arr,
                         np.ndarray[double, ndim=1] high_arr,
                         np.ndarray[double, ndim=1] low_arr,
                         np.ndarray[double, ndim=1] close_arr,
                         np.ndarray[double, ndim=1] volume_arr,
-                        np.ndarray[int, ndim=1] signal_arr,
+                        np.ndarray[double, ndim=1] signal_arr,
                         double commission, double init_value, double percent):
-    # 循环计算具体的持仓，盈亏，value的情况
+    # 循环计算具体地持仓，盈亏，value的情况
     # 初始化持仓，可用资金，持仓盈亏，价值
     cdef int n = signal_arr.shape[0]
-    cdef np.ndarray[double, ndim=1] symbol_open_price_arr = np.empty(n, dtype=np.double)
-    cdef np.ndarray[double, ndim=1] symbol_open_value_arr = np.empty(n, dtype=np.double)
-    cdef np.ndarray[double, ndim=1] value_arr = np.empty(n, dtype=np.double)
-    # cdef np.ndarray[double, ndim=1] symbol_open_price_arr = open_arr
-    # cdef np.ndarray[double, ndim=1] symbol_open_value_arr = open_arr
-    # cdef np.ndarray[double, ndim=1] value_arr = open_arr
+    cdef double *symbol_open_price_arr = <double*>malloc(n * sizeof(double))
+    cdef double *symbol_open_value_arr = <double*>malloc(n * sizeof(double))
+    cdef double *value_arr = <double*>malloc(n * sizeof(double))
     cdef double now_commission = 0.0
     cdef int i
-    cdef int pre_signal
-    cdef int now_signal
+    cdef double pre_signal
+    cdef double now_signal
     cdef double open_price
     cdef double open_value
     cdef double value_change
@@ -122,6 +122,12 @@ def cal_value_by_cython(np.ndarray[double, ndim=1] open_arr,
 
     else:
         value_arr[i + 1] = value_arr[i]
-    return value_arr
 
+    # 释放内存
+    free(symbol_open_price_arr)
+    free(symbol_open_value_arr)
+    cdef np.ndarray[double, ndim=1] new_value_arr = open_arr
+    for i in range(n):
+        new_value_arr[i] = value_arr[i]
+    return new_value_arr
 
