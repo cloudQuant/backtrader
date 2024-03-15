@@ -21,9 +21,14 @@
 #### 安装教程
 进入到目标路径下面，通常是/xxx/site-packages,然后进行clone
 1.  cd  site-packages
+
 2.  git clone https://gitee.com/quant-yunjinqi/backtrader.git
 
 3. 进入到backtrader中，运行`python -W ignore compile_cython_numba_files.py`
+
+4. `git branch` 查看分支 
+5. `git checkout dev` 切换到dev分支上。
+
 #### 使用说明
 
 1. [参考官方的文档和论坛](https://www.backtrader.com/)
@@ -34,6 +39,8 @@
 #### 相关改动
 
 记录从2022年之后对backtrader的改动
+- [x]    2024-03-15 创建了一个dev的分支，用于开发一些新的功能，后续主要在这个分支上进行更新
+- [x]    2024-03-14 修复了cython文件编译不方便的问题
 - [x]    2023-05-05 这几天实现了ts代码，用于编写一些简单的时间序列上的策略，大幅提高了回测效率
 - [x]    2023-03-03 修正了cs.py,cal_performance.py等代码上的小bug,提升了运行效率
 - [x]    2022-12-18 修改了ts,cs回测框架的部分代码，避免部分bug
