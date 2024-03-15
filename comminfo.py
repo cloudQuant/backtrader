@@ -434,16 +434,17 @@ class ComminfoFuturesPercent(CommInfoBase):
         ('percabs', True)
     )
 
-    def __init__(self, commission=0.0002, margin=1, mult=1, **kwargs):
-        super(ComminfoFuturesPercent, self).__init__()
-        self.params.commission = commission
-        self.params.margin = margin
-        self.params.mult = mult
-        self._init_kwargs(kwargs)
-
-    def _init_kwargs(self, kwargs):
-        for k, v in kwargs.items():
-            setattr(self.params, k, v)
+    # def __init__(self, commission=0.0002, margin=1, mult=1, **kwargs):
+    #     super(ComminfoFuturesPercent, self).__init__()
+    #     self.params.commission = commission
+    #     # print(f"初始化成本参数: {commission}")
+    #     self.params.margin = margin
+    #     self.params.mult = mult
+    #     self._init_kwargs(kwargs)
+    #
+    # def _init_kwargs(self, kwargs):
+    #     for k, v in kwargs.items():
+    #         setattr(self.params, k, v)
 
     def _getcommission(self, size, price, pseudoexec):
         return abs(size) * price * self.p.mult * self.p.commission
