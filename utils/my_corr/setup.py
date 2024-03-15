@@ -13,12 +13,12 @@ from backtrader.utils import (set_extra_link_args,
 
 
 ext = Extension(
-    "my_corr", sources=["cal_performance.pyx"],
+    "my_corr", sources=["my_corr.pyx"],
     include_dirs=[np.get_include()],
     language='c',
     extra_compile_args=[
                 set_optimize_option(2),
-                set_compile_args('openmp'),
+                # set_compile_args('openmp'),
                 # set_compile_args('lpthread'),
                 # set_cpp_version('c++17')
     ],
