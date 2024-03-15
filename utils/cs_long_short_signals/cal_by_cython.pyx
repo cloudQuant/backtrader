@@ -7,32 +7,32 @@ from libcpp.utility cimport move
 from libcpp.string cimport string
 cimport openmp as op
 cimport libc.math as cmath
-DTYPE = np.float64
-ctypedef np.float64_t DTYPE_t
 
-cpdef cal_long_short_factor_value_cython(np.ndarray[double, ndim=1] s, double a=0.2):
-    cdef np.ndarray[double] ss = s[~np.isnan(s)]
-    ss.sort()
-    cdef int num = int(ss.size*a)
-    if num>0:
-        return ss[num - 1], ss[-1 * num]
-    else:
-        return np.NaN, np.NaN
-
-cpdef cal_long_short_signals(np.ndarray[double, ndim=2] factors, double percent, int hold_days):
-    cdef int data_length = factors.shape[0]
-    cdef int col_num = factors.shape[1]
-    cdef np.ndarray[double, ndim=2] new_factors = np.zeros((data_length, col_num))
-    for i in range(col_num):
-        new_factors[:, i] = -0.00000000000001*i + factors[:, i]
-    signal_dict = {i: cal_long_short_factor_value_cython(new_factors[i, :], percent) for i in range(data_length)}
-    lower_value = np.array([signal_dict[i][0] for i in range(data_length)])
-    upper_value = np.array([signal_dict[i][1] for i in range(data_length)])
-    short_df = np.where(factors <= lower_value.reshape(-1, 1), -1, 0)
-    long_df = np.where(factors >= upper_value.reshape(-1, 1), 1, 0)
-    signals = short_df + long_df
-    signals = signals[hold_days-1::hold_days]
-    signals = np.concatenate([np.full((hold_days-1, col_num), np.nan), signals], axis=0)
-    signals = pd.DataFrame(signals)
-    signals.fillna(method='ffill', inplace=True)
-    return signals.dropna(axis=0)
+cpdef cal_long_short_signals(np.ndarray[double, ndim=2] factors, int rows_len, int cols_len, double percent, int hold_days):
+    cdef int i = 0
+    cdef int num
+    cdef int size
+    cdef double lower_value
+    cdef double upper_value
+    cdef np.ndarray[double, ndim=2] signals = np.zeros((rows_len, cols_len))
+    cdef np.ndarray[double, ndim=1] diff_arr = np.array([-0.00000000000001 * i for i in range(cols_len)])
+    cdef np.ndarray[double, ndim=1] short_arr = np.zeros(cols_len)
+    cdef np.ndarray[double, ndim=1] long_arr = np.zeros(cols_len)
+    signals[0] = np.array([np.NaN for _ in range(cols_len)])
+    for i in range(rows_len - 1):
+        if i % hold_days == 0:
+            s = factors[i,] + diff_arr
+            ss = s[~np.isnan(s)]
+            ss.sort()
+            size = ss.size
+            num = int(size * percent)
+            if num > 0:
+                lower_value, upper_value = ss[num - 1], ss[-1 * num]
+            else:
+                lower_value, upper_value = np.NaN, np.NaN
+            short_arr = np.where(s <= lower_value, -1.0, 0.0)
+            long_arr = np.where(s >= upper_value, 1.0, 0.0)
+            signals[i + 1] = short_arr + long_arr
+        else:
+            signals[i + 1] = signals[i]
+    return signals
