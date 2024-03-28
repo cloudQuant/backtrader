@@ -22,7 +22,7 @@
 进入到目标路径下面，通常是/xxx/site-packages,然后进行clone
 1.  cd  site-packages
 
-2.  git clone https://gitee.com/quant-yunjinqi/backtrader.git
+2.  git clone https://gitee.com/yunjinqi/backtrader.git
 
 3. 进入到backtrader中，运行`python -W ignore compile_cython_numba_files.py`
 
