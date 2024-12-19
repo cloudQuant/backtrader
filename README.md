@@ -24,12 +24,10 @@
 git clone https://gitee.com/yunjinqi/backtrader.git
 # 安装依赖项
 pip install -r ./backtrader/requirements.txt
-# 编译cython文件
-python -W ignore compile_cython_numba_files.py
-# 安装
-pip install -U ./backtrader/
+# 编译cython文件并进行安装
+cd ./backtrader/backtrader && python -W ignore compile_cython_numba_files.py && cd .. && cd .. && pip install -U ./backtrader/
 # 运行测试
-pytest tests -n 4
+pytest ./backtrader/tests -n 4
 ```
 
 #### 使用说明
