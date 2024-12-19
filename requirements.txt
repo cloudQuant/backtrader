@@ -1,0 +1,24 @@
+matplotlib
+pandas
+numpy
+plotly
+python-dateutil
+pytz
+future
+cython
+setuptools
+requests
+# alphalens # cannot be installed in python3.12
+scipy
+pyecharts
+tqdm
+numba
+spdlog
+python_rapidjson
+pytest
+pytest_benchmark
+pytest-sugar
+pytest-cov
+pytest-picked
+pytest-xdist
+dash
