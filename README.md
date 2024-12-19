@@ -3,6 +3,32 @@
 #### 介绍
 基于backtrader打造最好用的量化投研工具(中低频为主,后续改写成cpp版本后支持高频交易)
 
+#### 安装教程
+```markdown
+# 安装python3.11, python3.11有性能上的提升，并且很多包都已经支持，下面是anaconda的一些镜像，仅供参考
+# win：https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-Windows-x86_64.exe
+# mac m系列: https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-MacOSX-arm64.sh
+# ubuntu:https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
+
+# 克隆项目
+git clone https://gitee.com/yunjinqi/backtrader.git
+# 安装依赖项
+pip install -r ./backtrader/requirements.txt
+# 编译cython文件并进行安装, mac和 ubuntu下使用下面指令。有一个只能在windows上才能编译成功，会报错，忽略就好
+cd ./backtrader/backtrader && python -W ignore compile_cython_numba_files.py && cd .. && cd .. && pip install -U ./backtrader/
+# 编译cython文件并进行安装, windows下使用下面指令
+cd ./backtrader/backtrader; python -W ignore compile_cython_numba_files.py; cd ..; cd ..; pip install -U ./backtrader/
+# 运行测试
+pytest ./backtrader/tests -n 4
+```
+
+#### 使用说明
+
+1. [参考官方的文档和论坛](https://www.backtrader.com/)
+2. [参考我在csdn的付费专栏](https://blog.csdn.net/qq_26948675/category_10220116.html)
+3. ts和cs的使用说明：https://yunjinqi.blog.csdn.net/article/details/130507409
+4.  网络上也有很多的backtrader的学习资源，大家可以百度
+
 
 #### 改进升级计划
 
@@ -18,29 +44,7 @@
 - [ ] 使用pyecharts\plotly\dash\bokeh优化backtrader的画图功能
 - [ ] 针对期货和期权等有到期日的数据，增加功能在数据退市之后，自动剔除该数据，以提高速度
 
-#### 安装教程
-```markdown
-# 安装python3.11, python3.11有性能上的提升，并且很多包都已经支持，下面是anaconda的一些镜像，仅供参考
-# win：https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-Windows-x86_64.exe
-# mac m系列: https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-MacOSX-arm64.sh
-# ubuntu:https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
 
-# 克隆项目
-git clone https://gitee.com/yunjinqi/backtrader.git
-# 安装依赖项
-pip install -r ./backtrader/requirements.txt
-# 编译cython文件并进行安装
-cd ./backtrader/backtrader && python -W ignore compile_cython_numba_files.py && cd .. && cd .. && pip install -U ./backtrader/
-# 运行测试
-pytest ./backtrader/tests -n 4
-```
-
-#### 使用说明
-
-1. [参考官方的文档和论坛](https://www.backtrader.com/)
-2. [参考我在csdn的付费专栏](https://blog.csdn.net/qq_26948675/category_10220116.html)
-3. ts和cs的使用说明：https://yunjinqi.blog.csdn.net/article/details/130507409
-4.  网络上也有很多的backtrader的学习资源，大家可以百度
 
 #### 相关改动
 
