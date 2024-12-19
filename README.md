@@ -19,15 +19,18 @@
 - [ ] 针对期货和期权等有到期日的数据，增加功能在数据退市之后，自动剔除该数据，以提高速度
 
 #### 安装教程
-进入到目标路径下面，通常是/xxx/site-packages,然后进行clone
-1.  cd  site-packages
-
-2.  git clone https://gitee.com/yunjinqi/backtrader.git
-
-3. 进入到backtrader中，运行`python -W ignore compile_cython_numba_files.py`
-
-4. `git branch` 查看分支 
-5. `git checkout dev` 切换到dev分支上。
+```markdown
+# 克隆项目
+git clone https://gitee.com/yunjinqi/backtrader.git
+# 安装依赖项
+pip install -r ./backtrader/requirements.txt
+# 编译cython文件
+python -W ignore compile_cython_numba_files.py
+# 安装
+pip install -U ./backtrader/
+# 运行测试
+pytest tests -n 4
+```
 
 #### 使用说明
 
