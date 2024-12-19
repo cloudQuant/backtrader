@@ -20,6 +20,11 @@
 
 #### 安装教程
 ```markdown
+# 安装python3.11, python3.11有性能上的提升，并且很多包都已经支持，下面是anaconda的一些镜像，仅供参考
+# win：https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-Windows-x86_64.exe
+# mac m系列: https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-MacOSX-arm64.sh
+# ubuntu:https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-Linux-x86_64.sh
+
 # 克隆项目
 git clone https://gitee.com/yunjinqi/backtrader.git
 # 安装依赖项
