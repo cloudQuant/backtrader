@@ -30,23 +30,6 @@ pytest ./backtrader/tests -n 4
 3. ts和cs的使用说明：https://yunjinqi.blog.csdn.net/article/details/130507409
 4. 网络上也有很多的backtrader的学习资源，大家可以百度
 
-
-#### 改进升级计划
-
-- [x] 对backtrader源代码进行解读注释
-- [ ] 2023年实现对接`vnpy` \ `qmt` \ `wtpy` \ `ctpbee` 等实现实盘交易
-- [ ] 2023年增加okex和binance的交易接口,用于中低频的实盘交易
-- [ ] 基于`cython` \  `c++`  等对`backtrader`源代码进行改进优化，提高回测速度
-- [x] 增加向量化回测函数, 进行因子回测，快速验证想法
-- [x] 增加向量化回测函数, 进行时间序列回测，快速验证想法
-- [ ] 增加向量化回测函数，用于在横截面上选股或者选品种，在时间序列上进行交易
-- [ ] 优化backtrader滑点设置，实现可以和comminfo一样对于不同的data收取不同的滑点
-- [ ] 优化backtrader涨跌停成交机制，增加一个参数控制是否限制一字涨停不允许成交
-- [ ] 使用pyecharts\plotly\dash\bokeh优化backtrader的画图功能
-- [ ] 针对期货和期权等有到期日的数据，增加功能在数据退市之后，自动剔除该数据，以提高速度
-
-
-
 #### 相关改动
 
 记录从2022年之后对backtrader的改动
