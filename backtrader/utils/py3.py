@@ -71,7 +71,7 @@ if PY2:
 
     def itervalues(d): return d.itervalues()
 
-    def iteritems(d): return d.iteritems()
+    def iteritems(d): return d.items()
     # 字典值
     def keys(d): return d.keys()
 
