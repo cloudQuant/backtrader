@@ -2,7 +2,7 @@
 
 #### 介绍
 基于backtrader打造最好用的量化投研工具(中低频为主,后续改写成cpp版本后支持高频交易)
-1. 当前版本是master版本，和官方主流的backtrader对齐，仅增加了部分功能，修改了部分bug, 没有功能上的改进，可以运行我csdn专栏专栏里面的策略。这个版本仅用于修复bug。
+1. 当前版本是master版本，和官方主流的backtrader对齐，修改了部分bug, 可以运行我csdn专栏专栏里面的策略。当前会实现crypto量化交易，ib量化交易，ctp量化交易，股票量化交易，后续主要用于修复bug。
 2. 最新版本是dev分支，主要是为了实现一些新的功能，会新增加一些功能，尝试把底层代码改成c++，支持tick级别的测试等，等dev完善之后，后续会逐步合并到master分支。
 #### 安装教程
 ```markdown
@@ -22,6 +22,13 @@ cd ./backtrader/backtrader; python -W ignore compile_cython_numba_files.py; cd .
 # 运行测试
 pytest ./backtrader/tests -n 4
 ```
+
+#### todos
+- [ ] crypto量化交易更新和完善(2025年1月底前完成)
+- [ ] ib量化交易接口更新和完善(2025年2月底前完成)
+- [ ] ctp量化交易接口更新和完善(2025年4月底前完成)
+- [ ] 增加股票量化交易(2025年6月底前完成)
+
 
 #### 使用说明
 
