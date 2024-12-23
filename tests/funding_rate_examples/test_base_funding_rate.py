@@ -44,7 +44,7 @@ def get_data_root(symbol):
     return data_file_path
 
 # 我们使用的时候，直接用我们新的类读取数据就可以了。
-class FundingRateStrategyStrategy(bt.Strategy):
+class FundingRateStrategy(bt.Strategy):
     params = ()
 
     def log(self, txt, dt=None):
@@ -195,7 +195,7 @@ def run_strategy():
     # 设置初始资金为100万
     cerebro.broker.setcash(1000000.0)
     # 添加策略
-    cerebro.addstrategy(FundingRateStrategyStrategy)
+    cerebro.addstrategy(FundingRateStrategy)
     # 添加分析器
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name='my_value')
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='my_sharpe')
