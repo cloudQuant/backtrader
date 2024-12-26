@@ -8,7 +8,6 @@ future
 cython
 setuptools
 requests
-# alphalens # cannot be installed in python3.12
 scipy
 pyecharts
 tqdm
@@ -22,3 +21,5 @@ pytest-cov
 pytest-picked
 pytest-xdist
 dash
+ctpbee
+akshare
