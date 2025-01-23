@@ -13,9 +13,9 @@ pyecharts
 tqdm
 numba
 spdlog
-python_rapidjson
+python-rapidjson
 pytest
-pytest_benchmark
+pytest-benchmark
 pytest-sugar
 pytest-cov
 pytest-picked
