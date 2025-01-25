@@ -41,21 +41,21 @@ class OandaCommInfo(CommInfoBase):
         return abs(size) * price
 
     def getoperationcost(self, size, price):
-        '''Returns the needed amount of cash an operation would cost'''
+        """Returns the needed amount of cash an operation would cost"""
         # Same reasoning as above
         return abs(size) * price
 
 
 class MetaOandaBroker(BrokerBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaOandaBroker, cls).__init__(name, bases, dct)
         oandastore.OandaStore.BrokerCls = cls
 
 
 class OandaBroker(with_metaclass(MetaOandaBroker, BrokerBase)):
-    '''Broker implementation for Oanda.
+    """Broker implementation for Oanda.
 
     This class maps the orders/positions from Oanda to the
     internal API of ``backtrader``.
@@ -67,7 +67,7 @@ class OandaBroker(with_metaclass(MetaOandaBroker, BrokerBase)):
 
         Set to ``False`` during instantiation to disregard any existing
         position
-    '''
+    """
     params = (
         ('use_positions', True),
         ('commission', OandaCommInfo(mult=1.0, stocklike=False)),

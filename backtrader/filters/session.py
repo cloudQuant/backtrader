@@ -26,7 +26,7 @@ from .. import metabase
 
 
 class SessionFiller(with_metaclass(metabase.MetaParams, object)):
-    '''
+    """
     Bar Filler for a Data Source inside the declared session start/end times.
 
     The fill bars are constructed using the declared Data Source ``timeframe``
@@ -52,7 +52,7 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
 
         Upon seeing the 1st valid bar do not fill from the sessionstart up to
         that bar
-    '''
+    """
     params = (('fill_price', None),
               ('fill_vol', float('NaN')),
               ('fill_oi', float('NaN')),
@@ -76,7 +76,7 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
         self.sessend = self.MAXDATE  # maxdate is the control for session bar
 
     def __call__(self, data):
-        '''
+        """
         Params:
           - data: the data source to filter/process
 
@@ -97,7 +97,7 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
             if so, fill up and record the last seen tim
 
           - Else ... the incoming bar is in the session, fill up to it
-        '''
+        """
         # Get time of current (from data source) bar
         ret = False
 
@@ -137,11 +137,11 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
         return ret
 
     def _fillbars(self, data, time_start, time_end, tostack=True):
-        '''
+        """
         Fills one by one bars as needed from time_start to time_end
 
         Invalidates the control dtime_prev if requested
-        '''
+        """
         # Control flag - bars added to the stack
         dirty = 0
 
@@ -182,7 +182,7 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
 
 
 class SessionFilterSimple(with_metaclass(metabase.MetaParams, object)):
-    '''
+    """
     This class can be applied to a data source as a filter and will filter out
     intraday bars which fall outside of the regular session times (ie: pre/post
     market data)
@@ -194,24 +194,24 @@ class SessionFilterSimple(with_metaclass(metabase.MetaParams, object)):
 
     Bar Management will be done by the SimpleFilterWrapper class made which is
     added durint the DataBase.addfilter_simple call
-    '''
+    """
     def __init__(self, data):
         pass
 
     def __call__(self, data):
-        '''
+        """
         Return Values:
 
           - False: nothing to filter
           - True: filter current bar (because it's not in the session times)
-        '''
+        """
         # Both ends of the comparison are in the session
         return not (
             data.p.sessionstart <= data.datetime.time(0) <= data.p.sessionend)
 
 
 class SessionFilter(with_metaclass(metabase.MetaParams, object)):
-    '''
+    """
     This class can be applied to a data source as a filter and will filter out
     intraday bars which fall outside of the regular session times (ie: pre/post
     market data)
@@ -220,18 +220,18 @@ class SessionFilter(with_metaclass(metabase.MetaParams, object)):
     during init and __call__)
 
     It needs no "last" method because it has nothing to deliver
-    '''
+    """
     def __init__(self, data):
         pass
 
     def __call__(self, data):
-        '''
+        """
         Return Values:
 
           - False: data stream was not touched
           - True: data stream was manipulated (bar outside of session times and
           - removed)
-        '''
+        """
         if data.p.sessionstart <= data.datetime.time(0) <= data.p.sessionend:
             # Both ends of the comparison are in the session
             return False  # say the stream is untouched

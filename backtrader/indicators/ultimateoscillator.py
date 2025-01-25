@@ -23,7 +23,7 @@ from backtrader.indicators import SumN, TrueLow, TrueRange
 
 # 最终震荡指标
 class UltimateOscillator(bt.Indicator):
-    '''
+    """
     Formula:
       # Buying Pressure = Close - TrueLow
       BP = Close - Minimum(Low or Prior Close)
@@ -41,7 +41,7 @@ class UltimateOscillator(bt.Indicator):
 
       - https://en.wikipedia.org/wiki/Ultimate_oscillator
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:ultimate_oscillator
-    '''
+    """
     lines = ('uo',)
 
     params = (

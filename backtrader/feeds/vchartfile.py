@@ -28,7 +28,7 @@ from backtrader import date2num  # avoid dict lookups
 
 class MetaVChartFile(bt.DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaVChartFile, cls).__init__(name, bases, dct)
 
@@ -38,7 +38,7 @@ class MetaVChartFile(bt.DataBase.__class__):
 
 
 class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
-    '''
+    """
     Support for `Visual Chart <www.visualchart.com>`_ binary on-disk files for
     both daily and intradaily formats.
 
@@ -46,7 +46,7 @@ class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
 
       - ``dataname``: Market code displayed by Visual Chart. Example: 015ES for
         EuroStoxx 50 continuous future
-    '''
+    """
 
     def start(self):
         super(VChartFile, self).start()

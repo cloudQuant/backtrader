@@ -22,7 +22,7 @@ from copy import copy
 
 # Position类，保持和更新持仓的大小和价格，和其他的任何资产没有关系，它仅仅保存大小和价格
 class Position(object):
-    '''
+    """
     Keeps and updates the size and price of a position. The object has no
     relationship to any asset. It only keeps size and price.
 
@@ -34,7 +34,7 @@ class Position(object):
     The Position instances can be tested using len(position) to see if size
     is not null
 
-    '''
+    """
     # 打印position的时候可以显示的信息
     def __str__(self):
         items = list()
@@ -131,7 +131,7 @@ class Position(object):
 
     # 更新size和price
     def update(self, size, price, dt=None):
-        '''
+        """
         Updates the current position and returns the updated size, price and
         units used to open/close a position
         # 更新当前的持仓和返回更新后的大小、价格和需要开仓和平仓的头寸大小
@@ -174,7 +174,7 @@ class Position(object):
             # price 代表新的持仓价格，根据持仓的不同，返回不同的价格
             # opened 代表需要新开的仓位
             # closed 代表需要平仓的仓位
-        '''
+        """
         # 更新持仓的时间
         self.datetime = dt  # record datetime update (datetime.datetime)
         # 原始的价格

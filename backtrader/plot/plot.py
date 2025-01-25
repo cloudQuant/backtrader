@@ -64,11 +64,11 @@ import copy
 
 
 def cal_macd_system(data, short_=26, long_=12, m=9):
-    '''
+    """
     data是包含高开低收成交量的标准dataframe
     short_,long_,m分别是macd的三个参数
     返回值是包含原始数据和diff,dea,macd三个列的dataframe
-    '''
+    """
     data['diff'] = data['close'].ewm(adjust=False, alpha=2 / (short_ + 1), ignore_na=True).mean() - \
                    data['close'].ewm(adjust=False, alpha=2 / (long_ + 1), ignore_na=True).mean()
     data['dea'] = data['diff'].ewm(adjust=False, alpha=2 / (m + 1), ignore_na=True).mean()
@@ -1510,7 +1510,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
 
 
 def plot_results(results, file_name):
-    '''write by myself to plot the result,and I will update this function'''
+    """write by myself to plot the result,and I will update this function"""
     # 总的杠杆
     df1 = pd.DataFrame([results[0].analyzers._GrossLeverage.get_analysis()]).T
     df1.columns = ['GrossLeverage']
@@ -1663,7 +1663,7 @@ def get_rate_sharpe_drawdown(data):
         index_i = np.argmax(np.array(df[:index_j]))  # 开始位置
         # print("最大回撤开始时间",index_i)
         max_drawdown = (np.e ** df[index_j] - np.e ** df[index_i]) / np.e ** df[index_i]
-        '''
+        """
         begin_max_drawdown_value = data['total_value'][index_i]
         end_max_drawdown_value = data['total_value'][index_j]
         print("begin_max_drawdown_value",begin_max_drawdown_value)
@@ -1677,14 +1677,14 @@ def get_rate_sharpe_drawdown(data):
         plt.plot([index_i], [df[index_i]], 'o', color="r", markersize=10)
         plt.plot([index_j], [df[index_j]], 'o', color="blue", markersize=10)
         plt.show()
-        '''
+        """
         return sharpe_ratio, average_rate, max_drawdown
     except:
         return np.NaN, np.NaN, np.NaN
 
 
 def get_year_return(data):
-    '''计算每年的年化收益率'''
+    """计算每年的年化收益率"""
     data.index = pd.to_datetime(data.index)
     data['year'] = [i.year for i in data.index]
     last_data = data.iloc[-1:, ::]

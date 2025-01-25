@@ -22,7 +22,7 @@ from . import Indicator, Max, Min, MovAv
 
 # 这个文件是几个计算TR、ATR指标的类
 class TrueHigh(Indicator):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the ATR
 
@@ -34,7 +34,7 @@ class TrueHigh(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
-    '''
+    """
     lines = ('truehigh',)
 
     def __init__(self):
@@ -43,7 +43,7 @@ class TrueHigh(Indicator):
 
 
 class TrueLow(Indicator):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the ATR
 
@@ -55,7 +55,7 @@ class TrueLow(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
-    '''
+    """
     lines = ('truelow',)
 
     def __init__(self):
@@ -64,7 +64,7 @@ class TrueLow(Indicator):
 
 
 class TrueRange(Indicator):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book New Concepts in
     Technical Trading Systems.
 
@@ -80,7 +80,7 @@ class TrueRange(Indicator):
 
     The idea is to take the previous close into account to calculate the range
     if it yields a larger range than the daily range (High - Low)
-    '''
+    """
     alias = ('TR',)
 
     lines = ('tr',)
@@ -91,7 +91,7 @@ class TrueRange(Indicator):
 
 
 class AverageTrueRange(Indicator):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"*.
 
@@ -103,7 +103,7 @@ class AverageTrueRange(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
-    '''
+    """
     alias = ('ATR',)
 
     lines = ('atr',)

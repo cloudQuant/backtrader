@@ -25,7 +25,7 @@ __all__ = ['LogReturns', 'LogReturns2']
 
 # 获取对数收益率
 class LogReturns(bt.Observer):
-    '''This observer stores the *log returns* of the strategy or a
+    """This observer stores the *log returns* of the strategy or a
 
     Params:
 
@@ -53,7 +53,7 @@ class LogReturns(bt.Observer):
     Remember that at any moment of a ``run`` the current values can be checked
     by looking at the *lines* by name at index ``0``.
 
-    '''
+    """
 
     _stclock = True
 
@@ -80,7 +80,7 @@ class LogReturns(bt.Observer):
 
 # 显示第二个品种的对数收益率
 class LogReturns2(LogReturns):
-    '''Extends the observer LogReturns to show two instruments'''
+    """Extends the observer LogReturns to show two instruments"""
     lines = ('logret2',)
 
     def __init__(self):

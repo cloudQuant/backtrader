@@ -53,10 +53,10 @@ def _ts2dt(tstamp=None):
 
 
 class RTVolume(object):
-    '''Parses a tickString tickType 48 (RTVolume) event from the IB API into its
+    """Parses a tickString tickType 48 (RTVolume) event from the IB API into its
     constituent fields
     Supports using a "price" to simulate an RTVolume from a tickPrice event
-    '''
+    """
     _fields = [
         ('price', float),
         ('size', int),
@@ -86,7 +86,7 @@ class RTVolume(object):
 
 
 class MetaSingleton(MetaParams):
-    '''Metaclass to make a metaclassed class a singleton'''
+    """Metaclass to make a metaclassed class a singleton"""
     # todo 这个元类的用处理解还不是特别深，等到后续详细讲backtrader的元类的时候重新拉出来分析
     def __init__(cls, name, bases, dct):
         super(MetaSingleton, cls).__init__(name, bases, dct)
@@ -107,7 +107,7 @@ def ibregister(f):
 
 
 class IBStore(with_metaclass(MetaSingleton, object)):
-    '''Singleton class wrapping an ibpy ibConnection instance.
+    """Singleton class wrapping an ibpy ibConnection instance.
 
     The parameters can also be specified in the classes which use this store,
     like ``IBData`` and ``IBBroker``
@@ -178,7 +178,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         Manage IND codes as if they were cash for price retrieval
         # 如果是为了价格检索的现金的时候，用于管理 IND codes
         # todo 暂时未能完全理解这个参数的含义
-    '''
+    """
 
     # Set a base for the data requests (historical/realtime) to distinguish the
     # id in the error notifications from orders, where the basis (usually
@@ -362,13 +362,13 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     @classmethod
     def getdata(cls, *args, **kwargs):
-        '''Returns ``DataCls`` with args, kwargs'''
+        """Returns ``DataCls`` with args, kwargs"""
         # 类方法，获取数据
         return cls.DataCls(*args, **kwargs)
 
     @classmethod
     def getbroker(cls, *args, **kwargs):
-        '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
+        """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         # 类方法，获取broker
         return cls.BrokerCls(*args, **kwargs)
 
@@ -629,7 +629,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 获取队列中的通知信息
     def get_notifications(self):
-        '''Return the pending "store" notifications'''
+        """Return the pending "store" notifications"""
         # The background thread could keep on adding notifications. The None
         # mark allows to identify which is the last notification to deliver
         self.notifs.put(None)  # put a mark
@@ -802,7 +802,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 重新使用queue
     def reuseQueue(self, tickerId):
-        '''Reuses queue for tickerId, returning the new tickerId and q'''
+        """Reuses queue for tickerId, returning the new tickerId and q"""
         with self._lock_q:
             # Invalidate tickerId in qs (where it is a key)
             q = self.qs.pop(tickerId, None)  # invalidate old
@@ -818,7 +818,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 获取ticker queue
     def getTickerQueue(self, start=False):
-        '''Creates ticker/Queue for data delivery to a data feed'''
+        """Creates ticker/Queue for data delivery to a data feed"""
         q = queue.Queue()
         if start:
             q.put(None)
@@ -834,7 +834,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 取消队列
     def cancelQueue(self, q, sendnone=False):
-        '''Cancels a Queue for data delivery'''
+        """Cancels a Queue for data delivery"""
         # pop ts (tickers) and with the result qs (queues)
         tickerId = self.ts.pop(q, None)
         self.qs.pop(tickerId, None)
@@ -846,7 +846,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 判断是否是有效的queue，如果queue在self.ts中，返回True
     def validQueue(self, q):
-        '''Returns (bool)  if a queue is still valid'''
+        """Returns (bool)  if a queue is still valid"""
         return q in self.ts  # queue -> ticker
 
     # 获取合约的详细信息
@@ -876,13 +876,13 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 获取合约信息结束
     @ibregister
     def contractDetailsEnd(self, msg):
-        '''Signal end of contractdetails'''
+        """Signal end of contractdetails"""
         self.cancelQueue(self.qs[msg.reqId], True)
 
     # 详细的合约信息，从TWS接收到
     @ibregister
     def contractDetails(self, msg):
-        '''Receive answer and pass it to the queue'''
+        """Receive answer and pass it to the queue"""
         self.qs[msg.reqId].put(msg)
 
     # 获取历史数据，方法参数和IB中请求历史数据的方法并不一致
@@ -890,13 +890,13 @@ class IBStore(with_metaclass(MetaSingleton, object)):
                             timeframe, compression,
                             what=None, useRTH=False, tz='', sessionend=None,
                             tickerId=None):
-        '''
+        """
         Extension of the raw reqHistoricalData proxy, which takes two dates
         rather than a duration, barsize and date
 
         It uses the IB published valid duration/barsizes to make a mapping and
         spread a historical request over several historical requests if needed
-        '''
+        """
         # Keep a copy for error reporting purposes
         # 获取本地的变量，如果里面有self,删除
         kwargs = locals().copy()
@@ -997,7 +997,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 从IB上请求历史数据
     def reqHistoricalData(self, contract, enddate, duration, barsize,
                           what=None, useRTH=False, tz='', sessionend=None):
-        '''Proxy to reqHistorical Data'''
+        """Proxy to reqHistorical Data"""
 
         # get a ticker/queue for identification/data delivery
         tickerId, q = self.getTickerQueue()
@@ -1031,18 +1031,18 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 取消数据请求
     def cancelHistoricalData(self, q):
-        '''Cancels an existing HistoricalData request
+        """Cancels an existing HistoricalData request
 
         Params:
           - q: the Queue returned by reqMktData
-        '''
+        """
         with self._lock_q:
             self.conn.cancelHistoricalData(self.ts[q])
             self.cancelQueue(q, True)
 
     # 请求实时bar数据，默认请求的是5秒钟的历史数据
     def reqRealTimeBars(self, contract, useRTH=False, duration=5):
-        '''Creates a request for (5 seconds) Real Time Bars
+        """Creates a request for (5 seconds) Real Time Bars
 
         Params:
           - contract: a ib.ext.Contract.Contract intance
@@ -1051,7 +1051,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
         Returns:
           - a Queue the client can wait on to receive a RTVolume instance
-        '''
+        """
         # get a ticker/queue for identification/data delivery
         tickerId, q = self.getTickerQueue()
 
@@ -1067,11 +1067,11 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 取消请求历史数据
     def cancelRealTimeBars(self, q):
-        '''Cancels an existing MarketData subscription
+        """Cancels an existing MarketData subscription
 
         Params:
           - q: the Queue returned by reqMktData
-        '''
+        """
         with self._lock_q:
             tickerId = self.ts.get(q, None)
             if tickerId is not None:
@@ -1081,14 +1081,14 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 请求市场数据
     def reqMktData(self, contract, what=None):
-        '''Creates a MarketData subscription
+        """Creates a MarketData subscription
 
         Params:
           - contract: a ib.ext.Contract.Contract intance
 
         Returns:
           - a Queue the client can wait on to receive a RTVolume instance
-        '''
+        """
         # get a ticker/queue for identification/data delivery
         tickerId, q = self.getTickerQueue()
         ticks = '233'  # request RTVOLUME tick delivered over tickString
@@ -1106,11 +1106,11 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 取消请求市场数据
     def cancelMktData(self, q):
-        '''Cancels an existing MarketData subscription
+        """Cancels an existing MarketData subscription
 
         Params:
           - q: the Queue returned by reqMktData
-        '''
+        """
         with self._lock_q:
             tickerId = self.ts.get(q, None)
             if tickerId is not None:
@@ -1136,13 +1136,13 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 处理cash market的tick数据
     @ibregister
     def tickPrice(self, msg):
-        '''Cash Markets have no notion of "last_price"/"last_size" and the
+        """Cash Markets have no notion of "last_price"/"last_size" and the
         tracking of the price is done (industry de-facto standard at least with
         the IB API) following the BID price
 
         A RTVolume which will only contain a price is put into the client's
         queue to have a consistent cross-market interface
-        '''
+        """
         # Used for "CASH" markets
         # The price field has been seen to be missing in some instances even if
         # "field" is 1
@@ -1169,11 +1169,11 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 获取实时bar信息
     @ibregister
     def realtimeBar(self, msg):
-        '''Receives x seconds Real Time Bars (at the time of writing only 5
+        """Receives x seconds Real Time Bars (at the time of writing only 5
         seconds are supported)
 
         Not valid for cash markets
-        '''
+        """
         # Get a naive localtime object
         msg.time = datetime.utcfromtimestamp(float(msg.time))
         self.qs[msg.reqId].put(msg)
@@ -1181,7 +1181,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 获取历史数据信息
     @ibregister
     def historicalData(self, msg):
-        '''Receives the events of a historical data request'''
+        """Receives the events of a historical data request"""
         # For multi-tiered downloads we'd need to rebind the queue to a new
         # tickerId (in case tickerIds are not reusable) and instead of putting
         # None, issue a new reqHistData with the new data and move formward
@@ -1294,7 +1294,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         return dt  # could do nothing with it ... return it intact
 
     def calcdurations(self, dtbegin, dtend):
-        '''Calculate a duration in between 2 datetimes'''
+        """Calculate a duration in between 2 datetimes"""
         duration = self.histduration(dtbegin, dtend)
 
         if duration[-1] == 'M':
@@ -1313,7 +1313,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 计算两个时间之间的时间长度和barsize
     def calcduration(self, dtbegin, dtend):
-        '''Calculate a duration in between 2 datetimes. Returns single size'''
+        """Calculate a duration in between 2 datetimes. Returns single size"""
         duration, sizes = self._calcdurations(dtbegin, dtend)
         return duration, sizes[0]
 
@@ -1377,7 +1377,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 根据需要，创建合约
     def makecontract(self, symbol, sectype, exch, curr,
                      expiry='', strike=0.0, right='', mult=1):
-        '''returns a contract from the parameters without check'''
+        """returns a contract from the parameters without check"""
 
         contract = Contract()
         contract.m_symbol = bytes(symbol)
@@ -1396,56 +1396,56 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 取消订单
     def cancelOrder(self, orderid):
-        '''Proxy to cancelOrder'''
+        """Proxy to cancelOrder"""
         self.conn.cancelOrder(orderid)
 
     # 下单
     def placeOrder(self, orderid, contract, order):
-        '''Proxy to placeOrder'''
+        """Proxy to placeOrder"""
         self.conn.placeOrder(orderid, contract, order)
 
     # 接收到 openOrder的状态
     @ibregister
     def openOrder(self, msg):
-        '''Receive the event ``openOrder`` events'''
+        """Receive the event ``openOrder`` events"""
         self.broker.push_orderstate(msg)
 
     # 接收到执行的细节
     @ibregister
     def execDetails(self, msg):
-        '''Receive execDetails'''
+        """Receive execDetails"""
         self.broker.push_execution(msg.execution)
 
     # 接受到orderStatus的事件
     @ibregister
     def orderStatus(self, msg):
-        '''Receive the event ``orderStatus``'''
+        """Receive the event ``orderStatus``"""
         self.broker.push_orderstatus(msg)
 
     # 接受到手续费用报告的事件
     @ibregister
     def commissionReport(self, msg):
-        '''Receive the event commissionReport'''
+        """Receive the event commissionReport"""
         self.broker.push_commissionreport(msg.commissionReport)
 
     # 请求当前的持仓
     def reqPositions(self):
-        '''Proxy to reqPositions'''
+        """Proxy to reqPositions"""
         self.conn.reqPositions()
 
     # 持仓，还没有实施
     @ibregister
     def position(self, msg):
-        '''Receive event positions'''
+        """Receive event positions"""
         pass  # Not implemented yet
 
     # 请求更新账户
     def reqAccountUpdates(self, subscribe=True, account=None):
-        '''Proxy to reqAccountUpdates
+        """Proxy to reqAccountUpdates
 
         If ``account`` is ``None``, wait for the ``managedAccounts`` message to
         set the account codes
-        '''
+        """
         if account is None:
             self._event_managed_accounts.wait()
             account = self.managed_accounts[0]
@@ -1519,7 +1519,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
                 self.acc_cash[msg.accountName] = value
     # 获取所有账户价值信息
     def get_acc_values(self, account=None):
-        '''Returns all account value infos sent by TWS during regular updates
+        """Returns all account value infos sent by TWS during regular updates
         Waits for at least 1 successful download
 
         If ``account`` is ``None`` then a dictionary with accounts as keys will
@@ -1527,7 +1527,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
         If account is specified or the system has only 1 account the dictionary
         corresponding to that account is returned
-        '''
+        """
         # Wait for at least 1 account update download to have been finished
         # before the account infos can be returned to the calling client
         if self.connected():
@@ -1557,7 +1557,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 获取账户的净的清算价值
     def get_acc_value(self, account=None):
-        '''Returns the net liquidation value sent by TWS during regular updates
+        """Returns the net liquidation value sent by TWS during regular updates
         Waits for at least 1 successful download
 
         If ``account`` is ``None`` then a dictionary with accounts as keys will
@@ -1565,7 +1565,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
         If account is specified or the system has only 1 account the dictionary
         corresponding to that account is returned
-        '''
+        """
         # Wait for at least 1 account update download to have been finished
         # before the value can be returned to the calling client
         if self.connected():
@@ -1595,7 +1595,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 获取账户的总的现金价值
     def get_acc_cash(self, account=None):
-        '''Returns the total cash value sent by TWS during regular updates
+        """Returns the total cash value sent by TWS during regular updates
         Waits for at least 1 successful download
 
         If ``account`` is ``None`` then a dictionary with accounts as keys will
@@ -1603,7 +1603,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
         If account is specified or the system has only 1 account the dictionary
         corresponding to that account is returned
-        '''
+        """
         # Wait for at least 1 account update download to have been finished
         # before the cash can be returned to the calling client
         if self.connected():

@@ -25,7 +25,7 @@ __all__ = ['Renko']
 
 
 class Renko(Filter):
-    '''Modify the data stream to draw Renko bars (or bricks)
+    """Modify the data stream to draw Renko bars (or bricks)
 
     Params:
 
@@ -57,7 +57,7 @@ class Renko(Filter):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:chart_analysis:renko
 
-    '''
+    """
 
     params = (
         ('hilo', False),

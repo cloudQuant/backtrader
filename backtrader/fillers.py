@@ -24,7 +24,7 @@ from backtrader.metabase import MetaParams
 
 # 固定大小过滤，订单执行的时候只能成交当前成交量，需要下单量和size中最小的一个，如果size是None的话，忽略size
 class FixedSize(with_metaclass(MetaParams, object)):
-    '''Returns the execution size for a given order using a *percentage* of the
+    """Returns the execution size for a given order using a *percentage* of the
     volume in a bar.
 
     This percentage is set with the parameter ``perc``
@@ -37,7 +37,7 @@ class FixedSize(with_metaclass(MetaParams, object)):
 
         If the value of this parameter evaluates to False, the entire volume
         of the bar will be used to match the order
-    '''
+    """
     params = (('size', None),)
 
     def __call__(self, order, price, ago):
@@ -47,7 +47,7 @@ class FixedSize(with_metaclass(MetaParams, object)):
 
 # 固定百分比，用当前成交量的一定的百分比和需要下单的量对比，选择最小的进行交易
 class FixedBarPerc(with_metaclass(MetaParams, object)):
-    '''Returns the execution size for a given order using a *percentage* of the
+    """Returns the execution size for a given order using a *percentage* of the
     volume in a bar.
 
     This percentage is set with the parameter ``perc``
@@ -57,7 +57,7 @@ class FixedBarPerc(with_metaclass(MetaParams, object)):
       - ``perc`` (default: ``100.0``) (valied values: ``0.0 - 100.0``)
 
         Percentage of the volume bar to use to execute an order
-    '''
+    """
     params = (('perc', 100.0),)
 
     def __call__(self, order, price, ago):
@@ -69,7 +69,7 @@ class FixedBarPerc(with_metaclass(MetaParams, object)):
 
 # 根据bar的波动幅度按照百分比分配
 class BarPointPerc(with_metaclass(MetaParams, object)):
-    '''Returns the execution size for a given order. The volume will be
+    """Returns the execution size for a given order. The volume will be
     distributed uniformly in the range *high*-*low* using ``minmov`` to
     partition.
 
@@ -89,7 +89,7 @@ class BarPointPerc(with_metaclass(MetaParams, object)):
         for matching
         # minmov默认是0.01，根据最高价和最低价之间的距离，看一下可以分成多少份
         # perc默认是100，交易限制是下单只能下每一份的perc
-    '''
+    """
     # 具体的参数
     params = (
         ('minmov', None),

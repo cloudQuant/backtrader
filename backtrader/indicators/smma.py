@@ -22,7 +22,7 @@ from . import MovingAverageBase, ExponentialSmoothing
 
 # 指数平滑移动平均线
 class SmoothedMovingAverage(MovingAverageBase):
-    '''
+    """
     Smoothing Moving Average used by Wilder in his 1978 book `New Concepts in
     Technical Trading`
 
@@ -40,7 +40,7 @@ class SmoothedMovingAverage(MovingAverageBase):
 
     See also:
       - http://en.wikipedia.org/wiki/Moving_average#Modified_moving_average
-    '''
+    """
     alias = ('SMMA', 'WilderMA', 'MovingAverageSmoothed',
              'MovingAverageWilder', 'ModifiedMovingAverage',)
     lines = ('smma',)

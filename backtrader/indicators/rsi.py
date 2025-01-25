@@ -23,7 +23,7 @@ from . import DivZeroByZero
 
 # 计算RSI指标
 class UpDay(Indicator):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the RSI
 
@@ -35,7 +35,7 @@ class UpDay(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
-    '''
+    """
     lines = ('upday',)
     params = (('period', 1),)
 
@@ -45,7 +45,7 @@ class UpDay(Indicator):
 
 
 class DownDay(Indicator):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the RSI
 
@@ -57,7 +57,7 @@ class DownDay(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
-    '''
+    """
     lines = ('downday',)
     params = (('period', 1),)
 
@@ -67,7 +67,7 @@ class DownDay(Indicator):
 
 
 class UpDayBool(Indicator):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the RSI
 
@@ -82,7 +82,7 @@ class UpDayBool(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
-    '''
+    """
     lines = ('upday',)
     params = (('period', 1),)
 
@@ -92,7 +92,7 @@ class UpDayBool(Indicator):
 
 
 class DownDayBool(Indicator):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the RSI
 
@@ -107,7 +107,7 @@ class DownDayBool(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
-    '''
+    """
     lines = ('downday',)
     params = (('period', 1),)
 
@@ -117,7 +117,7 @@ class DownDayBool(Indicator):
 
 
 class RelativeStrengthIndex(Indicator):
-    '''Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
+    """Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"*.
 
     It measures momentum by calculating the ration of higher closes and
@@ -148,7 +148,7 @@ class RelativeStrengthIndex(Indicator):
 
       - ``safelow``  (default: 50.0) will be used as RSI value for the
         ``0 / 0`` case
-    '''
+    """
     alias = ('RSI', 'RSI_SMMA', 'RSI_Wilder',)
 
     lines = ('rsi',)
@@ -197,33 +197,33 @@ class RelativeStrengthIndex(Indicator):
 
 
 class RSI_Safe(RSI):
-    '''
+    """
     Subclass of RSI which changes parameers ``safediv`` to ``True`` as the
     default value
 
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
-    '''
+    """
     params = (('safediv', True),)
 
 
 class RSI_SMA(RSI):
-    '''
+    """
     Uses a SimpleMovingAverage as described in Wikipedia and other soures
 
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
-    '''
+    """
     alias = ('RSI_Cutler',)
 
     params = (('movav', MovAv.Simple),)
 
 
 class RSI_EMA(RSI):
-    '''
+    """
     Uses an ExponentialMovingAverage as described in Wikipedia
 
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
-    '''
+    """
     params = (('movav', MovAv.Exponential),)

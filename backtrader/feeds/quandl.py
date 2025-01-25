@@ -34,7 +34,7 @@ __all__ = ['QuandlCSV', 'Quandl']
 
 #  处理quandlcsv数据
 class QuandlCSV(feed.CSVDataBase):
-    '''
+    """
     Parses pre-downloaded Quandl CSV Data Feeds (or locally generated if they
     comply to the Quandl format)
 
@@ -60,7 +60,7 @@ class QuandlCSV(feed.CSVDataBase):
       - ``decimals`` (default: ``2``)
 
         Number of decimals to round to
-    '''
+    """
     _online = False  # flag to avoid double reversal
 
     params = (
@@ -126,7 +126,7 @@ class QuandlCSV(feed.CSVDataBase):
 
 
 class Quandl(QuandlCSV):
-    '''
+    """
     Executes a direct download of data from Quandl servers for the given time
     range.
 
@@ -170,7 +170,7 @@ class Quandl(QuandlCSV):
 
         string identifying the dataset to query. Defaults to ``WIKI``
 
-      '''
+      """
 
     _online = True  # flag to avoid double reversal
 

@@ -142,13 +142,13 @@ class AutoInfoClass(object):
 
     @classmethod
     def _derive(cls, name, info, otherbases, recurse=False):
-        '''推测各个参数的意义：
+        """推测各个参数的意义：
         cls:代表一个具体的类，很有可能就是AutoInfoClass的一个实例
         info:代表参数（parameter)
         otherBases:其他的bases
         recurse:递归
         举例的应用：_derive(name, newparams, morebasesparams)
-        '''
+        """
         # collect the 3 set of infos
         # info = OrderedDict(info)
         # print(name,info,otherbases)
@@ -410,12 +410,12 @@ class ParamsBase(with_metaclass(MetaParams, object)):
 
 # 设置了一个新的类，这个类可以通过index或者name直接获取相应的值
 class ItemCollection(object):
-    '''
+    """
     Holds a collection of items that can be reached by
 
       - Index
       - Name (if set in the append operation)
-    '''
+    """
     def __init__(self):
         self._items = list()
         self._names = list()

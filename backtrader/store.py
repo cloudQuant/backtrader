@@ -25,7 +25,7 @@ from backtrader.utils.py3 import with_metaclass
 
 
 class MetaSingleton(MetaParams):
-    '''Metaclass to make a metaclassed class a singleton'''
+    """Metaclass to make a metaclassed class a singleton"""
     def __init__(cls, name, bases, dct):
         super(MetaSingleton, cls).__init__(name, bases, dct)
         cls._singleton = None
@@ -39,14 +39,14 @@ class MetaSingleton(MetaParams):
 
 # 创建一个store类
 class Store(with_metaclass(MetaSingleton, object)):
-    '''Base class for all Stores'''
+    """Base class for all Stores"""
     # 开始，默认是False
     _started = False
     # 参数
     params = ()
     # 获取数据
     def getdata(self, *args, **kwargs):
-        '''Returns ``DataCls`` with args, kwargs'''
+        """Returns ``DataCls`` with args, kwargs"""
         data = self.DataCls(*args, **kwargs)
         data._store = self
         return data
@@ -54,7 +54,7 @@ class Store(with_metaclass(MetaSingleton, object)):
     # 获取broker
     @classmethod
     def getbroker(cls, *args, **kwargs):
-        '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
+        """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         broker = cls.BrokerCls(*args, **kwargs)
         broker._store = cls
         return broker
@@ -92,6 +92,6 @@ class Store(with_metaclass(MetaSingleton, object)):
 
     # 获取通知的信息
     def get_notifications(self):
-        '''Return the pending "store" notifications'''
+        """Return the pending "store" notifications"""
         self.notifs.append(None)  # put a mark / threads could still append
         return [x for x in iter(self.notifs.popleft, None)]

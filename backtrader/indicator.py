@@ -68,9 +68,9 @@ class MetaIndicator(IndicatorBase.__class__):
 
     # 初始化
     def __init__(cls, name, bases, dct):
-        '''
+        """
         Class has already been created ... register subclasses
-        '''
+        """
         # Initialize the class
         super(MetaIndicator, cls).__init__(name, bases, dct)
         # 如果不是alised ，同时name也不等于指标，同时name并不是以_开头的，

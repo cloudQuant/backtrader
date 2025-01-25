@@ -23,7 +23,7 @@ from .. import Observer
 
 # 回撤
 class DrawDown(Observer):
-    '''This observer keeps track of the current drawdown level (plotted) and
+    """This observer keeps track of the current drawdown level (plotted) and
     the maxdrawdown (not plotted) levels
 
     Params:
@@ -37,7 +37,7 @@ class DrawDown(Observer):
 
         Set it to ``True`` or ``False`` for a specific behavior
 
-    '''
+    """
     _stclock = True
 
     params = (
@@ -61,11 +61,11 @@ class DrawDown(Observer):
 
 # 回撤的长度
 class DrawDownLength(Observer):
-    '''This observer keeps track of the current drawdown length (plotted) and
+    """This observer keeps track of the current drawdown length (plotted) and
     the drawdown max length (not plotted)
 
     Params: None
-    '''
+    """
     _stclock = True
 
     lines = ('len', 'maxlen',)
@@ -84,11 +84,11 @@ class DrawDownLength(Observer):
 
 # 最大回撤旧的方法，通过在这个类里面计算，而不是调用analyzers中的DrawDown
 class DrawDown_Old(Observer):
-    '''This observer keeps track of the current drawdown level (plotted) and
+    """This observer keeps track of the current drawdown level (plotted) and
     the maxdrawdown (not plotted) levels
 
     Params: None
-    '''
+    """
     _stclock = True
 
     lines = ('drawdown', 'maxdrawdown',)

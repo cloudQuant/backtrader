@@ -23,7 +23,7 @@ from . import SMA, ROC100
 
 # KnowSureThing指标
 class KnowSureThing(bt.Indicator):
-    '''
+    """
     It is a "summed" momentum indicator. Developed by Martin Pring and
     published in 1992 in Stocks & Commodities.
 
@@ -48,7 +48,7 @@ class KnowSureThing(bt.Indicator):
       - ``_movav`` and ``_movavs``, allows to change the Moving Average type
         applied for the calculation of kst and signal
 
-    '''
+    """
     alias = ('KST',)
     lines = ('kst', 'signal',)
     params = (

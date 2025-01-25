@@ -25,12 +25,12 @@ from backtrader.utils.py3 import range
 # 创建一个chainer的元类
 class MetaChainer(bt.DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaChainer, cls).__init__(name, bases, dct)
 
     def donew(cls, *args, **kwargs):
-        '''Intercept const. to copy timeframe/compression from 1st data'''
+        """Intercept const. to copy timeframe/compression from 1st data"""
         # Create the object and set the params in place
         _obj, args, kwargs = super(MetaChainer, cls).donew(*args, **kwargs)
 
@@ -42,11 +42,11 @@ class MetaChainer(bt.DataBase.__class__):
 
 #
 class Chainer(bt.with_metaclass(MetaChainer, bt.DataBase)):
-    '''Class that chains datas'''
+    """Class that chains datas"""
     # 当数据是实时数据的时候 ，会避免preloading 和 runonce行为
     def islive(self):
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return True
     # 初始化
     def __init__(self, *args):
@@ -76,8 +76,8 @@ class Chainer(bt.with_metaclass(MetaChainer, bt.DataBase)):
 
     # 获取时区
     def _gettz(self):
-        '''To be overriden by subclasses which may auto-calculate the
-        timezone'''
+        """To be overriden by subclasses which may auto-calculate the
+        timezone"""
         if self._args:
             return self._args[0]._gettz()
         return bt.utils.date.Localizer(self.p.tz)

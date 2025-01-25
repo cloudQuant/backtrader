@@ -26,7 +26,7 @@ __all__ = ['DV2']
 
 # RSI指标的替代品
 class DV2(Indicator):
-    '''
+    """
     RSI(2) alternative
     Developed by David Varadi of http://cssanalytics.wordpress.com/
 
@@ -36,7 +36,7 @@ class DV2(Indicator):
 
       - http://web.archive.org/web/20131216100741/http://quantingdutchman.wordpress.com/2010/08/06/dv2-indicator-for-amibroker/
 
-    '''
+    """
     params = (
         ('period', 252),
         ('maperiod', 2),

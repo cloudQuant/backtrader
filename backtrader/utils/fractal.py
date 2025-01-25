@@ -28,11 +28,11 @@ __all__ = ['Fractal']
 
 
 class Fractal(bt.ind.PeriodN):
-    '''
+    """
     References:
         [Ref 1] http://www.investopedia.com/articles/trading/06/fractals.asp
 
-    '''
+    """
     lines = ('fractal_bearish', 'fractal_bullish')
 
     plotinfo = dict(subplot=False, plotlinelabels=False, plot=True)

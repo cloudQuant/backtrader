@@ -24,7 +24,7 @@ from . import Indicator
 
 # 移动平均类，用于设置指标的名字
 class MovingAverage(object):
-    '''MovingAverage (alias MovAv)
+    """MovingAverage (alias MovAv)
 
     A placeholder to gather all Moving Average Types in a single place.
 
@@ -42,7 +42,7 @@ class MovingAverage(object):
 
       sma = MovAv.MovingAverageSimple(self.data, period)
 
-    '''
+    """
     # 移动平均类的保存
     _movavs = []
 

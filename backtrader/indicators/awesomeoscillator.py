@@ -27,7 +27,7 @@ __all__ = ['AwesomeOscillator', 'AwesomeOsc', 'AO']
 
 # AwesomeOscillator指标
 class AwesomeOscillator(bt.Indicator):
-    '''
+    """
     Awesome Oscillator (AO) is a momentum indicator reflecting the precise
     changes in the market driving force which helps to identify the trend’s
     strength up to the points of formation and reversal.
@@ -41,7 +41,7 @@ class AwesomeOscillator(bt.Indicator):
       - https://www.metatrader5.com/en/terminal/help/indicators/bw_indicators/awesome
       - https://www.ifcmarkets.com/en/ntx-indicators/awesome-oscillator
 
-    '''
+    """
     # 别名
     alias = ('AwesomeOsc', 'AO')
     # 要生成的line

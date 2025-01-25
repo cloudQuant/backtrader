@@ -28,7 +28,7 @@ from backtrader.utils.py3 import MAXINT
 
 # 时间收益率的类
 class TimeReturn(Observer):
-    '''This observer stores the *returns* of the strategy.
+    """This observer stores the *returns* of the strategy.
 
     Params:
 
@@ -56,7 +56,7 @@ class TimeReturn(Observer):
     Remember that at any moment of a ``run`` the current values can be checked
     by looking at the *lines* by name at index ``0``.
 
-    '''
+    """
     _stclock = True
     # 设置line
     lines = ('timereturn',)

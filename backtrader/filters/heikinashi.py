@@ -23,7 +23,7 @@ __all__ = ['HeikinAshi']
 
 
 class HeikinAshi(object):
-    '''
+    """
     The filter remodels the open, high, low, close to make HeikinAshi
     candlesticks
 
@@ -31,7 +31,7 @@ class HeikinAshi(object):
       - https://en.wikipedia.org/wiki/Candlestick_chart#Heikin_Ashi_candlesticks
       - http://stockcharts.com/school/doku.php?id=chart_school:chart_analysis:heikin_ashi
 
-    '''
+    """
     def __init__(self, data):
         pass
 

@@ -22,7 +22,7 @@ from . import Indicator, MovAv
 
 # 三重指数移动平均斜率
 class Trix(Indicator):
-    '''
+    """
     Defined by Jack Hutson in the 80s and shows the Rate of Change (%) or slope
     of a triple exponentially smoothed moving average
 
@@ -40,7 +40,7 @@ class Trix(Indicator):
     See:
       - https://en.wikipedia.org/wiki/Trix_(technical_analysis)
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:trix
-    '''
+    """
     alias = ('TRIX',)
     lines = ('trix',)
     params = (('period', 15), ('_rocperiod', 1), ('_movav', MovAv.EMA),)
@@ -66,7 +66,7 @@ class Trix(Indicator):
 
 
 class TrixSignal(Trix):
-    '''
+    """
     Extension of Trix with a signal line (ala MACD)
 
     Formula:
@@ -75,7 +75,7 @@ class TrixSignal(Trix):
 
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:trix
-    '''
+    """
     lines = ('signal',)
     params = (('sigperiod', 9),)
 

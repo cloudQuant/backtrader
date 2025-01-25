@@ -29,7 +29,7 @@ from backtrader.stores import oandastore
 
 class MetaOandaData(DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaOandaData, cls).__init__(name, bases, dct)
 
@@ -38,7 +38,7 @@ class MetaOandaData(DataBase.__class__):
 
 # 处理oanda数据，忽略这篇源代码s
 class OandaData(with_metaclass(MetaOandaData, DataBase)):
-    '''Oanda Data Feed.
+    """Oanda Data Feed.
 
     Params:
 
@@ -132,7 +132,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         (TimeFrame.Months, 1): 'M',
 
     Any other combination will be rejected
-    '''
+    """
     params = (
         ('qcheck', 0.5),
         ('historical', False),  # do backfilling at the start
@@ -159,8 +159,8 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return self._TOFFSET
 
     def islive(self):
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return True
 
     def __init__(self, **kwargs):
@@ -168,14 +168,14 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         self._candleFormat = 'bidask' if self.p.bidask else 'midpoint'
 
     def setenvironment(self, env):
-        '''Receives an environment (cerebro) and passes it over to the store it
-        belongs to'''
+        """Receives an environment (cerebro) and passes it over to the store it
+        belongs to"""
         super(OandaData, self).setenvironment(env)
         env.addstore(self.o)
 
     def start(self):
-        '''Starts the Oanda connecction and gets the real contract and
-        contractdetails if it exists'''
+        """Starts the Oanda connecction and gets the real contract and
+        contractdetails if it exists"""
         super(OandaData, self).start()
 
         # Create attributes as soon as possible
@@ -246,7 +246,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return True  # no return before - implicit continue
 
     def stop(self):
-        '''Stops and tells the store to stop'''
+        """Stops and tells the store to stop"""
         super(OandaData, self).stop()
         self.o.stop()
 

@@ -33,7 +33,7 @@ from backtrader.stores import vcstore
 
 
 class VCCommInfo(CommInfoBase):
-    '''
+    """
     Commissions are calculated by ib, but the trades calculations in the
     ```Strategy`` rely on the order carrying a CommInfo object attached for the
     calculation of the operation cost and value.
@@ -44,28 +44,28 @@ class VCCommInfo(CommInfoBase):
 
     The margin calculation is not a known in advance information with IB
     (margin impact can be gotten from OrderState objects) and therefore it is
-    left as future exercise to get it'''
+    left as future exercise to get it"""
 
     def getvaluesize(self, size, price):
         # In real life the margin approaches the price
         return abs(size) * price
 
     def getoperationcost(self, size, price):
-        '''Returns the needed amount of cash an operation would cost'''
+        """Returns the needed amount of cash an operation would cost"""
         # Same reasoning as above
         return abs(size) * price
 
 
 class MetaVCBroker(BrokerBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaVCBroker, cls).__init__(name, bases, dct)
         vcstore.VCStore.BrokerCls = cls
 
 
 class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
-    '''Broker implementation for VisualChart.
+    """Broker implementation for VisualChart.
 
     This class maps the orders/positions from VisualChart to the
     internal API of ``backtrader``.
@@ -119,7 +119,7 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
         At the moment no heuristic is in place to determine when a cancelled
         order has been cancelled due to expiration. And therefore expired
         orders are reported as cancelled.
-    '''
+    """
     params = (
         ('account', None),
         ('commission', None),

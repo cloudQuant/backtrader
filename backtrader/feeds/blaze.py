@@ -25,7 +25,7 @@ import backtrader.feed as feed
 # 这个类是backtrader对接Blaze数据的类
 # blaze介绍可以看这个：https://blaze.readthedocs.io/en/latest/index.html
 class BlazeData(feed.DataBase):
-    '''
+    """
     Support for `Blaze <blaze.pydata.org>`_ ``Data`` objects.
 
     Only numeric indices to columns are supported.
@@ -37,7 +37,7 @@ class BlazeData(feed.DataBase):
       - A negative value in any of the parameters for the Data lines
         indicates it's not present in the DataFrame
         it is
-    '''
+    """
     # 参数
     params = (
         # datetime must be present

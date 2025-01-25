@@ -31,7 +31,7 @@ from .utils import AutoOrderedDict
 
 # 保存订单执行相关的信息，这个信息并不能决定订单是完全或者部分执行，它仅仅保存信息
 class OrderExecutionBit(object):
-    '''
+    """
     Intended to hold information about order execution. A "bit" does not
     determine if the order has been fully/partially executed, it just holds
     information.
@@ -67,7 +67,7 @@ class OrderExecutionBit(object):
       - pprice: current open position price
       # 已经开仓部分的仓位价格
 
-    '''
+    """
     # 对订单执行信息进行初始化
     def __init__(self,
                  dt=None, size=0, price=0.0,
@@ -96,7 +96,7 @@ class OrderExecutionBit(object):
 
 # 保存真实的订单信息以便创建和执行，创建的时候请求创建，执行的时候产出最终的结果
 class OrderData(object):
-    '''
+    """
     Holds actual order data for Creation and Execution.
 
     In the case of Creation the request made and in the case of Execution the
@@ -133,7 +133,7 @@ class OrderData(object):
       - pprice: current open position price
         # 当前持仓的价格
 
-    '''
+    """
     # According to the docs, collections.deque is thread-safe with appends at
     # both ends, there will be no pop (nowhere) and therefore to know which the
     # new exbits are two indices are needed. At time of cloning (__copy__) the
@@ -450,11 +450,11 @@ class OrderBase(with_metaclass(MetaParams, object)):
         return obj  # status could change in next to completed
     # 获取订单状态的名称
     def getstatusname(self, status=None):
-        '''Returns the name for a given status or the one of the order'''
+        """Returns the name for a given status or the one of the order"""
         return self.Status[self.status if status is None else status]
     # 获取订单的名称
     def getordername(self, exectype=None):
-        '''Returns the name for a given exectype or the one of the order'''
+        """Returns the name for a given exectype or the one of the order"""
         return self.ExecTypes[self.exectype if exectype is None else exectype]
 
     @classmethod
@@ -462,7 +462,7 @@ class OrderBase(with_metaclass(MetaParams, object)):
         return getattr(cls, exectype)
     # 获取order类型的名字
     def ordtypename(self, ordtype=None):
-        '''Returns the name for a given ordtype or the one of the order'''
+        """Returns the name for a given ordtype or the one of the order"""
         return self.OrdTypes[self.ordtype if ordtype is None else ordtype]
     # 获取激活状态
     def active(self):
@@ -472,20 +472,20 @@ class OrderBase(with_metaclass(MetaParams, object)):
         self._active = True
     # 订单如果是创建，提交，部分成交，或者接受的状态，订单是活的
     def alive(self):
-        '''Returns True if the order is in a status in which it can still be
+        """Returns True if the order is in a status in which it can still be
         executed
-        '''
+        """
         return self.status in [Order.Created, Order.Submitted,
                                Order.Partial, Order.Accepted]
     # 增加佣金相关的信息
     def addcomminfo(self, comminfo):
-        '''Stores a CommInfo scheme associated with the asset'''
+        """Stores a CommInfo scheme associated with the asset"""
         self.comminfo = comminfo
     # 增加信息
     def addinfo(self, **kwargs):
-        '''Add the keys, values of kwargs to the internal info dictionary to
+        """Add the keys, values of kwargs to the internal info dictionary to
         hold custom information in the order
-        '''
+        """
         for key, val in iteritems(kwargs):
             self.info[key] = val
     # 判断两个订单是否相等
@@ -496,40 +496,40 @@ class OrderBase(with_metaclass(MetaParams, object)):
         return self.ref != other.ref
     # 判断当前是否是买订单
     def isbuy(self):
-        '''Returns True if the order is a Buy order'''
+        """Returns True if the order is a Buy order"""
         return self.ordtype == self.Buy
     # 判断当前是否是卖订单
     def issell(self):
-        '''Returns True if the order is a Sell order'''
+        """Returns True if the order is a Sell order"""
         return self.ordtype == self.Sell
     # 给订单设置具体的持仓大小
     def setposition(self, position):
-        '''Receives the current position for the asset and stotres it'''
+        """Receives the current position for the asset and stotres it"""
         self.position = position
     # 提交订单给broker
     def submit(self, broker=None):
-        '''Marks an order as submitted and stores the broker to which it was
-        submitted'''
+        """Marks an order as submitted and stores the broker to which it was
+        submitted"""
         self.status = Order.Submitted
         self.broker = broker
         self.plen = len(self.data)
     # 接受订单
     def accept(self, broker=None):
-        '''Marks an order as accepted'''
+        """Marks an order as accepted"""
         self.status = Order.Accepted
         self.broker = broker
     # broker状态，如果broker不是None或者0之类的话，尝试从broker获取订单状态，如果broker是None，直接返回订单的彰泰
     def brokerstatus(self):
-        '''Tries to retrieve the status from the broker in which the order is.
+        """Tries to retrieve the status from the broker in which the order is.
 
-        Defaults to last known status if no broker is associated'''
+        Defaults to last known status if no broker is associated"""
         if self.broker:
             return self.broker.orderstatus(self)
 
         return self.status
     # 拒绝订单，如果已经拒绝了，返回False，如果不是，设置订单状态和执行拒绝的时间，broker，然后返回True
     def reject(self, broker=None):
-        '''Marks an order as rejected'''
+        """Marks an order as rejected"""
         if self.status == Order.Rejected:
             return False
 
@@ -541,25 +541,25 @@ class OrderBase(with_metaclass(MetaParams, object)):
         return True
     # 取消订单
     def cancel(self):
-        '''Marks an order as cancelled'''
+        """Marks an order as cancelled"""
         self.status = Order.Canceled
         # self.executed.dt = self.data.datetime[0]
         if not self.p.simulated:
             self.executed.dt = self.data.datetime[0]
     # 保证金不够，增加保证金
     def margin(self):
-        '''Marks an order as having met a margin call'''
+        """Marks an order as having met a margin call"""
         self.status = Order.Margin
         # self.executed.dt = self.data.datetime[0]
         if not self.p.simulated:
             self.executed.dt = self.data.datetime[0]
     # 完成
     def completed(self):
-        '''Marks an order as completely filled'''
+        """Marks an order as completely filled"""
         self.status = self.Completed
     # 部分成交
     def partial(self):
-        '''Marks an order as partially filled'''
+        """Marks an order as partially filled"""
         self.status = self.Partial
     # 执行订单
     def execute(self, dt, size, price,
@@ -568,7 +568,7 @@ class OrderBase(with_metaclass(MetaParams, object)):
                 margin, pnl,
                 psize, pprice):
 
-        '''Receives data execution input and stores it'''
+        """Receives data execution input and stores it"""
         if not size:
             return
 
@@ -580,7 +580,7 @@ class OrderBase(with_metaclass(MetaParams, object)):
         self.executed.margin = margin
     # 订单到期
     def expire(self):
-        '''Marks an order as expired. Returns True if it worked'''
+        """Marks an order as expired. Returns True if it worked"""
         self.status = self.Expired
         return True
     # 跟踪价格调整
@@ -589,7 +589,7 @@ class OrderBase(with_metaclass(MetaParams, object)):
 
 # 订单类
 class Order(OrderBase):
-    '''
+    """
     订单类用于保存订单创建、执行数据和订单类型
     Class which holds creation/execution data and type of oder.
     # 订单可能有下面的一些状态
@@ -636,7 +636,7 @@ class Order(OrderBase):
       - issell(): returns bool indicating if the order sells
         # 判断订单是否是存活的，包括四种状态，创建、提交、接受、部分成交、
       - alive(): returns bool if order is in status Partial or Accepted
-    '''
+    """
     # 订单的执行
     def execute(self, dt, size, price,
                 closed, closedvalue, closedcomm,

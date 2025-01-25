@@ -23,7 +23,7 @@ from . import GenericCSVData
 
 
 class MT4CSVData(GenericCSVData):
-    '''
+    """
     Parses a `Metatrader4 <https://www.metaquotes.net/en/metatrader4>`_ History
     center CSV exported file.
 
@@ -32,7 +32,7 @@ class MT4CSVData(GenericCSVData):
       - ``dataname``: The filename to parse or a file-like object
 
       - Uses GenericCSVData and simply modifies the params
-    '''
+    """
     # MT4数据的这个类，继承了CSV类，仅仅只是修改了参数
     params = (
         ('dtformat', '%Y.%m.%d'),

@@ -48,64 +48,64 @@ ONEDAY = timedelta(days=1)
 class TradingCalendarBase(with_metaclass(MetaParams, object)):
     # 返回day之后的下一个交易日和日历组成
     def _nextday(self, day):
-        '''
+        """
         Returns the next trading day (datetime/date instance) after ``day``
         (datetime/date instance) and the isocalendar components
 
         The return value is a tuple with 2 components: (nextday, (y, w, d))
-        '''
+        """
         raise NotImplementedError
 
     # 返回一天的开盘和收盘时间
     def schedule(self, day):
-        '''
+        """
         Returns a tuple with the opening and closing times (``datetime.time``)
         for the given ``date`` (``datetime/date`` instance)
-        '''
+        """
         raise NotImplementedError
 
     # 返回day之后的下一个交易日
     def nextday(self, day):
-        '''
+        """
         Returns the next trading day (datetime/date instance) after ``day``
         (datetime/date instance)
-        '''
+        """
         return self._nextday(day)[0]  # 1st ret elem is next day
 
     # 返回day之后下一个交易日所在的周数
     def nextday_week(self, day):
-        '''
+        """
         Returns the iso week number of the next trading day, given a ``day``
         (datetime/date) instance
-        '''
+        """
         self._nextday(day)[1][1]  # 2 elem is isocal / 0 - y, 1 - wk, 2 - day
 
     # 计算当前day是否是这周的最后一天
     def last_weekday(self, day):
-        '''
+        """
         Returns ``True`` if the given ``day`` (datetime/date) instance is the
         last trading day of this week
-        '''
+        """
         # Next day must be greater than day. If the week changes is enough for
         # a week change even if the number is smaller (year change)
         return day.isocalendar()[1] != self._nextday(day)[1][1]
 
     # 判断当天day是否是这个月的最后一天
     def last_monthday(self, day):
-        '''
+        """
         Returns ``True`` if the given ``day`` (datetime/date) instance is the
         last trading day of this month
-        '''
+        """
         # Next day must be greater than day. If the week changes is enough for
         # a week change even if the number is smaller (year change)
         return day.month != self._nextday(day)[0].month
 
     # 判断当天day是否是这一年的最后一天
     def last_yearday(self, day):
-        '''
+        """
         Returns ``True`` if the given ``day`` (datetime/date) instance is the
         last trading day of this month
-        '''
+        """
         # Next day must be greater than day. If the week changes is enough for
         # a week change even if the number is smaller (year change)
         return day.year != self._nextday(day)[0].year
@@ -113,7 +113,7 @@ class TradingCalendarBase(with_metaclass(MetaParams, object)):
 
 # 交易日历类
 class TradingCalendar(TradingCalendarBase):
-    '''
+    """
     Wrapper of ``pandas_market_calendars`` for a trading calendar. The package
     ``pandas_market_calendar`` must be installed
     # 在这个类里面，目前来看，似乎没有必须要安装pandas_market_calendar
@@ -151,7 +151,7 @@ class TradingCalendar(TradingCalendarBase):
 
         # offdays,周一到周日中不交易的日期，通常是周六和周日
 
-    '''
+    """
 
     # 参数
     params = (
@@ -168,12 +168,12 @@ class TradingCalendar(TradingCalendarBase):
 
     # 获取下一个交易日
     def _nextday(self, day):
-        '''
+        """
         Returns the next trading day (datetime/date instance) after ``day``
         (datetime/date instance) and the isocalendar components
 
         The return value is a tuple with 2 components: (nextday, (y, w, d))
-        '''
+        """
         # while循环
         while True:
             # 下一个交易日
@@ -188,13 +188,13 @@ class TradingCalendar(TradingCalendarBase):
 
     # 获取day的开盘和收盘时间
     def schedule(self, day, tz=None):
-        '''
+        """
         Returns the opening and closing times for the given ``day``. If the
         method is called, the assumption is that ``day`` is an actual trading
         day
 
         The return value is a tuple with 2 components: opentime, closetime
-        '''
+        """
         # while循环
         while True:
             # 获取day的日期
@@ -227,7 +227,7 @@ class TradingCalendar(TradingCalendarBase):
 
 
 class PandasMarketCalendar(TradingCalendarBase):
-    '''
+    """
     Wrapper of ``pandas_market_calendars`` for a trading calendar. The package
     ``pandas_market_calendar`` must be installed
     # 必须要安装pandas_market_calendar
@@ -256,7 +256,7 @@ class PandasMarketCalendar(TradingCalendarBase):
 
       - http://pandas-market-calendars.readthedocs.io/
 
-    '''
+    """
     # 参数
     params = (
         ('calendar', None),  # A pandas_market_calendars instance or exch name
@@ -277,12 +277,12 @@ class PandasMarketCalendar(TradingCalendarBase):
 
     # 获取下一个交易日
     def _nextday(self, day):
-        '''
+        """
         Returns the next trading day (datetime/date instance) after ``day``
         (datetime/date instance) and the isocalendar components
 
         The return value is a tuple with 2 components: (nextday, (y, w, d))
-        '''
+        """
         day += ONEDAY
         while True:
             # 获取day所在的index
@@ -298,13 +298,13 @@ class PandasMarketCalendar(TradingCalendarBase):
 
     # 获取具体的开盘和收盘时间
     def schedule(self, day, tz=None):
-        '''
+        """
         Returns the opening and closing times for the given ``day``. If the
         method is called, the assumption is that ``day`` is an actual trading
         day
 
         The return value is a tuple with 2 components: opentime, closetime
-        '''
+        """
         while True:
             # 获取交易日所在的index,然后判断是否需要更新日历数据
             i = self.idcache.index.searchsorted(day.date())

@@ -32,7 +32,7 @@ from ..utils import date2num
 
 
 class YahooFinanceCSVData(feed.CSVDataBase):
-    '''
+    """
     Parses pre-downloaded Yahoo CSV Data Feeds (or locally generated if they
     comply to the Yahoo format)
     # 处理预下载的雅虎csv格式的数据或者说本地产生的符合雅虎格式的数据
@@ -74,7 +74,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         close* is now fixed. The parameter is retained, in case the need to
         swap the columns again arose.
 
-    '''
+    """
     # 增加一个line
     lines = ('adjclose',)
 
@@ -189,11 +189,11 @@ class YahooFinanceCSVData(feed.CSVDataBase):
 
 
 class YahooLegacyCSV(YahooFinanceCSVData):
-    '''
+    """
     This is intended to load files which were downloaded before Yahoo
     discontinued the original service in May-2017
     # 用于load 2017年5月之前下载的数据
-    '''
+    """
     params = (
         ('version', ''),
     )
@@ -206,7 +206,7 @@ class YahooFinanceCSV(feed.CSVFeedBase):
 # todo 有时间测试一下这个类还能不能使用，如果可以用，尝试进行注释
 class YahooFinanceData(YahooFinanceCSVData):
     # 这个是从雅虎上直接爬数据的方法
-    '''
+    """
     Executes a direct download of data from Yahoo servers for the given time
     range.
 
@@ -251,7 +251,7 @@ class YahooFinanceData(YahooFinanceCSVData):
         Number of times (each) to try to get a ``crumb`` cookie and download
         the data
 
-      '''
+      """
 
     params = (
         ('proxies', {}),

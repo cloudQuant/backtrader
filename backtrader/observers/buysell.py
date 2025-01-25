@@ -23,7 +23,7 @@ from ..observer import Observer
 
 # 买卖点标记
 class BuySell(Observer):
-    '''
+    """
     This observer keeps track of the individual buy/sell orders (individual
     executions) and will plot them on the chart along the data around the
     execution price level
@@ -37,7 +37,7 @@ class BuySell(Observer):
 
       - ``bardist`` (default: ``0.015`` 1.5%) Distance to max/min when
         ``barplot`` is ``True``
-    '''
+    """
     lines = ('buy', 'sell',)
 
     plotinfo = dict(plot=True, subplot=False, plotlinelabels=True)

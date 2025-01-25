@@ -23,14 +23,14 @@ from . import Indicator, And
 
 # 非0差分，记录最近一个不是0的差
 class NonZeroDifference(Indicator):
-    '''
+    """
     Keeps track of the difference between two data inputs skipping, memorizing
     the last non zero value if the current difference is zero
 
     Formula:
       - diff = data - data1
       - nzd = diff if diff else diff(-1)
-    '''
+    """
     _mindatas = 2  # requires two (2) data sources
     alias = ('NZD',)
     lines = ('nzd',)
@@ -78,7 +78,7 @@ class _CrossBase(Indicator):
 
 # 分析是否金叉
 class CrossUp(_CrossBase):
-    '''
+    """
     This indicator gives a signal if the 1st provided data crosses over the 2nd
     indicator upwards
 
@@ -88,12 +88,12 @@ class CrossUp(_CrossBase):
     Formula:
       - diff = data - data1
       - upcross =  last_non_zero_diff < 0 and data0(0) > data1(0)
-    '''
+    """
     _crossup = True
 
 # 分析是否死叉
 class CrossDown(_CrossBase):
-    '''
+    """
     This indicator gives a signal if the 1st provided data crosses over the 2nd
     indicator upwards
 
@@ -103,12 +103,12 @@ class CrossDown(_CrossBase):
     Formula:
       - diff = data - data1
       - downcross = last_non_zero_diff > 0 and data0(0) < data1(0)
-    '''
+    """
     _crossup = False
 
 # 分析是否交叉
 class CrossOver(Indicator):
-    '''
+    """
     This indicator gives a signal if the provided datas (2) cross up or down.
 
       - 1.0 if the 1st data crosses the 2nd data upwards
@@ -122,7 +122,7 @@ class CrossOver(Indicator):
       - upcross =  last_non_zero_diff < 0 and data0(0) > data1(0)
       - downcross = last_non_zero_diff > 0 and data0(0) < data1(0)
       - crossover = upcross - downcross
-    '''
+    """
     _mindatas = 2
 
     lines = ('crossover',)

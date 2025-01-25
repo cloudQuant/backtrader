@@ -22,7 +22,7 @@ from . import MovingAverageBase, MovAv, ZeroLagIndicator
 
 # Dickson均线
 class DicksonMovingAverage(MovingAverageBase):
-    '''By Nathan Dickson
+    """By Nathan Dickson
 
     The *Dickson Moving Average* combines the ``ZeroLagIndicator`` (aka
     *ErrorCorrecting* or *EC*) by *Ehlers*, and the ``HullMovingAverage`` to
@@ -46,7 +46,7 @@ class DicksonMovingAverage(MovingAverageBase):
 
     See also:
       - https://www.reddit.com/r/algotrading/comments/4xj3vh/dickson_moving_average
-    '''
+    """
     alias = ('DMA', 'DicksonMA',)
     lines = ('dma',)
     params = (

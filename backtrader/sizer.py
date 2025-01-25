@@ -23,7 +23,7 @@ from .metabase import MetaParams
 
 # Sizer类,其他的sizer需要继承这个类并且重写_getsizing类
 class Sizer(with_metaclass(MetaParams, object)):
-    '''This is the base class for *Sizers*. Any *sizer* should subclass this
+    """This is the base class for *Sizers*. Any *sizer* should subclass this
     and override the ``_getsizing`` method
 
     Member Attribs:
@@ -42,7 +42,7 @@ class Sizer(with_metaclass(MetaParams, object)):
 
       # strategy 代表在使用sizer的strategy策略，可以通过strategy调用所有的strategy的api
       # broker 代表使用strategy所在的broker，可以用于获取信息进行计算复杂的手数
-    '''
+    """
     strategy = None
     broker = None
 
@@ -52,7 +52,7 @@ class Sizer(with_metaclass(MetaParams, object)):
         return self._getsizing(comminfo, self.broker.getcash(), data, isbuy)
 
     def _getsizing(self, comminfo, cash, data, isbuy):
-        '''This method has to be overriden by subclasses of Sizer to provide
+        """This method has to be overriden by subclasses of Sizer to provide
         the sizing functionality
 
         Params:
@@ -78,7 +78,7 @@ class Sizer(with_metaclass(MetaParams, object)):
         # data      代表在那个数据上进行交易
         # isbuy     代表在buy操作的时候是True，sell的时候代表是False
 
-        '''
+        """
         raise NotImplementedError
 
     # 设置策略和broker

@@ -201,7 +201,7 @@ class _UTC(datetime.tzinfo):
 
 
 class _LocalTimezone(datetime.tzinfo):
-    '''本地时区相关的处理'''
+    """本地时区相关的处理"""
 
     # 时区的偏移量
     def utcoffset(self, dt):

@@ -24,7 +24,7 @@ from backtrader import AbstractDataBase, TimeFrame
 
 
 class DataFiller(AbstractDataBase):
-    '''This class will fill gaps in the source data using the following
+    """This class will fill gaps in the source data using the following
     information bits from the underlying data source
 
       - timeframe and compression to dimension the output bars
@@ -46,7 +46,7 @@ class DataFiller(AbstractDataBase):
       - ``fill_vol`` (def: NaN): used to fill the volume of missing bars
 
       - ``fill_oi`` (def: NaN): used to fill the openinterest of missing bars
-    '''
+    """
 
     params = (
         ('fill_price', None),

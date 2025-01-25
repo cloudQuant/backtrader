@@ -30,7 +30,7 @@ from ccxt.base.errors import NetworkError, ExchangeError
 
 
 class MetaSingleton(MetaParams):
-    '''Metaclass to make a metaclassed class a singleton'''
+    """Metaclass to make a metaclassed class a singleton"""
 
     def __init__(cls, name, bases, dct):
         super(MetaSingleton, cls).__init__(name, bases, dct)
@@ -192,7 +192,7 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
 
     @retry
     def private_end_point(self, type, endpoint, params):
-        '''
+        """
         Open method to allow calls to be made to any private end point.
         See here: https://github.com/ccxt/ccxt/wiki/Manual#implicit-api-methods
 
@@ -207,5 +207,5 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         following:
 
         print(dir(ccxt.hitbtc()))
-        '''
+        """
         return getattr(self.exchange, endpoint)(params)

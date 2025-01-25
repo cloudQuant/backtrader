@@ -35,7 +35,7 @@ class DirectStrategy(bt.Strategy):
     params = {"short_window":10,"long_window":20}
  
     def log(self, txt, dt=None):
-        ''' log信息的功能'''
+        """ log信息的功能"""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('%s, %s' % (dt.isoformat(), txt))
  

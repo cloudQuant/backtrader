@@ -22,7 +22,7 @@ from . import RSI
 
 # 计算RelativeMomentumIndex指标
 class RelativeMomentumIndex(RSI):
-    '''
+    """
     Description:
     The Relative Momentum Index was developed by Roger Altman and was
     introduced in his article in the February, 1993 issue of Technical Analysis
@@ -41,7 +41,7 @@ class RelativeMomentumIndex(RSI):
       - https://www.tradingview.com/script/UCm7fIvk-FREE-INDICATOR-Relative-Momentum-Index-RMI/
       - https://www.prorealcode.com/prorealtime-indicators/relative-momentum-index-rmi/
 
-    '''
+    """
     alias = ('RMI', )
 
     linealias = (('rsi', 'rmi',),)  # add an alias for this class rmi -> rsi

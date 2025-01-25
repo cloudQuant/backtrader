@@ -23,7 +23,7 @@ from . import TimeReturn
 
 # 基准
 class Benchmark(TimeReturn):
-    '''This observer stores the *returns* of the strategy and the *return* of a
+    """This observer stores the *returns* of the strategy and the *return* of a
     reference asset which is one of the datas passed to the system.
 
     Params:
@@ -74,7 +74,7 @@ class Benchmark(TimeReturn):
     Remember that at any moment of a ``run`` the current values can be checked
     by looking at the *lines* by name at index ``0``.
 
-    '''
+    """
     _stclock = True
 
     lines = ('benchmark',)

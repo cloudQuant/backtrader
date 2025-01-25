@@ -87,15 +87,15 @@ class TestStrategy(bt.Strategy):
         print('-' * 50, 'TRADE END')
 
     def notify_cashvalue(self, cash, value):
-        '''
+        """
         Receives the current fund value, value status of the strategy's broker
-        '''
+        """
         pass
 
     def notify_fund(self, cash, value, fundvalue, shares):
-        '''
+        """
         Receives the current cash, value, fundvalue and fund shares
-        '''
+        """
         pass
 
 

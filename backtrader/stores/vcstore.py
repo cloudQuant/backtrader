@@ -171,7 +171,7 @@ class RTEventSink(object):
 
 
 class MetaSingleton(MetaParams):
-    '''Metaclass to make a metaclassed class a singleton'''
+    """Metaclass to make a metaclassed class a singleton"""
     def __init__(cls, name, bases, dct):
         super(MetaSingleton, cls).__init__(name, bases, dct)
         cls._singleton = None
@@ -185,12 +185,12 @@ class MetaSingleton(MetaParams):
 
 
 class VCStore(with_metaclass(MetaSingleton, object)):
-    '''Singleton class wrapping an ibpy ibConnection instance.
+    """Singleton class wrapping an ibpy ibConnection instance.
 
     The parameters can also be specified in the classes which use this store,
     like ``VCData`` and ``VCBroker``
 
-    '''
+    """
     BrokerCls = None  # broker class will autoregister
     DataCls = None  # data class will auto register
 
@@ -213,12 +213,12 @@ class VCStore(with_metaclass(MetaSingleton, object)):
 
     @classmethod
     def getdata(cls, *args, **kwargs):
-        '''Returns ``DataCls`` with args, kwargs'''
+        """Returns ``DataCls`` with args, kwargs"""
         return cls.DataCls(*args, **kwargs)
 
     @classmethod
     def getbroker(cls, *args, **kwargs):
-        '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
+        """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         return cls.BrokerCls(*args, **kwargs)
 
     # DLLs to parse if found for TypeLibs
@@ -374,7 +374,7 @@ class VCStore(with_metaclass(MetaSingleton, object)):
         self.notifs.append((msg, args, kwargs))
 
     def get_notifications(self):
-        '''Return the pending "store" notifications'''
+        """Return the pending "store" notifications"""
         self.notifs.append(None)  # Mark current end of notifs
         return [x for x in iter(self.notifs.popleft, None)]  # popleft til None
 

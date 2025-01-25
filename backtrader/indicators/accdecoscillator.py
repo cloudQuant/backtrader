@@ -26,7 +26,7 @@ __all__ = ['AccelerationDecelerationOscillator', 'AccDeOsc']
 
 
 class AccelerationDecelerationOscillator(bt.Indicator):
-    '''
+    """
     Acceleration/Deceleration Technical Indicator (AC) measures acceleration
     and deceleration of the current driving force. This indicator will change
     direction before any changes in the driving force, which, it its turn, will
@@ -39,7 +39,7 @@ class AccelerationDecelerationOscillator(bt.Indicator):
       - https://www.metatrader5.com/en/terminal/help/indicators/bw_indicators/ao
       - https://www.ifcmarkets.com/en/ntx-indicators/ntx-indicators-accelerator-decelerator-oscillator
 
-    '''
+    """
     alias = ('AccDeOsc',)
     lines = ('accde', )
 

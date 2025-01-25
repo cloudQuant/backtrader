@@ -26,7 +26,7 @@ __all__ = ['haDelta', 'haD']
 
 # haDelta指标
 class haDelta(bt.Indicator):
-    '''Heikin Ashi Delta. Defined by Dan Valcu in his book "Heikin-Ashi: How to
+    """Heikin Ashi Delta. Defined by Dan Valcu in his book "Heikin-Ashi: How to
     Trade Without Candlestick Patterns ".
 
     This indicator measures difference between Heikin Ashi close and open of
@@ -41,7 +41,7 @@ class haDelta(bt.Indicator):
       - haDelta = Heikin Ashi close - Heikin Ashi open
       - smoothed = movav(haDelta, period)
 
-    '''
+    """
     alias = ('haD',)
 
     lines = ('haDelta', 'smoothed')

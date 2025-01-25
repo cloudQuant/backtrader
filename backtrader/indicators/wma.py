@@ -24,7 +24,7 @@ from . import MovingAverageBase, AverageWeighted
 
 # 加权平均均线
 class WeightedMovingAverage(MovingAverageBase):
-    '''
+    """
     A Moving Average which gives an arithmetic weighting to values with the
     newest having the more weight
 
@@ -35,7 +35,7 @@ class WeightedMovingAverage(MovingAverageBase):
 
     See also:
       - http://en.wikipedia.org/wiki/Moving_average#Weighted_moving_average
-    '''
+    """
     alias = ('WMA', 'MovingAverageWeighted',)
     lines = ('wma',)
 

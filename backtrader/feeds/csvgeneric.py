@@ -27,7 +27,7 @@ from ..utils.py3 import integer_types, string_types
 
 
 class GenericCSVData(feed.CSVDataBase):
-    '''Parses a CSV file according to the order and field presence defined by the
+    """Parses a CSV file according to the order and field presence defined by the
     parameters
 
     Specific parameters (or specific meaning):
@@ -64,7 +64,7 @@ class GenericCSVData(feed.CSVDataBase):
       - ``tmformat``: Format used to parse the time CSV field if "present"
         (the default for the "time" CSV field is not to be present)
 
-    '''
+    """
 
     # csv data的一些常用的参数
     params = (

@@ -132,7 +132,7 @@ class OHLCDateTime(OHLC):
 
 
 class SimpleFilterWrapper(object):
-    '''Wrapper for filters added via .addfilter to turn them
+    """Wrapper for filters added via .addfilter to turn them
     into processors.
 
     Filters are callables which
@@ -143,7 +143,7 @@ class SimpleFilterWrapper(object):
 
     The wrapper takes the return value and executes the bar removal
     if needed be
-    '''
+    """
     # 这是一个增加过滤器的类，可以根据过滤器的需要对数据进行一定的操作比如去除
     # 这个过滤器通常是类或者是函数
     def __init__(self, data, ffilter, *args, **kwargs):
@@ -165,7 +165,7 @@ class SimpleFilterWrapper(object):
 
 
 class _Bar(AutoOrderedDict):
-    '''
+    """
     This class is a placeholder for the values of the standard lines of a
     DataBase class (from OHLCDateTime)
 
@@ -174,7 +174,7 @@ class _Bar(AutoOrderedDict):
 
     Order of definition is important and must match that of the lines
     definition in DataBase (which directly inherits from OHLCDateTime)
-    '''
+    """
     # 这个bar是具有标准line的DataBase的占位符,常用于把小周期K线合成大周期K线。
     replaying = False
 
@@ -187,7 +187,7 @@ class _Bar(AutoOrderedDict):
         self.bstart(maxdate=maxdate)
 
     def bstart(self, maxdate=False):
-        '''Initializes a bar to the default not-updated vaues'''
+        """Initializes a bar to the default not-updated vaues"""
         # 准备开始前，先初始化
         # Order is important: defined in DataSeries/OHLC/OHLCDateTime
         self.close = float('NaN')
@@ -200,22 +200,22 @@ class _Bar(AutoOrderedDict):
 
     def isopen(self):
         # 判断是否已经更新过了
-        '''Returns if a bar has already been updated
+        """Returns if a bar has already been updated
 
         Uses the fact that NaN is the value which is not equal to itself
         and ``open`` is initialized to NaN
-        '''
+        """
         o = self.open
         return o == o  # False if NaN, True in other cases
 
     def bupdate(self, data, reopen=False):
         # 更新具体的bar
-        '''Updates a bar with the values from data
+        """Updates a bar with the values from data
 
         Returns True if the update was the 1st on a bar (just opened)
 
         Returns False otherwise
-        '''
+        """
         if reopen:
             self.bstart()
 

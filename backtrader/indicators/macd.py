@@ -22,7 +22,7 @@ from . import Indicator, MovAv
 
 # macd相关的指标
 class MACD(Indicator):
-    '''
+    """
     Moving Average Convergence Divergence. Defined by Gerald Appel in the 70s.
 
     It measures the distance of a short and a long term moving average to
@@ -37,7 +37,7 @@ class MACD(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/MACD
-    '''
+    """
     lines = ('macd', 'signal',)
     params = (('period_me1', 12), ('period_me2', 26), ('period_signal', 9),
               ('movav', MovAv.Exponential),)
@@ -61,7 +61,7 @@ class MACD(Indicator):
 
 
 class MACDHisto(MACD):
-    '''
+    """
     Subclass of MACD which adds a "histogram" of the difference between the
     macd and signal lines
 
@@ -70,7 +70,7 @@ class MACDHisto(MACD):
 
     See:
       - http://en.wikipedia.org/wiki/MACD
-    '''
+    """
     alias = ('MACDHistogram',)
 
     lines = ('histo',)

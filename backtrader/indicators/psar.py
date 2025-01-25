@@ -41,7 +41,7 @@ class _SarStatus(object):
 
 
 class ParabolicSAR(PeriodN):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the RSI
 
@@ -54,7 +54,7 @@ class ParabolicSAR(PeriodN):
     See:
       - https://en.wikipedia.org/wiki/Parabolic_SAR
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:parabolic_sar
-    '''
+    """
     alias = ('PSAR',)
     lines = ('psar',)
     params = (

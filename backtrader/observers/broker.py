@@ -22,10 +22,10 @@ from .. import Observer
 
 # 获取cash
 class Cash(Observer):
-    '''This observer keeps track of the current amount of cash in the broker
+    """This observer keeps track of the current amount of cash in the broker
 
     Params: None
-    '''
+    """
     _stclock = True
 
     lines = ('cash',)
@@ -37,7 +37,7 @@ class Cash(Observer):
 
 # 获取value
 class Value(Observer):
-    '''This observer keeps track of the current portfolio value in the broker
+    """This observer keeps track of the current portfolio value in the broker
     including the cash
 
     Params:
@@ -51,7 +51,7 @@ class Value(Observer):
 
         Set it to ``True`` or ``False`` for a specific behavior
 
-    '''
+    """
     _stclock = True
 
     params = (
@@ -76,11 +76,11 @@ class Value(Observer):
 
 # 同时获取cash和value
 class Broker(Observer):
-    '''This observer keeps track of the current cash amount and portfolio value in
+    """This observer keeps track of the current cash amount and portfolio value in
     the broker (including the cash)
 
     Params: None
-    '''
+    """
     _stclock = True
 
     params = (
@@ -111,10 +111,10 @@ class Broker(Observer):
 
 # fundvalue
 class FundValue(Observer):
-    '''This observer keeps track of the current fund-like value
+    """This observer keeps track of the current fund-like value
 
     Params: None
-    '''
+    """
     _stclock = True
 
     alias = ('FundShareValue', 'FundVal')
@@ -127,10 +127,10 @@ class FundValue(Observer):
 
 # 基金份额
 class FundShares(Observer):
-    '''This observer keeps track of the current fund-like shares
+    """This observer keeps track of the current fund-like shares
 
     Params: None
-    '''
+    """
     _stclock = True
 
     lines = ('fundshares',)

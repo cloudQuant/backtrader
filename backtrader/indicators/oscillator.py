@@ -25,7 +25,7 @@ from . import Indicator, MovingAverage
 
 # 创造震荡指标
 class OscillatorMixIn(Indicator):
-    '''
+    """
     MixIn class to create a subclass with another indicator. The main line of
     that indicator will be substracted from the other base class main line
     creating an oscillator
@@ -37,7 +37,7 @@ class OscillatorMixIn(Indicator):
     Formula:
       - XXX calculates lines[0]
       - osc = self.data - XXX.lines[0]
-    '''
+    """
     plotlines = dict(_0=dict(_name='osc'))
 
     def _plotinit(self):
@@ -53,7 +53,7 @@ class OscillatorMixIn(Indicator):
 
 
 class Oscillator(Indicator):
-    '''
+    """
     Oscillation of a given data around another data
 
     Datas:
@@ -71,7 +71,7 @@ class Oscillator(Indicator):
     Formula:
       - 1 data -> osc = data.data - data
       - 2 datas -> osc = data0 - data1
-    '''
+    """
     lines = ('osc',)
 
     # Have a default value which can be later modified if needed
@@ -100,9 +100,9 @@ class Oscillator(Indicator):
 # Automatic creation of Oscillating Lines
 
 for movav in MovingAverage._movavs[1:]:
-    _newclsdoc = '''
+    _newclsdoc = """
     Oscillation of a %s around its data
-    '''
+    """
     # Skip aliases - they will be created automatically
     if getattr(movav, 'aliased', ''):
         continue

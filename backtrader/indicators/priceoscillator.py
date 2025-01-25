@@ -36,7 +36,7 @@ class _PriceOscBase(Indicator):
 
 # 均线差
 class PriceOscillator(_PriceOscBase):
-    '''
+    """
     Shows the difference between a short and long exponential moving
     averages expressed in points.
 
@@ -45,13 +45,13 @@ class PriceOscillator(_PriceOscBase):
 
     See:
       - http://www.metastock.com/Customer/Resources/TAAZ/?c=3&p=94
-    '''
+    """
     alias = ('PriceOsc', 'AbsolutePriceOscillator', 'APO', 'AbsPriceOsc',)
     lines = ('po',)
 
 # 类似于macd的一个指标，以百分比形式表达
 class PercentagePriceOscillator(_PriceOscBase):
-    '''
+    """
     Shows the difference between a short and long exponential moving
     averages expressed in percentage. The MACD does the same but expressed in
     absolute points.
@@ -65,7 +65,7 @@ class PercentagePriceOscillator(_PriceOscBase):
 
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:price_oscillators_ppo
-    '''
+    """
     _long = True
 
     alias = ('PPO', 'PercPriceOsc',)
@@ -86,7 +86,7 @@ class PercentagePriceOscillator(_PriceOscBase):
 
 
 class PercentagePriceOscillatorShort(PercentagePriceOscillator):
-    '''
+    """
     Shows the difference between a short and long exponential moving
     averages expressed in percentage. The MACD does the same but expressed in
     absolute points.
@@ -104,6 +104,6 @@ class PercentagePriceOscillatorShort(PercentagePriceOscillator):
 
     See:
       - http://www.metastock.com/Customer/Resources/TAAZ/?c=3&p=94
-    '''
+    """
     _long = False
     alias = ('PPOShort', 'PercPriceOscShort',)

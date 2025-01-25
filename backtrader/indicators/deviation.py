@@ -22,7 +22,7 @@ from . import Indicator, MovAv
 
 # 计算标准差
 class StandardDeviation(Indicator):
-    '''
+    """
     Calculates the standard deviation of the passed data for a given period
 
     Note:
@@ -41,7 +41,7 @@ class StandardDeviation(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Standard_deviation
-    '''
+    """
     alias = ('StdDev',)
 
     lines = ('stddev',)
@@ -68,7 +68,7 @@ class StandardDeviation(Indicator):
 
 # 平均偏差
 class MeanDeviation(Indicator):
-    '''MeanDeviation (alias MeanDev)
+    """MeanDeviation (alias MeanDev)
 
     Calculates the Mean Deviation of the passed data for a given period
 
@@ -83,7 +83,7 @@ class MeanDeviation(Indicator):
 
     See:
       - https://en.wikipedia.org/wiki/Average_absolute_deviation
-    '''
+    """
     alias = ('MeanDev',)
 
     lines = ('meandev',)
