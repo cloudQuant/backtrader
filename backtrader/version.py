@@ -18,9 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 # backtrader版本号
 __version__ = '1.9.76.123'
 

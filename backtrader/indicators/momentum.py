@@ -18,9 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from . import Indicator
 
 # 动量指标，动量震荡指标，ROC指标，ROC指标乘以100

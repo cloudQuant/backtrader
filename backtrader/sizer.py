@@ -18,11 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from .utils.py3 import with_metaclass
-
 from .metabase import MetaParams
 
 # Sizer类,其他的sizer需要继承这个类并且重写_getsizing类

@@ -18,11 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import datetime
-
 import backtrader as bt
 from backtrader.feed import DataBase
 from backtrader import TimeFrame, date2num, num2date

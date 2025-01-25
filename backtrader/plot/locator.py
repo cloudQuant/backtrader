@@ -18,9 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 '''
 Redefine/Override matplotlib locators to make them work with index base x axis
 which can be converted from/to dates

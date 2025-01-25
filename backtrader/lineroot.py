@@ -28,9 +28,6 @@ to define interfaces and hierarchy for the real operational classes
 .. moduleauthor:: Daniel Rodriguez
 
 '''
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import operator
 from . import metabase
 from .utils.py3 import range, with_metaclass

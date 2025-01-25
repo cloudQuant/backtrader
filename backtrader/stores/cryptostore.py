@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division, print_function, unicode_literals
-
 import collections
 from datetime import datetime
 from time import sleep

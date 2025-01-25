@@ -18,9 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import matplotlib.dates as mdates
 import matplotlib.ticker as mplticker
 

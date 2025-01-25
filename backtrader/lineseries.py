@@ -28,9 +28,6 @@ lines at once.
 .. moduleauthor:: Daniel Rodriguez
 
 '''
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import sys
 
 from .utils.py3 import map, range, string_types, with_metaclass

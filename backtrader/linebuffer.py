@@ -28,9 +28,6 @@ with appends, forwarding, rewinding, resetting and other
 .. moduleauthor:: Daniel Rodriguez
 
 '''
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import array
 import collections
 import datetime

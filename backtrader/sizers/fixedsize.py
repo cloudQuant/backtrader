@@ -18,9 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import backtrader as bt
 
 # 固定手数类，如果下单的时候没有指定size,将会默认调用一个sizer

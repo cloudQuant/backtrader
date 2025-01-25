@@ -18,9 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 # 从from error import * 的时候，只导入下面两个类BacktraderError和StrategySkipError
 __all__ = ['BacktraderError', 'StrategySkipError']
 

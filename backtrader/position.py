@@ -18,11 +18,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-
 from copy import copy
 
 # Position类，保持和更新持仓的大小和价格，和其他的任何资产没有关系，它仅仅保存大小和价格
