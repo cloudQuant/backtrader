@@ -45,7 +45,7 @@ def test_run(main=True):
     testcommon.runtest(datas,
                        TS2,
                        main=main,
-                       plot=main,
+                       plot=False,
                        chkind=chkind,
                        chkmin=chkmin,
                        chkvals=chkvals)
