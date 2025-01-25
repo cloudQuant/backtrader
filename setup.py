@@ -124,7 +124,7 @@ setup(
     version='0.1',  # 版本号
     packages=find_packages(exclude=['strategies', 'studies']),
     # package_data={'bt_alpha': ['bt_alpha/utils/*', 'utils/*']},
-    author='cloud',  # 作者名字
+    author='cloudQuant',  # 作者名字
     author_email='yunjinqi@qq.com',  # 作者邮箱
     description='the cpp and cython version of backtrader',  # 项目描述
     long_description=open('README.md', encoding="utf-8").read(),  # 项目长描述（一般是 README 文件内容）
