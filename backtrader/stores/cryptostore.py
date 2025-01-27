@@ -1,211 +1,225 @@
-import collections
-from datetime import datetime
-from time import sleep
 import time
-import numpy as np
+from datetime import datetime
+from functools import wraps
+import queue
 import backtrader as bt
-from backtrader.metabase import MetaParams
 from backtrader.store import MetaSingleton
-from backtrader.utils.py3 import queue, with_metaclass
-from backtrader.utils.date import get_last_timeframe_timestamp, datetime2str, str2datetime, datetime2timestamp, \
-    timestamp2datetime
-
-
-
-# class MyCtpbeeApi(CtpbeeApi):
-#
-#     def __init__(self, name, timeframe=None, compression=None, md_queue=None):
-#         super().__init__(name)
-#         self.md_queue = md_queue  # 行情队列
-#         self.is_position_ok = False
-#         self.is_account_ok = False
-#         self._bar_timeframe = timeframe
-#         self._bar_compression = compression
-#         self._bar_begin_time = None
-#         self._bar_end_time = None
-#         self._bar_interval = None
-#         self._data_name = None
-#         self.time_diff = None
-#         # 更新bar的行情
-#         self.bar_datetime = None
-#         self.bar_open_price = 0.0
-#         self.bar_high_price = -np.inf
-#         self.bar_low_price = np.inf
-#         self.bar_close_price = 0.0
-#         self.bar_volume = 0.0
-#
-#     def subscribe(self, dataname, timeframe, compression):
-#         print(f"------开始订阅数据------")
-#         if dataname is not None:
-#             self.action.subscribe(dataname)
-#             self._bar_timeframe = timeframe
-#             self._bar_compression = compression
-#             self._data_name = dataname
-#             print(f"-----订阅数据成功{dataname},{timeframe},{compression}--------")
-#             if self._bar_timeframe == 4:
-#                 self.time_diff = 60 * self._bar_compression
-#                 self._bar_interval = str(self._bar_compression) + "m"
-#             # 如果是日线级别
-#             elif self._bar_timeframe == 5:
-#                 self.time_diff = 86400 * self._bar_compression
-#                 self._bar_interval = str(self._bar_compression) + "d"
-#             # 如果是其他周期，默认是一分钟
-#             else:
-#                 self.time_diff = 60
-#                 self._bar_interval = "1m"
-#
-#     def on_contract(self, contract: ContractData):
-#         """ 处理推送的合约信息 """
-#         # print(contract)
-#         pass
-#
-#     def on_log(self, log: LogData):
-#         """ 处理日志信息 ,特殊需求才用到 """
-#         pass
-#
-#     def on_tick(self, tick: TickData) -> None:
-#         """ 处理推送的tick """
-#         # print('on_tick: ', tick)
-#         # print(f"进入on_tick, {tick.datetime}")
-#         # 如果bar结束时间是None的话,需要计算出bar结束时间
-#         if self._bar_end_time is None:
-#             # 获取最近一次bar更新的时间,然后计算bar结束的时间
-#             nts = datetime2timestamp(tick.datetime)
-#             self._bar_begin_time = get_last_timeframe_timestamp(int(nts), self.time_diff)
-#             self._bar_end_time = self._bar_begin_time + self.time_diff
-#             self._bar_end_time = timestamp2datetime(self._bar_begin_time)
-#
-#         # 如果当前的tick的时间大于等于了bar结束的时间,就push bar到队列中,否则就更新k线
-#         nts = tick.datetime
-#         # print(f"nts = {nts}, self._bar_begin_time = {self._bar_begin_time}, self._bar_end_time = {self._bar_end_time}")
-#         if nts >= self._bar_end_time:
-#             bar = BarData._create_class({"symbol": tick.symbol,
-#                                          "exchange": tick.exchange,
-#                                          "datetime": tick.datetime,
-#                                          "interval": self._bar_interval,
-#                                          "volume": self.bar_volume,
-#                                          "open_price": self.bar_open_price,
-#                                          "high_price": self.bar_high_price,
-#                                          "low_price": self.bar_low_price,
-#                                          "close_price": self.bar_close_price})
-#             self.md_queue[self._data_name].put(bar)
-#             self.bar_datetime = self._bar_begin_time
-#             self.bar_open_price = tick.last_price
-#             self.bar_high_price = tick.last_price
-#             self.bar_low_price = tick.last_price
-#             self.bar_close_price = tick.last_price
-#             self.bar_volume = tick.volume
-#             self._bar_begin_time = self._bar_end_time
-#             self._bar_end_time = timestamp2datetime(datetime2timestamp(self._bar_end_time) + self.time_diff)
-#         else:
-#             self.bar_datetime = self._bar_begin_time
-#             self.bar_high_price = max(self.bar_high_price, tick.last_price)
-#             self.bar_low_price = min(self.bar_low_price, tick.last_price)
-#             self.bar_close_price = tick.last_price
-#             self.bar_volume += tick.volume
-#
-#     def on_bar(self, bar: BarData) -> None:
-#         """ 处理ctpbee生成的bar """
-#         print('on_bar: ', bar.local_symbol, bar.datetime, bar.open_price, bar.high_price, bar.low_price,
-#               bar.close_price, bar.volume, bar.interval)
-#         self.md_queue[bar.local_symbol].put(bar)  # 分发行情数据到对应的队列
-#
-#     def on_init(self, init):
-#         pass
-#
-#     def on_order(self, order: OrderData) -> None:
-#         """ 报单回报 """
-#         print('on_order: ', order)
-#         # 这里应该将ctpbee的order类型转换为backtrader的order类型,然后通过notify_order通知策略
-#         pass
-#
-#     def on_trade(self, trade: TradeData) -> None:
-#         """ 成交回报 """
-#         print('on_trade: ', trade)
-#         # 这里应该通过ctpbee的trade去更新backtrader的order,然后通过notify_order通知策略
-#         pass
-#
-#     def on_position(self, position: PositionData) -> None:
-#         """ 处理持仓回报 """
-#         # print('on_position', position)
-#         self.is_position_ok = True
-#
-#     def on_account(self, account: AccountData) -> None:
-#         """ 处理账户信息 """
-#         # print('on_account', account)
-#         self.is_account_ok = True
-
+from backtrader.metabase import MetaParams
+from backtrader.utils.py3 import with_metaclass
 
 
 class CryptoStore(with_metaclass(MetaSingleton, object)):
+    """bt_api_py and backtrader store
     """
-    Singleton class wrapping
-    """
+
+    # Supported granularities
+    _GRANULARITIES = {
+        (bt.TimeFrame.Minutes, 1): '1m',
+        (bt.TimeFrame.Minutes, 3): '3m',
+        (bt.TimeFrame.Minutes, 5): '5m',
+        (bt.TimeFrame.Minutes, 15): '15m',
+        (bt.TimeFrame.Minutes, 30): '30m',
+        (bt.TimeFrame.Minutes, 60): '1h',
+        (bt.TimeFrame.Minutes, 90): '90m',
+        (bt.TimeFrame.Minutes, 120): '2h',
+        (bt.TimeFrame.Minutes, 180): '3h',
+        (bt.TimeFrame.Minutes, 240): '4h',
+        (bt.TimeFrame.Minutes, 360): '6h',
+        (bt.TimeFrame.Minutes, 480): '8h',
+        (bt.TimeFrame.Minutes, 720): '12h',
+        (bt.TimeFrame.Days, 1): '1d',
+        (bt.TimeFrame.Days, 3): '3d',
+        (bt.TimeFrame.Weeks, 1): '1w',
+        (bt.TimeFrame.Weeks, 2): '2w',
+        (bt.TimeFrame.Months, 1): '1M',
+        (bt.TimeFrame.Months, 3): '3M',
+        (bt.TimeFrame.Months, 6): '6M',
+        (bt.TimeFrame.Years, 1): '1y',
+    }
 
     BrokerCls = None  # broker class will auto register
     DataCls = None  # data class will auto register
 
-    params = (
-        ("debug", False),
-    )
-
     @classmethod
     def getdata(cls, *args, **kwargs):
-        """Returns `DataCls` with args, kwargs"""
+        """Returns ``DataCls`` with args, kwargs"""
         return cls.DataCls(*args, **kwargs)
 
     @classmethod
     def getbroker(cls, *args, **kwargs):
-        """Returns broker with *args, **kwargs from registered `BrokerCls`"""
+        """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         return cls.BrokerCls(*args, **kwargs)
 
-    def __init__(self, ctp_setting, *args, **kwargs):
-        super(CryptoStore, self).__init__()
-        # 初始值
-        self._cash = 0.0
-        self._value = 0.0
-        # feed行情队列字典,保存每个feed的行情队列. key为feed,value为对应行情queue
-        self.q_feed_qlive = dict()
+    def __init__(self, exchange, asset_type, symbol, debug=False, **kwargs):
+        self.exchange = exchange
+        self.asset_type = asset_type
+        self.symbol = symbol
+        self.data_queue = queue.Queue()
+        self.feed = None
+        self.init_feed(exchange, asset_type, **kwargs)
+        self.debug = debug
 
-        # while True:
-        #     sleep(1)
-        #     if self.main_ctpbee_api.is_account_ok:
-        #         break
-        # # 调试输出
-        # print('positions===>', self.main_ctpbee_api.center.positions)
-        # print('account===>', self.main_ctpbee_api.center.account)
 
-    def register(self, feed):
-        """ 注册feed行情队列,传入feed,为它创建一个queue,并加进字典
-        """
-        # self.q_feed_qlive[feed.p.dataname] = queue.Queue()
-        # return self.q_feed_qlive[feed.p.dataname]
-        pass
 
-    # def subscribe(self, data):
-    #     print(f"------开始订阅数据------")
-    #     if data is not None:
-    #         self.main_ctpbee_api.action.subscribe(data.p.dataname)
-    #         print(f"-----订阅数据成功{data.p.dataname}--------")
+    def init_feed(self, exchange, asset_type, **kwargs):
+        if exchange == "binance" and asset_type == "swap":
+            self.init_binance_swap_feed(**kwargs)
 
-    def stop(self):
-        pass
+        if exchange == "binance" and asset_type == "spot":
+            self.init_binance_spot_feed(**kwargs)
 
-    def get_positions(self):
-        pass
-        # positions = self.main_ctpbee_api.center.positions
-        # print('positions:', positions)
-        # return positions
+        if exchange == "okx" and asset_type == "spot":
+            self.init_okx_spot_feed(**kwargs)
 
-    def get_balance(self):
-        pass
-        # account = self.main_ctpbee_api.center.account
-        # print('account:', account)
-        # self._cash = account.available
-        # self._value = account.balance
+        if exchange == "okx" and asset_type == "swap":
+            self.init_okx_swap_feed(**kwargs)
 
-    def get_cash(self):
-        return self._cash
 
-    def get_value(self):
-        return self._value
+    def init_binance_swap_feed(self, **kwargs):
+        from bt_api_py.feeds.live_binance_feed import BinanceRequestDataSwap
+        self.feed = BinanceRequestDataSwap(self.data_queue, ** kwargs)
+
+    def init_binance_spot_feed(self, **kwargs):
+        from bt_api_py.feeds.live_binance_feed import BinanceRequestDataSpot
+        self.feed = BinanceRequestDataSpot(self.data_queue, ** kwargs)
+
+    def init_okx_spot_feed(self, **kwargs):
+        from bt_api_py.feeds.live_okx_feed import OkxRequestDataSpot
+        self.feed = OkxRequestDataSpot(self.data_queue, ** kwargs)
+
+    def init_okx_swap_feed(self, **kwargs):
+        from bt_api_py.feeds.live_okx_feed import OkxRequestDataSwap
+        self.feed = OkxRequestDataSwap(self.data_queue, ** kwargs)
+
+    def wss_start(self):
+        if self.exchange == "binance" and self.asset_type == "swap":
+            self.wss_start_binance_swap()
+
+        if self.exchange == "binance" and self.asset_type == "spot":
+            self.wss_start_binance_spot()
+
+        if self.exchange == "okx" and self.asset_type == "spot":
+            self.wss_start_okx_spot()
+
+        if self.exchange == "okx" and self.asset_type == "swap":
+            self.wss_start_okx_swap()
+
+    def wss_start_binance_swap(self):
+        from bt_api_py.containers.exchanges.binance_exchange_data import BinanceExchangeDataSwap
+        from bt_api_py.feeds.live_binance_feed import BinanceMarketWssDataSwap
+        from bt_api_py.feeds.live_binance_feed import BinanceAccountWssDataSwap
+        kwargs = {key:v for key, v in self.kwargs.items()}
+        kwargs['wss_name'] = 'binance_market_data'
+        kwargs["wss_url"] = 'wss://fstream.binance.com/ws'
+        kwargs["exchange_data"] = BinanceExchangeDataSwap()
+        BinanceMarketWssDataSwap(self.data_queue, **kwargs).start()
+        account_kwargs = {k:v for k, v in kwargs.items()}
+        account_kwargs['topics'] =  [
+            {"topic": "account"},
+            {"topic": "order"},
+            {"topic": "trade"},
+        ]
+        BinanceAccountWssDataSwap(self.data_queue, **account_kwargs).start()
+
+
+    def wss_start_binance_spot(self):
+        from bt_api_py.containers.exchanges.binance_exchange_data import BinanceExchangeDataSpot
+        from bt_api_py.feeds.live_binance_feed import BinanceMarketWssDataSpot
+        from bt_api_py.feeds.live_binance_feed import BinanceAccountWssDataSpot
+        kwargs = {key: v for key, v in self.kwargs.items()}
+        kwargs['wss_name'] = 'binance_market_data'
+        kwargs["wss_url"] = 'wss://fstream.binance.com/ws'
+        kwargs["exchange_data"] = BinanceExchangeDataSpot()
+        BinanceMarketWssDataSpot(self.data_queue, **kwargs).start()
+        account_kwargs = {k: v for k, v in kwargs.items()}
+        account_kwargs['topics'] = [
+            {"topic": "account"},
+            {"topic": "order"},
+            {"topic": "trade"},
+        ]
+        BinanceAccountWssDataSpot(self.data_queue, **account_kwargs).start()
+
+    def wss_start_okx_spot(self):
+        from bt_api_py.containers.exchanges.okx_exchange_data import OkxExchangeDataSpot
+        from bt_api_py.feeds.live_okx_feed import OkxMarketWssDataSpot
+        from bt_api_py.feeds.live_okx_feed import OkxAccountWssDataSpot
+        from bt_api_py.feeds.live_okx_feed import OkxKlineWssDataSpot
+        topic_list = [i['topic'] for i in self.kwargs['topics']]
+        if "kline" in topic_list:
+            kline_kwargs = {key: v for key, v in self.kwargs.items()}
+            kline_kwargs['wss_name'] = 'okx_spot_kline_data'
+            kline_kwargs["wss_url"] = 'wss://ws.okx.com:8443/ws/v5/business'
+            kline_kwargs["exchange_data"] = OkxExchangeDataSpot()
+            kline_topics = [i for i in self.kwargs['topics'] if i['topic']=="kline"]
+            kline_kwargs['topics'] = kline_topics
+            OkxKlineWssDataSpot(self.data_queue, **kline_kwargs).start()
+        ticker_true = "ticker" in topic_list
+        depth_true = "depth" in topic_list
+        funding_rate_true = "funding_rate" in topic_list
+        mark_price_true = "mark_price" in topic_list
+        if ticker_true or depth_true or funding_rate_true or mark_price_true:
+            market_kwargs = {key: v for key, v in self.kwargs.items()}
+            market_kwargs['wss_name'] = 'okx_spot_market_data'
+            market_kwargs["wss_url"] = 'wss://ws.okx.com:8443/ws/v5/public'
+            market_kwargs["exchange_data"] = OkxExchangeDataSpot()
+            market_topics = [i for i in self.kwargs['topics'] if i['topic'] != "kline"]
+            market_kwargs['topics'] = market_topics
+            OkxMarketWssDataSpot(self.data_queue, **market_kwargs).start()
+
+        account_kwargs = {key: v for key, v in self.kwargs.items()}
+
+        account_topics = [{"topic": "account", "symbol": self.symbol, "currency": "USDT"},
+            {"topic": "orders", "symbol": self.symbol},
+            {"topic": "positions", "symbol": self.symbol}]
+        account_kwargs['topics'] = account_topics
+        OkxAccountWssDataSpot(self.data_queue, **account_kwargs).start()
+
+    def wss_start_okx_swap(self):
+        from bt_api_py.containers.exchanges.okx_exchange_data import OkxExchangeDataSwap
+        from bt_api_py.feeds.live_okx_feed import OkxMarketWssDataSwap
+        from bt_api_py.feeds.live_okx_feed import OkxAccountWssDataSwap
+        from bt_api_py.feeds.live_okx_feed import OkxKlineWssDataSwap
+        topic_list = [i['topic'] for i in self.kwargs['topics']]
+        if "kline" in topic_list:
+            kline_kwargs = {key: v for key, v in self.kwargs.items()}
+            kline_kwargs['wss_name'] = 'okx_spot_kline_data'
+            kline_kwargs["wss_url"] = 'wss://ws.okx.com:8443/ws/v5/business'
+            kline_kwargs["exchange_data"] = OkxExchangeDataSwap()
+            kline_topics = [i for i in self.kwargs['topics'] if i['topic'] == "kline"]
+            kline_kwargs['topics'] = kline_topics
+            OkxKlineWssDataSwap(self.data_queue, **kline_kwargs).start()
+        ticker_true = "ticker" in topic_list
+        depth_true = "depth" in topic_list
+        funding_rate_true = "funding_rate" in topic_list
+        mark_price_true = "mark_price" in topic_list
+        if ticker_true or depth_true or funding_rate_true or mark_price_true:
+            market_kwargs = {key: v for key, v in self.kwargs.items()}
+            market_kwargs['wss_name'] = 'okx_spot_market_data'
+            market_kwargs["wss_url"] = 'wss://ws.okx.com:8443/ws/v5/public'
+            market_kwargs["exchange_data"] = OkxExchangeDataSwap()
+            market_topics = [i for i in self.kwargs['topics'] if i['topic'] != "kline"]
+            market_kwargs['topics'] = market_topics
+            OkxMarketWssDataSwap(self.data_queue, **market_kwargs).start()
+
+        account_kwargs = {key: v for key, v in self.kwargs.items()}
+
+        account_topics = [{"topic": "account", "symbol": self.symbol, "currency": "USDT"},
+                          {"topic": "orders", "symbol": self.symbol},
+                          {"topic": "positions", "symbol": self.symbol}]
+        account_kwargs['topics'] = account_topics
+        account_kwargs['exchange_data'] = OkxExchangeDataSwap()
+        OkxAccountWssDataSwap(self.data_queue, **account_kwargs).start()
+
+    def get_granularity(self, timeframe, compression):
+        granularity = self._GRANULARITIES.get((timeframe, compression))
+        if granularity is None:
+            raise ValueError("backtrader bt_api_py module doesn't support fetching OHLCV "
+                             "data for time frame %s, comression %s" % \
+                             (bt.TimeFrame.getname(timeframe), compression))
+
+        return granularity
+
+
+
+
+

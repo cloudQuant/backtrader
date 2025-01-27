@@ -1,41 +1,50 @@
-from datetime import datetime
+import time
+import backtrader as bt
+from datetime import datetime, UTC
 from backtrader.feed import DataBase
 from backtrader import date2num, num2date
 from backtrader.utils.py3 import queue, with_metaclass
-
 from backtrader.stores.cryptostore import CryptoStore
 
-import akshare as ak
-import pytz
 
-
-class MetaCryptoData(DataBase.__class__):
+class MetaCryptoFeed(DataBase.__class__):
     def __init__(cls, name, bases, dct):
         """Class has already been created ... register"""
         # Initialize the class
-        super(MetaCryptoData, cls).__init__(name, bases, dct)
+        super(MetaCryptoFeed, cls).__init__(name, bases, dct)
         # Register with the store
         CryptoStore.DataCls = cls
 
 
-class CryptoData(with_metaclass(MetaCryptoData, DataBase)):
-    """CTP Data Feed.
-
+class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
+    """
+    CryptoCurrency eXchange Trading Library Data Feed.
     Params:
-
-      - `historical` (default: `False`)
-
-        If set to `True` the data feed will stop after doing the first
+      - ``historical`` (default: ``False``)
+        If set to ``True`` the data feed will stop after doing the first
         download of data.
-
-        The standard data feed parameters `fromdate` and `todate` will be
+        The standard data feed parameters ``fromdate`` and ``todate`` will be
         used as reference.
+      - ``backfill_start`` (default: ``True``)
+        Perform backfilling at the start. The maximum possible historical data
+        will be fetched in a single request.
+
+    Changes From Ed's pacakge
+
+        - Added option to send some additional fetch_ohlcv_params. Some exchanges (e.g Bitmex)
+          support sending some additional fetch parameters.
+        - Added drop_newest option to avoid loading incomplete candles where exchanges
+          do not support sending ohlcv params to prevent returning partial data
 
     """
 
     params = (
-        ("historical", False),  # 是否仅仅回填历史数据，不接收实时数据。也就是下载完历史数据就结束。一般不用
-        ("num_init_backfill", 100),  # 初始回填bar的数目
+        ('historical', False),  # only historical download
+        ('backfill_start', False),  # do backfilling at the start
+        ('fetch_ohlcv_params', {}),
+        ('ohlcv_limit', 20),
+        ('drop_newest', False),
+        ('debug', False)
     )
 
     _store = CryptoStore
@@ -43,72 +52,22 @@ class CryptoData(with_metaclass(MetaCryptoData, DataBase)):
     # States for the Finite State Machine in _load
     _ST_LIVE, _ST_HISTORBACK, _ST_OVER = range(3)
 
-    def islive(self):
-        """True notifies `Cerebro` that `preloading` and `runonce` should be deactivated"""
-        return True
-
+    # def __init__(self, exchange, symbol, ohlcv_limit=None, config={}, retries=5):
     def __init__(self, **kwargs):
-        self.o = self._store(**kwargs)
-        self.qlive = self.o.register(self)
+        # self.store = CCXTStore(exchange, config, retries)
+        self.store = self._store(**kwargs)
+        self._data = queue.Queue()  # data queue for price data
 
-    def start(self):
-        """
-        """
-        super(CryptoData, self).start()
-        # 订阅标的行情
-        # self.o.subscribe(data=self)
-        # self.o.main_ctpbee_api.subscribe(self.p.dataname, self._timeframe, self._compression)
-        # self._get_backfill_data()
-        self._state = self._ST_HISTORBACK
 
-    def _get_backfill_data(self):
-        """ 获取回填数据
-        """
-        self.put_notification(self.DELAYED)
-        print('_get_backfill_data')
-        self.qhist = queue.Queue()  # qhist是存放历史行情数据的队列,用于回填历史数据,未来考虑从数据库或第三方加载,可参考vnpy的处理
-        # #
-        # CHINA_TZ = pytz.timezone("Asia/Shanghai")
-        # #
-        # symbol = (self.p.dataname).split('.')[0]
-        # if self._timeframe == 4:
-        #     futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period=str(self._compression)).tail(self.p.num_init_backfill)
-        # # 如果是日线级别
-        # elif self._bar_timeframe == 5:
-        #     futures_sina_df = ak.futures_zh_daily_sina(symbol=symbol)
-        # # 如果是其他周期，默认是一分钟
-        # else:
-        #     futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period="1").tail(self.p.num_init_backfill)
-        # # 改列名
-        # futures_sina_df.columns = ['datetime', 'OpenPrice', 'HighPrice', 'LowPrice', 'LastPrice', 'BarVolume', 'hold']
-        # # 增加symbol列
-        # futures_sina_df['symbol'] = self.p.dataname
-        # # 改数据类型
-        # for i in range(self.p.num_init_backfill):
-        #     msg = futures_sina_df.iloc[i].to_dict()
-        #     dt = datetime.strptime(msg['datetime'], "%Y-%m-%d %H:%M:%S")
-        #     dt = CHINA_TZ.localize(dt)
-        #     msg['datetime'] = dt
-        #     msg['OpenPrice'] = float(msg['OpenPrice'])
-        #     msg['HighPrice'] = float(msg['HighPrice'])
-        #     msg['LowPrice'] = float(msg['LowPrice'])
-        #     msg['LastPrice'] = float(msg['LastPrice'])
-        #     msg['BarVolume'] = int(msg['BarVolume'])
-        #     msg['hold'] = int(msg['hold'])
-        #     msg["OpenInterest"] = 0
-        #     # print('回填', msg)
-        #     self.qhist.put(msg)
-        # # 放一个空字典,表示回填结束
-        # self.qhist.put({})
-        # return True
-
-    def stop(self):
-        """Stops and tells the store to stop"""
-        super(CryptoData, self).stop()
-        self.o.stop()
-
-    def haslivedata(self):
-        return bool(self.qlive)  # do not return the obj
+    def start(self, ):
+        DataBase.start(self)
+        if self.p.fromdate:
+            self._state = self._ST_HISTORBACK
+            self.put_notification(self.DELAYED)
+            self._update_bar(self.p.fromdate)
+        else:
+            self._state = self._ST_LIVE
+            self.put_notification(self.LIVE)
 
     def _load(self):
         """
@@ -118,74 +77,109 @@ class CryptoData(with_metaclass(MetaCryptoData, DataBase)):
         """
         if self._state == self._ST_OVER:
             return False
-
+        #
         while True:
             if self._state == self._ST_LIVE:
-                try:
-                    msg = self.qlive.get(False)
-                    print('msg _load', msg)
-                except queue.Empty:
-                    return None
-                if msg:
-                    if self._load_candle(msg):
-                        return True  # loading worked
-
+                # ===========================================
+                # 其实这段代码最好放到独立的工作线程中做,这里纯粹偷懒
+                # 每隔一分钟就更新一次bar
+                # 这段代码原作者写的有一些小问题，有一些其他周期的策略并不一定是每分钟更新一次
+                timeframe = self._timeframe
+                compression = self._compression
+                # 如果是分钟级别
+                if timeframe == 4:
+                    time_diff = 60 * compression
+                # 如果是日线级别
+                elif timeframe == 5:
+                    time_diff = 86400 * compression
+                # 如果是其他周期，默认是一分钟
+                else:
+                    time_diff = 60
+                # 因为本地时间和交易所时间可能有差距，所以需要考虑增加一个功能，把本地时间和交易所时间进行对齐
+                # 我本地时间和交易所时间差70ms左右，所以，这里面我需要增加2s的延时，以方便接收到最新的bar
+                # 大家需要根据自己的实际情况进行修改
+                nts = time.time()
+                if nts - self._last_update_bar_time/1000 >= time_diff+2:
+                    # nts = get_last_timeframe_timestamp(int(nts), time_diff)
+                    # # print(f"上个bar结束时间为:{datetime.fromtimestamp(nts)}")
+                    # self._last_update_bar_time = nts
+                    self._update_bar(livemode=True)
+                # ===========================================
+                return self._load_bar()
             elif self._state == self._ST_HISTORBACK:
-                msg = self.qhist.get()
-                if msg is None:
-                    # Situation not managed. Simply bail out
-                    self.put_notification(self.DISCONNECTED)
-                    self._state = self._ST_OVER
-                    return False  # error management cancelled the queue
-                elif msg:
-                    if self._load_candle_history(msg):
-                        print('load candle 历史回填')
-                        return True  # loading worked
-                    # not loaded ... date may have been seen
-                    continue
-                else:  # 处理空{},注意空{}不等于None.来了空{}就意味着回填数据输出完毕
-                    # End of histdata
+                ret = self._load_bar()
+                if ret:
+                    return ret
+                else:
+                    # End of historical data
                     if self.p.historical:  # only historical
                         self.put_notification(self.DISCONNECTED)
                         self._state = self._ST_OVER
                         return False  # end of historical
+                    else:
+                        self._state = self._ST_LIVE
+                        self.put_notification(self.LIVE)
+                        continue
 
-                # Live is also wished - go for it
-                self._state = self._ST_LIVE
-                self.put_notification(self.LIVE)
+    def _update_bar(self, fromdate=None, livemode=False):
+        """Fetch OHLCV data into self._data queue"""
+        # 想要获取哪个时间粒度下的bar
+        granularity = self.store.get_granularity(self._timeframe, self._compression)
+        # 从哪个时间点开始获取bar
+        if fromdate:
+            self._last_ts = self.utc_to_ts(fromdate)
+        # 每次获取bar数目的最高限制
+        limit = max(3, self.p.ohlcv_limit)  # 最少不能少于三个,原因:每次头bar时间重复要忽略,尾bar未完整要去掉,只保留中间的,所以最少三个
+        #
+        while True:
+            # 先获取数据长度
+            dlen = self._data.qsize()
+            #
+            bars = sorted(
+                self.store.fetch_ohlcv(self.p.dataname, timeframe=granularity, since=self._last_ts, limit=limit,
+                                       params=self.p.fetch_ohlcv_params))
+            # print([datetime.fromtimestamp(i[0]/1000) for i in bars])
+            # Check to see if dropping the latest candle will help with
+            # exchanges which return partial data
+            if self.p.drop_newest and len(bars) > 0:
+                del bars[-1]
+            #
+            for bar in bars:
+                # 获取的bar不能有空值
+                if None in bar:
+                    continue
+                # bar的时间戳
+                tstamp = bar[0]
+                # 通过时间戳判断bar是否为新的bar
+                if tstamp > self._last_ts:
+                    self._data.put(bar)  # 将新的bar保存到队列中
+                    self._last_ts = tstamp
+                    self._last_update_bar_time = tstamp
+                    # print(datetime.utcfromtimestamp(tstamp//1000))
+            # 如果数据长度没有增长,那证明已经是当前最后一根bar,退出
+            if dlen == self._data.qsize():
+                break
+            # 实时模式下,就没必须判断是否是最后一根bar,减少网络通信
+            if livemode:
+                break
 
-    def _load_candle(self, msg):
-        if msg.symbol != self.p.dataname.split('.')[0]:
-            print('return', msg.symbol, self.p.dataname)
-            return
-        if msg.open_price == 0:
-            print("return, msg.symbol open_price is 0")
-            return
-        dt = date2num(msg.datetime)
-        # time already seen
-        if dt <= self.lines.datetime[-1]:
-            return False
-        self.lines.datetime[0] = dt
-        self.lines.open[0] = msg.open_price
-        self.lines.high[0] = msg.high_price
-        self.lines.low[0] = msg.low_price
-        self.lines.close[0] = msg.close_price
-        self.lines.volume[0] = msg.volume
-        self.lines.openinterest[0] = 0
+    def _load_bar(self):
+        try:
+            bar = self._data.get(block=False)  # 不阻塞
+        except queue.Empty:
+            return None  # no data in the queue
+        tstamp, open_, high, low, close, volume = bar
+        dtime = datetime.fromtimestamp(tstamp // 1000, tz=UTC)
+        self.lines.datetime[0] = bt.date2num(dtime)
+        self.lines.open[0] = open_
+        self.lines.high[0] = high
+        self.lines.low[0] = low
+        self.lines.close[0] = close
+        self.lines.volume[0] = volume
         return True
 
-    def _load_candle_history(self, msg):
-        if msg['symbol'] != self.p.dataname:
-            return
-        dt = date2num(msg['datetime'])
-        # time already seen
-        if dt <= self.lines.datetime[-1]:
-            return False
-        self.lines.datetime[0] = dt
-        self.lines.open[0] = msg['OpenPrice']
-        self.lines.high[0] = msg['HighPrice']
-        self.lines.low[0] = msg['LowPrice']
-        self.lines.close[0] = msg['LastPrice']
-        self.lines.volume[0] = msg['BarVolume']
-        self.lines.openinterest[0] = msg['OpenInterest']
-        return True
+    def haslivedata(self):
+        return self._state == self._ST_LIVE and not self._data.empty()
+
+    def islive(self):
+        return not self.p.historical
