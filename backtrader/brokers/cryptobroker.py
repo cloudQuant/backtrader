@@ -88,7 +88,7 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
             'value': 'canceled'}
     }
 
-    def __init__(self, broker_mapping=None, debug=False, **kwargs):
+    def __init__(self, broker_mapping=None, debug=False, store=None, **kwargs):
         super(CryptoBroker, self).__init__()
 
         if broker_mapping is not None:
@@ -100,11 +100,8 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
                 self.mappings = broker_mapping['mappings']
             except KeyError:  # might not want to change the mappings
                 pass
-
-        self.store = CryptoStore(**kwargs)
-
-        self.currency = self.store.currency
-
+        if store is not None:
+            self.store = CryptoStore(**kwargs)
         self.positions = collections.defaultdict(Position)
 
         self.debug = debug

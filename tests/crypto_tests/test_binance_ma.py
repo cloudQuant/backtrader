@@ -1,8 +1,11 @@
+
+import backtrader as bt
+from datetime import datetime, timedelta, UTC
+import json
 from backtrader.stores.cryptostore import CryptoStore
 from backtrader.feeds.cryptofeed import CryptoFeed
-import backtrader as bt
-from datetime import datetime, timedelta
-import json
+from backtrader.brokers.cryptobroker import CryptoBroker
+from bt_api_py.functions.utils import read_yaml_file
 
 class TestStrategy(bt.Strategy):
 
@@ -41,60 +44,40 @@ class TestStrategy(bt.Strategy):
         else:
             self.live_data = False
 
-cerebro = bt.Cerebro(quicknotify=True)
+def get_account_config():
+    account_config_data = read_yaml_file('account_config.yaml')
+    return account_config_data
 
 
-# Add the strategy
-cerebro.addstrategy(TestStrategy)
-
-# Create our store
-config = {'apiKey': params["binance"]["apikey"],
-          'secret': params["binance"]["secret"],
-          'enableRateLimit': True,
-          }
-
-
-# IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
-# for get cash or value if You have never held any BNB coins in your account.
-# So switch BNB to a coin you have funded previously if you get errors
-store = CryptoStore(exchange='binance', currency='BNB', config=config, retries=5, debug=False)
-
-
-# Get the broker and pass any kwargs if needed.
-# ----------------------------------------------
-# Broker mappings have been added since some exchanges expect different values
-# to the defaults. Case in point, Kraken vs Bitmex. NOTE: Broker mappings are not
-# required if the broker uses the same values as the defaults in CCXTBroker.
-broker_mapping = {
-    'order_types': {
-        bt.Order.Market: 'market',
-        bt.Order.Limit: 'limit',
-        bt.Order.Stop: 'stop-loss', #stop-loss for kraken, stop for bitmex
-        bt.Order.StopLimit: 'stop limit'
-    },
-    'mappings':{
-        'closed_order':{
-            'key': 'status',
-            'value':'closed'
-        },
-        'canceled_order':{
-            'key': 'result',
-            'value':1}
+def run():
+    cerebro = bt.Cerebro(quicknotify=True)
+    # Add the strategy
+    cerebro.addstrategy(TestStrategy)
+    # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
+    # for get cash or value if You have never held any BNB coins in your account.
+    # So switch BNB to a coin you have funded previously if you get errors
+    account_config_data = get_account_config()
+    kwargs = {
+        "public_key": account_config_data['binance']['public_key'],
+        "private_key": account_config_data['binance']['private_key'],
     }
-}
+    store = CryptoStore(exchange='binance', asset_type='swap', symbol="BTC-USDT", **kwargs)
+    # Get our data
+    # Drop newest will prevent us from loading partial data from incomplete candles
+    hist_start_date = datetime.now(UTC) - timedelta(minutes=50)
+    data = store.getdata(dataname='BNB/USDT', name="BNB-USDT",
+                         timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
+                         compression=1, ohlcv_limit=50, drop_newest=True)  # , historical=True)
 
-broker = store.getbroker(broker_mapping=broker_mapping)
-cerebro.setbroker(broker)
+    # Add the feed
+    cerebro.adddata(data)
+    broker = CryptoBroker(store=store)
+    cerebro.setbroker(broker)
 
-# Get our data
-# Drop newest will prevent us from loading partial data from incomplete candles
-hist_start_date = datetime.utcnow() - timedelta(minutes=50)
-data = store.getdata(dataname='BNB/USDT', name="BNB-USDT",
-                     timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
-                     compression=1, ohlcv_limit=50, drop_newest=True) #, historical=True)
+    # Run the strategy
+    cerebro.run()
 
-# Add the feed
-cerebro.adddata(data)
 
-# Run the strategy
-cerebro.run()
+
+if __name__ == '__main__':
+    run()

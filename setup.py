@@ -131,8 +131,7 @@ setup(
     long_description_content_type='text/markdown',  # 长描述的内容类型
     url='https://gitee.com/yunjinqi/backtrader.git',  # 项目的 URL
     install_requires=[
-        'cython',
-        'numpy',
+        'cython'
         # 添加其他依赖项
     ],  # 项目所需的依赖项列表
     ext_modules=extensions,  # 添加扩展模块

@@ -33,9 +33,6 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     params = (
         ('historical', False),  # only historical download
         ('backfill_start', False),  # do backfilling at the start
-        ('fetch_ohlcv_params', {}),
-        ('ohlcv_limit', 20),
-        ('drop_newest', False),
         ('debug', False)
     )
 
@@ -44,59 +41,77 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     # States for the Finite State Machine in _load
     _ST_LIVE, _ST_HISTORBACK, _ST_OVER = range(3)
 
-    # def __init__(self, exchange, symbol, ohlcv_limit=None, config={}, retries=5):
-    def __init__(self, **kwargs):
-        # self.store = CCXTStore(exchange, config, retries)
-        self.store = self._store(**kwargs)
-        self._data = queue.Queue()  # data queue for price data
+    _GRANULARITIES = {
+        (bt.TimeFrame.Minutes, 1): '1m',
+        (bt.TimeFrame.Minutes, 3): '3m',
+        (bt.TimeFrame.Minutes, 5): '5m',
+        (bt.TimeFrame.Minutes, 15): '15m',
+        (bt.TimeFrame.Minutes, 30): '30m',
+        (bt.TimeFrame.Minutes, 60): '1h',
+        (bt.TimeFrame.Minutes, 90): '90m',
+        (bt.TimeFrame.Minutes, 120): '2h',
+        (bt.TimeFrame.Minutes, 180): '3h',
+        (bt.TimeFrame.Minutes, 240): '4h',
+        (bt.TimeFrame.Minutes, 360): '6h',
+        (bt.TimeFrame.Minutes, 480): '8h',
+        (bt.TimeFrame.Minutes, 720): '12h',
+        (bt.TimeFrame.Days, 1): '1d',
+        (bt.TimeFrame.Days, 3): '3d',
+        (bt.TimeFrame.Weeks, 1): '1w',
+        (bt.TimeFrame.Weeks, 2): '2w',
+        (bt.TimeFrame.Months, 1): '1M',
+        (bt.TimeFrame.Months, 3): '3M',
+        (bt.TimeFrame.Months, 6): '6M',
+        (bt.TimeFrame.Years, 1): '1y',
+    }
+
+    def __init__(self,
+                 **kwargs):
+        """feed初始化的时候,先初始化store,实现与交易所对接"""
+        self.exchange = kwargs.pop('exchange')
+        self.asset_type = kwargs.pop("asset_type")
+        self.symbol = kwargs.pop("symbol")
+        self.kwargs = kwargs
+        self.update_kwargs()
+        self.store = self._store(self.exchange, self.asset_type, self.symbol, **self.kwargs)
+        self._data = self.store.data_queue  # data queue for price data
+        self.bar_time = None
+        print("CryptoFeed init success")
 
 
-    def start(self, ):
+    def update_kwargs(self):
+        timeframe = self.p.timeframe
+        compression = self.p.compression
+        period = self._GRANULARITIES[(timeframe, compression)]
+        self.kwargs['topics'] = [{"topic": "kline", "symbol": self.symbol, "period": period}]
+        print("update kwargs successfully")
+        print(self.kwargs)
+
+
+    def start(self):
+        print("CryptoFeed begin to start")
         DataBase.start(self)
         if self.p.fromdate:
+            print("begin to fetch data from fromdate")
             self._state = self._ST_HISTORBACK
             self.put_notification(self.DELAYED)
-            self._update_bar(self.p.fromdate)
+            self._update_history_bar(self.p.fromdate)
+            print("update history bar successfully")
         else:
+            print("self.fromdate is None")
             self._state = self._ST_LIVE
             self.put_notification(self.LIVE)
 
     def _load(self):
         """
-        return True  代表从数据源获取数据成功
-        return False 代表因为某种原因(比如历史数据源全部数据已经输出完毕)数据源关闭
-        return None  代表暂时无法从数据源获取最新数据,但是以后会有(比如实时数据源中最新的bar还未生成)
+        return True  更新数据成功，历史数据或者实时数据
+        return False 代表K线是最新的，但是K线还没有闭合
+        return None  代表当前无法从消息队列中获取数据
         """
         if self._state == self._ST_OVER:
             return False
-        #
         while True:
             if self._state == self._ST_LIVE:
-                # ===========================================
-                # 其实这段代码最好放到独立的工作线程中做,这里纯粹偷懒
-                # 每隔一分钟就更新一次bar
-                # 这段代码原作者写的有一些小问题，有一些其他周期的策略并不一定是每分钟更新一次
-                timeframe = self._timeframe
-                compression = self._compression
-                # 如果是分钟级别
-                if timeframe == 4:
-                    time_diff = 60 * compression
-                # 如果是日线级别
-                elif timeframe == 5:
-                    time_diff = 86400 * compression
-                # 如果是其他周期，默认是一分钟
-                else:
-                    time_diff = 60
-                # 因为本地时间和交易所时间可能有差距，所以需要考虑增加一个功能，把本地时间和交易所时间进行对齐
-                # 我本地时间和交易所时间差70ms左右，所以，这里面我需要增加2s的延时，以方便接收到最新的bar
-                # 大家需要根据自己的实际情况进行修改
-                nts = time.time()
-                if nts - self._last_update_bar_time/1000 >= time_diff+2:
-                    # nts = get_last_timeframe_timestamp(int(nts), time_diff)
-                    # # print(f"上个bar结束时间为:{datetime.fromtimestamp(nts)}")
-                    # self._last_update_bar_time = nts
-                    self._update_bar(livemode=True)
-                # ===========================================
                 return self._load_bar()
             elif self._state == self._ST_HISTORBACK:
                 ret = self._load_bar()
@@ -109,69 +124,56 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
                         self._state = self._ST_OVER
                         return False  # end of historical
                     else:
+                        # 订阅K线
+                        self.store.wss_start()
                         self._state = self._ST_LIVE
                         self.put_notification(self.LIVE)
                         continue
 
-    def _update_bar(self, fromdate=None, livemode=False):
-        """Fetch OHLCV data into self._data queue"""
-        # 想要获取哪个时间粒度下的bar
-        granularity = self.store.get_granularity(self._timeframe, self._compression)
-        # 从哪个时间点开始获取bar
-        if fromdate:
-            self._last_ts = self.utc_to_ts(fromdate)
-        # 每次获取bar数目的最高限制
-        limit = max(3, self.p.ohlcv_limit)  # 最少不能少于三个,原因:每次头bar时间重复要忽略,尾bar未完整要去掉,只保留中间的,所以最少三个
-        #
-        while True:
-            # 先获取数据长度
-            dlen = self._data.qsize()
-            #
-            bars = sorted(
-                self.store.fetch_ohlcv(self.p.dataname, timeframe=granularity, since=self._last_ts, limit=limit,
-                                       params=self.p.fetch_ohlcv_params))
-            # print([datetime.fromtimestamp(i[0]/1000) for i in bars])
-            # Check to see if dropping the latest candle will help with
-            # exchanges which return partial data
-            if self.p.drop_newest and len(bars) > 0:
-                del bars[-1]
-            #
-            for bar in bars:
-                # 获取的bar不能有空值
-                if None in bar:
-                    continue
-                # bar的时间戳
-                tstamp = bar[0]
-                # 通过时间戳判断bar是否为新的bar
-                if tstamp > self._last_ts:
-                    self._data.put(bar)  # 将新的bar保存到队列中
-                    self._last_ts = tstamp
-                    self._last_update_bar_time = tstamp
-                    # print(datetime.utcfromtimestamp(tstamp//1000))
-            # 如果数据长度没有增长,那证明已经是当前最后一根bar,退出
-            if dlen == self._data.qsize():
-                break
-            # 实时模式下,就没必须判断是否是最后一根bar,减少网络通信
-            if livemode:
-                break
+    def _update_history_bar(self, fromdate):
+        print("begin update history bar")
+        granularity = self.get_granularity(self._timeframe, self._compression)
+        self.store.download_history_bars(self.symbol, granularity, count=100, start_time=fromdate, end_time=None)
+        print("update history bar successfully")
 
     def _load_bar(self):
         try:
             bar = self._data.get(block=False)  # 不阻塞
         except queue.Empty:
             return None  # no data in the queue
-        tstamp, open_, high, low, close, volume = bar
-        dtime = datetime.fromtimestamp(tstamp // 1000, tz=UTC)
-        self.lines.datetime[0] = bt.date2num(dtime)
-        self.lines.open[0] = open_
-        self.lines.high[0] = high
-        self.lines.low[0] = low
-        self.lines.close[0] = close
-        self.lines.volume[0] = volume
+        bar.init_data()
+        bar_data = bar.get_all_data()
+        bar_status = bar_data["bar_status"]
+        timestamp = bar_data["open_time"]
+        dtime = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
+        if bar_status is False:
+            # print("bar_datetime", dtime, bar_data['high_price'], bar_data['low_price'], bar_data['close_price'], bar_data["volume"])
+            return None
+        num_time = bt.date2num(dtime)
+        self.lines.datetime[0] = num_time
+        self.lines.open[0] = bar_data["open_price"]
+        self.lines.high[0] = bar_data["high_price"]
+        self.lines.low[0] = bar_data["low_price"]
+        self.lines.close[0] = bar_data["close_price"]
+        self.lines.volume[0] = bar_data["volume"]
         return True
+
+    def utc_to_ts(self, dt):
+        fromdate = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute)
+        epoch = datetime(1970, 1, 1)
+        return int((fromdate - epoch).total_seconds() * 1000)
 
     def haslivedata(self):
         return self._state == self._ST_LIVE and not self._data.empty()
 
     def islive(self):
         return not self.p.historical
+
+    def get_granularity(self, timeframe, compression):
+        granularity = self._GRANULARITIES.get((timeframe, compression))
+        if granularity is None:
+            raise ValueError("backtrader bt_api_py module doesn't support fetching OHLCV "
+                             "data for time frame %s, compression %s" % \
+                             (bt.TimeFrame.getname(timeframe), compression))
+
+        return granularity

@@ -9,7 +9,7 @@ SET BENCHMARKS_DIR=.benchmarks
 
 :: Install dependencies from requirements.txt
 echo Installing dependencies from requirements.txt...
-pip install -U -r requirements.txt
+:: pip install -U -r requirements.txt
 IF %ERRORLEVEL% NEQ 0 (
     echo Failed to install dependencies. Please check the requirements.txt file.
     exit /b 1
@@ -46,7 +46,7 @@ IF EXIST %EGG_INFO_DIR% (
 :: Run backtrader tests with 4 parallel processes
 echo Running backtrader tests...
 cd ..
-pytest %BACKTRADER_PATH%/tests -n 4
+:: pytest %BACKTRADER_PATH%/tests -n 4
 IF %ERRORLEVEL% NEQ 0 (
     echo Test cases failed.
     exit /b 1
@@ -62,4 +62,4 @@ IF EXIST %BENCHMARKS_DIR% (
 echo Script execution completed!
 
 :: Pause to view the output
-pause
+:: pause

@@ -1,9 +1,8 @@
 import time
 from datetime import datetime, timedelta
 import backtrader as bt
-
 from backtrader.feeds.cryptofeed import CryptoFeed
-
+from bt_api_py.functions.utils import read_yaml_file
 
 class TestStrategy(bt.Strategy):
     def __init__(self):
@@ -14,24 +13,26 @@ class TestStrategy(bt.Strategy):
         print('%s closing price: %s' % (dt.isoformat(), self.datas[0].close[0]))
         self.next_runs += 1
 
+def get_account_config():
+    account_config_data = read_yaml_file('account_config.yaml')
+    return account_config_data
 
 def test_backtest_strategy():
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
-    data = CryptoFeed(  exchange='binance',
-                        symbol='BNB-USDT',
-                        asset_type="swap",
-                        timeframe=bt.TimeFrame.Minutes,
-                        compression=1,
-                        fromdate=datetime(2021, 8, 1, 0, 0),
-
-                        ohlcv_limit=1000,
-                        drop_newest=True,
-                        currency='BNB',
-                        retries=5,
-                        #debug=True,
-                        # 'apiKey' and 'secret' are skipped
-                        config={'enableRateLimit': True, 'nonce': lambda: str(int(time.time() * 1000))})
+    account_config_data = get_account_config()
+    kwargs = {
+        "public_key": account_config_data['binance']['public_key'],
+        "private_key": account_config_data['binance']['private_key'],
+        "exchange": 'binance',
+        "symbol": "BNB-USDT",
+        "asset_type": "swap"
+    }
+    data = CryptoFeed(dataname="BNB-USDT",
+                      fromdate=datetime(2025, 1, 27, 8, 0),
+                      timeframe=bt.TimeFrame.Minutes,
+                      compression=1,
+                      **kwargs)
     cerebro.adddata(data)
 
     # Run the strategy

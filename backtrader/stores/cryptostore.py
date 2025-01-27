@@ -1,5 +1,5 @@
 import time
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 import queue
 import backtrader as bt
@@ -11,32 +11,6 @@ from backtrader.utils.py3 import with_metaclass
 class CryptoStore(with_metaclass(MetaSingleton, object)):
     """bt_api_py and backtrader store
     """
-
-    # Supported granularities
-    _GRANULARITIES = {
-        (bt.TimeFrame.Minutes, 1): '1m',
-        (bt.TimeFrame.Minutes, 3): '3m',
-        (bt.TimeFrame.Minutes, 5): '5m',
-        (bt.TimeFrame.Minutes, 15): '15m',
-        (bt.TimeFrame.Minutes, 30): '30m',
-        (bt.TimeFrame.Minutes, 60): '1h',
-        (bt.TimeFrame.Minutes, 90): '90m',
-        (bt.TimeFrame.Minutes, 120): '2h',
-        (bt.TimeFrame.Minutes, 180): '3h',
-        (bt.TimeFrame.Minutes, 240): '4h',
-        (bt.TimeFrame.Minutes, 360): '6h',
-        (bt.TimeFrame.Minutes, 480): '8h',
-        (bt.TimeFrame.Minutes, 720): '12h',
-        (bt.TimeFrame.Days, 1): '1d',
-        (bt.TimeFrame.Days, 3): '3d',
-        (bt.TimeFrame.Weeks, 1): '1w',
-        (bt.TimeFrame.Weeks, 2): '2w',
-        (bt.TimeFrame.Months, 1): '1M',
-        (bt.TimeFrame.Months, 3): '3M',
-        (bt.TimeFrame.Months, 6): '6M',
-        (bt.TimeFrame.Years, 1): '1y',
-    }
-
     BrokerCls = None  # broker class will auto register
     DataCls = None  # data class will auto register
 
@@ -54,11 +28,13 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         self.exchange = exchange
         self.asset_type = asset_type
         self.symbol = symbol
+        self.kwargs = kwargs
         self.data_queue = queue.Queue()
         self.feed = None
         self.init_feed(exchange, asset_type, **kwargs)
         self.debug = debug
-
+        self._cash = 0
+        self._value = 0
 
 
     def init_feed(self, exchange, asset_type, **kwargs):
@@ -210,14 +186,93 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         account_kwargs['exchange_data'] = OkxExchangeDataSwap()
         OkxAccountWssDataSwap(self.data_queue, **account_kwargs).start()
 
-    def get_granularity(self, timeframe, compression):
-        granularity = self._GRANULARITIES.get((timeframe, compression))
-        if granularity is None:
-            raise ValueError("backtrader bt_api_py module doesn't support fetching OHLCV "
-                             "data for time frame %s, compression %s" % \
-                             (bt.TimeFrame.getname(timeframe), compression))
+    def push_bar_data_to_queue(self, data):
+        bar_list = data.get_data()
+        for bar in bar_list:
+            self.data_queue.put(bar)
 
-        return granularity
+    def download_history_bars(self, symbol, period, count=100, start_time=None, end_time=None, extra_data=None):
+        def calculate_time_delta(period):
+            """根据 period 计算增量时间"""
+            time_deltas = {
+                "1m": timedelta(hours=1),
+                "3m": timedelta(hours=5),
+                "5m": timedelta(hours=9),
+                "15m": timedelta(hours=25),
+                "30m": timedelta(hours=50),
+                "1H": timedelta(hours=100),
+                "1D": timedelta(days=100),
+            }
+            if period in time_deltas:
+                return time_deltas[period]
+            raise ValueError(f"Unsupported period: {period}")
+
+        def parse_time(input_time):
+            """解析时间，支持字符串和 datetime 类型，并将时间转换为 UTC"""
+            if isinstance(input_time, str):
+                # 假设输入的字符串时间是本地时间
+                local_time = datetime.fromisoformat(input_time)
+                return local_time.astimezone(timezone.utc)
+            elif isinstance(input_time, datetime):
+                # 如果是 datetime 类型，确保转换为 UTC
+                if input_time.tzinfo is None:
+                    local_time = input_time.replace(tzinfo=timezone.utc).astimezone()  # 假设为本地时间
+                else:
+                    local_time = input_time
+                return local_time.astimezone(timezone.utc)
+            elif input_time is None:
+                return None
+            else:
+                raise TypeError(f"Unsupported time format: {type(input_time)}")
+
+        # 解析开始时间和结束时间为 UTC
+        begin_time = parse_time(start_time)
+        stop_time = parse_time(end_time)
+
+        if begin_time is None and count is not None:
+            # 如果没有开始时间，只传入 count，获取最近 count 条数据
+            data = self.feed.get_kline(symbol, period, count, extra_data=extra_data)
+            self.push_bar_data_to_queue(data)
+            print(f"下载完成: {symbol}, 最近 {count} 条数据")
+            return
+
+        if begin_time is not None:
+            # 如果未提供结束时间，则默认为当前时间并对齐到 period
+            if stop_time is None:
+                now = datetime.now(timezone.utc)  # 当前时间为 UTC
+                period_seconds = int(period[:-1]) * 60 if "m" in period else int(period[:-1]) * 3600
+                stop_time = now - timedelta(seconds=now.timestamp() % period_seconds)
+
+            # 循环下载数据
+            while begin_time < stop_time:
+                try:
+                    # 计算当前时间段的结束时间
+                    time_delta = calculate_time_delta(period)
+                    current_end_time = min(begin_time + time_delta, stop_time)
+
+                    # 转换时间戳为毫秒
+                    begin_stamp = int(begin_time.timestamp() * 1000)
+                    end_stamp = int(current_end_time.timestamp() * 1000)
+
+                    # 下载数据
+                    data = self.feed.get_kline(
+                        symbol, period, start_time=begin_stamp, end_time=end_stamp, extra_data=extra_data
+                    )
+                    self.push_bar_data_to_queue(data)
+                    print(f"下载成功: {symbol}, period: {period}, 开始时间: {begin_time}, 结束时间: {current_end_time}")
+
+                    # 更新开始时间
+                    begin_time = current_end_time
+
+                    # 如果数据已经下载完成，跳出循环
+                    if begin_time >= stop_time:
+                        break
+                except Exception as e:
+                    print(f"下载失败，重试中: {e}")
+                    time.sleep(3)  # 暂停 3 秒后重试
+
+            print(f"下载完成: {symbol}, period: {period}")
+
 
 
 
