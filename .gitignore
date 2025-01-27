@@ -4,6 +4,9 @@ __pycache__/
 *$py.class
 .DS_Store
 */configs/account_config.yaml
+*/account_config.yaml
+account_config.yaml
+*/logs/*
 # C extensions
 *.so
 

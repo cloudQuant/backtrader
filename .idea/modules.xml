@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/backtrader.iml" filepath="$PROJECT_DIR$/.idea/backtrader.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../bt_api_py/.idea/bt_api_py.iml" filepath="$PROJECT_DIR$/../bt_api_py/.idea/bt_api_py.iml" />
     </modules>
   </component>
 </project>
