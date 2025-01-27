@@ -468,3 +468,54 @@ class ComminfoFuturesFixed(CommInfoBase):
 
     def get_margin(self, price):
         return price * self.p.mult * self.p.margin
+
+
+class ComminfoFundingRate(CommInfoBase):
+    # 实现一个数字货币的资金费率类
+    params = (
+        ('commission', 0.0), ('mult', 1.0), ('margin', None),
+        ('stocklike', False),
+        ('commtype', CommInfoBase.COMM_PERC),
+        ('percabs', True)
+    )
+
+    def __init__(self):
+        super(ComminfoFundingRate, self).__init__()
+
+    def _getcommission(self, size, price, pseudoexec):
+        total_commission = abs(size) * price * self.p.mult * self.p.commission
+        # print("total_commission", total_commission)
+        return total_commission
+
+    def get_margin(self, price):
+        return price * self.p.mult * self.p.margin
+
+    # 计算利息费用,这里面涉及到一些简化
+    def get_credit_interest(self, data, pos, dt):
+        """计算币安合约的资金费率，先暂时使用价格代替标记价格，后续再优化"""
+        # 仓位及价格
+        size, price = pos.size, pos.price
+        # 持仓时间
+        # dt0 = dt
+        # dt1 = pos.datetime
+        # gap_seconds = (dt0 - dt1).seconds
+        # days = gap_seconds / (24 * 60 * 60)
+        # 计算当前的持仓价值
+        # 计算资金费率的时候，使用下个bar的开盘价会更精准一些，实际上两者差距应该不大。
+        try:
+            current_price = data.mark_price_open[1]
+        except IndexError:
+            current_price = data.mark_price_close[0]
+        position_value = size * current_price * self.p.mult
+        # 得到当前的资金费率
+        try:
+            funding_rate = data.current_funding_rate[1]
+        except IndexError:
+            funding_rate = 0.0
+        # 如果资金费率为正，则做空的时候会得到资金费率，如果资金费率为负，则做多的时候会得到资金费率
+        # total_funding_rate = -1 * funding_rate * position_value
+        # 但是broker里面计算的时候是减去这个值，所以需要取相反数
+        total_funding_rate = funding_rate * position_value
+        # if total_funding_rate != 0:
+        #     print(bt.num2date(data.datetime[0]), data._name, "get funding ", total_funding_rate)
+        return total_funding_rate
