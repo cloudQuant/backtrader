@@ -1,6 +1,7 @@
 import os
 
-from ccxtbt import CCXTStore
+from backtrader.feeds.cryptofeed import CryptoFeed
+from backtrader.stores.cryptostore import CryptoStore
 from backtrader import Order
 import backtrader as bt
 from datetime import datetime, timedelta
@@ -67,7 +68,7 @@ config = {'apiKey': params["binance"]["apikey"],
           'nonce': lambda: str(int(time.time() * 1000)),
           }
 
-store = CCXTStore(exchange='binance', currency='BNB', config=config, retries=5, debug=True)
+store = CryptoStore(exchange='binance', currency='BNB', config=config, retries=5, debug=True)
 
 
 # Get the broker and pass any kwargs if needed.

@@ -1,4 +1,5 @@
-from ccxtbt import CCXTStore
+from backtrader.feeds.cryptofeed import CryptoFeed
+from backtrader.stores.cryptostore import CryptoStore
 from backtrader import Order
 import backtrader as bt
 from datetime import datetime, timedelta
@@ -74,15 +75,15 @@ class TestStrategy(bt.Strategy):
         print('-' * 50, 'TRADE END')
 
     def notify_cashvalue(self, cash, value):
-        '''
+        """
         Receives the current fund value, value status of the strategy's broker
-        '''
+        """
         pass
 
     def notify_fund(self, cash, value, fundvalue, shares):
-        '''
+        """
         Receives the current cash, value, fundvalue and fund shares
-        '''
+        """
         pass
 
 
@@ -103,7 +104,7 @@ config = {'apiKey': params["okex"]["apikey"],
 # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
 # for get cash or value if You have never held any BNB coins in your account.
 # So switch BNB to a coin you have funded previously if you get errors
-store = CCXTStore(exchange='okex5', currency='USDT', config=config, retries=5, debug=False)
+store = CryptoStore(exchange='okex5', currency='USDT', config=config, retries=5, debug=False)
 
 # Get the broker and pass any kwargs if needed.
 broker = store.getbroker()

@@ -28,14 +28,6 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
       - ``backfill_start`` (default: ``True``)
         Perform backfilling at the start. The maximum possible historical data
         will be fetched in a single request.
-
-    Changes From Ed's pacakge
-
-        - Added option to send some additional fetch_ohlcv_params. Some exchanges (e.g Bitmex)
-          support sending some additional fetch parameters.
-        - Added drop_newest option to avoid loading incomplete candles where exchanges
-          do not support sending ohlcv params to prevent returning partial data
-
     """
 
     params = (

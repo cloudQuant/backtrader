@@ -5,7 +5,8 @@ from unittest.mock import patch
 
 from backtrader import Strategy, Cerebro, TimeFrame
 
-from ccxtbt import CCXTFeed, CCXTStore
+from backtrader.stores.cryptostore import CryptoStore
+from backtrader.feeds.cryptofeed import CryptoFeed
 
 
 class TestFeedInitialFetchBalance(unittest.TestCase):

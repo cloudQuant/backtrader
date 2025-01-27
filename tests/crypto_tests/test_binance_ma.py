@@ -1,4 +1,5 @@
-from ccxtbt import CCXTStore
+from backtrader.stores.cryptostore import CryptoStore
+from backtrader.feeds.cryptofeed import CryptoFeed
 import backtrader as bt
 from datetime import datetime, timedelta
 import json
@@ -7,7 +8,7 @@ class TestStrategy(bt.Strategy):
 
     def __init__(self):
 
-        self.sma = bt.indicators.SMA(self.data,period=21)
+        self.sma = bt.indicators.SMA(self.data, period=21)
 
     def next(self):
 
@@ -19,14 +20,13 @@ class TestStrategy(bt.Strategy):
         # NOTE: If you try to get the wallet balance from a wallet you have
         # never funded, a KeyError will be raised! Change LTC below as approriate
         if self.live_data:
-            cash, value = self.broker.get_wallet_balance('BNB')
+            cash, value = self.broker.get_wallet_balance('USDT')
         else:
             # Avoid checking the balance during a backfill. Otherwise, it will
             # Slow things down.
             cash = 'NA'
 
         for data in self.datas:
-
             print('{} - {} | Cash {} | O: {} H: {} L: {} C: {} V:{} SMA:{}'.format(data.datetime.datetime(),
                                                                                    data._name, cash, data.open[0], data.high[0], data.low[0], data.close[0], data.volume[0],
                                                                                    self.sma[0]))
@@ -40,9 +40,6 @@ class TestStrategy(bt.Strategy):
             self.live_data = True
         else:
             self.live_data = False
-
-with open('./samples/params.json', 'r') as f:
-    params = json.load(f)
 
 cerebro = bt.Cerebro(quicknotify=True)
 
@@ -60,7 +57,7 @@ config = {'apiKey': params["binance"]["apikey"],
 # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
 # for get cash or value if You have never held any BNB coins in your account.
 # So switch BNB to a coin you have funded previously if you get errors
-store = CCXTStore(exchange='binance', currency='BNB', config=config, retries=5, debug=False)
+store = CryptoStore(exchange='binance', currency='BNB', config=config, retries=5, debug=False)
 
 
 # Get the broker and pass any kwargs if needed.
@@ -92,7 +89,7 @@ cerebro.setbroker(broker)
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
 hist_start_date = datetime.utcnow() - timedelta(minutes=50)
-data = store.getdata(dataname='BNB/USDT', name="BNBUSDT",
+data = store.getdata(dataname='BNB/USDT', name="BNB-USDT",
                      timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
                      compression=1, ohlcv_limit=50, drop_newest=True) #, historical=True)
 

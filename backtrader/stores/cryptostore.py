@@ -214,7 +214,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         granularity = self._GRANULARITIES.get((timeframe, compression))
         if granularity is None:
             raise ValueError("backtrader bt_api_py module doesn't support fetching OHLCV "
-                             "data for time frame %s, comression %s" % \
+                             "data for time frame %s, compression %s" % \
                              (bt.TimeFrame.getname(timeframe), compression))
 
         return granularity

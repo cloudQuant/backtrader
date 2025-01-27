@@ -28,6 +28,9 @@ class GenericFundingRateCsv(bt.feeds.GenericCSVData):
               ('current_funding_rate', 12),
               )
 
+    def get_name(self):
+        return self._name
+
 
 def get_data_root(symbol):
     # 获取当前文件的绝对路径
@@ -82,17 +85,17 @@ class FundingRateStrategy(bt.Strategy):
         if order.status == order.Partial:
             self.log(f"order is partial : order_ref:{order.ref}  order_info:{order.info}")
         # Check if an order has been completed
-        # Attention: broker could reject order if not enougth cash
+        # Attention: broker could reject order if not enough cash
         if order.status == order.Completed:
             if order.isbuy():
-                self.log(f"{order.data._name} buy order : "
+                self.log(f"{order.data.get_name()} buy order : "
                          f"price : {round(order.executed.price, 6)} , "
                          f"size : {round(order.executed.size, 6)} , "
                          f"margin : {round(order.executed.value, 6)} , "
                          f"cost : {round(order.executed.comm, 6)}")
 
             else:  # Sell
-                self.log(f"{order.data._name} sell order : "
+                self.log(f"{order.data.get_name()} sell order : "
                          f"price : {round(order.executed.price, 6)} , "
                          f"size : {round(order.executed.size, 6)} , "
                          f"margin : {round(order.executed.value, 6)} , "
@@ -152,8 +155,8 @@ class FundingRateStrategy(bt.Strategy):
                 self.log(e)
                 self.close(gas_data)
                 self.close(token_data)
-                self.log(f"{gas_data._name} close position")
-                self.log(f"{token_data._name} close position")
+                self.log(f"{gas_data.get_name()} close position")
+                self.log(f"{token_data.get_name()} close position")
         # elif gas_position < 0 and self.gas_avg_funding_rate[0] < self.token_avg_funding_rate[0]:
         #     # 如果当前gas的平均资金费率大于token的平均资金费率，平仓，反向卖出
         #     self.buy(gas_data, size=abs(gas_position))

@@ -18,15 +18,13 @@ class TestStrategy(bt.Strategy):
 def test_backtest_strategy():
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
-
-    # Add the feed
-    #hist_start_date = datetime.utcnow() - timedelta(minutes=120)
     data = CryptoFeed(  exchange='binance',
-                        dataname='BNB/USDT',
+                        symbol='BNB-USDT',
+                        asset_type="swap",
                         timeframe=bt.TimeFrame.Minutes,
-                        fromdate=datetime(2021, 8, 1, 0, 0),
-                        #todate=datetime(2019, 1, 1, 0, 2),
                         compression=1,
+                        fromdate=datetime(2021, 8, 1, 0, 0),
+
                         ohlcv_limit=1000,
                         drop_newest=True,
                         currency='BNB',

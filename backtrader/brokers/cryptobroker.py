@@ -42,7 +42,7 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
     Added a get_balance function. Manually check the account balance and update brokers
     self.cash and self.value. This helps alleviate rate limit issues.
 
-    Added a new get_wallet_balance method. This will allow manual checking of the any coins
+    Added a new get_wallet_balance method. This will allow manual checking of any coins
         The method will allow setting parameters. Useful for dealing with multiple assets
 
     Modified getcash() and getvalue():
@@ -333,7 +333,7 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         See here: https://github.com/ccxt/ccxt/wiki/Manual#implicit-api-methods
 
         - type: String, 'Get', 'Post','Put' or 'Delete'.
-        - endpoint = String containing the endpoint address eg. 'order/{id}/cancel'
+        - endpoint = String containing the endpoint address e.g. 'order/{id}/cancel'
         - Params: Dict: An implicit method takes a dictionary of parameters, sends
           the request to the exchange and returns an exchange-specific JSON
           result from the API as is, unparsed.

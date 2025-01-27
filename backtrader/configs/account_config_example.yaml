@@ -1,0 +1,8 @@
+okx:
+  public_key: "xxx"
+  private_key: "xxx"
+  passphrase: "xxx"
+
+binance:
+  public_key: 'xxx'
+  private_key: 'xxx'
