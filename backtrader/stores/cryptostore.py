@@ -26,23 +26,22 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         return cls.BrokerCls(*args, **kwargs)
 
-    def __init__(self, exchange, asset_type, symbol, debug=False, currency="USDT", **kwargs):
-        self.exchange = exchange
-        self.asset_type = asset_type
-        self.symbol = symbol
-        self.currency = currency
+    def __init__(self, **kwargs):
+        self.exchange = kwargs['exchange']
+        self.asset_type = kwargs['asset_type']
+        self.currency = kwargs['currency']
         self.kwargs = kwargs
         self.data_queue = queue.Queue()
         self.feed = None
-        self.debug = debug
+        self.debug = kwargs['debug']
         self._cash = 0
         self._value = 0
-        self.init_feed(exchange, asset_type, **kwargs)
+        self.init_feed(**kwargs)
         self.update_balance()
 
-
-
-    def init_feed(self, exchange, asset_type, **kwargs):
+    def init_feed(self, **kwargs):
+        exchange = kwargs['exchange']
+        asset_type = kwargs['asset_type']
         if exchange == "binance" and asset_type == "swap":
             self.init_binance_swap_feed(**kwargs)
 
@@ -54,6 +53,8 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
 
         if exchange == "okx" and asset_type == "swap":
             self.init_okx_swap_feed(**kwargs)
+
+        print(f"init {exchange}, {asset_type} feed success")
 
 
     def init_binance_swap_feed(self, **kwargs):
@@ -301,9 +302,11 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         balance_data = self.feed.get_balance()
         balance_data.init_data()
         account_list = balance_data.get_data()
+        print("account_list:", account_list)
         update_value_cash = False
         for account in account_list:
             account.init_data()
+            print("account:", account)
             if account.get_account_type() == self.currency:
                 self._value = account.get_margin() + account.get_unrealized_profit()
                 self._cash = account.get_available_margin()

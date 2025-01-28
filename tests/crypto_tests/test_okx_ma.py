@@ -4,6 +4,7 @@ from backtrader import Order
 import backtrader as bt
 from datetime import datetime, timedelta
 import json
+from bt_api_py.functions.utils import read_yaml_file
 
 
 class TestStrategy(bt.Strategy):
@@ -87,38 +88,48 @@ class TestStrategy(bt.Strategy):
         pass
 
 
-with open('./params.json', 'r') as f:
-    params = json.load(f)
+def get_account_config():
+    account_config_data = read_yaml_file('account_config.yaml')
+    return account_config_data
 
-cerebro = bt.Cerebro(quicknotify=True, live=True)
 
-# Add the strategy
-cerebro.addstrategy(TestStrategy)
+def test_okx_ma():
+    cerebro = bt.Cerebro(quicknotify=True, live=True)
+    # Add the strategy
+    cerebro.addstrategy(TestStrategy)
 
-# Create our store
-config = {'apiKey': params["okex"]["apikey"],
-          'secret': params["okex"]["secret"],
-          'password': params["okex"]["password"],
-          'enableRateLimit': True,}
-
-# IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
-# for get cash or value if You have never held any BNB coins in your account.
-# So switch BNB to a coin you have funded previously if you get errors
-store = CryptoStore(exchange='okex5', currency='USDT', config=config, retries=5, debug=False)
-
-# Get the broker and pass any kwargs if needed.
-broker = store.getbroker()
-cerebro.setbroker(broker)
-
-# Get our data
-# Drop newest will prevent us from loading partial data from incomplete candles
-hist_start_date = datetime.utcnow() - timedelta(minutes=1440)
-for sym in ['BTC/USDT','ETH/USDT','EOS/USDT']:
-    data = store.getdata(dataname=sym, name=sym,
-                         timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
-                         compression=1, ohlcv_limit=1000, drop_newest=True)
-    # Add the feed
+    account_config_data = get_account_config()
+    kwargs = {
+        "public_key": account_config_data['binance']['public_key'],
+        "private_key": account_config_data['binance']['private_key'],
+        "exchange": 'binance',
+        "symbol": "BNB-USDT",
+        "asset_type": "swap",
+        "debug": True
+    }
+    # 获取当前时间
+    now = datetime.now()
+    # 计算当前时间之前的 2 个小时
+    nine_hours_ago = now - timedelta(hours=9)
+    data = CryptoFeed(dataname="BNB-USDT",
+                      fromdate=nine_hours_ago,
+                      timeframe=bt.TimeFrame.Minutes,
+                      compression=1,
+                      **kwargs)
     cerebro.adddata(data)
+    broker = CryptoBroker(store=data.store)
+    cerebro.setbroker(broker)
 
-# Run the strategy
-cerebro.run()
+    # Run the strategy
+    strategies = cerebro.run()
+    # 获取第一个策略实例
+    strategy_instance = strategies[0]
+    for sym in ['BTC/USDT','ETH/USDT','EOS/USDT']:
+        data = store.getdata(dataname=sym, name=sym,
+                             timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
+                             compression=1, ohlcv_limit=1000, drop_newest=True)
+        # Add the feed
+        cerebro.adddata(data)
+
+    # Run the strategy
+    cerebro.run()

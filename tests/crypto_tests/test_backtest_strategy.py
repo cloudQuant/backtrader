@@ -2,6 +2,7 @@ import time
 from datetime import datetime, timedelta
 import backtrader as bt
 from backtrader.feeds.cryptofeed import CryptoFeed
+from backtrader.stores.cryptostore import CryptoStore
 from bt_api_py.functions.utils import read_yaml_file
 
 class TestStrategy(bt.Strategy):
@@ -43,19 +44,19 @@ def test_backtest_strategy():
         "public_key": account_config_data['binance']['public_key'],
         "private_key": account_config_data['binance']['private_key'],
         "exchange": 'binance',
-        "symbol": "BNB-USDT",
-        "asset_type": "swap"
+        "asset_type": "swap",
+        "debug": True,
+        "currency": "USDT",
     }
-    # 获取当前时间
+    crypto_store = CryptoStore(**kwargs)
     now = datetime.now()
     # 计算当前时间之前的 2 个小时
-    two_hours_ago = now - timedelta(hours=9)
-    now_datetime = datetime(2025,1,27, 8,0,0)
-    data = CryptoFeed(dataname="BNB-USDT",
-                      fromdate=two_hours_ago,
-                      timeframe=bt.TimeFrame.Minutes,
-                      compression=1,
-                      **kwargs)
+    nine_hours_ago = now - timedelta(hours=9)
+    data = crypto_store.getdata(symbol="BNB-USDT",
+                                dataname="BNB-USDT",
+                                fromdate=nine_hours_ago,
+                                timeframe=bt.TimeFrame.Minutes,
+                                compression=1)
     cerebro.adddata(data)
 
     # Enable live mode for realtime data

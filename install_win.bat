@@ -47,7 +47,8 @@ IF EXIST %EGG_INFO_DIR% (
 :: Run backtrader tests with 4 parallel processes
 echo Running backtrader tests...
 :: pytest tests -n 4
-python tests/crypto_tests/test_binance_ma.py
+python tests/crypto_tests/test_backtest_strategy.py
+:: python tests/crypto_tests/test_binance_ma.py
 IF %ERRORLEVEL% NEQ 0 (
     echo Test cases failed.
     exit /b 1

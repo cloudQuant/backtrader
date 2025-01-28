@@ -50,7 +50,8 @@ fi
 # Run backtrader tests with 4 parallel processes
 echo "Running backtrader tests..."
 # pytest tests -n 4
-python tests/crypto_tests/test_binance_ma.py
+python tests/crypto_tests/test_backtest_strategy.py
+# python tests/crypto_tests/test_binance_ma.py
 if [ $? -ne 0 ]; then
     handle_error "Test cases failed."
 fi
