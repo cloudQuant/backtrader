@@ -78,7 +78,7 @@ class TestStrategy(bt.Strategy):
         if self.now_live_data:
             self.live_bar_num += 1
 
-        if self.live_bar_num == 5:
+        if self.live_bar_num == 2:
             # self.envs.stop()
             self.envs.stop()  # Stop the backtest
 
