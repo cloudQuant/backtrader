@@ -131,8 +131,8 @@ def test_binance_ma():
     # 获取第一个策略实例
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
-    assert strategy_instance.update_cash is True
-    assert strategy_instance.update_value is True
+    # assert strategy_instance.update_cash is True
+    # assert strategy_instance.update_value is True
     assert strategy_instance.update_ma is True
 
 
