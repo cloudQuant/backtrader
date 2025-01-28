@@ -52,11 +52,12 @@ def test_backtest_strategy():
     now = datetime.now()
     # 计算当前时间之前的 2 个小时
     nine_hours_ago = now - timedelta(hours=9)
-    data = crypto_store.getdata(symbol="BNB-USDT",
-                                dataname="BNB-USDT",
-                                fromdate=nine_hours_ago,
-                                timeframe=bt.TimeFrame.Minutes,
-                                compression=1)
+    data = CryptoFeed(crypto_store,
+                      dataname="binance__swap__BNB-USDT",
+                      fromdate=nine_hours_ago,
+                      timeframe=bt.TimeFrame.Minutes,
+                      compression=1,
+                      debug=True)
     cerebro.adddata(data)
 
     # Enable live mode for realtime data

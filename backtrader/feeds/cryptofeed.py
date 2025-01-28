@@ -65,18 +65,23 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     }
 
     def __init__(self,
-                 **kwargs):
+                 store,
+                 dataname=None,
+                 timeframe=None,
+                 compression=None,
+                 fromdate=None,
+                 currency="USDT",
+                 debug=False):
         """feed初始化的时候,先初始化store,实现与交易所对接"""
-        print("kwargs: ", kwargs)
-        self.exchange = kwargs.pop('exchange')
-        self.asset_type = kwargs.pop("asset_type")
-        self.symbol = kwargs.pop("symbol")
-        self.debug = kwargs.pop("debug")
-        self.currency = kwargs.pop("currency", "USDT")
-        self.kwargs = kwargs
+        self.dataname = dataname
+        self.exchange, self.asset_type, self.symbol = dataname.split("__")
+        self.debug = debug
+        self.currency = currency
+        self.timeframe = timeframe
+        self.compression = compression
+        self.fromdate = fromdate
+        self.store = store
         self.update_kwargs()
-        self.store = self._store(self.exchange, self.asset_type, self.symbol,
-                                 self.debug, self.currency, **self.kwargs)
         self._data = self.store.data_queue  # data queue for price data
         self.bar_time = None
         print("CryptoFeed init success, debug = {}".format(self.debug))
@@ -86,9 +91,12 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         timeframe = self.p.timeframe
         compression = self.p.compression
         period = self._GRANULARITIES[(timeframe, compression)]
-        self.kwargs['topics'] = [{"topic": "kline", "symbol": self.symbol, "period": period}]
+        if self.store.kwargs.get('topics', None):
+            self.store.kwargs['topics'].append({"topic": "kline", "symbol": self.symbol, "period": period})
+        else:
+            self.store.kwargs['topics'] = [{"topic": "kline", "symbol": self.symbol, "period": period}]
         print("update kwargs successfully")
-        print(self.kwargs)
+        print(self.store.kwargs)
 
 
     def start(self):
