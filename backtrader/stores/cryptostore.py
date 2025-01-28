@@ -2,6 +2,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 import queue
+from logging import raiseExceptions
+
 import backtrader as bt
 from backtrader.store import MetaSingleton
 from backtrader.metabase import MetaParams
@@ -24,17 +26,20 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         return cls.BrokerCls(*args, **kwargs)
 
-    def __init__(self, exchange, asset_type, symbol, debug=False, **kwargs):
+    def __init__(self, exchange, asset_type, symbol, debug=False, currency="USDT", **kwargs):
         self.exchange = exchange
         self.asset_type = asset_type
         self.symbol = symbol
+        self.currency = currency
         self.kwargs = kwargs
         self.data_queue = queue.Queue()
         self.feed = None
-        self.init_feed(exchange, asset_type, **kwargs)
         self.debug = debug
         self._cash = 0
         self._value = 0
+        self.init_feed(exchange, asset_type, **kwargs)
+        self.update_balance()
+
 
 
     def init_feed(self, exchange, asset_type, **kwargs):
@@ -272,6 +277,42 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     time.sleep(3)  # 暂停 3 秒后重试
 
             print(f"下载完成: {symbol}, period: {period}")
+
+    def get_wallet_balance(self, currency_list):
+        balance_data = self.feed.get_balance()
+        balance_data.init_data()
+        account_list = balance_data.get_data()
+        result = {}
+        for account in account_list:
+            account.init_data()
+            currency = account.get_account_type()
+            if currency in currency_list:
+                result[currency] = {}
+                result[currency]['cash'] = account.get_available_margin()
+                result[currency]['value'] = account.get_margin() + account.get_unrealized_profit()
+        for currency in currency_list:
+            if currency not in result:
+                result[currency] = {}
+                result[currency]['cash'] = 0
+                result[currency]['value'] = 0
+        return result
+
+    def update_balance(self):
+        balance_data = self.feed.get_balance()
+        balance_data.init_data()
+        account_list = balance_data.get_data()
+        update_value_cash = False
+        for account in account_list:
+            account.init_data()
+            if account.get_account_type() == self.currency:
+                self._value = account.get_margin() + account.get_unrealized_profit()
+                self._cash = account.get_available_margin()
+                update_value_cash = True
+        if not update_value_cash:
+            raise f"cannot find {self.currency} balance in get_balance()"
+        else:
+            print(f"当前账户的净值为{self._value},可用余额为{self._cash}")
+
 
 
 

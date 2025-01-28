@@ -101,7 +101,9 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
             except KeyError:  # might not want to change the mappings
                 pass
         if store is not None:
-            self.store = CryptoStore(**kwargs)
+            self.store = store
+        else:
+            self.store = self.strategy.datas[0].store
         self.positions = collections.defaultdict(Position)
 
         self.debug = debug
@@ -117,21 +119,13 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         self._last_op_time = 0
 
     def get_balance(self):
-        self.store.get_balance()
+        self.store.update_balance()
         self.cash = self.store._cash
         self.value = self.store._value
         return self.cash, self.value
 
-    def get_wallet_balance(self, currency_list, params=None):
-        result = {}
-        if params is None:
-            params = {}
-        balance = self.store.get_wallet_balance(params=params)
-        for currency in currency_list:
-            result[currency] = {}
-            result[currency]['cash'] = balance['free'].get(currency, 0)
-            result[currency]['value'] = balance['total'].get(currency, 0)
-        return result
+    def get_wallet_balance(self, currency_list):
+        return self.store.get_wallet_balance(currency_list)
 
     def getcash(self):
         # Get cash seems to always be called before get value

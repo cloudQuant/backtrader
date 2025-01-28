@@ -22,12 +22,14 @@ class TestStrategy(bt.Strategy):
 
         # NOTE: If you try to get the wallet balance from a wallet you have
         # never funded, a KeyError will be raised! Change LTC below as approriate
-        if self.live_data:
-            cash, value = self.broker.get_wallet_balance('USDT')
-        else:
-            # Avoid checking the balance during a backfill. Otherwise, it will
-            # Slow things down.
-            cash = 'NA'
+        cash = self.broker.getcash()
+        value = self.broker.getvalue()
+        # if self.live_data:
+        #     cash, value = self.broker.get_wallet_balance('USDT')
+        # else:
+        #     # Avoid checking the balance during a backfill. Otherwise, it will
+        #     # Slow things down.
+        #     cash = 'NA'
 
         for data in self.datas:
             print('{} - {} | Cash {} | O: {} H: {} L: {} C: {} V:{} SMA:{}'.format(data.datetime.datetime(),
@@ -49,29 +51,30 @@ def get_account_config():
     return account_config_data
 
 
-def run():
+def test_binance_ma():
     cerebro = bt.Cerebro(quicknotify=True)
     # Add the strategy
     cerebro.addstrategy(TestStrategy)
-    # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
-    # for get cash or value if You have never held any BNB coins in your account.
-    # So switch BNB to a coin you have funded previously if you get errors
     account_config_data = get_account_config()
     kwargs = {
         "public_key": account_config_data['binance']['public_key'],
         "private_key": account_config_data['binance']['private_key'],
+        "exchange": 'binance',
+        "symbol": "BNB-USDT",
+        "asset_type": "swap"
     }
-    store = CryptoStore(exchange='binance', asset_type='swap', symbol="BTC-USDT", **kwargs)
-    # Get our data
-    # Drop newest will prevent us from loading partial data from incomplete candles
-    hist_start_date = datetime.now(UTC) - timedelta(minutes=50)
-    data = store.getdata(dataname='BNB/USDT', name="BNB-USDT",
-                         timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
-                         compression=1, ohlcv_limit=50, drop_newest=True)  # , historical=True)
+    # 获取当前时间
+    now = datetime.now()
+    # 计算当前时间之前的 2 个小时
+    nine_hours_ago = now - timedelta(hours=9)
 
-    # Add the feed
+    data = CryptoFeed(dataname="BNB-USDT",
+                      fromdate=nine_hours_ago,
+                      timeframe=bt.TimeFrame.Minutes,
+                      compression=1,
+                      **kwargs)
     cerebro.adddata(data)
-    broker = CryptoBroker(store=store)
+    broker = CryptoBroker(store=data.store)
     cerebro.setbroker(broker)
 
     # Run the strategy
@@ -80,4 +83,4 @@ def run():
 
 
 if __name__ == '__main__':
-    run()
+    test_binance_ma()
