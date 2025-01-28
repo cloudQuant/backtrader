@@ -80,7 +80,7 @@ class TestStrategy(bt.Strategy):
 
         if self.live_bar_num == 2:
             # self.envs.stop()
-            self.env.stop()  # Stop the backtest
+            self.env.runstop()  # Stop the backtest
 
 
 
