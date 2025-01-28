@@ -6,6 +6,8 @@ __pycache__/
 */configs/account_config.yaml
 */account_config.yaml
 account_config.yaml
+CryptoBroker*
+TestStrategy*
 */logs/*
 # C extensions
 *.so

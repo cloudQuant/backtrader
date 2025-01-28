@@ -178,5 +178,4 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
             raise ValueError("backtrader bt_api_py module doesn't support fetching OHLCV "
                              "data for time frame %s, compression %s" % \
                              (bt.TimeFrame.getname(timeframe), compression))
-
         return granularity

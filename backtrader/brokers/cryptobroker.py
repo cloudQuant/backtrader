@@ -171,17 +171,17 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         return pos
 
     def next(self):
-        # if self.debug:
-        #     self.log('Broker next() called, debug = {}'.format(self.debug))
         # self.store.update_balance()
         # print("broker next() called debug = {}".format(self.debug))
         # ===========================================
-        # 每隔3秒操作一下
+        # 每隔3秒操作一下, 减少轮询的次数
         nts = datetime.now().timestamp()
         if nts - self._last_op_time < 3:
             return
         self._last_op_time = nts
         # ===========================================
+        if self.debug:
+            self.log('Broker next() called, debug = {}'.format(self.debug))
         self._next()
 
     def _next(self):
