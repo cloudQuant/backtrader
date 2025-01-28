@@ -28,6 +28,7 @@ class TestStrategy(bt.Strategy):
         # If both historical and realtime data are loaded, mark test as successful
         if self.historical_data_loaded and self.realtime_data_loaded:
             print("Test succeeded: Both historical and realtime data loaded successfully!")
+            # self.stop()  # Stop the backtest
             self.env.runstop()  # Stop the backtest
 
 def get_account_config():

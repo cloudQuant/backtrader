@@ -1759,7 +1759,6 @@ class Cerebro(with_metaclass(MetaParams, object)):
                 dts = []
                 for i, ret in enumerate(drets):
                     dts.append(datas[i].datetime[0] if ret else None)
-
                 # Get index to minimum datetime
                 # 获取最小的时间
                 if onlyresample or noresample:

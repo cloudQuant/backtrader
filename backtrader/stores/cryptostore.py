@@ -313,9 +313,8 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         else:
             print(f"当前账户的净值为{self._value},可用余额为{self._cash}")
 
+    def get_cash(self):
+        return self._cash
 
-
-
-
-
-
+    def get_value(self):
+        return self._value

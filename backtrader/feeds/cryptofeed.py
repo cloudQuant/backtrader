@@ -33,7 +33,6 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     params = (
         ('historical', False),  # only historical download
         ('backfill_start', False),  # do backfilling at the start
-        ('debug', False)
     )
 
     _store = CryptoStore
@@ -68,15 +67,19 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     def __init__(self,
                  **kwargs):
         """feed初始化的时候,先初始化store,实现与交易所对接"""
+        print("kwargs: ", kwargs)
         self.exchange = kwargs.pop('exchange')
         self.asset_type = kwargs.pop("asset_type")
         self.symbol = kwargs.pop("symbol")
+        self.debug = kwargs.pop("debug")
+        self.currency = kwargs.pop("currency", "USDT")
         self.kwargs = kwargs
         self.update_kwargs()
-        self.store = self._store(self.exchange, self.asset_type, self.symbol, **self.kwargs)
+        self.store = self._store(self.exchange, self.asset_type, self.symbol,
+                                 self.debug, self.currency, **self.kwargs)
         self._data = self.store.data_queue  # data queue for price data
         self.bar_time = None
-        print("CryptoFeed init success")
+        print("CryptoFeed init success, debug = {}".format(self.debug))
 
 
     def update_kwargs(self):

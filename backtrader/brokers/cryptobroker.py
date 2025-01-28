@@ -6,6 +6,7 @@ from backtrader import BrokerBase, Order
 from backtrader.position import Position
 from backtrader.utils.py3 import queue, with_metaclass
 from backtrader.stores.cryptostore import CryptoStore
+from backtrader.utils.log_message import SpdLogManager
 
 
 class CryptoOrder(Order):
@@ -88,9 +89,34 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
             'value': 'canceled'}
     }
 
-    def __init__(self, broker_mapping=None, debug=False, store=None, **kwargs):
+    def __init__(self, broker_mapping=None, store=None, **kwargs):
         super(CryptoBroker, self).__init__()
+        self.value = None
+        self.cash = None
+        self.startingvalue = None
+        self.startingcash = None
+        self.store = None
+        self.debug = None
+        self.logger = self.init_logger()
+        self.init_broker_mapping(broker_mapping)
+        self.init_store(store)
+        self.positions = collections.defaultdict(Position)
+        self.indent = 4  # For pretty printing dictionaries
+        self.notifs = queue.Queue()  # holds orders which are notified
+        self.open_orders = list()
+        self._last_op_time = 0
 
+    def init_store(self, store):
+        if store is not None:
+            self.store = store
+        else:
+            self.store = self.strategy.datas[0].store
+        self.debug = self.store.debug
+        self.startingcash = self.store.get_cash()
+        self.startingvalue = self.store.get_value()
+        self.log("init store success, debug = {}".format(self.debug))
+
+    def init_broker_mapping(self, broker_mapping):
         if broker_mapping is not None:
             try:
                 self.order_types = broker_mapping['order_types']
@@ -100,43 +126,32 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
                 self.mappings = broker_mapping['mappings']
             except KeyError:  # might not want to change the mappings
                 pass
-        if store is not None:
-            self.store = store
-        else:
-            self.store = self.strategy.datas[0].store
-        self.positions = collections.defaultdict(Position)
 
-        self.debug = debug
-        self.indent = 4  # For pretty printing dictionaries
+    def init_logger(self):
+        logger = SpdLogManager(file_name=self.__class__.__name__,
+                               logger_name="crypto_broker",
+                               print_info=True).create_logger()
+        return logger
 
-        self.notifs = queue.Queue()  # holds orders which are notified
-
-        self.open_orders = list()
-
-        self.startingcash = self.store._cash
-        self.startingvalue = self.store._value
-
-        self._last_op_time = 0
+    def log(self, txt):
+        self.logger.info(txt)
 
     def get_balance(self):
         self.store.update_balance()
-        self.cash = self.store._cash
-        self.value = self.store._value
+        self.cash = self.store.get_cash()
+        self.value = self.store.get_value()
         return self.cash, self.value
 
     def get_wallet_balance(self, currency_list):
         return self.store.get_wallet_balance(currency_list)
 
     def getcash(self):
-        # Get cash seems to always be called before get value
-        # Therefore it makes sense to add getbalance here.
-        # return self.store.getcash(self.currency)
-        self.cash = self.store._cash
+        self.cash = self.store.get_cash()
         return self.cash
 
     def getvalue(self, datas=None):
         # return self.store.getvalue(self.currency)
-        self.value = self.store._value
+        self.value = self.store.get_value()
         return self.value
 
     def get_notification(self):
@@ -156,8 +171,10 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         return pos
 
     def next(self):
-        if self.debug:
-            print('Broker next() called')
+        # if self.debug:
+        #     self.log('Broker next() called, debug = {}'.format(self.debug))
+        # self.store.update_balance()
+        # print("broker next() called debug = {}".format(self.debug))
         # ===========================================
         # 每隔3秒操作一下
         nts = datetime.now().timestamp()
@@ -317,28 +334,3 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
 
     def get_orders_open(self, safe=False):
         return self.store.fetch_open_orders()
-
-    def private_end_point(self, type, endpoint, params):
-        """
-        Open method to allow calls to be made to any private end point.
-        See here: https://github.com/ccxt/ccxt/wiki/Manual#implicit-api-methods
-
-        - type: String, 'Get', 'Post','Put' or 'Delete'.
-        - endpoint = String containing the endpoint address e.g. 'order/{id}/cancel'
-        - Params: Dict: An implicit method takes a dictionary of parameters, sends
-          the request to the exchange and returns an exchange-specific JSON
-          result from the API as is, unparsed.
-
-        To get a list of all available methods with an exchange instance,
-        including implicit methods and unified methods you can simply do the
-        following:
-
-        print(dir(ccxt.hitbtc()))
-        """
-        endpoint_str = endpoint.replace('/', '_')
-        endpoint_str = endpoint_str.replace('{', '')
-        endpoint_str = endpoint_str.replace('}', '')
-
-        method_str = 'private_' + type.lower() + endpoint_str.lower()
-
-        return self.store.private_end_point(type=type, endpoint=method_str, params=params)
