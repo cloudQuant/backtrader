@@ -19,6 +19,8 @@ if [ $? -ne 0 ]; then
     handle_error "Failed to install dependencies. Please check the requirements.txt file."
 fi
 
+echo "git pull new code"
+git pull
 # Switch to the parent directory
 echo "Switching to the parent directory..."
 cd ..

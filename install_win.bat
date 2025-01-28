@@ -14,7 +14,8 @@ IF %ERRORLEVEL% NEQ 0 (
     echo Failed to install dependencies. Please check the requirements.txt file.
     exit /b 1
 )
-
+echo git pull new code
+git pull
 :: Switch to the parent directory
 echo Switching to the parent directory...
 cd ..
