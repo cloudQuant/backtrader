@@ -8,6 +8,7 @@ import backtrader as bt
 from backtrader.store import MetaSingleton
 from backtrader.metabase import MetaParams
 from backtrader.utils.py3 import with_metaclass
+from bt_api_py.functions.log_message import SpdLogManager
 
 
 class CryptoStore(with_metaclass(MetaSingleton, object)):
@@ -26,22 +27,46 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         return cls.BrokerCls(*args, **kwargs)
 
-    def __init__(self, **kwargs):
-        self.exchange = kwargs['exchange']
-        self.asset_type = kwargs['asset_type']
-        self.currency = kwargs['currency']
+    def __init__(self, exchange, asset_type, symbol, debug=False, currency="USDT", **kwargs):
+        self.exchange = exchange
+        self.asset_type = asset_type
+        self.symbol = symbol
+        self.currency = currency
         self.kwargs = kwargs
         self.data_queue = queue.Queue()
         self.feed = None
-        self.debug = kwargs['debug']
+        self.debug = debug
         self._cash = 0
         self._value = 0
-        self.init_feed(**kwargs)
+        self.logger = self.init_logger()
+        self.init_feed(exchange, asset_type, **kwargs)
         self.update_balance()
 
-    def init_feed(self, **kwargs):
-        exchange = kwargs['exchange']
-        asset_type = kwargs['asset_type']
+
+    def init_logger(self):
+        if self.debug:
+            print_info = True
+        else:
+            print_info = False
+        logger = SpdLogManager(file_name='cryptofeed.log',
+                               logger_name="feed",
+                               print_info=print_info).create_logger()
+        return logger
+
+    def log(self, txt, level="info"):
+        if level == "info":
+            self.logger.info(txt)
+        elif level == "warning":
+            self.logger.warning(txt)
+        elif level == "error":
+            self.logger.error(txt)
+        elif level == "debug":
+            self.logger.debug(txt)
+        else:
+            pass
+
+
+    def init_feed(self, exchange, asset_type, **kwargs):
         if exchange == "binance" and asset_type == "swap":
             self.init_binance_swap_feed(**kwargs)
 
@@ -53,8 +78,6 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
 
         if exchange == "okx" and asset_type == "swap":
             self.init_okx_swap_feed(**kwargs)
-
-        print(f"init {exchange}, {asset_type} feed success")
 
 
     def init_binance_swap_feed(self, **kwargs):
@@ -239,7 +262,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
             # 如果没有开始时间，只传入 count，获取最近 count 条数据
             data = self.feed.get_kline(symbol, period, count, extra_data=extra_data)
             self.push_bar_data_to_queue(data)
-            print(f"下载完成: {symbol}, 最近 {count} 条数据")
+            self.log(f"download completely: {symbol}, new {count} bar")
             return
 
         if begin_time is not None:
@@ -265,7 +288,8 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                         symbol, period, start_time=begin_stamp, end_time=end_stamp, extra_data=extra_data
                     )
                     self.push_bar_data_to_queue(data)
-                    print(f"下载成功: {symbol}, period: {period}, 开始时间: {begin_time}, 结束时间: {current_end_time}")
+                    print(f"download successfully: {symbol}, period: {period}, "
+                          f"begin: {begin_time}, end: {current_end_time}")
 
                     # 更新开始时间
                     begin_time = current_end_time
@@ -274,10 +298,10 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     if begin_time >= stop_time:
                         break
                 except Exception as e:
-                    print(f"下载失败，重试中: {e}")
+                    print(f"download fail, retry: {e}")
                     time.sleep(3)  # 暂停 3 秒后重试
 
-            print(f"下载完成: {symbol}, period: {period}")
+            print(f"download all data completely: {symbol}, period: {period}")
 
     def get_wallet_balance(self, currency_list):
         balance_data = self.feed.get_balance()
@@ -302,11 +326,9 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         balance_data = self.feed.get_balance()
         balance_data.init_data()
         account_list = balance_data.get_data()
-        print("account_list:", account_list)
         update_value_cash = False
         for account in account_list:
             account.init_data()
-            print("account:", account)
             if account.get_account_type() == self.currency:
                 self._value = account.get_margin() + account.get_unrealized_profit()
                 self._cash = account.get_available_margin()
@@ -314,7 +336,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         if not update_value_cash:
             raise f"cannot find {self.currency} balance in get_balance()"
         else:
-            print(f"当前账户的净值为{self._value},可用余额为{self._cash}")
+            self.log(f" now value is {self._value}, now cash is {self._cash}")
 
     def get_cash(self):
         return self._cash

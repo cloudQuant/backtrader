@@ -128,13 +128,26 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
                 pass
 
     def init_logger(self):
-        logger = SpdLogManager(file_name=self.__class__.__name__,
-                               logger_name="crypto_broker",
-                               print_info=True).create_logger()
+        if self.debug:
+            print_info = True
+        else:
+            print_info = False
+        logger = SpdLogManager(file_name='cryptofeed.log',
+                               logger_name="feed",
+                               print_info=print_info).create_logger()
         return logger
 
-    def log(self, txt):
-        self.logger.info(txt)
+    def log(self, txt, level="info"):
+        if level == "info":
+            self.logger.info(txt)
+        elif level == "warning":
+            self.logger.warning(txt)
+        elif level == "error":
+            self.logger.error(txt)
+        elif level == "debug":
+            self.logger.debug(txt)
+        else:
+            pass
 
     def get_balance(self):
         self.store.update_balance()
@@ -171,17 +184,17 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         return pos
 
     def next(self):
+        # if self.debug:
+        #     self.log('Broker next() called, debug = {}'.format(self.debug))
         # self.store.update_balance()
         # print("broker next() called debug = {}".format(self.debug))
         # ===========================================
-        # 每隔3秒操作一下, 减少轮询的次数
+        # 每隔3秒操作一下
         nts = datetime.now().timestamp()
         if nts - self._last_op_time < 3:
             return
         self._last_op_time = nts
         # ===========================================
-        if self.debug:
-            self.log('Broker next() called, debug = {}'.format(self.debug))
         self._next()
 
     def _next(self):

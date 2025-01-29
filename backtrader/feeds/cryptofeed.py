@@ -5,6 +5,7 @@ from backtrader.feed import DataBase
 from backtrader import date2num, num2date
 from backtrader.utils.py3 import queue, with_metaclass
 from backtrader.stores.cryptostore import CryptoStore
+from bt_api_py.functions.log_message import SpdLogManager
 
 
 class MetaCryptoFeed(DataBase.__class__):
@@ -65,51 +66,74 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     }
 
     def __init__(self,
-                 store,
-                 dataname=None,
-                 timeframe=None,
-                 compression=None,
-                 fromdate=None,
-                 currency="USDT",
-                 debug=False):
+                 **kwargs):
         """feed初始化的时候,先初始化store,实现与交易所对接"""
-        self.dataname = dataname
-        self.exchange, self.asset_type, self.symbol = dataname.split("__")
-        self.debug = debug
-        self.currency = currency
-        self.timeframe = timeframe
-        self.compression = compression
-        self.fromdate = fromdate
-        self.store = store
+        print("kwargs: ", kwargs)
+        self.exchange = kwargs.pop('exchange')
+        self.asset_type = kwargs.pop("asset_type")
+        self.symbol = kwargs.pop("symbol")
+        self.debug = kwargs.pop("debug")
+        self.currency = kwargs.pop("currency", "USDT")
+        self.kwargs = kwargs
+        self.logger = self.init_logger()
         self.update_kwargs()
+        self.store = self._store(self.exchange, self.asset_type, self.symbol,
+                                 self.debug, self.currency, **self.kwargs)
         self._data = self.store.data_queue  # data queue for price data
         self.bar_time = None
+        self._state = self._ST_HISTORBACK
         print("CryptoFeed init success, debug = {}".format(self.debug))
+
+
+    def init_logger(self):
+        if self.debug:
+            print_info = True
+        else:
+            print_info = False
+        logger = SpdLogManager(file_name='cryptofeed.log',
+                               logger_name="feed",
+                               print_info=print_info).create_logger()
+        return logger
+
+    def log(self, txt, level="info"):
+        if level == "info":
+            self.logger.info(txt)
+        elif level == "warning":
+            self.logger.warning(txt)
+        elif level == "error":
+            self.logger.error(txt)
+        elif level == "debug":
+            self.logger.debug(txt)
+        else:
+            pass
+
 
 
     def update_kwargs(self):
         timeframe = self.p.timeframe
         compression = self.p.compression
         period = self._GRANULARITIES[(timeframe, compression)]
-        if self.store.kwargs.get('topics', None):
-            self.store.kwargs['topics'].append({"topic": "kline", "symbol": self.symbol, "period": period})
-        else:
-            self.store.kwargs['topics'] = [{"topic": "kline", "symbol": self.symbol, "period": period}]
-        print("update kwargs successfully")
-        print(self.store.kwargs)
+        self.kwargs['topics'] = [{"topic": "kline", "symbol": self.symbol, "period": period}]
+        self.log("update kwargs successfully")
+        self.log(f"crypto_feed, {self.kwargs}")
 
 
     def start(self):
-        print("CryptoFeed begin to start")
+        self.log("CryptoFeed begin to start")
         DataBase.start(self)
         if self.p.fromdate:
-            print("begin to fetch data from fromdate")
+            self.log("begin to fetch data from fromdate")
             self._state = self._ST_HISTORBACK
             self.put_notification(self.DELAYED)
+            self.log(f"{self.notifs}")
             self._update_history_bar(self.p.fromdate)
-            print("update history bar successfully")
+            self.log(f"update history bar successfully, self._state = {self._state}")
+            # while True:
+            #     ret = self._load()
+            #     if ret is False or ret is None:
+            #         break
         else:
-            print("self.fromdate is None")
+            self.log("self.fromdate is None")
             self._state = self._ST_LIVE
             self.put_notification(self.LIVE)
 
@@ -119,6 +143,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         return False 代表K线是最新的，但是K线还没有闭合
         return None  代表当前无法从消息队列中获取数据
         """
+        # self.log(f"_load run, {self._state}")
         if self._state == self._ST_OVER:
             return False
         while True:
@@ -142,10 +167,10 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
                         continue
 
     def _update_history_bar(self, fromdate):
-        print("begin update history bar")
+        self.log("begin update history bar")
         granularity = self.get_granularity(self._timeframe, self._compression)
         self.store.download_history_bars(self.symbol, granularity, count=100, start_time=fromdate, end_time=None)
-        print("update history bar successfully")
+        self.log("update history bar successfully")
 
     def _load_bar(self):
         try:
@@ -174,11 +199,8 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         epoch = datetime(1970, 1, 1)
         return int((fromdate - epoch).total_seconds() * 1000)
 
-    def haslivedata(self):
-        return self._state == self._ST_LIVE and not self._data.empty()
-
     def islive(self):
-        return not self.p.historical
+        return self._state == self._ST_LIVE
 
     def get_granularity(self, timeframe, compression):
         granularity = self._GRANULARITIES.get((timeframe, compression))
@@ -186,4 +208,5 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
             raise ValueError("backtrader bt_api_py module doesn't support fetching OHLCV "
                              "data for time frame %s, compression %s" % \
                              (bt.TimeFrame.getname(timeframe), compression))
+
         return granularity
