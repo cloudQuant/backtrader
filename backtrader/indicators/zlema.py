@@ -24,7 +24,7 @@ from . import Indicator, MovingAverageBase, MovAv
 class ZeroLagExponentialMovingAverage(MovingAverageBase):
     """
     The zero-lag exponential moving average (ZLEMA) is a variation of the EMA
-    which adds a momentum term aiming to reduce lag in the average so as to
+    which adds a momentum term aiming to reduce lag in the average to
     track current prices more closely.
 
     Formula:

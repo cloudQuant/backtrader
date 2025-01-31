@@ -26,9 +26,9 @@ from . import MovingAverageBase, MovAv
 class HullMovingAverage(MovingAverageBase):
     """By Alan Hull
 
-    The Hull Moving Average solves the age old dilemma of making a moving
+    The Hull Moving Average solves the age-old dilemma of making a moving
     average more responsive to current price activity whilst maintaining curve
-    smoothness. In fact the HMA almost eliminates lag altogether and manages to
+    smoothness. In fact, the HMA almost eliminates lag altogether and manages to
     improve smoothing at the same time.
 
     Formula:
@@ -40,10 +40,10 @@ class HullMovingAverage(MovingAverageBase):
     Note:
 
       - Please note that the final minimum period is not the period passed with
-        the parameter ``period``. A final moving average on moving average is
+        the parameter `period`. A final moving average on moving average is
         done in which the period is the *square root* of the original.
 
-        In the default case of ``30`` the final minimum period before the
+        In the default case of `30`, the final minimum period before the
         moving average produces a non-NAN value is ``34``
     """
     alias = ('HMA', 'HullMA',)

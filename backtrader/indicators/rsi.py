@@ -31,7 +31,7 @@ class UpDay(Indicator):
     higher than the day before.
 
     Formula:
-      - upday = max(close - close_prev, 0)
+      - upday = max (close - close_prev, 0)
 
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
@@ -139,14 +139,14 @@ class RelativeStrengthIndex(Indicator):
       - http://en.wikipedia.org/wiki/Relative_strength_index
 
     Notes:
-      - ``safediv`` (default: False) If this parameter is True the division
+      - ``safediv`` (default: False) If this parameter is True, the division
         rs = maup / madown will be checked for the special cases in which a
         ``0 / 0`` or ``x / 0`` division will happen
 
       - ``safehigh`` (default: 100.0) will be used as RSI value for the
         ``x / 0`` case
 
-      - ``safelow``  (default: 50.0) will be used as RSI value for the
+      - ``safelow`` (default: 50.0) will be used as RSI value for the
         ``0 / 0`` case
     """
     alias = ('RSI', 'RSI_SMMA', 'RSI_Wilder',)
@@ -195,6 +195,7 @@ class RelativeStrengthIndex(Indicator):
 
         return rs
 
+RSI = RelativeStrengthIndex
 
 class RSI_Safe(RSI):
     """
@@ -227,3 +228,4 @@ class RSI_EMA(RSI):
       - http://en.wikipedia.org/wiki/Relative_strength_index
     """
     params = (('movav', MovAv.Exponential),)
+

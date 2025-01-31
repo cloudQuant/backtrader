@@ -27,13 +27,13 @@ class Ichimoku(bt.Indicator):
     Developed and published in his book in 1969 by journalist Goichi Hosoda
 
     Formula:
-      - tenkan_sen = (Highest(High, tenkan) + Lowest(Low, tenkan)) / 2.0
-      - kijun_sen = (Highest(High, kijun) + Lowest(Low, kijun)) / 2.0
+      - tenkan_sen = (Highest (High, tenkan) + Lowest (Low, tenkan)) / 2.0
+      - kijun_sen = (Highest (High, kijun) + Lowest (Low, kijun)) / 2.0
 
       The next 2 are pushed 26 bars into the future
 
       - senkou_span_a = (tenkan_sen + kijun_sen) / 2.0
-      - senkou_span_b = ((Highest(High, senkou) + Lowest(Low, senkou)) / 2.0
+      - senkou_span_b = ((Highest (High, senkou) + Lowest (Low, senkou)) / 2.0
 
       This is pushed 26 bars into the past
 

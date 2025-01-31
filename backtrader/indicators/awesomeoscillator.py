@@ -24,18 +24,17 @@ from . import MovAv
 
 __all__ = ['AwesomeOscillator', 'AwesomeOsc', 'AO']
 
-
 # AwesomeOscillator指标
 class AwesomeOscillator(bt.Indicator):
     """
     Awesome Oscillator (AO) is a momentum indicator reflecting the precise
-    changes in the market driving force which helps to identify the trend’s
+    changes in the market driving force, which helps to identify the trend’s
     strength up to the points of formation and reversal.
 
 
     Formula:
      - median price = (high + low) / 2
-     - AO = SMA(median price, 5)- SMA(median price, 34)
+     - AO = SMA (median price, 5)- SMA (median price, 34)
 
     See:
       - https://www.metatrader5.com/en/terminal/help/indicators/bw_indicators/awesome
@@ -67,3 +66,5 @@ class AwesomeOscillator(bt.Indicator):
         self.l.ao = sma1 - sma2
         # super
         super(AwesomeOscillator, self).__init__()
+
+AwesomeOsc = AO = AwesomeOscillator

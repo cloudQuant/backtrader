@@ -33,7 +33,7 @@ class KnowSureThing(bt.Indicator):
       - rcma3 = MovAv(roc100(rp3), period)
       - rcma4 = MovAv(roc100(rp4), period)
 
-      - kst = 1.0 * rcma1 + 2.0 * rcma2 + 3.0 * rcma3 + 4.0 * rcma4
+      - Kst = 1.0 * rcma1 + 2.0 * rcma2 + 3.0 * rcma3 + 4.0 * rcma4
       - signal = MovAv(kst, speriod)
 
     See:

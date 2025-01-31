@@ -28,14 +28,14 @@ class EnvelopeMixIn(object):
     """
     MixIn class to create a subclass with another indicator. The main line of
     that indicator will be surrounded by an upper and lower band separated a
-    given "percentage“ from the input main line
+    given "percentage" from the input main line
 
     The usage is:
 
       - Class XXXEnvelope(XXX, EnvelopeMixIn)
 
     Formula:
-      - 'line' (inherited from XXX))
+      - 'line' (inherited from XXX)
       - top = 'line' * (1 + perc)
       - bot = 'line' * (1 - perc)
 
@@ -47,7 +47,7 @@ class EnvelopeMixIn(object):
     plotlines = dict(top=dict(_samecolor=True), bot=dict(_samecolor=True),)
 
     def __init__(self):
-        # Mix-in & directly from object -> does not necessarily need super
+        # Mix-in and directly from object -> does not necessarily need super
         # super(EnvelopeMixIn, self).__init__()
         perc = self.p.perc / 100.0
 
@@ -73,7 +73,7 @@ class _EnvelopeBase(Indicator):
 
 class Envelope(_EnvelopeBase, EnvelopeMixIn):
     """
-    It creates envelopes bands separated from the source data by a given
+    It creates envelope bands separated from the source data by a given
     percentage
 
     Formula:

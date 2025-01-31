@@ -30,7 +30,7 @@ class SmoothedMovingAverage(MovingAverageBase):
 
       - new_value = (old_value * (period - 1) + new_data) / period
 
-    Can be expressed as a SmoothingMovingAverage with the following factors:
+    It Can be expressed as a SmoothingMovingAverage with the following factors:
 
       - self.smfactor -> 1.0 / period
       - self.smfactor1 -> `1.0 - self.smfactor`

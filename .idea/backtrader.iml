@@ -6,4 +6,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="bt_api_py" />
   </component>
+  <component name="PackageRequirementsSettings">
+    <option name="versionSpecifier" value="不指定版本" />
+  </component>
 </module>

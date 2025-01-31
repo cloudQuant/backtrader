@@ -24,7 +24,8 @@ from . import Indicator, CmpEx
 class PivotPoint(Indicator):
     """
     Defines a level of significance by taking into account the average of price
-    bar components of the past period of a larger timeframe. For example when
+    bar components of the past period of a larger timeframe.
+    For example, when
     operating with days, the values are taking from the already "past" month
     fixed prices.
 
@@ -36,20 +37,22 @@ class PivotPoint(Indicator):
 
     In the ``__init__`` method of the strategy:
 
-      pivotindicator = btind.PivotPoiont(self.data1)  # the resampled data
+      pivotindicator = btind.PivotPoiont(self.data1) # the resampled data
 
-    The indicator will try to automatically plo to the non-resampled data. To
-    disable this behavior use the following during construction:
+    The indicator will try to automatically plo to the non-resampled data.
+    To
+    disable this behavior, use the following during construction:
 
       - _autoplot=False
 
     Note:
 
       The example shows *days* and *months*, but any combination of timeframes
-      can be used. See the literature for recommended combinations
+      can be used.
+      See the literature for recommended combinations
 
     Formula:
-      - pivot = (h + l + c) / 3  # variants duplicate close or add open
+      - pivot = (h + l + c) / 3 # variants duplicate close or add open
       - support1 = 2.0 * pivot - high
       - support2 = pivot - (high - low)
       - resistance1 = 2.0 * pivot - low
@@ -97,13 +100,14 @@ class PivotPoint(Indicator):
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
-            self()  # Coupler to follow real object
+            self()  # Coupler to follow a real object
 
 
 class FibonacciPivotPoint(Indicator):
     """
     Defines a level of significance by taking into account the average of price
-    bar components of the past period of a larger timeframe. For example when
+    bar components of the past period of a larger timeframe.
+    For example, when
     operating with days, the values are taking from the already "past" month
     fixed prices.
 
@@ -117,17 +121,19 @@ class FibonacciPivotPoint(Indicator):
 
     In the ``__init__`` method of the strategy:
 
-      pivotindicator = btind.FibonacciPivotPoiont(self.data1)  # the resampled data
+      pivotindicator = btind.FibonacciPivotPoiont(self.data1) # the resampled data
 
-    The indicator will try to automatically plo to the non-resampled data. To
-    disable this behavior use the following during construction:
+    The indicator will try to automatically plo to the non-resampled data.
+    To
+    disable this behavior, use the following during construction:
 
       - _autoplot=False
 
     Note:
 
       The example shows *days* and *months*, but any combination of timeframes
-      can be used. See the literature for recommended combinations
+      can be used.
+      See the literature for recommended combinations
 
     Formula:
       - pivot = (h + l + c) / 3  # variants duplicate close or add open
@@ -183,13 +189,14 @@ class FibonacciPivotPoint(Indicator):
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
-            self()  # Coupler to follow real object
+            self()  # Coupler to follow a real object
 
 
 class DemarkPivotPoint(Indicator):
     """
     Defines a level of significance by taking into account the average of price
-    bar components of the past period of a larger timeframe. For example when
+    bar components of the past period of a larger timeframe.
+    For example, when
     operating with days, the values are taking from the already "past" month
     fixed prices.
 
@@ -201,28 +208,30 @@ class DemarkPivotPoint(Indicator):
 
     In the ``__init__`` method of the strategy:
 
-      pivotindicator = btind.DemarkPivotPoiont(self.data1)  # the resampled data
+      pivotindicator = btind.DemarkPivotPoiont(self.data1) # the resampled data
 
-    The indicator will try to automatically plo to the non-resampled data. To
-    disable this behavior use the following during construction:
+    The indicator will try to automatically plo to the non-resampled data.
+    To
+    disable this behavior, use the following during construction:
 
       - _autoplot=False
 
     Note:
 
       The example shows *days* and *months*, but any combination of timeframes
-      can be used. See the literature for recommended combinations
+      can be used.
+      See the literature for recommended combinations
 
     Formula:
       - if close < open x = high + (2 x low) + close
 
-      - if close > open x = (2 x high) + low + close
+      - If close > open x = (2 x high) + low + close
 
-      - if Close == open x = high + low + (2 x close)
+      - If Close == open x = high + low + (2 x close)
 
-      - p = x / 4
+      - P = x / 4
 
-      - support1 = x / 2 - high
+      - Support1 = x / 2 - high
       - resistance1 = x / 2 - low
 
     See:
@@ -260,4 +269,4 @@ class DemarkPivotPoint(Indicator):
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
-            self()  # Coupler to follow real object
+            self()  # Coupler to follow a real object

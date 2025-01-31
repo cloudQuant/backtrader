@@ -18,8 +18,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+import pandas as pd
+import statsmodels.api as sm
 import backtrader as bt
 from . import PeriodN
+from statsmodels.tsa.stattools import coint
 
 
 __all__ = ['OLS_Slope_InterceptN', 'OLS_TransformationN', 'OLS_BetaN',
@@ -57,7 +60,7 @@ class OLS_Slope_InterceptN(PeriodN):
 class OLS_TransformationN(PeriodN):
     """
     Calculates the ``zscore`` for data0 and data1. Although it doesn't directly
-    uses any external package it relies on ``OLS_SlopeInterceptN`` which uses
+    use any external package, it relies on ``OLS_SlopeInterceptN`` which uses
     ``pandas`` and ``statsmodels``
     """
     _mindatas = 2  # ensure at least 2 data feeds are passed

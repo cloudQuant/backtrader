@@ -61,8 +61,8 @@ class StochasticFast(_StochasticBase):
       - It will go up if closing prices are close to the highs
       - It will roughly go down if closing prices are close to the lows
 
-    It shows divergence if the extremes keep on growing but closing prices
-    do not in the same manner (distance to the extremes grow)
+    It shows divergence if the extremes keep on growing, but closing prices
+    do not in the same manner (distance to the extremes grows)
 
     Formula:
       - hh = highest(data.high, period)
@@ -87,7 +87,7 @@ class Stochastic(_StochasticBase):
     thus:
 
       - The percD line of the StochasticFast becomes the percK line
-      - percD becomes a  moving average of period_dslow of the original percD
+      - percD becomes a moving average of period_dslow of the original percD
 
     Formula:
       - k = k

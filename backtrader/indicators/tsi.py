@@ -29,7 +29,7 @@ class TrueStrengthIndicator(bt.Indicator):
     exponential (default) of the prices.
 
     It shows divergence if the extremes keep on growign but closing prices
-    do not in the same manner (distance to the extremes grow)
+    do not in the same manner (distance to the extremes grows)
 
     Formula:
       - price_change = close - close(pchange periods ago)
@@ -44,8 +44,8 @@ class TrueStrengthIndicator(bt.Indicator):
 
     Params
 
-      - ``period1``: the period for the 1st smoothing
-      - ``period2``: the period for the 2nd smoothing
+      - ``period1``: the period for the first smoothing
+      - ``period2``: the period for the second smoothing
       - ``pchange``: the lookback period for the price change
       - ``_movav``: the moving average to apply for the smoothing
     """

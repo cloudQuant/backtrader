@@ -22,14 +22,14 @@ import backtrader as bt
 from . import MovAv
 
 
-__all__ = ['haDelta', 'haD']
+__all__ = ['HaDelta', 'haD']
 
-# haDelta指标
-class haDelta(bt.Indicator):
+# HaDelta指标
+class HaDelta(bt.Indicator):
     """Heikin Ashi Delta. Defined by Dan Valcu in his book "Heikin-Ashi: How to
     Trade Without Candlestick Patterns ".
 
-    This indicator measures difference between Heikin Ashi close and open of
+    This indicator measures the difference between Heikin Ashi close and open of
     Heikin Ashi candles, the body of the candle.
 
     To get signals add haDelta smoothed by 3 period moving average.
@@ -38,7 +38,7 @@ class haDelta(bt.Indicator):
     passed by the Heikin Ahsi filter.
 
     Formula:
-      - haDelta = Heikin Ashi close - Heikin Ashi open
+      - HaDelta = Heikin Ashi close - Heikin Ashi open
       - smoothed = movav(haDelta, period)
 
     """
@@ -64,4 +64,6 @@ class haDelta(bt.Indicator):
 
         self.lines.haDelta = hd = d.close - d.open
         self.lines.smoothed = self.p.movav(hd, period=self.p.period)
-        super(haDelta, self).__init__()
+        super(HaDelta, self).__init__()
+
+haD = HaDelta

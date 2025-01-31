@@ -24,10 +24,10 @@ from . import Indicator, MovingAverageBase, MovAv
 class DoubleExponentialMovingAverage(MovingAverageBase):
     """
     DEMA was first time introduced in 1994, in the article "Smoothing Data with
-    Faster Moving Averages" by Patrick G. Mulloy in "Technical Analysis of
+    Faster-Moving Averages" by Patrick G. Mulloy in "Technical Analysis of
     Stocks & Commodities" magazine.
 
-    It attempts to reduce the inherent lag associated to Moving Averages
+    It attempts to reduce the inherent lag associated with Moving Averages
 
     Formula:
       - dema = (2.0 - ema(data, period) - ema(ema(data, period), period)
@@ -51,10 +51,10 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
 class TripleExponentialMovingAverage(MovingAverageBase):
     """
     TEMA was first time introduced in 1994, in the article "Smoothing Data with
-    Faster Moving Averages" by Patrick G. Mulloy in "Technical Analysis of
+    Faster-Moving Averages" by Patrick G. Mulloy in "Technical Analysis of
     Stocks & Commodities" magazine.
 
-    It attempts to reduce the inherent lag associated to Moving Averages
+    It attempts to reduce the inherent lag associated with Moving Averages
 
     Formula:
       - ema1 = ema(data, period)

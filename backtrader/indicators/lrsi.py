@@ -29,7 +29,7 @@ class LaguerreRSI(PeriodN):
     Defined by John F. Ehlers in `Cybernetic Analysis for Stock and Futures`,
     2004, published by Wiley. `ISBN: 978-0-471-46307-8`
 
-    The Laguerre RSI tries to implements a better RSI by providing a sort of
+    The Laguerre RSI tries to implement a better RSI by providing a sort of
     *Time Warp without Time Travel* using a Laguerre filter. This provides for
     faster reactions to price changes
 
@@ -108,3 +108,6 @@ class LaguerreFilter(PeriodN):
         self.l2 = l2 = -g * l1 + l1_1 + g * l2_1
         self.l3 = l3 = -g * l2 + l2_1 + g * self.l3
         self.lines.lfilter[0] = (l0 + (2 * l1) + (2 * l2) + l3) / 6
+
+LRSI = LaguerreRSI
+LAGF = LaguerreFilter

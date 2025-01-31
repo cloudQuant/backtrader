@@ -43,7 +43,7 @@ class ZeroLagIndicator(MovingAverageBase):
       - The default moving average is EMA, but can be changed with the
         parameter ``_movav``
 
-        .. note:: the passed moving average must calculate alpha (and 1 -
+        ::note:: the passed moving average must calculate alpha (and 1 -
                   alpha) and make them available as attributes ``alpha`` and
                   ``alpha1`` in the instance
 

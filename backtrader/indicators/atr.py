@@ -30,7 +30,7 @@ class TrueHigh(Indicator):
     yesterday's close
 
     Formula:
-      - truehigh = max(high, close_prev)
+      - truehigh = max (high, close_prev)
 
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
@@ -51,7 +51,7 @@ class TrueLow(Indicator):
     yesterday's close
 
     Formula:
-      - truelow = min(low, close_prev)
+      - truelow = min (low, close_prev)
 
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
@@ -69,11 +69,11 @@ class TrueRange(Indicator):
     Technical Trading Systems.
 
     Formula:
-      - max(high - low, abs(high - prev_close), abs(prev_close - low)
+      - max(high - low, abs (high - prev_close), abs(prev_close - low)
 
-      which can be simplified to
+      Which can be simplified to
 
-      - max(high, prev_close) - min(low, prev_close)
+      - Max(high, prev_close) - min(low, prev_close)
 
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
@@ -117,3 +117,7 @@ class AverageTrueRange(Indicator):
     def __init__(self):
         self.lines.atr = self.p.movav(TR(self.data), period=self.p.period)
         super(AverageTrueRange, self).__init__()
+
+
+TR = TrueRange
+ATR = AverageTrueRange

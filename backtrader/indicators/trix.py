@@ -59,7 +59,7 @@ class Trix(Indicator):
         ema2 = self.p._movav(ema1, period=self.p.period)
         ema3 = self.p._movav(ema2, period=self.p.period)
 
-        # 1 period Percentage Rate of Change
+        # 1-period Percentage Rate of Change
         self.lines.trix = 100.0 * (ema3 / ema3(-self.p._rocperiod) - 1.0)
 
         super(Trix, self).__init__()

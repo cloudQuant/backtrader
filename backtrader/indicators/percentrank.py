@@ -37,3 +37,5 @@ class PercentRank(BaseApplyN):
         ('period', 50),
         ('func', lambda d: fsum(x < d[-1] for x in d) / len(d)),
     )
+
+PctRank = PercentRank

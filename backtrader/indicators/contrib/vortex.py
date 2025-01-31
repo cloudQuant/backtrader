@@ -25,11 +25,11 @@ __all__ = ['Vortex']
 
 
 class Vortex(bt.Indicator):
-    '''
+    """
     See:
       - http://www.vortexindicator.com/VFX_VORTEX.PDF
 
-    '''
+    """
     lines = ('vi_plus', 'vi_minus',)
 
     params = (('period', 14),)

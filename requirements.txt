@@ -24,3 +24,6 @@ dash
 ctpbee
 akshare
 backports.tarfile
+backtrader
+bt_api_py
+statsmodels

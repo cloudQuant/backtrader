@@ -26,10 +26,10 @@ class UltimateOscillator(bt.Indicator):
     """
     Formula:
       # Buying Pressure = Close - TrueLow
-      BP = Close - Minimum(Low or Prior Close)
+      BP = Close - Minimum (Low or Prior Close)
 
       # TrueRange = TrueHigh - TrueLow
-      TR = Maximum(High or Prior Close)  -  Minimum(Low or Prior Close)
+      TR = Maximum (High or Prior Close) - Minimum (Low or Prior Close)
 
       Average7 = (7-period BP Sum) / (7-period TR Sum)
       Average14 = (14-period BP Sum) / (14-period TR Sum)

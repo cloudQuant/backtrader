@@ -37,11 +37,10 @@ class DicksonMovingAverage(MovingAverageBase):
       - The default moving average for the *ZeroLagIndicator* is EMA, but can
         be changed with the parameter ``_movav``
 
-        .. note:: the passed moving average must calculate alpha (and 1 -
-                  alpha) and make them available as attributes ``alpha`` and
-                  ``alpha1``
+        ::note:: the passed moving average must calculate alpha (and 1 - alpha)
+                and make them available as attributes ``alpha`` and ``alpha1``
 
-      - The 2nd moving averag can be changed from *Hull* to anything else with
+      - The second moving average can be changed from *Hull* to anything else with
         the param *_hma*
 
     See also:

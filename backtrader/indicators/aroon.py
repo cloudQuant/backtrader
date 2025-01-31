@@ -70,15 +70,16 @@ class AroonUp(_AroonBase):
     Chande in 1995.
 
     Formula:
-      - up = 100 * (period - distance to highest high) / period
+      - up = 100 * (period - distance to the highest high) / period
 
     Note:
       The lines oscillate between 0 and 100. That means that the "distance" to
       the last highest or lowest must go from 0 to period so that the formula
       can yield 0 and 100.
 
-      Hence the lookback period is period + 1, because the current bar is also
-      taken into account. And therefore this indicator needs an effective
+      Hence, the lookback period is period + 1, because the current bar is also
+      taken into account.
+      And therefore, this indicator needs an effective
       lookback period of period + 1.
 
     See:
@@ -100,15 +101,16 @@ class AroonDown(_AroonBase):
     Chande in 1995.
 
     Formula:
-      - down = 100 * (period - distance to lowest low) / period
+      - down = 100 * (period - distance to the lowest low) / period
 
     Note:
       The lines oscillate between 0 and 100. That means that the "distance" to
       the last highest or lowest must go from 0 to period so that the formula
       can yield 0 and 100.
 
-      Hence the lookback period is period + 1, because the current bar is also
-      taken into account. And therefore this indicator needs an effective
+      Hence, the lookback period is period + 1, because the current bar is also
+      taken into account.
+      And therefore, this indicator needs an effective
       lookback period of period + 1.
 
     See:
@@ -132,16 +134,17 @@ class AroonUpDown(AroonUp, AroonDown):
     within a given period the last highs/lows are (AroonUp/AroonDown)
 
     Formula:
-      - up = 100 * (period - distance to highest high) / period
-      - down = 100 * (period - distance to lowest low) / period
+      - up = 100 * (period - distance to the highest high) / period
+      - down = 100 * (period - distance to the lowest low) / period
 
     Note:
       The lines oscillate between 0 and 100. That means that the "distance" to
       the last highest or lowest must go from 0 to period so that the formula
       can yield 0 and 100.
 
-      Hence the lookback period is period + 1, because the current bar is also
-      taken into account. And therefore this indicator needs an effective
+      Hence, the lookback period is period + 1, because the current bar is also
+      taken into account.
+      And therefore, this indicator needs an effective
       lookback period of period + 1.
 
     See:
@@ -187,7 +190,7 @@ class AroonUpDownOscillator(AroonUpDown, AroonOscillator):
     Presents together the indicators AroonUpDown and AroonOsc
 
     Formula:
-      (None, uses the aforementioned indicators)
+      (None uses the aforementioned indicators)
 
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:aroon

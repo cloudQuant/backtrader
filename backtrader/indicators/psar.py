@@ -45,10 +45,10 @@ class ParabolicSAR(PeriodN):
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the RSI
 
-    SAR stands for *Stop and Reverse* and the indicator was meant as a signal
+    SAR stands for *Stop and Reverse*, and the indicator was meant as a signal
     for entry (and reverse)
 
-    How to select the 1st signal is left unspecified in the book and the
+    How to select the first signal is left unspecified in the book and the
     increase/decrease of bars
 
     See:
@@ -69,6 +69,10 @@ class ParabolicSAR(PeriodN):
             marker='.', markersize=4.0, color='black', fillstyle='full', ls=''
         ),
     )
+
+    def __init__(self):
+        super().__init__()
+        self._status = None
 
     def prenext(self):
         if len(self) == 1:
@@ -168,3 +172,5 @@ class ParabolicSAR(PeriodN):
         newstatus.sar = sar
         newstatus.ep = ep
         newstatus.af = af
+
+PSAR = ParabolicSAR

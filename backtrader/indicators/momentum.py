@@ -57,7 +57,7 @@ class MomentumOscillator(Indicator):
     # Named output lines
     lines = ('momosc',)
 
-    # Accepted parameters (and defaults) -
+    # Accepted parameters (and defaults)
     params = (('period', 12),
               ('band', 100.0))
 
@@ -88,7 +88,7 @@ class RateOfChange(Indicator):
     # Named output lines
     lines = ('roc',)
 
-    # Accepted parameters (and defaults) -
+    # Accepted parameters (and defaults)
     params = (('period', 12),)
 
     def __init__(self):
@@ -101,7 +101,7 @@ class RateOfChange100(Indicator):
     """
     Measures the ratio of change in prices over a period with base 100
 
-    This is for example how ROC is defined in stockcharts
+    This is, for example, how ROC is defined in stockcharts
 
     Formula:
       - roc = 100 * (data - data_period) / data_period
@@ -121,3 +121,7 @@ class RateOfChange100(Indicator):
     def __init__(self):
         self.l.roc100 = 100.0 * ROC(self.data, period=self.p.period)
         super(RateOfChange100, self).__init__()
+
+
+ROC = RateOfChange
+ROC100 = RateOfChange100

@@ -54,19 +54,19 @@ class OscillatorMixIn(Indicator):
 
 class Oscillator(Indicator):
     """
-    Oscillation of a given data around another data
+    Oscillation of given data around another data
 
     Datas:
-      This indicator can accept 1 or 2 datas for the calculation.
+      This indicator can accept one or two data for the calculation.
 
-      - If 1 data is provided, it must be a complex "Lines" object (indicator)
-        which also has "datas". Example: A moving average
+      - If one data is provided, it must be a complex "Lines" object (indicator)
+        which also has "data".Example: A moving average
 
         The calculated oscillation will be that of the Moving Average (in the
         example) around the data that was used for the average calculation
 
-      - If 2 datas are provided the calculated oscillation will be that of the
-        2nd data around the 1st data
+      - If two data are provided, the calculated oscillation will be that of the
+        second data around the first data
 
     Formula:
       - 1 data -> osc = data.data - data

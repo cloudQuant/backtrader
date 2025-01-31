@@ -31,8 +31,8 @@ class HeikinAshi(bt.Indicator):
 
     Formula:
         ha_open = (ha_open(-1) + ha_close(-1)) / 2
-        ha_high = max(hi, ha_open, ha_close)
-        ha_low = min(lo, ha_open, ha_close)
+        ha_high = max (hi, ha_open, ha_close)
+        ha_low = min (lo, ha_open, ha_close)
         ha_close = (open + high + low + close) / 4
 
     See also:

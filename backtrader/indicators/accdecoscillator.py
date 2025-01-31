@@ -29,7 +29,7 @@ class AccelerationDecelerationOscillator(bt.Indicator):
     """
     Acceleration/Deceleration Technical Indicator (AC) measures acceleration
     and deceleration of the current driving force. This indicator will change
-    direction before any changes in the driving force, which, it its turn, will
+    the direction before any changes in the driving force, which, it its turn, will
     change its direction before the price.
 
     Formula:
@@ -54,3 +54,5 @@ class AccelerationDecelerationOscillator(bt.Indicator):
         ao = AwesomeOscillator()
         self.l.accde = ao - self.p.movav(ao, period=self.p.period)
         super(AccelerationDecelerationOscillator, self).__init__()
+
+AccDeOsc = AccelerationDecelerationOscillator

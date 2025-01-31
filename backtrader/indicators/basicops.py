@@ -31,7 +31,7 @@ from . import Indicator
 class PeriodN(Indicator):
     """
     Base class for indicators which take a period (__init__ has to be called
-    either via super or explicitly)
+    either via supper or explicitly)
 
     This class has no defined lines
     """
@@ -51,7 +51,7 @@ class OperationN(PeriodN):
     logic in a callable object
 
     Note:
-      Base classes must provide a "func" attribute which is a callable
+      Base classes must provide a "func" attribute which is callable
 
     Formula:
       - line = func(data, period)
@@ -139,11 +139,11 @@ class ReduceN(OperationN):
     subclassess define
 
     Formula:
-      - reduced = reduce(function(data, period)), initializer=initializer)
+      - reduced = reduce (function(data, period)), initializer=initializer)
 
     Notes:
 
-      - In order to mimic the python ``reduce``, this indicator takes a
+      - In order to mimic the python `reduce`, this indicator takes a
         ``function`` non-named argument as the 1st argument, unlike other
         Indicators which take only named arguments
     """
@@ -181,7 +181,7 @@ class AnyN(OperationN):
     Has a value of ``True`` (stored as ``1.0`` in the lines) if *any* of the
     values in the ``period`` evaluates to non-zero (ie: ``True``)
 
-    Uses the built-in ``any`` for the calculation
+    Uses the built-in `any` for the calculation
 
     Formula:
       - anyn = any(data, period)
@@ -195,7 +195,7 @@ class AllN(OperationN):
     Has a value of ``True`` (stored as ``1.0`` in the lines) if *all* of the
     values in the ``period`` evaluates to non-zero (ie: ``True``)
 
-    Uses the built-in ``all`` for the calculation
+    Uses the built-in `all` for the calculation
 
     Formula:
       - alln = all(data, period)
@@ -497,3 +497,5 @@ class WeightedAverage(PeriodN):
         for i in range(start, end):
             data = darray[i - period + 1: i + 1]
             larray[i] = coef * math.fsum(map(operator.mul, data, weights))
+
+AverageWeighted = WeightedAverage

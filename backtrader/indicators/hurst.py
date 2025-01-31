@@ -19,7 +19,7 @@
 #
 ###############################################################################
 from . import PeriodN
-
+from numpy import *
 
 __all__ = ['HurstExponent', 'Hurst']
 
@@ -46,8 +46,7 @@ class HurstExponent(PeriodN):
       - The `lag_start` and `lag_end` values will default to be ``2`` and
         ``self.p.period / 2`` unless the parameters are specified.
 
-        Experimentation by users has also shown that values of around ``10``
-        and ``500`` produce good results
+        Experimentation by users has also shown that values of around 10 and 500 produce good results
 
     The original values (40, 2, self.p.period / 2) are kept for backwards
     compatibility
@@ -73,7 +72,7 @@ class HurstExponent(PeriodN):
 
     def __init__(self):
         super(HurstExponent, self).__init__()
-        # Prepare the lags array
+        # Prepare the lag array
         self._lag_start = lag_start = self.p.lag_start or 2
         self._lag_end = lag_end = self.p.lag_end or (self.p.period // 2)
         self.lags = asarray(range(lag_start, lag_end))
@@ -91,3 +90,6 @@ class HurstExponent(PeriodN):
 
         # Return the Hurst exponent from the polyfit output
         self.lines.hurst[0] = poly[0] * 2.0
+
+
+Hurst = HurstExponent

@@ -93,3 +93,6 @@ class MovingAverageBase(with_metaclass(MetaMovAvBase, Indicator)):
     params = (('period', 30),)
     # 默认画到主图上
     plotinfo = dict(subplot=False)
+
+
+SMA = MovingAverage

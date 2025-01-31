@@ -30,8 +30,8 @@ class AdaptiveMovingAverage(MovingAverageBase):
     is calculated from 2 ExponetialMovingAverage smoothing factors, a fast one
     and slow one.
 
-    If the market trends the value will tend to the fast ema smoothing
-    period. If the market doesn't trend it will move towards the slow EMA
+    If the market trends, the value will tend to the fast ema smoothing
+    period. If the market doesn't trend, it will move towards the slow EMA
     smoothing period.
 
     It is a subclass of SmoothingMovingAverage, overriding once to account for
@@ -39,13 +39,13 @@ class AdaptiveMovingAverage(MovingAverageBase):
 
     Formula:
       - direction = close - close_period
-      - volatility = sumN(abs(close - close_n), period)
-      - effiency_ratio = abs(direction / volatility)
+      - volatility = sumN(abs (close - close_n), period)
+      - effiency_ratio = abs (direction / volatility)
       - fast = 2 / (fast_period + 1)
       - slow = 2 / (slow_period + 1)
 
-      - smfactor = squared(efficienty_ratio * (fast - slow) + slow)
-      - smfactor1 = 1.0  - smfactor
+      - Smfactor = squared(efficienty_ratio * (fast - slow) + slow)
+      - smfactor1 = 1.0 - smfactor
 
       - The initial seed value is a SimpleMovingAverage
 

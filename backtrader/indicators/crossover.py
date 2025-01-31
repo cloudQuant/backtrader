@@ -25,7 +25,7 @@ from . import Indicator, And
 class NonZeroDifference(Indicator):
     """
     Keeps track of the difference between two data inputs skipping, memorizing
-    the last non zero value if the current difference is zero
+    the last non-zero value if the current difference is zero
 
     Formula:
       - diff = data - data1
