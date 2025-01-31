@@ -48,10 +48,10 @@ class VWR(TimeFrameAnalyzerBase):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If `None`, then the compression of the first data in the system will be
         used
 
       - ``tann`` (default: ``None``)
@@ -67,15 +67,15 @@ class VWR(TimeFrameAnalyzerBase):
 
       - ``tau`` (default: ``2.0``)
 
-        factor for the calculation (see the literature)
+        Factor for the calculation (see the literature)
 
       - ``sdev_max`` (default: ``0.20``)
 
-        max standard deviation (see the literature)
+        Max standard deviation (see the literature)
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -84,7 +84,7 @@ class VWR(TimeFrameAnalyzerBase):
 
     Methods:
 
-      - get_analysis
+      - Get_analysis
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
@@ -113,6 +113,9 @@ class VWR(TimeFrameAnalyzerBase):
     # 初始化，获取收益率
     def __init__(self):
         # Children log return analyzer
+        self._pns = None
+        self._pis = None
+        self._fundmode = None
         self._returns = Returns(timeframe=self.p.timeframe,
                                 compression=self.p.compression,
                                 tann=self.p.tann)
@@ -139,7 +142,7 @@ class VWR(TimeFrameAnalyzerBase):
         super(VWR, self).stop()
         # Check if no value has been seen after the last 'dt_over'
         # If so, there is one 'pi' out of place and a None 'pn'. Purge
-        # 如果最后一个值是None,删除最后一个元素
+        # 如果最后一个值是None, 删除最后一个元素
         if self._pns[-1] is None:
             self._pis.pop()
             self._pns.pop()
@@ -152,7 +155,7 @@ class VWR(TimeFrameAnalyzerBase):
 
         # make n 1 based in enumerate (number of periods and not index)
         # skip initial placeholders for synchronization
-        # 计算每个period的收益率(通常是每年的,然后保存到dts中)
+        # 计算每个period的收益率(通常是每年的, 然后保存到dts中)
         dts = []
         for n, pipn in enumerate(zip(self._pis, self._pns), 1):
             pi, pn = pipn
@@ -168,12 +171,12 @@ class VWR(TimeFrameAnalyzerBase):
     # fund通知
     def notify_fund(self, cash, value, fundvalue, shares):
         if not self._fundmode:
-            self._pns[-1] = value  # annotate last seen pn for current period
+            self._pns[-1] = value  # annotate last seen pn for the current period
         else:
             self._pns[-1] = fundvalue  # annotate last pn for current period
 
     def _on_dt_over(self):
-        self._pis.append(self._pns[-1])  # last pn is pi in next period
+        self._pis.append(self._pns[-1])  # the last pn is pi in the next period
         self._pns.append(None)  # placeholder for [-1] operation
 
 

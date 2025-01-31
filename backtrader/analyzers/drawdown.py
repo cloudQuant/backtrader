@@ -34,7 +34,7 @@ class DrawDown(bt.Analyzer):
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If ``None``, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -62,6 +62,11 @@ class DrawDown(bt.Analyzer):
     )
 
     # 开始，获取fundmode
+    def __init__(self):
+        self._value = None
+        self._maxvalue = None
+        self.rets = None
+
     def start(self):
         super(DrawDown, self).start()
         if self.p.fund is None:
@@ -73,7 +78,7 @@ class DrawDown(bt.Analyzer):
 
     # 创建需要分析的指标值
     def create_analysis(self):
-        self.rets = AutoOrderedDict()  # dict with . notation
+        self.rets = AutoOrderedDict()  # dict with. notation
 
         self.rets.len = 0
         self.rets.drawdown = 0.0
@@ -128,16 +133,16 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If None, then the compression of the 1st data of the system will be
         used
       - *None*
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If ``None``, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -164,6 +169,14 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
     params = (
         ('fund', None),
     )
+
+    def __init__(self):
+        self.ddlen = None
+        self.peak = None
+        self.maxddlen = None
+        self.maxdd = None
+        self.dd = None
+        self._fundmode = None
 
     def start(self):
         super(TimeDrawDown, self).start()

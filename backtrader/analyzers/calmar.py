@@ -34,7 +34,7 @@ class Calmar(bt.TimeFrameAnalyzerBase):
     Params:
 
       - ``timeframe`` (default: ``None``)
-        If ``None`` the ``timeframe`` of the 1st data in the system will be
+        If ``None`` the ``timeframe`` of the first data in the system will be
         used
 
         Pass ``TimeFrame.NoTimeFrame`` to consider the entire dataset with no
@@ -42,16 +42,16 @@ class Calmar(bt.TimeFrameAnalyzerBase):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If compression is None, then the compression of the first data in the system will be
         used
       - *None*
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If ``None``, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -82,6 +82,10 @@ class Calmar(bt.TimeFrameAnalyzerBase):
 
     # 计算最大回撤
     def __init__(self):
+        self.calmar = None
+        self._fundmode = None
+        self._values = None
+        self._mdd = None
         self._maxdd = TimeDrawDown(timeframe=self.p.timeframe,
                                    compression=self.p.compression)
 

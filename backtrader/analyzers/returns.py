@@ -25,7 +25,8 @@ from backtrader import TimeFrameAnalyzerBase
 
 # 使用对数方法计算总的，平均，复合和年化收益率
 class Returns(TimeFrameAnalyzerBase):
-    """Total, Average, Compound and Annualized Returns calculated using a
+    """
+    Total, Average, Compound and Annualized Returns calculated using a
     logarithmic approach
 
     See:
@@ -36,7 +37,7 @@ class Returns(TimeFrameAnalyzerBase):
 
       - ``timeframe`` (default: ``None``)
 
-        If ``None`` the ``timeframe`` of the 1st data in the system will be
+        If ``None`` the `timeframe` of the first data in the system will be
         used
 
         Pass ``TimeFrame.NoTimeFrame`` to consider the entire dataset with no
@@ -44,15 +45,15 @@ class Returns(TimeFrameAnalyzerBase):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If `None`, then the compression of the first data in the system will be
         used
 
       - ``tann`` (default: ``None``)
 
-        Number of periods to use for the annualization (normalization) of the
+        Number of periods to use for the annualization (normalization)
 
         namely:
 
@@ -63,7 +64,7 @@ class Returns(TimeFrameAnalyzerBase):
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -99,6 +100,12 @@ class Returns(TimeFrameAnalyzerBase):
     }
 
     # 开始
+    def __init__(self):
+        self._value_end = None
+        self._tcount = None
+        self._value_start = None
+        self._fundmode = None
+
     def start(self):
         super(Returns, self).start()
         # 如果fund是None的话，_fundmode是broker的fundmode，否则就等于fund
@@ -152,7 +159,7 @@ class Returns(TimeFrameAnalyzerBase):
         else:
             self.rets['rnorm'] = rnorm = ravg
         # 百分比形式的年化收益率
-        self.rets['rnorm100'] = rnorm * 100.0  # human readable %
+        self.rets['rnorm100'] = rnorm * 100.0  # human-readable %
 
     def _on_dt_over(self):
         self._tcount += 1  # count the subperiod

@@ -28,7 +28,7 @@ from backtrader.analyzers import TimeReturn, AnnualReturn
 class SharpeRatio(Analyzer):
     # 相对来说，backtrader计算夏普率的方式其实蛮复杂的，考虑了很多的参数
     """This analyzer calculates the SharpeRatio of a strategy using a risk-free
-    asset which is simply an interest rate
+    asset, which is simply an interest rate
 
     See also:
 
@@ -36,23 +36,23 @@ class SharpeRatio(Analyzer):
 
     Params:
 
-      - ``timeframe``: (default: ``TimeFrame.Years``)  # 交易周期
+      - ``timeframe``: (default: ``TimeFrame.Years``) # 交易周期
 
-      - ``compression`` (default: ``1``)               # 具体的交易周期
+      - ``compression`` (default: ``1``) # 具体的交易周期
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-      - ``riskfreerate`` (default: 0.01 -> 1%)  # 计算夏普率使用的无风险收益率
+      - ``riskfreerate`` (default: 0.01 -> 1%) # 计算夏普率使用的无风险收益率
 
         Expressed in annual terms (see ``convertrate`` below)
 
-      - ``convertrate`` (default: ``True``)     # 是否把无风险收益率从年转化成月、周、日，不支持转化成日内
+      - ``convertrate`` (default: ``True``) # 是否把无风险收益率从年转化成月、周、日，不支持转化成日内
 
         Convert the ``riskfreerate`` from annual to monthly, weekly or daily
         rate. Sub-day conversions are not supported
 
-      - ``factor`` (default: ``None``)          # factor如果没有指定，将会按照指定的日期去转化，1年等于12个月等于52周等于252个交易日
+      - ``factor`` (default: ``None``) # factor如果没有指定，将会按照指定的日期去转化，1年等于12个月等于52周等于252个交易日
 
         If ``None``, the conversion factor for the risk-free rate from *annual*
         to the chosen timeframe will be chosen from a predefined table
@@ -61,16 +61,16 @@ class SharpeRatio(Analyzer):
 
         Else the specified value will be used
 
-      - ``annualize`` (default: ``False``)      # 如果参数设置成True的话，将会转化成年化的收益率
+      - ``annualize`` (default: ``False``) # 如果参数设置成True的话，将会转化成年化的收益率
 
-        If ``convertrate`` is ``True``, the *SharpeRatio* will be delivered in
+        If ``convertrate`` is `True`, the *SharpeRatio* will be delivered in
         the ``timeframe`` of choice.
 
-        In most occasions the SharpeRatio is delivered in annualized form.
+        On most occasions, the SharpeRatio is delivered in annualized form.
         Convert the ``riskfreerate`` from annual to monthly, weekly or daily
         rate. Sub-day conversions are not supported
 
-      - ``stddev_sample`` (default: ``False``)  # 计算标准差的时候是否减去1
+      - ``stddev_sample`` (default: ``False``) # 计算标准差的时候是否减去1
 
         If this is set to ``True`` the *standard deviation* will be calculated
         decreasing the denominator in the mean by ``1``. This is used when
@@ -78,7 +78,7 @@ class SharpeRatio(Analyzer):
         samples are used for the calculation. This is known as the *Bessels'
         correction*
 
-      - ``daysfactor`` (default: ``None``)   # 旧的代码遗留
+      - ``daysfactor`` (default: ``None``) # 旧的代码遗留
 
         Old naming for ``factor``. If set to anything else than ``None`` and
         the ``timeframe`` is ``TimeFrame.Days`` it will be assumed this is old
@@ -87,11 +87,11 @@ class SharpeRatio(Analyzer):
       - ``legacyannual`` (default: ``False``) # 仅仅作用于年，使用年化收益率的分析器
 
         Use the ``AnnualReturn`` return analyzer, which as the name implies
-        only works on years
+        only works for years
 
-      - ``fund`` (default: ``None``)   # 是净资产模式还是fund模式，默认情况下，将会自己判断
+      - ``fund`` (default: ``None``) # 是净资产模式还是fund模式，默认情况下，将会自己判断
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -100,7 +100,7 @@ class SharpeRatio(Analyzer):
 
     Methods:
 
-      - get_analysis
+      - Get_analysis
 
         Returns a dictionary with key "sharperatio" holding the ratio
 
@@ -177,7 +177,7 @@ class SharpeRatio(Analyzer):
                 # A factor was found
 
                 if self.p.convertrate:
-                    # Standard: downgrade annual returns to timeframe factor
+                    # Standard: downgrade annual returns to a timeframe factor
                     rate = pow(1.0 + rate, 1.0 / factor) - 1.0
                 else:
                     # Else upgrade returns to yearly returns
@@ -219,7 +219,7 @@ class SharpeRatioA(SharpeRatio):
     """Extension of the SharpeRatio which returns the Sharpe Ratio directly in
     annualized form
 
-    The following param has been changed from ``SharpeRatio``
+    The following param has been changed from `SharpeRatio`
 
       - ``annualize`` (default: ``True``)
 

@@ -25,30 +25,30 @@ from backtrader import Order, Position
 
 # 交易
 class Transactions(bt.Analyzer):
-    """This analyzer reports the transactions occurred with each an every data in
+    """This analyzer reports the transactions occurred with each every data in
     the system
 
-    It looks at the order execution bits to create a ``Position`` starting from
-    0 during each ``next`` cycle.
+    It looks at the order execution bits to create a `Position` starting from
+    0 during each `next` cycle.
 
     The result is used during next to record the transactions
 
     Params:
 
-      - headers (default: ``True``)
+      - Headers (default: ``True``)
 
         Add an initial key to the dictionary holding the results with the names
         of the datas
 
         This analyzer was modeled to facilitate the integration with
-        ``pyfolio`` and the header names are taken from the samples used for
+        ``pyfolio``, and the header names are taken from the samples used for
         it::
 
-          'date', 'amount', 'price', 'sid', 'symbol', 'value'
+          'Date', 'amount', 'price', 'sid', 'symbol', 'value'
 
     Methods:
 
-      - get_analysis
+      - Get_analysis
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
@@ -60,6 +60,10 @@ class Transactions(bt.Analyzer):
     )
 
     # 开始
+    def __init__(self):
+        self._idnames = None
+        self._positions = None
+
     def start(self):
         super(Transactions, self).start()
         # 如果headers等于True的话，初始化rets
@@ -74,9 +78,9 @@ class Transactions(bt.Analyzer):
     def notify_order(self, order):
         # An order could have several partial executions per cycle (unlikely
         # but possible) and therefore: collect each new execution notification
-        # and let the work for next
+        # and let the work for the next
 
-        # We use a fresh Position object for each round to get summary of what
+        # We use a fresh Position object for each round to get a summary of what
         # the execution bits have done in that round
         # 如果订单没有成交，忽略
         if order.status not in [Order.Partial, Order.Completed]:

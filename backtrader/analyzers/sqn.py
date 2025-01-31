@@ -34,7 +34,7 @@ class SQN(Analyzer):
       - 2.5 - 2.9 Good
       - 3.0 - 5.0 Excellent
       - 5.1 - 6.9 Superb
-      - 7.0 -     Holy Grail?
+      - 7.0 - Holy Grail?
 
     The formula:
 
@@ -44,7 +44,7 @@ class SQN(Analyzer):
 
     Methods:
 
-      - get_analysis
+      - Get_analysis
 
         Returns a dictionary with keys "sqn" and "trades" (number of
         considered trades)

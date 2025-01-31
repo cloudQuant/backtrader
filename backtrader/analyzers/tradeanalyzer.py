@@ -55,10 +55,10 @@ class TradeAnalyzer(Analyzer):
       The analyzer uses an autodict for the fields, which means that if no
       trades are executed, no statistics will be generated.
 
-      In that case there will be a single field/subfield in the dictionary
+      In that case, there will be a single field/subfield in the dictionary
       returned by ``get_analysis``, namely:
 
-        - dictname['total']['total'] which will have a value of 0 (the field is
+        - Dictname['total']['total'] which will have a value of 0 (the field is
           also reachable with dot notation dictname.total.total
     """
     rets = None

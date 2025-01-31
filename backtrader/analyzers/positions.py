@@ -29,21 +29,21 @@ class PositionsValue(bt.Analyzer):
     Params:
 
       - timeframe (default: ``None``)
-        If ``None`` then the timeframe of the 1st data of the system will be
+        If ``None`` then the timeframe of the first data of the system will be
         used
 
       - compression (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If `None`, then the compression of the first data in the system will be
         used
 
       - headers (default: ``False``)
 
         Add an initial key to the dictionary holding the results with the names
-        of the datas 'Datetime' as key
+        of the data 'Datetime' as a key
 
       - cash (default: ``False``)
 
@@ -64,6 +64,9 @@ class PositionsValue(bt.Analyzer):
     )
 
     # 开始
+    def __init__(self):
+        self._usedate = None
+
     def start(self):
         # 如果headers参数是True,每个data的命字作为header
         if self.p.headers:

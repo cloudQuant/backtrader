@@ -33,7 +33,7 @@ def ann_estimated_sharpe_ratio(returns=None, periods=261, *, sr=None):
         If returns are daily: 261, weekly: 52, monthly: 12, ...
 
     sr: float, `np.array`, pd.Series, pd.DataFrame
-        Sharpe ratio to be annualized, it's frequency must be coherent with `periods`
+        Sharpe ratio to be annualized, its frequency must be coherent with `periods`
 
     Returns
     -------
@@ -52,18 +52,18 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
     Parameters
     ----------
     returns: `np.array`, pd.Series, pd.DataFrame
-        If no `returns` are passed it is mandatory to pass the other 4 parameters.
+        If no `returns` are passed it is mandatory to pass the other four parameters.
 
     n: int
         Number of returns samples used for calculating `skew`, `kurtosis` and `sr`.
 
     skew: float, `np.array`, pd.Series, pd.DataFrame
         The third moment expressed in the same frequency as the other parameters.
-        `skew`=0 for normal returns.
+        `Skew`=0 for normal returns.
 
     kurtosis: float, `np.array`, pd.Series, pd.DataFrame
         The fourth moment expressed in the same frequency as the other parameters.
-        `kurtosis`=3 for normal returns.
+        `Kurtosis`=3 for normal returns.
 
     sr: float, `np.array`, pd.Series, pd.DataFrame
         Sharpe ratio expressed in the same frequency as the other parameters.
@@ -258,10 +258,10 @@ def expected_maximum_sr(trials_returns=None, expected_mean_sr=0.0, *, independen
         expressed in the same frequency as the other parameters.
         
     independent_trials: int
-        Number of independent trials, must be between 1 and `trials_returns.shape[1]`
+        Number of independent trials must be between 1 and `trials_returns.shape[1]`
         
     trials_sr_std: float
-        Standard deviation fo the Estimated sharpe ratios of all trials,
+        Standard deviation for the Estimated sharpe ratios of all trials,
         expressed in the same frequency as the other parameters.
 
     Returns

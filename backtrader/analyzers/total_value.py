@@ -8,7 +8,7 @@ class TotalValue(Analyzer):
     Params:
     Methods:
 
-      - get_analysis
+      - Get_analysis
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys

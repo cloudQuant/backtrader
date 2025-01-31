@@ -30,7 +30,7 @@ class GrossLeverage(bt.Analyzer):
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If None, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -39,7 +39,7 @@ class GrossLeverage(bt.Analyzer):
 
     Methods:
 
-      - get_analysis
+      - Get_analysis
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
@@ -50,6 +50,11 @@ class GrossLeverage(bt.Analyzer):
     )
 
     # 开始
+    def __init__(self):
+        self._value = None
+        self._cash = None
+        self._fundmode = None
+
     def start(self):
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode

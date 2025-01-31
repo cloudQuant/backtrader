@@ -28,7 +28,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
     Params:
 
       - ``timeframe`` (default: ``None``)
-        If ``None`` the ``timeframe`` of the 1st data in the system will be
+        If ``None`` the ``timeframe`` of the first data in the system will be
         used
 
         Pass ``TimeFrame.NoTimeFrame`` to consider the entire dataset with no
@@ -36,41 +36,41 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If `None`, then the compression of the first data in the system will be
         used
 
       - ``data`` (default: ``None``)
 
         Reference asset to track instead of the portfolio value.
 
-        - note:: this data must have been added to a ``cerebro`` instance with
+        - Note:: this data must have been added to a ``cerebro`` instance with
                   ``addata``, ``resampledata`` or ``replaydata``
 
       - ``firstopen`` (default: ``True``)
 
-        When tracking the returns of a ``data`` the following is done when
-        crossing a timeframe boundary, for example ``Years``:
+        When tracking the returns of `data` the following is done when
+        crossing a timeframe boundary, for example, ``Years``:
 
-          - Last ``close`` of previous year is used as the reference price to
+          - Last ``close`` the previous year is used as the reference price to
             see the return in the current year
 
-        The problem is the 1st calculation, because the data has** no
-        previous** closing price. As such and when this parameter is ``True``
-        the *opening* price will be used for the 1st calculation.
+        The problem is the first calculation, because the data has** no
+        previous** closing price.As such, and when this parameter is `True`,
+        the *opening* price will be used for the first calculation.
 
         This requires the data feed to have an ``open`` price (for ``close``
-        the standard [0] notation will be used without reference to a field
+        the standard [0] notations will be used without a reference to a field
         price)
 
         Else the initial close will be used.
-        # 计算第一个period的收益率的时候，是否使用第一个开盘价计算，如果参数是False,就会使用第一个收盘价
+        # 计算第一个period的收益率的时候，是否使用第一个开盘价计算，如果参数是False, 就会使用第一个收盘价
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -79,7 +79,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
     Methods:
 
-      - get_analysis
+      - Get_analysis
 
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
@@ -92,6 +92,12 @@ class TimeReturn(TimeFrameAnalyzerBase):
     )
 
     # 开始
+    def __init__(self):
+        self._value = None
+        self._lastvalue = None
+        self._value_start = None
+        self._fundmode = None
+
     def start(self):
         super(TimeReturn, self).start()
         if self.p.fund is None:
@@ -104,7 +110,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
         self._lastvalue = None
         # 如果参数data是None的时候
         if self.p.data is None:
-            # keep the initial portfolio value if not tracing a data
+            # keep the initial portfolio value if not tracing data
             if not self._fundmode:
                 self._lastvalue = self.strategy.broker.getvalue()
             else:
@@ -115,7 +121,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
         if not self._fundmode:
             # Record current value
             if self.p.data is None:
-                self._value = value  # the portofolio value if tracking no data
+                self._value = value  # the portfolio value if tracking no data
             else:
                 self._value = self.p.data[0]  # the data value if tracking data
         else:
