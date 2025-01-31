@@ -54,6 +54,9 @@ class PandasDirectData(feed.DataBase):
         'datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest'
     ]
     # 开始，把dataframe数据转化成可以迭代的元组，每一行一个元组
+    def __init__(self):
+        self._rows = None
+
     def start(self):
         super(PandasDirectData, self).start()
 
@@ -77,7 +80,7 @@ class PandasDirectData(feed.DataBase):
             colidx = getattr(self.params, datafield)
 
             if colidx < 0:
-                # column not present -- skip
+                # column is not present -- skip
                 continue
 
             # get the line to be set
@@ -115,7 +118,7 @@ class PandasData(feed.DataBase):
 
     Params:
 
-      - ``nocase`` (default *True*) case insensitive match of column names
+      - ``nocase`` (default *True*) case-insensitive match of column names
 
     Note:
 
@@ -138,17 +141,17 @@ class PandasData(feed.DataBase):
         ('nocase', True),
 
         # Possible values for datetime (must always be present)
-        #  None : datetime is the "index" in the Pandas Dataframe
-        #  -1 : autodetect position or case-wise equal name
-        #  >= 0 : numeric index to the colum in the pandas dataframe
-        #  string : column name (as index) in the pandas dataframe
+        #  None: datetime is the "index" in the Pandas Dataframe
+        #  -1: autodetect position or case-wise equal name
+        #  >= 0: numeric index to the colum in the pandas dataframe
+        #  string: column name (as index) in the pandas dataframe
         ('datetime', None),
 
-        # Possible values below:
+        # The possible values below:
         #  None : column not present
-        #  -1 : autodetect position or case-wise equal name
-        #  >= 0 : numeric index to the colum in the pandas dataframe
-        #  string : column name (as index) in the pandas dataframe
+        #  -1: autodetect position or case-wise equal name
+        #  >= 0: numeric index to the colum in the pandas dataframe
+        #  string: column name (as index) in the pandas dataframe
         ('open', -1),
         ('high', -1),
         ('low', -1),
@@ -167,6 +170,7 @@ class PandasData(feed.DataBase):
 
         # these "colnames" can be strings or numeric types
         # 列的名字，列表格式
+        self._idx = None
         colnames = list(self.p.dataname.columns.values)
         # 如果datetime在index中
         if self.p.datetime is None:

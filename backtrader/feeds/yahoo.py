@@ -148,7 +148,8 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         # 尝试获取成交量，如果没有，设置成0
         try:
             v = float(linetokens[next(i)])
-        except:  # cover the case in which volume is "null"
+        except Exception as e:  # cover the case in which volume is "null"
+            print(e)
             v = 0.0
         # 如果交换收盘价和复权价，进行交换
         if self.p.swapcloses:  # swap closing prices if requested
@@ -262,6 +263,9 @@ class YahooFinanceData(YahooFinanceCSVData):
         ('retries', 3),
     )
 
+    def __init__(self):
+        self.error = None
+
     def start_v7(self):
 
         try:
@@ -354,7 +358,8 @@ class YahooFinanceData(YahooFinanceCSVData):
             try:
                 # r.encoding = 'UTF-8'
                 f = io.StringIO(resp.text, newline=None)
-            except Exception:
+            except Exception as e:
+                print(e)
                 continue  # try again if possible
 
             break

@@ -47,7 +47,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
 
       - ``qcheck`` (default: ``0.5``)
         Default timeout for waking up to let a resampler/replayer that the
-        current bar can be check for due delivery
+        current bar can be checked for due delivery
 
         The value is only used if a resampling/replaying filter has been
         inserted in the data
@@ -56,23 +56,23 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         If no ``todate`` parameter is supplied (defined in the base class),
         this will force a historical only download if set to ``True``
 
-        If ``todate`` is supplied the same effect is achieved
+        If ``todate`` is supplied, the same effect is achieved
 
       - ``milliseconds`` (default: ``True``)
         The bars constructed by *Visual Chart* have this aspect:
         HH:MM:59.999000
 
-        If this parameter is ``True`` a millisecond will be added to this time
+        If this parameter is `True`, a millisecond will be added to this time
         to make it look like: HH::MM + 1:00.000000
 
       - ``tradename`` (default: ``None``)
         Continous futures cannot be traded but are ideal for data tracking. If
-        this parameter is supplied it will be the name of the current future
+        this parameter is supplied, it will be the name of the current future
         which will be the trading asset. Example:
 
         - 001ES -> ES-Mini continuous supplied as ``dataname``
 
-        - ESU16 -> ES-Mini 2016-09. If this is supplied in ``tradename`` it
+        - ESU16 -> ES-Mini 2016-09. If this is supplied in `tradename` it
           will be the trading asset.
 
       - ``usetimezones`` (default: ``True``)
@@ -81,7 +81,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         for representation)
 
         Some markets are special (``096``) and need special internal coverage
-        and timezone support to display in the user expected market time.
+        and timezone support to display in the user's expected market time.
 
         If this parameter is set to ``True`` importing ``pytz`` will be
         attempted to use timezones (default)
@@ -240,6 +240,19 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         return True
 
     def __init__(self, **kwargs):
+        self._state = None
+        self.q = None
+        self._mktoffdiff = None
+        self._mktoff1 = None
+        self._mktoffset = None
+        self._syminfo = None
+        self._ticking = None
+        self._comp = None
+        self._tf = None
+        self.qrt = None
+        self._newticks = None
+        self.idx = None
+        self._pingtmout = None
         self.store = vcstore.VCStore(**kwargs)
 
         # Correct a copy past directly from VisualChart
@@ -306,7 +319,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             self._tf, self._comp = self.p.timeframe, self.p.compression
         else:
             # Else (even if resampling) pass the final timeframe which may
-            # been modified by a resampling filter
+            # be modified by a resampling filter
             self._tf, self._comp = self._timeframe, self._compression,
 
         self._ticking = self.store._ticking(self._tf)
@@ -334,8 +347,8 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         self._mktoff1 = self._mktoffset
         if self._mktcode in self._EXTRA_TIMEOFFSET:
             # These codes live theoretically in
-            # (UTC+00:00) Dublin, Edinburgh, Lisbon, London which is
-            # 'Europe/London'
+            # (UTC+00:00) Dublin, Edinburgh, Lisbon, London, which is
+            # 'Europe/London,'
             # But all experiments show the times to be displaced 1 hour to
             # the west and hence the extra 3600 seconds
             self._mktoffset -= timedelta(seconds=3600)
@@ -433,7 +446,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
     def _getpingtmout(self):
         """Returns the actual ping timeout for PumpEvents to wake up and call
         ping, which will check if the not yet delivered bar can be
-        delivered. The bar may be stalled because vc awaits a new tick and
+        delivered. The bar may be stalled because vc awaits a new tick, and
         during low negotiation hour this can take several seconds after the
         actual expected delivery time"""
         if self._ticking:
@@ -474,7 +487,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             else:
                 self._pingtmout = self.PING_TIMEOUT  # no bar left, long pause
                 self.q.put(bar)  # push bar and update index
-                ssize += 1  # pushed last one out
+                ssize += 1  # pushed the last one out
 
         # Write down the last processed bar
         self.idx = max(1, ssize)
@@ -508,7 +521,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
     #
     # RTEvents
     #
-    # Can be used on a per data basis to check the connection status
+    # Can be used on a per-data basis to check the connection status
     if False:
         def OnInternalEvent(self, p1, p2, p3):
             if p1 != 1:  # Apparently "Connection Event"
@@ -529,14 +542,14 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         # 1. If tick.Field == Field_Description is returned, it can be checked
         # if the requested symbol has been found or not (tick.Date == 0 -> not
         # found). tick.Text has 'Not Found', but this is more likely to change
-        # Once Field_Description has been seen, the 2nd stage takes place
+        # Once Field_Description has been seen; the 2nd stage takes place
         #
         # 2. When a tick.Field == Field_Time is seen and tick.TickIndex == 0,
         # the 1st tick of a second is seen and the tick.Date value can be used
         # to calculate a time offset to the feed server. This is later used to
         # check if a bar is due delivery or not
         #
-        # After this the reception of ticks is cancelled
+        # After this the reception of ticks is canceled
 
         aticks = ArrayTicks[0]
         # self.debug_ticks(aticks)
@@ -565,7 +578,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
                 self._TOFFSET = datetime.now() - dttick
                 if self._mktcode in self._EXTRA_TIMEOFFSET:
                     # These codes live theoretically in (UTC+00:00) Dublin,
-                    # Edinburgh, Lisbon, London which is 'Europe/London'
+                    # Edinburgh, Lisbon, London, which is 'Europe/London,'
                     # But all experiments show the times to be displaced 1
                     # hour to the west and hence the extra 3600 seconds
                     self._TOFFSET -= timedelta(seconds=3600)

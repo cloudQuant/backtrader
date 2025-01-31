@@ -48,6 +48,13 @@ class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
         EuroStoxx 50 continuous future
     """
 
+    def __init__(self):
+        self.f = None
+        self._barfmt = None
+        self._dtsize = None
+        self._barsize = None
+        self._store = None
+
     def start(self):
         super(VChartFile, self).start()
         if self._store is None:
@@ -71,7 +78,7 @@ class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
             self._dtsize = 1
             self._barfmt = 'IffffII'
 
-        # Construct full path
+        # Construct a full path
         basepath = self._store.get_datapath()
 
         # Example: 01 + 0 + 015ES + .fd -> 010015ES.fd
@@ -107,7 +114,8 @@ class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
 
         try:
             bdata = unpack(self._barfmt, bardata)
-        except:
+        except Exception as e:
+            print(e)
             self.f = None
             return False
 

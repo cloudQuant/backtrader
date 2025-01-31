@@ -52,7 +52,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
           - TICKER-CFD-EXCHANGE  # CFD
           - TICKER-CDF-EXCHANGE-CURRENCY  # Stock
 
-          - TICKER-IND-EXCHANGE  # Index
+          - TICKER-IND-EXCHANGE # Index
           - TICKER-IND-EXCHANGE-CURRENCY  # Index
 
           - TICKER-YYYYMM-EXCHANGE  # Future
@@ -224,8 +224,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
         ('what', None),  # historical - what to show
         ('useRTH', False),  # historical - download only Regular Trading Hours
         ('qcheck', 0.5),  # timeout in seconds (float) to check for events
-        ('backfill_start', True),  # do backfilling at the start
-        ('backfill', True),  # do backfilling when reconnecting
+        ('backfill_start', True),  # do backfill at the start
+        ('backfill', True),  # do backfill when reconnecting
         ('backfill_from', None),  # additional data source to do backfill from
         ('latethrough', False),  # let late samples through
         ('tradename', None),  # use a different asset as order target
@@ -286,6 +286,17 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 初始化
     def __init__(self, **kwargs):
+        self.tradecontractdetails = None
+        self.tradecontract = None
+        self.contractdetails = None
+        self.contract = None
+        self._storedmsg = None
+        self._subcription_valid = None
+        self._statelivereconn = None
+        self._state = None
+        self._usertvol = None
+        self.qhist = None
+        self.qlive = None
         self.ib = self._store(**kwargs)
         self.precontract = self.parsecontract(self.p.dataname)
         self.pretradecontract = self.parsecontract(self.p.tradename)
@@ -314,7 +325,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
         # split the ticker string
         tokens = iter(dataname.split('-'))
 
-        # Symbol and security type are compulsory
+        # Symbol and security type is compulsory
         symbol = next(tokens)
         try:
             sectype = next(tokens)
@@ -335,8 +346,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
         # See if the optional tokens were provided
         try:
-            exch = next(tokens)  # on exception it will be the default
-            curr = next(tokens)  # on exception it will be the default
+            exch = next(tokens)  # on exception, it will be the default
+            curr = next(tokens)  # on exception, it will be the default
 
             if sectype == 'FUT':
                 if not expiry:
@@ -355,7 +366,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
                 if not expiry:
                     expiry = next(tokens)
                 strike = float(next(tokens))  # on exception - default
-                right = next(tokens)  # on exception it will be the default
+                right = next(tokens)  # on exception, it will be the default
 
                 mult = next(tokens)  # ?? no harm in any case
 
@@ -397,7 +408,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
             self._state = self._ST_START  # initial state for _load
         self._statelivereconn = False  # if reconnecting in live state
         self._subcription_valid = False  # subscription state
-        self._storedmsg = dict()  # keep pending live message (under None)
+        self._storedmsg = dict()  # keep pending a live message (under None)
 
         if not self.ib.connected():
             return
@@ -443,7 +454,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 请求数据
     def reqdata(self):
-        """request real-time data. checks cash vs non-cash) and param useRT"""
+        """request real-time data. checks cash vs. non-cash and param useRT"""
         if self.contract is None or self._subcription_valid:
             return
 
@@ -489,7 +500,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
                         return None  # indicate timeout situation
 
                     # Awaiting data and nothing came in - fake it up until now
-                    dtend = self.num2date(date2num(datetime.datetime.utcnow()))
+                    dtend = self.num2date(date2num(datetime.datetime.now(UTC)))
                     dtbegin = None
                     if len(self) > 1:
                         dtbegin = self.num2date(self.datetime[-1])
@@ -555,7 +566,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
                 elif isinstance(msg, integer_types):
                     # Unexpected notification for historical data skip it
-                    # May be a "not connected not yet processed"
+                    # May be a "not connected, not yet processed"
                     self.put_notification(self.UNKNOWN, msg)
                     continue
 
@@ -589,7 +600,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
                     dtbegin = num2date(self.datetime[-1])
                 elif self.fromdate > float('-inf'):
                     dtbegin = num2date(self.fromdate)
-                else:  # 1st bar and no begin set
+                else:  # 1st bar and no beginning set
                     # passing None to fetch max possible in 1 request
                     dtbegin = None
 
@@ -608,7 +619,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
             elif self._state == self._ST_HISTORBACK:
                 msg = self.qhist.get()
                 if msg is None:  # Conn broken during historical/backfilling
-                    # Situation not managed. Simply bail out
+                    # The Situation isn't managed. Bail out
                     self._subcription_valid = False
                     self.put_notification(self.DISCONNECTED)
                     return False  # error management cancelled the queue
@@ -625,7 +636,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
                 elif isinstance(msg, integer_types):
                     # Unexpected notification for historical data skip it
-                    # May be a "not connected not yet processed"
+                    # May be a "not connected, not yet processed"
                     self.put_notification(self.UNKNOWN, msg)
                     continue
 
@@ -699,7 +710,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 把K线数据保存到line里面
     def _load_rtbar(self, rtbar, hist=False):
-        # A complete 5 second bar made of real-time ticks is delivered and
+        # A complete 5-second bar made of real-time ticks is delivered and
         # contains open/high/low/close/volume prices
         # The historical data has the same data but with 'date' instead of
         # 'time' for datetime
@@ -721,7 +732,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
     # 把tick数据保存到line里面
     def _load_rtvolume(self, rtvol):
         # A single tick is delivered and is therefore used for the entire set
-        # of prices. Ideally the
+        # of prices.
+        # Ideally that
         # contains open/high/low/close/volume prices
         # Datetime transformation
         dt = date2num(rtvol.datetime)

@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from datetime import datetime
+from datetime import datetime, UTC
 import itertools
 
 from .. import feed, TimeFrame
@@ -38,7 +38,7 @@ class GenericCSVData(feed.CSVDataBase):
 
         A value of -1 indicates absence of that field in the CSV source
 
-      - If ``time`` is present (parameter time >=0) the source contains
+      - If ``time`` is present (parameter time >=0), the source contains
         separated fields for date and time, which will be combined
 
       - ``nullvalue``
@@ -51,14 +51,14 @@ class GenericCSVData(feed.CSVDataBase):
 
         If a numeric value is specified, it will be interpreted as follows
 
-          - ``1``: The value is a Unix timestamp of type ``int`` representing
+          - ``1``: The value is a Unix timestamp of a type ``int`` representing
             the number of seconds since Jan 1st, 1970
 
-          - ``2``: The value is a Unix timestamp of type ``float``
+          - ``2``: The value is a Unix timestamp of a type ``float``
 
         If a **callable** is passed
 
-          - it will accept a string and return a `datetime.datetime` python
+          - It will accept a string and return a `datetime.datetime` python
             instance
 
       - ``tmformat``: Format used to parse the time CSV field if "present"
@@ -83,6 +83,10 @@ class GenericCSVData(feed.CSVDataBase):
     )
 
     # 开始，根据传入的日期参数确定转换的方法
+    def __init__(self):
+        self._dtconvert = None
+        self._dtstr = None
+
     def start(self):
         super(GenericCSVData, self).start()
         # 如果是字符串类型，就把self._dtstr设置成True,否则就是默认的False
@@ -93,9 +97,11 @@ class GenericCSVData(feed.CSVDataBase):
         elif isinstance(self.p.dtformat, integer_types):
             idt = int(self.p.dtformat)
             if idt == 1:
-                self._dtconvert = lambda x: datetime.utcfromtimestamp(int(x))
+                # self._dtconvert = lambda x: datetime.utcfromtimestamp(int(x))
+                self._dtconvert = lambda x: datetime.fromtimestamp(int(x), UTC)
             elif idt == 2:
-                self._dtconvert = lambda x: datetime.utcfromtimestamp(float(x))
+                # self._dtconvert = lambda x: datetime.utcfromtimestamp(float(x))
+                self._dtconvert = lambda x: datetime.fromtimestamp(float(x), UTC)
         # 如果dtformat是可以调用的，转换方法就是它本身
         else:  # assume callable
             self._dtconvert = self.p.dtformat

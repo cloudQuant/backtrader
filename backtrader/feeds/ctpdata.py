@@ -21,7 +21,7 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
 
     Params:
 
-      - `historical` (default: `False`)
+      - `Historical` (default: `False`)
 
         If set to `True` the data feed will stop after doing the first
         download of data.
@@ -46,6 +46,7 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
         return True
 
     def __init__(self, **kwargs):
+        self._state = None
         self.o = self._store(**kwargs)
         self.qlive = self.o.register(self)
 
@@ -68,7 +69,7 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
         #
         CHINA_TZ = pytz.timezone("Asia/Shanghai")
         #
-        symbol = (self.p.dataname).split('.')[0]
+        symbol = self.p.dataname.split('.')[0]
         if self._timeframe == 4:
             futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period=str(self._compression)).tail(self.p.num_init_backfill)
         # 如果是日线级别
@@ -131,7 +132,7 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
             elif self._state == self._ST_HISTORBACK:
                 msg = self.qhist.get()
                 if msg is None:
-                    # Situation not managed. Simply bail out
+                    # The Situation isn't managed. Bail out
                     self.put_notification(self.DISCONNECTED)
                     self._state = self._ST_OVER
                     return False  # error management cancelled the queue

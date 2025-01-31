@@ -55,7 +55,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
 
     Changes From Ed's pacakge
 
-        - Added option to send some additional fetch_ohlcv_params. Some exchanges (e.g Bitmex)
+        - Added option to send some additional fetch_ohlcv_params. Some exchanges (e.g., Bitmex)
           support sending some additional fetch parameters.
         - Added drop_newest option to avoid loading incomplete candles where exchanges
           do not support sending ohlcv params to prevent returning partial data
@@ -64,7 +64,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
 
     params = (
         ('historical', False),  # only historical download
-        ('backfill_start', False),  # do backfilling at the start
+        ('backfill_start', False),  # do backfill at the start
         ('fetch_ohlcv_params', {}),
         ('ohlcv_limit', 20),
         ('drop_newest', False),
@@ -79,6 +79,7 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
     # def __init__(self, exchange, symbol, ohlcv_limit=None, config={}, retries=5):
     def __init__(self, **kwargs):
         # self.store = CCXTStore(exchange, config, retries)
+        self._state = None
         self.store = self._store(**kwargs)
         self._data = queue.Queue()  # data queue for price data
         self._last_id = ''  # last processed trade id for ohlcv

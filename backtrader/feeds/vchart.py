@@ -34,7 +34,7 @@ class VChartData(feed.DataBase):
 
     Note:
 
-      - ``dataname``: to file or open file-like object
+      - ``dataname``: to file or open file-like an object
 
         If a file-like object is passed, the ``timeframe`` parameter will be
         used to determine which is the actual timeframe.
@@ -43,10 +43,17 @@ class VChartData(feed.DataBase):
         will be used.
     """
 
+    def __init__(self):
+        self.barfmt = None
+        self.f = None
+        self.barsize = None
+        self.dtsize = None
+        self.ext = None
+
     def start(self):
         super(VChartData, self).start()
 
-        # Not yet known if a extension is needed
+        # Not yet known if an extension is needed
         self.ext = ''
 
         if not hasattr(self.p.dataname, 'read'):

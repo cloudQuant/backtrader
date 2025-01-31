@@ -50,6 +50,9 @@ class Chainer(bt.with_metaclass(MetaChainer, bt.DataBase)):
         return True
     # 初始化
     def __init__(self, *args):
+        self._lastdt = None
+        self._d = None
+        self._ds = None
         self._args = args
 
     # 开始
@@ -88,7 +91,7 @@ class Chainer(bt.with_metaclass(MetaChainer, bt.DataBase)):
                 self._d = self._ds.pop(0) if self._ds else None
                 continue
 
-            # Cannot deliver a date equal or less than an alredy delivered
+            # Cannot deliver a date equal or less than an already delivered
             dt = self._d.datetime.datetime()
             if dt <= self._lastdt:
                 continue

@@ -51,7 +51,7 @@ class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
 
           This must be a *callable* with the following signature::
 
-            checkdate(dt, d):
+            Checkdate(dt, d):
 
           Where:
 
@@ -63,8 +63,8 @@ class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
             - ``True``: as long as the callable returns this, a switchover can
               happen to the next future
 
-        If a commodity expires on the 3rd Friday of March, ``checkdate`` could
-        return ``True`` for the entire week in which the expiration takes
+        If a commodity expires on the 3rd Friday of March, `checkdate` could
+        return `True` for the entire week in which the expiration takes
         place.
 
             - ``False``: the expiration cannot take place
@@ -82,7 +82,7 @@ class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
 
           Else this must be a *callable* with this signature::
 
-            checkcondition(d0, d1)
+            Checkcondition(d0, d1)
 
           Where:
 
@@ -94,7 +94,7 @@ class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
             - ``True``: roll-over to the next future
 
         Following with the example from ``checkdate``, this could say that the
-        roll-over can only happend if the *volume* from ``d0`` is already less
+        roll-over can only happen if the *volume* from ``d0`` is already less
         than the volume from ``d1``
 
             - ``False``: the expiration cannot take place
@@ -116,6 +116,10 @@ class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
 
     def __init__(self, *args):
         # 准备用于换月的期货合约
+        self._dts = None
+        self._dexp = None
+        self._d = None
+        self._ds = None
         self._rolls = args
 
     def start(self):

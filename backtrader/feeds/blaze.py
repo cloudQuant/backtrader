@@ -57,6 +57,9 @@ class BlazeData(feed.DataBase):
     ]
 
     # 开始，直接把数据文件使用iter迭代，接下来_load的时候每次读取一行
+    def __init__(self):
+        self._rows = None
+
     def start(self):
         super(BlazeData, self).start()
 

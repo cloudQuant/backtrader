@@ -61,6 +61,10 @@ class InfluxDB(feed.DataBase):
     )
 
     # 开始
+    def __init__(self):
+        self.biter = None
+        self.ndb = None
+
     def start(self):
         super(InfluxDB, self).start()
         # 尝试连接数据库

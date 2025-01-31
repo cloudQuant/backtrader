@@ -33,7 +33,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
 
     params = (
         ('historical', False),  # only historical download
-        ('backfill_start', False),  # do backfilling at the start
+        ('backfill_start', False),  # do backfill at the start
     )
 
     _store = CryptoStore
@@ -139,9 +139,9 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
 
     def _load(self):
         """
-        return True  更新数据成功，历史数据或者实时数据
+        return True 更新数据成功，历史数据或者实时数据
         return False 代表K线是最新的，但是K线还没有闭合
-        return None  代表当前无法从消息队列中获取数据
+        return None 代表当前无法从消息队列中获取数据
         """
         # self.log(f"_load run, {self._state}")
         if self._state == self._ST_OVER:

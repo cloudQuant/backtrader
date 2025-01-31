@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from backtrader.feed import DataBase
 from backtrader import TimeFrame, date2num, num2date
 from backtrader.utils.py3 import (integer_types, queue, string_types,
@@ -49,7 +49,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
 
       - ``historical`` (default: ``False``)
 
-        If set to ``True`` the data feed will stop after doing the first
+        If set to `True`, the data feed will stop after doing the first
         download of data.
 
         The standard data feed parameters ``fromdate`` and ``todate`` will be
@@ -99,7 +99,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
 
       - ``reconnections`` (default: ``-1``)
 
-        Number of times to attempt reconnections: ``-1`` means forever
+        Number of times to attempt reconnections: `-1` means forever
 
       - ``reconntimeout`` (default: ``5.0``)
 
@@ -107,7 +107,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
 
     This data feed supports only this mapping of ``timeframe`` and
     ``compression``, which comply with the definitions in the OANDA API
-    Developer's Guid::
+    Developer's Guid:
 
         (TimeFrame.Seconds, 5): 'S5',
         (TimeFrame.Seconds, 10): 'S10',
@@ -135,9 +135,9 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
     """
     params = (
         ('qcheck', 0.5),
-        ('historical', False),  # do backfilling at the start
-        ('backfill_start', True),  # do backfilling at the start
-        ('backfill', True),  # do backfilling when reconnecting
+        ('historical', False),  # do backfill at the start
+        ('backfill_start', True),  # do backfill at the start
+        ('backfill', True),  # do backfill when reconnecting
         ('backfill_from', None),  # additional data source to do backfill from
         ('bidask', True),
         ('useask', False),
@@ -164,6 +164,12 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return True
 
     def __init__(self, **kwargs):
+        self._state = None
+        self._reconns = None
+        self.contractdetails = None
+        self.qlive = None
+        self._storedmsg = None
+        self._statelivereconn = None
         self.o = self._store(**kwargs)
         self._candleFormat = 'bidask' if self.p.bidask else 'midpoint'
 
@@ -180,7 +186,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
 
         # Create attributes as soon as possible
         self._statelivereconn = False  # if reconnecting in live state
-        self._storedmsg = dict()  # keep pending live message (under None)
+        self._storedmsg = dict()  # keep pending a live message (under None)
         self.qlive = queue.Queue()
         self._state = self._ST_OVER
 
@@ -325,11 +331,11 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
                     dtbegin = self.datetime.datetime(-1)
                 elif self.fromdate > float('-inf'):
                     dtbegin = num2date(self.fromdate)
-                else:  # 1st bar and no begin set
+                else:  # 1st bar and no beginning set
                     # passing None to fetch max possible in 1 request
                     dtbegin = None
 
-                dtend = datetime.utcfromtimestamp(int(msg['time']) / 10 ** 6)
+                dtend = datetime.fromtimestamp(int(msg['time']) / 10 ** 6, UTC)
 
                 self.qhist = self.o.candles(
                     self.p.dataname, dtbegin, dtend,
@@ -344,7 +350,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
             elif self._state == self._ST_HISTORBACK:
                 msg = self.qhist.get()
                 if msg is None:  # Conn broken during historical/backfilling
-                    # Situation not managed. Simply bail out
+                    # The Situation isn't managed. Bail out
                     self.put_notification(self.DISCONNECTED)
                     self._state = self._ST_OVER
                     return False  # error management cancelled the queue
@@ -392,7 +398,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
                     return False
 
     def _load_tick(self, msg):
-        dtobj = datetime.utcfromtimestamp(int(msg['time']) / 10 ** 6)
+        dtobj = datetime.fromtimestamp(int(msg['time']) / 10 ** 6, UTC)
         dt = date2num(dtobj)
         if dt <= self.lines.datetime[-1]:
             return False  # time already seen
@@ -414,7 +420,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return True
 
     def _load_history(self, msg):
-        dtobj = datetime.utcfromtimestamp(int(msg['time']) / 10 ** 6)
+        dtobj = datetime.fromtimestamp(int(msg['time']) / 10 ** 6, UTC)
         dt = date2num(dtobj)
         if dt <= self.lines.datetime[-1]:
             return False  # time already seen

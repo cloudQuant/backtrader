@@ -37,7 +37,7 @@ class BacktraderCSVData(feed.CSVDataBase):
         # 把每行数据进行迭代
         itoken = iter(linetokens)
         # 时间处理
-        dttxt = next(itoken)  # Format is YYYY-MM-DD - skip char 4 and 7
+        dttxt = next(itoken)  # The Format is YYYY-MM-DD - skip char 4 and 7
         dt = date(int(dttxt[0:4]), int(dttxt[5:7]), int(dttxt[8:10]))
         # 如果列有8个，代表存在时间，第二列是时间，对时间进行处理，如果不是8列，代表没有时间，时间是用sessionend
         if len(linetokens) == 8:

@@ -76,7 +76,7 @@ class QuandlCSV(feed.CSVDataBase):
         if not self.params.reverse:
             return
         elif self._online:
-            return  # revers is True but also online, managed with order=asc
+            return  # revers is True but also online, managed with order = asc
 
         # Quandl data can be in reverse order -> reverse
         dq = collections.deque()
@@ -134,7 +134,7 @@ class Quandl(QuandlCSV):
 
       - ``dataname``
 
-        The ticker to download ('YHOO' for example)
+        The ticker to download ('YHOO', for example)
 
       - ``baseurl``
 
@@ -148,7 +148,7 @@ class Quandl(QuandlCSV):
 
       - ``buffered``
 
-        If True the entire socket connection wil be buffered locally before
+        If True, the entire socket connection will be buffered locally before
         parsing starts.
 
       - ``reverse``
@@ -164,11 +164,11 @@ class Quandl(QuandlCSV):
 
       - ``apikey``
 
-        apikey identification in case it may be needed
+        Apikey identification in case it may be needed
 
       - ``dataset``
 
-        string identifying the dataset to query. Defaults to ``WIKI``
+        String identifying the dataset to query. Defaults to ``WIKI``
 
       """
 
@@ -182,6 +182,9 @@ class Quandl(QuandlCSV):
         ('apikey', None),
         ('dataset', 'WIKI'),
     )
+
+    def __init__(self):
+        self.error = None
 
     def start(self):
         self.error = None
