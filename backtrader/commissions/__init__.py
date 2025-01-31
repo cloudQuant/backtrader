@@ -25,37 +25,37 @@ class CommInfo(CommInfoBase):
     pass  # clone of CommissionInfo but with xx% instead of 0.xx
 
 
-class CommInfo_Futures(CommInfoBase):
+class CommInfoFutures(CommInfoBase):
     params = (
         ('stocklike', False),
     )
 
 
-class CommInfo_Futures_Perc(CommInfo_Futures):
+class CommInfoFuturesPerc(CommInfoFutures):
     params = (
         ('commtype', CommInfoBase.COMM_PERC),
     )
 
 
-class CommInfo_Futures_Fixed(CommInfo_Futures):
+class CommInfoFuturesFixed(CommInfoFutures):
     params = (
         ('commtype', CommInfoBase.COMM_FIXED),
     )
 
 
-class CommInfo_Stocks(CommInfoBase):
+class CommInfoStocks(CommInfoBase):
     params = (
         ('stocklike', True),
     )
 
 
-class CommInfo_Stocks_Perc(CommInfo_Stocks):
+class CommInfoStocksPerc(CommInfoStocks):
     params = (
         ('commtype', CommInfoBase.COMM_PERC),
     )
 
 
-class CommInfo_Stocks_Fixed(CommInfo_Stocks):
+class CommInfoStocksFixed(CommInfoStocks):
     params = (
         ('commtype', CommInfoBase.COMM_FIXED),
     )

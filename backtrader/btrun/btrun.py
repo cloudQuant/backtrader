@@ -293,13 +293,12 @@ def loadmodule(modpath, modname=''):
 
 def loadmodule2(modpath, modname):
     import imp
-
     try:
         mod = imp.load_source(modname, modpath)
     except Exception as e:
-        return (None, e)
+        return None, e
 
-    return (mod, None)
+    return mod, None
 
 
 def loadmodule3(modpath, modname):
@@ -309,9 +308,9 @@ def loadmodule3(modpath, modname):
         loader = importlib.machinery.SourceFileLoader(modname, modpath)
         mod = loader.load_module()
     except Exception as e:
-        return (None, e)
+        return None, e
 
-    return (mod, None)
+    return mod, None
 
 
 def getobjects(iterable, clsbase, modbase, issignal=False):
@@ -624,11 +623,11 @@ def parse_args(pargs=''):
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument('--pranalyzer', '-pralyzer',
                        required=False, action='store_true',
-                       help=('Automatically print analyzers'))
+                       help='Automatically print analyzers')
 
     group.add_argument('--ppranalyzer', '-ppralyzer',
                        required=False, action='store_true',
-                       help=('Automatically PRETTY print analyzers'))
+                       help='Automatically PRETTY print analyzers')
 
     # Indicators
     group = parser.add_argument_group(title='Indicators')
