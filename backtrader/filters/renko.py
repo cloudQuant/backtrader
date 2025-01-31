@@ -40,9 +40,9 @@ class Renko(Filter):
 
       - ``dynamic`` (default: *False*) If *True* and using *autosize*, the size
         of the bricks will be recalculated when moving to a new brick. This
-        will of course eliminate the perfect alignment of Renko bricks.
+         will, of course, eliminate the perfect alignment of Renko bricks.
 
-      - ``align`` (default: *1.0*) Factor use to align the price boundaries of
+      - ``align`` (default: *1.0*) Factor used to align the price boundaries of
         the bricks. If the price is for example *3563.25* and *align* is
         *10.0*, the resulting aligned price will be *3560*. The calculation:
 
@@ -50,7 +50,7 @@ class Renko(Filter):
           - round it and remove the decimals -> 356
           - 356 * 10.0 -> 3560
 
-      - ``roundstart`` (default: *True*)  If *True*, round the initial start
+      - ``roundstart`` (default: *True*) If *True*, round the initial start
         value to int. Else keep the original value, which should aid when
         backtesting penny stocks
 
@@ -67,6 +67,12 @@ class Renko(Filter):
         ('align', 1.0),
         ('roundstart', True),
     )
+
+    def __init__(self, data):
+        super().__init__(data)
+        self._bot = None
+        self._top = None
+        self._size = None
 
     def nextstart(self, data):
         o = data.open[0]

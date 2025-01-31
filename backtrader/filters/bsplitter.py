@@ -22,7 +22,7 @@ import datetime
 import backtrader as bt
 
 
-class DaySplitter_Close(bt.with_metaclass(bt.MetaParams, object)):
+class DaySplitterClose(bt.with_metaclass(bt.MetaParams, object)):
     """
     Splits a daily bar in two parts simulating 2 ticks which will be used to
     replay the data:
@@ -34,17 +34,17 @@ class DaySplitter_Close(bt.with_metaclass(bt.MetaParams, object)):
 
         The session opening time is used for this tick
 
-      and
+      And
 
       - Second tick: ``CCCC``
 
-        The ``Close`` price will be used for the four components of the price
+        The `Close` price will be used for the four components of the price
 
         The session closing time is used for this tick
 
     The volume will be split amongst the 2 ticks using the parameters:
 
-      - ``closevol`` (default: ``0.5``) The value indicate which percentage, in
+      - ``closevol`` (default: ``0.5``) The value indicates which percentage, in
         absolute terms from 0.0 to 1.0, has to be assigned to the *closing*
         tick. The rest will be assigned to the ``OHLX`` tick.
 

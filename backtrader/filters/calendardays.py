@@ -92,7 +92,7 @@ class CalendarDays(with_metaclass(metabase.MetaParams, object)):
         while lastdt < dt:
             lastdt += self.ONEDAY
 
-            # Prepare an array of the needed size
+            # Prepare an array of the necessary size
             bar = [float('Nan')] * data.size()
             # Fill the datetime
             bar[data.DateTime] = data.date2num(datetime.combine(lastdt, tm))

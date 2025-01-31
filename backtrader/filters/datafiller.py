@@ -27,7 +27,7 @@ class DataFiller(AbstractDataBase):
     """This class will fill gaps in the source data using the following
     information bits from the underlying data source
 
-      - timeframe and compression to dimension the output bars
+      - timeframe and compression are to dimension the output bars
 
       - sessionstart and sessionend
 
@@ -35,17 +35,17 @@ class DataFiller(AbstractDataBase):
     timeframe is minutes, the output will be filled with bars for minutes
     10:32 and 10:33 using the closing price of the last bar (10:31)
 
-    Bars can be missinga amongst other things because
+    Bars can be missing amongst other things because
 
     Params:
-      - ``fill_price`` (def: None): if None (or evaluates to False),the
+      - ``fill_price`` (def: None): if None (or evaluates to False), the
         closing price will be used, else the passed value (which can be
         for example 'NaN' to have a missing bar in terms of evaluation but
         present in terms of time
 
-      - ``fill_vol`` (def: NaN): used to fill the volume of missing bars
+      - ``fill_vol`` (def: NaN): used to fill the volume with missing bars
 
-      - ``fill_oi`` (def: NaN): used to fill the openinterest of missing bars
+      - ``fill_oi`` (def: NaN): used to fill the openinterest with missing bars
     """
 
     params = (
@@ -54,6 +54,12 @@ class DataFiller(AbstractDataBase):
         ('fill_oi', float('NaN')),
         )
 
+    def __init__(self):
+        self._timeframe = None
+        self._compression = None
+        self._dbar = None
+        self._fillbars = None
+
     def start(self):
         super(DataFiller, self).start()
         self._fillbars = collections.deque()
@@ -61,7 +67,7 @@ class DataFiller(AbstractDataBase):
 
     def preload(self):
         if len(self.p.dataname) == self.p.dataname.buflen():
-            # if data is not preloaded .... do it
+            # if data is not preloaded … do it
             self.p.dataname.start()
             self.p.dataname.preload()
             self.p.dataname.home()
@@ -77,7 +83,7 @@ class DataFiller(AbstractDataBase):
         for i in range(self.p.dataname.size()):
             self.lines[i][0] = self.p.dataname.lines[i][0]
 
-        self._dbar = False  # invalidate flag for read bar
+        self._dbar = False  # invalidate a flag for read bar
 
         return True
 
@@ -134,10 +140,10 @@ class DataFiller(AbstractDataBase):
         pclose = self.lines.close[-1]
         # Get time of previous (already delivered) bar
         dtime_prev = self.lines.datetime.datetime(-1)
-        # Get time of current (from data source) bar
+        # Get time of current (from a data source) bar
         dtime_cur = self.p.dataname.datetime.datetime(0)
 
-        # Calculate session end for previous bar
+        # Calculate the session end for previous bar
         send = datetime.combine(dtime_prev.date(), self.p.dataname.sessionend)
 
         if dtime_cur > send:  # if jumped boundary
@@ -152,12 +158,12 @@ class DataFiller(AbstractDataBase):
                 dtime_cur.date(), self.p.dataname.sessionstart)
 
             # 2. check for missing bars from new boundary (start)
-            # check gap from new sessionstart
+            # check a gap from new sessionstart
             while sstart < dtime_cur:
                 self._fillbars.append((sstart, pclose))
                 sstart += self._tdunit
         else:
-            # no boundary jumped - check gap until current time
+            # no boundary jumped - check the gap until current time
             dtime_prev += self._tdunit
             while dtime_prev < dtime_cur:
                 self._fillbars.append((dtime_prev, pclose))
@@ -166,7 +172,7 @@ class DataFiller(AbstractDataBase):
         if self._fillbars:
             self._dbar = True  # flag a pending data bar is available
 
-            # return an accumulated bar in current cycle
+            # return an accumulated bar in the current cycle
             return self._frombars()
 
         return self._copyfromdata()

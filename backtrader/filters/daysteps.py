@@ -18,14 +18,14 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-class BarReplayer_Open(object):
+class BarReplayerOpen(object):
     """
     This filters splits a bar in two parts:
 
       - ``Open``: the opening price of the bar will be used to deliver an
         initial price bar in which the four components (OHLC) are equal
 
-        The volume/openinterest fields are 0 for this initial bar
+        The volume/openinterest fields are zero for this initial bar
 
       - ``OHLC``: the original bar is delivered complete with the original
         ``volume``/``openinterest``
@@ -77,4 +77,4 @@ class BarReplayer_Open(object):
 
 
 # Alias
-DayStepsFilter = BarReplayer_Open
+DayStepsFilter = BarReplayerOpen
