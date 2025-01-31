@@ -53,17 +53,17 @@ class MetaCCXTBroker(BrokerBase.__class__):
 class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
     """Broker implementation for CCXT cryptocurrency trading library.
     This class maps the orders/positions from CCXT to the
-    internal API of ``backtrader``.
+    internal API of `backtrader`.
 
-    Broker mapping added as I noticed that there differences between the expected
-    order_types and retuned status's from canceling an order
+    Broker mapping added as I noticed that there are differences between the expected
+    order_types and retuned status from canceling an order
 
     Added a new mappings parameter to the script with defaults.
 
     Added a get_balance function. Manually check the account balance and update brokers
     self.cash and self.value. This helps alleviate rate limit issues.
 
-    Added a new get_wallet_balance method. This will allow manual checking of the any coins
+    Added a new get_wallet_balance method. This will allow manual checking of any coins
         The method will allow setting parameters. Useful for dealing with multiple assets
 
     Modified getcash() and getvalue():
@@ -112,6 +112,7 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
     def __init__(self, broker_mapping=None, debug=False, **kwargs):
         super(CCXTBroker, self).__init__()
 
+        self.cash = None
         if broker_mapping is not None:
             try:
                 self.order_types = broker_mapping['order_types']
@@ -158,8 +159,8 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         return result
 
     def getcash(self):
-        # Get cash seems to always be called before get value
-        # Therefore it makes sense to add getbalance here.
+        # Get cash seems to always be called before get value,
+        # Therefore, it makes sense to add getbalance here.
         # return self.store.getcash(self.currency)
         self.cash = self.store._cash
         return self.cash
@@ -320,7 +321,7 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
             print('Broker cancel() called')
             print('Fetching Order ID: {}'.format(oID))
 
-        # check first if the order has already been filled otherwise an error
+        # check first if the order has already been filled, otherwise an error
         # might be raised if we try to cancel an order that is not open.
         ccxt_order = self.store.fetch_order(oID, order.data.p.dataname)
 
@@ -354,10 +355,10 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         See here: https://github.com/ccxt/ccxt/wiki/Manual#implicit-api-methods
 
         - type: String, 'Get', 'Post','Put' or 'Delete'.
-        - endpoint = String containing the endpoint address eg. 'order/{id}/cancel'
+        - endpoint = String containing the endpoint address e.g. 'order/{id}/cancel'
         - Params: Dict: An implicit method takes a dictionary of parameters, sends
           the request to the exchange and returns an exchange-specific JSON
-          result from the API as is, unparsed.
+          result from the API as is unparsed.
 
         To get a list of all available methods with an exchange instance,
         including implicit methods and unified methods you can simply do the

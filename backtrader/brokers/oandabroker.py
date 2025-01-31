@@ -37,11 +37,11 @@ from backtrader.comminfo import CommInfoBase
 
 class OandaCommInfo(CommInfoBase):
     def getvaluesize(self, size, price):
-        # In real life the margin approaches the price
+        # In real life, the margin approaches the price
         return abs(size) * price
 
     def getoperationcost(self, size, price):
-        """Returns the needed amount of cash an operation would cost"""
+        """Returns the necessary amount of cash an operation would cost"""
         # Same reasoning as above
         return abs(size) * price
 
@@ -58,7 +58,7 @@ class OandaBroker(with_metaclass(MetaOandaBroker, BrokerBase)):
     """Broker implementation for Oanda.
 
     This class maps the orders/positions from Oanda to the
-    internal API of ``backtrader``.
+    internal API of `backtrader`.
 
     Params:
 
@@ -217,7 +217,7 @@ class OandaBroker(with_metaclass(MetaOandaBroker, BrokerBase)):
                 self.brackets[pref] = br  # not done - reinsert children
 
             elif len(br) == 2:  # filling a children
-                oidx = br.index(order)  # find index to filled (0 or 1)
+                oidx = br.index(order)  # find index to fill (0 or 1)
                 self._cancel(br[1 - oidx].ref)  # cancel remaining (1 - 0 -> 1)
         else:
             # Any cancellation cancel the others

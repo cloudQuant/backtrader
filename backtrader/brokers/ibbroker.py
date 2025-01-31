@@ -74,9 +74,9 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
     Any extra parameters supplied with kwargs are applied directly to the
     ib.ext.Order.Order object, which could be used as follows::
 
-      Example: if the 4 order execution types directly supported by
-      ``backtrader`` are not enough, in the case of for example
-      *Interactive Brokers* the following could be passed as *kwargs*::
+      Example: if the four order execution types directly supported by
+      ``backtrader`` are not enough, in the case of, for example
+      *Interactive Brokers* the following could be passed as *kwargs*:
 
         orderType='LIT', lmtPrice=10.0, auxPrice=9.8
 
@@ -121,7 +121,7 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
     def __init__(self, action, **kwargs):
 
         # Marker to indicate an openOrder has been seen with
-        # PendinCancel/Cancelled which is indication of an upcoming
+        # PendinCancel/Canceled which is an indication of an upcoming
         # cancellation
         # 订单是否会到期
         self._willexpire = False
@@ -146,9 +146,9 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
         self.m_lmtPrice = 0.0
         self.m_auxPrice = 0.0
 
-        if self.exectype == self.Market:  # is it really needed for Market?
+        if self.exectype == self.Market:  # is it really necessary for Market?
             pass
-        elif self.exectype == self.Close:  # is it ireally needed for Close?
+        elif self.exectype == self.Close:  # is it ireally necessary for Close?
             pass
         elif self.exectype == self.Limit:
             self.m_lmtPrice = self.price
@@ -183,22 +183,22 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
         # Time In Force: DAY, GTC, IOC, GTD
         # 设置订单的有效期
         if self.valid is None:
-            tif = 'GTC'  # Good til cancelled
+            tif = 'GTC'  # Good till canceled
         elif isinstance(self.valid, (datetime, date)):
-            tif = 'GTD'  # Good til date
+            tif = 'GTD'  # Good till date
             self.m_goodTillDate = bytes(self.valid.strftime('%Y%m%d %H:%M:%S'))
         elif isinstance(self.valid, (timedelta,)):
             if self.valid == self.DAY:
                 tif = 'DAY'
             else:
-                tif = 'GTD'  # Good til date
+                tif = 'GTD'  # Good till date
                 valid = datetime.now() + self.valid  # .now, using localtime
                 self.m_goodTillDate = bytes(valid.strftime('%Y%m%d %H:%M:%S'))
 
         elif self.valid == 0:
             tif = 'DAY'
         else:
-            tif = 'GTD'  # Good til date
+            tif = 'GTD'  # Good till date
             valid = num2date(self.valid)
             self.m_goodTillDate = bytes(valid.strftime('%Y%m%d %H:%M:%S'))
 
@@ -215,24 +215,24 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
 # IB佣金保证金收取方式
 class IBCommInfo(CommInfoBase):
     """
-    Commissions are calculated by ib, but the trades calculations in the
+    Commissions are calculated by ib, but the trade calculations in the
     ```Strategy`` rely on the order carrying a CommInfo object attached for the
     calculation of the operation cost and value.
 
-    These are non-critical informations, but removing them from the trade could
-    break existing usage and it is better to provide a CommInfo objet which
+    These are non-critical information, but removing them from the trade could
+    break existing usage, and it is better to provide a CommInfo objet which
     enables those calculations even if with approvimate values.
 
-    The margin calculation is not a known in advance information with IB
-    (margin impact can be gotten from OrderState objects) and therefore it is
-    left as future exercise to get it"""
+    The margin calculation is not known in advance information with IB
+    (margin impact can be gotten from OrderState objects, and therefore it is
+    left as a future exercise to get it"""
 
     def getvaluesize(self, size, price):
-        # In real life the margin approaches the price
+        # In real life, the margin approaches the price
         return abs(size) * price
 
     def getoperationcost(self, size, price):
-        """Returns the needed amount of cash an operation would cost"""
+        """Returns the necessary amount of cash an operation would cost"""
         # Same reasoning as above
         return abs(size) * price
 
@@ -250,7 +250,7 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
     """Broker implementation for Interactive Brokers.
 
     This class maps the orders/positions from Interactive Brokers to the
-    internal API of ``backtrader``.
+    internal API of `backtrader`.
 
     Notes:
 
@@ -261,8 +261,8 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
       - Position
 
         If there is an open position for an asset at the beginning of
-        operaitons or orders given by other means change a position, the trades
-        calculated in the ``Strategy`` in cerebro will not reflect the reality.
+        operaitons or orders given by other means, change a position, the trades
+        calculated in the `Strategy` in cerebro will not reflect the reality.
 
         To avoid this, this broker would have to do its own position
         management which would also allow tradeid with multiple ids (profit and
@@ -473,7 +473,7 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
             self.notify(order)
 
         elif msg.status == self.PENDINGCANCEL:
-            # In theory this message should not be seen according to the docs,
+            # In theory, this message should not be seen according to the docs,
             # but other messages like PENDINGSUBMIT which are similarly
             # described in the docs have been received in the demo
             if order.status == order.Cancelled:  # duplicate detection
@@ -485,9 +485,9 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
             # self.notify(order)
 
         elif msg.status == self.INACTIVE:
-            # This is a tricky one, because the instances seen have led to
-            # order rejection in the demo, but according to the docs there may
-            # be a number of reasons and it seems like it could be reactivated
+            # This is tricky, because the instances seen have led to
+            # order rejection in the demo, but according to the docs, there may
+            # be a number of reasons, and it seems like it could be reactivated
             if order.status == order.Rejected:  # duplicate detection
                 return
 
@@ -501,7 +501,7 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
 
         elif msg.status in [self.PENDINGSUBMIT, self.PRESUBMITTED]:
             # According to the docs, these statuses can only be set by the
-            # programmer but the demo account sent it back at random times with
+            #  programmer, but the demo account sent it back at random times with
             # "filled"
             if msg.filled:
                 self.ordstatus[msg.orderId][msg.filled] = msg
@@ -610,5 +610,5 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
 
             if msg.orderState.m_status in ['PendingCancel', 'Cancelled',
                                            'Canceled']:
-                # This is most likely due to an expiration]
+                # This is most likely due to an expiration
                 order._willexpire = True

@@ -282,6 +282,27 @@ class BackBroker(bt.BrokerBase):
     def __init__(self):
         super(BackBroker, self).__init__()
         # 用于保存order历史记录
+        self._cash_addition = None
+        self._ocol = None
+        self._fundshares = None
+        self._fundval = None
+        self._ocos = None
+        self._pchildren = None
+        self.submitted = None
+        self.notifs = None
+        self.d_credit = None
+        self.positions = None
+        self._toactivate = None
+        self.pending = None
+        self.orders = None
+        self._unrealized = None
+        self._leverage = None
+        self._valuemktlever = None
+        self._valuelever = None
+        self._valuemkt = None
+        self._value = None
+        self.cash = None
+        self.startingcash = None
         self._userhist = []
         # 用于保存fund历史记录
         self._fundhist = []

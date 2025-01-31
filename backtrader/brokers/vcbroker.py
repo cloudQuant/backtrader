@@ -34,24 +34,24 @@ from backtrader.stores import vcstore
 
 class VCCommInfo(CommInfoBase):
     """
-    Commissions are calculated by ib, but the trades calculations in the
+    Commissions are calculated by ib, but the trade calculations in the
     ```Strategy`` rely on the order carrying a CommInfo object attached for the
     calculation of the operation cost and value.
 
-    These are non-critical informations, but removing them from the trade could
-    break existing usage and it is better to provide a CommInfo objet which
+    These are non-critical information, but removing them from the trade could
+    break existing usage, and it is better to provide a CommInfo objet which
     enables those calculations even if with approvimate values.
 
-    The margin calculation is not a known in advance information with IB
-    (margin impact can be gotten from OrderState objects) and therefore it is
-    left as future exercise to get it"""
+    The margin calculation is not known in advance information with IB
+    (margin impact can be gotten from OrderState objects), and therefore it is
+    left as a future exercise to get it"""
 
     def getvaluesize(self, size, price):
-        # In real life the margin approaches the price
+        # In real life, the margin approaches the price
         return abs(size) * price
 
     def getoperationcost(self, size, price):
-        """Returns the needed amount of cash an operation would cost"""
+        """Returns the necessary amount of cash an operation would cost"""
         # Same reasoning as above
         return abs(size) * price
 
@@ -68,17 +68,17 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
     """Broker implementation for VisualChart.
 
     This class maps the orders/positions from VisualChart to the
-    internal API of ``backtrader``.
+    internal API of `backtrader`.
 
     Params:
 
       - ``account`` (default: None)
 
         VisualChart supports several accounts simultaneously on the broker. If
-        the default ``None`` is in place the 1st account in the ComTrader
+        the default ``None`` is in place, the first account in the ComTrader
         ``Accounts`` collection will be used.
 
-        If an account name is provided, the ``Accounts`` collection will be
+        If an account name is provided, the Accounts collection will be
         checked and used if present
 
       - ``commission`` (default: None)
@@ -95,15 +95,15 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
         VisualChart reports "OpenPositions" updates through the ComTrader
         interface but only when the position has a "size". An update to
         indicate a position has moved to ZERO is reported by the absence of
-        such position. This forces to keep accounting of the positions by
+        such a position. This forces to keep accounting of the positions by
         looking at the execution events, just like the simulation broker does
 
       - Commission
 
-        The ComTrader interface of VisualChart does not report commissions and
-        as such the auto-generated CommissionInfo object cannot use
+        The ComTrader interface of VisualChart does not report commissions, and
+        as such, the auto-generated CommissionInfo object cannot use
         non-existent commissions to properly account for them. In order to
-        support commissions a ``commission`` parameter has to be passed with
+        support commissions, a commission parameter has to be passed with
         the appropriate commission schemes.
 
         The documentation on Commission Schemes details how to do this
@@ -116,9 +116,9 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
 
       - Expiration Reporting
 
-        At the moment no heuristic is in place to determine when a cancelled
-        order has been cancelled due to expiration. And therefore expired
-        orders are reported as cancelled.
+        At the moment, no heuristic is in place to determine when a canceled
+        order has been canceled due to expiration. And therefore, expired
+        orders are reported as canceled.
     """
     params = (
         ('account', None),
@@ -431,7 +431,7 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
         self.notify(border)
 
     def OnOrderInMarket(self, Order):
-        # Other is in ther market ... therefore "accepted"
+        # Other is in the market... therefore "accepted"
         with self._lock_orders:
             try:
                 border = self.orderbyid[Order.OrderId]
@@ -447,7 +447,7 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
 
     def OnChangedOpenPositions(self, Account):
         # This would be useful if it reported a position moving back to 0. In
-        # this case the report contains a no-position and this doesn't help in
+        # this case, the report contains a no-position and this doesn't help in
         # the accounting. That's why the accounting is delegated to the
         # reception of order execution
         pass

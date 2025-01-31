@@ -22,7 +22,7 @@ class CTPBroker(with_metaclass(MetaCTPBroker, BrokerBase)):
 
     Params:
 
-      - `use_positions` (default:`False`): When connecting to the broker
+      - `Use_positions` (default:`False`): When connecting to the broker
         provider use the existing positions to kickstart the broker.
 
         Set to `False` during instantiation to disregard any existing

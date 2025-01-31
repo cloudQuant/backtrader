@@ -33,10 +33,10 @@ class MetaCryptoBroker(BrokerBase.__class__):
 class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
     """Broker implementation for CCXT cryptocurrency trading library.
     This class maps the orders/positions from CCXT to the
-    internal API of ``backtrader``.
+    internal API of `backtrader`.
 
-    Broker mapping added as I noticed that there differences between the expected
-    order_types and retuned status's from canceling an order
+    Broker mapping added as I noticed that there are differences between the expected
+    order_types and retuned status from canceling an order
 
     Added a new mappings parameter to the script with defaults.
 
@@ -320,7 +320,7 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
             print('Broker cancel() called')
             print('Fetching Order ID: {}'.format(oID))
 
-        # check first if the order has already been filled otherwise an error
+        # check first if the order has already been filled, otherwise an error
         # might be raised if we try to cancel an order that is not open.
         ccxt_order = self.store.fetch_order(oID, order.data.p.dataname)
 
