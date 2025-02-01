@@ -25,58 +25,59 @@ PY2 = sys.version_info.major == 2   # 获取当前python的版本，看是否是
 
 # 如果是python2
 if PY2:
-    # 尝试用于import _winreg模块，如果可以调用，就证明这个系统是windows系统，可以用于windows注册表相关的操作；
-    # 如果调用出现了错误，就说明系统不是windows系统，winreg设置成None
-    try:
-        import _winreg as winreg
-    except ImportError:
-        winreg = None
-    # 系统允许的最大整数
-    MAXINT = sys.maxint
-    # 系统允许的最小整数
-    MININT = -sys.maxint - 1
-    # 系统允许的最大浮点数
-    MAXFLOAT = sys.float_info.max
-    # 系统允许的最小浮点数
-    MINFLOAT = sys.float_info.min
-    # 字符串类型
-    string_types = str, unicode
-    # 整数类型
-    integer_types = int, long
-    # 过滤函数filter
-    filter = itertools.ifilter
-    # 映射函数map
-    map = itertools.imap
-    # 创建整数迭代器函数range
-    range = xrange
-    # 把元素成对打包成元组的函数zip
-    zip = itertools.izip
-    # 整数
-    long = long
-    # 对比函数
-    cmp = cmp
-    # 生成bytes
-    bytes = bytes
-    bstr = bytes
-    # 字符串缓存
-    from io import StringIO
-    # 爬虫模块
-    from urllib2 import urlopen, ProxyHandler, build_opener, install_opener
-    from urllib import quote as urlquote
-    # 字典迭代
-    def iterkeys(d): return d.iterkeys()
-
-    def itervalues(d): return d.itervalues()
-
-    def iteritems(d): return d.iteritems()
-    # 字典值
-    def keys(d): return d.keys()
-
-    def values(d): return d.values()
-
-    def items(d): return d.items()
-
-    import Queue as queue
+    # # 尝试用于import _winreg模块，如果可以调用，就证明这个系统是windows系统，可以用于windows注册表相关的操作；
+    # # 如果调用出现了错误，就说明系统不是windows系统，winreg设置成None
+    # try:
+    #     import _winreg as winreg
+    # except ImportError:
+    #     winreg = None
+    # # 系统允许的最大整数
+    # MAXINT = sys.maxint
+    # # 系统允许的最小整数
+    # MININT = -sys.maxint - 1
+    # # 系统允许的最大浮点数
+    # MAXFLOAT = sys.float_info.max
+    # # 系统允许的最小浮点数
+    # MINFLOAT = sys.float_info.min
+    # # 字符串类型
+    # string_types = str, unicode
+    # # 整数类型
+    # integer_types = int, long
+    # # 过滤函数filter
+    # filter = itertools.ifilter
+    # # 映射函数map
+    # map = itertools.imap
+    # # 创建整数迭代器函数range
+    # range = xrange
+    # # 把元素成对打包成元组的函数zip
+    # zip = itertools.izip
+    # # 整数
+    # long = long
+    # # 对比函数
+    # cmp = cmp
+    # # 生成bytes
+    # bytes = bytes
+    # bstr = bytes
+    # # 字符串缓存
+    # from io import StringIO
+    # # 爬虫模块
+    # from urllib2 import urlopen, ProxyHandler, build_opener, install_opener
+    # from urllib import quote as urlquote
+    # # 字典迭代
+    # def iterkeys(d): return d.iterkeys()
+    #
+    # def itervalues(d): return d.itervalues()
+    #
+    # def iteritems(d): return d.iteritems()
+    # # 字典值
+    # def keys(d): return d.keys()
+    #
+    # def values(d): return d.values()
+    #
+    # def items(d): return d.items()
+    #
+    # import Queue as queue
+    pass
     
     
 else:

@@ -39,8 +39,8 @@ class AutoDictList(dict):
 
 
 class DotDict(dict):
-    # If the attribut is not found in the usual places try the dict itself
-    # 这个类仅仅用于了下面一行代码,当访问属性的时候，如果没有这个属性，将会调用__getattr__
+    # If the attribute is not found in the usual places, try the dict itself
+    # 这个类仅仅用于了下面一行代码, 当访问属性的时候，如果没有这个属性，将会调用__getattr__
     # _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, '_name', '')])
     def __getattr__(self, key):
         if key.startswith('__'):

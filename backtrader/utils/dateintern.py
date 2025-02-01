@@ -41,11 +41,11 @@ else:
 # DSTDIFF 代表夏令时与非夏令时的偏移量的差
 DSTDIFF = DSTOFFSET - STDOFFSET
 
-# To avoid rounding errors taking dates to next day
+# To avoid rounding errors, taking dates to next day
 # 为了避免四舍五入偏差导致日期进入下一天，设定TIME_MAX
 TIME_MAX = datetime.time(23, 59, 59, 999990)
 
-# To avoid rounding errors taking dates to next day
+# To avoid rounding errors, taking dates to next day
 # 为了避免四舍五入偏差导致日期进入下一天，设定TIME_MIN
 TIME_MIN = datetime.time.min
 
@@ -254,18 +254,18 @@ MUSECONDS_PER_DAY = MUSECONDS_PER_SECOND * SECONDS_PER_DAY  # 1天有多少微�
 # 下面这四个函数是经常使用的，注释完成之后，尝试使用cython进行改写，看能提高多少的运算速度
 
 def num2date(x, tz=None, naive=True):
-    # Same as matplotlib except if tz is None a naive datetime object
+    # Same as matplotlib except if tz is None, a naive datetime object
     # will be returned.
     """
-    *x* is a float value which gives the number of days
+    *x* is a float value that gives the number of days
     (fraction part represents hours, minutes, seconds) since
     0001-01-01 00:00:00 UTC *plus* *one*.
     The addition of one here is a historical artifact.  Also, note
     that the Gregorian calendar is assumed; this is not universal
     practice.  For details, see the module docstring.
-    Return value is a :class:`datetime` instance in timezone *tz* (default to
+    Return value is a: class:`datetime` instance in timezone *tz* (default to
     rcparams TZ value).
-    If *x* is a sequence, a sequence of :class:`datetime` objects will
+    If *x* is a sequence, a sequence of: class:`datetime` objects will
     be returned.
     """
 
@@ -318,9 +318,9 @@ def num2time(num, tz=None, naive=True):
 
 def date2num(dt, tz=None):
     """
-    Convert :mod:`datetime` to the Gregorian date as UTC float days,
+    Convert: mod:`datetime` to the Gregorian date as UTC float days,
     preserving hours, minutes, seconds and microseconds.  Return value
-    is a :func:`float`.
+    is a: func:`float`.
     """
     if tz is not None:
         dt = tz.localize(dt)
@@ -335,8 +335,7 @@ def date2num(dt, tz=None):
         # base += (dt.hour / HOURS_PER_DAY +
         #          dt.minute / MINUTES_PER_DAY +
         #          dt.second / SECONDS_PER_DAY +
-        #          dt.microsecond / MUSECONDS_PER_DAY
-        #         )
+        #          dt.microsecond / MUSECONDS_PER_DAY)
         base = math.fsum(
             (base, dt.hour / HOURS_PER_DAY, dt.minute / MINUTES_PER_DAY,
              dt.second / SECONDS_PER_DAY, dt.microsecond / MUSECONDS_PER_DAY))
