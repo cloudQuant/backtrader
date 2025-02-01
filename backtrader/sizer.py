@@ -30,15 +30,15 @@ class Sizer(with_metaclass(MetaParams, object)):
 
       - ``strategy``: will be set by the strategy in which the sizer is working
 
-        Gives access to the entire api of the strategy, for example if the
-        actual data position would be needed in ``_getsizing``::
+        Gives access to the entire api of the strategy, for example, if the
+        actual data position is needed in ``_getsizing``:
 
-           position = self.strategy.getposition(data)
+           Position = self.strategy.getposition(data)
 
       - ``broker``: will be set by the strategy in which the sizer is working
 
         Gives access to information some complex sizers may need like portfolio
-        value, ..
+        value.
 
       # strategy 代表在使用sizer的strategy策略，可以通过strategy调用所有的strategy的api
       # broker 代表使用strategy所在的broker，可以用于获取信息进行计算复杂的手数
@@ -58,7 +58,7 @@ class Sizer(with_metaclass(MetaParams, object)):
         Params:
           - ``comminfo``: The CommissionInfo instance that contains
             information about the commission for the data and allows
-            calculation of position value, operation cost, commision for the
+            calculation of position value, operation cost, commission for the
             operation
 
           - ``cash``: current available cash in the *broker*
@@ -69,14 +69,14 @@ class Sizer(with_metaclass(MetaParams, object)):
             for *sell* operations
 
         The method has to return the actual size (an int) to be executed. If
-        ``0`` is returned nothing will be executed.
+         `0` is returned, nothing will be executed.
 
         The absolute value of the returned value will be used
         # 这个方法在使用的 时候需要被重写，传入四个参数：
-        # comminfo  代表佣金的实例，可以用于获取佣金等信息
-        # cash      代表当前可以使用的现金
-        # data      代表在那个数据上进行交易
-        # isbuy     代表在buy操作的时候是True，sell的时候代表是False
+        # comminfo 代表佣金的实例，可以用于获取佣金等信息
+        # cash 代表当前可以使用的现金
+        # data 代表在那个数据上进行交易
+        # isbuy 代表在buy操作的时候是True，sell的时候代表是False
 
         """
         raise NotImplementedError
