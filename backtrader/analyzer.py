@@ -249,7 +249,7 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
 
     # next
     def next(self):
-        """Invoked for each next invocation of the strategy, once the minum
+        """Invoked for each next invocation of the strategy, once the minium
         preiod of the strategy has been reached"""
         pass
 
