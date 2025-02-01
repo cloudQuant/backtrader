@@ -47,7 +47,7 @@ class DivByZero(Logic):
     Params:
       - a: numerator (numeric or iterable object ... mostly a Lines object)
       - b: denominator (numeric or iterable object ... mostly a Lines object)
-      - zero (def: 0.0): value to apply if division by zero would be raised
+      - zero (def: 0.0): value to apply if division by zero is raised
 
     """
     def __init__(self, a, b, zero=0.0):
