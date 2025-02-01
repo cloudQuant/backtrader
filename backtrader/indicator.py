@@ -58,7 +58,7 @@ class MetaIndicator(IndicatorBase.__class__):
         # 如果缓存中已经存在了ckey的key和值，直接返回相应的值，如果不是可以哈希的，调用元类的__call__方法，生成cls
         try:
             return cls._icache[ckey]
-        except TypeError:  # something not hashable
+        except TypeError:  # something is not hashable
             return super(MetaIndicator, cls).__call__(*args, **kwargs)
         except KeyError:
             pass  # hashable but not in the cache
