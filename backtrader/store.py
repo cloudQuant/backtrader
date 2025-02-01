@@ -45,6 +45,13 @@ class Store(with_metaclass(MetaSingleton, object)):
     # 参数
     params = ()
     # 获取数据
+    def __init__(self):
+        self.broker = None
+        self._env = None
+        self._cerebro = None
+        self.datas = None
+        self.notifs = None
+
     def getdata(self, *args, **kwargs):
         """Returns ``DataCls`` with args, kwargs"""
         data = self.DataCls(*args, **kwargs)
