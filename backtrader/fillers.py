@@ -31,7 +31,8 @@ class FixedSize(with_metaclass(MetaParams, object)):
 
     Params:
 
-      - ``size`` (default: ``None``)  maximum size to be executed. The actual
+      - ``size`` (default: ``None``) maximum size to be executed.
+      The actual
         volume of the bar at execution time is also a limit if smaller than the
         size
 
@@ -54,7 +55,7 @@ class FixedBarPerc(with_metaclass(MetaParams, object)):
 
     Params:
 
-      - ``perc`` (default: ``100.0``) (valied values: ``0.0 - 100.0``)
+      - ``perc`` (default: ``100.0``) (valied values: ``0.0-100.0``)
 
         Percentage of the volume bar to use to execute an order
     """
@@ -73,7 +74,7 @@ class BarPointPerc(with_metaclass(MetaParams, object)):
     distributed uniformly in the range *high*-*low* using ``minmov`` to
     partition.
 
-    From the allocated volume for the given price, the ``perc`` percentage will
+    From the allocated volume for the given price, the `perc` percentage will
     be used
 
     Params:
@@ -83,7 +84,7 @@ class BarPointPerc(with_metaclass(MetaParams, object)):
         Minimum price movement. Used to partition the range *high*-*low* to
         proportionally distribute the volume amongst possible prices
 
-      - ``perc`` (default: ``100.0``) (valied values: ``0.0 - 100.0``)
+      - ``perc`` (default: ``100.0``) (valied values: ``0.0-100.0``)
 
         Percentage of the volume allocated to the order execution price to use
         for matching
@@ -104,7 +105,7 @@ class BarPointPerc(with_metaclass(MetaParams, object)):
         # 计算可以分成的份数
         parts = 1
         if minmov:
-            # high - low + minmov to account for open ended minus op
+            # high - low + minmov to account for open-ended minus op
             parts = (data.high[ago] - data.low[ago] + minmov) // minmov
         # 计算每一份可以成交多少
         alloc_vol = ((data.volume[ago] / parts) * self.p.perc) // 100.0
