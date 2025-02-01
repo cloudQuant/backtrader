@@ -27,9 +27,8 @@ import math
 def average(x, bessel=False):
     """
     Args:
-      x: iterable with len
-
-      oneless: (default ``False``) reduces the length of the array for the
+      :param x: iterable with len
+      :param bessel: default False, reduces the length of the array for the
                 division.
 
     Returns:
@@ -43,6 +42,7 @@ def variance(x, avgx=None):
     """
     Args:
       x: iterable with len
+      avgx: average of x
 
     Returns:
       A list with the variance for each element of x
@@ -56,7 +56,7 @@ def standarddev(x, avgx=None, bessel=False):
     """
     Args:
       x: iterable with len
-
+      avgx: average of x
       bessel: (default ``False``) to be passed to the average to divide by
       ``N - 1`` (Bessel's correction)
 
