@@ -101,7 +101,7 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
         the broker with the parameters. Consult the reference for
         ``CommInfoBase``
 
-        If name is ``None``, this will be the default for assets for which no
+        If name is `None`, this will be the default for assets for which no
         other ``CommissionInfo`` scheme can be found
         """
 
@@ -142,7 +142,7 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
     def set_fundmode(self, fundmode, fundstartval=None):
         """Set the actual fundmode (True or False)
 
-        If the argument fundstartval is not ``None``, it will use
+        If the argument fundstartval is not `None`, it will use
         """
         pass  # do nothing, not all brokers can support this
 
