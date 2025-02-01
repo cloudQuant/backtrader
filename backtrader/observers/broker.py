@@ -22,7 +22,7 @@ from .. import Observer
 
 # 获取cash
 class Cash(Observer):
-    """This observer keeps track of the current amount of cash in the broker
+    """This observer keeps track the current amount of cash in the broker
 
     Params: None
     """
@@ -44,7 +44,7 @@ class Value(Observer):
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -61,6 +61,9 @@ class Value(Observer):
     lines = ('value',)
 
     plotinfo = dict(plot=True, subplot=True)
+
+    def __init__(self):
+        self._fundmode = None
 
     def start(self):
         if self.p.fund is None:
@@ -92,6 +95,9 @@ class Broker(Observer):
 
     plotinfo = dict(plot=True, subplot=True)
 
+    def __init__(self):
+        self._fundmode = None
+
     def start(self):
         if self.p.fund is None:
             self._fundmode = self._owner.broker.fundmode
@@ -104,7 +110,7 @@ class Broker(Observer):
 
     def next(self):
         if not self._fundmode:
-            self.lines.value[0] = value = self._owner.broker.getvalue()
+            self.lines.value[0] = self._owner.broker.getvalue()
             self.lines.cash[0] = self._owner.broker.getcash()
         else:
             self.lines.value[0] = self._owner.broker.fundvalue

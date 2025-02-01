@@ -34,14 +34,14 @@ class Benchmark(TimeReturn):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
       - ``data`` (default: ``None``)
 
         Reference asset to track to allow for comparison.
 
-        .. note:: this data must have been added to a ``cerebro`` instance with
+        :note:: this data must have been added to a ``cerebro`` instance with
                   ``addata``, ``resampledata`` or ``replaydata``.
 
 
@@ -64,14 +64,14 @@ class Benchmark(TimeReturn):
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
 
         Set it to ``True`` or ``False`` for a specific behavior
 
-    Remember that at any moment of a ``run`` the current values can be checked
+    Remember that at any moment of a `run` the current values can be checked
     by looking at the *lines* by name at index ``0``.
 
     """
@@ -83,7 +83,7 @@ class Benchmark(TimeReturn):
     params = (
         ('data', None),
         ('_doprenext', False),
-        # Set to false to ensure the asset is measured at 0% in the 1st tick
+        # Set to False, to ensure the asset is measured at 0% in the 1st tick
         ('firstopen', False),
         ('fund', None)
     )
@@ -100,7 +100,7 @@ class Benchmark(TimeReturn):
         super(Benchmark, self).__init__()  # treturn including data parameter
         # Create a time return object without the data
         kwargs = self.p._getkwargs()
-        kwargs.update(data=None)  # to create a return for the stratey
+        kwargs.update(data=None)  # to create a return for the strategy
         # 获取收益率
         t = self._owner._addanalyzer_slave(bt.analyzers.TimeReturn, **kwargs)
 

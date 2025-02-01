@@ -30,7 +30,7 @@ class DrawDown(Observer):
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -83,7 +83,7 @@ class DrawDownLength(Observer):
         self.lines.maxlen[0] = self._dd.rets.max.len  # update max length
 
 # 最大回撤旧的方法，通过在这个类里面计算，而不是调用analyzers中的DrawDown
-class DrawDown_Old(Observer):
+class DrawDownOld(Observer):
     """This observer keeps track of the current drawdown level (plotted) and
     the maxdrawdown (not plotted) levels
 
@@ -98,7 +98,7 @@ class DrawDown_Old(Observer):
     plotlines = dict(maxdrawdown=dict(_plotskip='True',))
 
     def __init__(self):
-        super(DrawDown_Old, self).__init__()
+        super(DrawDownOld, self).__init__()
 
         self.maxdd = 0.0
         self.peak = float('-inf')

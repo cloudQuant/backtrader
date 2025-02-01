@@ -32,7 +32,7 @@ class BuySell(Observer):
       - ``barplot`` (default: ``False``) Plot buy signals below the minimum and
         sell signals above the maximum.
 
-        If ``False`` it will plot on the average price of executions during a
+        If `False`, it will plot on the average price of executions during a
         bar
 
       - ``bardist`` (default: ``0.015`` 1.5%) Distance to max/min when
@@ -52,6 +52,9 @@ class BuySell(Observer):
         ('barplot', False),  # plot above/below max/min for clarity in bar plot
         ('bardist', 0.015),  # distance to max/min in absolute perc
     )
+
+    def __init__(self):
+        self.curbuylen = None
 
     def next(self):
         buy = list()
