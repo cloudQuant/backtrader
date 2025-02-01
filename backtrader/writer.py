@@ -39,22 +39,22 @@ class WriterBase(with_metaclass(bt.MetaParams, object)):
 # WriterFile类
 class WriterFile(WriterBase):
     """
-    The system wide writer class.
+    The system-wide writer class.
 
     It can be parametrized with:
 
       - ``out`` (default: ``sys.stdout``): output stream to write to
 
-        If a string is passed a filename with the content of the parameter will
+        If a string is passed, a filename with the content of the parameter will
         be used.
 
         If you wish to run with ``sys.stdout`` while doing multiprocess optimization, leave it as ``None``, which will
         automatically initiate ``sys.stdout`` on the child processes.
 
-        # out 默认是 sys.stdout 如果是在多进程参数优化的过程中，想要把结果输出到标准输出中，把这个参数设置成None,会在每个自进程中自动设置
-        # 如果传了一个filename给out,将会输出到这个filename中
+        # out 默认是 sys.stdout 如果是在多进程参数优化的过程中，想要把结果输出到标准输出中，把这个参数设置成None, 会在每个自进程中自动设置
+        # 如果传了一个filename给out, 将会输出到这个filename中
 
-      - ``close_out``  (default: ``False``)
+      - ``close_out`` (default: ``False``)
 
         If ``out`` is a stream whether it has to be explicitly closed by the
         writer
@@ -63,7 +63,7 @@ class WriterFile(WriterBase):
       - ``csv`` (default: ``False``)
 
         If a csv stream of the data feeds, strategies, observers and indicators
-        has to be written to the stream during execution
+         have to be written to the stream during execution
 
         Which objects actually go into the csv stream can be controlled with
         the ``csv`` attribute of each object (defaults to ``True`` for ``data
@@ -80,7 +80,7 @@ class WriterFile(WriterBase):
       - ``csv_counter`` (default: ``True``) if the writer shall keep and print
         out a counter of the lines actually output
 
-        # writer是否保存和打印实际上输出的那些lines,默认是True
+        # writer是否保存和打印实际上输出的那些lines, 默认是True
 
       - ``indent`` (default: ``2``) indentation spaces for each level
         # 行首空格，默认是2
@@ -94,13 +94,13 @@ class WriterFile(WriterBase):
 
       - ``seplen`` (default: ``79``)
 
-        total length of a line separator including indentation
+        Total length of a line separator including indentation
 
         # 包括行首的分隔符的总的长度，默认是79
 
       - ``rounding`` (default: ``None``)
 
-        Number of decimal places to round floats down to. With ``None`` no
+        Number of decimal places to round floats down to.With `None` no
         rounding is performed
 
         # 保存的小数是否四舍五入到某一位。默认不进行四舍五入。
