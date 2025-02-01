@@ -22,6 +22,7 @@ import datetime
 import collections
 import itertools
 import multiprocessing
+from datetime import UTC
 try:  # For new Python versions
     collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
 except AttributeError:  # For old Python versions
@@ -349,6 +350,16 @@ class Cerebro(with_metaclass(MetaParams, object)):
     # 初始化
     def __init__(self):
         # 是否实盘，初始化的时候，默认不是实盘
+        self._timerscheat = None
+        self._timers = None
+        self.runningstrats = None
+        self.runstrats = None
+        self.writers_csv = None
+        self.runwriters = None
+        self._dopreload = None
+        self._dorunonce = None
+        self._exactbars = None
+        self._event_stop = None
         self._dolive = False
         # 是否replay,初始化的时候，默认不replay
         self._doreplay = False
@@ -1743,9 +1754,9 @@ class Cerebro(with_metaclass(MetaParams, object)):
             # from the qcheck value
             # 记录开始的时间，并且通知feed从qcheck中减去qlapse的时间
             drets = []
-            qstart = datetime.datetime.utcnow()
+            qstart = datetime.datetime.now(UTC)
             for d in datas:
-                qlapse = datetime.datetime.utcnow() - qstart
+                qlapse = datetime.datetime.now(UTC) - qstart
                 d.do_qcheck(newqcheck, qlapse.total_seconds())
                 drets.append(d.next(ticks=False))
             # 遍历drets,如果d0ret是False,并且存在dret是None的话，d0ret是None
