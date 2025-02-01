@@ -19,13 +19,12 @@
 #
 ###############################################################################
 """
-
-.. module:: lineroot
+module:: lineroot
 
 Definition of the base class LineRoot and base classes LineSingle/LineMultiple
 to define interfaces and hierarchy for the real operational classes
 
-.. moduleauthor:: Daniel Rodriguez
+module author:: Daniel Rodriguez
 
 """
 import operator
@@ -37,7 +36,7 @@ from .utils.py3 import range, with_metaclass
 
 class MetaLineRoot(metabase.MetaParams):
     """
-    Once the object is created (effectively pre-init) the "owner" of this
+    Once the object is created (effectively pre-init), the "owner" of this
     class is sought
     # 当这个类在创建之前(pre-init之前)，会寻找这个类的一个父类，并保存到_owner属性上
     """
@@ -67,7 +66,8 @@ class LineRoot(with_metaclass(MetaLineRoot, object)):
         Operation (dual/single operand) Management
         Rich Comparison operator definition
     为line实例定义一个共同的基类和接口，主要用于周期管理、迭代管理、操作管理和丰富的对比操作。
-    需要额外注意的是，with_metaclass(MetaLineRoot,object)创建了一个类：temporary_class,这个类继承了MetaLineRoot和object，LineRoot继承的是temporary_class
+    需要额外注意的是，with_metaclass(MetaLineRoot,object)创建了一个类：temporary_class,
+    这个类继承了MetaLineRoot和object，LineRoot继承的是temporary_class
     到这里的继承关系如下：LineRoot-->MetaLineRoot-->MetaParams-->MetaBase-->type
     """
     # 初始化的时候类的属性
@@ -114,7 +114,7 @@ class LineRoot(with_metaclass(MetaLineRoot, object)):
     # 可以用于在策略中设置最小的周期，可以不用等待指标产生具体的值就开始运行
     def setminperiod(self, minperiod):
         """
-        Direct minperiod manipulation. It could be used for example
+        Direct minperiod manipulation.It could be used, for example,
         by a strategy
         to not wait for all indicators to produce a value
         
@@ -224,7 +224,7 @@ class LineRoot(with_metaclass(MetaLineRoot, object)):
     # 阶段1操作，判断other是不是包含多个line,如果有多个line，就取出第一个line,然后进行操作
     def _operation_stage1(self, other, operation, r=False, intify=False):
         """
-        Two operands' operation. Scanning of other happens to understand
+        Two operands' operations.Scanning of other happens to understand
         if other must be directly an operand or rather a subitem thereof
         """
         if isinstance(other, LineMultiple):
