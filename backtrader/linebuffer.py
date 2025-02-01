@@ -72,6 +72,14 @@ class LineBuffer(LineSingle):
 
     # 初始化操作
     def __init__(self):
+        self.lenmark = None
+        self.extrasize = None
+        self.maxlen = None
+        self.extension = None
+        self.lencount = None
+        self.useislice = None
+        self.array = None
+        self._idx = None
         self.lines = [self]                     # lines是一个包含自身的列表
         self.mode = self.UnBounded              # self.mode默认值是0
         self.bindings = list()                  # self.bindlings默认是一个列表
