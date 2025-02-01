@@ -19,13 +19,12 @@
 #
 ###############################################################################
 """
-
-.. module:: linebuffer
+module:: linebuffer
 
 Classes that hold the buffer for a *line* and can operate on it
-with appends, forwarding, rewinding, resetting and other
+with appending, forwarding, rewinding, resetting and other
 
-.. moduleauthor:: Daniel Rodriguez
+module author:: Daniel Rodriguez
 
 """
 import array
@@ -49,21 +48,21 @@ class LineBuffer(LineSingle):
     LineBuffer defines an interface to an "array.array" (or list) in which
     index 0 points to the item which is active for input and output.
 
-    Positive indices fetch values from the past (left hand side)
+    Positive indices fetch values from the past (left-hand side)
     Negative indices fetch values from the future (if the array has been
-    extended on the right hand side)
+    extended on the right-hand side)
 
-    With this behavior no index has to be passed around to entities which have
+    With this behavior, no index has to be passed around to entities which have
     to work with the current value produced by other entities: the value is
     always reachable at "0".
 
-    Likewise storing the current value produced by "self" is done at 0.
+    Likewise, storing the current value produced by "self" is done at 0.
 
     Additional operations to move the pointer (home, forward, extend, rewind,
     advance getzero) are provided
 
     The class can also hold "bindings" to other LineBuffers. When a value
-    is set in this class
+    is set in this class,
     it will also be set in the binding.
     LineBuffer主要是用于定义一个操作array.array的接口，在调用line[0]的时候得到的是当前输入输出的活跃值，如果是在next中调用，line[0]就代表着当前时间点的值
     
@@ -85,13 +84,13 @@ class LineBuffer(LineSingle):
 
     # 设置_idx的值
     def set_idx(self, idx, force=False):
-        # if QBuffer and the last position of the buffer was reached, keep
+        # If QBuffer and the last position of the buffer were reached, keep
         # it (unless force) as index 0. This allows resampling
-        #  - forward adds a position, but the 1st one is discarded, the 0 is
+        #  - forward adds a position. However, the 1st one is discarded, the 0 is
         #  invariant
         # force supports replaying, which needs the extra bar to float
         # forward/backwards, because the last input is read, and after a
-        # "backwards" is used to update the previous data. Unless the position
+        # "backwards" is used to update the previous data. Unless position
         # 0 was moved to the previous index, it would fail
         # 在设置idx的值得时候，根据两种状态来进行设置，如果是缓存模式(QBuffer),需要满足force等于True或者self._idx小于self.lenmark才能给self._idx重新赋值
         if self.mode == self.QBuffer:
@@ -108,10 +107,11 @@ class LineBuffer(LineSingle):
         """
         # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据，有一个最大的长度，超过这个长度的时候回踢出最前面的数据
         if self.mode == self.QBuffer:
-            # add extrasize to ensure resample/replay work because they will
+            # Add extrasize to ensure resample/replay work.They will
             # use backwards to erase the last bar/tick before delivering a new
             # bar The previous forward would have discarded the bar "period"
-            # times ago and it will not come back. Having + 1 in the size
+            # times ago, and it will not come back.
+            # Having + 1 in the size
             # allows the forward without removing that bar
             self.array = collections.deque(maxlen=self.maxlen + self.extrasize)
             self.useislice = True
@@ -140,11 +140,11 @@ class LineBuffer(LineSingle):
         """The linebuffer must guarantee the minimum requested size to be
         available.
 
-        In non-dqbuffer mode, this is always true (of course until data is
-        filled at the beginning, there are less values, but minperiod in the
+        In non-dqbuffer mode, this is always true (of course, until data is
+        filled at the beginning, there are fewer values, but minperiod in the
         framework should account for this.
 
-        In dqbuffer mode the buffer has to be adjusted for this if currently
+        In dqbuffer mode, the buffer has to be adjusted for this if currently
         less than requested
         """
         # 如果不是缓存模式，或者最大的长度大于size，返回None
@@ -345,9 +345,9 @@ class LineBuffer(LineSingle):
             idx (int): Where to start relative to the real start of the buffer
             size(int): size of the slice to return
 
-        This is a variant of getzero which unless told otherwise returns the
+        This is a variant of getzero that unless told otherwise returns the
         entire buffer, which is usually the idea behind plottint (all must
-        plotted)
+        be plotted)
 
         Returns:
             A slice of the underlying buffer
@@ -374,7 +374,7 @@ class LineBuffer(LineSingle):
     # 把blinding转变成line
     def bind2lines(self, binding=0):
         """
-        Stores a binding to another line. "binding" can be an index or a name
+        Stores a binding to another line. "Binding" can be an index or a name
         """
         if isinstance(binding, string_types):
             line = getattr(self._owner.lines, binding)
@@ -389,15 +389,15 @@ class LineBuffer(LineSingle):
     
     # 调用的时候返回一个自身的延迟版本或者时间周期改变版本
     def __call__(self, ago=None):
-        """Returns either a delayed verison of itself in the form of a
-        LineDelay object or a timeframe adapting version with regards to a ago
+        """Returns either a delayed version of itself in the form of a
+        LineDelay object or a timeframe adapting version in regard to an ago
 
         Param: ago (default: None)
 
-          If ago is None or an instance of LineRoot (a lines object) the
+          If the ago is None or an instance of LineRoot (a lines object), the
           returned valued is a LineCoupler instance
 
-          If ago is anything else, it is assumed to be an int and a LineDelay
+          If the ago is anything else, it is assumed to be an int and a LineDelay
           object will be returned
         """
         from .lineiterator import LineCoupler
@@ -437,14 +437,14 @@ class LineBuffer(LineSingle):
     # 返回时间相关的浮点数的整数部分
     def dt(self, ago=0):
         """
-        return numeric date part of datetimefloat
+        return numeric date part of datetime float
         """
         return math.trunc(self.array[self.idx + ago])
 
     # 返回时间相关浮点数的小数部分
     def tm_raw(self, ago=0):
         """
-        return raw numeric time part of datetimefloat
+        return raw numeric time part of datetime float
         """
         # This function is named raw because it retrieves the fractional part
         # without transforming it to time to avoid the influence of the day
@@ -454,7 +454,7 @@ class LineBuffer(LineSingle):
     # 把一个日期-时间格式的时间部分转化成浮点数
     def tm(self, ago=0):
         """
-        return numeric time part of datetimefloat
+        return numeric time part of datetime float
         """
         # To avoid precision errors, this returns the fractional part after
         # having converted it to a datetime.time object to avoid precision
@@ -464,7 +464,7 @@ class LineBuffer(LineSingle):
     # 对比数据中的日期-时间是否小于数据中的日期+other的大小
     def tm_lt(self, other, ago=0):
         """
-        return numeric time part of datetimefloat
+        return numeric time part of datetime float
         """
         # To compare a raw "tm" part (fractional part of coded datetime)
         # with the tm of the current datetime, the raw "tm" has to be
@@ -477,7 +477,7 @@ class LineBuffer(LineSingle):
     # 对比数据中的日期-时间是否小于等于数据中的日期+other的大小
     def tm_le(self, other, ago=0):
         """
-        return numeric time part of datetimefloat
+        return numeric time part of datetime float
         """
         # To compare a raw "tm" part (fractional part of coded datetime)
         # with the tm of the current datetime, the raw "tm" has to be
@@ -490,7 +490,7 @@ class LineBuffer(LineSingle):
     # 对比数据中的日期-时间是否等于数据中的日期+other的大小
     def tm_eq(self, other, ago=0):
         """
-        return numeric time part of datetimefloat
+        return numeric time part of datetime float
         """
         # To compare a raw "tm" part (fractional part of coded datetime)
         # with the tm of the current datetime, the raw "tm" has to be
@@ -503,7 +503,7 @@ class LineBuffer(LineSingle):
     # 对比数据中的日期-时间是否大于数据中的日期+other的大小
     def tm_gt(self, other, ago=0):
         """
-        return numeric time part of datetimefloat
+        return numeric time part of datetime float
         """
         # To compare a raw "tm" part (fractional part of coded datetime)
         # with the tm of the current datetime, the raw "tm" has to be
@@ -516,7 +516,7 @@ class LineBuffer(LineSingle):
     # 对比数据中的日期-时间是否大于等于数据中的日期+other的大小
     def tm_ge(self, other, ago=0):
         """
-        return numeric time part of datetimefloat
+        return numeric time part of datetime float
         """
         # To compare a raw "tm" part (fractional part of coded datetime)
         # with the tm of the current datetime, the raw "tm" has to be
@@ -583,7 +583,7 @@ class MetaLineActions(LineBuffer.__class__):
         # 如果缓存中存在这个ckey，调用的时候直接返回相应的值。如果不存在这个key，就忽略；如果ckey类型错误，就调用相应的__call__方法
         try:
             return cls._acache[ckey]
-        except TypeError:  # something not hashable
+        except TypeError:  # something is not hashable
             return super(MetaLineActions, cls).__call__(*args, **kwargs)
         except KeyError:
             pass  # hashable but not in the cache
@@ -648,7 +648,7 @@ class PseudoArray(object):
 
 class LineActions(with_metaclass(MetaLineActions, LineBuffer)):
     """
-    Base class derived from LineBuffer intented to defined the
+    Base class derived from LineBuffer intented to define the
     minimum interface to make it compatible with a LineIterator by
     providing operational _next and _once interfaces.
 
@@ -735,7 +735,7 @@ class _LineDelay(LineActions):
         self.a = a
         self.ago = ago
 
-        # Need to add the delay to the period. "ago" is 0 based and therefore
+        # Need to add the delay to the period."ago" is 0 based, and therefore
         # we need to pass and extra 1 which is the minimum defined period for
         # any data (which will be substracted inside addminperiod)
         self.addminperiod(abs(ago) + 1)
@@ -766,7 +766,7 @@ class _LineForward(LineActions):
         self.a = a
         self.ago = ago
 
-        # Need to add the delay to the period. "ago" is 0 based and therefore
+        # Need to add the delay to the period."ago" is 0 based, and therefore
         # we need to pass and extra 1 which is the minimum defined period for
         # any data (which will be substracted inside addminperiod)
         # self.addminperiod(abs(ago) + 1)
@@ -789,21 +789,21 @@ class _LineForward(LineActions):
 class LinesOperation(LineActions):
 
     """
-    Holds an operation that operates on a two operands. Example: mul
+    Holds an operation that operates on two operands. Example: mul
 
     It will "next"/traverse the array applying the operation on the
     two operands and storing the result in self.
 
-    To optimize the operations and avoid conditional checks the right
+    To optimize the operations and avoid conditional checks, the right
     next/once is chosen using the operation direction (normal or reversed)
-    and the nature of the operands (LineBuffer vs non-LineBuffer)
+    and the nature of the operands (LineBuffer vs. non-LineBuffer)
 
     In the "once" operations "map" could be used as in:
 
         operated = map(self.operation, srca[start:end], srcb[start:end])
         self.array[start:end] = array.array(str(self.typecode), operated)
 
-    No real execution time benefits were appreciated and therefore the loops
+    No real execution time benefits were appreciated, and therefore the loops
     have been kept in place for clarity (although the maps are not really
     unclear here)
     """
@@ -812,7 +812,7 @@ class LinesOperation(LineActions):
         super(LinesOperation, self).__init__()
 
         self.operation = operation                              # 操作方法
-        self.a = a  # always a linebuffer                       # a是line
+        self.a = a                                              # always a linebuffer, a是line
         self.b = b                                              # 保存b
 
         self.r = r                                              # r代表是否对a,b进行反转
@@ -853,7 +853,7 @@ class LinesOperation(LineActions):
             # 如果b是时间，调用_once_time_op
             else:
                 self._once_time_op(start, end)
-        # 如果a,b进行了互换，那么就调用_onve_val_op_r
+        # 如果a,b进行了互换，那么就调用_once_val_op_r
         else:
             self._once_val_op_r(start, end)
 
