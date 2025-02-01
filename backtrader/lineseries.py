@@ -20,12 +20,12 @@
 ###############################################################################
 """
 
-.. module:: lineroot
+Module:: lineroot
 
-Defines LineSeries and Descriptors inside of it for classes that hold multiple
+Defines LineSeries and Descriptors inside it for classes that hold multiple
 lines at once.
 
-.. moduleauthor:: Daniel Rodriguez
+Module author:: Daniel Rodriguez
 
 """
 import sys
@@ -46,7 +46,7 @@ class LineAlias(object):
         line (int): reference to the line that will be returned from
         owner's *lines* buffer
 
-    As a convenience the __set__ method of the descriptor is used not set
+    As a convenience, the __set__ method of the descriptor is used not set
     the *line* reference because this is a constant along the live of the
     descriptor instance, but rather to set the value of the *line* at the
     instant '0' (the current one)
@@ -117,9 +117,9 @@ class Lines(object):
         initial input for the subclass. It will include num "extralines" and
         lines present in "otherbases"
 
-        "name" will be used as the suffix of the final class name
+        Param "name" will be used as the suffix of the final class name
 
-        "linesoverride": if True the lines of all bases will be discarded and
+        Param "linesoverride": if True, the lines of all bases will be discarded, and
         the baseclass will be the topmost class "Lines". This is intended to
         create a new hierarchy
         """
@@ -193,7 +193,7 @@ class Lines(object):
         for line,linealias in enumerate(lines2add, start=l2start):
             # line是一个整数，linealias如果不是字符串，那么和可能是元组或者列表，第一个就是它的名字
             if not isinstance(linealias, string_types):
-                # a tuple or list was passed, 1st is name
+                # a tuple or list was passed, 1st is a name
                 linealias = linealias[0]
             # 创建一个LineAlias的类
             desc = LineAlias(line)  # keep a reference below，LineAlias这个类只有用在了这里面和下面里面
@@ -210,7 +210,7 @@ class Lines(object):
             l2alias = lalias._getkwargsdefault() # 个人增加的，替换前面的生成语句
             for line, linealias in enumerate(newcls._getlines()):
                 if not isinstance(linealias, string_types):
-                    # a tuple or list was passed, 1st is name
+                    # a tuple or list was passed, the first is a name
                     linealias = linealias[0]
 
                 # 给newcls设置alias属性，属性值为desc
@@ -386,7 +386,7 @@ class MetaLineSeries(LineMultiple.__class__):
         in the "lines" instance
 
         Additionally and for remaining kwargs, these are matched against
-        args in plotinfo and if existent are set there and removed from kwargs
+        args in plotinfo and if existent is set there and removed from kwargs
 
         Remember that this Metaclass has a MetaParams (from metabase)
         as root class and therefore "params" defined for the class have been
@@ -461,7 +461,7 @@ class MetaLineSeries(LineMultiple.__class__):
                       'aliased': cls.__name__}
 
             if not isinstance(alias, string_types):
-                # a tuple or list was passed, 1st is name, 2nd plotname
+                # a tuple or list was passed; 1st is name, 2nd plotname
                 aliasplotname = alias[1]
                 alias = alias[0]
                 newdct['plotinfo'] = dict(plotname=aliasplotname)
@@ -524,7 +524,7 @@ class MetaLineSeries(LineMultiple.__class__):
         in the "lines" instance
 
         Additionally and for remaining kwargs, these are matched against
-        args in plotinfo and if existent are set there and removed from kwargs
+        args in plotinfo and if existent is set there and removed from kwargs
 
         Remember that this Metaclass has a MetaParams (from metabase)
         as root class and therefore "params" defined for the class have been
@@ -542,7 +542,7 @@ class MetaLineSeries(LineMultiple.__class__):
         """
 
         # Get the aliases - don't leave it there for subclasses
-        # 给dct增加一个alias,aliased的key，并设定默认值是(),"",其中aliases的值是一个空的列表，aliased的值是空的字符串。字典的具体用法
+        # 给dct增加一个alias, aliased的key，并设定默认值是(),"",其中aliases的值是一个空的列表，aliased的值是空的字符串。字典的具体用法
         aliases = dct.setdefault('alias', ())
         aliased = dct.setdefault('aliased', '')
 
@@ -617,7 +617,7 @@ class MetaLineSeries(LineMultiple.__class__):
                       'aliased': cls.__name__}
 
             if not isinstance(alias, string_types):
-                # a tuple or list was passed, 1st is name, 2nd plotname
+                # a tuple or list was passed; 1st is name, 2nd is plotname
                 aliasplotname = alias[1]
                 alias = alias[0]
                 newdct['plotinfo'] = dict(plotname=aliasplotname)
@@ -696,7 +696,7 @@ class LineSeries(with_metaclass(MetaLineSeries, LineMultiple)):
 
     def __getattr__(self, name):
         # to refer to line by name directly if the attribute was not found
-        # in this object if we set an attribute in this object it will be
+        # in this object if we set an attribute in this object, it will be
         # found before we end up here
         
         # 返回self.lines的name属性值
@@ -718,7 +718,7 @@ class LineSeries(with_metaclass(MetaLineSeries, LineMultiple)):
         # if any args, kwargs make it up to here, something is broken
         # defining a __init__ guarantees the existence of im_func to findbases
         # in lineiterator later, because object.__init__ has no im_func
-        # (object has slots)
+        # (an object has slots)
         
         # 初始化
         super(LineSeries, self).__init__()
@@ -766,24 +766,24 @@ class LineSeries(with_metaclass(MetaLineSeries, LineMultiple)):
         return lineobj
 
     def __call__(self, ago=None, line=-1):
-        """Returns either a delayed verison of itself in the form of a
-        LineDelay object or a timeframe adapting version with regards to a ago
+        """Returns either a delayed version of itself in the form of a
+        LineDelay object or a timeframe adapting version in regard to an ago
 
         Param: ago (default: None)
 
-          If ago is None or an instance of LineRoot (a lines object) the
+          If `ago` is None or an instance of LineRoot (a lines object), the
           returned valued is a LineCoupler instance
 
-          If ago is anything else, it is assumed to be an int and a LineDelay
+          If `ago` is anything else, it is assumed to be an int and a LineDelay
           object will be returned
 
         Param: line (default: -1)
-          If a LinesCoupler will be returned ``-1`` means to return a
+          If a LinesCoupler is returned `-1` means to return a
           LinesCoupler which adapts all lines of the current LineMultiple
           object. Else the appropriate line (referenced by name or index) will
           be LineCoupled
 
-          If a LineDelay object will be returned, ``-1`` is the same as ``0``
+          If a LineDelay object is returned, `-1` is the same as ``0``
           (to retain compatibility with the previous default value of 0). This
           behavior will change to return all existing lines in a LineDelayed
           form
@@ -835,14 +835,14 @@ class LineSeriesStub(LineSeries):
     """Simulates a LineMultiple object based on LineSeries from a single line
 
     The index management operations are overriden to take into account if the
-    line is a slave, ie:
+    line is a slave, i.e.:
 
       - The line reference is a line from many in a LineMultiple object
       - Both the LineMultiple object and the Line are managed by the same
         object
 
-    Were slave not to be taken into account, the individual line would for
-    example be advanced twice:
+    Were slave not to be taken into account, the individual line would, for
+    example, be advanced twice:
 
       - Once under when the LineMultiple object is advanced (because it
         advances all lines it is holding
