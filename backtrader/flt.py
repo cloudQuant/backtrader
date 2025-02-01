@@ -34,7 +34,7 @@ class Filter(with_metaclass(MetaParams, object)):
 
     _firsttime = True
 
-    def __init__(self, data):
+    def __init__(self, data_):
         pass
 
     def __call__(self, data):
