@@ -102,7 +102,7 @@ class CandlestickPlotHandler(object):
         width = handlebox.width / len(self.legend_opens)
         height = handlebox.height
 
-        # Generate the x axis coordinates (handlebox based)
+        # Generate the x-axis coordinates (handlebox based)
         xs = [x0 + width * (i + 0.5) for i in range(len(self.legend_opens))]
 
         barcol, tickcol = self.barcollection(
@@ -146,30 +146,30 @@ class CandlestickPlotHandler(object):
 
         delta = width / 2 - edgeadjust
 
-        def barbox(i, open, close):
+        def barbox(i, open_, close):
             # delta seen as closure
             left, right = i - delta, i + delta
-            open = open * scaling + bot
+            open_ = open_ * scaling + bot
             close = close * scaling + bot
-            return (left, open), (left, close), (right, close), (right, open)
+            return (left, open_), (left, close), (right, close), (right, open_)
 
         barareas = [barbox(i, o, c) for i, o, c in xoc()]
 
-        def tup(i, open, high, close):
+        def tup(i, open_, high, close):
             high = high * scaling + bot
-            open = open * scaling + bot
+            open_ = open_ * scaling + bot
             close = close * scaling + bot
 
-            return (i, high), (i, max(open, close))
+            return (i, high), (i, max(open_, close))
 
         tickrangesup = [tup(i, o, h, c) for i, o, h, l, c in iohlc()]
 
-        def tdown(i, open, low, close):
+        def tdown(i, open_, low, close):
             low = low * scaling + bot
-            open = open * scaling + bot
+            open_ = open_ * scaling + bot
             close = close * scaling + bot
 
-            return (i, low), (i, min(open, close))
+            return (i, low), (i, min(open_, close))
 
         tickrangesdown = [tdown(i, o, l, c) for i, o, h, l, c in iohlc()]
 
@@ -231,8 +231,9 @@ def plot_candlestick(ax,
         filldown,
         **kwargs)
 
-    # Return the collections. the barcol goes first because
-    # is the larger,  has the dominant zorder and defines the legend
+    # Return the collections.
+    # The barcol goes first because it
+    # is the larger, has the dominant zorder and defines the legend
     return chandler.barcol, chandler.tickcol
 
 
@@ -289,7 +290,7 @@ class VolumePlotHandler(object):
         width = handlebox.width / len(self.legend_vols)
         height = handlebox.height
 
-        # Generate the x axis coordinates (handlebox based)
+        # Generate the x-axis coordinates (handlebox based)
         xs = [x0 + width * (i + 0.5) for i in range(len(self.legend_vols))]
 
         barcol = self.barcollection(
@@ -312,9 +313,9 @@ class VolumePlotHandler(object):
 
         # Calculate bars colors
         colord = {True: self.colorup, False: self.colordown}
-        colors = [colord[open < close] for open, close in openclose()]
+        colors = [colord[open_ < close] for open_, close in openclose()]
         edgecolord = {True: self.edgeup, False: self.edgedown}
-        edgecolors = [edgecolord[open < close] for open, close in openclose()]
+        edgecolors = [edgecolord[open_ < close] for open_, close in openclose()]
 
         # bar width to the sides
         delta = width / 2 - edgeadjust
@@ -404,7 +405,7 @@ class OHLCPlotHandler(object):
         width = handlebox.width / len(self.legend_opens)
         height = handlebox.height
 
-        # Generate the x axis coordinates (handlebox based)
+        # Generate the x-axis coordinates (handlebox based)
         xs = [x0 + width * (i + 0.5) for i in range(len(self.legend_opens))]
 
         barcol, opencol, closecol = self.barcollection(
@@ -438,7 +439,7 @@ class OHLCPlotHandler(object):
         openclose = lambda: zip(opens, closes)  # NOQA: E731
 
         colord = {True: self.colorup, False: self.colordown}
-        colors = [colord[open < close] for open, close in openclose()]
+        colors = [colord[open_ < close] for open_, close in openclose()]
 
         # Extra variables for the collections
         useaa = 0,
@@ -459,11 +460,11 @@ class OHLCPlotHandler(object):
             label=label,
             **kwargs)
 
-        def tickopen(i, open):
-            open = open * scaling + bot
-            return (i - tickwidth, open), (i, open)
+        def tickopen(i, open_):
+            open_ = open_ * scaling + bot
+            return (i - tickwidth, open_), (i, open_)
 
-        openticks = [tickopen(i, open) for i, open in iopen()]
+        openticks = [tickopen(i, open_) for i, open_ in iopen()]
         opencol = mcol.LineCollection(
             openticks,
             colors=colors,
@@ -541,7 +542,7 @@ class LineOnClosePlotHandler(object):
         width = handlebox.width / len(self.legend_closes)
         height = handlebox.height
 
-        # Generate the x axis coordinates (handlebox based)
+        # Generate the x-axis coordinates (handlebox based)
         xs = [x0 + width * (i + 0.5) for i in range(len(self.legend_closes))]
 
         linecol, = self.barcollection(

@@ -72,17 +72,17 @@ tab10_index = [3, 0, 2, 1, 2, 4, 5, 6, 7, 8, 9]
 
 class PlotScheme(object):
     def __init__(self):
-        # to have a tight packing on the chart wether only the x axis or also
-        # the y axis have (see matplotlib)
+        # to have tight packing on the chart, whether only the x-axis or also
+        # the y-axis have (see matplotlib)
         self.ytight = False
 
         # y-margin (top/bottom) for the subcharts. This will not overrule the
         # option plotinfo.plotymargin
         self.yadjust = 0.0
         # Each new line is in z-order below the previous one. change it False
-        # to have lines paint above the previous line
+        # to have lines painted above the previous line
         self.zdown = True
-        # Rotation of the date labes on the x axis
+        # Rotation of the date labes on the x-axis
         self.tickrotation = 15
 
         # How many "subparts" takes a major chart (datas) in the overall chart
@@ -91,7 +91,7 @@ class PlotScheme(object):
 
         # How many "subparts" takes a minor chart (indicators/observers) in the
         # overall chart. This is proportional to the total number of subcharts
-        # Together with rowsmajor, this defines a proportion ratio betwen data
+        # Together with rowsmajor, this defines a proportion ratio between data
         # charts and indicators/observers charts
         self.rowsminor = 1
 
@@ -114,7 +114,7 @@ class PlotScheme(object):
         # Level of transparency to apply to bars/cancles (NOT USED)
         self.bartrans = 1.0
 
-        # Wether the candlesticks have to be filled or be transparent
+        # Whether the candlesticks have to be filled or be transparent
         self.barupfill = True
         self.bardownfill = True
 
@@ -124,21 +124,22 @@ class PlotScheme(object):
         # Alpha blending for fill areas between lines (_fill_gt and _fill_lt)
         self.fillalpha = 0.20
 
-        # Wether to plot volume or not. Note: if the data in question has no
+        # Whether to plot volume or not.Note: if the data in question has no
         # volume values, volume plotting will be skipped even if this is True
         self.volume = True
 
-        # Wether to overlay the volume on the data or use a separate subchart
+        # Whether to overlay the volume on the data or use a separate subchart
         self.voloverlay = True
         # Scaling of the volume to the data when plotting as overlay
         self.volscaling = 0.33
-        # Pushing overlay volume up for better visibiliy. Experimentation
+        # Pushing overlay volume up for better visibility.
+        # Experimentation
         # needed if the volume and data overlap too much
         self.volpushup = 0.00
 
-        # Default colour for the volume of a bullish day
+        # Default color for the volume of a bullish day
         self.volup = '#aaaaaa'  # 0.66 of gray
-        # Default colour for the volume of a bearish day
+        # Default color for the volume of a bearish day
         self.voldown = '#cc6073'  # (204, 96, 115)
         # Transparency to apply to the volume when overlaying
         self.voltrans = 0.50
@@ -150,7 +151,7 @@ class PlotScheme(object):
 
         # Transparency for the legend (NOT USED CURRENTLY)
         self.legendtrans = 0.25
-        # Wether indicators have a leged displaey in their charts
+        # Whether indicators have a legend display in their charts
         self.legendind = True
         # Location of the legend for indicators (see matplotlib)
         self.legendindloc = 'upper left'
@@ -174,7 +175,7 @@ class PlotScheme(object):
         # Default color scheme: Tableau 10
         self.lcolors = tableau10
 
-        # strftime Format string for the display of ticks on the x axis
+        # strftime Format string for the display of ticks on the x-axis
         self.fmt_x_ticks = '%Y-%m-%d %H:%M'
 
         # strftime Format string for the display of data points values

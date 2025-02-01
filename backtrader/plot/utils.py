@@ -29,12 +29,12 @@ def tag_box_style(x0, y0, width, height, mutation_size, mutation_aspect=1):
     Given the location and size of the box, return the path of
     the box around it.
 
-     - *x0*, *y0*, *width*, *height* : location and size of the box
-     - *mutation_size* : a reference scale for the mutation.
-     - *aspect_ratio* : aspect-ration for the mutation.
+     - *x0*, *y0*, *width*, *height*: location and size of the box
+     - *mutation_size*: a reference scale for the mutation.
+     - *aspect_ratio*: aspect-ration for the mutation.
     """
 
-    # note that we are ignoring mutation_aspect. This is okay in general.
+    # Note that we are ignoring mutation_aspect. This is okay in general.
     mypad = 0.2
     pad = mutation_size * mypad
 

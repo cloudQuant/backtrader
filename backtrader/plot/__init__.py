@@ -19,7 +19,7 @@
 #
 ###############################################################################
 import sys
-
+import traceback
 
 try:
     import matplotlib
@@ -30,9 +30,10 @@ else:
     touse = 'TKAgg' if sys.platform != 'darwin' else 'MacOSX'
     try:
         matplotlib.use(touse)
-    except:
+    except Exception as e:
         # if another backend has already been loaded, an exception will be
         # generated and this can be skipped
+        traceback.format_exception(e)
         pass
 
 

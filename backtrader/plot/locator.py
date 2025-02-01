@@ -19,7 +19,7 @@
 #
 ###############################################################################
 """
-Redefine/Override matplotlib locators to make them work with index base x axis
+Redefine/Override matplotlib locators to make them work with index base x-axis
 which can be converted from/to dates
 """
 
@@ -37,7 +37,8 @@ from matplotlib.dates import (HOURS_PER_DAY, MIN_PER_HOUR, SEC_PER_MIN,
 
 from dateutil.relativedelta import relativedelta
 import numpy as np
-import warnings 
+import warnings
+import traceback
 
 def _idx2dt(idx, dates, tz):
     if isinstance(idx, datetime.date):
@@ -62,7 +63,7 @@ class RRuleLocator(RRLocator):
 
     def datalim_to_dt(self):
         """
-        Convert axis data interval to datetime objects.
+        Convert an axis data interval to datetime objects.
         """
         dmin, dmax = self.axis.get_data_interval()
         if dmin > dmax:
@@ -96,7 +97,7 @@ class AutoDateLocator(ADLocator):
 
     def datalim_to_dt(self):
         """
-        Convert axis data interval to datetime objects.
+        Convert an axis data interval to datetime objects.
         """
         dmin, dmax = self.axis.get_data_interval()
         if dmin > dmax:
@@ -122,7 +123,7 @@ class AutoDateLocator(ADLocator):
         return [bisect.bisect_left(self._dates, x) for x in dtnums]
 
     def get_locator(self, dmin, dmax):
-        'Pick the best locator based on a distance.'
+        """Pick the best locator based on a distance."""
         delta = relativedelta(dmax, dmin)
         tdelta = dmax - dmin
 
@@ -153,11 +154,11 @@ class AutoDateLocator(ADLocator):
         #  bysecond, unused (for microseconds)]
         byranges = [None, 1, 1, 0, 0, 0, None]
 
-        usemicro = False  # use as flag to avoid raising an exception
+        usemicro = False  # use as a flag to avoid raising an exception
 
         # Loop over all the frequencies and try to find one that gives at
         # least a minticks tick positions.  Once this is found, look for
-        # an interval from an list specific to that frequency that gives no
+        # an interval from a list specific to that frequency that gives no
         # more than maxticks tick positions. Also, set up some ranges
         # (bymonth, etc.) as appropriate to be passed to rrulewrapper.
         for i, (freq, num) in enumerate(zip(self._freqs, nums)):
@@ -224,13 +225,14 @@ class AutoDateLocator(ADLocator):
             locator.set_view_interval(*self.axis.get_view_interval())
             locator.set_data_interval(*self.axis.get_data_interval())
         except Exception as e:
+            traceback.format_exception(e)
             try:
                 # try for matplotlib >= 3.6.0
                 self.axis.set_view_interval(*self.axis.get_view_interval())
                 self.axis.set_data_interval(*self.axis.get_data_interval())
                 locator.set_axis(self.axis)
             except Exception as e:
-                print("Error:", e)
+                traceback.format_exception(e)
         return locator
 
 

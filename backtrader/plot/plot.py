@@ -40,6 +40,11 @@ import dash
 from dash import dcc
 from dash import html
 
+from pyecharts import options as opts
+from pyecharts.charts import Kline, Line, EffectScatter, Bar, Grid
+from pyecharts.commons.utils import JsCode
+from pyecharts.globals import SymbolType
+
 from dash.dependencies import Input, Output
 # from jupyter_plotly_dash import JupyterDash
 
@@ -61,7 +66,7 @@ import plotly.express as px
 import plotly.offline as py
 import plotly.figure_factory as ff
 import copy
-
+import traceback
 
 def cal_macd_system(data, short_=26, long_=12, m=9):
     """
@@ -788,7 +793,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
         for i in range(numfigs):
             a = d * i + start
             if i == (numfigs - 1):
-                d += m  # add remainder to last stint
+                d += m  # add a remainder to last stint
             b = a + d
 
             pranges.append([a, b, d])
@@ -821,7 +826,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
             for ptop in self.dplotstop:
                 self.plotind(None, ptop, subinds=self.dplotsover[ptop])
 
-            # Create the rest on a per data basis
+            # Create the rest on a per-data basis
             dt0, dt1 = self.pinf.xreal[0], self.pinf.xreal[-1]
             for data in strategy.datas:
                 if not data.plotinfo.plot:
@@ -876,7 +881,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
 
             laxis = list(self.pinf.daxis.values())
 
-            # Find last axis which is not a twinx (date locator fails there)
+            # Find the last axis which is not a twinx (date locator fails there)
             i = -1
             while True:
                 lastax = laxis[i]
@@ -897,7 +902,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
             self.mpyplot.setp(lastax.get_xticklabels(), visible=True,
                               rotation=self.pinf.sch.tickrotation)
 
-            # Things must be tight along the x axis (to fill both ends)
+            # Things must be tight along the x-axis (to fill both ends)
             axtight = 'x' if not self.pinf.sch.ytight else 'both'
             # self.mpyplot.xticks(pd.date_range(start,end),rotation=90)
             self.mpyplot.autoscale(enable=True, axis=axtight, tight=True)
@@ -1358,7 +1363,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
 
         self.pinf.zorder[ax] = plotted[0].get_zorder()
 
-        # Code to place a label at the right hand side with the last value
+        # Code to place a label at the right-hand side with the last value
         vtags = data.plotinfo._get('plotvaluetags', True)
         if self.pinf.sch.valuetags and vtags:
             self.drawtag(ax, len(self.pinf.xreal), closes[-1],
@@ -1378,7 +1383,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
             else:
                 # Prepare overlay scaling/pushup or manage own axis
                 if self.pinf.sch.volpushup:
-                    # push up overlaid axis by lowering the bottom limit
+                    # push up the overlaid axis by lowering the bottom limit
                     axbot, axtop = ax.get_ylim()
                     axbot *= (1.0 - self.pinf.sch.volpushup)
                     ax.set_ylim(axbot, axtop)
@@ -1480,7 +1485,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
 
             x._plotinit()  # will be plotted ... call its init function
 
-            # support LineSeriesStub which has "owner" to point to the data
+            # support LineSeriesStub, which has "owner" to point to the data
             key = getattr(x._clock, 'owner', x._clock)
             if key is strategy:  # a LinesCoupler
                 key = strategy.data
@@ -1510,7 +1515,7 @@ class Plot_OldSync(with_metaclass(MetaParams, object)):
 
 
 def plot_results(results, file_name):
-    """write by myself to plot the result,and I will update this function"""
+    """write by myself to plot the result, and I will update this function"""
     # 总的杠杆
     df1 = pd.DataFrame([results[0].analyzers._GrossLeverage.get_analysis()]).T
     df1.columns = ['GrossLeverage']
@@ -1634,13 +1639,13 @@ def get_rate_sharpe_drawdown(data):
     data1.index = pd.to_datetime(data1['date'])
     # print(data1)
     if len(data1) == 0:
-        return np.NaN, np.NaN, np.NaN
+        return np.nan, np.nan, np.nan
     try:
         # 假设一年的交易日为252天
         data1['rate1'] = np.log(data1['total_value']) - np.log(data1['total_value'].shift(1))
         # data['rate2']=data['total_value'].pct_change()
         data1 = data1.dropna()
-        sharpe_ratio = data1['rate1'].mean() * (252) ** 0.5 / (data1['rate1'].std())
+        sharpe_ratio = data1['rate1'].mean() * 252 ** 0.5 / (data1['rate1'].std())
         # 年化收益率为：
         value_list = list(data['total_value'])
         begin_value = value_list[0]
@@ -1679,8 +1684,9 @@ def get_rate_sharpe_drawdown(data):
         plt.show()
         """
         return sharpe_ratio, average_rate, max_drawdown
-    except:
-        return np.NaN, np.NaN, np.NaN
+    except Exception as e:
+        traceback.format_exception(e)
+        return np.nan, np.nan, np.nan
 
 
 def get_year_return(data):
@@ -1745,60 +1751,60 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
             performance_dict['sharpe_ratio'] = sharpe_ratio
             performance_dict['average_rate'] = average_rate
             performance_dict['max_drawdown_rate'] = max_drawdown_rate
-            performance_dict['calmar_ratio'] = np.NaN
-            performance_dict['average_drawdown_len'] = np.NaN
-            performance_dict['average_drawdown_rate'] = np.NaN
-            performance_dict['average_drawdown_money'] = np.NaN
-            performance_dict['max_drawdown_len'] = np.NaN
-            performance_dict['max_drawdown_money'] = np.NaN
-            performance_dict['stddev_rate'] = np.NaN
-            performance_dict['positive_year'] = np.NaN
-            performance_dict['negative_year'] = np.NaN
-            performance_dict['nochange_year'] = np.NaN
-            performance_dict['best_year'] = np.NaN
-            performance_dict['worst_year'] = np.NaN
-            performance_dict['sqn_ratio'] = np.NaN
-            performance_dict['vwr_ratio'] = np.NaN
-            performance_dict['omega'] = np.NaN
+            performance_dict['calmar_ratio'] = np.nan
+            performance_dict['average_drawdown_len'] = np.nan
+            performance_dict['average_drawdown_rate'] = np.nan
+            performance_dict['average_drawdown_money'] = np.nan
+            performance_dict['max_drawdown_len'] = np.nan
+            performance_dict['max_drawdown_money'] = np.nan
+            performance_dict['stddev_rate'] = np.nan
+            performance_dict['positive_year'] = np.nan
+            performance_dict['negative_year'] = np.nan
+            performance_dict['nochange_year'] = np.nan
+            performance_dict['best_year'] = np.nan
+            performance_dict['worst_year'] = np.nan
+            performance_dict['sqn_ratio'] = np.nan
+            performance_dict['vwr_ratio'] = np.nan
+            performance_dict['omega'] = np.nan
             trade_dict_1 = OrderedDict()
             trade_dict_2 = OrderedDict()
-            trade_dict_1['total_trade_num'] = np.NaN
-            trade_dict_1['total_trade_opened'] = np.NaN
-            trade_dict_1['total_trade_closed'] = np.NaN
-            trade_dict_1['total_trade_len'] = np.NaN
-            trade_dict_1['long_trade_len'] = np.NaN
-            trade_dict_1['short_trade_len'] = np.NaN
-            trade_dict_1['longest_win_num'] = np.NaN
-            trade_dict_1['longest_lost_num'] = np.NaN
-            trade_dict_1['net_total_pnl'] = np.NaN
-            trade_dict_1['net_average_pnl'] = np.NaN
-            trade_dict_1['win_num'] = np.NaN
-            trade_dict_1['win_total_pnl'] = np.NaN
-            trade_dict_1['win_average_pnl'] = np.NaN
-            trade_dict_1['win_max_pnl'] = np.NaN
-            trade_dict_1['lost_num'] = np.NaN
-            trade_dict_1['lost_total_pnl'] = np.NaN
-            trade_dict_1['lost_average_pnl'] = np.NaN
-            trade_dict_1['lost_max_pnl'] = np.NaN
+            trade_dict_1['total_trade_num'] = np.nan
+            trade_dict_1['total_trade_opened'] = np.nan
+            trade_dict_1['total_trade_closed'] = np.nan
+            trade_dict_1['total_trade_len'] = np.nan
+            trade_dict_1['long_trade_len'] = np.nan
+            trade_dict_1['short_trade_len'] = np.nan
+            trade_dict_1['longest_win_num'] = np.nan
+            trade_dict_1['longest_lost_num'] = np.nan
+            trade_dict_1['net_total_pnl'] = np.nan
+            trade_dict_1['net_average_pnl'] = np.nan
+            trade_dict_1['win_num'] = np.nan
+            trade_dict_1['win_total_pnl'] = np.nan
+            trade_dict_1['win_average_pnl'] = np.nan
+            trade_dict_1['win_max_pnl'] = np.nan
+            trade_dict_1['lost_num'] = np.nan
+            trade_dict_1['lost_total_pnl'] = np.nan
+            trade_dict_1['lost_average_pnl'] = np.nan
+            trade_dict_1['lost_max_pnl'] = np.nan
 
-            trade_dict_2['long_num'] = np.NaN
-            trade_dict_2['long_win_num'] = np.NaN
-            trade_dict_2['long_lost_num'] = np.NaN
-            trade_dict_2['long_total_pnl'] = np.NaN
-            trade_dict_2['long_average_pnl'] = np.NaN
-            trade_dict_2['long_win_total_pnl'] = np.NaN
-            trade_dict_2['long_win_max_pnl'] = np.NaN
-            trade_dict_2['long_lost_total_pnl'] = np.NaN
-            trade_dict_2['long_lost_max_pnl'] = np.NaN
-            trade_dict_2['short_num'] = np.NaN
-            trade_dict_2['short_win_num'] = np.NaN
-            trade_dict_2['short_lost_num'] = np.NaN
-            trade_dict_2['short_total_pnl'] = np.NaN
-            trade_dict_2['short_average_pnl'] = np.NaN
-            trade_dict_2['short_win_total_pnl'] = np.NaN
-            trade_dict_2['short_win_max_pnl'] = np.NaN
-            trade_dict_2['short_lost_total_pnl'] = np.NaN
-            trade_dict_2['short_lost_max_pnl'] = np.NaN
+            trade_dict_2['long_num'] = np.nan
+            trade_dict_2['long_win_num'] = np.nan
+            trade_dict_2['long_lost_num'] = np.nan
+            trade_dict_2['long_total_pnl'] = np.nan
+            trade_dict_2['long_average_pnl'] = np.nan
+            trade_dict_2['long_win_total_pnl'] = np.nan
+            trade_dict_2['long_win_max_pnl'] = np.nan
+            trade_dict_2['long_lost_total_pnl'] = np.nan
+            trade_dict_2['long_lost_max_pnl'] = np.nan
+            trade_dict_2['short_num'] = np.nan
+            trade_dict_2['short_win_num'] = np.nan
+            trade_dict_2['short_lost_num'] = np.nan
+            trade_dict_2['short_total_pnl'] = np.nan
+            trade_dict_2['short_average_pnl'] = np.nan
+            trade_dict_2['short_win_total_pnl'] = np.nan
+            trade_dict_2['short_win_max_pnl'] = np.nan
+            trade_dict_2['short_lost_total_pnl'] = np.nan
+            trade_dict_2['short_lost_max_pnl'] = np.nan
 
             assert len(performance_dict) == len(trade_dict_2) == len(trade_dict_1)
             df00 = pd.DataFrame(index=range(18))
@@ -1815,7 +1821,8 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
                 df00['普通交易指标值'] = [round(float(i), 4) for i in list(df02['普通交易指标值'])]
                 df00['多空交易指标'] = df03.index
                 df00['多空交易指标值'] = [round(float(i), 4) for i in list(df03['多空交易指标值'])]
-            except:
+            except Exception as e:
+                traceback.format_exception(e)
                 df00['绩效指标'] = df01.index
                 df00['绩效指标值'] = df01['绩效指标值']
                 df00['普通交易指标'] = df02.index
@@ -1860,34 +1867,34 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
             PeriodStats_info = results[0].analyzers._PeriodStats.get_analysis()
             # 计算sqn指标
             SQN_info = results[0].analyzers._SQN.get_analysis()
-            sqn_ratio = SQN_info.get('sqn', np.NaN)
+            sqn_ratio = SQN_info.get('sqn', np.nan)
             # 计算vwr指标
             VWR_info = results[0].analyzers._VWR.get_analysis()
-            vwr_ratio = VWR_info.get('vwr', np.NaN)
+            vwr_ratio = VWR_info.get('vwr', np.nan)
             # 计算calmar指标
             # calmar_ratio_list = list(results[0].analyzers._Calmar.get_analysis().values())
-            # calmar_ratio = calmar_ratio_list[-1] if len(calmar_ratio_list) > 0 else np.NaN
-            calmar_ratio = np.NaN
+            # calmar_ratio = calmar_ratio_list[-1] if len(calmar_ratio_list) > 0 else np.nan
+            calmar_ratio = np.nan
             # 计算夏普率
             sharpe_info = results[0].analyzers._SharpeRatio.get_analysis()
-            sharpe_ratio = sharpe_info.get('sharperatio', np.NaN)
+            sharpe_ratio = sharpe_info.get('sharperatio', np.nan)
             # 获得平均回撤指标
-            average_drawdown_len = drawdown_info.get('len', np.NaN)
-            average_drawdown_rate = drawdown_info.get('drawdown', np.NaN)
-            average_drawdown_money = drawdown_info.get('moneydown', np.NaN)
+            average_drawdown_len = drawdown_info.get('len', np.nan)
+            average_drawdown_rate = drawdown_info.get('drawdown', np.nan)
+            average_drawdown_money = drawdown_info.get('moneydown', np.nan)
             # 获得最大回撤指标
             max_drawdown_info = drawdown_info.get('max', {})
-            max_drawdown_len = max_drawdown_info.get('len', np.NaN)
-            max_drawdown_rate = max_drawdown_info.get('drawdown', np.NaN)
-            max_drawdown_money = max_drawdown_info.get('moneydown', np.NaN)
+            max_drawdown_len = max_drawdown_info.get('len', np.nan)
+            max_drawdown_rate = max_drawdown_info.get('drawdown', np.nan)
+            max_drawdown_money = max_drawdown_info.get('moneydown', np.nan)
 
-            average_rate = PeriodStats_info.get('average', np.NaN)
-            stddev_rate = PeriodStats_info.get('stddev', np.NaN)
-            positive_year = PeriodStats_info.get('positive', np.NaN)
-            negative_year = PeriodStats_info.get('negative', np.NaN)
-            nochange_year = PeriodStats_info.get('nochange', np.NaN)
-            best_year = PeriodStats_info.get('best', np.NaN)
-            worst_year = PeriodStats_info.get('worst', np.NaN)
+            average_rate = PeriodStats_info.get('average', np.nan)
+            stddev_rate = PeriodStats_info.get('stddev', np.nan)
+            positive_year = PeriodStats_info.get('positive', np.nan)
+            negative_year = PeriodStats_info.get('negative', np.nan)
+            nochange_year = PeriodStats_info.get('nochange', np.nan)
+            best_year = PeriodStats_info.get('best', np.nan)
+            worst_year = PeriodStats_info.get('worst', np.nan)
 
             # 获取关键性的账户价值，并计算三大指标
             df0 = pd.DataFrame([results[0].analyzers._TotalValue.get_analysis()]).T
@@ -1919,7 +1926,7 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
             performance_dict['worst_year'] = worst_year
             performance_dict['sqn_ratio'] = sqn_ratio
             performance_dict['vwr_ratio'] = vwr_ratio
-            performance_dict['omega'] = np.NaN
+            performance_dict['omega'] = np.nan
 
             trade_dict_1 = OrderedDict()
             trade_dict_2 = OrderedDict()
@@ -1932,13 +1939,14 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
                 total_trade_len = trade_info['len']['total']
                 long_trade_len = trade_info['len']['long']['total']
                 short_trade_len = trade_info['len']['short']['total']
-            except:
-                total_trade_num = np.NaN
-                total_trade_opened = np.NaN
-                total_trade_closed = np.NaN
-                total_trade_len = np.NaN
-                long_trade_len = np.NaN
-                short_trade_len = np.NaN
+            except Exception as e:
+                traceback.format_exception(e)
+                total_trade_num = np.nan
+                total_trade_opened = np.nan
+                total_trade_closed = np.nan
+                total_trade_len = np.nan
+                long_trade_len = np.nan
+                short_trade_len = np.nan
 
             try:
                 longest_win_num = trade_info['streak']['won']['longest']
@@ -1953,19 +1961,20 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
                 lost_total_pnl = trade_info['lost']['pnl']['total']
                 lost_average_pnl = trade_info['lost']['pnl']['average']
                 lost_max_pnl = trade_info['lost']['pnl']['max']
-            except:
-                longest_win_num = np.NaN
-                longest_lost_num = np.NaN
-                net_total_pnl = np.NaN
-                net_average_pnl = np.NaN
-                win_num = np.NaN
-                win_total_pnl = np.NaN
-                win_average_pnl = np.NaN
-                win_max_pnl = np.NaN
-                lost_num = np.NaN
-                lost_total_pnl = np.NaN
-                lost_average_pnl = np.NaN
-                lost_max_pnl = np.NaN
+            except Exception as e:
+                traceback.format_exception(e)
+                longest_win_num = np.nan
+                longest_lost_num = np.nan
+                net_total_pnl = np.nan
+                net_average_pnl = np.nan
+                win_num = np.nan
+                win_total_pnl = np.nan
+                win_average_pnl = np.nan
+                win_max_pnl = np.nan
+                lost_num = np.nan
+                lost_total_pnl = np.nan
+                lost_average_pnl = np.nan
+                lost_max_pnl = np.nan
 
             trade_dict_1['total_trade_num'] = total_trade_num
             trade_dict_1['total_trade_opened'] = total_trade_opened
@@ -2006,26 +2015,27 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
                 short_win_max_pnl = trade_info['short']['pnl']['won']['max']
                 short_lost_total_pnl = trade_info['short']['pnl']['lost']['total']
                 short_lost_max_pnl = trade_info['short']['pnl']['lost']['max']
-            except:
-                long_num = np.NaN
-                long_win_num = np.NaN
-                long_lost_num = np.NaN
-                long_total_pnl = np.NaN
-                long_average_pnl = np.NaN
-                long_win_total_pnl = np.NaN
-                long_win_max_pnl = np.NaN
-                long_lost_total_pnl = np.NaN
-                long_lost_max_pnl = np.NaN
+            except Exception as e:
+                traceback.format_exception(e)
+                long_num = np.nan
+                long_win_num = np.nan
+                long_lost_num = np.nan
+                long_total_pnl = np.nan
+                long_average_pnl = np.nan
+                long_win_total_pnl = np.nan
+                long_win_max_pnl = np.nan
+                long_lost_total_pnl = np.nan
+                long_lost_max_pnl = np.nan
 
-                short_num = np.NaN
-                short_win_num = np.NaN
-                short_lost_num = np.NaN
-                short_total_pnl = np.NaN
-                short_average_pnl = np.NaN
-                short_win_total_pnl = np.NaN
-                short_win_max_pnl = np.NaN
-                short_lost_total_pnl = np.NaN
-                short_lost_max_pnl = np.NaN
+                short_num = np.nan
+                short_win_num = np.nan
+                short_lost_num = np.nan
+                short_total_pnl = np.nan
+                short_average_pnl = np.nan
+                short_win_total_pnl = np.nan
+                short_win_max_pnl = np.nan
+                short_lost_total_pnl = np.nan
+                short_lost_max_pnl = np.nan
 
             trade_dict_2['long_num'] = long_num
             trade_dict_2['long_win_num'] = long_win_num
@@ -2061,7 +2071,8 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
                 df00['普通交易指标值'] = [round(float(i), 4) for i in list(df02['普通交易指标值'])]
                 df00['多空交易指标'] = df03.index
                 df00['多空交易指标值'] = [round(float(i), 4) for i in list(df03['多空交易指标值'])]
-            except:
+            except Exception as e:
+                traceback.format_exception(e)
                 df00['绩效指标'] = df01.index
                 df00['绩效指标值'] = df01['绩效指标值']
                 df00['普通交易指标'] = df02.index
@@ -2212,23 +2223,23 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
 #             sharpe_ratio=sharpe_info['sharperatio']
 
 #         except:
-#             drawdown_info=np.NaN
-#             average_drawdown_len=np.NaN
-#             average_drawdown_rate=np.NaN
-#             average_drawdown_money=np.NaN
-#             max_drawdown_len=np.NaN
-#             max_drawdown_rate=np.NaN
-#             max_drawdown_money=np.NaN
-#             PeriodStats_info=np.NaN
-#             average_rate=np.NaN
-#             stddev_rate=np.NaN
-#             positive_year=np.NaN
-#             negative_year=np.NaN
-#             nochange_year=np.NaN
-#             best_year=np.NaN
-#             worst_year=np.NaN
-#             sharpe_info=np.NaN
-#             sharpe_ratio=np.NaN
+#             drawdown_info=np.nan
+#             average_drawdown_len=np.nan
+#             average_drawdown_rate=np.nan
+#             average_drawdown_money=np.nan
+#             max_drawdown_len=np.nan
+#             max_drawdown_rate=np.nan
+#             max_drawdown_money=np.nan
+#             PeriodStats_info=np.nan
+#             average_rate=np.nan
+#             stddev_rate=np.nan
+#             positive_year=np.nan
+#             negative_year=np.nan
+#             nochange_year=np.nan
+#             best_year=np.nan
+#             worst_year=np.nan
+#             sharpe_info=np.nan
+#             sharpe_ratio=np.nan
 #         try:
 #             calmar_ratio=list(results[0].analyzers._Calmar.get_analysis().values())[-1]
 #             # print(calmar_ratio)
@@ -2237,12 +2248,12 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
 #             VWR_info=results[0].analyzers._VWR.get_analysis()
 #             vwr_ratio=VWR_info['vwr']
 #         except:
-#             calmar_ratio=np.NaN
+#             calmar_ratio=np.nan
 #             # print(calmar_ratio)
-#             SQN_info=np.NaN
-#             sqn_ratio=np.NaN
-#             VWR_info=np.NaN
-#             vwr_ratio=np.NaN
+#             SQN_info=np.nan
+#             sqn_ratio=np.nan
+#             VWR_info=np.nan
+#             vwr_ratio=np.nan
 #         # sharpe_info=results[0].analyzers._SharpeRatio_A.get_analysis()
 #         # 计算三个关键的指标
 #         df0=df1=pd.DataFrame([results[0].analyzers._TotalValue.get_analysis()]).T
@@ -2268,7 +2279,7 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
 #         performance_dict['sqn_ratio']=sqn_ratio
 #         performance_dict['vwr_ratio']=vwr_ratio
 #         performance_dict['sharpe_info']=sharpe_ratio
-#         performance_dict['omega']=np.NaN
+#         performance_dict['omega']=np.nan
 
 #         trade_dict_1=OrderedDict()
 #         trade_dict_2=OrderedDict()
@@ -2281,12 +2292,12 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
 #             long_trade_len=trade_info['len']['long']['total']
 #             short_trade_len=trade_info['len']['short']['total']
 #         except:
-#             total_trade_num=np.NaN
-#             total_trade_opened=np.NaN
-#             total_trade_closed=np.NaN
-#             total_trade_len=np.NaN
-#             long_trade_len=np.NaN
-#             short_trade_len=np.NaN
+#             total_trade_num=np.nan
+#             total_trade_opened=np.nan
+#             total_trade_closed=np.nan
+#             total_trade_len=np.nan
+#             long_trade_len=np.nan
+#             short_trade_len=np.nan
 #         try:
 #             longest_win_num=trade_info['streak']['won']['longest']
 #             longest_lost_num=trade_info['streak']['lost']['longest']
@@ -2301,18 +2312,18 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
 #             lost_average_pnl=trade_info['lost']['pnl']['average']
 #             lost_max_pnl=trade_info['lost']['pnl']['max']
 #         except:
-#             longest_win_num=np.NaN
-#             longest_lost_num=np.NaN
-#             net_total_pnl=np.NaN
-#             net_average_pnl=np.NaN
-#             win_num=np.NaN
-#             win_total_pnl=np.NaN
-#             win_average_pnl=np.NaN
-#             win_max_pnl=np.NaN
-#             lost_num=np.NaN
-#             lost_total_pnl=np.NaN
-#             lost_average_pnl=np.NaN
-#             lost_max_pnl=np.NaN
+#             longest_win_num=np.nan
+#             longest_lost_num=np.nan
+#             net_total_pnl=np.nan
+#             net_average_pnl=np.nan
+#             win_num=np.nan
+#             win_total_pnl=np.nan
+#             win_average_pnl=np.nan
+#             win_max_pnl=np.nan
+#             lost_num=np.nan
+#             lost_total_pnl=np.nan
+#             lost_average_pnl=np.nan
+#             lost_max_pnl=np.nan
 
 #         trade_dict_1['total_trade_num']=total_trade_num
 #         trade_dict_1['total_trade_opened']=total_trade_opened
@@ -2354,25 +2365,25 @@ def run_cerebro_and_plot(cerebro, strategy, params, score=90, port=8050, optimiz
 #             short_lost_total_pnl=trade_info['short']['pnl']['lost']['total']
 #             short_lost_max_pnl=trade_info['short']['pnl']['lost']['max']
 #         except:
-#             long_num=np.NaN
-#             long_win_num=np.NaN
-#             long_lost_num=np.NaN
-#             long_total_pnl=np.NaN
-#             long_average_pnl=np.NaN
-#             long_win_total_pnl=np.NaN
-#             long_win_max_pnl=np.NaN
-#             long_lost_total_pnl=np.NaN
-#             long_lost_max_pnl=np.NaN
+#             long_num=np.nan
+#             long_win_num=np.nan
+#             long_lost_num=np.nan
+#             long_total_pnl=np.nan
+#             long_average_pnl=np.nan
+#             long_win_total_pnl=np.nan
+#             long_win_max_pnl=np.nan
+#             long_lost_total_pnl=np.nan
+#             long_lost_max_pnl=np.nan
 
-#             short_num=np.NaN
-#             short_win_num=np.NaN
-#             short_lost_num=np.NaN
-#             short_total_pnl=np.NaN
-#             short_average_pnl=np.NaN
-#             short_win_total_pnl=np.NaN
-#             short_win_max_pnl=np.NaN
-#             short_lost_total_pnl=np.NaN
-#             short_lost_max_pnl=np.NaN
+#             short_num=np.nan
+#             short_win_num=np.nan
+#             short_lost_num=np.nan
+#             short_total_pnl=np.nan
+#             short_average_pnl=np.nan
+#             short_win_total_pnl=np.nan
+#             short_win_max_pnl=np.nan
+#             short_lost_total_pnl=np.nan
+#             short_lost_max_pnl=np.nan
 
 
 #         trade_dict_2['long_num']=long_num
