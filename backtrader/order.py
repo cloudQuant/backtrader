@@ -44,7 +44,7 @@ class OrderExecutionBit(object):
       # 执行了多少
       - price: execution price
       # 执行的价格
-      - closed: how much of the execution closed an existing postion
+      - closed: how much of the execution closed an existing position
       # 现有仓位平了多少
       - opened: how much of the execution opened a new position
       # 新开仓位多少
@@ -338,6 +338,7 @@ class OrderBase(with_metaclass(MetaParams, object)):
     # 初始化类
     def __init__(self):
         # 每次创建实例的时候，都会增加一个数字
+        self.plen = None
         self.ref = next(self.refbasis)
         # broker 默认是None
         self.broker = None
@@ -504,7 +505,7 @@ class OrderBase(with_metaclass(MetaParams, object)):
         return self.ordtype == self.Sell
     # 给订单设置具体的持仓大小
     def setposition(self, position):
-        """Receives the current position for the asset and stotres it"""
+        """Receives the current position for the asset and stores it"""
         self.position = position
     # 提交订单给broker
     def submit(self, broker=None):
