@@ -137,12 +137,12 @@ class SimpleFilterWrapper(object):
 
     Filters are callables which
 
-      - Take a ``data`` as an argument
+      - Take `data` as an argument
       - Return False if the current bar has not triggered the filter
       - Return True if the current bar must be filtered
 
     The wrapper takes the return value and executes the bar removal
-    if needed be
+    if needed to be
     """
     # 这是一个增加过滤器的类，可以根据过滤器的需要对数据进行一定的操作比如去除
     # 这个过滤器通常是类或者是函数
@@ -166,7 +166,7 @@ class SimpleFilterWrapper(object):
 
 class _Bar(AutoOrderedDict):
     """
-    This class is a placeholder for the values of the standard lines of a
+    This class is a placeholder for the values of the standard lines in a
     DataBase class (from OHLCDateTime)
 
     It inherits from AutoOrderedDict to be able to easily return the values as
@@ -184,6 +184,14 @@ class _Bar(AutoOrderedDict):
 
     def __init__(self, maxdate=False):
         super(_Bar, self).__init__()
+        # todo 去掉这几行的注释会报错，需要检查一下是什么原因
+        # self.datetime = None
+        # self.openinterest = None
+        # self.volume = None
+        # self.open = None
+        # self.high = None
+        # self.low = None
+        # self.close = None
         self.bstart(maxdate=maxdate)
 
     def bstart(self, maxdate=False):
