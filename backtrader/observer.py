@@ -34,7 +34,7 @@ class MetaObserver(ObserverBase.__class__):
         _obj, args, kwargs = \
             super(MetaObserver, cls).dopreinit(_obj, *args, **kwargs)
 
-        if _obj._stclock:  # Change clock if strategy wide observer
+        if _obj._stclock:  # Change the clock if strategy wide observer
             _obj._clock = _obj._owner
 
         return _obj, args, kwargs
@@ -52,8 +52,8 @@ class Observer(with_metaclass(MetaObserver, ObserverBase)):
     # 画图设置选择
     plotinfo = dict(plot=False, subplot=True)
 
-    # An Observer is ideally always observing and that' why prenext calls
-    # next. The behaviour can be overriden by subclasses
+    # An Observer is ideally always observing and that' why prenext calls next.
+    # The behavior can be overriden by subclasses
     def prenext(self):
         self.next()
     # 注册analyzer
