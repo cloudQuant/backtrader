@@ -108,7 +108,7 @@ else:
             # Create an abstract interface to get lines names
             # 通过抽象接口获取line的名字
             _tabstract = talib.abstract.Function(name)
-            # Variables about the  info learnt from func_flags
+            # Variables about the info learnt from func_flags
             iscandle = False
             unstable = False
 

@@ -43,10 +43,10 @@ class MetaStrategy(StrategyBase.__class__):
     def __new__(meta, name, bases, dct):
         # Hack to support original method name for notify_order
         if 'notify' in dct:
-            # rename 'notify' to 'notify_order'
+            # rename the 'notify' to 'notify_order'
             dct['notify_order'] = dct.pop('notify')
         if 'notify_operation' in dct:
-            # rename 'notify' to 'notify_order'
+            # rename the 'notify' to 'notify_order'
             dct['notify_trade'] = dct.pop('notify_operation')
 
         return super(MetaStrategy, meta).__new__(meta, name, bases, dct)
@@ -112,18 +112,25 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # csv默认是True
     csv = True
     # 旧的更新时间的方法，默认是False
-    _oldsync = False  # update clock using old methodology : data 0
+    _oldsync = False  # update the clock using old methodology: data 0
 
     # keep the latest delivered data date in the line
     # 保存最新的数据的日期
     lines = ('datetime',)
     # 缓存数据
+    def __init__(self):
+        self.indobscsv = None
+        self._tradespending = None
+        self._sizer = None
+        self._orderspending = None
+        self._tradehistoryon = None
+
     def qbuffer(self, savemem=0, replaying=False):
         """Enable the memory saving schemes. Possible values for ``savemem``:
 
-          0: No savings. Each lines object keeps in memory all values
+          0: No savings. Each line object keeps in memory all values
 
-          1: All lines objects save memory, using the strictly minimum needed
+          1: All lines objects save memory, using the strict minimum needed
 
         Negative values are meant to be used when plotting is required:
 
@@ -140,7 +147,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         """
         # 如果savemem小于0
         if savemem < 0:
-            # Get any attribute which labels itself as Indicator
+            # Get any attribute that labels itself as Indicator
             # 循环所有的指标
             for ind in self._lineiterators[self.IndType]:
                 # 判断这个ind是否是单个line
@@ -174,7 +181,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         _dminperiods = collections.defaultdict(list)
         # 循环所有的指标
         for lineiter in self._lineiterators[LineIterator.IndType]:
-            # if multiple datas are used and multiple timeframes the larger
+            # if multiple datas are used and multiple timeframes, the larger
             # timeframe may place larger time constraints in calling next.
             # 获取指标的_clock属性
             clk = getattr(lineiter, '_clock', None)
@@ -216,11 +223,11 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 循环所有的数据
         for data in self.datas:
 
-            # Do not only consider the data as clock but also its lines which
+            # Do not only consider the data as clock but also its lines, which
             # may have been individually passed as clock references and
             # discovered as clocks above
 
-            # Initialize with data min period if any
+            # Initialize with a data min period if any
             # 数据产生指标的line的时候需要的最小周期
             dlminperiods = _dminperiods[data]
             # 循环数据的每条line,如果line在_dminperiods中，dlminperiods需要增加一定的值
@@ -246,7 +253,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # 增加writer
     def _addwriter(self, writer):
         """
-        Unlike the other _addxxx functions this one receives an instance
+        Unlike the other _addxxx functions, this one receives an instance
         because the writer works at cerebro level and is only passed to the
         strategy to simplify the logic
         # 不像其他的_addxxx的函数，这个函数直接接收的是一个实例，是在cerebro中工作的，为了简化逻辑
@@ -341,10 +348,10 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
                 indicator.advance()
         # 如果是旧的数据处理方式，调用advance;如果不是旧的数据处理方式，代表策略已经初始化了，调用advance
         if self._oldsync:
-            # Strategy has not been reset, the line is there
+            # The Strategy has not been reset, the line is there
             self.advance()
         else:
-            # strategy has been reset to beginning. advance step by step
+            # the strategy has been reset to beginning. advance step by step
             self.forward()
         # 设置时间
         self.lines.datetime[0] = dt
@@ -552,7 +559,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         ainfo.Value.Begin = self.broker.startingcash
         ainfo.Value.End = self.broker.getvalue()
 
-        # no slave analyzers for writer
+        # no slave analyzers for a writer
         for aname, analyzer in self.analyzers.getitems():
             ainfo[aname].Params = analyzer.p._getkwargs() or None
             ainfo[aname].Analysis = analyzer.get_analysis()
@@ -706,7 +713,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
                 analyzer._notify_trade(trade)
         # 如果qorders是空的话，通知结束
         if qorders:
-            return  # cash is notified on a regular basis
+            return  # cash is notified regularly
         # 如果qordes不是空的话，获取cash,value,fundvalue,fundshares
         cash = self.broker.getcash()
         value = self.broker.getvalue()
@@ -732,7 +739,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         **Note**: can be called during ``__init__`` or ``start``
 
         Schedules a timer to invoke either a specified callback or the
-        ``notify_timer`` of one or more strategies.
+        `notify_timer` of one or more strategies.
         # 注意：可以在__init__或者start中调用，设置一个具体的计时器用于唤醒一个特定的回调或者一个或者多个策略的notify_timer
         Arguments:
 
@@ -747,18 +754,18 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
          - ``offset`` which must be a ``datetime.timedelta`` instance
 
            Used to offset the value ``when``. It has a meaningful use in
-           combination with ``SESSION_START`` and ``SESSION_END``, to indicated
+           combination with ``SESSION_START`` and ``SESSION_END``, to indicate
            things like a timer being called ``15 minutes`` after the session
-           start.
+            starts.
            # 时间补偿，必须是一个时间差的实例，用于对when进行时间补偿，比如想要在开盘15分钟的时候这样
            # 的计时器，就可以结合SESSION_START和SESSION_END进行设置
 
           - ``repeat`` which must be a ``datetime.timedelta`` instance
 
-            Indicates if after a 1st call, further calls will be scheduled
-            within the same session at the scheduled ``repeat`` delta
+            Indicates if after a first call, further calls will be scheduled
+            within the same session at the scheduled `repeat` delta
 
-            Once the timer goes over the end of the session it is reset to the
+            Once the timer goes over the end of the session, it is reset to the
             original value for ``when``
             # 重复，必须是一个时间差的实例；这个参数用于设置在第一次调用计时器之后，在同一个session中
             # 将会按照设置时间差不断重复；一旦session结束了之后，会重新从when开始
@@ -779,7 +786,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             # 如果设置成True了，如果weekdays因为节假日的原因导致没有，将会在下一个交易日激活
 
           - ``monthdays``: a **sorted** iterable with integers indicating on
-            which days of the month a timer has to be executed. For example
+            which days of the month a timer has to be executed. For example,
             always on day *15* of the month
 
             If not specified, the timer will be active on all days
@@ -796,13 +803,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           - ``allow`` (default: ``None``). A callback which receives a
             `datetime.date`` instance and returns ``True`` if the date is
             allowed for timers or else returns ``False``
-            # 一个接收时间格式的回调在这个时间是计时器允许的时候返回True,在计时器不允许的时候，返回False
+            # 一个接收时间格式的回调在这个时间是计时器允许的时候返回True, 在计时器不允许的时候，返回False
 
           - ``tzdata`` which can be either ``None`` (default), a ``pytz``
             instance or a ``data feed`` instance.
 
             ``None``: ``when`` is interpreted at face value (which translates
-            to handling it as if it where UTC even if it's not)
+            to handling it as if it is UTC even if it's not)
 
             ``pytz`` instance: ``when`` will be interpreted as being specified
             in the local time specified by the timezone instance.
@@ -812,7 +819,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             the data feed instance.
 
             **Note**: If ``when`` is either ``SESSION_START`` or
-              ``SESSION_END`` and ``tzdata`` is ``None``, the 1st *data feed*
+              ``SESSION_END`` and ``tzdata`` is ``None``, the first *data feed*
               in the system (aka ``self.data0``) will be used as the reference
               to find out the session times.
 
@@ -825,7 +832,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
           - ``cheat`` (default ``False``) if ``True`` the timer will be called
             before the broker has a chance to evaluate the orders. This opens
-            the chance to issue orders based on opening price for example right
+            the chance to issue orders based on opening price, for example, right
             before the session starts
             #
 
@@ -847,11 +854,11 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # 通知定时器
     def notify_timer(self, timer, when, *args, **kwargs):
         """
-        Receives a timer notification where ``timer`` is the timer which was
+        Receives a timer notification where ``timer`` is the timer that was
         returned by ``add_timer``, and ``when`` is the calling time. ``args``
         and ``kwargs`` are any additional arguments passed to ``add_timer``
 
-        The actual ``when`` time can be later, but the system may have not be
+        The actual `when` time can be later, but the system may have not been
         able to call the timer before. This value is the timer value and no the
         system time.
         # 收到一个定时器的通知，这个定时器是通过add_timer添加的，并且在when的时候发出，args和kwargs是添加到add_timer的其他参数
@@ -907,7 +914,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # 根据名称获取数据
     def getdatabyname(self, name):
         """
-        Returns a given data by name using the environment (cerebro)
+        Returns given data by name using the environment (cerebro)
         """
         return self.env.datasbyname[name]
 
@@ -1136,7 +1143,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
              parent=None, transmit=True,
              **kwargs):
         """
-        To create a selll (short) order and send it to the broker
+        To create a sell (short) order and send it to the broker
 
         See the documentation for ``buy`` for an explanation of the parameters
 
@@ -1227,7 +1234,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             If ``None`` the ``sizer`` instance retrieved via ``getsizer`` will
             be used to determine the size.
 
-            **Note**: The same size is applied to all 3 orders of the bracket
+            **Note**: The same size is applied to all three orders of the bracket
 
           - ``price`` (default: ``None``)
 
@@ -1289,7 +1296,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
             Possible values: (see the documentation for the method ``buy``
 
-            **Note**: this ``kwargs`` will be applied to the 3 orders of a
+            **Note**: this ``kwargs`` will be applied to the three orders of a
             bracket. See below for specific keyword arguments for the low and
             high side orders
 
@@ -1420,10 +1427,10 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
         Returns:
 
-          - A list containing the 3 orders [order, stop side, limit side]
+          - A list containing the three orders [order, stop side, limit side]
 
           - If high/low orders have been suppressed the return value will still
-            contain 3 orders, but those suppressed will have a value of
+            contain three orders, but those suppressed will have a value of
             ``None``
         """
 
@@ -1516,7 +1523,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         The current ``value`` is taken into account as the start point to
         achieve ``target``
 
-          - If no ``target`` then close postion on data
+          - If no ``target`` then close position on data
           - If ``target`` > ``value`` then buy on data
           - If ``target`` < ``value`` then sell on data
 
@@ -1696,10 +1703,10 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # 获取sizer
     def getsizer(self):
         """
-        Returns the sizer which is in used if automatic statke calculation is
+        Returns the sizer which is in used if automatic stake calculation is
         used
 
-        Also available as ``sizer``
+        Also, available as ``sizer``
         """
         return self._sizer
 
@@ -1782,7 +1789,7 @@ class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
 
       - ``< 0`` is a ``short`` indication
 
-    There are 5 types of *Signals*, broken in 2 groups.
+    There are five types of *Signals*, broken in two groups.
 
     # 信号通常是指标并且具有下面的输出值：大于0代表一个多头意向，小于0代表一个空头意向，下面具有5种类型的信号，分成2组
 
