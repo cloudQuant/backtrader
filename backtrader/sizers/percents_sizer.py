@@ -25,7 +25,7 @@ __all__ = ['PercentSizer', 'AllInSizer', 'PercentSizerInt', 'AllInSizerInt']
 
 # 百分比手数，根据可以利用的现金的百分比下单
 class PercentSizer(bt.Sizer):
-    """This sizer return percents of available cash
+    """This sizer return percentages of available cash
 
     Params:
       - ``percents`` (default: ``20``)
@@ -68,7 +68,7 @@ class AllInSizer(PercentSizer):
 
 # 按照百分比进行计算下单的手数，然后要取整
 class PercentSizerInt(PercentSizer):
-    """This sizer return percents of available cash in form of size truncated
+    """This sizer return percentages of available cash in the form of size truncated
     to an int
 
     Params:
@@ -81,7 +81,7 @@ class PercentSizerInt(PercentSizer):
 
 # 根据所有的现金进行下单，手数要取整
 class AllInSizerInt(PercentSizerInt):
-    """This sizer return all available cash of broker with the
+    """This sizer returns all available cash of broker with the
     size truncated to an int
 
      Params:
