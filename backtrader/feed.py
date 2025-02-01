@@ -154,6 +154,12 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
         'LIVE', 'NOTSUBSCRIBED', 'NOTSUPPORTED_TIMEFRAME', 'UNKNOWN']
 
     # 类方法，获取数据的状态
+    def __init__(self):
+        self._env = None
+        self._barstash = None
+        self._barstack = None
+        self._laststatus = None
+
     @classmethod
     def _getstatusname(cls, status):
         return cls._NOTIFNAMES[status]
@@ -179,12 +185,12 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     def _start_finish(self):
         # A live feed (for example) may have learnt something about the
-        # timezones after the start and that's why the date/time related
+        # timezones after the start, and that's why the date/time related
         # parameters are converted at this late stage
         # Get the output timezone (if any)
         # 获取具体的时区
         self._tz = self._gettz()
-        # Lines have already been create, set the tz
+        # Lines have already been created, set the tz
         # 给时间设置具体的时区
         self.lines.datetime._settz(self._tz)
 
@@ -287,7 +293,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 实盘数据进行抽样的时候，等待的时间间隔
     def do_qcheck(self, onoff, qlapse):
-        # if onoff is True the data will wait p.qcheck for incoming live data
+        # if onoff is True, the data will wait p.qcheck for incoming live data
         # on its queue.
         qwait = self.p.qcheck if onoff else 0.0
         qwait = max(0.0, qwait - qlapse)
@@ -392,8 +398,8 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
     def _tick_nullify(self):
         # These are the updating prices in case the new bar is "updated"
         # and the length doesn't change like if a replay is happening or
-        # a real-time data feed is in use and 1 minutes bars are being
-        # constructed with 5 seconds updates
+        # a real-time data feed is in use and 1-minute bars are being
+        # constructed with 5-second updates
         for lalias in self.getlinealiases():
             if lalias != 'datetime':
                 setattr(self, 'tick_' + lalias, None)
@@ -457,7 +463,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
             # not preloaded - request next bar
             ret = self.load()
             if not ret:
-                # if load cannot produce bars - forward the result
+                # if the load cannot produce bars - forward the result
                 return ret
 
             if datamaster is None:
@@ -500,7 +506,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 使用过滤器的最后一个机会
     def _last(self, datamaster=None):
-        # Last chance for filters to deliver something
+        # A last chance for filters to deliver something
         
         ret = 0
         for ff, fargs, fkwargs in self._ffilters:
@@ -531,7 +537,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
     def load(self):
         
         while True:
-            # move data pointer forward for new bar
+            # move a data pointer forward for new bar
             # 把数据指针向前移动一位
             self.forward()
 
@@ -550,7 +556,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
                     # "stop" method of the strategy
                     self.backwards(force=True)  # undo data pointer
 
-                    # return the actual returned value which may be None to
+                    # Return the actual returned value which may be None to
                     # signal no bar is available, but the data feed is not
                     # done. False means game over
                     return _loadret
@@ -563,7 +569,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
             # A bar has been loaded, adapt the time
             # 如果需要对输入的时间做时区的处理，那么就把数字转化成时间，然后把时间进行本地化，然后把时间转化成数字，更新当前的时间
             if self._tzinput:
-                # Input has been converted at face value but it's not UTC in
+                # Input has been converted at face value, but it's not UTC in
                 # the input stream
                 dtime = num2date(dt)  # get it in a naive datetime
                 # localize it
@@ -760,6 +766,9 @@ class CSVDataBase(with_metaclass(MetaCSVDataBase, DataBase)):
     params = (('headers', True), ('separator', ','),)
 
     # 获取数据并简单处理
+    def __init__(self):
+        self.separator = None
+
     def start(self):
         super(CSVDataBase, self).start()
         # 如果数据是None的话
@@ -849,6 +858,8 @@ class DataClone(AbstractDataBase):
     # 初始化，data等于参数中的dataname的值,_datename等于data的_dataname属性值
     # 然后copy日期、时间、交易间隔、compression的参数
     def __init__(self):
+        self._dlen = None
+        self._preloading = None
         self.data = self.p.dataname
         self._dataname = self.data._dataname
 
@@ -871,7 +882,7 @@ class DataClone(AbstractDataBase):
 
         self._calendar = self.data._calendar
 
-        # input has already been converted by guest data
+        # guest data have already converted input
         self._tzinput = None  # no need to further converr
 
         # Copy dates/session infos
@@ -898,11 +909,11 @@ class DataClone(AbstractDataBase):
     # load数据
     def _load(self):
         # assumption: the data is in the system
-        # simply copy the lines
+        # copy the lines
         # 如果准备preload的话，运行下面的代码，一点点copy具体的数据
         if self._preloading:
             # data is preloaded, we are preloading too, can move
-            # forward until have full bar or data source is exhausted
+            # forward until have full bar or a data source is exhausted
             # 数据向前
             self.data.advance()
             # 如果当前的数据大于了数据的缓存的长度，返回False
