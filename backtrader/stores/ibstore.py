@@ -43,13 +43,13 @@ def _ts2dt(tstamp=None):
     # 把timestamp转换成时间对象，如果没有指定时间戳的话，就返回当前的utc时间
     # 如果时间戳不是None，空值，False的时候，对时间戳进行处理，然后返回时间对象
     if not tstamp:
-        return datetime.utcnow()
+        return datetime.now(UTC)
     # todo backtrader自带代码，1000出错了，改写成1，这样计算得到的utc时间比北京时间晚8个小时
     # 如果使用1000的话，得到的时间是1970年的
     # sec, msec = divmod(long(tstamp), 1000)
     sec, msec = divmod(long(tstamp), 1)
     usec = msec * 1000
-    return datetime.utcfromtimestamp(sec).replace(microsecond=usec)
+    return datetime.fromtimestamp(sec, UTC).replace(microsecond=usec)
 
 
 class RTVolume(object):
@@ -77,7 +77,7 @@ class RTVolume(object):
             setattr(self, name, func(next(tokens)) if rtvol else func())
 
         # If price was provided use it
-        # 如果单独提供了price,就使用price,会覆盖从tick中接收的price
+        # 如果单独提供了price, 就使用price, 会覆盖从tick中接收的price
         if price is not None:
             self.price = price
         # 如果时间偏移量不是None的话，在现有的时间上加上时间偏移量
@@ -191,9 +191,9 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # todo 把在代码init后面添加的类属性，放到init前面了
 
-    # The _durations are meant to calculate the needed historical data to
+    # The _durations are meant to calculate the necessary historical data to
     # perform backfilling at the start of a connetion or a connection is lost.
-    # Using a timedelta as a key allows to quickly find out which bar size
+    # Using a timedelta as a key allows quickly finding out which
     # bar size (values in the tuples int the dict) can be used.
     # 这个属性主要用于填充历史数据的时候快速计算需要补充多少个bar使用
 
@@ -254,28 +254,28 @@ class IBStore(with_metaclass(MetaSingleton, object)):
           '20 mins', '30 mins',
           '1 hour', '2 hours')),
 
-        # 10800 seconds - 3 hours
+        # 10,800 seconds - 3 hours
         ('10800 S',
          ('10 secs', '15 secs', '30 secs',
           '1 min', '2 mins', '3 mins', '5 mins', '10 mins', '15 mins',
           '20 mins', '30 mins',
           '1 hour', '2 hours', '3 hours')),
 
-        # 14400 seconds - 4 hours
+        # 14,400 seconds - 4 hours
         ('14400 S',
          ('15 secs', '30 secs',
           '1 min', '2 mins', '3 mins', '5 mins', '10 mins', '15 mins',
           '20 mins', '30 mins',
           '1 hour', '2 hours', '3 hours', '4 hours')),
 
-        # 28800 seconds - 8 hours
+        # 28,800 seconds - 8 hours
         ('28800 S',
          ('30 secs',
           '1 min', '2 mins', '3 mins', '5 mins', '10 mins', '15 mins',
           '20 mins', '30 mins',
           '1 hour', '2 hours', '3 hours', '4 hours', '8 hours')),
 
-        # 1 days
+        # 1 day
         ('1 D',
          ('1 min', '2 mins', '3 mins', '5 mins', '10 mins', '15 mins',
           '20 mins', '30 mins',
@@ -289,7 +289,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
           '1 hour', '2 hours', '3 hours', '4 hours', '8 hours',
           '1 day')),
 
-        # 1 weeks
+        # 1 week
         ('1 W',
          ('3 mins', '5 mins', '10 mins', '15 mins',
           '20 mins', '30 mins',
@@ -302,7 +302,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
           '1 hour', '2 hours', '3 hours', '4 hours', '8 hours',
           '1 day', '1 W')),
 
-        # 1 months
+        # 1 month
         ('1 M',
          ('30 mins',
           '1 hour', '2 hours', '3 hours', '4 hours', '8 hours',
@@ -445,7 +445,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         if self.p._debug or self.p.notifyall:
             self.conn.registerAll(self.watcher)
 
-        # Register decorated methods with the conn
+        # Register decorated methods with conn
         # 获取连接上的所有方法
         methods = inspect.getmembers(self, inspect.ismethod)
         for name, method in methods:
@@ -478,9 +478,9 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
         # Generate a table of reverse durations
         self.revdur = collections.defaultdict(list)
-        # The table (dict) is a ONE to MANY relation of
+        # The table (dict) is a ONE-to-MANY relation of
         #   duration -> barsizes
-        # Here it is reversed to get a ONE to MANY relation of
+        # Here it is reversed to get a ONE-to-MANY relation of
         #   barsize -> durations
         for duration, barsizes in self._durations.items():
             for barsize in barsizes:
@@ -501,7 +501,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
             # For datas simulate a queue with None to kickstart co
             self.datas.append(data)
 
-            # if connection fails, get a fake registration that will force the
+            # if the connection fails, get a fake registration that will force the
             # datas to try to reconnect or else bail out
             return self.getTickerQueue(start=True)
 
@@ -512,7 +512,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         try:
             self.conn.disconnect()  # disconnect should be an invariant
         except AttributeError:
-            pass    # conn may have never been connected and lack "disconnect"
+            pass    # conn may have never been connected and lack "disconnect".
 
         # Unblock any calls set on these events
         self._event_managed_accounts.set()
@@ -544,17 +544,18 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 重新连接方法，这个方法必须是一个不变量，方便可以调用很多次
     def reconnect(self, fromstart=False, resub=False):
-        # This method must be an invariant in that it can be called several
-        # times from the same source and must be consistent. An exampler would
-        # be 5 datas which are being received simultaneously and all request a
-        # reconnect
+        # This method must be an invariant in which it can be called several
+        # times from the same source and must be consistent.
+        # An example would
+        # be five data that are being received simultaneously, and all request a
+        # reconnecting
 
         # Policy:
         #  - if dontreconnect has been set, no option to connect is possible
         #  - check connection and use the absence of isConnected as signal of
         #    first ever connection (add 1 to retries too)
         #  - Calculate the retries (forever or not)
-        #  - Try to connct
+        #  - Try to connect
         #  - If achieved and fromstart is false, the datas will be
         #    re-kickstarted to recreate the subscription
 
@@ -574,7 +575,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         if self.dontreconnect:
             return False
 
-        # This is only invoked from the main thread by datas and therefore no
+        # This is only invoked from the main thread by datas, and therefore no
         # lock is needed to control synchronicity to it
         # 获取重新尝试的次数，如果尝试次数大于等于0,那么就给尝试次数+1(True=1)
         retries = self.p.reconnect
@@ -668,7 +669,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
             # Usually received as an error in connection of just before disconn
             pass
         elif msg.errorCode in [200, 203, 162, 320, 321, 322]:
-            # cdetails 200 security not found, notify over right queue
+            # cdetails 200 security isn't found, notify over right queue
             # cdetails 203 security not allowed for acct
             try:
                 q = self.qs[msg.id]
@@ -748,8 +749,8 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 关闭连接
     @ibregister
     def connectionClosed(self, msg):
-        # Sometmes this comes without 1300/502 or any other and will not be
-        # seen in error hence the need to manage the situation independently
+        # Sometimes this comes without 1300/502 or any other and will not be
+        # seen in error, hence the need to manage the situation independently
         self.conn.disconnect()
         self.stopdatas()
 
@@ -826,7 +827,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
         with self._lock_q:
             tickerId = self.nextTickerId()
-            self.qs[tickerId] = q  # can be managed from other thread
+            self.qs[tickerId] = q  # can be managed from another thread
             self.ts[q] = tickerId
             self.iscash[tickerId] = False
 
@@ -846,7 +847,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 判断是否是有效的queue，如果queue在self.ts中，返回True
     def validQueue(self, q):
-        """Returns (bool)  if a queue is still valid"""
+        """Returns (bool) if a queue is still valid"""
         return q in self.ts  # queue -> ticker
 
     # 获取合约的详细信息
@@ -882,7 +883,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 详细的合约信息，从TWS接收到
     @ibregister
     def contractDetails(self, msg):
-        """Receive answer and pass it to the queue"""
+        """Receive an answer and pass it to the queue"""
         self.qs[msg.reqId].put(msg)
 
     # 获取历史数据，方法参数和IB中请求历史数据的方法并不一致
@@ -934,7 +935,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
                                           duration=duration, barsize=barsize,
                                           what=what, useRTH=useRTH, tz=tz,
                                           sessionend=sessionend)
-        # Check if the requested timeframe/compression is supported by IB
+        # Check if IB supports the requested timeframe/compression
         # 根据交易周期获取可以获取数据的长度，如果时间长度是None的话，直接调用tick数据
         durations = self.getdurations(timeframe, compression)
         if not durations:  # return a queue and put a None in it
@@ -949,7 +950,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         else:
             tickerId, q = self.reuseQueue(tickerId)  # reuse q for old tickerId
 
-        # Get the best possible duration to reduce number of requests
+        # Get the best possible duration to reduce the number of requests
         duration = None
         for dur in durations:
             intdate = self.dt_plus_duration(begindate, dur)
@@ -1126,7 +1127,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         if msg.tickType == 48:  # RTVolume
             try:
                 rtvol = RTVolume(msg.value)
-            except ValueError:  # price not in message ...
+            except ValueError:  # price doesn't in message ...
                 pass
             else:
                 # Don't need to adjust the time, because it is in "timestamp"
@@ -1143,7 +1144,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         A RTVolume which will only contain a price is put into the client's
         queue to have a consistent cross-market interface
         """
-        # Used for "CASH" markets
+        # Used for "CASH" markets,
         # The price field has been seen to be missing in some instances even if
         # "field" is 1
         tickerId = msg.tickerId
@@ -1152,7 +1153,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
             if msg.field == fieldcode:  # Expected cash field code
                 try:
                     if msg.price == -1.0:
-                        # seems to indicate the stream is halted for example in
+                        # seems to indicate the stream is halted, for example, in
                         # between 23:00 - 23:15 CET for FOREX
                         return
                 except AttributeError:
@@ -1161,7 +1162,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
                 try:
                     rtvol = RTVolume(price=msg.price, tmoffset=self.tmoffset)
                     # print('rtvol with datetime:', rtvol.datetime)
-                except ValueError:  # price not in message ...
+                except ValueError:  # price doesn't in message ...
                     pass
                 else:
                     self.qs[tickerId].put(rtvol)
@@ -1175,14 +1176,14 @@ class IBStore(with_metaclass(MetaSingleton, object)):
         Not valid for cash markets
         """
         # Get a naive localtime object
-        msg.time = datetime.utcfromtimestamp(float(msg.time))
+        msg.time = datetime.fromtimestamp(float(msg.time), UTC)
         self.qs[msg.reqId].put(msg)
 
     # 获取历史数据信息
     @ibregister
     def historicalData(self, msg):
         """Receives the events of a historical data request"""
-        # For multi-tiered downloads we'd need to rebind the queue to a new
+        # For multi-tiered downloads, we'd need to rebind the queue to a new
         # tickerId (in case tickerIds are not reusable) and instead of putting
         # None, issue a new reqHistData with the new data and move formward
         tickerId = msg.reqId
@@ -1199,7 +1200,7 @@ class IBStore(with_metaclass(MetaSingleton, object)):
             msg.date = None
             self.cancelQueue(q)
         else:
-            dtstr = msg.date  # Format when string req: YYYYMMDD[  HH:MM:SS]
+            dtstr = msg.date  # Format when string req: YYYYMMDD[ HH:MM:SS]
             if self.histfmt[tickerId]:
                 sessionend = self.histsend[tickerId]
                 dt = datetime.strptime(dtstr, '%Y%m%d')
@@ -1208,19 +1209,19 @@ class IBStore(with_metaclass(MetaSingleton, object)):
                 if tz:
                     dteostz = tz.localize(dteos)
                     dteosutc = dteostz.astimezone(UTC).replace(tzinfo=None)
-                    # When requesting for example daily bars, the current day
+                    # When requesting, for example, daily bars, the current day
                     # will be returned with the already happened data. If the
                     # session end were added, the new ticks wouldn't make it
-                    # through, because they happen before the end of time
+                    # through because they happen before the end of time
                 else:
                     dteosutc = dteos
 
-                if dteosutc <= datetime.utcnow():
+                if dteosutc <= datetime.now(UTC):
                     dt = dteosutc
 
                 msg.date = dt
             else:
-                msg.date = datetime.utcfromtimestamp(long(dtstr))
+                msg.date = datetime.fromtimestamp(long(dtstr), UTC)
 
         q.put(msg)
 
@@ -1490,7 +1491,8 @@ class IBStore(with_metaclass(MetaSingleton, object)):
 
     # 获取账户持仓
     def getposition(self, contract, clone=False):
-        # Lock access to the position dicts. This is called from main thread
+        # Lock access to the position dicts.
+        # This is called from the main thread,
         # and updates could be happening in the background
         with self._lock_pos:
             position = self.positions[contract.m_conId]
@@ -1520,12 +1522,12 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 获取所有账户价值信息
     def get_acc_values(self, account=None):
         """Returns all account value infos sent by TWS during regular updates
-        Waits for at least 1 successful download
+        Waits for at least one successful download
 
-        If ``account`` is ``None`` then a dictionary with accounts as keys will
+        If ``account`` is `None`, then a dictionary with accounts as keys will
         be returned containing all accounts
 
-        If account is specified or the system has only 1 account the dictionary
+        If the account is specified or the system has only one account, the dictionary
         corresponding to that account is returned
         """
         # Wait for at least 1 account update download to have been finished
@@ -1558,12 +1560,12 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 获取账户的净的清算价值
     def get_acc_value(self, account=None):
         """Returns the net liquidation value sent by TWS during regular updates
-        Waits for at least 1 successful download
+        Waits for at least one successful download
 
-        If ``account`` is ``None`` then a dictionary with accounts as keys will
+        If ``account`` is `None`, then a dictionary with accounts as keys will
         be returned containing all accounts
 
-        If account is specified or the system has only 1 account the dictionary
+        If the account is specified or the system has only one account, the dictionary
         corresponding to that account is returned
         """
         # Wait for at least 1 account update download to have been finished
@@ -1596,12 +1598,12 @@ class IBStore(with_metaclass(MetaSingleton, object)):
     # 获取账户的总的现金价值
     def get_acc_cash(self, account=None):
         """Returns the total cash value sent by TWS during regular updates
-        Waits for at least 1 successful download
+        Waits for at least one successful download
 
-        If ``account`` is ``None`` then a dictionary with accounts as keys will
+        If ``account`` is `None`, then a dictionary with accounts as keys will
         be returned containing all accounts
 
-        If account is specified or the system has only 1 account the dictionary
+        If an account is specified or the system has only one account, the dictionary
         corresponding to that account is returned
         """
         # Wait for at least 1 account update download to have been finished

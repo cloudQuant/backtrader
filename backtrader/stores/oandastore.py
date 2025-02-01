@@ -19,15 +19,11 @@
 #
 ###############################################################################
 import collections
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import time as _time
 import json
 import threading
-
-
-
-
-
+import traceback
 import oandapy
 import requests  # oandapy depdendency
 
@@ -85,6 +81,7 @@ class API(oandapy.API):
         try:
             response = func(url, **request_args)
         except requests.RequestException as e:
+            traceback.format_exception(e)
             return OandaRequestError().error_response
 
         content = response.content.decode('utf-8')
@@ -103,6 +100,7 @@ class Streamer(oandapy.Streamer):
         # Override to provide headers, which is in the standard API interface
         super(Streamer, self).__init__(*args, **kwargs)
 
+        self.connected = None
         if headers:
             self.client.headers.update(headers)
 
@@ -119,8 +117,7 @@ class Streamer(oandapy.Streamer):
         if 'ignore_heartbeat' in params:
             ignore_heartbeat = params['ignore_heartbeat']
 
-        request_args = {}
-        request_args['params'] = params
+        request_args = {'params': params}
 
         url = '%s/%s' % (self.api_url, endpoint)
 
@@ -129,6 +126,7 @@ class Streamer(oandapy.Streamer):
             try:
                 response = self.client.get(url, **request_args)
             except requests.RequestException as e:
+                traceback.format_exception(e)
                 self.q.put(OandaRequestError().error_response)
                 break
 
@@ -147,7 +145,8 @@ class Streamer(oandapy.Streamer):
                         if not (ignore_heartbeat and 'heartbeat' in data):
                             self.on_success(data)
 
-            except:  # socket.error has been seen
+            except Exception as e:  # socket.error has been seen
+                traceback.format_exception(e)
                 self.q.put(OandaStreamError().error_response)
                 break
 
@@ -218,6 +217,10 @@ class OandaStore(with_metaclass(MetaSingleton, object)):
     def __init__(self):
         super(OandaStore, self).__init__()
 
+        self.q_orderclose = None
+        self.q_ordercreate = None
+        self.q_account = None
+        self.cash = None
         self.notifs = collections.deque()  # store notifications for cerebro
 
         self._env = None  # reference to cerebro for general notifications
@@ -473,8 +476,8 @@ class OandaStore(with_metaclass(MetaSingleton, object)):
         if order.exectype != bt.Order.Market:
             okwargs['price'] = order.created.price
             if order.valid is None:
-                # 1 year and datetime.max fail ... 1 month works
-                valid = datetime.utcnow() + timedelta(days=30)
+                # 1 year and datetime.max fail ... 1-month works
+                valid = datetime.now(UTC) + timedelta(days=30)
             else:
                 valid = order.data.num2date(order.valid)
                 # To timestamp with seconds precision
@@ -515,7 +518,7 @@ class OandaStore(with_metaclass(MetaSingleton, object)):
                 self.broker._reject(oref)
                 return
 
-            # Ids are delivered in different fields and all must be fetched to
+            # Ids are delivered in different fields, and all must be fetched to
             # match them (as executions) to the order generated here
             oids = list()
             for oidfield in self._OIDSINGLE:
@@ -539,7 +542,7 @@ class OandaStore(with_metaclass(MetaSingleton, object)):
             for oid in oids:
                 self._ordersrev[oid] = oref  # maps ids to backtrader order
 
-                # An transaction may have happened and was stored
+                # A transaction may have happened and was stored
                 tpending = self._transpend[oid]
                 tpending.append(None)  # eom marker
                 while True:
@@ -564,6 +567,7 @@ class OandaStore(with_metaclass(MetaSingleton, object)):
             try:
                 o = self.oapi.close_order(self.p.account, oid)
             except Exception as e:
+                traceback.format_exception(e)
                 continue  # not cancelled - FIXME: notify
 
             self.broker._cancel(oref)
@@ -573,7 +577,7 @@ class OandaStore(with_metaclass(MetaSingleton, object)):
 
     def _transaction(self, trans):
         # Invoked from Streaming Events. May actually receive an event for an
-        # oid which has not yet been returned after creating an order. Hence
+        # oid which has not yet been returned after creating an order. Hence,
         # store if not yet seen, else forward to processer
         ttype = trans['type']
         if ttype == 'MARKET_ORDER_CREATE':
@@ -600,16 +604,16 @@ class OandaStore(with_metaclass(MetaSingleton, object)):
                 return  # can do nothing
 
             # Skip above - at the moment do nothing
-            # Received directly from an event in the WebGUI for example which
+            # Received directly from an event in the WebGUI, for example, which
             # closes an existing position related to order with id -> pid
-            # COULD BE DONE: Generate a fake counter order to gracefully
+            # COULD BE DONE: Generate a fake counter-order to gracefully
             # close the existing position
             msg = ('Received TRADE_CLOSE for unknown order, possibly generated'
                    ' over a different client or GUI')
             self.put_notification(msg, trans)
             return
 
-        else:  # Go aways gracefully
+        else:  # Go always gracefully
             try:
                 oid = trans['id']
             except KeyError:

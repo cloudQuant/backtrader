@@ -23,7 +23,7 @@ from datetime import date, datetime, time, timedelta
 import os.path
 import threading
 import time as _timemod
-
+import traceback
 import ctypes
 
 from backtrader import TimeFrame, Position
@@ -45,7 +45,7 @@ class _SymInfo(object):
             setattr(self, f, getattr(syminfo, f))
 
 # This type is used inside 'PumpEvents', but if we create the type
-# afresh each time 'PumpEvents' is called we end up creating cyclic
+# afresh each time 'PumpEvents' is called, we end up creating cyclic
 # garbage for each call.  So we define it here instead.
 # 从上面的注释来看，这个类型是用于PumpEvents，如果我们每次都在调用的时候创建一个新的，将会
 # 导致每次都创建新的垃圾，所以在这里定义
@@ -56,7 +56,8 @@ _handles_type = ctypes.c_void_p * 1
 def PumpEvents(timeout=-1, hevt=None, cb=None):
     """This following code waits for 'timeout' seconds in the way
     required for COM, internally doing the correct things depending
-    on the COM appartment of the current thread.  It is possible to
+    on the COM apartment of the current thread.
+    It is possible to
     terminate the message loop by pressing CTRL+C, which will raise
     a KeyboardInterrupt.
     """
@@ -66,23 +67,26 @@ def PumpEvents(timeout=-1, hevt=None, cb=None):
     # XXX XXX XXX
     #
     # It may be that I misunderstood the CoWaitForMultipleHandles
-    # function.  Is a message loop required in a STA?  Seems so...
+    # function.
+    # Is a message loop required in an STA?
+    # Seems so...
     #
     # MSDN says:
     #
     # If the caller resides in a single-thread apartment,
     # CoWaitForMultipleHandles enters the COM modal loop, and the
     # thread's message loop will continue to dispatch messages using
-    # the thread's message filter. If no message filter is registered
+    # the thread's message filter.
+    # If no message filter is registered
     # for the thread, the default COM message processing is used.
     #
     # If the calling thread resides in a multithread apartment (MTA),
     # CoWaitForMultipleHandles calls the Win32 function
     # MsgWaitForMultipleObjects.
 
-    # Timeout expected as float in seconds - *1000 to miliseconds
+    # Timeout expected as float in seconds - *1000 to millisecond
     # timeout = -1 -> INFINITE 0xFFFFFFFF;
-    # It can also be a callable which should return an amount in seconds
+    # It can also be a callable that should return an amount in seconds
 
     if hevt is None:
         hevt = ctypes.windll.kernel32.CreateEventA(None, True, False, None)
@@ -194,10 +198,10 @@ class VCStore(with_metaclass(MetaSingleton, object)):
     BrokerCls = None  # broker class will autoregister
     DataCls = None  # data class will auto register
 
-    # 32 bit max unsigned int for openinterest correction
+    # 32-bit max unsigned int for openinterest correction
     MAXUINT = 0xffffffff // 2
 
-    # to remove at least 1 sec or else there seem to be internal conv problems
+    # to remove at least 1 sec or else, there seem to be internal conv problems
     MAXDATE1 = datetime.max - timedelta(days=1, seconds=1)
     MAXDATE2 = datetime.max - timedelta(seconds=1)
 
@@ -228,7 +232,7 @@ class VCStore(with_metaclass(MetaSingleton, object)):
     VC_DLLS = ('VCDataSource.dll', 'VCRealTimeLib.dll',
                'COMTraderInterfaces.dll',)
 
-    # Well known CLSDI
+    # Well-known CLSDI
     VC_TLIBS = (
         ['{EB2A77DC-A317-4160-8833-DECF16275A05}', 1, 0],  # vcdatasource64
         ['{86F1DB04-2591-4866-A361-BB053D77FA18}', 1, 0],  # vcrealtime64
@@ -243,7 +247,7 @@ class VCStore(with_metaclass(MetaSingleton, object)):
         # Tries to locate VisualChart in the registry to get the installation
         # directory
         # If not found returns well-known typelibs clsid
-        # Else it will scan the directory to locate the 64/32 bit dlls and
+        # Else it will scan the directory to locate the 64/32-bit dlls and
         # return the paths
         import _winreg  # keep import local to avoid breaking test cases
 
@@ -254,12 +258,14 @@ class VCStore(with_metaclass(MetaSingleton, object)):
             try:
                 vckey = _winreg.OpenKey(rkey, self.VC_KEYNAME)
             except WindowsError as e:
+                traceback.format_exception(e)
                 continue
 
             # Try to get the key value
             try:
                 vcdir, _ = _winreg.QueryValueEx(vckey, self.VC_KEYVAL)
             except WindowsError as e:
+                traceback.format_exception(e)
                 continue
             else:
                 break  # found vcdir
@@ -375,7 +381,7 @@ class VCStore(with_metaclass(MetaSingleton, object)):
 
     def get_notifications(self):
         """Return the pending "store" notifications"""
-        self.notifs.append(None)  # Mark current end of notifs
+        self.notifs.append(None)  # Mark the current end of notifs
         return [x for x in iter(self.notifs.popleft, None)]  # popleft til None
 
     def start(self, data=None, broker=None):
@@ -464,7 +470,7 @@ class VCStore(with_metaclass(MetaSingleton, object)):
 
     def _symboldata(self, symbol):
 
-        # Assumption -> we are connected and the symbol has been found
+        # Assumption -> we are connected, and the symbol has been found
         self.vcds.ActiveEvents = 0
         # self.vcds.EventsType = self.vcdsmod.EF_Always
 
@@ -523,7 +529,7 @@ class VCStore(with_metaclass(MetaSingleton, object)):
             q.put(None)        # Signal end of transmission
             dsconn = None
         else:
-            dsconn = self.GetEvents(vcds, data)  # finally connect the events
+            dsconn = self.GetEvents(vcds, data)  # finally, connect the events
             pass
 
         # pump events in this thread - call ping

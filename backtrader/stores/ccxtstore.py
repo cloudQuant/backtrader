@@ -118,7 +118,7 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         granularity = self._GRANULARITIES.get((timeframe, compression))
         if granularity is None:
             raise ValueError("backtrader CCXT module doesn't support fetching OHLCV "
-                             "data for time frame %s, comression %s" % \
+                             "data for time frame %s, compression %s" % \
                              (bt.TimeFrame.getname(timeframe), compression))
 
         if self.exchange.timeframes and granularity not in self.exchange.timeframes:
@@ -197,13 +197,13 @@ class CCXTStore(with_metaclass(MetaSingleton, object)):
         See here: https://github.com/ccxt/ccxt/wiki/Manual#implicit-api-methods
 
         - type: String, 'Get', 'Post','Put' or 'Delete'.
-        - endpoint = String containing the endpoint address eg. 'order/{id}/cancel'
+        - endpoint = String containing the endpoint address e.g. 'order/{id}/cancel'
         - Params: Dict: An implicit method takes a dictionary of parameters, sends
           the request to the exchange and returns an exchange-specific JSON
-          result from the API as is, unparsed.
+          result from the API as is unparsed.
 
         To get a list of all available methods with an exchange instance,
-        including implicit methods and unified methods you can simply do the
+        including implicit methods and unified methods, you can do the
         following:
 
         print(dir(ccxt.hitbtc()))
