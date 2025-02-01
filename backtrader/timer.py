@@ -30,7 +30,7 @@ from .utils.py3 import integer_types, range, with_metaclass
 from .utils import TIME_MAX
 
 
-#  from timer import *  只能import这几个常量和类
+#  from timer import * 只能import这几个常量和类
 __all__ = ['SESSION_TIME', 'SESSION_START', 'SESSION_END', 'Timer']
 
 # 这三个常量的值
@@ -62,6 +62,18 @@ class Timer(with_metaclass(MetaParams, object)):
 
     # 初始化
     def __init__(self, *args, **kwargs):
+        self._weekmask = None
+        self._dwhen = None
+        self._dtwhen = None
+        self.lastwhen = None
+        self._curweek = None
+        self._monthmask = None
+        self._curmonth = None
+        self._curdate = None
+        self._nexteos = None
+        self._isdata = None
+        self._rstwhen = None
+        self._tzdata = None
         self.args = args
         self.kwargs = kwargs
 
@@ -219,7 +231,7 @@ class Timer(with_metaclass(MetaParams, object)):
             # 如果ret是False的时候，需要重新设置when,返回False
             if not ret:
                 self._reset_when(ddate)  # this day won't make it
-                return False  # timer target not met
+                return False  # timer target isn't met
 
         # no day change or passed month, week and allow filters on date change
         dwhen = self._dwhen
@@ -241,7 +253,7 @@ class Timer(with_metaclass(MetaParams, object)):
                 self._dtwhen = dtwhen = date2num(dwhen, tz=self._tzdata)
         # 如果时间小于dtwhen，返回False,没有满足定时器的目标
         if dt < dtwhen:
-            return False  # timer target not met
+            return False  # timer target isn't met
         # 记录上次when是什么时间发生的
         self.lastwhen = dwhen  # record when the last timer "when" happened
 
@@ -268,7 +280,7 @@ class Timer(with_metaclass(MetaParams, object)):
                 # 下个when开始的时间
                 dwhen += self.p.repeat
                 # 如果dwhen大于了当前交易日最后的时间，重设when，退出while循环
-                if dwhen > nexteos:  # new schedule is beyone session
+                if dwhen > nexteos:  # if new schedule is beyond session
                     self._reset_when(ddate)  # reset to original point
                     break
                 # 如果dwhen大于当前的时间
