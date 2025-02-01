@@ -37,19 +37,20 @@ class Position(object):
     """
     # 打印position的时候可以显示的信息
     def __str__(self):
-        items = list()
-        items.append('--- Position Begin')
-        items.append('- Size: {}'.format(self.size))
-        items.append('- Price: {}'.format(self.price))
-        items.append('- Price orig: {}'.format(self.price_orig))
-        items.append('- Closed: {}'.format(self.upclosed))
-        items.append('- Opened: {}'.format(self.upopened))
-        items.append('- Adjbase: {}'.format(self.adjbase))
-        items.append('--- Position End')
-        return '\n'.join(items)
+        return (
+            "--- Position Begin\n"
+            f"- Size: {self.size}\n"
+            f"- Price: {self.price}\n"
+            f"- Price orig: {self.price_orig}\n"
+            f"- Closed: {self.upclosed}\n"
+            f"- Opened: {self.upopened}\n"
+            f"- Adjbase: {self.adjbase}\n"
+            "--- Position End"
+        )
 
     # 根据size和price的不同进行初始化
     def __init__(self, size=0, price=0.0):
+        self.datetime = None
         self.size = size
         if size:
             self.price = self.price_orig = price
@@ -137,13 +138,14 @@ class Position(object):
         # 更新当前的持仓和返回更新后的大小、价格和需要开仓和平仓的头寸大小
 
         Args:
-            size (int): amount to update the position size
-                size < 0: A sell operation has taken place
-                size > 0: A buy operation has taken place
+            size (int): amount to update the position's size
+                if size < 0: A sell operation has taken place
+                if size > 0: A buy operation has taken place
             # 更新持仓大小的量，如果size小于0,将会发出一个卖操作，如果size大于0,将会发生一个买操作
             price (float):
                 Must always be positive to ensure consistency
             # 价格，必须总是正数以保持持续性
+            dt (datetime.datetime): record datetime update (datetime.datetime)
 
         Returns:
 
@@ -151,20 +153,20 @@ class Position(object):
                size - new position size
                    Simply the sum of the existing size plus the "size" argument
                price - new position price
-                   If a position is increased the new average price will be
+                   If a position is increased, the new average price will be
                    returned
-                   If a position is reduced the price of the remaining size
+                   If a position is reduced, the price of the remaining size
                    does not change
-                   If a position is closed the price is nullified
-                   If a position is reversed the price is the price given as
+                   If a position is closed,  the price is nullified
+                   If a position is reversed, the price is the price given as
                    argument
                opened - amount of contracts from argument "size" that were used
                    to open/increase a position.
                    A position can be opened from 0 or can be a reversal.
-                   If a reversal is performed then opened is less than "size",
+                   If a reversal is performed, then opened is less than "size",
                    because part of "size" will have been used to close the
                    existing position
-               closed - amount of units from arguments "size" that were used to
+               closed - the amount of units from arguments "size" that were used to
                    close/reduce a position
 
             Both opened and closed carry the same sign as the "size" argument
@@ -179,9 +181,9 @@ class Position(object):
         self.datetime = dt  # record datetime update (datetime.datetime)
         # 原始的价格
         self.price_orig = self.price
-        # 旧的持仓大小
+        # 旧的 持仓大小
         oldsize = self.size
-        # 新的持仓大小
+        # 新的 持仓大小
         self.size += size
         # 如果size是0的话
         if not self.size:
