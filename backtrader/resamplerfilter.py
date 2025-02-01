@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, UTC
 
 from .dataseries import TimeFrame, _Bar
 from .utils.py3 import with_metaclass
@@ -35,10 +35,10 @@ class DTFaker(object):
     # This is meant (at least initially) for real-time feeds, because those are
     # the ones in need of events like the ones described above.
     # These data sources should also be producing ``utc`` time directly because
-    # the real-time feed is (more often than not)  timestamped and utc provides
-    # a universal reference
+    # the real-time feed is (more often than not) timestamped and utc provides
+    # a universal reference,
     # That's why below the timestamp is chosen in UTC and passed directly to
-    # date2num to avoid a localization. But it is extracted from data.num2date
+    # date2num to avoid localization.But it is extracted from data.num2date
     # to ensure the returned datetime object is localized according to the
     # expected output by the user (local timezone or any specified)
 
@@ -54,7 +54,7 @@ class DTFaker(object):
         # 如果forcedata是None的话
         if forcedata is None:
             # 获取现在的utc时间，并且加上数据的时间补偿
-            _dtime = datetime.utcnow() + data._timeoffset()
+            _dtime = datetime.now(UTC) + data._timeoffset()
             # 把计算得到的utc时间转化成数字
             self._dt = dt = date2num(_dtime)  # utc-like time
             # 把数字时间转化成本地的时间格式的时间
@@ -236,7 +236,7 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
         else:
             # if the compared data goes over the endofsession
             # make sure the resampled bar is open and has something before that
-            # end of session. It could be a weekend and nothing was delivered
+            # end of the session, It could be a weekend and nothing was delivered
             # until Monday
             if grter:
                 ret = (self.bar.isopen() and
@@ -344,7 +344,7 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
             # The data bar has surpassed the internal bar
             # 如果bar2edge是False的话，返回True
             if not self.p.bar2edge:
-                # Compression done on simple bar basis (like days)
+                # Compression done on a simple bar basis (like days)
                 ret = True
             # 如果周期数是1的话，返回True
             elif self.p.compression == 1:
@@ -366,7 +366,7 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
     def check(self, data, _forcedata=None):
         """Called to check if the current stored bar has to be delivered in
         spite of the data not having moved forward. If no ticks from a live
-        feed come in, a 5 second resampled bar could be delivered 20 seconds
+        feed come in, a 5-second resampled bar could be delivered 20 seconds
         later. When this method is called the wall clock (incl data time
         offset) is called to check if the time has gone so far as to have to
         deliver the already stored data
@@ -427,8 +427,8 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
             bound, brest = divmod(point, self.p.compression)
 
             # if no extra and decomp bound is point
-            # 如果divmod计算的结果余数为0，返回两个Trye
-            return (brest == 0 and point == (bound * self.p.compression), True)
+            # 如果divmod计算的结果余数为0，返回两个True
+            return brest == 0 and point == (bound * self.p.compression), True
 
         # Code overriden by eoscheck
         # 这段不会运行
@@ -501,7 +501,7 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
     # 调整bar的时间
     def _adjusttime(self, greater=False, forcedata=None):
         """
-        Adjusts the time of calculated bar (from underlying data source) by
+        Adjusts the time of calculated bar (from the underlying data source) by
         using the timeframe to the appropriate boundary, with compression taken
         into account
 
@@ -523,40 +523,40 @@ class Resampler(_BaseResampler):
 
     Params
 
-      - bar2edge (default: True)
+      - Bar2edge (default: True)
 
-        resamples using time boundaries as the target. For example with a
-        "ticks -> 5 seconds" the resulting 5 seconds bars will be aligned to
+        Resamples using time boundaries as the target.For example, with a
+        "ticks -> 5 seconds" the resulting 5-seconds bars will be aligned to
         xx:00, xx:05, xx:10 ...
 
         # 在抽样的时候使用时间边界作为目标，比如如果是ticks数据想要抽样程5秒钟，那么将会在xx:00,xx:05,xx:10这样的时间形成bar
 
-      - adjbartime (default: True)
+      - Adjbartime (default: True)
 
         Use the time at the boundary to adjust the time of the delivered
         resampled bar instead of the last seen timestamp. If resampling to "5
-        seconds" the time of the bar will be adjusted for example to hh:mm:05
+        seconds" the time of the bar will be adjusted, for example, to hh:mm:05
         even if the last seen timestamp was hh:mm:04.33
 
-        .. note::
+        :note::
 
            Time will only be adjusted if "bar2edge" is True. It wouldn't make
            sense to adjust the time if the bar has not been aligned to a
            boundary
         # 调整bar最后一个bar的最后的时间，在bar2edge是True的时候，使用最后的边界作为最后一个bar的时间
 
-      - rightedge (default: True)
+      - Rightedge (default: True)
 
         Use the right edge of the time boundaries to set the time.
 
-        If False and compressing to 5 seconds the time of a resampled bar for
+        If False and compressing to 5 seconds, the time of a resampled bar for
         seconds between hh:mm:00 and hh:mm:04 will be hh:mm:00 (the starting
         boundary
 
-        If True the used boundary for the time will be hh:mm:05 (the ending
+        If True, the used boundary for the time will be hh:mm:05 (the ending
         boundary)
         # 是否使用右边的时间边界，比如时间边界是hh:mm:00：hh:mm:05，如果设置成True的话，将会使用hh:mm:05
-        # 设置成False,将会使用hh:mm:00
+        # 设置成False, 将会使用hh:mm:00
     """
     # 参数
     params = (
@@ -665,37 +665,37 @@ class Replayer(_BaseResampler):
 
     Params
 
-      - bar2edge (default: True)
+      - Bar2edge (default: True)
 
-        replays using time boundaries as the target of the closed bar. For
-        example with a "ticks -> 5 seconds" the resulting 5 seconds bars will
+        Replays using time boundaries as the target of the closed bar.For
+        example, with a "ticks -> 5 seconds" the resulting 5-second bars will
         be aligned to xx:00, xx:05, xx:10 ...
 
-      - adjbartime (default: False)
+      - Adjbartime (default: False)
 
         Use the time at the boundary to adjust the time of the delivered
         resampled bar instead of the last seen timestamp. If resampling to "5
-        seconds" the time of the bar will be adjusted for example to hh:mm:05
+        seconds" the time of the bar will be adjusted, for example, to hh:mm:05
         even if the last seen timestamp was hh:mm:04.33
 
-        .. note::
+        *Note*
 
            Time will only be adjusted if "bar2edge" is True. It wouldn't make
            sense to adjust the time if the bar has not been aligned to a
            boundary
 
-        .. note:: if this parameter is True an extra tick with the *adjusted*
+        *Note* if this parameter is True, an extra tick with the *adjusted*
                   time will be introduced at the end of the *replayed* bar
 
-      - rightedge (default: True)
+      - Rightedge (default: True)
 
         Use the right edge of the time boundaries to set the time.
 
-        If False and compressing to 5 seconds the time of a resampled bar for
+        If False and compressing to 5 seconds, the time of a resampled bar for
         seconds between hh:mm:00 and hh:mm:04 will be hh:mm:00 (the starting
         boundary
 
-        If True the used boundary for the time will be hh:mm:05 (the ending
+        If True, the used boundary for the time will be hh:mm:05 (the ending
         boundary)
     """
     params = (
@@ -745,7 +745,7 @@ class Replayer(_BaseResampler):
         # if onedge or (checkbarover and self._checkbarover)
         cond = onedge
         # 如果当前不是在生成bar的时间点，如果需要检查，就需要检查bar是否结束
-        if not cond:  # original is or, if true it would suffice
+        if not cond:  # original is or, if true, it would suffice
             if docheckover:
                 cond = self._checkbarover(data, fromcheck=fromcheck)
         # 如果检查结果返回True的话
@@ -773,7 +773,7 @@ class Replayer(_BaseResampler):
                         self._firstbar = True  # next is first
                 # 如果需要检查
                 else:  # from check
-                    # fromcheck or consumed have  forced delivery, reopen
+                    # fromcheck or consumed have forced delivery, reopen
                     self.bar.bstart(maxdate=True)
                     self._firstbar = True  # next is first
                     if adjusted:
@@ -783,7 +783,7 @@ class Replayer(_BaseResampler):
             elif not fromcheck:
                 if not consumed:
                     # Data already "forwarded" and we replay to new bar
-                    # No need to go backwards. simply reopen internal cache
+                    # No need to go backwards.reopen the internal cache
                     self.bar.bupdate(data, reopen=True)
                 else:
                     # compression only, used data to update bar, hence remove
@@ -792,7 +792,7 @@ class Replayer(_BaseResampler):
                         data.backwards(force=True)
                     data._updatebar(self.bar.lvalues(), forward=False, ago=0)
                     self.bar.bstart(maxdate=True)
-                    self._firstbar = True  # make sure next tick moves forward
+                    self._firstbar = True  # make sure the next tick moves forward
         # 如果不需要检查
         elif not fromcheck:
             # not over, update, remove new entry, deliver
@@ -805,7 +805,7 @@ class Replayer(_BaseResampler):
             data._updatebar(self.bar.lvalues(), forward=False, ago=0)
             self._firstbar = False
 
-        return False  # the existing bar can be processed by the system
+        return False  # the system can process the existing bar
 
 
 class ResamplerTicks(Resampler):
