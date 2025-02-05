@@ -178,22 +178,22 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
             else:
                 raise TypeError(f"Unsupported time format: {type(input_time)}")
 
-        # def adjust_end_time(end_time_):
-        #     """调整结束时间，使其对齐到最近的整分钟"""
-        #     if end_time_ is None:
-        #         return None
-        #
-        #     # 获取秒数
-        #     seconds = end_time_.second
-        #
-        #     if seconds >= 59:
-        #         # 如果离整分钟差超过 1 秒，使用前一分钟
-        #         end_time_ = end_time_.replace(second=0, microsecond=0) - timedelta(minutes=1)
-        #     else:
-        #         # 否则使用下一个整分钟
-        #         end_time_ = end_time_.replace(second=0, microsecond=0) + timedelta(minutes=1)
-        #
-        #     return end_time_
+        def adjust_end_time(end_time_):
+            """调整结束时间，使其对齐到最近的整分钟"""
+            if end_time_ is None:
+                return None
+
+            # 获取秒数
+            seconds = end_time_.second
+
+            if seconds >= 57:
+                # 如果离整分钟差超过 3 秒，使用前一分钟
+                end_time_ = end_time_.replace(second=0, microsecond=0)
+            else:
+                # 否则使用下一个整分钟
+                end_time_ = end_time_.replace(second=0, microsecond=0) - timedelta(minutes=1)
+
+            return end_time_
 
         # 解析开始时间和结束时间为 UTC
         begin_time = parse_time(start_time)
@@ -202,12 +202,12 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         # 如果没有结束时间，则根据 granularity 对其为当前时间
         if stop_time is None:
             now = datetime.now(timezone.utc)  # 当前时间为 UTC
-            period_seconds = int(granularity[:-1]) * 60 if "m" in granularity else int(granularity[:-1]) * 3600
-            stop_time = now - timedelta(seconds=now.timestamp() % period_seconds) - timedelta(seconds=60)
+            # period_seconds = int(granularity[:-1]) * 60 if "m" in granularity else int(granularity[:-1]) * 3600
+            # stop_time = now - timedelta(seconds=now.timestamp() % period_seconds) - timedelta(seconds=60)
 
         # 调整结束时间，确保结束时间与整分钟对齐
         # begin_time = adjust_end_time(begin_time)
-        # stop_time = adjust_end_time(stop_time)
+        stop_time = adjust_end_time(stop_time)
 
         feed = self.exchange_feeds[exchange_name]
         if begin_time is None and count is not None:
