@@ -2,6 +2,7 @@ import time
 from datetime import datetime, timedelta
 import backtrader as bt
 from backtrader.feeds.cryptofeed import CryptoFeed
+from backtrader.stores.cryptostore import CryptoStore
 from bt_api_py.functions.utils import read_yaml_file
 from bt_api_py.functions.log_message import SpdLogManager
 
@@ -40,14 +41,12 @@ class TestStrategy(bt.Strategy):
 
     def next(self, dt=None):
         # If both historical and realtime data are loaded, mark test as successful
-        if self.historical_data_loaded and self.realtime_data_loaded:
-            print("Test succeeded: Both historical and realtime data loaded successfully!")
-            # self.stop()  # Stop the backtest
-            self.env.runstop()  # Stop the backtest
-
-        dt = dt or self.datas[0].datetime.datetime(0)
-        self.log('%s closing price: %s' % (dt.isoformat(), self.datas[0].close[0]))
-        self.next_runs += 1
+        # if self.historical_data_loaded and self.realtime_data_loaded:
+        #     print("Test succeeded: Both historical and realtime data loaded successfully!")
+        #     # self.stop()  # Stop the backtest
+        #     self.env.runstop()  # Stop the backtest
+        for data in self.datas:
+            self.log(f"{data._name}, {bt.num2date(data.datetime[0])}, {data.close[0]}")
 
         # Check if historical data is loaded
         if not self.historical_data_loaded and not self.now_live_data:
@@ -81,24 +80,39 @@ def test_backtest_strategy():
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
     exchange_params = {
-        "binance___swap": {
+        "BINANCE___SWAP": {
         "public_key": account_config_data['binance']['public_key'],
         "private_key": account_config_data['binance']['private_key']
         }
     }
-    # 获取当前时间
-    now = datetime.now()
-    # 计算当前时间之前的 2 个小时
-    two_hours_ago = now - timedelta(hours=9)
-    now_datetime = datetime(2025,1,27, 8,0,0)
-    data = CryptoFeed(exchange_params,
-                      debug=True,
-                      dataname="BNB-USDT",
-                      symbol="BNB-USDT",
-                      fromdate=two_hours_ago,
-                      timeframe=bt.TimeFrame.Minutes,
-                      compression=1)
-    cerebro.adddata(data)
+    crypto_store = CryptoStore(exchange_params, debug=True)
+    nine_hours_ago = datetime.now() - timedelta(hours=9)
+    data1 = crypto_store.getdata( exchange_params,
+                                  debug=True,
+                                  dataname="BNB-USDT",
+                                  symbol="BNB-USDT",
+                                  fromdate=nine_hours_ago,
+                                  timeframe=bt.TimeFrame.Minutes,
+                                  compression=1)
+    cerebro.adddata(data1, name="BNB-USDT")
+
+    data2 = crypto_store.getdata(exchange_params,
+                                 debug=True,
+                                 dataname="BTC-USDT",
+                                 symbol="BTC-USDT",
+                                 fromdate=nine_hours_ago,
+                                 timeframe=bt.TimeFrame.Minutes,
+                                 compression=1)
+    cerebro.adddata(data2, name="BTC-USDT")
+
+    # data3 = crypto_store.getdata(exchange_params,
+    #                              debug=True,
+    #                              dataname="ETH-USDT",
+    #                              symbol="ETH-USDT",
+    #                              fromdate=nine_hours_ago,
+    #                              timeframe=bt.TimeFrame.Minutes,
+    #                              compression=1)
+    # cerebro.adddata(data3, name="ETH-USDT")
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)

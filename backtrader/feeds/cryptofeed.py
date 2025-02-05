@@ -1,8 +1,8 @@
 import time
 import backtrader as bt
+from bt_api_py.containers import BarData
 from datetime import datetime, UTC
 from backtrader.feed import DataBase
-from backtrader import date2num, num2date
 from backtrader.utils.py3 import queue, with_metaclass
 from backtrader.stores.cryptostore import CryptoStore
 from bt_api_py.functions.log_message import SpdLogManager
@@ -32,6 +32,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     """
 
     params = (
+        ('symbol', ''),
         ('historical', False),  # only historical download
         ('backfill_start', False),  # do backfill at the start
     )
@@ -66,20 +67,15 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     }
 
     def __init__(self,
-                 **kwargs):
+                 exchange_params, debug=True, *args, **kwargs):
         """feed初始化的时候,先初始化store,实现与交易所对接"""
-        print("kwargs: ", kwargs)
-        self.exchange = kwargs.pop('exchange')
-        self.asset_type = kwargs.pop("asset_type")
-        self.symbol = kwargs.pop("symbol")
-        self.debug = kwargs.pop("debug")
-        self.currency = kwargs.pop("currency", "USDT")
-        self.kwargs = kwargs
+        self.debug = debug
         self.logger = self.init_logger()
-        self.update_kwargs()
-        self.store = self._store(self.exchange, self.asset_type, self.symbol,
-                                 self.debug, self.currency, **self.kwargs)
-        self._data = self.store.data_queue  # data queue for price data
+        self.exchange_params = exchange_params
+        self.log(f"crypto feed kwargs: {exchange_params} before init store")
+        self.store = CryptoStore(self.exchange_params, self.debug)
+        self.log(f"crypto feed init store ends")
+        self._data = None
         self.bar_time = None
         self._state = self._ST_HISTORBACK
         print("CryptoFeed init success, debug = {}".format(self.debug))
@@ -107,15 +103,15 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         else:
             pass
 
-
-
-    def update_kwargs(self):
-        timeframe = self.p.timeframe
-        compression = self.p.compression
-        period = self._GRANULARITIES[(timeframe, compression)]
-        self.kwargs['topics'] = [{"topic": "kline", "symbol": self.symbol, "period": period}]
-        self.log("update kwargs successfully")
-        self.log(f"crypto_feed, {self.kwargs}")
+    def _init_data_queue(self):
+        exchange_name = list(self.exchange_params.keys())[0]
+        symbol_name = self.p.symbol
+        key_name = exchange_name + "___" + symbol_name
+        self.log(f"self.store.bar_queues.keys() = {self.store.bar_queues.keys()}")
+        while key_name not in self.store.bar_queues:
+            time.sleep(1)
+            self.log("self.store.bar_queues not found {}".format(key_name))
+        return self.store.bar_queues[key_name]
 
 
     def start(self):
@@ -147,13 +143,20 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         if self._state == self._ST_OVER:
             return False
         while True:
-            if self._state == self._ST_LIVE:
-                return self._load_bar()
+            try:
+                if self._data is None:
+                    self._data = self._init_data_queue()
+                data = self._data.get(block=False)  # 不阻塞
+            except queue.Empty:
+                data = None  # no data in the queue
+            if self._state == self._ST_LIVE and data is not None:
+                if isinstance(data, BarData):
+                    data.init_data()
+                    bar_data = data.get_all_data()
+                    # print("live", bar_data)
+                    return self._load_bar(bar_data)
             elif self._state == self._ST_HISTORBACK:
-                ret = self._load_bar()
-                if ret:
-                    return ret
-                else:
+                if data is None:
                     # End of historical data
                     if self.p.historical:  # only historical
                         self.put_notification(self.DISCONNECTED)
@@ -161,24 +164,32 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
                         return False  # end of historical
                     else:
                         # 订阅K线
-                        self.store.wss_start()
+                        timeframe = self.p.timeframe
+                        compression = self.p.compression
+                        period = self._GRANULARITIES[(timeframe, compression)]
+                        topics = [{"topic": "kline", "symbol": self.p.symbol, "period": period}]
+                        self.log("topics: {}".format(topics))
+                        self.store.feed_api.subscribe(self.exchange_params, topics)
                         self._state = self._ST_LIVE
                         self.put_notification(self.LIVE)
                         continue
+                if  isinstance(data, BarData):
+                    data.init_data()
+                    bar_data = data.get_all_data()
+                    # print("history", bar_data)
+                    ret = self._load_bar(bar_data)
+                    if ret:
+                        return ret
+
 
     def _update_history_bar(self, fromdate):
         self.log("begin update history bar")
+        symbol = self.p.symbol
         granularity = self.get_granularity(self._timeframe, self._compression)
-        self.store.download_history_bars(self.symbol, granularity, count=100, start_time=fromdate, end_time=None)
+        self.store.download_history_bars(symbol, granularity, count=100, start_time=fromdate, end_time=None)
         self.log("update history bar successfully")
 
-    def _load_bar(self):
-        try:
-            bar = self._data.get(block=False)  # 不阻塞
-        except queue.Empty:
-            return None  # no data in the queue
-        bar.init_data()
-        bar_data = bar.get_all_data()
+    def _load_bar(self, bar_data):
         bar_status = bar_data["bar_status"]
         timestamp = bar_data["open_time"]
         dtime = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
@@ -193,11 +204,6 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         self.lines.close[0] = bar_data["close_price"]
         self.lines.volume[0] = bar_data["volume"]
         return True
-
-    def utc_to_ts(self, dt):
-        fromdate = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute)
-        epoch = datetime(1970, 1, 1)
-        return int((fromdate - epoch).total_seconds() * 1000)
 
     def islive(self):
         return self._state == self._ST_LIVE

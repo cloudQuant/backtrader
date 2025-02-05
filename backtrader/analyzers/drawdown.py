@@ -62,11 +62,6 @@ class DrawDown(bt.Analyzer):
     )
 
     # 开始，获取fundmode
-    def __init__(self):
-        self._value = None
-        self._maxvalue = None
-        self.rets = None
-
     def start(self):
         super(DrawDown, self).start()
         if self.p.fund is None:

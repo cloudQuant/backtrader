@@ -118,13 +118,6 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # 保存最新的数据的日期
     lines = ('datetime',)
     # 缓存数据
-    def __init__(self):
-        self.indobscsv = None
-        self._tradespending = None
-        self._sizer = None
-        self._orderspending = None
-        self._tradehistoryon = None
-
     def qbuffer(self, savemem=0, replaying=False):
         """Enable the memory saving schemes. Possible values for ``savemem``:
 
