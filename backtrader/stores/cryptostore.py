@@ -201,12 +201,12 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
 
         # 如果没有结束时间，则根据 granularity 对其为当前时间
         if stop_time is None:
-            now = datetime.now(timezone.utc)  # 当前时间为 UTC
+            stop_time = datetime.now(timezone.utc)  # 当前时间为 UTC
             # period_seconds = int(granularity[:-1]) * 60 if "m" in granularity else int(granularity[:-1]) * 3600
             # stop_time = now - timedelta(seconds=now.timestamp() % period_seconds) - timedelta(seconds=60)
 
         # 调整结束时间，确保结束时间与整分钟对齐
-        # begin_time = adjust_end_time(begin_time)
+        begin_time = adjust_end_time(begin_time)
         stop_time = adjust_end_time(stop_time)
 
         feed = self.exchange_feeds[exchange_name]
