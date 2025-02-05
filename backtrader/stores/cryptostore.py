@@ -1,7 +1,7 @@
 import queue
 import threading
 import time
-
+from datetime import datetime, timedelta, timezone
 from bt_api_py.containers import OrderData, BarData, TradeData
 from backtrader.store import MetaSingleton
 from backtrader.utils.py3 import with_metaclass
@@ -85,7 +85,6 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         q = queues[key_name]
         q.put(data)
 
-
     def deal_data_feed(self):
         """处理数据并分发到相应的队列"""
         while True:
@@ -141,10 +140,114 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         self.stop_event.set()  # 设置停止事件
         self.data_feed_thread.join()  # 等待线程结束
 
+
     def download_history_bars(self, symbol, granularity, count=100, start_time=None, end_time=None):
         self.log(f"store {self.feed_api.exchange_feeds.keys()}")
         exchange_name = self.exchange_name
-        data = self.feed_api.download_history_bars(exchange_name, symbol, granularity, count, start_time, end_time)
+
+        def calculate_time_delta(period):
+            """根据 period 计算增量时间"""
+            time_deltas = {
+                "1m": timedelta(hours=1),
+                "3m": timedelta(hours=5),
+                "5m": timedelta(hours=9),
+                "15m": timedelta(hours=25),
+                "30m": timedelta(hours=50),
+                "1H": timedelta(hours=100),
+                "1D": timedelta(days=100),
+            }
+            if period in time_deltas:
+                return time_deltas[period]
+            raise ValueError(f"Unsupported period: {period}")
+
+        def parse_time(input_time):
+            """解析时间，支持字符串和 datetime 类型，并将时间转换为 UTC"""
+            if isinstance(input_time, str):
+                # 假设输入的字符串时间是本地时间
+                local_time = datetime.fromisoformat(input_time)
+                return local_time.astimezone(timezone.utc)
+            elif isinstance(input_time, datetime):
+                # 如果是 datetime 类型，确保转换为 UTC
+                if input_time.tzinfo is None:
+                    local_time = input_time.replace(tzinfo=timezone.utc).astimezone()  # 假设为本地时间
+                else:
+                    local_time = input_time
+                return local_time.astimezone(timezone.utc)
+            elif input_time is None:
+                return None
+            else:
+                raise TypeError(f"Unsupported time format: {type(input_time)}")
+
+        # def adjust_end_time(end_time_):
+        #     """调整结束时间，使其对齐到最近的整分钟"""
+        #     if end_time_ is None:
+        #         return None
+        #
+        #     # 获取秒数
+        #     seconds = end_time_.second
+        #
+        #     if seconds >= 59:
+        #         # 如果离整分钟差超过 1 秒，使用前一分钟
+        #         end_time_ = end_time_.replace(second=0, microsecond=0) - timedelta(minutes=1)
+        #     else:
+        #         # 否则使用下一个整分钟
+        #         end_time_ = end_time_.replace(second=0, microsecond=0) + timedelta(minutes=1)
+        #
+        #     return end_time_
+
+        # 解析开始时间和结束时间为 UTC
+        begin_time = parse_time(start_time)
+        stop_time = parse_time(end_time)
+
+        # 如果没有结束时间，则根据 granularity 对其为当前时间
+        if stop_time is None:
+            now = datetime.now(timezone.utc)  # 当前时间为 UTC
+            period_seconds = int(granularity[:-1]) * 60 if "m" in granularity else int(granularity[:-1]) * 3600
+            stop_time = now - timedelta(seconds=now.timestamp() % period_seconds) - timedelta(seconds=60)
+
+        # 调整结束时间，确保结束时间与整分钟对齐
+        # begin_time = adjust_end_time(begin_time)
+        # stop_time = adjust_end_time(stop_time)
+
+        feed = self.exchange_feeds[exchange_name]
+        if begin_time is None and count is not None:
+            # 如果没有开始时间，只传入 count，获取最近 count 条数据
+            data = feed.get_kline(symbol, granularity, count, extra_data=None)
+            self.feed_api.push_bar_data_to_queue(exchange_name, data)
+            self.log(f"download completely: {symbol}, new {count} bar")
+            return
+
+        if begin_time is not None:
+            # 如果未提供结束时间，则默认为当前时间并对齐到period
+            # 循环下载数据
+            while begin_time < stop_time:
+                try:
+                    # 计算当前时间段的结束时间
+                    time_delta = calculate_time_delta(granularity)
+                    current_end_time = min(begin_time + time_delta, stop_time)
+
+                    # 转换时间戳为毫秒
+                    begin_stamp = int(1000.0 * begin_time.timestamp())
+                    end_stamp = int(1000.0 * current_end_time.timestamp())
+
+                    # 下载数据
+                    data = feed.get_kline(
+                        symbol, granularity, start_time=begin_stamp, end_time=end_stamp, extra_data=None
+                    )
+                    self.feed_api.push_bar_data_to_queue(exchange_name, data)
+                    print(f"download successfully: {symbol}, period: {granularity}, "
+                          f"begin: {begin_time}, end: {current_end_time}")
+
+                    # 更新开始时间
+                    begin_time = current_end_time
+
+                    # 如果数据已经下载完成，跳出循环
+                    if begin_time >= stop_time:
+                        break
+                except Exception as e:
+                    print(f"download fail, retry: {e}")
+                    time.sleep(3)  # 暂停 3 秒后重试
+            print(f"download all data completely: {symbol}, period: {granularity}")
         return data
 
     def __del__(self):

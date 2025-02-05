@@ -40,10 +40,7 @@ class TestStrategy(bt.Strategy):
             pass
 
     def next(self, dt=None):
-        # If both historical and realtime data are loaded, mark test as successful
         # if self.historical_data_loaded and self.realtime_data_loaded:
-        #     print("Test succeeded: Both historical and realtime data loaded successfully!")
-        #     # self.stop()  # Stop the backtest
         #     self.env.runstop()  # Stop the backtest
         for data in self.datas:
             self.log(f"{data._name}, {bt.num2date(data.datetime[0])}, {data.close[0]}")
