@@ -85,14 +85,14 @@ def test_backtest_strategy():
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
     nine_hours_ago = datetime.now() - timedelta(hours=9)
-    # data1 = crypto_store.getdata( exchange_params,
-    #                               debug=True,
-    #                               dataname="BNB-USDT",
-    #                               symbol="BNB-USDT",
-    #                               fromdate=nine_hours_ago,
-    #                               timeframe=bt.TimeFrame.Minutes,
-    #                               compression=1)
-    # cerebro.adddata(data1, name="BNB-USDT")
+    data1 = crypto_store.getdata( exchange_params,
+                                  debug=True,
+                                  dataname="BNB-USDT",
+                                  symbol="BNB-USDT",
+                                  fromdate=nine_hours_ago,
+                                  timeframe=bt.TimeFrame.Minutes,
+                                  compression=1)
+    cerebro.adddata(data1, name="BNB-USDT")
 
     data2 = crypto_store.getdata(exchange_params,
                                  debug=True,

@@ -166,6 +166,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
                         self.store.feed_api.subscribe(self.exchange_params, topics)
                         self._state = self._ST_LIVE
                         self.put_notification(self.LIVE)
+                        self.store.subscribe_bar_num+=1
                         self.log("subscribe topics: {} successfully".format(topics))
                         continue
 
