@@ -1,4 +1,6 @@
 import time
+import traceback
+
 import backtrader as bt
 from bt_api_py.containers import BarData
 from datetime import datetime, UTC
@@ -75,7 +77,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         self.log(f"crypto feed kwargs: {exchange_params} before init store")
         self.store = CryptoStore(self.exchange_params, self.debug)
         self.log(f"crypto feed init store ends")
-        self._data = None
+        self._bar_data = None
         self.bar_time = None
         self._state = self._ST_HISTORBACK
         print("CryptoFeed init success, debug = {}".format(self.debug))
@@ -139,24 +141,16 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         return False 代表K线是最新的，但是K线还没有闭合
         return None 代表当前无法从消息队列中获取数据
         """
-        # self.log(f"_load run, {self._state}")
         if self._state == self._ST_OVER:
             return False
         while True:
-            try:
-                if self._data is None:
-                    self._data = self._init_data_queue()
-                data = self._data.get(block=False)  # 不阻塞
-            except queue.Empty:
-                data = None  # no data in the queue
-            if self._state == self._ST_LIVE and data is not None:
-                if isinstance(data, BarData):
-                    data.init_data()
-                    bar_data = data.get_all_data()
-                    # print("live", bar_data)
-                    return self._load_bar(bar_data)
+            if self._state == self._ST_LIVE:
+                return self._load_bar()
             elif self._state == self._ST_HISTORBACK:
-                if data is None:
+                ret = self._load_bar()
+                if ret:
+                    return ret
+                else:
                     # End of historical data
                     if self.p.historical:  # only historical
                         self.put_notification(self.DISCONNECTED)
@@ -172,14 +166,8 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
                         self.store.feed_api.subscribe(self.exchange_params, topics)
                         self._state = self._ST_LIVE
                         self.put_notification(self.LIVE)
+                        self.log("subscribe topics: {} successfully".format(topics))
                         continue
-                if  isinstance(data, BarData):
-                    data.init_data()
-                    bar_data = data.get_all_data()
-                    # print("history", bar_data)
-                    ret = self._load_bar(bar_data)
-                    if ret:
-                        return ret
 
 
     def _update_history_bar(self, fromdate):
@@ -189,7 +177,21 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         self.store.download_history_bars(symbol, granularity, count=100, start_time=fromdate, end_time=None)
         self.log("update history bar successfully")
 
-    def _load_bar(self, bar_data):
+    def _load_bar(self):
+        if self._bar_data is None:
+            self._bar_data = self._init_data_queue()
+            # self.log("self._bar_data initialized")
+        try:
+            # self.log("try to fetch data from queue")
+            data = self._bar_data.get(block=False)  # 不阻塞
+        except queue.Empty:
+            # self.log(f"cannot get data")
+            return None
+        except Exception as e:
+            error_info = traceback.format_exception(e)
+            self.log(f"error:{error_info}")
+            return None
+        bar_data = data.get_all_data()
         bar_status = bar_data["bar_status"]
         timestamp = bar_data["open_time"]
         dtime = datetime.fromtimestamp(timestamp // 1000, tz=UTC)

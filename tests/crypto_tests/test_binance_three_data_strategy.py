@@ -61,11 +61,9 @@ class TestStrategy(bt.Strategy):
 
     def notify_data(self, data, status, *args, **kwargs):
         dn = data._name
-        dt = datetime.now()
-        msg= '{}, {} Data Status: {}'.format(dt, dn, data._getstatusname(status))
+        msg= '{} Data Status: {}'.format(dn, data._getstatusname(status))
         self.log(msg)
         if data._getstatusname(status) == 'LIVE':
-            self.log(f"now data status = {data._getstatusname(status)}")
             self.live_data = True
             self.now_live_data = True
         else:
@@ -87,14 +85,14 @@ def test_backtest_strategy():
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
     nine_hours_ago = datetime.now() - timedelta(hours=9)
-    data1 = crypto_store.getdata( exchange_params,
-                                  debug=True,
-                                  dataname="BNB-USDT",
-                                  symbol="BNB-USDT",
-                                  fromdate=nine_hours_ago,
-                                  timeframe=bt.TimeFrame.Minutes,
-                                  compression=1)
-    cerebro.adddata(data1, name="BNB-USDT")
+    # data1 = crypto_store.getdata( exchange_params,
+    #                               debug=True,
+    #                               dataname="BNB-USDT",
+    #                               symbol="BNB-USDT",
+    #                               fromdate=nine_hours_ago,
+    #                               timeframe=bt.TimeFrame.Minutes,
+    #                               compression=1)
+    # cerebro.adddata(data1, name="BNB-USDT")
 
     data2 = crypto_store.getdata(exchange_params,
                                  debug=True,
@@ -105,14 +103,14 @@ def test_backtest_strategy():
                                  compression=1)
     cerebro.adddata(data2, name="BTC-USDT")
 
-    # data3 = crypto_store.getdata(exchange_params,
-    #                              debug=True,
-    #                              dataname="ETH-USDT",
-    #                              symbol="ETH-USDT",
-    #                              fromdate=nine_hours_ago,
-    #                              timeframe=bt.TimeFrame.Minutes,
-    #                              compression=1)
-    # cerebro.adddata(data3, name="ETH-USDT")
+    data3 = crypto_store.getdata(exchange_params,
+                                 debug=True,
+                                 dataname="ETH-USDT",
+                                 symbol="ETH-USDT",
+                                 fromdate=nine_hours_ago,
+                                 timeframe=bt.TimeFrame.Minutes,
+                                 compression=1)
+    cerebro.adddata(data3, name="ETH-USDT")
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)

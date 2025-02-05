@@ -33,6 +33,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         self.exchange_feeds = self.feed_api.exchange_feeds
         self.debug = debug
         self.logger = self.init_logger()
+        self.bar_num = 0
         self.bar_queues = {}
         self.order_queues = {}
         self.trade_queues = {}
@@ -72,11 +73,17 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         exchange_name = data.get_exchange_name()
         asset_type = data.get_asset_type()
         symbol = data.get_symbol_name()
+        if "-" not in symbol:
+            if "USDT" in symbol:
+                symbol = symbol.replace("USDT", "-USDT")
+            if "USDC" in symbol:
+                symbol = symbol.replace("USDC", "-USDC")
         key_name = exchange_name + "___" + asset_type + "___" + symbol
         if key_name not in queues:
             queues[key_name] = queue.Queue()
         q = queues[key_name]
         q.put(data)
+
 
     def deal_data_feed(self):
         """处理数据并分发到相应的队列"""
@@ -87,10 +94,21 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                 except queue.Empty:
                     return None  # no data in the queue
                 data.init_data()
-                # self.log(f"test info : {data.get_all_data()}")
+                # self.log(f"cryptostore push test info : {data.get_all_data()}")
                 if isinstance(data, BarData):
+                    exchange_name = data.get_exchange_name()
+                    asset_type = data.get_asset_type()
+                    symbol = data.get_symbol_name()
+                    if "-" not in symbol:
+                        if "USDT" in symbol:
+                            symbol = symbol.replace("USDT", "-USDT")
+                        if "USDC" in symbol:
+                            symbol = symbol.replace("USDC", "-USDC")
+                    key_name = exchange_name + "___" + asset_type + "___" + symbol
+
                     queues = self.bar_queues
                     CryptoStore.dispatch_data_to_queue(data, queues)
+                    # self.log(f"cryptostore push to queue test info: {data.get_all_data()}")
                 elif isinstance(data, OrderData):
                     queues = self.order_queues
                     CryptoStore.dispatch_data_to_queue(data, queues)
