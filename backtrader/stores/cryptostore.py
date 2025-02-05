@@ -113,6 +113,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         self.data_feed_thread.join()  # 等待线程结束
 
     def download_history_bars(self, symbol, granularity, count=100, start_time=None, end_time=None):
+        self.log(f"store {self.feed_api.exchange_feeds.keys()}")
         exchange_name = self.exchange_name
         data = self.feed_api.download_history_bars(exchange_name, symbol, granularity, count, start_time, end_time)
         return data
