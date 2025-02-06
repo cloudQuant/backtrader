@@ -101,9 +101,9 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     return None  # no data in the queue
                 data.init_data()
                 content = data.get_all_data()
-                if content['bar_status']:
-                    self.log(f"cryptostore push test info : {data.get_all_data()}")
-                    self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
+                # if content['bar_status']:
+                #     self.log(f"cryptostore push test info : {data.get_all_data()}")
+                #     self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
                 if isinstance(data, BarData):
                     queues = self.bar_queues
                     # 处理websocket推送的实时数据
@@ -154,10 +154,10 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         self.data_feed_thread.join()  # 等待线程结束
 
 
-    def download_history_bars(self, symbol, granularity, count=100, start_time=None, end_time=None):
+    def download_history_bars(self, dataname, granularity, count=100, start_time=None, end_time=None):
         self.log(f"store {self.feed_api.exchange_feeds.keys()}")
-        exchange_name = self.exchange_name
-
+        exchange,asset_type,symbol = dataname.split("___")
+        exchange_name = exchange + "___" + asset_type
         def calculate_time_delta(period):
             """根据 period 计算增量时间"""
             time_deltas = {

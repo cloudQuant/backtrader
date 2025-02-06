@@ -34,7 +34,6 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     """
 
     params = (
-        ('symbol', ''),
         ('historical', False),  # only historical download
         ('backfill_start', False),  # do backfill at the start
     )
@@ -68,18 +67,17 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         (bt.TimeFrame.Years, 1): '1y',
     }
 
-    def __init__(self,
-                 exchange_params, debug=True, *args, **kwargs):
+    def __init__(self,store,
+                 debug=True, *args, **kwargs):
         """feed初始化的时候,先初始化store,实现与交易所对接"""
         self.debug = debug
         self.logger = self.init_logger()
-        self.exchange_params = exchange_params
-        self.log(f"crypto feed kwargs: {exchange_params} before init store")
-        self.store = CryptoStore(self.exchange_params, self.debug)
+        self.store = store
         self.log(f"crypto feed init store ends")
         self._bar_data = None
         self.bar_time = None
         self._state = self._ST_HISTORBACK
+        self.exchange_name, self.asset_type, self.symbol = self.p.dataname.split('___')
         print("CryptoFeed init success, debug = {}".format(self.debug))
 
 
@@ -106,9 +104,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
             pass
 
     def _init_data_queue(self):
-        exchange_name = list(self.exchange_params.keys())[0]
-        symbol_name = self.p.symbol
-        key_name = exchange_name + "___" + symbol_name
+        key_name = self.p.dataname
         self.log(f"self.store.bar_queues.keys() = {self.store.bar_queues.keys()}")
         while key_name not in self.store.bar_queues:
             time.sleep(1)
@@ -161,9 +157,9 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
                         timeframe = self.p.timeframe
                         compression = self.p.compression
                         period = self._GRANULARITIES[(timeframe, compression)]
-                        topics = [{"topic": "kline", "symbol": self.p.symbol, "period": period}]
+                        topics = [{"topic": "kline", "symbol": self.symbol, "period": period}]
                         self.log("topics: {}".format(topics))
-                        self.store.feed_api.subscribe(self.exchange_params, topics)
+                        self.store.feed_api.subscribe(self.p.dataname, topics)
                         self._state = self._ST_LIVE
                         self.put_notification(self.LIVE)
                         self.store.subscribe_bar_num+=1
@@ -173,9 +169,8 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
 
     def _update_history_bar(self, fromdate):
         self.log("begin update history bar")
-        symbol = self.p.symbol
         granularity = self.get_granularity(self._timeframe, self._compression)
-        self.store.download_history_bars(symbol, granularity, count=100, start_time=fromdate, end_time=None)
+        self.store.download_history_bars(self.p.dataname, granularity, count=100, start_time=fromdate, end_time=None)
         self.log("update history bar successfully")
 
     def _load_bar(self):
