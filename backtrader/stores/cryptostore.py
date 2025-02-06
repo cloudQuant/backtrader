@@ -39,6 +39,8 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         self.order_queues = {}
         self.trade_queues = {}
         self.feed_api.update_total_balance()
+        self.log(f"value = {self.feed_api.get_total_value()}")
+        self.log(f"cash = {self.feed_api.get_total_cash()}")
         # 控制线程运行的事件
         self.stop_event = threading.Event()
         # 启动线程处理数据
@@ -79,6 +81,10 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                 symbol = symbol.replace("USDT", "-USDT")
             if "USDC" in symbol:
                 symbol = symbol.replace("USDC", "-USDC")
+        if "SWAP" in symbol:
+            symbol = symbol.replace("-SWAP", "")
+        if "SPOT" in symbol:
+            symbol = symbol.replace("-SPOT", "")
         key_name = exchange_name + "___" + asset_type + "___" + symbol
         if key_name not in queues:
             queues[key_name] = queue.Queue()
@@ -94,7 +100,10 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                 except queue.Empty:
                     return None  # no data in the queue
                 data.init_data()
-                # self.log(f"cryptostore push test info : {data.get_all_data()}")
+                content = data.get_all_data()
+                if content['bar_status']:
+                    self.log(f"cryptostore push test info : {data.get_all_data()}")
+                    self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
                 if isinstance(data, BarData):
                     queues = self.bar_queues
                     # 处理websocket推送的实时数据
@@ -108,6 +117,10 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                                 symbol = symbol.replace("USDT", "-USDT")
                             if "USDC" in symbol:
                                 symbol = symbol.replace("USDC", "-USDC")
+                        if "SWAP" in symbol:
+                            symbol = symbol.replace("-SWAP", "")
+                        if "SPOT" in symbol:
+                            symbol = symbol.replace("-SPOT", "")
                         key_name = exchange_name + "___" + asset_type + "___" + symbol
                         if bar_status:
                             self.cache_bar_dict[key_name] = data
@@ -185,13 +198,20 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
 
             # 获取秒数
             seconds = end_time_.second
-
-            if seconds >= 57:
-                # 如果离整分钟差超过 3 秒，使用前一分钟
-                end_time_ = end_time_.replace(second=0, microsecond=0)
+            if "OKX" in exchange_name:
+                if seconds >= 57:
+                    # 如果离整分钟差超过 3 秒，使用前一分钟
+                    end_time_ = end_time_.replace(second=0, microsecond=0) + timedelta(minutes=1)
+                else:
+                    # 否则使用上一个整分钟
+                    end_time_ = end_time_.replace(second=0, microsecond=0)
             else:
-                # 否则使用下一个整分钟
-                end_time_ = end_time_.replace(second=0, microsecond=0) - timedelta(minutes=1)
+                if seconds >= 57:
+                    # 如果离整分钟差超过 3 秒，使用前一分钟
+                    end_time_ = end_time_.replace(second=0, microsecond=0)
+                else:
+                    # 否则使用下一个整分钟
+                    end_time_ = end_time_.replace(second=0, microsecond=0) - timedelta(minutes=1)
 
             return end_time_
 
@@ -237,7 +257,9 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     self.feed_api.push_bar_data_to_queue(exchange_name, data)
                     print(f"download successfully: {symbol}, period: {granularity}, "
                           f"begin: {begin_time}, end: {current_end_time}")
-
+                    data.init_data()
+                    print(data.get_data())
+                    print(f"print successfully: {symbol}, period: {granularity}")
                     # 更新开始时间
                     begin_time = current_end_time
 

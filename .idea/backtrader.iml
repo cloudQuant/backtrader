@@ -5,6 +5,7 @@
     <orderEntry type="jdk" jdkName="Python 3.11" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="module" module-name="bt_api_py" />
+    <orderEntry type="module" module-name="backtrader_blog" />
   </component>
   <component name="PackageRequirementsSettings">
     <option name="versionSpecifier" value="不指定版本" />

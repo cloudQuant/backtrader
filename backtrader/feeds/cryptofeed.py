@@ -1,6 +1,6 @@
 import time
 import traceback
-
+import pytz
 import backtrader as bt
 from bt_api_py.containers import BarData
 from datetime import datetime, UTC
@@ -193,13 +193,16 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
             self.log(f"error:{error_info}")
             return None
         bar_data = data.get_all_data()
+        # self.log(f"bar_data: {bar_data}")
         bar_status = bar_data["bar_status"]
-        timestamp = bar_data["open_time"]
-        dtime = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
-        if bar_status is False:
+        if not bar_status:
             # print("bar_datetime", dtime, bar_data['high_price'], bar_data['low_price'], bar_data['close_price'], bar_data["volume"])
             return None
-        num_time = bt.date2num(dtime)
+        timestamp = bar_data["open_time"]
+        # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
+        # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
+        dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
+        num_time = bt.date2num(dtime_utc)
         self.lines.datetime[0] = num_time
         self.lines.open[0] = bar_data["open_price"]
         self.lines.high[0] = bar_data["high_price"]
