@@ -47,12 +47,6 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         self.log(f"value = {self.feed_api.get_total_value()}")
         self.log(f"cash = {self.feed_api.get_total_cash()}")
         self.log(f"feed_api.keys() = {self.feed_api.exchange_feeds.keys()}")
-        # # 控制线程运行的事件
-        # self.stop_event = threading.Event()
-        # self.lock = threading.Lock()  # 添加锁
-        # # 启动线程处理数据
-        # self.data_feed_thread = threading.Thread(target=self.run_data_feed, daemon=True)
-        # self.data_feed_thread.start()
         self.log("------crypto store initialized successfully------")
 
     def init_logger(self):
@@ -126,74 +120,95 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         """处理数据并分发到相应的队列"""
         if self.subscribe_bar_num == self.GetDataNum:
             for exchange_name, data_queue in self.data_queues.items():
-                try:
-                    data = data_queue.get(block=False)  # 不阻塞
-                except queue.Empty:
-                    return None  # no data in the queue
-                data.init_data()
-                # if data.get_bar_status():
-                #     self.log(f"cryptostore push test info : {data.get_all_data()}")
-                #     self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
-                if isinstance(data, BarData):
-                    queues = self.bar_queues
-                    exchange_name = data.get_exchange_name()
-                    asset_type = data.get_asset_type()
-                    symbol = data.get_symbol_name()
-                    bar_status = data.get_bar_status()
-                    if not bar_status:
-                        continue
-                    self.log(f"begin to run live data, {self.subscribe_bar_num}, {self.GetDataNum}")
-                    if bar_status:
-                        all_data = data.get_all_data()
-                        timestamp = all_data["open_time"]
-                        # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
-                        # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
-                        dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
-                        self.log(f"cryptostore subscribe test {dtime_utc}, info: {all_data}")
-                    if "-" not in symbol:
-                        if "USDT" in symbol:
-                            symbol = symbol.replace("USDT", "-USDT")
-                        if "USDC" in symbol:
-                            symbol = symbol.replace("USDC", "-USDC")
-                    if "SWAP" in symbol:
-                        symbol = symbol.replace("-SWAP", "")
-                    if "SPOT" in symbol:
-                        symbol = symbol.replace("-SPOT", "")
-                    key_name = exchange_name + "___" + asset_type + "___" + symbol
-                    crypto_feed_instance = self.crypto_datas.get(key_name, None)
-                    if crypto_feed_instance:
-                        now_bar_time = crypto_feed_instance.get_bar_time()
-                        if now_bar_time and data.get_open_time() <= now_bar_time:
-                            continue
-                    # 处理websocket推送的实时数据
-                    if len(self.bar_queues)>0:
-                        if bar_status:
-                            self.cache_bar_dict[key_name] = data
-                        if len(self.cache_bar_dict) == self.subscribe_bar_num:
-                            for key_name,data in self.cache_bar_dict.items():
-                                q=queues[key_name]
-                                q.put(data)
-                            self.cache_bar_dict = {}
-                    else:
-                        CryptoStore.dispatch_data_to_queue(data, queues)
-                        all_data = data.get_all_data()
-                        timestamp = all_data["open_time"]
-                        # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
-                        # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
-                        dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
-                        bar_status = all_data["bar_status"]
-                        if bar_status:
-                            self.log(f"cryptostore dispatch_data_to_queue test {dtime_utc} info: {all_data}")
-                elif isinstance(data, OrderData):
-                    queues = self.order_queues
-                    CryptoStore.dispatch_data_to_queue(data, queues)
-                elif isinstance(data, TradeData):
-                    queues = self.trade_queues
-                    CryptoStore.dispatch_data_to_queue(data, queues)
-                else:
-                    data.init_data()
-                    self.log(f"un considered info:{data.get_all_data()}")
+                    # self.log(f"deal data feed, run {exchange_name}, total_keys = {self.data_queues.keys()}")
+                self._load_cache_data(data_queue)
 
+    def _load_cache_data(self,data_queue):
+        while True:
+            try:
+                data = data_queue.get(block=False)  # 不阻塞
+            except queue.Empty:
+                return None  # no data in the queue
+            data.init_data()
+            if data.get_bar_status():
+                self.log(f"{self.data_queues.keys()}")
+                self.log(f"cryptostore push test info: {data.get_all_data()}")
+                # self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
+            if isinstance(data, BarData):
+                queues = self.bar_queues
+                exchange = data.get_exchange_name()
+                asset_type = data.get_asset_type()
+                symbol = data.get_symbol_name()
+                bar_status = data.get_bar_status()
+                bar_timestamp = data.get_open_time()
+                # self.log(f"begin to run live data, {self.subscribe_bar_num}, {self.GetDataNum}")
+                # if bar_status:
+                #     all_data = data.get_all_data()
+                #     timestamp = all_data["open_time"]
+                #     # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
+                #     # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
+                #     dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
+                #     # self.log(f"cryptostore subscribe test {dtime_utc}, info: {all_data}")
+                if "-" not in symbol:
+                    if "USDT" in symbol:
+                        symbol = symbol.replace("USDT", "-USDT")
+                    if "USDC" in symbol:
+                        symbol = symbol.replace("USDC", "-USDC")
+                if "SWAP" in symbol:
+                    symbol = symbol.replace("-SWAP", "")
+                if "SPOT" in symbol:
+                    symbol = symbol.replace("-SPOT", "")
+                key_name = exchange + "___" + asset_type + "___" + symbol
+                # crypto_feed_instance = self.crypto_datas.get(key_name, None)
+                # if crypto_feed_instance:
+                #     now_bar_time = crypto_feed_instance.get_bar_time()
+                #     if now_bar_time and data.get_open_time() <= now_bar_time:
+                #         continue
+                # 处理websocket推送的实时数据
+                if len(self.bar_queues) > 1:
+                    if bar_status:
+                        if bar_timestamp not in self.cache_bar_dict:
+                            self.cache_bar_dict[bar_timestamp] = {}
+                        self.cache_bar_dict[bar_timestamp][key_name] = data
+                        self.log(f"cache bar info: {self.cache_bar_dict}")
+                    # 如果当前仅存在一个时间
+                    if len(self.cache_bar_dict) == 1:
+                        bar_timestamp_list = list(self.cache_bar_dict.keys())
+                        for bar_timestamp in bar_timestamp_list:
+                            value_dict = self.cache_bar_dict[bar_timestamp]
+                            self.log(f"cache bar length: {len(value_dict)}, {self.subscribe_bar_num}")
+                            if len(value_dict) == self.subscribe_bar_num:
+                                for key_name, data in value_dict.items():
+                                    q = queues[key_name]
+                                    q.put(data)
+                                self.cache_bar_dict.pop(bar_timestamp)
+
+                    # 如果存在两个以上时间的K线了，就把最小时间清除了
+                    if len(self.cache_bar_dict) > 1:
+                        min_timestamp = min(self.cache_bar_dict.keys())
+                        for key_name, data in self.cache_bar_dict[min_timestamp].items():
+                            q = queues[key_name]
+                            q.put(data)
+                            self.cache_bar_dict.pop(min_timestamp)
+                else:
+                    CryptoStore.dispatch_data_to_queue(data, queues)
+                    all_data = data.get_all_data()
+                    timestamp = all_data["open_time"]
+                    # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
+                    # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
+                    dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
+                    bar_status = all_data["bar_status"]
+                    if bar_status:
+                        self.log(f"cryptostore dispatch_data_to_queue test {dtime_utc} info: {all_data}")
+            elif isinstance(data, OrderData):
+                queues = self.order_queues
+                CryptoStore.dispatch_data_to_queue(data, queues)
+            elif isinstance(data, TradeData):
+                queues = self.trade_queues
+                CryptoStore.dispatch_data_to_queue(data, queues)
+            else:
+                data.init_data()
+                self.log(f"un considered info:{data.get_all_data()}")
     # def run_data_feed(self):
     #     """启动数据处理线程"""
     #     while not self.stop_event.is_set():  # 持续运行直到停止事件被设置

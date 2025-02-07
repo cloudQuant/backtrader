@@ -456,12 +456,15 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
         # 如果数据长度大于缓存的数据长度，如果是ticks数据的话，调用_tick_nullify生成tick_xxx属性，然后调用load尝试获取下一个bar，如果获取到的ret是空的
         # 返回ret.如果主数据是None的话，如果是ticks数据的话，需要调用_tick_fill.
         # 如果自身的长度小于缓存的数据的长度，向前移动
+        # print("AbstractDataBase next 函数正在调用")
         if len(self) >= self.buflen():
             if ticks:
                 self._tick_nullify()
 
             # not preloaded - request next bar
             ret = self.load()
+            # if ret is not None:
+            #     print(f"AbstractDataBase next ret = {ret}")
             if not ret:
                 # if the load cannot produce bars - forward the result
                 return ret

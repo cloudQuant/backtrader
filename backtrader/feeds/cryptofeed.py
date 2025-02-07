@@ -84,6 +84,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         self.period = self.get_granularity(self.p.timeframe, self.p.compression)
         self.subscribe_live_bars()
         self.download_history_bars()
+        self.p.todate = None         # 下载完成历史数据之后,需要把todate给充值为None, 否则next被限制
         print("CryptoFeed init success, debug = {}, data_num = {}".format(self.debug, self.store.GetDataNum))
 
     def get_bar_time(self):
@@ -91,7 +92,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
 
     def download_history_bars(self):
         self.history_bars = self.store.download_history_bars(self.p.dataname, self.period, count=100, start_time=self.p.fromdate, end_time=self.p.todate)
-        self.log("download {self.p.dataname}, {granularity}, history bar successfully")
+        self.log(f"download {self.p.dataname}, {self.period}, history bar successfully")
 
     def subscribe_live_bars(self):
         if not self.p.historical:
@@ -158,7 +159,10 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         while True:
             self.store.deal_data_feed()
             if self._state == self._ST_LIVE:
-                return self._load_bar()
+                ret = self._load_bar()
+                # if ret is not None:
+                #     self.log(f"self._state = {self._state}, ret = {ret}")
+                return ret
             elif self._state == self._ST_HISTORBACK:
                 ret = self._load_bar()
                 if ret:
@@ -208,13 +212,9 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
         dtime_utc = datetime.fromtimestamp(timestamp//1000, tz=pytz.UTC)
         bar_status = bar_data["bar_status"]
-        if not bar_status:
+        if bar_status is False:
             # print("bar_datetime", bar_data['high_price'], bar_data['low_price'], bar_data['close_price'], bar_data["volume"])
             return None
-        self.log(f"bar_data: "
-                 f"now_time = {dtime_utc}, "
-                 f"exchange_name:{bar_data['exchange_name']}_{bar_data['asset_type']}, "
-                 f"close_price:{bar_data['close_price']}, ")
         self.bar_time = timestamp
         num_time = bt.date2num(dtime_utc)
         self.lines.datetime[0] = num_time
@@ -223,7 +223,12 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         self.lines.low[0] = bar_data["low_price"]
         self.lines.close[0] = bar_data["close_price"]
         self.lines.volume[0] = bar_data["volume"]
-        return True
+        result = True
+        self.log(f"bar_data: {result}, "
+                 f"now_time = {dtime_utc}, "
+                 f"exchange_name:{bar_data['exchange_name']}_{bar_data['asset_type']}, "
+                 f"close_price:{bar_data['close_price']}, ")
+        return result
 
     def islive(self):
         return self._state == self._ST_LIVE

@@ -8,6 +8,25 @@ from bt_api_py.functions.utils import read_yaml_file
 from bt_api_py.functions.log_message import SpdLogManager
 
 
+def get_from_time_and_end_time():
+    # 获取当前的本地时间
+    local_time = datetime.now()
+
+    # 设置分钟、秒和微秒为 0，只保留小时部分，获取整点时间
+    # local_time_rounded = local_time.replace(second=0, microsecond=0)
+    local_time_rounded = local_time.replace(microsecond=0)
+
+    # 获取本地时区（例如 'Asia/Shanghai'，你可以根据需要替换为其他时区）
+    local_tz = pytz.timezone('Asia/Shanghai')
+
+    # 将本地时间转换为指定时区的时间
+    local_time_with_tz = local_tz.localize(local_time_rounded)
+
+    # 将本地时间转换为 UTC 时间
+    utc_time = local_time_with_tz.astimezone(pytz.UTC)
+    return utc_time-timedelta(hours=1), utc_time
+
+
 class TestStrategy(bt.Strategy):
     def __init__(self):
         super().__init__()
@@ -16,6 +35,7 @@ class TestStrategy(bt.Strategy):
         self.realtime_data_loaded = False
         self.debug = True
         self.now_live_data = False
+        self.live_data = False
         self.live_bar_num = 0
         self.logger = self.init_logger()
 
@@ -45,15 +65,11 @@ class TestStrategy(bt.Strategy):
     #     self.next()
 
     def next(self, dt=None):
-        if self.historical_data_loaded and self.realtime_data_loaded:
-            self.live_bar_num+=1
-        # if self.live_bar_num == 2:
-        #     self.env.runstop()  # Stop the backtest
+        # Check if historical data is loaded
         for data in self.datas:
             now_time = bt.num2date(data.datetime[0], tz=pytz.timezone('Asia/Shanghai'))
             self.log(f"{data.get_name()}, {now_time}, {data.close[0]}")
 
-        # Check if historical data is loaded
         if not self.historical_data_loaded and not self.now_live_data:
             self.log("Historical data loaded successfully!")
             self.historical_data_loaded = True
@@ -62,6 +78,13 @@ class TestStrategy(bt.Strategy):
         if self.now_live_data:
             self.log("Realtime data loaded successfully!")
             self.realtime_data_loaded = True
+
+        if self.historical_data_loaded and self.realtime_data_loaded:
+            self.live_bar_num+=1
+
+        if self.live_bar_num == 3:
+            self.env.runstop()  # Stop the backtest
+        self.log(f"live bar number: {self.live_bar_num}")
 
 
     def notify_data(self, data, status, *args, **kwargs):
@@ -89,34 +112,13 @@ def test_binance_three_data_strategy():
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
-    nine_hours_ago = datetime.now() - timedelta(hours=9)
-    exchange_params = {
-        "BINANCE___SWAP": {
-            "public_key": account_config_data['binance']['public_key'],
-            "private_key": account_config_data['binance']['private_key']
-        }
-    }
-    crypto_store = CryptoStore(exchange_params, debug=True)
-    # 获取当前的本地时间
-    local_time = datetime.now()
-
-    # 设置分钟、秒和微秒为 0，只保留小时部分，获取整点时间
-    local_time_rounded = local_time.replace(second=0, microsecond=0)
-
-    # 获取本地时区（例如 'Asia/Shanghai'，你可以根据需要替换为其他时区）
-    local_tz = pytz.timezone('Asia/Shanghai')
-
-    # 将本地时间转换为指定时区的时间
-    local_time_with_tz = local_tz.localize(local_time_rounded)
-
-    # 将本地时间转换为 UTC 时间
-    utc_time = local_time_with_tz.astimezone(pytz.UTC)
+    fromdate, todate = get_from_time_and_end_time()
 
     data1 = crypto_store.getdata( store=crypto_store,
                                   debug=True,
                                   dataname="BINANCE___SWAP___BNB-USDT",
-                                  fromdate=utc_time-timedelta(hours=1),
-                                  todate=utc_time,
+                                  fromdate=fromdate,
+                                  todate=todate,
                                   timeframe=bt.TimeFrame.Minutes,
                                   compression=1)
     cerebro.adddata(data1, name="BINANCE___SWAP___BNB-USDT")
@@ -124,8 +126,8 @@ def test_binance_three_data_strategy():
     data2 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
                                  dataname="BINANCE___SWAP___BTC-USDT",
-                                 fromdate=utc_time - timedelta(hours=1),
-                                 todate=utc_time,
+                                 fromdate=fromdate,
+                                 todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
     cerebro.adddata(data2, name="BINANCE___SWAP___BTC-USDT")
@@ -133,8 +135,8 @@ def test_binance_three_data_strategy():
     data3 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
                                  dataname="BINANCE___SWAP___ETH-USDT",
-                                 fromdate=utc_time - timedelta(hours=1),
-                                 todate=utc_time,
+                                 fromdate=fromdate,
+                                 todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
     cerebro.adddata(data3, name="BINANCE___SWAP___ETH-USDT")
@@ -157,30 +159,15 @@ def test_binance_one_data_strategy():
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
-    nine_hours_ago = datetime.now() - timedelta(hours=9)
-    # data1 = crypto_store.getdata( store=crypto_store,
-    #                               debug=True,
-    #                               dataname="BINANCE___SWAP___BNB-USDT",
-    #                               fromdate=nine_hours_ago,
-    #                               timeframe=bt.TimeFrame.Minutes,
-    #                               compression=1)
-    # cerebro.adddata(data1, name="BINANCE___SWAP___BNB-USDT")
-
-    data2 = crypto_store.getdata(store=crypto_store,
+    fromdate, todate = get_from_time_and_end_time()
+    data3 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
                                  dataname="BINANCE___SWAP___BTC-USDT",
-                                 fromdate=nine_hours_ago,
+                                 fromdate=fromdate,
+                                 todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
-    cerebro.adddata(data2, name="BINANCE___SWAP___BTC-USDT")
-
-    # data3 = crypto_store.getdata(store=crypto_store,
-    #                              debug=True,
-    #                              dataname="BINANCE___SWAP___ETH-USDT",
-    #                              fromdate=nine_hours_ago,
-    #                              timeframe=bt.TimeFrame.Minutes,
-    #                              compression=1)
-    # cerebro.adddata(data3, name="BINANCE___SWAP___ETH-USDT")
+    cerebro.adddata(data3, name="BINANCE___SWAP___BTC-USDT")
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)
@@ -202,33 +189,16 @@ def test_okx_one_data_strategy():
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
-    nine_hours_ago = datetime.now() - timedelta(hours=9)
-    crypto_store = CryptoStore(exchange_params, debug=True)
-    nine_hours_ago = datetime.now() - timedelta(hours=9)
-    # data1 = crypto_store.getdata( store=crypto_store,
-    #                               debug=True,
-    #                               dataname="OKX___SWAP___BNB-USDT",
-    #                               fromdate=nine_hours_ago,
-    #                               timeframe=bt.TimeFrame.Minutes,
-    #                               compression=1)
-    # cerebro.adddata(data1, name="OKX___SWAP___BNB-USDT")
+    fromdate, todate = get_from_time_and_end_time()
 
     data2 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
                                  dataname="OKX___SWAP___BTC-USDT",
-                                 fromdate=nine_hours_ago,
+                                 fromdate=fromdate,
+                                 todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
     cerebro.adddata(data2, name="OKX___SWAP___BTC-USDT")
-
-    # data3 = crypto_store.getdata(store=crypto_store,
-    #                              debug=True,
-    #                              dataname="OKX___SWAP___ETH-USDT",
-    #                              fromdate=nine_hours_ago,
-    #                              timeframe=bt.TimeFrame.Minutes,
-    #                              compression=1)
-    # cerebro.adddata(data3, name="OKX___SWAP___ETH-USDT")
-
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)
     # 获取第一个策略实例
@@ -248,15 +218,7 @@ def test_okx_two_data_strategy():
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
-    nine_hours_ago = datetime.now() - timedelta(hours=9)
-    exchange_params = {
-        "BINANCE___SWAP": {
-            "public_key": account_config_data['binance']['public_key'],
-            "private_key": account_config_data['binance']['private_key']
-        }
-    }
-    crypto_store = CryptoStore(exchange_params, debug=True)
-    nine_hours_ago = datetime.now() - timedelta(hours=9)
+    fromdate, todate = get_from_time_and_end_time()
     # data1 = crypto_store.getdata( store=crypto_store,
     #                               debug=True,
     #                               dataname="OKX___SWAP___BNB-USDT",
@@ -268,7 +230,8 @@ def test_okx_two_data_strategy():
     data2 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
                                  dataname="OKX___SWAP___BTC-USDT",
-                                 fromdate=nine_hours_ago,
+                                 fromdate=fromdate,
+                                 todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
     cerebro.adddata(data2, name="OKX___SWAP___BTC-USDT")
@@ -276,7 +239,8 @@ def test_okx_two_data_strategy():
     data3 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
                                  dataname="OKX___SWAP___ETH-USDT",
-                                 fromdate=nine_hours_ago,
+                                 fromdate=fromdate,
+                                 todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
     cerebro.adddata(data3, name="OKX___SWAP___ETH-USDT")
@@ -304,48 +268,28 @@ def test_binance_one_okx_one_data_strategy():
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
-    # 获取当前的本地时间
-    local_time = datetime.now()
 
-    # 设置分钟、秒和微秒为 0，只保留小时部分，获取整点时间
-    # local_time_rounded = local_time.replace(second=0, microsecond=0)
-    local_time_rounded = local_time.replace(microsecond=0)
-
-    # 获取本地时区（例如 'Asia/Shanghai'，你可以根据需要替换为其他时区）
-    local_tz = pytz.timezone('Asia/Shanghai')
-
-    # 将本地时间转换为指定时区的时间
-    local_time_with_tz = local_tz.localize(local_time_rounded)
-
-    # 将本地时间转换为 UTC 时间
-    utc_time = local_time_with_tz.astimezone(pytz.UTC)
-    # data1 = crypto_store.getdata( exchange_params,
-    #                               debug=True,
-    #                               dataname="BNB-USDT",
-    #                               symbol="BNB-USDT",
-    #                               fromdate=nine_hours_ago,
-    #                               timeframe=bt.TimeFrame.Minutes,
-    #                               compression=1)
-    # cerebro.adddata(data1, name="BNB-USDT")
+    fromdate, todate = get_from_time_and_end_time()
 
     data2 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
                                  dataname="OKX___SWAP___BTC-USDT",
-                                 fromdate=utc_time-timedelta(hours=1),
-                                 todate=utc_time,
+                                 fromdate=fromdate,
+                                 todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
     cerebro.adddata(data2, name="OKX___SWAP___BTC-USDT")
     data3 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
                                  dataname="BINANCE___SWAP___BTC-USDT",
-                                 fromdate=utc_time - timedelta(hours=1),
-                                 todate=utc_time,
+                                 fromdate=fromdate,
+                                 todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
     cerebro.adddata(data3, name="BINANCE___SWAP___BTC-USDT")
 
     # Enable live mode for realtime data
+    # strategies = cerebro.run(live=True)
     strategies = cerebro.run(live=True)
     # 获取第一个策略实例
     strategy_instance = strategies[0]
@@ -353,8 +297,8 @@ def test_binance_one_okx_one_data_strategy():
     assert strategy_instance.realtime_data_loaded is True
 
 if __name__ == '__main__':
-    # test_binance_one_data_strategy()
+    test_binance_one_data_strategy()  # successfully
+    # test_okx_one_data_strategy()  # successfully
     # test_binance_three_data_strategy()
-    # test_okx_one_data_strategy()
     # test_okx_two_data_strategy()
-    test_binance_one_okx_one_data_strategy()
+    # test_binance_one_okx_one_data_strategy()

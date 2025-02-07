@@ -21,6 +21,7 @@
 import datetime
 import collections
 import itertools
+import traceback
 import multiprocessing
 from datetime import UTC
 try:  # For new Python versions
@@ -1638,6 +1639,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
         Strategies are still invoked on a pseudo-event mode in which `next`
         is called for each data arrival
         """
+
         for strat in runstrats:
             strat._once()
 
@@ -1689,190 +1691,205 @@ class Cerebro(with_metaclass(MetaParams, object)):
         """API for lineiterators to disable runonce (see HeikinAshi)"""
         self._dorunonce = False
 
-    # runnext方法
+    # runnext方法,整个框架的核心,事件驱动的核心，用于驱动数据
     def _runnext(self, runstrats):
         """
         Actual implementation of run in full next mode. All objects have its
          `next` method invoked on each data arrival
         """
-        # 对数据的时间周期进行排序
-        datas = sorted(self.datas,
-                       key=lambda x: (x._timeframe, x._compression))
-        # 其他数据
-        datas1 = datas[1:]
-        # 主数据
-        data0 = datas[0]
-        d0ret = True
-        # todo rs 和 rp 并没有使用到，进行注释掉
-        # resample的index
-        # rs = [i for i, x in enumerate(datas) if x.resampling]
-        # replaying的index
-        # rp = [i for i, x in enumerate(datas) if x.replaying]
-        # 仅仅只做resample,不做replay得index
-        rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
-        # 判断是否仅仅做resample
-        onlyresample = len(datas) == len(rsonly)
-        # 判断是否没有需要resample的数据
-        noresample = not rsonly
-        # 克隆的数据量
-        clonecount = sum(d._clone for d in datas)
-        # 数据的数量
-        ldatas = len(datas)
-        # 没有克隆的数据量
-        ldatas_noclones = ldatas - clonecount
-        # todo lastqcheck 没有使用到，注释掉
-        # lastqcheck = False
-        # 默认dt0在最大时间
-        dt0 = date2num(datetime.datetime.max) - 2  # default at max
-        # while循环
-        while d0ret or d0ret is None:
-            # if any has live data in the buffer, no data will wait anything
-            # 如果有任何实时数据的话，newqcheck是False
-            newqcheck = not any(d.haslivedata() for d in datas)
-            # 如果存在实时数据
-            if not newqcheck:
-                # If no data has reached the live status or all, wait for
-                # the next incoming data
-                # livecount是实时数据的量
-                livecount = sum(d._laststatus == d.LIVE for d in datas)
-                # todo 这个判断没有任何意义
-                newqcheck = not livecount or livecount == ldatas_noclones
+        try:
+            # 对数据的时间周期进行排序
+            datas = sorted(self.datas,
+                           key=lambda x: (x._timeframe, x._compression))
+            # 其他数据
+            datas1 = datas[1:]
+            # 主数据
+            data0 = datas[0]
+            d0ret = True
+            # todo rs 和 rp 并没有使用到，进行注释掉
+            # resample的index
+            rs = [i for i, x in enumerate(datas) if x.resampling]
+            # replaying的index
+            rp = [i for i, x in enumerate(datas) if x.replaying]
+            # 仅仅只做resample,不做replay得index
+            rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
+            # 判断是否仅仅做resample
+            onlyresample = len(datas) == len(rsonly)
+            # 判断是否没有需要resample的数据
+            noresample = not rsonly
+            # 克隆的数据量
+            clonecount = sum(d._clone for d in datas)
+            # 数据的数量
+            ldatas = len(datas)
+            # 没有克隆的数据量
+            ldatas_noclones = ldatas - clonecount
+            # todo lastqcheck 没有使用到，注释掉
+            # lastqcheck = False
+            # 默认dt0在最大时间
+            dt0 = date2num(datetime.datetime.max) - 2  # default at max
+            # while循环
+            my_num = 0
+            # todo 修改while循环条件,避免跳出
+            # while d0ret or d0ret is None:
+            while True:
+                my_num += 1
+                # if any has live data in the buffer, no data will wait anything
+                # 如果有任何实时数据的话，newqcheck是False
+                newqcheck = not any(d.haslivedata() for d in datas)
+                # 如果存在实时数据
+                if not newqcheck:
+                    # If no data has reached the live status or all, wait for
+                    # the next incoming data
+                    # livecount是实时数据的量
+                    livecount = sum(d._laststatus == d.LIVE for d in datas)
+                    # todo 这个判断没有任何意义
+                    newqcheck = not livecount or livecount == ldatas_noclones
 
-            lastret = False
-            # Notify anything from the store even before moving datas
-            # because datas may not move due to an error reported by the store
-            # 通知store相关的信息
-            self._storenotify()
-            if self._event_stop:  # stop if requested
-                return
-            # 通知data相关的信息
-            self._datanotify()
-            if self._event_stop:  # stop if requested
-                return
+                lastret = False
+                # Notify anything from the store even before moving datas
+                # because datas may not move due to an error reported by the store
+                # 通知store相关的信息
+                self._storenotify()
+                if self._event_stop:  # stop if requested
+                    return
+                # 通知data相关的信息
+                self._datanotify()
+                if self._event_stop:  # stop if requested
+                    return
 
-            # record starting time and tell feeds to discount the elapsed time
-            # from the qcheck value
-            # 记录开始的时间，并且通知feed从qcheck中减去qlapse的时间
-            drets = []
-            qstart = datetime.datetime.now(UTC)
-            for d in datas:
-                qlapse = datetime.datetime.now(UTC) - qstart
-                d.do_qcheck(newqcheck, qlapse.total_seconds())
-                drets.append(d.next(ticks=False))
-            # 遍历drets,如果d0ret是False,并且存在dret是None的话，d0ret是None
-            d0ret = any((dret for dret in drets))
-            if not d0ret and any((dret is None for dret in drets)):
-                d0ret = None
-            # 如果d0ret不是None的话
-            if d0ret:
-                # 获取时间
-                dts = []
-                for i, ret in enumerate(drets):
-                    dts.append(datas[i].datetime[0] if ret else None)
-                # Get index to minimum datetime
-                # 获取最小的时间
-                if onlyresample or noresample:
-                    dt0 = min((d for d in dts if d is not None))
-                else:
-                    dt0 = min((d for i, d in enumerate(dts)
-                               if d is not None and i not in rsonly))
-                # 获取主数据，及时间
-                dmaster = datas[dts.index(dt0)]  # and timemaster
-                self._dtmaster = dmaster.num2date(dt0)
-                self._udtmaster = num2date(dt0)
-
-                # slen = len(runstrats[0])
-                # Try to get something for those that didn't return
-                # 循环drets
-                for i, ret in enumerate(drets):
-                    # 如果ret不是None的话，继续下一个ret
-                    if ret:  # dts already contains a valid datetime for this i
-                        continue
-
-                    # try to get data by checking with a master
-                    # 获取数据，并尝试给dts设置时间
-                    d = datas[i]
-                    d._check(forcedata=dmaster)  # check to force output
-                    if d.next(datamaster=dmaster, ticks=False):  # retry
-                        dts[i] = d.datetime[0]  # good -> store
-                        # self._plotfillers2[i].append(slen)  # mark as fill
+                # record starting time and tell feeds to discount the elapsed time
+                # from the qcheck value
+                # 记录开始的时间，并且通知feed从qcheck中减去qlapse的时间
+                drets = []
+                qstart = datetime.datetime.now(UTC)
+                for d in datas:
+                    qlapse = datetime.datetime.now(UTC) - qstart
+                    d.do_qcheck(newqcheck, qlapse.total_seconds())
+                    d_next = d.next(ticks=False)
+                    drets.append(d_next)
+                    # todo 调试代码,尝试打印
+                    # if d_next:
+                    #     print(drets)
+                # 遍历drets,如果d0ret是False,并且存在dret是None的话，d0ret是None
+                d0ret = any((dret for dret in drets))
+                if not d0ret and any((dret is None for dret in drets)):
+                    d0ret = None
+                # 如果d0ret不是None的话
+                if d0ret:
+                    # 获取时间
+                    dts = []
+                    for i, ret in enumerate(drets):
+                        dts.append(datas[i].datetime[0] if ret else None)
+                    # Get index to minimum datetime
+                    # 获取最小的时间
+                    if onlyresample or noresample:
+                        dt0 = min((d for d in dts if d is not None))
                     else:
-                        # self._plotfillers[i].append(slen)  # mark as empty
-                        pass
+                        dt0 = min((d for i, d in enumerate(dts)
+                                   if d is not None and i not in rsonly))
+                    # 获取主数据，及时间
+                    dmaster = datas[dts.index(dt0)]  # and timemaster
+                    self._dtmaster = dmaster.num2date(dt0)
+                    self._udtmaster = num2date(dt0)
 
-                # make sure only those at dmaster level end up delivering
-                # 遍历dts
-                for i, dti in enumerate(dts):
-                    # 如果dti不是None
-                    if dti is not None:
-                        # 获取数据
-                        di = datas[i]
-                        # todo 代码写的很多余，rpi一定是返回的False,可以考虑注销
-                        # rpi = False and di.replaying   # to check behavior
-                        if dti > dt0:
-                            # todo 此处rpi是False,not rpi是True,考虑注销，直接运行
-                            # if not rpi:  # must see all ticks ...
-                            di.rewind()  # cannot deliver yet
-                            # self._plotfillers[i].append(slen)
-                        # 如果不是replay
-                        elif not di.replaying:
-                            # Replay forces tick fill, else force here
-                            di._tick_fill(force=True)
+                    # slen = len(runstrats[0])
+                    # Try to get something for those that didn't return
+                    # 循环drets
+                    for i, ret in enumerate(drets):
+                        # 如果ret不是None的话，继续下一个ret
+                        if ret:  # dts already contains a valid datetime for this i
+                            continue
 
-                        # self._plotfillers2[i].append(slen)  # mark as fill
-            # 如果d0ret是None的话，遍历每个数据，调用_check()
-            elif d0ret is None:
-                # meant for things like live feeds which may not produce a bar
-                # at the moment but need the loop to run for notifications and
-                # getting resample and others to produce timely bars
-                for data in datas:
-                    data._check()
-            # 如果是其他情况
-            else:
-                lastret = data0._last()
-                for data in datas1:
-                    lastret += data._last(datamaster=data0)
+                        # try to get data by checking with a master
+                        # 获取数据，并尝试给dts设置时间
+                        d = datas[i]
+                        d._check(forcedata=dmaster)  # check to force output
+                        if d.next(datamaster=dmaster, ticks=False):  # retry
+                            dts[i] = d.datetime[0]  # good -> store
+                            # self._plotfillers2[i].append(slen)  # mark as fill
+                        else:
+                            # self._plotfillers[i].append(slen)  # mark as empty
+                            pass
 
-                if not lastret:
-                    # Only go extra round if something was changed by "lasts"
-                    break
+                    # make sure only those at dmaster level end up delivering
+                    # 遍历dts
+                    for i, dti in enumerate(dts):
+                        # 如果dti不是None
+                        if dti is not None:
+                            # 获取数据
+                            di = datas[i]
+                            # todo 代码写的很多余，rpi一定是返回的False,可以考虑注销
+                            # rpi = False and di.replaying   # to check behavior
+                            if dti > dt0:
+                                # todo 此处rpi是False,not rpi是True,考虑注销，直接运行
+                                # if not rpi:  # must see all ticks ...
+                                di.rewind()  # cannot deliver yet
+                                # self._plotfillers[i].append(slen)
+                            # 如果不是replay
+                            elif not di.replaying:
+                                # Replay forces tick fill, else force here
+                                di._tick_fill(force=True)
 
-            # Datas may have generated a new notification after next
+                            # self._plotfillers2[i].append(slen)  # mark as fill
+                # 如果d0ret是None的话，遍历每个数据，调用_check()
+                elif d0ret is None:
+                    # meant for things like live feeds which may not produce a bar
+                    # at the moment but need the loop to run for notifications and
+                    # getting resample and others to produce timely bars
+                    for data in datas:
+                        data._check()
+                # 如果是其他情况
+                else:
+                    lastret = data0._last()
+                    for data in datas1:
+                        lastret += data._last(datamaster=data0)
+                    if not lastret:
+                        # Only go extra round if something was changed by "lasts"
+                        break
+
+                # Datas may have generated a new notification after next
+                # 通知数据信息
+                self._datanotify()
+                if self._event_stop:  # stop if requested
+                    return
+                # 检查timer和遍历策略并调用_next_open()进行运行
+                if d0ret or lastret:  # if any bar, check timers before broker
+                    self._check_timers(runstrats, dt0, cheat=True)
+                    if self.p.cheat_on_open:
+                        for strat in runstrats:
+                            strat._next_open()
+                            if self._event_stop:  # stop if requested
+                                return
+                # 通知broker
+                self._brokernotify()
+                if self._event_stop:  # stop if requested
+                    return
+
+                # 通知timer,并且遍历策略并运行
+                if d0ret or lastret:  # bars produced by data or filters
+                    # print("begin go to the strategy next")
+                    self._check_timers(runstrats, dt0, cheat=False)
+                    for strat in runstrats:
+                        strat._next()
+                        if self._event_stop:  # stop if requested
+                            return
+
+                        self._next_writers(runstrats)
+            #     if my_num % 1000000 == 0:
+            #         print("结束_runnext")
+            # print("跳出_runnext")
+            # Last notification chance before stopping
             # 通知数据信息
             self._datanotify()
             if self._event_stop:  # stop if requested
                 return
-            # 检查timer和遍历策略并调用_next_open()进行运行
-            if d0ret or lastret:  # if any bar, check timers before broker
-                self._check_timers(runstrats, dt0, cheat=True)
-                if self.p.cheat_on_open:
-                    for strat in runstrats:
-                        strat._next_open()
-                        if self._event_stop:  # stop if requested
-                            return
-            # 通知broker
-            self._brokernotify()
+            # 通知store信息
+            self._storenotify()
             if self._event_stop:  # stop if requested
                 return
-            # 通知timer,并且遍历策略并运行
-            if d0ret or lastret:  # bars produced by data or filters
-                self._check_timers(runstrats, dt0, cheat=False)
-                for strat in runstrats:
-                    strat._next()
-                    if self._event_stop:  # stop if requested
-                        return
-
-                    self._next_writers(runstrats)
-
-        # Last notification chance before stopping
-        # 通知数据信息
-        self._datanotify()
-        if self._event_stop:  # stop if requested
-            return
-        # 通知store信息
-        self._storenotify()
-        if self._event_stop:  # stop if requested
-            return
+        except Exception as e:
+            error_info = traceback.format_exception(e)
+            print(error_info)
 
     # runonce
     def _runonce(self, runstrats):
@@ -1896,48 +1913,53 @@ class Cerebro(with_metaclass(MetaParams, object)):
                        key=lambda x: (x._timeframe, x._compression))
 
         while True:
-            # Check the next incoming date in the datas
-            # 对于每个数据调用advance_peek(),取得最小的一个时间作为第一个
-            dts = [d.advance_peek() for d in datas]
-            dt0 = min(dts)
-            if dt0 == float('inf'):
-                break  # no data delivers anything
+            try:
+                # Check the next incoming date in the datas
+                # 对于每个数据调用advance_peek(),取得最小的一个时间作为第一个
+                dts = [d.advance_peek() for d in datas]
+                dt0 = min(dts)
+                if dt0 == float('inf'):
+                    break  # no data delivers anything
 
-            # Timemaster if needed be
-            # dmaster = datas[dts.index(dt0)]  # and timemaster
-            # 第一个策略现在的长度slen
-            # todo 变量slen没有使用到，进行注释掉
-            # slen = len(runstrats[0])
-            # 对于每个数据的时间，如果时间小于即将到来的最小的时间，数据向前一位，否则，忽略
-            for i, dti in enumerate(dts):
-                if dti <= dt0:
-                    datas[i].advance()
-                    # self._plotfillers2[i].append(slen)  # mark as fill
-                else:
-                    # self._plotfillers[i].append(slen)
-                    pass
-            # 检查timer
-            self._check_timers(runstrats, dt0, cheat=True)
-            # 如果是cheat_on_open，对于每个策略调用_oncepost_open()
-            if self.p.cheat_on_open:
-                for strat in runstrats:
-                    strat._oncepost_open()
-                    # 如果调用了stop，就停止
-                    if self._event_stop:  # stop if requested
-                        return
-            # 调用_brokernotify()
-            self._brokernotify()
-            # 如果调用了stop，就停止
-            if self._event_stop:  # stop if requested
-                return
-            # 检查timer
-            self._check_timers(runstrats, dt0, cheat=False)
-
-            for strat in runstrats:
-                strat._oncepost(dt0)
+                # Timemaster if needed be
+                # dmaster = datas[dts.index(dt0)]  # and timemaster
+                # 第一个策略现在的长度slen
+                # todo 变量slen没有使用到，进行注释掉
+                # slen = len(runstrats[0])
+                # 对于每个数据的时间，如果时间小于即将到来的最小的时间，数据向前一位，否则，忽略
+                for i, dti in enumerate(dts):
+                    if dti <= dt0:
+                        datas[i].advance()
+                        # self._plotfillers2[i].append(slen)  # mark as fill
+                    else:
+                        # self._plotfillers[i].append(slen)
+                        pass
+                # 检查timer
+                self._check_timers(runstrats, dt0, cheat=True)
+                # 如果是cheat_on_open，对于每个策略调用_oncepost_open()
+                if self.p.cheat_on_open:
+                    for strat in runstrats:
+                        strat._oncepost_open()
+                        # 如果调用了stop，就停止
+                        if self._event_stop:  # stop if requested
+                            return
+                # 调用_brokernotify()
+                self._brokernotify()
+                # 如果调用了stop，就停止
                 if self._event_stop:  # stop if requested
                     return
-                self._next_writers(runstrats)
+                # 检查timer
+                self._check_timers(runstrats, dt0, cheat=False)
+
+                for strat in runstrats:
+                    strat._oncepost(dt0)
+                    if self._event_stop:  # stop if requested
+                        return
+                    self._next_writers(runstrats)
+            except Exception as e:
+                error_info = traceback.format_exc(e)
+                print(error_info)
+        print("结束_runonce")
 
     # 检查timer
     def _check_timers(self, runstrats, dt0, cheat=False):
