@@ -184,7 +184,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
 
     def _update_history_bar(self):
         queues = self.store.bar_queues
-        for data in self.history_bars:
+        for data in self.history_bars[:-1]:     # 不考虑最近的一根K线,是因为请求的时候，返回的K线是能是没走完的
             self.store.dispatch_data_to_queue(data, queues)
 
     def _load_bar(self):
@@ -206,15 +206,15 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         timestamp = bar_data["open_time"]
         # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
         # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
-        dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
-        self.log(f"bar_data: "
-                 f"now_time = {dtime_utc}, "
-                 f"exchange_name:{bar_data['exchange_name']}_{bar_data['asset_type']}, "
-                 f"close_price:{bar_data['close_price']}, ")
+        dtime_utc = datetime.fromtimestamp(timestamp//1000, tz=pytz.UTC)
         bar_status = bar_data["bar_status"]
         if not bar_status:
             # print("bar_datetime", bar_data['high_price'], bar_data['low_price'], bar_data['close_price'], bar_data["volume"])
             return None
+        self.log(f"bar_data: "
+                 f"now_time = {dtime_utc}, "
+                 f"exchange_name:{bar_data['exchange_name']}_{bar_data['asset_type']}, "
+                 f"close_price:{bar_data['close_price']}, ")
         self.bar_time = timestamp
         num_time = bt.date2num(dtime_utc)
         self.lines.datetime[0] = num_time

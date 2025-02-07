@@ -142,13 +142,14 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     bar_status = data.get_bar_status()
                     if not bar_status:
                         continue
+                    self.log(f"begin to run live data, {self.subscribe_bar_num}, {self.GetDataNum}")
                     if bar_status:
                         all_data = data.get_all_data()
                         timestamp = all_data["open_time"]
                         # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
                         # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
                         dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
-                    self.log(f"cryptostore subscribe test {dtime_utc}, info: {all_data}")
+                        self.log(f"cryptostore subscribe test {dtime_utc}, info: {all_data}")
                     if "-" not in symbol:
                         if "USDT" in symbol:
                             symbol = symbol.replace("USDT", "-USDT")
@@ -165,7 +166,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                         if now_bar_time and data.get_open_time() <= now_bar_time:
                             continue
                     # 处理websocket推送的实时数据
-                    if 1 < len(self.bar_queues) == self.subscribe_bar_num:
+                    if len(self.bar_queues)>0:
                         if bar_status:
                             self.cache_bar_dict[key_name] = data
                         if len(self.cache_bar_dict) == self.subscribe_bar_num:
@@ -191,7 +192,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     CryptoStore.dispatch_data_to_queue(data, queues)
                 else:
                     data.init_data()
-                    self.log(f"暂时未处理的信息类型:{data.get_all_data()}")
+                    self.log(f"un considered info:{data.get_all_data()}")
 
     # def run_data_feed(self):
     #     """启动数据处理线程"""
@@ -261,7 +262,9 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         if begin_time is None and count is not None:
             # 如果没有开始时间，只传入 count，获取最近 count 条数据
             data = feed.get_kline(symbol, granularity, count, extra_data=None)
-            bar_data_list.append(data)
+            data.init_data()
+            for bar_data in data.get_data():
+                bar_data_list.append(bar_data)
             # self.feed_api.push_bar_data_to_queue(exchange_name, data)
             self.log(f"download completely:{exchange_name}, {symbol}, new {count} bar")
             return bar_data_list
@@ -283,24 +286,25 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     data = feed.get_kline(
                         symbol, granularity, start_time=begin_stamp, end_time=end_stamp, extra_data=None
                     )
-                    bar_data_list.append(data)
+                    for bar_data in data.get_data():
+                        bar_data_list.append(bar_data)
                     # self.feed_api.push_bar_data_to_queue(exchange_name, data)
                     print(f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
                           f"begin: {begin_time}, end: {current_end_time}")
-                    # data.init_data()
-                    # # print(data.get_data())
-                    # bar_list = []
-                    # for bar in data.get_data():
-                    #     bar.init_data()
-                    #     bar_list.append(bar.get_all_data())
-                    # df = pd.DataFrame(bar_list)
-                    # # print(df.head())
-                    # df['open_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['open_time']]
-                    # print(df)
+                    data.init_data()
+                    # print(data.get_data())
+                    bar_list = []
+                    for bar in data.get_data():
+                        bar.init_data()
+                        bar_list.append(bar.get_all_data())
+                    df = pd.DataFrame(bar_list)
+                    # print(df.head())
+                    df['open_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['open_time']]
+                    df['server_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['server_time']]
+                    print(df[['server_time', 'open_time', "close_price", "bar_status"]])
                     # # print(f"print successfully: {symbol}, period: {granularity}")
                     # 更新开始时间
                     begin_time = current_end_time
-
                     # 如果数据已经下载完成，跳出循环
                     if begin_time >= stop_time:
                         break
