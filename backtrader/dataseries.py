@@ -120,6 +120,9 @@ class DataSeries(LineSeries):
 
         return info
 
+    def get_name(self):
+        return self._name
+
 
 class OHLC(DataSeries):
     # 继承DataSeries，lines剔除了datetime只剩下6条

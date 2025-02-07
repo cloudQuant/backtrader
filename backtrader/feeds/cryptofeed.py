@@ -36,6 +36,8 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     params = (
         ('historical', False),  # only historical download
         ('backfill_start', False),  # do backfill at the start
+        ("timeframe", None),
+        ("compression", None),
     )
 
     _store = CryptoStore
@@ -73,13 +75,29 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         self.debug = debug
         self.logger = self.init_logger()
         self.store = store
-        self.log(f"crypto feed init store ends")
+        self.store.crypto_datas[self.p.dataname] = self
         self._bar_data = None
         self.bar_time = None
+        self.history_bars = None
         self._state = self._ST_HISTORBACK
         self.exchange_name, self.asset_type, self.symbol = self.p.dataname.split('___')
-        print("CryptoFeed init success, debug = {}".format(self.debug))
+        self.period = self.get_granularity(self.p.timeframe, self.p.compression)
+        self.subscribe_live_bars()
+        self.download_history_bars()
+        print("CryptoFeed init success, debug = {}, data_num = {}".format(self.debug, self.store.GetDataNum))
 
+    def get_bar_time(self):
+        return self.bar_time
+
+    def download_history_bars(self):
+        self.history_bars = self.store.download_history_bars(self.p.dataname, self.period, count=100, start_time=self.p.fromdate, end_time=self.p.todate)
+        self.log("download {self.p.dataname}, {granularity}, history bar successfully")
+
+    def subscribe_live_bars(self):
+        if not self.p.historical:
+            topics = [{"topic": "kline", "symbol": self.symbol, "period": self.period}]
+            self.store.feed_api.subscribe(self.p.dataname, topics)
+            self.log("subscribe {} topics: {} successfully".format(self.p.dataname, topics))
 
     def init_logger(self):
         if self.debug:
@@ -116,11 +134,9 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         self.log("CryptoFeed begin to start")
         DataBase.start(self)
         if self.p.fromdate:
-            self.log("begin to fetch data from fromdate")
             self._state = self._ST_HISTORBACK
             self.put_notification(self.DELAYED)
-            self.log(f"{self.notifs}")
-            self._update_history_bar(self.p.fromdate)
+            self._update_history_bar()
             self.log(f"update history bar successfully, self._state = {self._state}")
             # while True:
             #     ret = self._load()
@@ -140,6 +156,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         if self._state == self._ST_OVER:
             return False
         while True:
+            self.store.deal_data_feed()
             if self._state == self._ST_LIVE:
                 return self._load_bar()
             elif self._state == self._ST_HISTORBACK:
@@ -154,24 +171,21 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
                         return False  # end of historical
                     else:
                         # 订阅K线
-                        timeframe = self.p.timeframe
-                        compression = self.p.compression
-                        period = self._GRANULARITIES[(timeframe, compression)]
-                        topics = [{"topic": "kline", "symbol": self.symbol, "period": period}]
-                        self.log("topics: {}".format(topics))
-                        self.store.feed_api.subscribe(self.p.dataname, topics)
+                        # timeframe = self.p.timeframe
+                        # compression = self.p.compression
+                        # period = self._GRANULARITIES[(timeframe, compression)]
+                        # topics = [{"topic": "kline", "symbol": self.symbol, "period": period}]
+                        # self.store.feed_api.subscribe(self.p.dataname, topics)
                         self._state = self._ST_LIVE
                         self.put_notification(self.LIVE)
                         self.store.subscribe_bar_num+=1
-                        self.log("subscribe topics: {} successfully".format(topics))
                         continue
 
 
-    def _update_history_bar(self, fromdate):
-        self.log("begin update history bar")
-        granularity = self.get_granularity(self._timeframe, self._compression)
-        self.store.download_history_bars(self.p.dataname, granularity, count=100, start_time=fromdate, end_time=None)
-        self.log("update history bar successfully")
+    def _update_history_bar(self):
+        queues = self.store.bar_queues
+        for data in self.history_bars:
+            self.store.dispatch_data_to_queue(data, queues)
 
     def _load_bar(self):
         if self._bar_data is None:
@@ -187,16 +201,21 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
             error_info = traceback.format_exception(e)
             self.log(f"error:{error_info}")
             return None
+        data.init_data()
         bar_data = data.get_all_data()
-        # self.log(f"bar_data: {bar_data}")
-        bar_status = bar_data["bar_status"]
-        if not bar_status:
-            # print("bar_datetime", dtime, bar_data['high_price'], bar_data['low_price'], bar_data['close_price'], bar_data["volume"])
-            return None
         timestamp = bar_data["open_time"]
         # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
         # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
         dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
+        self.log(f"bar_data: "
+                 f"now_time = {dtime_utc}, "
+                 f"exchange_name:{bar_data['exchange_name']}_{bar_data['asset_type']}, "
+                 f"close_price:{bar_data['close_price']}, ")
+        bar_status = bar_data["bar_status"]
+        if not bar_status:
+            # print("bar_datetime", bar_data['high_price'], bar_data['low_price'], bar_data['close_price'], bar_data["volume"])
+            return None
+        self.bar_time = timestamp
         num_time = bt.date2num(dtime_utc)
         self.lines.datetime[0] = num_time
         self.lines.open[0] = bar_data["open_price"]

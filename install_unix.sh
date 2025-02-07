@@ -50,7 +50,7 @@ fi
 # Run backtrader tests with 4 parallel processes
 echo "Running backtrader tests..."
 # pytest tests -n 4
-python tests/crypto_tests/test_binance_three_data_strategy.py
+python tests/crypto_tests/test_data_strategy.py
 # python tests/crypto_tests/test_binance_ma.py
 if [ $? -ne 0 ]; then
     handle_error "Test cases failed."
@@ -62,6 +62,12 @@ if [ -d "$BENCHMARKS_DIR" ]; then
     echo "Deleted $BENCHMARKS_DIR directory."
 fi
 
+# Delete all .log files
+echo "Deleting all .log files..."
+find . -type f -name "*.log" -exec rm -f {} \;
+echo "All .log files deleted."
+
 # Script completed
 echo "Script execution completed!"
+
 
