@@ -124,7 +124,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
 
     def _init_data_queue(self):
         key_name = self.p.dataname
-        self.log(f"self.store.bar_queues.keys() = {self.store.bar_queues.keys()}")
+        # self.log(f"self.store.bar_queues.keys() = {self.store.bar_queues.keys()}")
         while key_name not in self.store.bar_queues:
             time.sleep(1)
             self.log("self.store.bar_queues not found {}".format(key_name))
@@ -138,7 +138,7 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
             self._state = self._ST_HISTORBACK
             self.put_notification(self.DELAYED)
             self._update_history_bar()
-            self.log(f"update history bar successfully, self._state = {self._state}")
+            # self.log(f"update history bar successfully, self._state = {self._state}")
             # while True:
             #     ret = self._load()
             #     if ret is False or ret is None:
@@ -224,10 +224,10 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
         self.lines.close[0] = bar_data["close_price"]
         self.lines.volume[0] = bar_data["volume"]
         result = True
-        self.log(f"bar_data: {result}, "
-                 f"now_time = {dtime_utc}, "
-                 f"exchange_name:{bar_data['exchange_name']}_{bar_data['asset_type']}, "
-                 f"close_price:{bar_data['close_price']}, ")
+        # self.log(f"bar_data: {result}, "
+        #          f"now_time = {dtime_utc}, "
+        #          f"exchange_name:{bar_data['exchange_name']}_{bar_data['asset_type']}, "
+        #          f"close_price:{bar_data['close_price']}, ")
         return result
 
     def islive(self):

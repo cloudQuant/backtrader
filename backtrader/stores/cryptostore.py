@@ -130,9 +130,9 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
             except queue.Empty:
                 return None  # no data in the queue
             data.init_data()
-            if data.get_bar_status():
-                self.log(f"{self.data_queues.keys()}")
-                self.log(f"cryptostore push test info: {data.get_all_data()}")
+            # if data.get_bar_status():
+            #     self.log(f"{self.data_queues.keys()}")
+            #     self.log(f"cryptostore push test info: {data.get_all_data()}")
                 # self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
             if isinstance(data, BarData):
                 queues = self.bar_queues
@@ -170,13 +170,13 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                         if bar_timestamp not in self.cache_bar_dict:
                             self.cache_bar_dict[bar_timestamp] = {}
                         self.cache_bar_dict[bar_timestamp][key_name] = data
-                        self.log(f"cache bar info: {self.cache_bar_dict}")
+                        # self.log(f"cache bar info: {self.cache_bar_dict}")
                     # 如果当前仅存在一个时间
                     if len(self.cache_bar_dict) == 1:
                         bar_timestamp_list = list(self.cache_bar_dict.keys())
                         for bar_timestamp in bar_timestamp_list:
                             value_dict = self.cache_bar_dict[bar_timestamp]
-                            self.log(f"cache bar length: {len(value_dict)}, {self.subscribe_bar_num}")
+                            # self.log(f"cache bar length: {len(value_dict)}, {self.subscribe_bar_num}")
                             if len(value_dict) == self.subscribe_bar_num:
                                 for key_name, data in value_dict.items():
                                     q = queues[key_name]
@@ -192,14 +192,14 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                             self.cache_bar_dict.pop(min_timestamp)
                 else:
                     CryptoStore.dispatch_data_to_queue(data, queues)
-                    all_data = data.get_all_data()
-                    timestamp = all_data["open_time"]
-                    # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
-                    # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
-                    dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
-                    bar_status = all_data["bar_status"]
-                    if bar_status:
-                        self.log(f"cryptostore dispatch_data_to_queue test {dtime_utc} info: {all_data}")
+                    # all_data = data.get_all_data()
+                    # timestamp = all_data["open_time"]
+                    # # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
+                    # # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
+                    # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
+                    # bar_status = all_data["bar_status"]
+                    # if bar_status:
+                    #     self.log(f"cryptostore dispatch_data_to_queue test {dtime_utc} info: {all_data}")
             elif isinstance(data, OrderData):
                 queues = self.order_queues
                 CryptoStore.dispatch_data_to_queue(data, queues)
@@ -306,17 +306,17 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     # self.feed_api.push_bar_data_to_queue(exchange_name, data)
                     print(f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
                           f"begin: {begin_time}, end: {current_end_time}")
-                    data.init_data()
-                    # print(data.get_data())
-                    bar_list = []
-                    for bar in data.get_data():
-                        bar.init_data()
-                        bar_list.append(bar.get_all_data())
-                    df = pd.DataFrame(bar_list)
-                    # print(df.head())
-                    df['open_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['open_time']]
-                    df['server_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['server_time']]
-                    print(df[['server_time', 'open_time', "close_price", "bar_status"]])
+                    # data.init_data()
+                    # # print(data.get_data())
+                    # bar_list = []
+                    # for bar in data.get_data():
+                    #     bar.init_data()
+                    #     bar_list.append(bar.get_all_data())
+                    # df = pd.DataFrame(bar_list)
+                    # # print(df.head())
+                    # df['open_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['open_time']]
+                    # df['server_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['server_time']]
+                    # print(df[['server_time', 'open_time', "close_price", "bar_status"]])
                     # # print(f"print successfully: {symbol}, period: {granularity}")
                     # 更新开始时间
                     begin_time = current_end_time
