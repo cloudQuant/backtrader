@@ -5,6 +5,8 @@
       <module fileurl="file://$PROJECT_DIR$/.idea/backtrader.iml" filepath="$PROJECT_DIR$/.idea/backtrader.iml" />
       <module fileurl="file://$PROJECT_DIR$/../backtrader_blog/.idea/backtrader_blog.iml" filepath="$PROJECT_DIR$/../backtrader_blog/.idea/backtrader_blog.iml" />
       <module fileurl="file://$PROJECT_DIR$/../bt_api_py/.idea/bt_api_py.iml" filepath="$PROJECT_DIR$/../bt_api_py/.idea/bt_api_py.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../empyrical/.idea/empyrical.iml" filepath="$PROJECT_DIR$/../empyrical/.idea/empyrical.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../pyfolio/.idea/pyfolio.iml" filepath="$PROJECT_DIR$/../pyfolio/.idea/pyfolio.iml" />
     </modules>
   </component>
 </project>

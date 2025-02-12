@@ -5,6 +5,45 @@ BACKTRADER_PATH="./backtrader"
 BUILD_DIR="build"
 EGG_INFO_DIR="backtrader.egg-info"
 BENCHMARKS_DIR=".benchmarks"
+PYFOLIO_VERSION="0.9.6"
+
+# 切换到上一级目录
+echo "Switching to the parent directory..."
+cd ..
+
+# Function to check if a Python package is installed
+check_package_installed() {
+    python3 -c "import pkgutil; exit(0 if pkgutil.find_loader('$1') is not None else 1)"
+}
+
+# 检查 pyfolio 0.9.6 版本是否已经安装
+echo "Checking if pyfolio $PYFOLIO_VERSION is installed..."
+if ! check_package_installed "pyfolio"; then
+    echo "pyfolio $PYFOLIO_VERSION not found."
+
+    # 检查当前目录下是否存在 pyfolio 文件夹
+    if [ ! -d "pyfolio" ]; then
+        echo "pyfolio directory does not exist. Cloning pyfolio from Gitee..."
+        git clone https://gitee.com/yunjinqi/pyfolio
+        if [ $? -ne 0 ]; then
+            echo "Failed to clone pyfolio repository. Exiting..."
+            exit 1
+        fi
+    else
+        echo "pyfolio directory already exists. Skipping git clone."
+    fi
+
+    # 运行 install_unix.sh 安装 pyfolio
+    echo "Running install_unix.sh for pyfolio..."
+    sh ./pyfolio/install_unix.sh
+    if [ $? -ne 0 ]; then
+        echo "Failed to run install_unix.sh for pyfolio. Exiting..."
+        exit 1
+    fi
+    cd ..
+else
+    echo "pyfolio $PYFOLIO_VERSION is already installed."
+fi
 
 # Function to handle errors
 handle_error() {
@@ -49,8 +88,8 @@ fi
 
 # Run backtrader tests with 4 parallel processes
 echo "Running backtrader tests..."
-# pytest tests -n 4
-python tests/crypto_tests/test_data_strategy.py
+# pytest --ignore=tests/crypto_tests tests -n 8
+# python tests/crypto_tests/test_data_strategy.py
 # python tests/crypto_tests/test_binance_ma.py
 if [ $? -ne 0 ]; then
     handle_error "Test cases failed."

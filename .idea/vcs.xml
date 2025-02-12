@@ -3,5 +3,7 @@
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
     <mapping directory="$PROJECT_DIR$/../bt_api_py" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../empyrical" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../pyfolio" vcs="Git" />
   </component>
 </project>
