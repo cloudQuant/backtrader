@@ -24,7 +24,7 @@ def get_from_time_and_end_time():
 
     # 将本地时间转换为 UTC 时间
     utc_time = local_time_with_tz.astimezone(pytz.UTC)
-    return utc_time-timedelta(hours=1), utc_time
+    return utc_time - timedelta(hours=1), utc_time
 
 
 class TestStrategy(bt.Strategy):
@@ -80,16 +80,15 @@ class TestStrategy(bt.Strategy):
             self.realtime_data_loaded = True
 
         if self.historical_data_loaded and self.realtime_data_loaded:
-            self.live_bar_num+=1
+            self.live_bar_num += 1
 
         if self.live_bar_num == 3:
             self.env.runstop()  # Stop the backtest
         self.log(f"live bar number: {self.live_bar_num}")
 
-
     def notify_data(self, data, status, *args, **kwargs):
         dn = data.get_name()
-        msg= '{} Data Status: {}'.format(dn, data._getstatusname(status))
+        msg = '{} Data Status: {}'.format(dn, data._getstatusname(status))
         self.log(msg)
         if data._getstatusname(status) == 'LIVE':
             self.live_data = True
@@ -97,9 +96,11 @@ class TestStrategy(bt.Strategy):
         else:
             self.live_data = False
 
+
 def get_account_config():
     account_config_data = read_yaml_file('account_config.yaml')
     return account_config_data
+
 
 def test_binance_three_data_strategy():
     cerebro = bt.Cerebro()
@@ -107,20 +108,20 @@ def test_binance_three_data_strategy():
     account_config_data = get_account_config()
     exchange_params = {
         "BINANCE___SWAP": {
-        "public_key": account_config_data['binance']['public_key'],
-        "private_key": account_config_data['binance']['private_key']
+            "public_key": account_config_data['binance']['public_key'],
+            "private_key": account_config_data['binance']['private_key']
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
     fromdate, todate = get_from_time_and_end_time()
 
-    data1 = crypto_store.getdata( store=crypto_store,
-                                  debug=True,
-                                  dataname="BINANCE___SWAP___BNB-USDT",
-                                  fromdate=fromdate,
-                                  todate=todate,
-                                  timeframe=bt.TimeFrame.Minutes,
-                                  compression=1)
+    data1 = crypto_store.getdata(store=crypto_store,
+                                 debug=True,
+                                 dataname="BINANCE___SWAP___BNB-USDT",
+                                 fromdate=fromdate,
+                                 todate=todate,
+                                 timeframe=bt.TimeFrame.Minutes,
+                                 compression=1)
     cerebro.adddata(data1, name="BINANCE___SWAP___BNB-USDT")
 
     data2 = crypto_store.getdata(store=crypto_store,
@@ -148,14 +149,15 @@ def test_binance_three_data_strategy():
     assert strategy_instance.historical_data_loaded is True
     assert strategy_instance.realtime_data_loaded is True
 
+
 def test_binance_one_data_strategy():
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
     exchange_params = {
         "BINANCE___SWAP": {
-        "public_key": account_config_data['binance']['public_key'],
-        "private_key": account_config_data['binance']['private_key']
+            "public_key": account_config_data['binance']['public_key'],
+            "private_key": account_config_data['binance']['private_key']
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
@@ -183,9 +185,9 @@ def test_okx_one_data_strategy():
     account_config_data = get_account_config()
     exchange_params = {
         "OKX___SWAP": {
-        "public_key": account_config_data['okx']['public_key'],
-        "private_key": account_config_data['okx']['private_key'],
-        "passphrase": account_config_data['okx']["passphrase"],
+            "public_key": account_config_data['okx']['public_key'],
+            "private_key": account_config_data['okx']['private_key'],
+            "passphrase": account_config_data['okx']["passphrase"],
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
@@ -206,15 +208,16 @@ def test_okx_one_data_strategy():
     assert strategy_instance.historical_data_loaded is True
     assert strategy_instance.realtime_data_loaded is True
 
+
 def test_okx_two_data_strategy():
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
     exchange_params = {
         "OKX___SWAP": {
-        "public_key": account_config_data['okx']['public_key'],
-        "private_key": account_config_data['okx']['private_key'],
-        "passphrase": account_config_data['okx']["passphrase"],
+            "public_key": account_config_data['okx']['public_key'],
+            "private_key": account_config_data['okx']['private_key'],
+            "passphrase": account_config_data['okx']["passphrase"],
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
@@ -252,15 +255,16 @@ def test_okx_two_data_strategy():
     assert strategy_instance.historical_data_loaded is True
     assert strategy_instance.realtime_data_loaded is True
 
+
 def test_binance_one_okx_one_data_strategy():
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
     exchange_params = {
         "OKX___SWAP": {
-        "public_key": account_config_data['okx']['public_key'],
-        "private_key": account_config_data['okx']['private_key'],
-        "passphrase": account_config_data['okx']["passphrase"],
+            "public_key": account_config_data['okx']['public_key'],
+            "private_key": account_config_data['okx']['private_key'],
+            "passphrase": account_config_data['okx']["passphrase"],
         },
         "BINANCE___SWAP": {
             "public_key": account_config_data['binance']['public_key'],
@@ -295,6 +299,7 @@ def test_binance_one_okx_one_data_strategy():
     strategy_instance = strategies[0]
     assert strategy_instance.historical_data_loaded is True
     assert strategy_instance.realtime_data_loaded is True
+
 
 if __name__ == '__main__':
     test_binance_one_data_strategy()  # successfully
