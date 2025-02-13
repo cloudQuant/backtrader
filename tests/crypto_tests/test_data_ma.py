@@ -2,11 +2,27 @@
 import backtrader as bt
 from datetime import datetime, timedelta, UTC
 import json
+import pytz
+from tzlocal import get_localzone
 from backtrader.stores.cryptostore import CryptoStore
 from backtrader.feeds.cryptofeed import CryptoFeed
 from backtrader.brokers.cryptobroker import CryptoBroker
 from backtrader.utils.log_message import SpdLogManager
 from bt_api_py.functions.utils import read_yaml_file
+
+
+def get_from_time_and_end_time():
+    # 获取当前的本地时间（带有时区信息）
+    local_time = datetime.now().astimezone()
+
+    # 设置微秒为 0，保留分钟和秒
+    local_time_rounded = local_time.replace(microsecond=0)
+
+    # 将本地时间转换为 UTC 时间
+    utc_time = local_time_rounded.astimezone(pytz.UTC)
+
+    # 返回从当前时间的前一小时到当前时间的范围
+    return utc_time - timedelta(hours=1), utc_time
 
 class TestStrategy(bt.Strategy):
 
@@ -40,8 +56,6 @@ class TestStrategy(bt.Strategy):
 
         # NOTE: If you try to get the wallet balance from a wallet you have
         # never funded, a KeyError will be raised! Change LTC below as approriate
-        cash = self.broker.getcash()
-        value = self.broker.getvalue()
         # if self.live_data:
         #     cash, value = self.broker.get_wallet_balance('USDT')
         # else:
@@ -50,9 +64,11 @@ class TestStrategy(bt.Strategy):
         #     cash = 'NA'
 
         for data in self.datas:
-            self.log('{} - {} | Cash {} | O: {} H: {} L: {} C: {} V:{} SMA:{}'.format(data.datetime.datetime(),
-                                                                                   data._name, cash, data.open[0], data.high[0], data.low[0], data.close[0], data.volume[0],
-                                                                                   self.sma[0]))
+            cash = self.broker.getcash(data)
+            value = self.broker.getvalue(data)
+            # now_time = bt.num2date(data.datetime[0]).astimezone()   # 先将数字时间转换为无时区的 datetime 对象
+            now_time = bt.num2date(data.datetime[0], tz=get_localzone())
+            self.log(f"{data.get_name()}, {now_time}, cash = {round(cash)}, value = {round(value)}, {data.close[0]}, {round(self.sma[0],2)}")
 
         # check cash whether update
         if self.init_cash is None:
@@ -105,51 +121,34 @@ def test_binance_ma():
     # Add the strategy
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
-    kwargs = {
-        "public_key": account_config_data['binance']['public_key'],
-        "private_key": account_config_data['binance']['private_key'],
-        "exchange": 'binance',
-        "symbol": "BNB-USDT",
-        "asset_type": "swap",
-        "debug": True
+    exchange_params = {
+        "BINANCE___SWAP": {
+            "public_key": account_config_data['binance']['public_key'],
+            "private_key": account_config_data['binance']['private_key']
+        }
     }
-    # 获取当前时间
-    now = datetime.now()
-    # 计算当前时间之前的 2 个小时
-    nine_hours_ago = now - timedelta(hours=9)
-    data = CryptoFeed(dataname="BNB-USDT",
-                      fromdate=nine_hours_ago,
-                      timeframe=bt.TimeFrame.Minutes,
-                      compression=1,
-                      **kwargs)
-    cerebro.adddata(data)
-    eth_kwargs = {
-        "public_key": account_config_data['binance']['public_key'],
-        "private_key": account_config_data['binance']['private_key'],
-        "exchange": 'binance',
-        "symbol": "ETH-USDT",
-        "asset_type": "swap",
-        "debug": True
-    }
-    data = CryptoFeed(dataname="ETH-USDT",
-                      fromdate=nine_hours_ago,
-                      timeframe=bt.TimeFrame.Minutes,
-                      compression=1,
-                      **eth_kwargs)
-    cerebro.adddata(data)
-    broker = CryptoBroker(store=data.store)
+    crypto_store = CryptoStore(exchange_params, debug=True)
+    fromdate, todate = get_from_time_and_end_time()
+    data3 = crypto_store.getdata(store=crypto_store,
+                                 debug=True,
+                                 dataname="BINANCE___SWAP___BTC-USDT",
+                                 fromdate=fromdate,
+                                 todate=todate,
+                                 timeframe=bt.TimeFrame.Minutes,
+                                 compression=1)
+    cerebro.adddata(data3, name="BINANCE___SWAP___BTC-USDT")
+
+    broker = CryptoBroker(store=crypto_store)
     cerebro.setbroker(broker)
 
-    # Run the strategy
-    strategies = cerebro.run()
+    # Enable live mode for realtime data
+    strategies = cerebro.run(live=True)
     # 获取第一个策略实例
     strategy_instance = strategies[0]
-    # assert strategy_instance.now_live_data is True
-    # # assert strategy_instance.update_cash is True
-    # # assert strategy_instance.update_value is True
-    # assert strategy_instance.update_ma is True
-
-
+    assert strategy_instance.now_live_data is True
+    # assert strategy_instance.update_cash is True
+    # assert strategy_instance.update_value is True
+    assert strategy_instance.update_ma is True
 
 if __name__ == '__main__':
     test_binance_ma()

@@ -9,21 +9,16 @@ from bt_api_py.functions.log_message import SpdLogManager
 
 
 def get_from_time_and_end_time():
-    # 获取当前的本地时间
-    local_time = datetime.now()
+    # 获取当前的本地时间（带有时区信息）
+    local_time = datetime.now().astimezone()
 
-    # 设置分钟、秒和微秒为 0，只保留小时部分，获取整点时间
-    # local_time_rounded = local_time.replace(second=0, microsecond=0)
+    # 设置微秒为 0，保留分钟和秒
     local_time_rounded = local_time.replace(microsecond=0)
 
-    # 获取本地时区（例如 'Asia/Shanghai'，你可以根据需要替换为其他时区）
-    local_tz = pytz.timezone('Asia/Shanghai')
-
-    # 将本地时间转换为指定时区的时间
-    local_time_with_tz = local_tz.localize(local_time_rounded)
-
     # 将本地时间转换为 UTC 时间
-    utc_time = local_time_with_tz.astimezone(pytz.UTC)
+    utc_time = local_time_rounded.astimezone(pytz.UTC)
+
+    # 返回从当前时间的前一小时到当前时间的范围
     return utc_time - timedelta(hours=1), utc_time
 
 

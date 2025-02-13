@@ -4,6 +4,7 @@ matplotlib
 plotly
 python-dateutil
 pytz
+tzlocal
 future
 cython
 setuptools

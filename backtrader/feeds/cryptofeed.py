@@ -90,6 +90,12 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
     def get_bar_time(self):
         return self.bar_time
 
+    def get_exchange_name(self):
+        return self.exchange_name + "___" + self.asset_type
+
+    def get_symbol_name(self):
+        return self.symbol
+
     def download_history_bars(self):
         self.history_bars = self.store.download_history_bars(self.p.dataname, self.period, count=100, start_time=self.p.fromdate, end_time=self.p.todate)
         self.log(f"download {self.p.dataname}, {self.period}, history bar successfully")

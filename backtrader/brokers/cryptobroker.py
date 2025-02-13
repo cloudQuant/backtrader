@@ -112,8 +112,8 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         else:
             self.store = self.strategy.datas[0].store
         self.debug = self.store.debug
-        self.startingcash = self.store.get_cash()
-        self.startingvalue = self.store.get_value()
+        self.startingcash = self.store.getcash()
+        self.startingvalue = self.store.getvalue()
         self.log("init store success, debug = {}".format(self.debug))
 
     def init_broker_mapping(self, broker_mapping):
@@ -158,14 +158,37 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
     def get_wallet_balance(self, currency_list):
         return self.store.get_wallet_balance(currency_list)
 
-    def getcash(self):
-        self.cash = self.store.get_cash()
-        return self.cash
+    def getcash(self, data = None):
+        cash = self.store.getcash()
+        if data is None:
+            data = self.cerebro.datas[0]
+        if data is not None:
+            exchange_name = data.get_exchange_name()
+            symbol_name = data.get_symbol_name()
+            currency = symbol_name.split("-")[1]
+            cash = cash.get(exchange_name, -1.0)
+            if isinstance(cash,dict) and currency is not None:
+                cash = cash.get(currency, -1.0)
+                if isinstance(cash,dict):
+                    cash = cash['cash']
+                    return cash
+        return cash
 
-    def getvalue(self, datas=None):
-        # return self.store.getvalue(self.currency)
-        self.value = self.store.get_value()
-        return self.value
+    def getvalue(self, data = None):
+        value = self.store.getvalue()
+        if data is None:
+            data = self.cerebro.datas[0]
+        if data is not None:
+            exchange_name = data.get_exchange_name()
+            symbol_name = data.get_symbol_name()
+            currency = symbol_name.split("-")[1]
+            value = value.get(exchange_name, -1.0)
+            if isinstance(value,dict) and currency is not None:
+                value = value.get(currency, -1.0)
+                if isinstance(value,dict):
+                    value = value['value']
+                    return value
+        return value
 
     def get_notification(self):
         try:
