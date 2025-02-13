@@ -221,11 +221,122 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
     #     self.data_feed_thread.join()  # 等待线程结束
 
 
+    # def download_history_bars(self, dataname, granularity, count=100, start_time=None, end_time=None):
+    #     self.log(f"store {self.feed_api.exchange_feeds.keys()}")
+    #     bar_data_list = []
+    #     exchange,asset_type,symbol = dataname.split("___")
+    #     exchange_name = exchange + "___" + asset_type
+    #     def calculate_time_delta(period):
+    #         """根据 period 计算增量时间"""
+    #         time_deltas = {
+    #             "1m": timedelta(hours=1),
+    #             "3m": timedelta(hours=5),
+    #             "5m": timedelta(hours=9),
+    #             "15m": timedelta(hours=25),
+    #             "30m": timedelta(hours=50),
+    #             "1H": timedelta(hours=100),
+    #             "1D": timedelta(days=100),
+    #         }
+    #         if period in time_deltas:
+    #             return time_deltas[period]
+    #         raise ValueError(f"Unsupported period: {period}")
+    #
+    #     def parse_time(input_time):
+    #         """解析时间，支持字符串和 datetime 类型，并将时间转换为 UTC"""
+    #         if isinstance(input_time, str):
+    #             # 假设输入的字符串时间是本地时间
+    #             local_time = datetime.fromisoformat(input_time)
+    #             return local_time.astimezone(timezone.utc)
+    #         elif isinstance(input_time, datetime):
+    #             # 如果是 datetime 类型，确保转换为 UTC
+    #             if input_time.tzinfo is None:
+    #                 local_time = input_time.replace(tzinfo=timezone.utc).astimezone()  # 假设为本地时间
+    #             else:
+    #                 local_time = input_time
+    #             return local_time.astimezone(timezone.utc)
+    #         elif input_time is None:
+    #             return None
+    #         else:
+    #             raise TypeError(f"Unsupported time format: {type(input_time)}")
+    #
+    #     # 解析开始时间和结束时间为 UTC
+    #     begin_time = parse_time(start_time)
+    #     stop_time = parse_time(end_time)
+    #
+    #     # 如果没有结束时间，则根据 granularity 对其为当前时间
+    #     if stop_time is None:
+    #         stop_time = datetime.now(timezone.utc)  # 当前时间为 UTC
+    #         # period_seconds = int(granularity[:-1]) * 60 if "m" in granularity else int(granularity[:-1]) * 3600
+    #         # stop_time = now - timedelta(seconds=now.timestamp() % period_seconds) - timedelta(seconds=60)
+    #     if stop_time is not None:
+    #         # 写一段代码，如果现在当前的时间和stop_time的分钟数已经不同了，更新stop_time到当前的时间
+    #         ...
+    #     # 调整结束时间，确保结束时间与整分钟对齐
+    #     # begin_time = adjust_begin_time(begin_time)
+    #     # stop_time = adjust_end_time(stop_time)
+    #
+    #     feed = self.exchange_feeds[exchange_name]
+    #     if begin_time is None and count is not None:
+    #         # 如果没有开始时间，只传入 count，获取最近 count 条数据
+    #         data = feed.get_kline(symbol, granularity, count, extra_data=None)
+    #         data.init_data()
+    #         for bar_data in data.get_data():
+    #             bar_data_list.append(bar_data)
+    #         # self.feed_api.push_bar_data_to_queue(exchange_name, data)
+    #         self.log(f"download completely:{exchange_name}, {symbol}, new {count} bar")
+    #         return bar_data_list
+    #
+    #     if begin_time is not None:
+    #         # 如果未提供结束时间，则默认为当前时间并对齐到period
+    #         # 循环下载数据
+    #         while begin_time < stop_time:
+    #             try:
+    #                 # 计算当前时间段的结束时间
+    #                 time_delta = calculate_time_delta(granularity)
+    #                 current_end_time = min(begin_time + time_delta, stop_time)
+    #
+    #                 # 转换时间戳为毫秒
+    #                 begin_stamp = int(1000.0 * begin_time.timestamp())
+    #                 end_stamp = int(1000.0 * current_end_time.timestamp())
+    #
+    #                 # 下载数据
+    #                 data = feed.get_kline(
+    #                     symbol, granularity, start_time=begin_stamp, end_time=end_stamp, extra_data=None
+    #                 )
+    #                 for bar_data in data.get_data():
+    #                     bar_data_list.append(bar_data)
+    #                 # self.feed_api.push_bar_data_to_queue(exchange_name, data)
+    #                 print(f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
+    #                       f"begin: {begin_time}, end: {current_end_time}")
+    #                 # data.init_data()
+    #                 # # print(data.get_data())
+    #                 # bar_list = []
+    #                 # for bar in data.get_data():
+    #                 #     bar.init_data()
+    #                 #     bar_list.append(bar.get_all_data())
+    #                 # df = pd.DataFrame(bar_list)
+    #                 # # print(df.head())
+    #                 # df['open_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['open_time']]
+    #                 # df['server_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['server_time']]
+    #                 # print(df[['server_time', 'open_time', "close_price", "bar_status"]])
+    #                 # # print(f"print successfully: {symbol}, period: {granularity}")
+    #                 # 更新开始时间
+    #                 begin_time = current_end_time
+    #                 # 如果数据已经下载完成，跳出循环
+    #                 if begin_time >= stop_time:
+    #                     break
+    #             except Exception as e:
+    #                 error_info = traceback.format_exception(e)
+    #                 self.log(f"download fail, retry: {error_info}")
+    #                 time.sleep(3)  # 暂停 3 秒后重试
+    #         print(f"download all data completely:{exchange_name}, {symbol}, period: {granularity}")
+    #     return bar_data_list
     def download_history_bars(self, dataname, granularity, count=100, start_time=None, end_time=None):
         self.log(f"store {self.feed_api.exchange_feeds.keys()}")
         bar_data_list = []
-        exchange,asset_type,symbol = dataname.split("___")
+        exchange, asset_type, symbol = dataname.split("___")
         exchange_name = exchange + "___" + asset_type
+
         def calculate_time_delta(period):
             """根据 period 计算增量时间"""
             time_deltas = {
@@ -244,13 +355,11 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         def parse_time(input_time):
             """解析时间，支持字符串和 datetime 类型，并将时间转换为 UTC"""
             if isinstance(input_time, str):
-                # 假设输入的字符串时间是本地时间
                 local_time = datetime.fromisoformat(input_time)
                 return local_time.astimezone(timezone.utc)
             elif isinstance(input_time, datetime):
-                # 如果是 datetime 类型，确保转换为 UTC
                 if input_time.tzinfo is None:
-                    local_time = input_time.replace(tzinfo=timezone.utc).astimezone()  # 假设为本地时间
+                    local_time = input_time.replace(tzinfo=timezone.utc).astimezone()
                 else:
                     local_time = input_time
                 return local_time.astimezone(timezone.utc)
@@ -259,33 +368,30 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
             else:
                 raise TypeError(f"Unsupported time format: {type(input_time)}")
 
+        def update_stop_time(stop_time):
+            """更新 stop_time 到当前时间，确保实时性"""
+            now = datetime.now(timezone.utc)
+            if stop_time is None or stop_time < now:
+                return now
+            return stop_time
+
         # 解析开始时间和结束时间为 UTC
         begin_time = parse_time(start_time)
         stop_time = parse_time(end_time)
 
-        # 如果没有结束时间，则根据 granularity 对其为当前时间
-        if stop_time is None:
-            stop_time = datetime.now(timezone.utc)  # 当前时间为 UTC
-            # period_seconds = int(granularity[:-1]) * 60 if "m" in granularity else int(granularity[:-1]) * 3600
-            # stop_time = now - timedelta(seconds=now.timestamp() % period_seconds) - timedelta(seconds=60)
-
-        # 调整结束时间，确保结束时间与整分钟对齐
-        # begin_time = adjust_begin_time(begin_time)
-        # stop_time = adjust_end_time(stop_time)
+        # 如果没有结束时间，则根据 granularity 对齐为当前时间
+        stop_time = update_stop_time(stop_time)
 
         feed = self.exchange_feeds[exchange_name]
         if begin_time is None and count is not None:
             # 如果没有开始时间，只传入 count，获取最近 count 条数据
             data = feed.get_kline(symbol, granularity, count, extra_data=None)
             data.init_data()
-            for bar_data in data.get_data():
-                bar_data_list.append(bar_data)
-            # self.feed_api.push_bar_data_to_queue(exchange_name, data)
+            bar_data_list.extend(data.get_data())
             self.log(f"download completely:{exchange_name}, {symbol}, new {count} bar")
             return bar_data_list
 
         if begin_time is not None:
-            # 如果未提供结束时间，则默认为当前时间并对齐到period
             # 循环下载数据
             while begin_time < stop_time:
                 try:
@@ -301,25 +407,13 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     data = feed.get_kline(
                         symbol, granularity, start_time=begin_stamp, end_time=end_stamp, extra_data=None
                     )
-                    for bar_data in data.get_data():
-                        bar_data_list.append(bar_data)
-                    # self.feed_api.push_bar_data_to_queue(exchange_name, data)
-                    print(f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
-                          f"begin: {begin_time}, end: {current_end_time}")
-                    # data.init_data()
-                    # # print(data.get_data())
-                    # bar_list = []
-                    # for bar in data.get_data():
-                    #     bar.init_data()
-                    #     bar_list.append(bar.get_all_data())
-                    # df = pd.DataFrame(bar_list)
-                    # # print(df.head())
-                    # df['open_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['open_time']]
-                    # df['server_time'] = [datetime.fromtimestamp(i // 1000, tz=pytz.UTC) for i in df['server_time']]
-                    # print(df[['server_time', 'open_time', "close_price", "bar_status"]])
-                    # # print(f"print successfully: {symbol}, period: {granularity}")
+                    bar_data_list.extend(data.get_data())
+                    self.log(f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
+                             f"begin: {begin_time}, end: {current_end_time}")
+
                     # 更新开始时间
                     begin_time = current_end_time
+
                     # 如果数据已经下载完成，跳出循环
                     if begin_time >= stop_time:
                         break
@@ -327,7 +421,8 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     error_info = traceback.format_exception(e)
                     self.log(f"download fail, retry: {error_info}")
                     time.sleep(3)  # 暂停 3 秒后重试
-            print(f"download all data completely:{exchange_name}, {symbol}, period: {granularity}")
+
+            self.log(f"download all data completely:{exchange_name}, {symbol}, period: {granularity}")
         return bar_data_list
 
     # def __del__(self):

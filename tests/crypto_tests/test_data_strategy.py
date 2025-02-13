@@ -302,8 +302,8 @@ def test_binance_one_okx_one_data_strategy():
 
 
 if __name__ == '__main__':
-    test_binance_one_data_strategy()  # successfully
-    test_okx_one_data_strategy()  # successfully
-    test_binance_three_data_strategy()
-    test_okx_two_data_strategy()
+    # test_binance_one_data_strategy()  # successfully
+    # test_okx_one_data_strategy()  # successfully
+    # test_binance_three_data_strategy()
+    # test_okx_two_data_strategy()
     test_binance_one_okx_one_data_strategy()
