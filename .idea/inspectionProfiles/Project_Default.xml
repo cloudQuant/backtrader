@@ -4,7 +4,7 @@
     <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
       <option name="ignoredPackages">
         <value>
-          <list size="22">
+          <list size="40">
             <item index="0" class="java.lang.String" itemvalue="typing" />
             <item index="1" class="java.lang.String" itemvalue="pyecharts" />
             <item index="2" class="java.lang.String" itemvalue="spdlog" />
@@ -27,6 +27,24 @@
             <item index="19" class="java.lang.String" itemvalue="ntplib" />
             <item index="20" class="java.lang.String" itemvalue="aiohttp" />
             <item index="21" class="java.lang.String" itemvalue="pytz" />
+            <item index="22" class="java.lang.String" itemvalue="mysqlclient" />
+            <item index="23" class="java.lang.String" itemvalue="dnspython" />
+            <item index="24" class="java.lang.String" itemvalue="greenlet" />
+            <item index="25" class="java.lang.String" itemvalue="Werkzeug" />
+            <item index="26" class="java.lang.String" itemvalue="gunicorn" />
+            <item index="27" class="java.lang.String" itemvalue="Jinja2" />
+            <item index="28" class="java.lang.String" itemvalue="click" />
+            <item index="29" class="java.lang.String" itemvalue="sqlalchemy" />
+            <item index="30" class="java.lang.String" itemvalue="redis" />
+            <item index="31" class="java.lang.String" itemvalue="flask_sqlalchemy" />
+            <item index="32" class="java.lang.String" itemvalue="flask_login" />
+            <item index="33" class="java.lang.String" itemvalue="eventlet" />
+            <item index="34" class="java.lang.String" itemvalue="pymysql" />
+            <item index="35" class="java.lang.String" itemvalue="certifi" />
+            <item index="36" class="java.lang.String" itemvalue="pillow" />
+            <item index="37" class="java.lang.String" itemvalue="charset-normalizer" />
+            <item index="38" class="java.lang.String" itemvalue="flask_sslify" />
+            <item index="39" class="java.lang.String" itemvalue="urllib3" />
           </list>
         </value>
       </option>

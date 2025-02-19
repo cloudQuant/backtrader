@@ -40,8 +40,8 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         self.subscribe_bar_num = 0
         self.cache_bar_dict = {}
         self.bar_queues = {}
-        self.order_queues = {}
-        self.trade_queues = {}
+        self.order_queue = queue.Queue()
+        self.trade_queue = queue.Queue()
         self.feed_api.update_total_balance()
         self.crypto_datas = {}
         self.log(f"value = {self.feed_api.get_total_value()}")
@@ -120,7 +120,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         """处理数据并分发到相应的队列"""
         if self.subscribe_bar_num == self.GetDataNum:
             for exchange_name, data_queue in self.data_queues.items():
-                    # self.log(f"deal data feed, run {exchange_name}, total_keys = {self.data_queues.keys()}")
+                # self.log(f"deal data feed, run {exchange_name}, total_keys = {self.data_queues.keys()}")
                 self._load_cache_data(data_queue)
 
     def _load_cache_data(self,data_queue):
@@ -201,11 +201,10 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     # if bar_status:
                     #     self.log(f"cryptostore dispatch_data_to_queue test {dtime_utc} info: {all_data}")
             elif isinstance(data, OrderData):
-                queues = self.order_queues
-                CryptoStore.dispatch_data_to_queue(data, queues)
+                self.order_queue.put(data)
+
             elif isinstance(data, TradeData):
-                queues = self.trade_queues
-                CryptoStore.dispatch_data_to_queue(data, queues)
+                self.trade_queue.put(data)
             else:
                 data.init_data()
                 self.log(f"un considered info:{data.get_all_data()}")
@@ -305,8 +304,37 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         return bar_data_list
 
 
-    def getcash(self):
-        return self.feed_api.get_total_cash()
+    def getcash(self, cache=True):
+        if cache is True:
+            return self.feed_api.get_total_cash()
+        else:
+            self.feed_api.update_total_balance()
+            return self.feed_api.get_total_cash()
 
-    def getvalue(self):
-        return self.feed_api.get_total_value()
+    def getvalue(self,cache=True):
+        if cache is True:
+            return self.feed_api.get_total_value()
+        else:
+            self.feed_api.update_total_balance()
+            return self.feed_api.get_total_value()
+
+    # 用于获取未成交的订单信息
+    def get_open_orders(self, data=None):
+        pass
+
+    def make_order(self, data, vol, price=None, order_type='buy-limit',
+                   offset='open', post_only=False, client_order_id=None, extra_data=None, **kwargs):
+        exchange_name = data.get_exchange_name()
+        exchange_api = self.exchange_feeds[exchange_name]
+        symbol_name = data.get_symbol_name()
+        print(f"offset = {offset}")
+        return exchange_api.make_order(symbol_name, vol, price, order_type, offset=offset, post_only=post_only,client_order_id=client_order_id, extra_data=extra_data, **kwargs)
+
+    def cancel_order(self, order):
+        exchange_name = order.data.get_exchange_name()
+        exchange_api = self.exchange_feeds[exchange_name]
+        symbol_name = order.data.get_symbol_name()
+        new_order = order.bt_api_data
+        new_order.init_data()
+        order_id = new_order.get_order_id()
+        return exchange_api.cancel_order(symbol_name, order_id)

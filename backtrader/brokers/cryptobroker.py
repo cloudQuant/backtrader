@@ -10,14 +10,15 @@ from backtrader.utils.log_message import SpdLogManager
 
 
 class CryptoOrder(Order):
-    def __init__(self, owner, data, exectype, side, amount, price, ccxt_order):
+    def __init__(self, owner, data, exectype, side, amount, price, data_type, bt_api_data):
         self.owner = owner
         self.data = data
         self.exectype = exectype
         self.ordtype = self.Buy if side == 'buy' else self.Sell
         self.size = float(amount)
         self.price = float(price) if price else None
-        self.ccxt_order = ccxt_order
+        self.data_type = data_type if data_type is not None else "order"
+        self.bt_api_data = bt_api_data
         self.executed_fills = []
         super(CryptoOrder, self).__init__()
 
@@ -71,25 +72,8 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         }
 
     Added new private_end_point method to allow using any private non-unified end point
-
     """
-
-    order_types = {Order.Market: 'market',
-                   Order.Limit: 'limit',
-                   Order.Stop: 'stop',  # stop-loss for kraken, stop for bitmex
-                   Order.StopLimit: 'stop limit'}
-
-    mappings = {
-        'closed_order': {
-            'key': 'status',
-            'value': 'closed'
-        },
-        'canceled_order': {
-            'key': 'status',
-            'value': 'canceled'}
-    }
-
-    def __init__(self, broker_mapping=None, store=None, **kwargs):
+    def __init__(self, store=None, **kwargs):
         super(CryptoBroker, self).__init__()
         self.value = None
         self.cash = None
@@ -98,7 +82,6 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         self.store = None
         self.debug = None
         self.logger = self.init_logger()
-        self.init_broker_mapping(broker_mapping)
         self.init_store(store)
         self.positions = collections.defaultdict(Position)
         self.indent = 4  # For pretty printing dictionaries
@@ -116,16 +99,6 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         self.startingvalue = self.store.getvalue()
         self.log("init store success, debug = {}".format(self.debug))
 
-    def init_broker_mapping(self, broker_mapping):
-        if broker_mapping is not None:
-            try:
-                self.order_types = broker_mapping['order_types']
-            except KeyError:  # Might not want to change the order types
-                pass
-            try:
-                self.mappings = broker_mapping['mappings']
-            except KeyError:  # might not want to change the mappings
-                pass
 
     def init_logger(self):
         if self.debug:
@@ -149,17 +122,8 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         else:
             pass
 
-    def get_balance(self):
-        self.store.update_balance()
-        self.cash = self.store.get_cash()
-        self.value = self.store.get_value()
-        return self.cash, self.value
-
-    def get_wallet_balance(self, currency_list):
-        return self.store.get_wallet_balance(currency_list)
-
-    def getcash(self, data = None):
-        cash = self.store.getcash()
+    def getcash(self, data = None, cache=True):
+        cash = self.store.getcash(cache=cache)
         if data is None:
             data = self.cerebro.datas[0]
         if data is not None:
@@ -174,8 +138,8 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
                     return cash
         return cash
 
-    def getvalue(self, data = None):
-        value = self.store.getvalue()
+    def getvalue(self, data = None, cache=True):
+        value = self.store.getvalue(cache=cache)
         if data is None:
             data = self.cerebro.datas[0]
         if data is not None:
@@ -201,172 +165,167 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
 
     def getposition(self, data, clone=True):
         # return self.o.getposition(data._dataname, clone=clone)
-        pos = self.positions[data._dataname]
+        pos = self.positions[data.get_name()]
         if clone:
             pos = pos.clone()
         return pos
 
     def next(self):
-        # if self.debug:
-        #     self.log('Broker next() called, debug = {}'.format(self.debug))
-        # self.store.update_balance()
-        # print("broker next() called debug = {}".format(self.debug))
         # ===========================================
         # 每隔3秒操作一下
         nts = datetime.now().timestamp()
-        if nts - self._last_op_time < 3:
+        if nts - self._last_op_time < 1:
             return
         self._last_op_time = nts
         # ===========================================
         self._next()
 
     def _next(self):
-        """
-        1. 对于现货,不要使用市价单,只使用限价单,需要市价单时候也用限价单去模拟,因为有些交易所的市价单的size字段是金额,backtrader
-        没考虑这种情况会出错,所以这里不适配市价单
-        2. 对于期货,不支持中国期货同一标的同时开多仓和空仓,因为backtrader没考虑这种情况,所以这里我们同一标的同一时间只支持一个方向的仓位
-        """
-        for o_order in list(self.open_orders):
-            oID = o_order.ccxt_order['id']
+        # 从store中获取order信息, trade信息, position信息, account信息,并传递给strategy
+        while True:
+            try:
+                data = self.store.order_queue.get(block=False)  # 不阻塞
+            except queue.Empty:
+                break  # no data in the queue
+            order = self.convert_bt_api_order_to_backtrader_order(data)
+            self.notify(order)
+        while True:
+            try:
+                data = self.store.trade_queue.get(block=False)
+            except queue.Empty:
+                break
+            trade = self.convert_bt_api_trade_to_backtrader_trade(data)
+            self.notify(trade)
 
-            # Print debug before fetching so we know which order is giving an
-            # issue if it crashes
-            if self.debug:
-                print('Fetching Order ID: {}'.format(oID))
+    def getdatabyname(self, name):
+        for data in self.cerebro.datas:
+            print(data.get_name(), name)
+            if data.get_name() == name:
+                return data
+        return None
 
-            # Get the order
-            ccxt_order = self.store.fetch_order(oID, o_order.data.p.dataname)
-            status = ccxt_order['status']
 
-            # Check for new fills
-            if 'trades' in ccxt_order and ccxt_order['trades'] is not None:  # 判断此订单是否有成交
-                for fill in ccxt_order['trades']:  # 遍历此订单的所有成交
-                    if fill not in o_order.executed_fills:  # 该成交是否被处理
-                        fill_id, fill_dt, fill_size, fill_price = fill['id'], fill['datetime'], fill['amount'], fill[
-                            'price']
-                        o_order.executed_fills.append(fill_id)  # 记录该成交已经被处理
-                        fill_size = fill_size if o_order.isbuy() else -fill_size  # 满足backtrader规范,卖单或空头仓位用负数表示
-                        o_order.execute(fill_dt, fill_size, fill_price,
-                                        0, 0.0, 0.0,
-                                        0, 0.0, 0.0,
-                                        0.0, 0.0,
-                                        0, 0.0)  # 处理该成交,内部会标注订单状态,部分成交还是完全成交
-                        # 准备通知上层策略
-                        # self.get_balance() #刷新账户余额 (余额不再更新,减少通信提高性能,可以在策略中根据需要自主去更新)
-                        pos = self.getposition(o_order.data, clone=False)  # 获取对应仓位
-                        pos.update(fill_size, fill_price)  # 刷新仓位
-                        # -------------------------------------------------------------------
-                        # 用order.executed.remsize判断是否全部成交在市价买单的情况下可能不靠谱,所以用如下代码判断是否部分或者全部成交
-                        if status == 'open':  # 有成交的情况下状态仍然是open的话那肯定是部分成交
-                            o_order.partial()
-                        elif status == 'closed':  # 有成交的情况下如果状态是closed那意味着全部成交
-                            o_order.completed()
-                        # -------------------------------------------------------------------
-                        self.notify(o_order.clone())  # 通知策略
-            else:
-                fill_dt, cum_fill_size, average_fill_price = ccxt_order['timestamp'], ccxt_order['filled'], ccxt_order[
-                    'average']
-                if cum_fill_size > abs(o_order.executed.size):  # 判断本次是否有新的成交
-                    new_cum_fill_value = cum_fill_size * average_fill_price  # 累计成交数量*平均成交价=累计成交总价值
-                    old_cum_fill_value = abs(o_order.executed.size) * o_order.executed.price
-                    fill_value = new_cum_fill_value - old_cum_fill_value  # 本次新成交的价值
-                    fill_size = cum_fill_size - abs(o_order.executed.size)  # 本次新成交的数量
-                    fill_price = fill_value / fill_size  # 本次新成交的价格
-                    fill_size = fill_size if o_order.isbuy() else -fill_size  # 满足backtrader规范,卖单或空头仓位用负数表示
-                    o_order.execute(fill_dt, fill_size, fill_price,
-                                    0, 0.0, 0.0,
-                                    0, 0.0, 0.0,
-                                    0.0, 0.0,
-                                    0, 0.0)  # 处理该成交,内部会标注订单状态,部分成交还是完全成交
-                    # 准备通知上层策略
-                    # self.get_balance() #刷新账户余额 (余额不再更新,减少通信提高性能,可以在策略中根据需要自主去更新)
-                    pos = self.getposition(o_order.data, clone=False)  # 获取对应仓位
-                    pos.update(fill_size, fill_price)  # 刷新仓位
-                    # -------------------------------------------------------------------
-                    # 用order.executed.remsize判断是否全部成交在市价买单的情况下可能不靠谱,所以用如下代码判断是否部分或者全部成交
-                    if status == 'open':  # 有成交的情况下状态仍然是open的话那肯定是部分成交
-                        o_order.partial()
-                    elif status == 'closed':  # 有成交的情况下如果状态是closed那意味着全部成交
-                        o_order.completed()
-                    # -------------------------------------------------------------------
-                    self.notify(o_order.clone())  # 通知策略
+    def convert_bt_api_order_to_backtrader_order(self, data):
+        data.init_data()
+        exchange_name = data.get_exchange_name()
+        symbol_name = data.get_symbol_name()
+        if "-" not in symbol_name:
+            if "USDT" in symbol_name:
+                symbol_name = symbol_name.replace("USDT", "-USDT")
+        asset_type = data.get_asset_type()
+        data_name = exchange_name + "___" + asset_type + "___" + symbol_name
+        exectype = data.get_order_type()
+        order_side = data.get_order_side()
+        order_amount = data.get_order_size()
+        order_price = data.get_order_price()
+        trade_data = self.getdatabyname(data_name)
+        return CryptoOrder(None, trade_data, exectype, order_side, order_amount, order_price, "order", data)
 
-            if self.debug:
-                print(json.dumps(ccxt_order, indent=self.indent))
+    def convert_bt_api_trade_to_backtrader_trade(self, data):
+        data.init_data()
+        exchange_name = data.get_exchange_name()
+        symbol_name = data.get_symbol_name()
+        if "-" not in symbol_name:
+            if "USDT" in symbol_name:
+                symbol_name = symbol_name.replace("USDT", "-USDT")
+        asset_type = data.get_asset_type()
+        data_name = exchange_name + "___" + asset_type + "___" + symbol_name
+        exectype = data.get_trade_type()
+        trade_volume = data.get_trade_volume()
+        price = data.get_price()
+        trade_data = self.getdatabyname(data_name)
+        return CryptoOrder(None, trade_data, exectype, exectype, trade_volume, price, "trade", data)
 
-            # Check if the order is closed
-            if status == 'closed':
-                # 如果该订单全部成交完成就是此状态,因为上面已经通知过策略,所以这里不再重复通知
-                self.open_orders.remove(o_order)
-            elif status == 'canceled':
-                # 考虑两种情况:用户下了限价单没有成交,直接取消了,用户下了限价单部分成交,然后再取消
-                # self.get_balance() #刷新账户余额 (余额不再更新,减少通信提高性能,可以在策略中根据需要自主去更新)
-                o_order.cancel()  # 标注订单为取消状态
-                self.notify(o_order.clone())  # 通知策略
-                self.open_orders.remove(o_order)
-
-    def _submit(self, owner, data, exectype, side, amount, price, params):
-        order_type = self.order_types.get(exectype) if exectype else 'market'
-        created = int(data.datetime.datetime(0).timestamp() * 1000)
-        # Extract CCXT specific params if passed to the order
-        params = params['params'] if 'params' in params else params
-        params['created'] = created  # Add timestamp of order creation for backtesting
-        ret_ord = self.store.create_order(symbol=data.p.dataname, order_type=order_type, side=side, amount=amount,
-                                          price=price, params=params)
-        order = CryptoOrder(owner, data, exectype, side, amount, price, ret_ord)
-        self.open_orders.append(order)
-        self.notify(order.clone())  # 先发一个订单创建通知
-        self._next()  # 然后判断订单是否已经成交,有成交就发通知
+    def _submit(self, owner, data, size, side=None, price=None, plimit=None,
+            exectype=None, valid=None, tradeid=0, oco=None,
+            trailamount=None, trailpercent=None,
+            **kwargs):
+        order_type = side + "-" + exectype
+        ret_ord = self.store.make_order(data, size, price=price, order_type=order_type,
+                                        **kwargs)
+        order = CryptoOrder(owner, data, exectype, side, size, price, "order", ret_ord)
+        # self.open_orders.append(order)
+        # self.notify(order.clone())  # 先发一个订单创建通知
+        # self._next()  # 然后判断订单是否已经成交,有成交就发通知
         return order
 
+    # 买入下单
     def buy(self, owner, data, size, price=None, plimit=None,
             exectype=None, valid=None, tradeid=0, oco=None,
             trailamount=None, trailpercent=None,
             **kwargs):
-        del kwargs['parent']
-        del kwargs['transmit']
-        return self._submit(owner, data, exectype, 'buy', size, price, kwargs)
+        kwargs.pop('parent', None)
+        kwargs.pop('transmit', None)
+        return self._submit(owner, data, size, 'buy', price, exectype=exectype, **kwargs)
 
+    # 卖出下单
     def sell(self, owner, data, size, price=None, plimit=None,
              exectype=None, valid=None, tradeid=0, oco=None,
              trailamount=None, trailpercent=None,
              **kwargs):
-        del kwargs['parent']
-        del kwargs['transmit']
-        return self._submit(owner, data, exectype, 'sell', size, price, kwargs)
+        kwargs.pop('parent', None)
+        kwargs.pop('transmit', None)
+        return self._submit(owner, data, size, 'sell', price, exectype=exectype, **kwargs)
 
+    # 取消未成交的某个订单
     def cancel(self, order):
+        self.store.cancel_order(order)
 
-        oID = order.ccxt_order['id']
 
-        if self.debug:
-            print('Broker cancel() called')
-            print('Fetching Order ID: {}'.format(oID))
+    # 用于平掉所有的仓位
+    def close(self, owner, data):
+        pass
 
-        # check first if the order has already been filled, otherwise an error
-        # might be raised if we try to cancel an order that is not open.
-        ccxt_order = self.store.fetch_order(oID, order.data.p.dataname)
+    # 用户通过这个接口获取未成交的订单信息
+    def get_open_orders(self, data=None, cache=True):
+        if cache:
+            return self.open_orders
+        else:
+            return self.store.get_open_orders(data)
 
-        if self.debug:
-            print(json.dumps(ccxt_order, indent=self.indent))
+    # def getposition(self, data, clone=True):
+    #     pos = self.positions[data._dataname]
+    #     if clone:
+    #         pos = pos.clone()
+    #     return pos
+    #
+    # def orderstatus(self, order):
+    #     o = self.orders[order.ref]
+    #     return o.status
+    #
+    # def _submit(self, oref):
+    #     order = self.orders[oref]
+    #     order.submit(self)
+    #     self.notify(order)
+    #
+    # def _reject(self, oref):
+    #     order = self.orders[oref]
+    #     order.reject(self)
+    #     self.notify(order)
+    #
+    # def _accept(self, oref):
+    #     order = self.orders[oref]
+    #     order.accept()
+    #     self.notify(order)
+    #
+    # def _cancel(self, oref):
+    #     order = self.orders[oref]
+    #     order.cancel()
+    #     self.notify(order)
+    #
+    # def _expire(self, oref):
+    #     order = self.orders[oref]
+    #     order.expire()
+    #     self.notify(order)
+    #
+    # def notify(self, order):
+    #     self.notifs.append(order.clone())
+    #
+    # def get_notification(self):
+    #     if not self.notifs:
+    #         return None
+    #     return self.notifs.popleft()
 
-        if ((ccxt_order[self.mappings['closed_order']['key']] == self.mappings['closed_order']['value']) or
-                (ccxt_order[self.mappings['canceled_order']['key']] == self.mappings['canceled_order']['value'])):
-            return order
+    # def next(self):
+    #     self.notifs.append(None)  # mark notification boundary
 
-        ccxt_order = self.store.cancel_order(oID, order.data.p.dataname)
-
-        if self.debug:
-            print(json.dumps(ccxt_order, indent=self.indent))
-            print('Value Received: {}'.format(ccxt_order[self.mappings['canceled_order']['key']]))
-            print('Value Expected: {}'.format(self.mappings['canceled_order']['value']))
-
-        # 统一在next函数中处理策略通知
-        self._next()
-        if ccxt_order['status'] == 'canceled':
-            order.cancel()
-
-        return order
-
-    def get_orders_open(self, safe=False):
-        return self.store.fetch_open_orders()

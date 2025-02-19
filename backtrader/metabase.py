@@ -222,6 +222,9 @@ class AutoInfoClass(object):
         # 获取cls的name的属性值
         return getattr(self, name, default)
 
+    def get(self, name, default=None):
+        return self._get(name, default)
+
     @classmethod
     def _getkwargsdefault(cls):
         # 获取cls的信息

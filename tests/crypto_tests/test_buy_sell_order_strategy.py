@@ -1,9 +1,10 @@
-
 import backtrader as bt
 from datetime import datetime, timedelta, UTC
 import json
 import pytz
 from tzlocal import get_localzone
+
+from backtrader import Trade, Order
 from backtrader.stores.cryptostore import CryptoStore
 from backtrader.feeds.cryptofeed import CryptoFeed
 from backtrader.brokers.cryptobroker import CryptoBroker
@@ -24,87 +25,74 @@ def get_from_time_and_end_time():
     # 返回从当前时间的前一小时到当前时间的范围
     return utc_time - timedelta(hours=1), utc_time
 
-class TestStrategy(bt.Strategy):
+class TestStrategy(bt.BtApiStrategy):
+    params = (("period", 22), ("log_file_name", "buy_sell_cancel_order.log"))
 
     def __init__(self):
-        self.logger = self.init_logger()
-        self.sma_dict = {data.get_name(): bt.indicators.SMA(data, period=21) for data in self.datas}
-        self.update_ma = False
-        self.init_cash = None
-        self.init_value = None
-        self.init_ma = None
-        self.update_cash = False
-        self.update_value = False
+        super().__init__()
+        self.ma_dict = {data.get_name(): bt.indicators.SMA(data, period=self.p.period)
+                        for data in self.datas}
         self.now_live_data = False
         self.live_bar_num = 0
-
-    def init_logger(self):
-        logger = SpdLogManager(file_name=self.__class__.__name__+".log",
-                               logger_name="strategy",
-                               print_info=True).create_logger()
-        return logger
-
-    def log(self, txt):
-        self.logger.info(txt)
+        self.create_order = False
+        self.cancel_order = False
 
     def next(self):
-
-        # Get cash and balance
-        # New broker method that will let you get the cash and balance for
-        # any wallet. It also means we can disable the getcash() and getvalue()
-        # rest calls before and after next which slows things down.
-
-        # NOTE: If you try to get the wallet balance from a wallet you have
-        # never funded, a KeyError will be raised! Change LTC below as approriate
-        # if self.live_data:
-        #     cash, value = self.broker.get_wallet_balance('USDT')
-        # else:
-        #     # Avoid checking the balance during a backfill. Otherwise, it will
-        #     # Slow things down.
-        #     cash = 'NA'
-
         for data in self.datas:
             cash = self.broker.getcash(data)
             value = self.broker.getvalue(data)
-            # now_time = bt.num2date(data.datetime[0]).astimezone()   # 先将数字时间转换为无时区的 datetime 对象
+            now_close = data.close[0]
             now_time = bt.num2date(data.datetime[0], tz=get_localzone())
-            now_ma = self.sma_dict[data.get_name()][0]
-            self.log(f"{data.get_name()}, {now_time}, cash = {round(cash)}, value = {round(value)}, {data.close[0]}, {round(now_ma,2)}")
-
-            if self.init_ma is None:
-                self.init_ma = now_ma
+            ma_indicator = self.ma_dict[data.get_name()]
+            now_ma = ma_indicator[0]
+            pre_ma = ma_indicator[-1]
+            self.log(
+                f"{data.get_name()}, {now_time}, cash = {round(cash)}, value = {round(value)}, {data.close[0]}, {round(now_ma, 2)}")
+            if not self.now_live_data:
+                return
+            if now_ma > pre_ma:
+                self.log("begin to make a long order")
+                self.buy(data, 5, round(now_close*0.95, 4),  exectype='limit')
             else:
-                if now_ma != self.init_ma:
-                    self.update_ma = True
-            # check cash whether update
-            if self.init_cash is None:
-                self.init_cash = cash
-            else:
-                if cash != self.init_cash:
-                    self.update_cash = True
-
-            # check value whether update
-            if self.init_value is None:
-                self.init_value = value
-            else:
-                if value != self.init_value:
-                    self.update_value = True
+                self.log("begin to make a short order")
+                self.sell(data, 5, round(now_close*1.05, 4),  exectype='limit')
 
         if self.now_live_data:
             self.live_bar_num += 1
 
-        if self.live_bar_num == 3:
+        if self.create_order and self.cancel_order:
             # self.envs.stop()
+            # self.close()
             self.env.runstop()  # Stop the backtest
 
+    def notify_order(self, order):
+        data = order.data
+        data_name = data.get_name()
+        new_order = order.bt_api_data
+        new_order.init_data()
+        order_status = new_order.get_order_status()
+        print(data_name, new_order)
+        if order_status == "NEW":
+            self.create_order = True
+            self.broker.cancel(order)
+        if order_status == "CANCELED":
+            self.cancel_order = True
 
+
+    def notify_trade(self, trade):
+        # 一个trade结束的时候输出信息
+        data = trade.data
+        data_name = data.get_name()
+        new_trade = trade.bt_api_data
+        print(data_name, new_trade)
 
     def notify_data(self, data, status, *args, **kwargs):
         dn = data.get_name()
         dt = datetime.now()
-        msg= '{}, {} Data Status: {}'.format(dt, dn, data._getstatusname(status))
+        new_status = data._getstatusname(status)
+        msg= '{}, {} Data Status: {}'.format(dt, dn, new_status)
         self.log(msg)
-        if data._getstatusname(status) == 'LIVE':
+        if new_status == 'LIVE':
             self.live_data = True
             self.now_live_data = True
         else:
@@ -130,12 +118,12 @@ def test_binance_ma():
     fromdate, todate = get_from_time_and_end_time()
     data3 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
-                                 dataname="BINANCE___SWAP___BTC-USDT",
+                                 dataname="BINANCE___SWAP___OP-USDT",
                                  fromdate=fromdate,
                                  todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
-    cerebro.adddata(data3, name="BINANCE___SWAP___BTC-USDT")
+    cerebro.adddata(data3, name="BINANCE___SWAP___OP-USDT")
 
     broker = CryptoBroker(store=crypto_store)
     cerebro.setbroker(broker)
@@ -145,9 +133,9 @@ def test_binance_ma():
     # 获取第一个策略实例
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
-    # assert strategy_instance.update_cash is True
-    # assert strategy_instance.update_value is True
-    assert strategy_instance.update_ma is True
+    assert strategy_instance.create_order is True
+    assert strategy_instance.cancel_order is True
+
 
 def test_okx_ma():
     cerebro = bt.Cerebro(quicknotify=True)
@@ -180,9 +168,7 @@ def test_okx_ma():
     # 获取第一个策略实例
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
-    # assert strategy_instance.update_cash is True
-    # assert strategy_instance.update_value is True
-    assert strategy_instance.update_ma is True
+
 
 
 def test_okx_and_binance():
@@ -229,9 +215,9 @@ def test_okx_and_binance():
     # 获取第一个策略实例
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
-    # assert strategy_instance.update_cash is True
-    # assert strategy_instance.update_value is True
-    assert strategy_instance.update_ma is True
+    assert strategy_instance.create_order is True
+    assert strategy_instance.cancel_order is True
+
 
 if __name__ == '__main__':
     test_binance_ma()

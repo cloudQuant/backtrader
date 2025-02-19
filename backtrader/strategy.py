@@ -35,6 +35,7 @@ from .lineseries import LineSeriesStub
 from .metabase import ItemCollection, findowner
 from .trade import Trade
 from .utils import OrderedDict, AutoOrderedDict, AutoDictList
+from backtrader.utils.log_message import SpdLogManager
 
 # 策略元类，用于策略创建的时候进行一些处理
 class MetaStrategy(StrategyBase.__class__):
@@ -2007,3 +2008,28 @@ class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
             if ls_short or s_enter:
                 if self.p._accumulate:
                     self._sentinel = self.sell(self._dtarget)
+
+
+class BtApiStrategy(Strategy):
+    def __init__(self):
+        self.logger = self.init_logger(self.p.get("log_file_name", None))
+
+    def init_logger(self, log_file_name=None):
+        if log_file_name is None:
+            logger = SpdLogManager(file_name=self.__class__.__name__+".log",
+                               logger_name="strategy",
+                               print_info=True).create_logger()
+        else:
+            logger = SpdLogManager(file_name=log_file_name,
+                                   logger_name="strategy",
+                                   print_info=True).create_logger()
+        return logger
+
+    def log(self, txt):
+        self.logger.info(txt)
+
+    def _addnotification(self, data, quicknotify=True):
+        if data.data_type == "order":
+            self.notify_order(data)
+        if data.data_type == "trade":
+            self.notify_trade(data)

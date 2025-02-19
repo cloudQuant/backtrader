@@ -1,6 +1,4 @@
 @echo off
-SETLOCAL
-
 :: 切换到上一级目录
 echo Switching to the parent directory...
 cd ..
@@ -75,11 +73,11 @@ IF EXIST %EGG_INFO_DIR% (
 :: 运行 backtrader 测试用例，使用 4 个进程并行测试
 echo Running backtrader tests...
 :: pytest tests -n 4
-:: pytest --ignore=tests/crypto_tests tests -n 8
+pytest --ignore=tests/crypto_tests tests -n 8
 :: python tests/crypto_tests/test_binance_ma.py
 :: python tests/crypto_tests/test_base_funding_rate.py
 :: python tests/crypto_tests/test_data_strategy.py
-python tests\crypto_tests\test_data_ma.py"
+:: python tests\crypto_tests\test_data_ma.py"
 
 IF %ERRORLEVEL% NEQ 0 (
     echo Test cases failed.
