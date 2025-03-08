@@ -10,6 +10,7 @@ from backtrader.feeds.cryptofeed import CryptoFeed
 from backtrader.brokers.cryptobroker import CryptoBroker
 from backtrader.utils.log_message import SpdLogManager
 from bt_api_py.functions.utils import read_yaml_file
+from bt_api_py.containers.orders.order import OrderStatus
 
 
 def get_from_time_and_end_time():
@@ -32,10 +33,11 @@ class TestStrategy(bt.BtApiStrategy):
         super().__init__()
         self.ma_dict = {data.get_name(): bt.indicators.SMA(data, period=self.p.period)
                         for data in self.datas}
+
         self.now_live_data = False
         self.live_bar_num = 0
-        self.create_order = False
-        self.cancel_order = False
+        self.create_order_dict = {data.get_name(): False for data in self.datas}
+        self.cancel_order_dict = {data.get_name(): False for data in self.datas}
 
     def next(self):
         for data in self.datas:
@@ -52,18 +54,20 @@ class TestStrategy(bt.BtApiStrategy):
                 return
             if now_ma > pre_ma:
                 self.log("begin to make a long order")
-                self.buy(data, 5, round(now_close*0.95, 4),  exectype='limit')
+                self.buy(data, 6, round(now_close*0.95, 4),  exectype='limit')
+                self.log("make order completely")
             else:
                 self.log("begin to make a short order")
-                self.sell(data, 5, round(now_close*1.05, 4),  exectype='limit')
+                self.sell(data, 6, round(now_close*1.05, 4),  exectype='limit')
+                self.log("make order completely")
 
         if self.now_live_data:
             self.live_bar_num += 1
 
-        if self.create_order and self.cancel_order:
-            # self.envs.stop()
-            # self.close()
-            self.env.runstop()  # Stop the backtest
+        # if self.create_order and self.cancel_order:
+        #     # self.envs.stop()
+        #     # self.close()
+        #     self.env.runstop()  # Stop the backtest
 
     def notify_order(self, order):
         data = order.data
@@ -71,12 +75,21 @@ class TestStrategy(bt.BtApiStrategy):
         new_order = order.bt_api_data
         new_order.init_data()
         order_status = new_order.get_order_status()
-        print(data_name, new_order)
-        if order_status == "NEW":
-            self.create_order = True
+        print("notify_order", data_name, new_order)
+        print("order_status", order_status, type(order_status))
+        if order_status == OrderStatus.ACCEPTED:
+            print("notify_order begin to cancel order")
+            self.create_order_dict[data_name] = True
             self.broker.cancel(order)
-        if order_status == "CANCELED":
-            self.cancel_order = True
+        if order_status == OrderStatus.CANCELED:
+            print("notify_order cancel order succeeded")
+            self.cancel_order_dict[data_name] = True
+            stop = True
+            for key in self.cancel_order_dict:
+                if not self.cancel_order_dict[key]:
+                    stop = False
+            if stop:
+                self.env.runstop()
 
 
     def notify_trade(self, trade):
@@ -103,7 +116,7 @@ def get_account_config():
     return account_config_data
 
 
-def test_binance_ma():
+def test_binance_buy_sell_order():
     cerebro = bt.Cerebro(quicknotify=True)
     # Add the strategy
     cerebro.addstrategy(TestStrategy)
@@ -133,11 +146,13 @@ def test_binance_ma():
     # 获取第一个策略实例
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
-    assert strategy_instance.create_order is True
-    assert strategy_instance.cancel_order is True
+    for cancel_order in strategy_instance.cancel_order_dict.values():
+        assert cancel_order is True
+    for create_order in strategy_instance.create_order_dict.values():
+        assert create_order is True
 
 
-def test_okx_ma():
+def test_okx_buy_and_sell():
     cerebro = bt.Cerebro(quicknotify=True)
     # Add the strategy
     cerebro.addstrategy(TestStrategy)
@@ -149,16 +164,18 @@ def test_okx_ma():
             "passphrase": account_config_data['okx']["passphrase"],
         }
     }
+    print(exchange_params)
     crypto_store = CryptoStore(exchange_params, debug=True)
+    print(crypto_store.kwargs)
     fromdate, todate = get_from_time_and_end_time()
     data3 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
-                                 dataname="OKX___SWAP___BTC-USDT",
+                                 dataname="OKX___SWAP___OP-USDT",
                                  fromdate=fromdate,
                                  todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
-    cerebro.adddata(data3, name="OKX___SWAP___BTC-USDT")
+    cerebro.adddata(data3, name="OKX___SWAP___OP-USDT")
 
     broker = CryptoBroker(store=crypto_store)
     cerebro.setbroker(broker)
@@ -168,10 +185,13 @@ def test_okx_ma():
     # 获取第一个策略实例
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
+    for cancel_order in strategy_instance.cancel_order_dict.values():
+        assert cancel_order is True
+    for create_order in strategy_instance.create_order_dict.values():
+        assert create_order is True
 
 
-
-def test_okx_and_binance():
+def test_okx_and_binance_buy_sell_order():
     cerebro = bt.Cerebro(quicknotify=True)
     # Add the strategy
     cerebro.addstrategy(TestStrategy)
@@ -191,21 +211,21 @@ def test_okx_and_binance():
     fromdate, todate = get_from_time_and_end_time()
     data1 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
-                                 dataname="BINANCE___SWAP___BNB-USDT",
+                                 dataname="BINANCE___SWAP___OP-USDT",
                                  fromdate=fromdate,
                                  todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
-    cerebro.adddata(data1, name="BINANCE___SWAP___BNB-USDT")
+    cerebro.adddata(data1, name="BINANCE___SWAP___OP-USDT")
 
     data2 = crypto_store.getdata(store=crypto_store,
                                  debug=True,
-                                 dataname="OKX___SWAP___BTC-USDT",
+                                 dataname="OKX___SWAP___OP-USDT",
                                  fromdate=fromdate,
                                  todate=todate,
                                  timeframe=bt.TimeFrame.Minutes,
                                  compression=1)
-    cerebro.adddata(data2, name="OKX___SWAP___BTC-USDT")
+    cerebro.adddata(data2, name="OKX___SWAP___OP-USDT")
 
     broker = CryptoBroker(store=crypto_store)
     cerebro.setbroker(broker)
@@ -215,11 +235,16 @@ def test_okx_and_binance():
     # 获取第一个策略实例
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
-    assert strategy_instance.create_order is True
-    assert strategy_instance.cancel_order is True
+    for cancel_order in strategy_instance.cancel_order_dict.values():
+        assert cancel_order is True
+    for create_order in strategy_instance.create_order_dict.values():
+        assert create_order is True
 
 
 if __name__ == '__main__':
-    test_binance_ma()
-    # test_okx_ma()
-    # test_okx_and_binance()
+    print("--------------进行第一个测试-------------------")
+    test_binance_buy_sell_order()
+    print("--------------进行第二个测试-------------------")
+    test_okx_buy_and_sell()
+    print("--------------进行第三个测试-------------------")
+    test_okx_and_binance_buy_sell_order()

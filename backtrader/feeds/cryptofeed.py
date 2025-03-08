@@ -102,7 +102,14 @@ class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
 
     def subscribe_live_bars(self):
         if not self.p.historical:
-            topics = [{"topic": "kline", "symbol": self.symbol, "period": self.period}]
+            if self.exchange_name == 'OKX':
+                topics = [{"topic": "kline", "symbol": self.symbol, "period": self.period},
+                          {"topic": "orders", "symbol":  self.symbol},
+                          {"topic": "positions", "symbol": self.symbol},
+                          ]
+            else:
+                topics = [{"topic": "kline", "symbol": self.symbol, "period": self.period}
+                          ]
             self.store.feed_api.subscribe(self.p.dataname, topics)
             self.log("subscribe {} topics: {} successfully".format(self.p.dataname, topics))
 

@@ -22,7 +22,7 @@ def get_from_time_and_end_time():
     return utc_time - timedelta(hours=1), utc_time
 
 
-class TestStrategy(bt.Strategy):
+class TestStrategy(bt.BtApiStrategy):
     def __init__(self):
         super().__init__()
         self.next_runs = 0
@@ -297,8 +297,8 @@ def test_binance_one_okx_one_data_strategy():
 
 
 if __name__ == '__main__':
-    # test_binance_one_data_strategy()  # successfully
-    # test_okx_one_data_strategy()  # successfully
-    # test_binance_three_data_strategy()
-    # test_okx_two_data_strategy()
+    test_binance_one_data_strategy()  # successfully
+    test_okx_one_data_strategy()  # successfully
+    test_binance_three_data_strategy()
+    test_okx_two_data_strategy()
     test_binance_one_okx_one_data_strategy()

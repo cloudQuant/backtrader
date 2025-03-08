@@ -24,9 +24,10 @@ def get_from_time_and_end_time():
     # 返回从当前时间的前一小时到当前时间的范围
     return utc_time - timedelta(hours=1), utc_time
 
-class TestStrategy(bt.Strategy):
+class TestStrategy(bt.BtApiStrategy):
 
     def __init__(self):
+        super().__init__()
         self.logger = self.init_logger()
         self.sma_dict = {data.get_name(): bt.indicators.SMA(data, period=21) for data in self.datas}
         self.update_ma = False
@@ -37,15 +38,6 @@ class TestStrategy(bt.Strategy):
         self.update_value = False
         self.now_live_data = False
         self.live_bar_num = 0
-
-    def init_logger(self):
-        logger = SpdLogManager(file_name=self.__class__.__name__+".log",
-                               logger_name="strategy",
-                               print_info=True).create_logger()
-        return logger
-
-    def log(self, txt):
-        self.logger.info(txt)
 
     def next(self):
 
@@ -234,6 +226,6 @@ def test_okx_and_binance():
     assert strategy_instance.update_ma is True
 
 if __name__ == '__main__':
-    test_binance_ma()
-    # test_okx_ma()
+    # test_binance_ma()
+    test_okx_ma()
     # test_okx_and_binance()

@@ -85,9 +85,17 @@ if [ -d "$BENCHMARKS_DIR" ]; then
 fi
 
 # Delete all .log files
+# 删除所有 .log 文件
 echo "Deleting all .log files..."
 find . -type f -name "*.log" -exec rm -f {} \;
 echo "All .log files deleted."
+
+# 删除名为 logs 的文件夹及其内容
+echo "Deleting logs folder if it exists..."
+rm -rf logs
+echo "Logs folder deleted if it existed."
+
+echo "Operation completed."
 
 # Script completed
 echo "Script execution completed!"

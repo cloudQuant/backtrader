@@ -21,6 +21,12 @@ pytest-sugar
 pytest-cov
 pytest-picked
 pytest-xdist
+pytest-asyncio
+pytest-xdist
+pytest-html
+pytest-ordering
+pytest-mock
+requests-mock
 dash
 ctpbee
 akshare

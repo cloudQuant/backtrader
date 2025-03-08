@@ -80,7 +80,7 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         self.startingvalue = None
         self.startingcash = None
         self.store = None
-        self.debug = None
+        self.debug = kwargs.get("debug", True)
         self.logger = self.init_logger()
         self.init_store(store)
         self.positions = collections.defaultdict(Position)
@@ -212,6 +212,11 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         if "-" not in symbol_name:
             if "USDT" in symbol_name:
                 symbol_name = symbol_name.replace("USDT", "-USDT")
+        if "-SWAP" in symbol_name:
+            symbol_name = symbol_name.replace("-SWAP", "")
+        if "-SPOT" in symbol_name:
+            symbol_name = symbol_name.replace("-SPOT", "")
+
         asset_type = data.get_asset_type()
         data_name = exchange_name + "___" + asset_type + "___" + symbol_name
         exectype = data.get_order_type()
@@ -219,6 +224,7 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         order_amount = data.get_order_size()
         order_price = data.get_order_price()
         trade_data = self.getdatabyname(data_name)
+        self.log(f"data_name = {data_name}, order_side = {order_side}, order_price = {order_price}")
         return CryptoOrder(None, trade_data, exectype, order_side, order_amount, order_price, "order", data)
 
     def convert_bt_api_trade_to_backtrader_trade(self, data):
@@ -228,6 +234,11 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
         if "-" not in symbol_name:
             if "USDT" in symbol_name:
                 symbol_name = symbol_name.replace("USDT", "-USDT")
+        if "-SWAP" in symbol_name:
+            symbol_name = symbol_name.replace("-SWAP", "")
+        if "-SPOT" in symbol_name:
+            symbol_name = symbol_name.replace("-SPOT", "")
+
         asset_type = data.get_asset_type()
         data_name = exchange_name + "___" + asset_type + "___" + symbol_name
         exectype = data.get_trade_type()
@@ -240,6 +251,7 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
             exectype=None, valid=None, tradeid=0, oco=None,
             trailamount=None, trailpercent=None,
             **kwargs):
+        self.log("crypto broker begin to submit order")
         order_type = side + "-" + exectype
         ret_ord = self.store.make_order(data, size, price=price, order_type=order_type,
                                         **kwargs)
@@ -254,6 +266,8 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
             exectype=None, valid=None, tradeid=0, oco=None,
             trailamount=None, trailpercent=None,
             **kwargs):
+        print("crypto_broker begin to buy")
+        self.log("crypto_broker begin to buy")
         kwargs.pop('parent', None)
         kwargs.pop('transmit', None)
         return self._submit(owner, data, size, 'buy', price, exectype=exectype, **kwargs)
@@ -263,6 +277,7 @@ class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
              exectype=None, valid=None, tradeid=0, oco=None,
              trailamount=None, trailpercent=None,
              **kwargs):
+        self.log("crypto_broker begin to sell")
         kwargs.pop('parent', None)
         kwargs.pop('transmit', None)
         return self._submit(owner, data, size, 'sell', price, exectype=exectype, **kwargs)

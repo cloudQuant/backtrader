@@ -13,17 +13,17 @@ from bt_api_py.bt_api import BtApi
 from bt_api_py.functions.log_message import SpdLogManager
 
 
-class CryptoStore(with_metaclass(MetaSingleton, object)):
+# class CryptoStore(with_metaclass(MetaSingleton, object)):
+class CryptoStore(object):
     """bt_api_py and backtrader store
     """
     BrokerCls = None  # broker class will auto register
     DataCls = None  # data class will auto register
-    GetDataNum = 0
-    @classmethod
-    def getdata(cls, *args, **kwargs):
+
+    def getdata(self, *args, **kwargs):
         """Returns ``DataCls`` with args, kwargs"""
-        cls.GetDataNum += 1
-        return cls.DataCls(*args, **kwargs)
+        self.GetDataNum += 1
+        return self.DataCls(*args, **kwargs)
 
     @classmethod
     def getbroker(cls, *args, **kwargs):
@@ -31,6 +31,8 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self, exchange_params, debug=True, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.GetDataNum = 0
         self.kwargs = exchange_params
         self.feed_api = BtApi(exchange_params, debug=debug)
         self.data_queues = self.feed_api.data_queues
@@ -134,6 +136,8 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
             #     self.log(f"{self.data_queues.keys()}")
             #     self.log(f"cryptostore push test info: {data.get_all_data()}")
                 # self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
+            if not isinstance(data, BarData):
+                print(data)
             if isinstance(data, BarData):
                 queues = self.bar_queues
                 exchange = data.get_exchange_name()
@@ -201,6 +205,7 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
                     # if bar_status:
                     #     self.log(f"cryptostore dispatch_data_to_queue test {dtime_utc} info: {all_data}")
             elif isinstance(data, OrderData):
+                print("get new order data", data)
                 self.order_queue.put(data)
 
             elif isinstance(data, TradeData):
@@ -331,10 +336,13 @@ class CryptoStore(with_metaclass(MetaSingleton, object)):
         return exchange_api.make_order(symbol_name, vol, price, order_type, offset=offset, post_only=post_only,client_order_id=client_order_id, extra_data=extra_data, **kwargs)
 
     def cancel_order(self, order):
+        print("begin to cancel order")
         exchange_name = order.data.get_exchange_name()
         exchange_api = self.exchange_feeds[exchange_name]
         symbol_name = order.data.get_symbol_name()
         new_order = order.bt_api_data
         new_order.init_data()
         order_id = new_order.get_order_id()
+        print(f"order_id = {order_id}")
+        print(f"symbol_name = {symbol_name}")
         return exchange_api.cancel_order(symbol_name, order_id)
