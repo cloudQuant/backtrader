@@ -281,7 +281,7 @@ class CryptoStore(object):
             while begin_time < stop_time:
                 try:
                     # 计算当前时间段的结束时间
-                    time_delta = calculate_time_delta(granularity)
+                    time_delta = calculate_time_delta(granularity, count)
                     current_end_time = min(begin_time + time_delta, stop_time)
 
                     # 转换时间戳为毫秒
