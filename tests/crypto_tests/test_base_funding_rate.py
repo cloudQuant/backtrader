@@ -6,7 +6,7 @@ from pathlib import Path
 from backtrader.comminfo import ComminfoFundingRate
 
 
-# 在交易信息之外，额外增加了其他指标，
+# 在交易信息之外，额外增加了其他指标
 class GenericFundingRateCsv(bt.feeds.GenericCSVData):
     # 增加两个line,每个line的名称，就是csv文件中，额外增加的列的名称
     lines = ('quote_volume',

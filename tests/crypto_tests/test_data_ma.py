@@ -226,6 +226,9 @@ def test_okx_and_binance():
     assert strategy_instance.update_ma is True
 
 if __name__ == '__main__':
-    # test_binance_ma()
+    print("-----------第一个进行测试---------------")
+    test_binance_ma()
+    print("-----------第二个进行测试---------------")
     test_okx_ma()
-    # test_okx_and_binance()
+    print("-----------第三个进行测试---------------")
+    test_okx_and_binance()

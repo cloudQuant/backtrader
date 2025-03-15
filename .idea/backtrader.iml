@@ -10,7 +10,6 @@
     <orderEntry type="module" module-name="empyrical" />
     <orderEntry type="module" module-name="my_private_blog" />
     <orderEntry type="module" module-name="my_public_blog" />
-    <orderEntry type="module" module-name="woniunote" />
   </component>
   <component name="PackageRequirementsSettings">
     <option name="versionSpecifier" value="不指定版本" />

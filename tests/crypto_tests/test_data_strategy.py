@@ -33,29 +33,6 @@ class TestStrategy(bt.BtApiStrategy):
         self.live_data = False
         self.live_bar_num = 0
         self.logger = self.init_logger()
-
-    def init_logger(self):
-        if self.debug:
-            print_info = True
-        else:
-            print_info = False
-        logger = SpdLogManager(file_name='crypto_strategy.log',
-                               logger_name="strategy",
-                               print_info=print_info).create_logger()
-        return logger
-
-    def log(self, txt, level="info"):
-        if level == "info":
-            self.logger.info(txt)
-        elif level == "warning":
-            self.logger.warning(txt)
-        elif level == "error":
-            self.logger.error(txt)
-        elif level == "debug":
-            self.logger.debug(txt)
-        else:
-            pass
-
     # def prenext(self):
     #     self.next()
 
@@ -297,8 +274,13 @@ def test_binance_one_okx_one_data_strategy():
 
 
 if __name__ == '__main__':
+    print("-----------第一个进行测试---------------")
     test_binance_one_data_strategy()  # successfully
+    print("-----------第二个进行测试---------------")
     test_okx_one_data_strategy()  # successfully
+    print("-----------第三个进行测试---------------")
     test_binance_three_data_strategy()
+    print("-----------第四个进行测试---------------")
     test_okx_two_data_strategy()
+    print("-----------第五个进行测试---------------")
     test_binance_one_okx_one_data_strategy()

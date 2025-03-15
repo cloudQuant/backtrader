@@ -7,8 +7,6 @@ import pytz
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from bt_api_py.containers import OrderData, BarData, TradeData, RequestData
-from backtrader.store import MetaSingleton
-from backtrader.utils.py3 import with_metaclass
 from bt_api_py.bt_api import BtApi
 from bt_api_py.functions.log_message import SpdLogManager
 
@@ -220,19 +218,23 @@ class CryptoStore(object):
         exchange, asset_type, symbol = dataname.split("___")
         exchange_name = exchange + "___" + asset_type
 
-        def calculate_time_delta(period):
-            """根据 period 计算增量时间"""
-            time_deltas = {
-                "1m": timedelta(hours=1),
-                "3m": timedelta(hours=5),
-                "5m": timedelta(hours=9),
-                "15m": timedelta(hours=25),
-                "30m": timedelta(hours=50),
-                "1H": timedelta(hours=100),
-                "1D": timedelta(days=100),
+        def calculate_time_delta(period, count):
+            """根据 period 和 count 动态计算增量时间"""
+            period_to_minutes = {
+                "1m": 1,
+                "3m": 3,
+                "5m": 5,
+                "15m": 15,
+                "30m": 30,
+                "1H": 60,
+                "1D": 1440,  # 1天=24小时=1440分钟
             }
-            if period in time_deltas:
-                return time_deltas[period]
+            if period in period_to_minutes:
+                total_minutes = period_to_minutes[period] * count
+                # 转换为小时数（可选）
+                total_hours = int(total_minutes / 60)
+                # 返回timedelta对象表示总时间跨度
+                return timedelta(hours=total_hours)
             raise ValueError(f"Unsupported period: {period}")
 
         def parse_time(input_time):
@@ -288,7 +290,7 @@ class CryptoStore(object):
 
                     # 下载数据
                     data = feed.get_kline(
-                        symbol, granularity, start_time=begin_stamp, end_time=end_stamp, extra_data=None
+                        symbol, granularity, count=count, start_time=begin_stamp, end_time=end_stamp, extra_data=None
                     )
                     bar_data_list.extend(data.get_data())
                     self.log(f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
