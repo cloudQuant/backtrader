@@ -9,6 +9,7 @@
       <module fileurl="file://$PROJECT_DIR$/../my_private_blog/.idea/my_private_blog.iml" filepath="$PROJECT_DIR$/../my_private_blog/.idea/my_private_blog.iml" />
       <module fileurl="file://$PROJECT_DIR$/../my_public_blog/.idea/my_public_blog.iml" filepath="$PROJECT_DIR$/../my_public_blog/.idea/my_public_blog.iml" />
       <module fileurl="file://$PROJECT_DIR$/../pyfolio/.idea/pyfolio.iml" filepath="$PROJECT_DIR$/../pyfolio/.idea/pyfolio.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../woniunote/.idea/woniunote.iml" filepath="$PROJECT_DIR$/../woniunote/.idea/woniunote.iml" />
     </modules>
   </component>
 </project>

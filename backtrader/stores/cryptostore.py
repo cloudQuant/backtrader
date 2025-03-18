@@ -292,13 +292,20 @@ class CryptoStore(object):
                     data = feed.get_kline(
                         symbol, granularity, count=count, start_time=begin_stamp, end_time=end_stamp, extra_data=None
                     )
-                    bar_data_list.extend(data.get_data())
+                    bar_data = data.get_data()
+                    print("symbol = ", symbol, "period = ", granularity, "count = ", count, start_time, end_time)
+                    print("bar_data", type(bar_data), bar_data)
+                    bar_data_list.extend(bar_data)
                     self.log(f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
                              f"begin: {begin_time}, end: {current_end_time}")
-
+                    new_data = feed.get_kline("BTC-USDT", "15m", 2, start_time=begin_stamp, end_time=end_stamp)
+                    new_bar_list = new_data.get_data()
+                    print("new_bar_data", type(new_bar_list), new_bar_list)
+                    assert 0
+                    time.sleep(0.2)
                     # 更新开始时间
                     begin_time = current_end_time
-
+                    # time.sleep(0.1)
                     # 如果数据已经下载完成，跳出循环
                     if begin_time >= stop_time:
                         break
