@@ -4,7 +4,7 @@ from datetime import datetime
 
 from backtrader import BrokerBase, Order
 from backtrader.position import Position
-from backtrader.utils.py3 import queue, with_metaclass
+from backtrader.utils.py3 import queue
 from backtrader.stores.cryptostore import CryptoStore
 from backtrader.utils.log_message import SpdLogManager
 
@@ -31,7 +31,7 @@ class MetaCryptoBroker(BrokerBase.__class__):
         CryptoStore.BrokerCls = cls
 
 
-class CryptoBroker(with_metaclass(MetaCryptoBroker, BrokerBase)):
+class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
     """Broker implementation for CCXT cryptocurrency trading library.
     This class maps the orders/positions from CCXT to the
     internal API of `backtrader`.

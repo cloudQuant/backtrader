@@ -21,7 +21,6 @@
 from datetime import datetime, date, timedelta, UTC
 
 from .dataseries import TimeFrame, _Bar
-from .utils.py3 import with_metaclass
 from . import metabase
 from .utils.date import date2num, num2date
 
@@ -109,7 +108,7 @@ class DTFaker(object):
         return self.data._getnexteos()
 
 # resampler的基类
-class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
+class _BaseResampler(metaclass=metabase.MetaParams):
     # 参数
     params = (
         ('bar2edge', True),

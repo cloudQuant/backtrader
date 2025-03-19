@@ -1,6 +1,6 @@
 #### 相关改动
-
 记录从2022年之后对backtrader的改动
+- [x]    2025-03-19 remove with_metaclass, it means that backtrader will not support python2
 - [x]    2025-03-08 实现了crypto的实盘模式, 把CryptoStore的单例模式去除, 允许一个进程中定义多个实例
 - [x]    2025-02-01 修复了很多的代码格式，文档语法错误，大大减少pycharm警告
 - [x]    2025-01-25 去除__future__的引用，后续只支持python3

@@ -37,7 +37,7 @@ class MetaVChartFile(bt.DataBase.__class__):
 
 
 
-class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
+class VChartFile(bt.DataBase, metaclass=MetaVChartFile):
     """
     Support for `Visual Chart <www.visualchart.com>`_ binary on-disk files for
     both daily and intradaily formats.

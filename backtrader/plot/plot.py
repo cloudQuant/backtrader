@@ -50,7 +50,7 @@ from dash.dependencies import Input, Output
 
 from collections import OrderedDict
 
-from ..utils.py3 import range, with_metaclass, string_types, integer_types
+from ..utils.py3 import range, string_types, integer_types
 from .. import AutoInfoClass, MetaParams, TimeFrame, date2num
 
 from .finance import plot_candlestick, plot_ohlc, plot_volume, plot_lineonclose
@@ -732,7 +732,7 @@ class PInfo(object):
         return self.zorder[ax]
 
 
-class Plot_OldSync(with_metaclass(MetaParams, object)):
+class Plot_OldSync(metaclass=MetaParams):
     params = (('scheme', PlotScheme()),)
 
     def __init__(self, **kwargs):

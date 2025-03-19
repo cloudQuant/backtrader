@@ -26,7 +26,7 @@ import threading
 from backtrader.feed import DataBase
 from backtrader import (TimeFrame, num2date, date2num, BrokerBase,
                         Order, BuyOrder, SellOrder, OrderBase, OrderData)
-from backtrader.utils.py3 import bytes, with_metaclass, MAXFLOAT
+from backtrader.utils.py3 import bytes, MAXFLOAT
 from backtrader.metabase import MetaParams
 from backtrader.comminfo import CommInfoBase
 from backtrader.position import Position
@@ -54,7 +54,7 @@ class MetaOandaBroker(BrokerBase.__class__):
         oandastore.OandaStore.BrokerCls = cls
 
 
-class OandaBroker(with_metaclass(MetaOandaBroker, BrokerBase)):
+class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
     """Broker implementation for Oanda.
 
     This class maps the orders/positions from Oanda to the

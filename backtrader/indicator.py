@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from .utils.py3 import range, with_metaclass
+from .utils.py3 import range
 
 from .lineiterator import LineIterator, IndicatorBase
 from .lineseries import LineSeriesMaker, Lines
@@ -93,7 +93,7 @@ class MetaIndicator(IndicatorBase.__class__):
 
 
 # 指标类
-class Indicator(with_metaclass(MetaIndicator, IndicatorBase)):
+class Indicator(IndicatorBase,metaclass=MetaIndicator):
     # line的类型被设置为指标
     _ltype = LineIterator.IndType
     # 输出到csv文件被设置成False
@@ -175,5 +175,5 @@ class MtLinePlotterIndicator(Indicator.__class__):
         return _obj, args, kwargs
 
 # LinePlotterIndicator类，同样没有用到
-class LinePlotterIndicator(with_metaclass(MtLinePlotterIndicator, Indicator)):
+class LinePlotterIndicator(Indicator, metaclass=MtLinePlotterIndicator):
     pass

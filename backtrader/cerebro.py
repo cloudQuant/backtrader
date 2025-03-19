@@ -29,7 +29,7 @@ try:  # For new Python versions
 except AttributeError:  # For old Python versions
     collectionsAbc = collections  # collections.Iterable
 import backtrader as bt
-from .utils.py3 import (map, range, zip, with_metaclass, string_types,
+from .utils.py3 import (map, range, zip, string_types,
                         integer_types)
 
 from . import linebuffer
@@ -53,7 +53,7 @@ class OptReturn(object):
             setattr(self, k, v)
 
 
-class Cerebro(with_metaclass(MetaParams, object)):
+class Cerebro(metaclass=MetaParams):
     """Params:
 
       - ``preload`` (default: ``True``)

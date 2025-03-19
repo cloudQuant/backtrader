@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, UTC
 from backtrader.feed import DataBase
 from backtrader import TimeFrame, date2num, num2date
 from backtrader.utils.py3 import (integer_types, queue, string_types,
-                                  with_metaclass)
+                                  )
 from backtrader.metabase import MetaParams
 from backtrader.stores import oandastore
 
@@ -37,7 +37,7 @@ class MetaOandaData(DataBase.__class__):
         oandastore.OandaStore.DataCls = cls
 
 # 处理oanda数据，忽略这篇源代码s
-class OandaData(with_metaclass(MetaOandaData, DataBase)):
+class OandaData(DataBase, metaclass=MetaOandaData):
     """Oanda Data Feed.
 
     Params:

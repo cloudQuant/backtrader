@@ -27,12 +27,12 @@ try:  # For new Python versions
 except AttributeError:  # For old Python versions
     collectionsAbc = collections
 import backtrader as bt
-from backtrader.utils.py3 import (map, with_metaclass, string_types,
+from backtrader.utils.py3 import (map, string_types,
                                   integer_types)
 
 
 # WriterBase类
-class WriterBase(with_metaclass(bt.MetaParams, object)):
+class WriterBase(metaclass=bt.MetaParams):
     pass
 
 

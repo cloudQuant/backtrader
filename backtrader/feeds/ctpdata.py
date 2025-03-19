@@ -1,7 +1,7 @@
 from datetime import datetime
 from backtrader.feed import DataBase
 from backtrader import date2num, num2date
-from backtrader.utils.py3 import queue, with_metaclass
+from backtrader.utils.py3 import queue
 from backtrader.stores.ctpstore import CTPStore
 import akshare as ak
 import pytz
@@ -16,7 +16,7 @@ class MetaCTPData(DataBase.__class__):
         CTPStore.DataCls = cls
 
 
-class CTPData(with_metaclass(MetaCTPData, DataBase)):
+class CTPData(DataBase, metaclass=MetaCTPData):
     """CTP Data Feed.
 
     Params:

@@ -19,7 +19,7 @@
 #
 ###############################################################################
 from .lineiterator import LineIterator, ObserverBase, StrategyBase
-from backtrader.utils.py3 import with_metaclass
+
 
 # Observer元类
 class MetaObserver(ObserverBase.__class__):
@@ -40,7 +40,7 @@ class MetaObserver(ObserverBase.__class__):
         return _obj, args, kwargs
 
 # Observer类
-class Observer(with_metaclass(MetaObserver, ObserverBase)):
+class Observer(ObserverBase, metaclass=MetaObserver):
     # _stclock设置成False
     _stclock = False
     # 拥有的实例

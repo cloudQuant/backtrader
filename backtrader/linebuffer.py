@@ -33,7 +33,7 @@ import datetime
 from itertools import islice
 import math
 
-from .utils.py3 import range, with_metaclass, string_types
+from .utils.py3 import range, string_types
 
 from .lineroot import LineRoot, LineSingle, LineMultiple
 from . import metabase
@@ -654,7 +654,7 @@ class PseudoArray(object):
         return self
 
 
-class LineActions(with_metaclass(MetaLineActions, LineBuffer)):
+class LineActions(LineBuffer, metaclass=MetaLineActions):
     """
     Base class derived from LineBuffer intented to define the
     minimum interface to make it compatible with a LineIterator by

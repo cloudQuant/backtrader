@@ -18,11 +18,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from .utils.py3 import with_metaclass
 from .metabase import MetaParams
 
 # Sizer类,其他的sizer需要继承这个类并且重写_getsizing类
-class Sizer(with_metaclass(MetaParams, object)):
+class Sizer(metaclass=MetaParams):
     """This is the base class for *Sizers*. Any *sizer* should subclass this
     and override the ``_getsizing`` method
 

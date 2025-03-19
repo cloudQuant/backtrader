@@ -21,7 +21,7 @@
 from datetime import datetime, timedelta, time
 
 from .metabase import MetaParams
-from backtrader.utils.py3 import string_types, with_metaclass
+from backtrader.utils.py3 import string_types
 from backtrader.utils import UTC
 
 # from tradingcal import * 可以import到的所有的类
@@ -45,7 +45,7 @@ ISOWEEKEND = [ISOSATURDAY, ISOSUNDAY]
 ONEDAY = timedelta(days=1)
 
 # 交易日历基类，定义了具体的方法
-class TradingCalendarBase(with_metaclass(MetaParams, object)):
+class TradingCalendarBase(metaclass=MetaParams):
     # 返回day之后的下一个交易日和日历组成
     def _nextday(self, day):
         """

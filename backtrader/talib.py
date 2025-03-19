@@ -24,7 +24,6 @@
 import sys
 
 import backtrader as bt
-from backtrader.utils.py3 import with_metaclass
 
 # 如果import talib正常，运行else下面的代码，否则，运行except下面的代码
 try:
@@ -94,7 +93,7 @@ else:
             return _obj, args, kwargs  # return the object and args
 
     # talib指标类
-    class _TALibIndicator(with_metaclass(_MetaTALibIndicator, bt.Indicator)):
+    class _TALibIndicator(bt.Indicator, metaclass=_MetaTALibIndicator):
         CANDLEOVER = 1.02  # 2% over
         CANDLEREF = 1  # Open, High, Low, Close (0, 1, 2, 3)
 

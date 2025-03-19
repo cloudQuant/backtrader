@@ -32,7 +32,7 @@ import ib.opt as ibopt
 
 from backtrader import TimeFrame, Position
 from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import bytes, bstr, queue, with_metaclass, long
+from backtrader.utils.py3 import bytes, bstr, queue, long
 from backtrader.utils import AutoDict, UTC
 
 bytes = bstr  # py2/3 need for ibpy
@@ -106,7 +106,7 @@ def ibregister(f):
     return f
 
 
-class IBStore(with_metaclass(MetaSingleton, object)):
+class IBStore(metaclass=MetaSingleton):
     """Singleton class wrapping an ibpy ibConnection instance.
 
     The parameters can also be specified in the classes which use this store,

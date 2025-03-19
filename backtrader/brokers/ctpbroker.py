@@ -1,6 +1,5 @@
 import collections
 from backtrader import BrokerBase, Order, BuyOrder, SellOrder
-from backtrader.utils.py3 import with_metaclass
 from backtrader.position import Position
 
 from backtrader.stores.ctpstore import CTPStore
@@ -14,7 +13,7 @@ class MetaCTPBroker(BrokerBase.__class__):
         CTPStore.BrokerCls = cls
 
 
-class CTPBroker(with_metaclass(MetaCTPBroker, BrokerBase)):
+class CTPBroker(BrokerBase, metaclass=MetaCTPBroker):
     """Broker implementation for ctp
 
     This class maps the orders/positions from MetaTrader to the

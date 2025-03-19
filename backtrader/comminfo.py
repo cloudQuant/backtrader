@@ -19,13 +19,11 @@
 #
 ###############################################################################
 # import datetime
-
-from .utils.py3 import with_metaclass
 from .metabase import MetaParams
 
 
 # 佣金类
-class CommInfoBase(with_metaclass(MetaParams)):
+class CommInfoBase(metaclass=MetaParams):
     """Base Class for the Commission Schemes.
 
     Params:

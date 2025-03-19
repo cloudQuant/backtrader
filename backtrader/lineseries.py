@@ -30,7 +30,7 @@ Module author:: Daniel Rodriguez
 """
 import sys
 
-from .utils.py3 import map, range, string_types, with_metaclass
+from .utils.py3 import map, range, string_types
 
 from .linebuffer import LineBuffer, LineActions, LinesOperation, LineDelay, NAN
 from .lineroot import LineRoot, LineSingle, LineMultiple
@@ -676,7 +676,7 @@ class MetaLineSeries(LineMultiple.__class__):
         return _obj, args, kwargs
 
 
-class LineSeries(with_metaclass(MetaLineSeries, LineMultiple)):
+class LineSeries(LineMultiple, metaclass=MetaLineSeries):
     # 创建一个LineSeries类
     
     # 给lineseries类增加一个默认的属性plotinfo

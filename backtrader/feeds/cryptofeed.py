@@ -5,7 +5,7 @@ import backtrader as bt
 from bt_api_py.containers import BarData
 from datetime import datetime, UTC
 from backtrader.feed import DataBase
-from backtrader.utils.py3 import queue, with_metaclass
+from backtrader.utils.py3 import queue
 from backtrader.stores.cryptostore import CryptoStore
 from bt_api_py.functions.log_message import SpdLogManager
 
@@ -19,7 +19,7 @@ class MetaCryptoFeed(DataBase.__class__):
         CryptoStore.DataCls = cls
 
 
-class CryptoFeed(with_metaclass(MetaCryptoFeed, DataBase)):
+class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
     """
     CryptoCurrency eXchange Trading Library Data Feed.
     Params:

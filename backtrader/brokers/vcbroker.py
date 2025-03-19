@@ -27,7 +27,7 @@ from backtrader.comminfo import CommInfoBase
 from backtrader.feed import DataBase
 from backtrader.metabase import MetaParams
 from backtrader.position import Position
-from backtrader.utils.py3 import with_metaclass
+
 
 from backtrader.stores import vcstore
 
@@ -64,7 +64,7 @@ class MetaVCBroker(BrokerBase.__class__):
         vcstore.VCStore.BrokerCls = cls
 
 
-class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
+class VCBroker(BrokerBase, metaclass=MetaVCBroker):
     """Broker implementation for VisualChart.
 
     This class maps the orders/positions from VisualChart to the

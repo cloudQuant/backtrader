@@ -19,7 +19,7 @@
 #
 ###############################################################################
 from .metabase import MetaParams
-from .utils.py3 import with_metaclass
+
 
 
 __all__ = ['Filter']
@@ -30,7 +30,7 @@ class MetaFilter(MetaParams):
 
 
 # filter类
-class Filter(with_metaclass(MetaParams, object)):
+class Filter(metaclass=MetaParams):
 
     _firsttime = True
 

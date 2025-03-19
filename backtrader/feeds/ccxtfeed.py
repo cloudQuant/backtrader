@@ -25,7 +25,7 @@ from datetime import datetime
 
 import backtrader as bt
 from backtrader.feed import DataBase
-from backtrader.utils.py3 import queue, with_metaclass
+from backtrader.utils.py3 import queue
 from backtrader.stores.ccxtstore import CCXTStore
 from backtrader.utils.date import get_last_timeframe_timestamp
 
@@ -40,7 +40,7 @@ class MetaCCXTFeed(DataBase.__class__):
         CCXTStore.DataCls = cls
 
 
-class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
+class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
     """
     CryptoCurrency eXchange Trading Library Data Feed.
     Params:

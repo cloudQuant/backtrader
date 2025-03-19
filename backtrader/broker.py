@@ -20,7 +20,7 @@
 ###############################################################################
 from backtrader.comminfo import CommInfoBase
 from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import with_metaclass
+
 
 # from . import fillers as fillers
 # from . import fillers as filler
@@ -43,7 +43,7 @@ class MetaBroker(MetaParams):
 
 
 # broker基类
-class BrokerBase(with_metaclass(MetaBroker, object)):
+class BrokerBase(metaclass=MetaBroker):
     # 参数
     params = (
         ('commission', CommInfoBase(percabs=True)),

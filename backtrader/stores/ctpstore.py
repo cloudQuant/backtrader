@@ -5,7 +5,7 @@ import time
 import numpy as np
 import backtrader as bt
 from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import queue, with_metaclass
+from backtrader.utils.py3 import queue
 from backtrader.utils.date import get_last_timeframe_timestamp, datetime2str, str2datetime, datetime2timestamp, \
     timestamp2datetime
 from ctpbee import CtpbeeApi, CtpBee, helper
@@ -149,7 +149,7 @@ class MetaSingleton(MetaParams):
         return cls._singleton
 
 
-class CTPStore(with_metaclass(MetaSingleton, object)):
+class CTPStore(metaclass=MetaSingleton):
     """
     Singleton class wrapping
     """

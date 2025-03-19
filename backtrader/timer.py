@@ -26,7 +26,7 @@ from itertools import islice
 from .feed import AbstractDataBase
 from .metabase import MetaParams
 from .utils import date2num, num2date
-from .utils.py3 import integer_types, range, with_metaclass
+from .utils.py3 import integer_types, range
 from .utils import TIME_MAX
 
 
@@ -38,7 +38,7 @@ SESSION_TIME, SESSION_START, SESSION_END = range(3)
 
 
 # Timer类
-class Timer(with_metaclass(MetaParams, object)):
+class Timer(metaclass=MetaParams):
     # 参数，参数的含义大部分在strategy中的add_timer中进行过分析
     # 参考我的文章：https://yunjinqi.blog.csdn.net/article/details/124560191
     params = (

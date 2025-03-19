@@ -23,7 +23,7 @@ import itertools
 import sys
 
 import backtrader as bt
-from .utils.py3 import zip, string_types, with_metaclass
+from .utils.py3 import zip, string_types
 
 # 寻找基类，这个python函数主要使用了四个python小技巧：
 # 第一个是class.__bases__这个会包含class的基类(父类)
@@ -408,7 +408,7 @@ class MetaParams(MetaBase):
         return _obj, args, kwargs
 
 
-class ParamsBase(with_metaclass(MetaParams, object)):
+class ParamsBase(metaclass=MetaParams):
     pass  # stub to allow easy subclassing without metaclasses
 
 # 设置了一个新的类，这个类可以通过index或者name直接获取相应的值

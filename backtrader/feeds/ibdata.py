@@ -23,7 +23,7 @@ import backtrader as bt
 from backtrader.feed import DataBase
 from backtrader import TimeFrame, date2num, num2date
 from backtrader.utils.py3 import (integer_types, queue, string_types,
-                                  with_metaclass)
+                                  )
 from backtrader.metabase import MetaParams
 from backtrader.stores import ibstore
 
@@ -38,7 +38,7 @@ class MetaIBData(DataBase.__class__):
         ibstore.IBStore.DataCls = cls
 
 
-class IBData(with_metaclass(MetaIBData, DataBase)):
+class IBData(DataBase, metaclass=MetaIBData):
     """Interactive Brokers Data Feed.
     # 获取数据的时候，支持的dataname格式
     Supports the following contract specifications in parameter ``dataname``:

@@ -18,12 +18,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from backtrader.utils.py3 import MAXINT, with_metaclass
+from backtrader.utils.py3 import MAXINT
 
 from backtrader.metabase import MetaParams
 
 # 固定大小过滤，订单执行的时候只能成交当前成交量，需要下单量和size中最小的一个，如果size是None的话，忽略size
-class FixedSize(with_metaclass(MetaParams, object)):
+class FixedSize(metaclass=MetaParams):
     """Returns the execution size for a given order using a *percentage* of the
     volume in a bar.
 
@@ -47,7 +47,7 @@ class FixedSize(with_metaclass(MetaParams, object)):
 
 
 # 固定百分比，用当前成交量的一定的百分比和需要下单的量对比，选择最小的进行交易
-class FixedBarPerc(with_metaclass(MetaParams, object)):
+class FixedBarPerc(metaclass=MetaParams):
     """Returns the execution size for a given order using a *percentage* of the
     volume in a bar.
 
@@ -69,7 +69,7 @@ class FixedBarPerc(with_metaclass(MetaParams, object)):
 
 
 # 根据bar的波动幅度按照百分比分配
-class BarPointPerc(with_metaclass(MetaParams, object)):
+class BarPointPerc(metaclass=MetaParams):
     """Returns the execution size for a given order. The volume will be
     distributed uniformly in the range *high*-*low* using ``minmov`` to
     partition.

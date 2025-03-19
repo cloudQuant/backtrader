@@ -41,7 +41,7 @@ class MetaRollOver(bt.DataBase.__class__):
         return _obj, args, kwargs
 
 
-class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
+class RollOver(bt.DataBase, metaclass=MetaRollOver):
     # 当条件满足之后，移动到下一个合约上
     """Class that rolls over to the next future when a condition is met
 

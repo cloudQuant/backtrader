@@ -29,8 +29,7 @@ module author:: Daniel Rodriguez
 """
 import operator
 from . import metabase
-from .utils.py3 import range, with_metaclass
-# from utils.py3 import range, with_metaclass
+from .utils.py3 import range
 # import metabase
 
 
@@ -56,7 +55,7 @@ class MetaLineRoot(metabase.MetaParams):
         return _obj, args, kwargs
 
 
-class LineRoot(with_metaclass(MetaLineRoot, object)):
+class LineRoot(metaclass=MetaLineRoot):
     """
     Defines a common base and interfaces for Single and Multiple
     LineXXX instances

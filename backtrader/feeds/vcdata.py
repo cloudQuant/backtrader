@@ -24,7 +24,7 @@ from backtrader import TimeFrame, date2num, num2date
 from backtrader.feed import DataBase
 from backtrader.metabase import MetaParams
 from backtrader.utils.py3 import (integer_types, queue, string_types,
-                                  with_metaclass)
+                                  )
 
 from backtrader.stores import vcstore
 
@@ -40,7 +40,7 @@ class MetaVCData(DataBase.__class__):
         vcstore.VCStore.DataCls = cls
 
 # vc数据
-class VCData(with_metaclass(MetaVCData, DataBase)):
+class VCData(DataBase, metaclass=MetaVCData):
     """VisualChart Data Feed.
 
     Params:

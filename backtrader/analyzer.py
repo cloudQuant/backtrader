@@ -25,7 +25,7 @@ import pprint as pp
 
 import backtrader as bt
 from backtrader import TimeFrame
-from backtrader.utils.py3 import MAXINT, with_metaclass
+from backtrader.utils.py3 import MAXINT
 
 
 # analyzer元类
@@ -96,7 +96,7 @@ class MetaAnalyzer(bt.MetaParams):
         return _obj, args, kwargs
 
 # Analyzer类
-class Analyzer(with_metaclass(MetaAnalyzer, object)):
+class Analyzer(metaclass=MetaAnalyzer):
     """Analyzer base class. All analyzers are subclass of this one
 
     An Analyzer instance operates in the frame of a strategy and provides an
@@ -344,8 +344,7 @@ class MetaTimeFrameAnalyzerBase(Analyzer.__class__):
                                                               bases, dct)
 
 # 周期分析基类
-class TimeFrameAnalyzerBase(with_metaclass(MetaTimeFrameAnalyzerBase,
-                                           Analyzer)):
+class TimeFrameAnalyzerBase(Analyzer, metaclass=MetaTimeFrameAnalyzerBase):
     # 参数
     params = (
         ('timeframe', None),

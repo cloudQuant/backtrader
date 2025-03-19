@@ -21,7 +21,6 @@
 import collections
 
 from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import with_metaclass
 
 
 class MetaSingleton(MetaParams):
@@ -38,7 +37,7 @@ class MetaSingleton(MetaParams):
         return cls._singleton
 
 # 创建一个store类
-class Store(with_metaclass(MetaSingleton, object)):
+class Store(metaclass=MetaSingleton):
     """Base class for all Stores"""
     # 开始，默认是False
     _started = False

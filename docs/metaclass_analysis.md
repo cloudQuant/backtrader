@@ -138,7 +138,7 @@ class MetaAnalyzer(MetaParams):
 - 实现参数的继承和合并
 - 提供参数验证机制
 ```python
-class MyIndicator(with_metaclass(MetaParams, object)):
+class MyIndicator(metaclass=MetaParams):
     params = (('period', 20), ('factor', 2.0))
 ```
 

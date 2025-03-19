@@ -25,7 +25,6 @@ from functools import wraps
 import backtrader as bt
 import ccxt
 from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import with_metaclass
 from ccxt.base.errors import NetworkError, ExchangeError
 
 
@@ -43,7 +42,7 @@ class MetaSingleton(MetaParams):
         return cls._singleton
 
 
-class CCXTStore(with_metaclass(MetaSingleton, object)):
+class CCXTStore(metaclass=MetaSingleton):
     """API provider for CCXT feed and broker classes.
 
     Added a new get_wallet_balance method. This will allow manual checking of the balance.

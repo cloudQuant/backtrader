@@ -29,7 +29,7 @@ import requests  # oandapy depdendency
 
 import backtrader as bt
 from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import queue, with_metaclass
+from backtrader.utils.py3 import queue
 from backtrader.utils import AutoDict
 
 
@@ -175,7 +175,7 @@ class MetaSingleton(MetaParams):
         return cls._singleton
 
 
-class OandaStore(with_metaclass(MetaSingleton, object)):
+class OandaStore(metaclass=MetaSingleton):
     """Singleton class wrapping to control the connections to Oanda.
 
     Params:

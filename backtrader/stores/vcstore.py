@@ -30,7 +30,7 @@ from backtrader import TimeFrame, Position
 from backtrader.feed import DataBase
 from backtrader.metabase import MetaParams
 from backtrader.utils.py3 import (MAXINT, range, queue, string_types,
-                                  with_metaclass)
+                                  )
 from backtrader.utils import AutoDict
 
 
@@ -188,7 +188,7 @@ class MetaSingleton(MetaParams):
         return cls._singleton
 
 
-class VCStore(with_metaclass(MetaSingleton, object)):
+class VCStore(metaclass=MetaSingleton):
     """Singleton class wrapping an ibpy ibConnection instance.
 
     The parameters can also be specified in the classes which use this store,

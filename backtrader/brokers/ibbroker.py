@@ -30,7 +30,7 @@ import ib.opt as ibopt
 from backtrader.feed import DataBase
 from backtrader import (TimeFrame, num2date, date2num, BrokerBase,
                         Order, OrderBase, OrderData)
-from backtrader.utils.py3 import bytes, bstr, with_metaclass, queue, MAXFLOAT
+from backtrader.utils.py3 import bytes, bstr, queue, MAXFLOAT
 from backtrader.metabase import MetaParams
 from backtrader.comminfo import CommInfoBase
 from backtrader.position import Position
@@ -246,7 +246,7 @@ class MetaIBBroker(BrokerBase.__class__):
 
 
 # IBbroker
-class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
+class IBBroker(BrokerBase, metaclass=MetaIBBroker):
     """Broker implementation for Interactive Brokers.
 
     This class maps the orders/positions from Interactive Brokers to the

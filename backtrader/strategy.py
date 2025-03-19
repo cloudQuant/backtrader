@@ -26,7 +26,7 @@ import itertools
 import operator
 
 from .utils.py3 import (filter, keys, integer_types, iteritems, itervalues,
-                        map, MAXINT, string_types, with_metaclass)
+                        map, MAXINT, string_types)
 
 import backtrader as bt
 from .lineiterator import LineIterator, StrategyBase
@@ -104,7 +104,7 @@ class MetaStrategy(StrategyBase.__class__):
         return _obj, args, kwargs
 
 # Strategy类，用户编写策略的时候可以继承这个类
-class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
+class Strategy(StrategyBase, metaclass=MetaStrategy):
     """
     Base class to be subclassed for user defined strategies.
     """
@@ -1776,7 +1776,7 @@ class MetaSigStrategy(Strategy.__class__):
         return _obj, args, kwargs
 
 # 信号策略类，使用信号可以自动操作的策略的子类
-class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
+class SignalStrategy(Strategy, metaclass=MetaSigStrategy):
     """This subclass of ``Strategy`` is meant to to auto-operate using
     **signals**.
 

@@ -18,7 +18,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from ..utils.py3 import with_metaclass
+
 
 from . import Indicator
 
@@ -88,7 +88,7 @@ class MetaMovAvBase(Indicator.__class__):
         return cls
 
 # 移动平均的基类，增加参数和画图的设置
-class MovingAverageBase(with_metaclass(MetaMovAvBase, Indicator)):
+class MovingAverageBase(Indicator, metaclass=MetaMovAvBase):
     # 参数
     params = (('period', 30),)
     # 默认画到主图上
