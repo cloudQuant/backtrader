@@ -1,6 +1,15 @@
 import sys
-import numpy as np
+# import numpy as np  # 注释掉顶层导入
 from setuptools import setup, find_packages, Extension
+
+
+def get_numpy_include():
+    """延迟导入numpy以避免构建时依赖问题"""
+    try:
+        import numpy as np
+        return np.get_include()
+    except ImportError:
+        return ""
 
 
 def set_optimize_option(optimize_arg: int) -> str:
@@ -52,7 +61,7 @@ def set_cpp_version(cpp_version: str) -> str:
 #     Extension(
 #         name='backtrader.utils.cal_performance_indicators.cal_metrics',  # 模块名称
 #         sources=['backtrader/utils/cal_performance_indicators/performance_pointer.pyx'],  # 源文件列表
-#         include_dirs=[np.get_include(), 'backtrader/utils/cal_performance_indicators'],
+#         include_dirs=[get_numpy_include(), 'backtrader/utils/cal_performance_indicators'],  # 使用函数替代np.get_include()
 #         language='c++',
 #         extra_compile_args=[
 #             set_optimize_option(2),
@@ -68,7 +77,7 @@ def set_cpp_version(cpp_version: str) -> str:
 #     Extension(
 #         name='backtrader.utils.cs_cal_value.cal_total_value_cython',  # 模块名称
 #         sources=['backtrader/utils/cs_cal_value/cal_by_cython.pyx'],  # 源文件列表
-#         include_dirs=[np.get_include(), 'backtrader/utils/cs_cal_value'],
+#         include_dirs=[get_numpy_include(), 'backtrader/utils/cs_cal_value'],  # 使用函数替代np.get_include()
 #         language='c++',
 #         extra_compile_args=[
 #             set_optimize_option(2),
@@ -84,7 +93,7 @@ def set_cpp_version(cpp_version: str) -> str:
 #     Extension(
 #         name='backtrader.utils.cs_long_short_signals.cal_long_short_signals',  # 模块名称
 #         sources=['backtrader/utils/cs_long_short_signals/cal_by_cython.pyx'],  # 源文件列表
-#         include_dirs=[np.get_include(), "backtrader/utils/cs_long_short_signals"],
+#         include_dirs=[get_numpy_include(), "backtrader/utils/cs_long_short_signals"],  # 使用函数替代np.get_include()
 #         language='c++',
 #         extra_compile_args=[
 #             set_optimize_option(2),
@@ -100,7 +109,7 @@ def set_cpp_version(cpp_version: str) -> str:
 #     Extension(
 #         name='backtrader.utils.ts_cal_value.cal_value_by_cython',  # 模块名称
 #         sources=['backtrader/utils/ts_cal_value/cal_by_cython.pyx'],  # 源文件列表
-#         include_dirs=[np.get_include(), 'backtrader/utils/ts_cal_value'],
+#         include_dirs=[get_numpy_include(), 'backtrader/utils/ts_cal_value'],  # 使用函数替代np.get_include()
 #         language='c++',
 #         extra_compile_args=[
 #             set_optimize_option(2),
@@ -131,6 +140,7 @@ setup(
     long_description_content_type='text/markdown',  # 长描述的内容类型
     url='https://gitee.com/yunjinqi/backtrader.git',  # 项目的 URL
     install_requires=[
+        'numpy>=1.20.0',  # 添加numpy依赖
         'cython'
         # 添加其他依赖项
     ],  # 项目所需的依赖项列表
