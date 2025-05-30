@@ -1,28 +1,44 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
-from backtrader import TimeFrame
-from .. import metabase
+from ..parameters import ParameterizedBase, ParameterDescriptor, Float
+from .. import TimeFrame
 
 
-class SessionFiller(metaclass=metabase.MetaParams):
+class SessionFiller(ParameterizedBase):
     """
-    Bar Filler for a Data Source inside the declared session start/end times.
+    Bar Filler to add missing bars over gaps in a session.
 
-    The fill bars are constructed using the declared Data Source ``timeframe``
-    and ``compression`` (used to calculate the intervening missing times)
+    This class has been refactored from MetaParams to the new ParameterizedBase
+    system for Day 36-38 of the metaprogramming removal project.
 
-    Params:
+    How to use it:
 
-      - Fill_price (def: None):
+      - Instantiate the class (1 instance per filter needed)
 
-        If None is passed, the closing price of the previous bar will be
+      - ``addfilter`` it to the data with ``data.addfilter(filter_instance)``
+
+    Bar ``fill`` logic:
+
+      - The ``fill_price`` will be used to fill ``open``, ``high``, ``low`` and
+        ``close``
+
+        If ``None`` then the ``close`` price of the last (previous) bar will be
         used.
-        To end up with a bar which, for example, takes time, but it is not
-        displayed in a plot ... use float('Nan')
 
-      - Fill_vol (def: float('NaN')):
+      - Volume will be set to ``fill_vol``
+
+      - ``openinterest`` will be set to ``fill_oi``
+
+    Parameters:
+
+      - fill_price (def: None):
+
+        Price to be used to fill missing bars. If None will be used the closing
+        price of the previous bar
+
+      - fill_vol (def: float('NaN')):
 
         Value to use to fill the missing volume
 
@@ -36,11 +52,25 @@ class SessionFiller(metaclass=metabase.MetaParams):
         that bar
     """
 
-    params = (
-        ("fill_price", None),
-        ("fill_vol", float("NaN")),
-        ("fill_oi", float("NaN")),
-        ("skip_first_fill", True),
+    # 使用新的参数描述符系统定义参数
+    fill_price = ParameterDescriptor(
+        default=None,
+        doc="Price to be used to fill missing bars. If None will be used the closing price of the previous bar"
+    )
+    fill_vol = ParameterDescriptor(
+        default=float("NaN"),
+        type_=float,
+        doc="Value to use to fill the missing volume"
+    )
+    fill_oi = ParameterDescriptor(
+        default=float("NaN"),
+        type_=float,
+        doc="Value to use to fill the missing Open Interest"
+    )
+    skip_first_fill = ParameterDescriptor(
+        default=True,
+        type_=bool,
+        doc="Upon seeing the 1st valid bar do not fill from the sessionstart up to that bar"
     )
 
     MAXDATE = datetime.max
@@ -52,7 +82,8 @@ class SessionFiller(metaclass=metabase.MetaParams):
         TimeFrame.MicroSeconds: timedelta(microseconds=1),
     }
 
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
+        super(SessionFiller, self).__init__(**kwargs)
         # Calculate and save timedelta for timeframe
         self._tdframe = self._tdeltas[data._timeframe]
         self._tdunit = self._tdeltas[data._timeframe] * data._compression
@@ -106,7 +137,7 @@ class SessionFiller(metaclass=metabase.MetaParams):
 
             if sessstart <= dtime_cur <= sessend:
                 # 1st bar from session in the session - fill from session start
-                if self.seenbar or not self.p.skip_first_fill:
+                if self.seenbar or not self.get_param('skip_first_fill'):
                     ret = self._fillbars(data, sessstart - self._tdunit, dtime_cur)
 
             self.seenbar = True
@@ -146,13 +177,13 @@ class SessionFiller(metaclass=metabase.MetaParams):
         bar[data.DateTime] = data.date2num(dtime)
 
         # Fill the prices
-        price = self.p.fill_price or data.close[-1]
+        price = self.get_param('fill_price') or data.close[-1]
         for pricetype in [data.Open, data.High, data.Low, data.Close]:
             bar[pricetype] = price
 
         # Fill volume and open interest
-        bar[data.Volume] = self.p.fill_vol
-        bar[data.OpenInterest] = self.p.fill_oi
+        bar[data.Volume] = self.get_param('fill_vol')
+        bar[data.OpenInterest] = self.get_param('fill_oi')
 
         # Fill extra lines the data feed may have defined beyond DateTime
         for i in range(data.DateTime + 1, data.size()):
@@ -164,11 +195,14 @@ class SessionFiller(metaclass=metabase.MetaParams):
         return True
 
 
-class SessionFilterSimple(metaclass=metabase.MetaParams):
+class SessionFilterSimple(ParameterizedBase):
     """
     This class can be applied to a data source as a filter and will filter out
     intraday bars which fall outside the regular session times (ie: pre/post
     market data)
+
+    This class has been refactored from MetaParams to the new ParameterizedBase
+    system for Day 36-38 of the metaprogramming removal project.
 
     This is a "simple" filter and must NOT manage the stack of the data (passed
     during init and __call__)
@@ -179,8 +213,8 @@ class SessionFilterSimple(metaclass=metabase.MetaParams):
     added durint the DataBase.addfilter_simple call
     """
 
-    def __init__(self, data):
-        pass
+    def __init__(self, data, **kwargs):
+        super(SessionFilterSimple, self).__init__(**kwargs)
 
     def __call__(self, data):
         """
@@ -193,11 +227,14 @@ class SessionFilterSimple(metaclass=metabase.MetaParams):
         return not (data.p.sessionstart <= data.datetime.time(0) <= data.p.sessionend)
 
 
-class SessionFilter(metaclass=metabase.MetaParams):
+class SessionFilter(ParameterizedBase):
     """
     This class can be applied to a data source as a filter and will filter out
     intraday bars which fall outside the regular session times (ie: pre/post
     market data)
+
+    This class has been refactored from MetaParams to the new ParameterizedBase
+    system for Day 36-38 of the metaprogramming removal project.
 
     This is a "non-simple" filter and must manage the stack of the data (passed
     during init and __call__)
@@ -205,8 +242,8 @@ class SessionFilter(metaclass=metabase.MetaParams):
     It needs no "last" method because it has nothing to deliver
     """
 
-    def __init__(self, data):
-        pass
+    def __init__(self, data, **kwargs):
+        super(SessionFilter, self).__init__(**kwargs)
 
     def __call__(self, data):
         """

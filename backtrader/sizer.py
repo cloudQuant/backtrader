@@ -1,12 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from .metabase import MetaParams
+from .parameters import ParameterizedBase
 
 
-# Sizer类,其他的sizer需要继承这个类并且重写_getsizing类
-class Sizer(metaclass=MetaParams):
-    """This is the base class for *Sizers*. Any *sizer* should subclass this
-    and override the ``_getsizing`` method
+# Sizer类 - 重构为使用新的参数系统
+class Sizer(ParameterizedBase):
+    """
+    This is the base class for *Sizers*. Any *sizer* should subclass this
+    and override the ``_getsizing`` method.
+    
+    This class has been refactored from MetaParams to the new ParameterizedBase
+    system for Day 36-38 of the metaprogramming removal project.
 
     Member Attribs:
 
@@ -28,6 +32,10 @@ class Sizer(metaclass=MetaParams):
 
     strategy = None
     broker = None
+
+    def __init__(self, **kwargs):
+        """Initialize the Sizer with any provided parameters."""
+        super(Sizer, self).__init__(**kwargs)
 
     # 获取下单使用的具体的手数
     def getsizing(self, data, isbuy):
@@ -71,4 +79,4 @@ class Sizer(metaclass=MetaParams):
 
 
 # SizerBase类
-SizerBase = Sizer  # alias for old naming
+SizerBase = Sizer
