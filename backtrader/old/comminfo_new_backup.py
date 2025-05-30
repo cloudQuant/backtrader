@@ -7,7 +7,7 @@
 保持完全向后兼容的API接口。
 """
 
-from .parameters import (
+from ..parameters import (
     ParameterDescriptor, ParameterizedBase,
     Float, OneOf
 )
@@ -102,7 +102,7 @@ class CommInfoBase(ParameterizedBase):
     def __init__(self, **kwargs):
         """初始化CommInfo对象"""
         super(CommInfoBase, self).__init__()
-            
+        
         # 特殊处理margin参数的None值验证
         if 'margin' in kwargs:
             margin_value = kwargs['margin']
@@ -123,11 +123,11 @@ class CommInfoBase(ParameterizedBase):
     
     def _post_init_setup(self):
         """参数后处理和内部状态设置"""
-        # 从参数获取初始值
+        # 从参数设置内部属性
         self._stocklike = self.get_param('stocklike')
         self._commtype = self.get_param('commtype')
 
-        # 兼容性逻辑：如果commtype为None，根据margin设置类型（与原始实现一致）
+        # 兼容性逻辑：如果commtype为None，根据margin设置类型
         if self._commtype is None:
             if self.get_param('margin'):
                 self._stocklike = False
@@ -136,29 +136,16 @@ class CommInfoBase(ParameterizedBase):
                 self._stocklike = True
                 self._commtype = self.COMM_PERC
 
-        # 参数后处理（与原始实现保持一致）
+        # 参数后处理
         if not self._stocklike and not self.get_param('margin'):
-            # 直接修改参数管理器中的值，避免验证问题
-            self._param_manager.set('margin', 1.0, skip_validation=True)
+            self.set_param('margin', 1.0)
 
-        # 处理百分比佣金转换（重要！与原始实现保持一致）
         if self._commtype == self.COMM_PERC and not self.get_param('percabs'):
             current_commission = self.get_param('commission')
-            # 直接修改参数值，避免重复转换
-            self._param_manager.set('commission', current_commission / 100.0, skip_validation=True)
+            self.set_param('commission', current_commission / 100.0)
 
         # 计算利率
         self._creditrate = self.get_param('interest') / 365.0
-    
-    def __getattribute__(self, name):
-        """Override attribute access to return processed values for stocklike"""
-        if name == 'stocklike':
-            try:
-                return self._stocklike
-            except AttributeError:
-                # Fall back to parameter value if _stocklike not yet set
-                return super().__getattribute__(name)
-        return super().__getattribute__(name)
     
     def get_margin(self, price):
         """Returns the actual margin/guarantees needed for a single item of the
@@ -408,4 +395,4 @@ class ComminfoFundingRate(CommInfoBase):
             funding_rate = 0.0
         
         total_funding_rate = funding_rate * position_value
-        return total_funding_rate
+        return total_funding_rate 
