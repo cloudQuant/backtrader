@@ -18,7 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from . import (SumN, MovingAverageBase, ExponentialSmoothingDynamic)
+from . import SumN, MovingAverageBase, ExponentialSmoothingDynamic
+
 
 # 自适应均线
 class AdaptiveMovingAverage(MovingAverageBase):
@@ -54,9 +55,13 @@ class AdaptiveMovingAverage(MovingAverageBase):
       - http://www.metatrader5.com/en/terminal/help/analytics/indicators/trend_indicators/ama
       - http://help.cqg.com/cqgic/default.htm#!Documents/adaptivemovingaverag2.htm
     """
-    alias = ('KAMA', 'MovingAverageAdaptive',)
-    lines = ('kama',)
-    params = (('fast', 2), ('slow', 30))
+
+    alias = (
+        "KAMA",
+        "MovingAverageAdaptive",
+    )
+    lines = ("kama",)
+    params = (("fast", 2), ("slow", 30))
 
     def __init__(self):
         # Before super to ensure mixins (right-hand side in subclassing)
@@ -71,8 +76,6 @@ class AdaptiveMovingAverage(MovingAverageBase):
 
         sc = pow((er * (fast - slow)) + slow, 2)  # scalable constant
 
-        self.lines[0] = ExponentialSmoothingDynamic(self.data,
-                                                    period=self.p.period,
-                                                    alpha=sc)
+        self.lines[0] = ExponentialSmoothingDynamic(self.data, period=self.p.period, alpha=sc)
 
         super(AdaptiveMovingAverage, self).__init__()

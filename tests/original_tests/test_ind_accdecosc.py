@@ -23,9 +23,7 @@ import testcommon
 import backtrader as bt
 
 chkdatas = 1
-chkvals = [
-    ['-2.097441', '14.156647', '30.408335']
-]
+chkvals = [["-2.097441", "14.156647", "30.408335"]]
 
 chkmin = 38
 chkind = bt.ind.AccelerationDecelerationOscillator
@@ -33,14 +31,16 @@ chkind = bt.ind.AccelerationDecelerationOscillator
 
 def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
-    testcommon.runtest(datas,
-                       testcommon.TestStrategy,
-                       main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+    testcommon.runtest(
+        datas,
+        testcommon.TestStrategy,
+        main=main,
+        plot=main,
+        chkind=chkind,
+        chkmin=chkmin,
+        chkvals=chkvals,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

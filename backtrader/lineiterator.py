@@ -36,8 +36,7 @@ class MetaLineIterator(LineSeries.__class__):
     # 为LineIterator做一些处理工作
     def donew(cls, *args, **kwargs):
         # 创建类
-        _obj, args, kwargs = \
-            super(MetaLineIterator, cls).donew(*args, **kwargs)
+        _obj, args, kwargs = super(MetaLineIterator, cls).donew(*args, **kwargs)
 
         # Prepare to hold children that need to be calculated and
         # influence minperiod - Moved here to support LineNum below
@@ -96,28 +95,26 @@ class MetaLineIterator(LineSeries.__class__):
             for l, line in enumerate(data.lines):
                 linealias = data._getlinealias(l)
                 if linealias:
-                    setattr(_obj, 'data_%s' % linealias, line)
-                setattr(_obj, 'data_%d' % l, line)
+                    setattr(_obj, "data_%s" % linealias, line)
+                setattr(_obj, "data_%d" % l, line)
             # 给data、以及data的line设置具体的别名
             for d, data in enumerate(_obj.datas):
-                setattr(_obj, 'data%d' % d, data)
+                setattr(_obj, "data%d" % d, data)
 
                 for l, line in enumerate(data.lines):
                     linealias = data._getlinealias(l)
                     if linealias:
-                        setattr(_obj, 'data%d_%s' % (d, linealias), line)
-                    setattr(_obj, 'data%d_%d' % (d, l), line)
+                        setattr(_obj, "data%d_%s" % (d, linealias), line)
+                    setattr(_obj, "data%d_%d" % (d, l), line)
 
         # Parameter values have now been set before __init__
         # 设置dnames的值，如果d设置了_name属性
-        _obj.dnames = DotDict([(d._name, d)
-                               for d in _obj.datas if getattr(d, '_name', '')])
+        _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, "_name", "")])
 
         return _obj, newargs, kwargs
 
     def dopreinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = \
-            super(MetaLineIterator, cls).dopreinit(_obj, *args, **kwargs)
+        _obj, args, kwargs = super(MetaLineIterator, cls).dopreinit(_obj, *args, **kwargs)
 
         # if no datas were found use, use the _owner (to have a clock)
         # 如果没有数据被使用到，为了能够有一个时间，使用_obj._owner
@@ -132,8 +129,7 @@ class MetaLineIterator(LineSeries.__class__):
         # A data could be an indicator and it could take x bars until
         # something is produced
         # 获取_obj的最小周期
-        _obj._minperiod = \
-            max([x._minperiod for x in _obj.datas] or [_obj._minperiod])
+        _obj._minperiod = max([x._minperiod for x in _obj.datas] or [_obj._minperiod])
 
         # The lines carry at least the same minperiod as
         # that provided by the datas
@@ -144,8 +140,7 @@ class MetaLineIterator(LineSeries.__class__):
         return _obj, args, kwargs
 
     def dopostinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = \
-            super(MetaLineIterator, cls).dopostinit(_obj, *args, **kwargs)
+        _obj, args, kwargs = super(MetaLineIterator, cls).dopostinit(_obj, *args, **kwargs)
 
         # my minperiod is as large as the minperiod of my lines
         # 获取各条line中最大的一个最小周期
@@ -176,20 +171,22 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
     _ltype = LineSeries.IndType
 
     # plotinfo具体的信息
-    plotinfo = dict(plot=True,
-                    subplot=True,
-                    plotname='',
-                    plotskip=False,
-                    plotabove=False,
-                    plotlinelabels=False,
-                    plotlinevalues=True,
-                    plotvaluetags=True,
-                    plotymargin=0.0,
-                    plotyhlines=[],
-                    plotyticks=[],
-                    plothlines=[],
-                    plotforce=False,
-                    plotmaster=None,)
+    plotinfo = dict(
+        plot=True,
+        subplot=True,
+        plotname="",
+        plotskip=False,
+        plotabove=False,
+        plotlinelabels=False,
+        plotlinevalues=True,
+        plotvaluetags=True,
+        plotymargin=0.0,
+        plotyhlines=[],
+        plotyticks=[],
+        plothlines=[],
+        plotforce=False,
+        plotmaster=None,
+    )
 
     def _periodrecalc(self):
         # last check in case not all lineiterators were assigned to
@@ -232,8 +229,11 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
 
     def getindicators_lines(self):
         # 获取指标的lines
-        return [x for x in self._lineiterators[LineIterator.IndType]
-                if hasattr(x.lines, 'getlinealiases')]
+        return [
+            x
+            for x in self._lineiterators[LineIterator.IndType]
+            if hasattr(x.lines, "getlinealiases")
+        ]
 
     def getobservers(self):
         # 获取观察者
@@ -245,7 +245,7 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
         self._lineiterators[indicator._ltype].append(indicator)
 
         # use getattr because line buffers don't have this attribute
-        if getattr(indicator, '_nextforce', False):
+        if getattr(indicator, "_nextforce", False):
             # the indicator needs runonce=False
             o = self
             while o is not None:
@@ -257,7 +257,7 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
 
     def bindlines(self, owner=None, own=None):
         # 给从own获取到的line的bindings中添加从owner获取到的line
-        
+
         if not owner:
             owner = 0
 
@@ -279,7 +279,7 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
                 lownerref = getattr(self._owner.lines, lineowner)
             else:
                 lownerref = self._owner.lines[lineowner]
-            
+
             if isinstance(lineown, string_types):
                 lownref = getattr(self.lines, lineown)
             else:
@@ -337,7 +337,7 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
 
     def _once(self):
         # 调用once的相关操作
-        
+
         self.forward(size=self._clock.buflen())
 
         for indicator in self._lineiterators[LineIterator.IndType]:
@@ -428,6 +428,7 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
 # or even outside (like in LineObservers)
 # for the 3 subbranches without generating circular import references
 
+
 class DataAccessor(LineIterator):
     # 数据接口类
     PriceClose = DataSeries.Close
@@ -454,6 +455,7 @@ class StrategyBase(DataAccessor):
 # Utility class to couple lines/lineiterators which may have different lengths
 # Will only work when runonce=False is passed to Cerebro
 
+
 class SingleCoupler(LineActions):
     # 单条line的操作
     def __init__(self, cdata, clock=None):
@@ -462,7 +464,7 @@ class SingleCoupler(LineActions):
 
         self.cdata = cdata
         self.dlen = 0
-        self.val = float('NaN')
+        self.val = float("NaN")
 
     def next(self):
         if len(self.cdata) > self.dlen:
@@ -480,7 +482,7 @@ class MultiCoupler(LineIterator):
         super(MultiCoupler, self).__init__()
         self.dlen = 0
         self.dsize = self.fullsize()  # shorcut for number of lines
-        self.dvals = [float('NaN')] * self.dsize
+        self.dvals = [float("NaN")] * self.dsize
 
     def next(self):
         if len(self.data) > self.dlen:
@@ -507,7 +509,7 @@ def LinesCoupler(cdata, clock=None, **kwargs):
 
     # Prepare a MultiCoupler subclass
     # 准备创建一个MultiCoupler的子类，并把cdatascls相关的信息转移到这个类上
-    nclsname = str('LinesCoupler_%d' % LinesCoupler.counter)
+    nclsname = str("LinesCoupler_%d" % LinesCoupler.counter)
     ncls = type(nclsname, (MultiCoupler,), {})
     thismod = sys.modules[LinesCoupler.__module__]
     setattr(thismod, ncls.__name__, ncls)
@@ -522,13 +524,13 @@ def LinesCoupler(cdata, clock=None, **kwargs):
     # LineIterator background scanning code
     # 设置clock
     if clock is None:
-        clock = getattr(cdata, '_clock', None)
+        clock = getattr(cdata, "_clock", None)
         if clock is not None:
-            nclock = getattr(clock, '_clock', None)
+            nclock = getattr(clock, "_clock", None)
             if nclock is not None:
                 clock = nclock
             else:
-                nclock = getattr(clock, 'data', None)
+                nclock = getattr(clock, "data", None)
                 if nclock is not None:
                     clock = nclock
 

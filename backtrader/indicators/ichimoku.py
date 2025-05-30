@@ -21,6 +21,7 @@
 import backtrader as bt
 from . import Highest, Lowest
 
+
 # 日本云图指标
 class Ichimoku(bt.Indicator):
     """
@@ -45,20 +46,25 @@ class Ichimoku(bt.Indicator):
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:ichimoku_cloud
 
     """
-    lines = ('tenkan_sen', 'kijun_sen',
-             'senkou_span_a', 'senkou_span_b', 'chikou_span',)
+
+    lines = (
+        "tenkan_sen",
+        "kijun_sen",
+        "senkou_span_a",
+        "senkou_span_b",
+        "chikou_span",
+    )
     params = (
-        ('tenkan', 9),
-        ('kijun', 26),
-        ('senkou', 52),
-        ('senkou_lead', 26),  # forward push
-        ('chikou', 26),  # backwards push
+        ("tenkan", 9),
+        ("kijun", 26),
+        ("senkou", 52),
+        ("senkou_lead", 26),  # forward push
+        ("chikou", 26),  # backwards push
     )
 
     plotinfo = dict(subplot=False)
     plotlines = dict(
-        senkou_span_a=dict(_fill_gt=('senkou_span_b', 'g'),
-                           _fill_lt=('senkou_span_b', 'r')),
+        senkou_span_a=dict(_fill_gt=("senkou_span_b", "g"), _fill_lt=("senkou_span_b", "r")),
     )
 
     def __init__(self):

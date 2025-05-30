@@ -21,7 +21,7 @@
 from . import Indicator, SMA, PercentRank
 
 
-__all__ = ['DV2']
+__all__ = ["DV2"]
 
 
 # RSI指标的替代品
@@ -37,12 +37,13 @@ class DV2(Indicator):
       - http://web.archive.org/web/20131216100741/http://quantingdutchman.wordpress.com/2010/08/06/dv2-indicator-for-amibroker/
 
     """
+
     params = (
-        ('period', 252),
-        ('maperiod', 2),
-        ('_movav', SMA),
+        ("period", 252),
+        ("maperiod", 2),
+        ("_movav", SMA),
     )
-    lines = ('dv2',)
+    lines = ("dv2",)
 
     def __init__(self):
         chl = self.data.close / ((self.data.high + self.data.low) / 2.0)

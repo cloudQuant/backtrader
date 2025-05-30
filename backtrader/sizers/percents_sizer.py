@@ -20,7 +20,7 @@
 ###############################################################################
 import backtrader as bt
 
-__all__ = ['PercentSizer', 'AllInSizer', 'PercentSizerInt', 'AllInSizerInt']
+__all__ = ["PercentSizer", "AllInSizer", "PercentSizerInt", "AllInSizerInt"]
 
 
 # 百分比手数，根据可以利用的现金的百分比下单
@@ -33,8 +33,8 @@ class PercentSizer(bt.Sizer):
 
     # 参数
     params = (
-        ('percents', 20),
-        ('retint', False),  # return an int size or rather the float value
+        ("percents", 20),
+        ("retint", False),  # return an int size or rather the float value
     )
 
     def __init__(self):
@@ -55,16 +55,17 @@ class PercentSizer(bt.Sizer):
 
         return size
 
+
 # 利用所有的现金进行下单
 class AllInSizer(PercentSizer):
     """This sizer return all available cash of broker
 
-     Params:
-       - ``percents`` (default: ``100``)
-     """
-    params = (
-        ('percents', 100),
-    )
+    Params:
+      - ``percents`` (default: ``100``)
+    """
+
+    params = (("percents", 100),)
+
 
 # 按照百分比进行计算下单的手数，然后要取整
 class PercentSizerInt(PercentSizer):
@@ -75,9 +76,8 @@ class PercentSizerInt(PercentSizer):
       - ``percents`` (default: ``20``)
     """
 
-    params = (
-        ('retint', True),  # return an int size or rather the float value
-    )
+    params = (("retint", True),)  # return an int size or rather the float value
+
 
 # 根据所有的现金进行下单，手数要取整
 class AllInSizerInt(PercentSizerInt):
@@ -86,7 +86,6 @@ class AllInSizerInt(PercentSizerInt):
 
      Params:
        - ``percents`` (default: ``100``)
-     """
-    params = (
-        ('percents', 100),
-    )
+    """
+
+    params = (("percents", 100),)

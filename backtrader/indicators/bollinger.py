@@ -20,6 +20,7 @@
 ###############################################################################
 from . import Indicator, MovAv, StdDev
 
+
 # 布林带指标
 class BollingerBands(Indicator):
     """
@@ -34,39 +35,49 @@ class BollingerBands(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Bollinger_Bands
     """
-    alias = ('BBands',)
 
-    lines = ('mid', 'top', 'bot',)
-    params = (('period', 20), ('devfactor', 2.0), ('movav', MovAv.Simple),)
+    alias = ("BBands",)
+
+    lines = (
+        "mid",
+        "top",
+        "bot",
+    )
+    params = (
+        ("period", 20),
+        ("devfactor", 2.0),
+        ("movav", MovAv.Simple),
+    )
 
     plotinfo = dict(subplot=False)
     plotlines = dict(
-        mid=dict(ls='--'),
+        mid=dict(ls="--"),
         top=dict(_samecolor=True),
         bot=dict(_samecolor=True),
     )
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.devfactor]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def __init__(self):
         self.lines.mid = ma = self.p.movav(self.data, period=self.p.period)
-        stddev = self.p.devfactor * StdDev(self.data, ma, period=self.p.period,
-                                           movav=self.p.movav)
+        stddev = self.p.devfactor * StdDev(self.data, ma, period=self.p.period, movav=self.p.movav)
         self.lines.top = ma + stddev
         self.lines.bot = ma - stddev
 
         super(BollingerBands, self).__init__()
+
 
 # 布林带百分比指标
 class BollingerBandsPct(BollingerBands):
     """
     Extends the Bollinger Bands with a Percentage line
     """
-    lines = ('pctb',)
-    plotlines = dict(pctb=dict(_name='%B'))  # display the line as %B on chart
+
+    lines = ("pctb",)
+    plotlines = dict(pctb=dict(_name="%B"))  # display the line as %B on chart
 
     def __init__(self):
         super(BollingerBandsPct, self).__init__()

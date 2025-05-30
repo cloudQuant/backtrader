@@ -22,7 +22,8 @@ import backtrader as bt
 from . import MovAv
 
 
-__all__ = ['HaDelta', 'haD']
+__all__ = ["HaDelta", "haD"]
+
 
 # HaDelta指标
 class HaDelta(bt.Indicator):
@@ -42,21 +43,22 @@ class HaDelta(bt.Indicator):
       - smoothed = movav(haDelta, period)
 
     """
-    alias = ('haD',)
 
-    lines = ('haDelta', 'smoothed')
+    alias = ("haD",)
+
+    lines = ("haDelta", "smoothed")
 
     params = (
-        ('period', 3),
-        ('movav', MovAv.SMA),
-        ('autoheikin', True),
+        ("period", 3),
+        ("movav", MovAv.SMA),
+        ("autoheikin", True),
     )
 
     plotinfo = dict(subplot=True)
 
     plotlines = dict(
-        haDelta=dict(color='red'),
-        smoothed=dict(color='grey', _fill_gt=(0, 'green'), _fill_lt=(0, 'red'))
+        haDelta=dict(color="red"),
+        smoothed=dict(color="grey", _fill_gt=(0, "green"), _fill_lt=(0, "red")),
     )
 
     def __init__(self):
@@ -65,5 +67,6 @@ class HaDelta(bt.Indicator):
         self.lines.haDelta = hd = d.close - d.open
         self.lines.smoothed = self.p.movav(hd, period=self.p.period)
         super(HaDelta, self).__init__()
+
 
 haD = HaDelta

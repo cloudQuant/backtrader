@@ -24,7 +24,7 @@
 import backtrader as bt
 
 
-__all__ = ['Fractal']
+__all__ = ["Fractal"]
 
 
 class Fractal(bt.ind.PeriodN):
@@ -33,20 +33,23 @@ class Fractal(bt.ind.PeriodN):
         [Ref 1] http://www.investopedia.com/articles/trading/06/fractals.asp
 
     """
-    lines = ('fractal_bearish', 'fractal_bullish')
+
+    lines = ("fractal_bearish", "fractal_bullish")
 
     plotinfo = dict(subplot=False, plotlinelabels=False, plot=True)
 
     plotlines = dict(
-        fractal_bearish=dict(marker='^', markersize=4.0, color='lightblue',
-                             fillstyle='full', ls=''),
-        fractal_bullish=dict(marker='v', markersize=4.0, color='lightblue',
-                             fillstyle='full', ls='')
+        fractal_bearish=dict(
+            marker="^", markersize=4.0, color="lightblue", fillstyle="full", ls=""
+        ),
+        fractal_bullish=dict(
+            marker="v", markersize=4.0, color="lightblue", fillstyle="full", ls=""
+        ),
     )
     params = (
-        ('period', 5),
-        ('bardist', 0.015),  # distance to max/min in absolute perc
-        ('shift_to_potential_fractal', 2),
+        ("period", 5),
+        ("bardist", 0.015),  # distance to max/min in absolute perc
+        ("shift_to_potential_fractal", 2),
     )
 
     def next(self):

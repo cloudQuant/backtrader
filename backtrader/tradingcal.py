@@ -25,7 +25,7 @@ from backtrader.utils.py3 import string_types
 from backtrader.utils import UTC
 
 # from tradingcal import * 可以import到的所有的类
-__all__ = ['TradingCalendarBase', 'TradingCalendar', 'PandasMarketCalendar']
+__all__ = ["TradingCalendarBase", "TradingCalendar", "PandasMarketCalendar"]
 
 # Imprecision in the full time conversion to float would wrap over to next day
 # if microseconds are 999,999 as defined in time.max
@@ -35,14 +35,16 @@ _time_max = time(hour=23, minute=59, second=59, microsecond=999990)
 # 一周七天的常量,周一是0，周日是6
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
 # 判断是周几，没有日期是0，周一是1，周日是7
-(ISONODAY, ISOMONDAY, ISOTUESDAY, ISOWEDNESDAY, ISOTHURSDAY, ISOFRIDAY,
- ISOSATURDAY, ISOSUNDAY) = range(8)
+(ISONODAY, ISOMONDAY, ISOTUESDAY, ISOWEDNESDAY, ISOTHURSDAY, ISOFRIDAY, ISOSATURDAY, ISOSUNDAY) = (
+    range(8)
+)
 # 周末是周六和周日
 WEEKEND = [SATURDAY, SUNDAY]
 # 是否是周末
 ISOWEEKEND = [ISOSATURDAY, ISOSUNDAY]
 # 一天的时间差
 ONEDAY = timedelta(days=1)
+
 
 # 交易日历基类，定义了具体的方法
 class TradingCalendarBase(metaclass=MetaParams):
@@ -158,11 +160,11 @@ class TradingCalendar(TradingCalendarBase):
 
     # 参数
     params = (
-        ('open', time.min),
-        ('close', _time_max),
-        ('holidays', []),  # list of non-trading days (date)
-        ('earlydays', []),  # list of tuples (date, opentime, closetime)
-        ('offdays', ISOWEEKEND),  # list of non-trading (isoweekdays)
+        ("open", time.min),
+        ("close", _time_max),
+        ("holidays", []),  # list of non-trading days (date)
+        ("earlydays", []),  # list of tuples (date, opentime, closetime)
+        ("offdays", ISOWEEKEND),  # list of non-trading (isoweekdays)
     )
 
     # 初始化，根据earlydays，获取这些日期，为了加快搜索的速度
@@ -260,20 +262,24 @@ class PandasMarketCalendar(TradingCalendarBase):
       - http://pandas-market-calendars.readthedocs.io/
 
     """
+
     # 参数
     params = (
-        ('calendar', None),  # A pandas_market_calendars instance or exch name
-        ('cachesize', 365),  # Number of days to cache in advance
+        ("calendar", None),  # A pandas_market_calendars instance or exch name
+        ("cachesize", 365),  # Number of days to cache in advance
     )
+
     # 初始化
     def __init__(self):
         self._calendar = self.p.calendar
         # 如果self._calendar是字符串，使用get_calendar转换成calendar实例
         if isinstance(self._calendar, string_types):  # use passed mkt name
             import pandas_market_calendars as mcal
+
             self._calendar = mcal.get_calendar(self._calendar)
         # 创建self.dcache，self.dcache，self.csize
         import pandas as pd  # guaranteed because of pandas_market_calendars
+
         self.dcache = pd.DatetimeIndex([0.0])
         self.idcache = pd.DataFrame(index=pd.DatetimeIndex([0.0]))
         self.csize = timedelta(days=self.p.cachesize)

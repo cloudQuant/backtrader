@@ -68,13 +68,23 @@ class OrderExecutionBit(object):
       # 已经开仓部分的仓位价格
 
     """
+
     # 对订单执行信息进行初始化
-    def __init__(self,
-                 dt=None, size=0, price=0.0,
-                 closed=0, closedvalue=0.0, closedcomm=0.0,
-                 opened=0, openedvalue=0.0, openedcomm=0.0,
-                 pnl=0.0,
-                 psize=0, pprice=0.0):
+    def __init__(
+        self,
+        dt=None,
+        size=0,
+        price=0.0,
+        closed=0,
+        closedvalue=0.0,
+        closedcomm=0.0,
+        opened=0,
+        openedvalue=0.0,
+        openedcomm=0.0,
+        pnl=0.0,
+        psize=0,
+        pprice=0.0,
+    ):
 
         self.dt = dt
         self.size = size
@@ -93,6 +103,7 @@ class OrderExecutionBit(object):
 
         self.psize = psize
         self.pprice = pprice
+
 
 # 保存真实的订单信息以便创建和执行，创建的时候请求创建，执行的时候产出最终的结果
 class OrderData(object):
@@ -134,6 +145,7 @@ class OrderData(object):
         # 当前持仓的价格
 
     """
+
     # According to the docs, collections.deque is thread-safe with appends at
     # both ends, there will be no pop (nowhere) and therefore to know which the
     # new exbits are two indices are needed. At time of cloning (__copy__) the
@@ -147,8 +159,17 @@ class OrderData(object):
     # the len of the exbits can be queried with no concerns about another
     # thread making an append and with no need for a lock
 
-    def __init__(self, dt=None, size=0, price=0.0, pricelimit=0.0, remsize=0,
-                 pclose=0.0, trailamount=0.0, trailpercent=0.0):
+    def __init__(
+        self,
+        dt=None,
+        size=0,
+        price=0.0,
+        pricelimit=0.0,
+        remsize=0,
+        pclose=0.0,
+        trailamount=0.0,
+        trailpercent=0.0,
+    ):
 
         self.pclose = pclose
         self.exbits = collections.deque()  # for historical purposes
@@ -199,17 +220,38 @@ class OrderData(object):
         return self.exbits[key]
 
     # 增加执行信息
-    def add(self, dt, size, price,
-            closed=0, closedvalue=0.0, closedcomm=0.0,
-            opened=0, openedvalue=0.0, openedcomm=0.0,
-            pnl=0.0,
-            psize=0, pprice=0.0):
+    def add(
+        self,
+        dt,
+        size,
+        price,
+        closed=0,
+        closedvalue=0.0,
+        closedcomm=0.0,
+        opened=0,
+        openedvalue=0.0,
+        openedcomm=0.0,
+        pnl=0.0,
+        psize=0,
+        pprice=0.0,
+    ):
 
         self.addbit(
-            OrderExecutionBit(dt, size, price,
-                              closed, closedvalue, closedcomm,
-                              opened, openedvalue, openedcomm, pnl,
-                              psize, pprice))
+            OrderExecutionBit(
+                dt,
+                size,
+                price,
+                closed,
+                closedvalue,
+                closedcomm,
+                opened,
+                openedvalue,
+                openedcomm,
+                pnl,
+                psize,
+                pprice,
+            )
+        )
 
     # 根据订单的执行调整当前的各个属性
     def addbit(self, exbit):
@@ -236,10 +278,12 @@ class OrderData(object):
     # 把订单等待执行信息切片，如果p1和p2都是等于0,似乎得到的是空的
     def iterpending(self):
         return itertools.islice(self.exbits, self.p1, self.p2)
+
     # 标记哪些是pending的订单执行信息
     def markpending(self):
         # rebuild the indices to mark which exbits are pending in clone
         self.p1, self.p2 = self.p2, len(self.exbits)
+
     # 对对象进行克隆
     def clone(self):
         self.markpending()
@@ -250,14 +294,22 @@ class OrderData(object):
 class OrderBase(metaclass=MetaParams):
     # 订单的基本参数
     params = (
-        ('owner', None), ('data', None),
-        ('size', None), ('price', None), ('pricelimit', None),
-        ('exectype', None), ('valid', None), ('tradeid', 0), ('oco', None),
-        ('trailamount', None), ('trailpercent', None),
-        ('parent', None), ('transmit', True),
-        ('simulated', False),
+        ("owner", None),
+        ("data", None),
+        ("size", None),
+        ("price", None),
+        ("pricelimit", None),
+        ("exectype", None),
+        ("valid", None),
+        ("tradeid", 0),
+        ("oco", None),
+        ("trailamount", None),
+        ("trailpercent", None),
+        ("parent", None),
+        ("transmit", True),
+        ("simulated", False),
         # To support historical order evaluation
-        ('histnotify', False),
+        ("histnotify", False),
     )
     # DAY目前代表空的时间差
     DAY = datetime.timedelta()  # constant for DAY order identification
@@ -271,22 +323,35 @@ class OrderBase(metaclass=MetaParams):
     V_None = range(1)
 
     # 不同的订单类型，用不同的数字表示
-    (Market, Close, Limit, Stop, StopLimit, StopTrail, StopTrailLimit,
-     Historical) = range(8)
-    ExecTypes = ['Market', 'Close', 'Limit', 'Stop', 'StopLimit', 'StopTrail',
-                 'StopTrailLimit', 'Historical']
+    (Market, Close, Limit, Stop, StopLimit, StopTrail, StopTrailLimit, Historical) = range(8)
+    ExecTypes = [
+        "Market",
+        "Close",
+        "Limit",
+        "Stop",
+        "StopLimit",
+        "StopTrail",
+        "StopTrailLimit",
+        "Historical",
+    ]
     # 订单的方向类型
-    OrdTypes = ['Buy', 'Sell']
+    OrdTypes = ["Buy", "Sell"]
     Buy, Sell = range(2)
     # 订单的不同状态
-    Created, Submitted, Accepted, Partial, Completed, \
-        Canceled, Expired, Margin, Rejected = range(9)
+    Created, Submitted, Accepted, Partial, Completed, Canceled, Expired, Margin, Rejected = range(9)
 
     Cancelled = Canceled  # alias
 
     Status = [
-        'Created', 'Submitted', 'Accepted', 'Partial', 'Completed',
-        'Canceled', 'Expired', 'Margin', 'Rejected',
+        "Created",
+        "Submitted",
+        "Accepted",
+        "Partial",
+        "Completed",
+        "Canceled",
+        "Expired",
+        "Margin",
+        "Rejected",
     ]
     # 对每个订单增加一个数字
     refbasis = itertools.count(1)  # for a unique identifier per order
@@ -315,25 +380,25 @@ class OrderBase(metaclass=MetaParams):
     # 打印order的时候，显示出来的内容
     def __str__(self):
         tojoin = list()
-        tojoin.append('Ref: {}'.format(self.ref))
-        tojoin.append('OrdType: {}'.format(self.ordtype))
-        tojoin.append('OrdType: {}'.format(self.ordtypename()))
-        tojoin.append('Status: {}'.format(self.status))
-        tojoin.append('Status: {}'.format(self.getstatusname()))
-        tojoin.append('Size: {}'.format(self.size))
-        tojoin.append('Price: {}'.format(self.price))
-        tojoin.append('Price Limit: {}'.format(self.pricelimit))
-        tojoin.append('TrailAmount: {}'.format(self.trailamount))
-        tojoin.append('TrailPercent: {}'.format(self.trailpercent))
-        tojoin.append('ExecType: {}'.format(self.exectype))
-        tojoin.append('ExecType: {}'.format(self.getordername()))
-        tojoin.append('CommInfo: {}'.format(self.comminfo))
-        tojoin.append('End of Session: {}'.format(self.dteos))
-        tojoin.append('Info: {}'.format(self.info))
-        tojoin.append('Broker: {}'.format(self.broker))
-        tojoin.append('Alive: {}'.format(self.alive()))
+        tojoin.append("Ref: {}".format(self.ref))
+        tojoin.append("OrdType: {}".format(self.ordtype))
+        tojoin.append("OrdType: {}".format(self.ordtypename()))
+        tojoin.append("Status: {}".format(self.status))
+        tojoin.append("Status: {}".format(self.getstatusname()))
+        tojoin.append("Size: {}".format(self.size))
+        tojoin.append("Price: {}".format(self.price))
+        tojoin.append("Price Limit: {}".format(self.pricelimit))
+        tojoin.append("TrailAmount: {}".format(self.trailamount))
+        tojoin.append("TrailPercent: {}".format(self.trailpercent))
+        tojoin.append("ExecType: {}".format(self.exectype))
+        tojoin.append("ExecType: {}".format(self.getordername()))
+        tojoin.append("CommInfo: {}".format(self.comminfo))
+        tojoin.append("End of Session: {}".format(self.dteos))
+        tojoin.append("Info: {}".format(self.info))
+        tojoin.append("Broker: {}".format(self.broker))
+        tojoin.append("Alive: {}".format(self.alive()))
 
-        return '\n'.join(tojoin)
+        return "\n".join(tojoin)
 
     # 初始化类
     def __init__(self):
@@ -375,13 +440,15 @@ class OrderBase(metaclass=MetaParams):
         # 如果不是simulated的话，订单创建时间等于当前数据的时间，否则就是0
         dcreated = self.data.datetime[0] if not self.p.simulated else 0.0
         # 订单创建
-        self.created = OrderData(dt=dcreated,
-                                 size=self.size,
-                                 price=price,
-                                 pricelimit=self.pricelimit,
-                                 pclose=pclose,
-                                 trailamount=self.trailamount,
-                                 trailpercent=self.trailpercent)
+        self.created = OrderData(
+            dt=dcreated,
+            size=self.size,
+            price=price,
+            pricelimit=self.pricelimit,
+            pclose=pclose,
+            trailamount=self.trailamount,
+            trailpercent=self.trailpercent,
+        )
 
         # Adjust price in case a trailing limit is wished
         # 如果是跟踪止损单的执行类型的话，需要对价格进行调整，限价补偿等于创建的价格减去创建的限价
@@ -390,7 +457,7 @@ class OrderBase(metaclass=MetaParams):
         if self.exectype in [Order.StopTrail, Order.StopTrailLimit]:
             self._limitoffset = self.created.price - self.created.pricelimit
             price = self.created.price
-            self.created.price = float('inf' * self.isbuy() or '-inf')
+            self.created.price = float("inf" * self.isbuy() or "-inf")
             self.trailadjust(price)
         else:
             self._limitoffset = 0.0
@@ -411,7 +478,8 @@ class OrderBase(metaclass=MetaParams):
             # when reading with date2num ... it will be automatically localized
             if self.valid == self.DAY:
                 valid = datetime.datetime.combine(
-                    self.data.datetime.date(), datetime.time(23, 59, 59, 9999))
+                    self.data.datetime.date(), datetime.time(23, 59, 59, 9999)
+                )
             else:
                 valid = self.data.datetime.datetime() + self.valid
 
@@ -420,7 +488,8 @@ class OrderBase(metaclass=MetaParams):
         elif self.valid is not None:
             if not self.valid:  # avoid comparing None and 0
                 valid = datetime.datetime.combine(
-                    self.data.datetime.date(), datetime.time(23, 59, 59, 9999))
+                    self.data.datetime.date(), datetime.time(23, 59, 59, 9999)
+                )
             else:  # assume float
                 valid = self.data.datetime[0] + self.valid
         # 如果当前不是模拟的话，获取dteos，如果是模拟的话，dteos是0
@@ -430,9 +499,12 @@ class OrderBase(metaclass=MetaParams):
             # get next session end
             dtime = self.data.datetime.datetime(0)
             session = self.data.p.sessionend
-            dteos = dtime.replace(hour=session.hour, minute=session.minute,
-                                  second=session.second,
-                                  microsecond=session.microsecond)
+            dteos = dtime.replace(
+                hour=session.hour,
+                minute=session.minute,
+                second=session.second,
+                microsecond=session.microsecond,
+            )
 
             if dteos < dtime:
                 # eos before current time ... no ... must be at least next day
@@ -441,6 +513,7 @@ class OrderBase(metaclass=MetaParams):
             self.dteos = self.data.date2num(dteos)
         else:
             self.dteos = 0.0
+
     # 克隆order本身
     def clone(self):
         # status, triggered and executed are the only moving parts in order
@@ -449,10 +522,12 @@ class OrderBase(metaclass=MetaParams):
         obj = copy(self)
         obj.executed = self.executed.clone()
         return obj  # status could change in next to completed
+
     # 获取订单状态的名称
     def getstatusname(self, status=None):
         """Returns the name for a given status or the one of the order"""
         return self.Status[self.status if status is None else status]
+
     # 获取订单的名称
     def getordername(self, exectype=None):
         """Returns the name for a given exectype or the one of the order"""
@@ -461,27 +536,32 @@ class OrderBase(metaclass=MetaParams):
     @classmethod
     def ExecType(cls, exectype):
         return getattr(cls, exectype)
+
     # 获取order类型的名字
     def ordtypename(self, ordtype=None):
         """Returns the name for a given ordtype or the one of the order"""
         return self.OrdTypes[self.ordtype if ordtype is None else ordtype]
+
     # 获取激活状态
     def active(self):
         return self._active
+
     # 激活订单
     def activate(self):
         self._active = True
+
     # 订单如果是创建，提交，部分成交，或者接受的状态，订单是活的
     def alive(self):
         """Returns True if the order is in a status in which it can still be
         executed
         """
-        return self.status in [Order.Created, Order.Submitted,
-                               Order.Partial, Order.Accepted]
+        return self.status in [Order.Created, Order.Submitted, Order.Partial, Order.Accepted]
+
     # 增加佣金相关的信息
     def addcomminfo(self, comminfo):
         """Stores a CommInfo scheme associated with the asset"""
         self.comminfo = comminfo
+
     # 增加信息
     def addinfo(self, **kwargs):
         """Add the keys, values of kwargs to the internal info dictionary to
@@ -489,24 +569,30 @@ class OrderBase(metaclass=MetaParams):
         """
         for key, val in iteritems(kwargs):
             self.info[key] = val
+
     # 判断两个订单是否相等
     def __eq__(self, other):
         return other is not None and self.ref == other.ref
+
     # 判断两个订单是否是不一样的
     def __ne__(self, other):
         return self.ref != other.ref
+
     # 判断当前是否是买订单
     def isbuy(self):
         """Returns True if the order is a Buy order"""
         return self.ordtype == self.Buy
+
     # 判断当前是否是卖订单
     def issell(self):
         """Returns True if the order is a Sell order"""
         return self.ordtype == self.Sell
+
     # 给订单设置具体的持仓大小
     def setposition(self, position):
         """Receives the current position for the asset and stores it"""
         self.position = position
+
     # 提交订单给broker
     def submit(self, broker=None):
         """Marks an order as submitted and stores the broker to which it was
@@ -514,11 +600,13 @@ class OrderBase(metaclass=MetaParams):
         self.status = Order.Submitted
         self.broker = broker
         self.plen = len(self.data)
+
     # 接受订单
     def accept(self, broker=None):
         """Marks an order as accepted"""
         self.status = Order.Accepted
         self.broker = broker
+
     # broker状态，如果broker不是None或者0之类的话，尝试从broker获取订单状态，如果broker是None，直接返回订单的彰泰
     def brokerstatus(self):
         """Tries to retrieve the status from the broker in which the order is.
@@ -528,6 +616,7 @@ class OrderBase(metaclass=MetaParams):
             return self.broker.orderstatus(self)
 
         return self.status
+
     # 拒绝订单，如果已经拒绝了，返回False，如果不是，设置订单状态和执行拒绝的时间，broker，然后返回True
     def reject(self, broker=None):
         """Marks an order as rejected"""
@@ -540,6 +629,7 @@ class OrderBase(metaclass=MetaParams):
         if not self.p.simulated:
             self.executed.dt = self.data.datetime[0]
         return True
+
     # 取消订单
     def cancel(self):
         """Marks an order as cancelled"""
@@ -547,6 +637,7 @@ class OrderBase(metaclass=MetaParams):
         # self.executed.dt = self.data.datetime[0]
         if not self.p.simulated:
             self.executed.dt = self.data.datetime[0]
+
     # 保证金不够，增加保证金
     def margin(self):
         """Marks an order as having met a margin call"""
@@ -554,39 +645,65 @@ class OrderBase(metaclass=MetaParams):
         # self.executed.dt = self.data.datetime[0]
         if not self.p.simulated:
             self.executed.dt = self.data.datetime[0]
+
     # 完成
     def completed(self):
         """Marks an order as completely filled"""
         self.status = self.Completed
+
     # 部分成交
     def partial(self):
         """Marks an order as partially filled"""
         self.status = self.Partial
-    # 执行订单
-    def execute(self, dt, size, price,
-                closed, closedvalue, closedcomm,
-                opened, openedvalue, openedcomm,
-                margin, pnl,
-                psize, pprice):
 
+    # 执行订单
+    def execute(
+        self,
+        dt,
+        size,
+        price,
+        closed,
+        closedvalue,
+        closedcomm,
+        opened,
+        openedvalue,
+        openedcomm,
+        margin,
+        pnl,
+        psize,
+        pprice,
+    ):
         """Receives data execution input and stores it"""
         if not size:
             return
 
-        self.executed.add(dt, size, price,
-                          closed, closedvalue, closedcomm,
-                          opened, openedvalue, openedcomm,
-                          pnl, psize, pprice)
+        self.executed.add(
+            dt,
+            size,
+            price,
+            closed,
+            closedvalue,
+            closedcomm,
+            opened,
+            openedvalue,
+            openedcomm,
+            pnl,
+            psize,
+            pprice,
+        )
 
         self.executed.margin = margin
+
     # 订单到期
     def expire(self):
         """Marks an order as expired. Returns True if it worked"""
         self.status = self.Expired
         return True
+
     # 跟踪价格调整
     def trailadjust(self, price):
         pass  # generic interface
+
 
 # 订单类
 class Order(OrderBase):
@@ -638,17 +755,40 @@ class Order(OrderBase):
         # 判断订单是否是存活的，包括四种状态，创建、提交、接受、部分成交、
       - alive(): returns bool if order is in status Partial or Accepted
     """
-    # 订单的执行
-    def execute(self, dt, size, price,
-                closed, closedvalue, closedcomm,
-                opened, openedvalue, openedcomm,
-                margin, pnl,
-                psize, pprice):
 
-        super(Order, self).execute(dt, size, price,
-                                   closed, closedvalue, closedcomm,
-                                   opened, openedvalue, openedcomm,
-                                   margin, pnl, psize, pprice)
+    # 订单的执行
+    def execute(
+        self,
+        dt,
+        size,
+        price,
+        closed,
+        closedvalue,
+        closedcomm,
+        opened,
+        openedvalue,
+        openedcomm,
+        margin,
+        pnl,
+        psize,
+        pprice,
+    ):
+
+        super(Order, self).execute(
+            dt,
+            size,
+            price,
+            closed,
+            closedvalue,
+            closedcomm,
+            opened,
+            openedvalue,
+            openedcomm,
+            margin,
+            pnl,
+            psize,
+            pprice,
+        )
         # 如果重新设置大小了，代表部分执行，否则代表完全成交了
         if self.executed.remsize:
             self.status = Order.Partial
@@ -656,6 +796,7 @@ class Order(OrderBase):
             self.status = Order.Completed
 
         # self.comminfo = None
+
     # 判断订单是否到期，如果是市价单，立刻成交了，没有到期；如果是有有效期，并且当前时间大于了有效期，那么代表着订单到期了；
     def expire(self):
         if self.exectype == Order.Market:
@@ -667,6 +808,7 @@ class Order(OrderBase):
             return True
 
         return False
+
     #  移动调整价格
     def trailadjust(self, price):
         # 如果是移动数量，那么价格调整的量就是移动数量；如果是移动百分比，那么价格调整的量就是价格乘以百分比，否则价格调整的量就是0
@@ -697,25 +839,31 @@ class Order(OrderBase):
                     # the - allows increasing the price limit if stop increases
                     self.created.pricelimit = price - self._limitoffset
 
+
 # 买单
 class BuyOrder(Order):
     ordtype = Order.Buy
+
 
 # 止损买单
 class StopBuyOrder(BuyOrder):
     pass
 
+
 # 创建止损限价买单
 class StopLimitBuyOrder(BuyOrder):
     pass
+
 
 # 创建卖单
 class SellOrder(Order):
     ordtype = Order.Sell
 
+
 # 创建止损埋单
 class StopSellOrder(SellOrder):
     pass
+
 
 # 创建止损限价卖单
 class StopLimitSellOrder(SellOrder):

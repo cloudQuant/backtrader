@@ -36,33 +36,31 @@ class RunStrategy(bt.Strategy):
 
 def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
-    cerebros = testcommon.runtest(datas,
-                                  RunStrategy,
-                                  main=main,
-                                  plot=main,
-                                  writer=(bt.WriterStringIO, dict(csv=True)))
+    cerebros = testcommon.runtest(
+        datas, RunStrategy, main=main, plot=main, writer=(bt.WriterStringIO, dict(csv=True))
+    )
 
     for cerebro in cerebros:
         writer = cerebro.runwriters[0]
         if main:
             # writer.out.seek(0)
             for l in writer.out:
-                print(l.rstrip('\r\n'))
+                print(l.rstrip("\r\n"))
 
         else:
             lines = iter(writer.out)
-            l = next(lines).rstrip('\r\n')
-            assert l == '=' * 79
+            l = next(lines).rstrip("\r\n")
+            assert l == "=" * 79
 
             count = 0
             while True:
-                l = next(lines).rstrip('\r\n')
-                if l[0] == '=':
+                l = next(lines).rstrip("\r\n")
+                if l[0] == "=":
                     break
                 count += 1
 
             assert count == 256  # header + 256 lines data
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

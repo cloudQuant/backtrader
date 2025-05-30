@@ -32,8 +32,12 @@ class MovingAverageSimple(MovingAverageBase):
     See also:
       - http://en.wikipedia.org/wiki/Moving_average#Simple_moving_average
     """
-    alias = ('SMA', 'SimpleMovingAverage',)
-    lines = ('sma',)
+
+    alias = (
+        "SMA",
+        "SimpleMovingAverage",
+    )
+    lines = ("sma",)
 
     def __init__(self):
         # Before super to ensure mixins (right-hand side in subclassing)

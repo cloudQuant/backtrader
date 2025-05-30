@@ -21,6 +21,7 @@
 import math
 from ..observer import Observer
 
+
 # 买卖点标记
 class BuySell(Observer):
     """
@@ -38,19 +39,21 @@ class BuySell(Observer):
       - ``bardist`` (default: ``0.015`` 1.5%) Distance to max/min when
         ``barplot`` is ``True``
     """
-    lines = ('buy', 'sell',)
+
+    lines = (
+        "buy",
+        "sell",
+    )
 
     plotinfo = dict(plot=True, subplot=False, plotlinelabels=True)
     plotlines = dict(
-        buy=dict(marker='^', markersize=8.0, color='lime',
-                 fillstyle='full', ls=''),
-        sell=dict(marker='v', markersize=8.0, color='red',
-                  fillstyle='full', ls='')
+        buy=dict(marker="^", markersize=8.0, color="lime", fillstyle="full", ls=""),
+        sell=dict(marker="v", markersize=8.0, color="red", fillstyle="full", ls=""),
     )
 
     params = (
-        ('barplot', False),  # plot above/below max/min for clarity in bar plot
-        ('bardist', 0.015),  # distance to max/min in absolute perc
+        ("barplot", False),  # plot above/below max/min for clarity in bar plot
+        ("bardist", 0.015),  # distance to max/min in absolute perc
     )
 
     def __init__(self):
@@ -83,11 +86,11 @@ class BuySell(Observer):
         else:
             curbuylen = self.curbuylen
         # 当前总体价格
-        buyops = (curbuy + math.fsum(buy))
+        buyops = curbuy + math.fsum(buy)
         # 当前总体订单数
         buylen = curbuylen + len(buy)
         # 计算平均价格
-        value = buyops / float(buylen or 'NaN')
+        value = buyops / float(buylen or "NaN")
         # 如果不画图，得到平均价格，如果画图，得到最低价格的一定比例，用于方便显示
         if not self.p.barplot:
             self.lines.buy[0] = value
@@ -108,10 +111,10 @@ class BuySell(Observer):
         else:
             curselllen = self.curselllen
 
-        sellops = (cursell + math.fsum(sell))
+        sellops = cursell + math.fsum(sell)
         selllen = curselllen + len(sell)
 
-        value = sellops / float(selllen or 'NaN')
+        value = sellops / float(selllen or "NaN")
         if not self.p.barplot:
             self.lines.sell[0] = value
         elif value == value:  # Not NaN

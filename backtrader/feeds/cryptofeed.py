@@ -34,8 +34,8 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
     """
 
     params = (
-        ('historical', False),  # only historical download
-        ('backfill_start', False),  # do backfill at the start
+        ("historical", False),  # only historical download
+        ("backfill_start", False),  # do backfill at the start
         ("timeframe", None),
         ("compression", None),
     )
@@ -46,31 +46,30 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
     _ST_LIVE, _ST_HISTORBACK, _ST_OVER = range(3)
 
     _GRANULARITIES = {
-        (bt.TimeFrame.Minutes, 1): '1m',
-        (bt.TimeFrame.Minutes, 3): '3m',
-        (bt.TimeFrame.Minutes, 5): '5m',
-        (bt.TimeFrame.Minutes, 15): '15m',
-        (bt.TimeFrame.Minutes, 30): '30m',
-        (bt.TimeFrame.Minutes, 60): '1h',
-        (bt.TimeFrame.Minutes, 90): '90m',
-        (bt.TimeFrame.Minutes, 120): '2h',
-        (bt.TimeFrame.Minutes, 180): '3h',
-        (bt.TimeFrame.Minutes, 240): '4h',
-        (bt.TimeFrame.Minutes, 360): '6h',
-        (bt.TimeFrame.Minutes, 480): '8h',
-        (bt.TimeFrame.Minutes, 720): '12h',
-        (bt.TimeFrame.Days, 1): '1d',
-        (bt.TimeFrame.Days, 3): '3d',
-        (bt.TimeFrame.Weeks, 1): '1w',
-        (bt.TimeFrame.Weeks, 2): '2w',
-        (bt.TimeFrame.Months, 1): '1M',
-        (bt.TimeFrame.Months, 3): '3M',
-        (bt.TimeFrame.Months, 6): '6M',
-        (bt.TimeFrame.Years, 1): '1y',
+        (bt.TimeFrame.Minutes, 1): "1m",
+        (bt.TimeFrame.Minutes, 3): "3m",
+        (bt.TimeFrame.Minutes, 5): "5m",
+        (bt.TimeFrame.Minutes, 15): "15m",
+        (bt.TimeFrame.Minutes, 30): "30m",
+        (bt.TimeFrame.Minutes, 60): "1h",
+        (bt.TimeFrame.Minutes, 90): "90m",
+        (bt.TimeFrame.Minutes, 120): "2h",
+        (bt.TimeFrame.Minutes, 180): "3h",
+        (bt.TimeFrame.Minutes, 240): "4h",
+        (bt.TimeFrame.Minutes, 360): "6h",
+        (bt.TimeFrame.Minutes, 480): "8h",
+        (bt.TimeFrame.Minutes, 720): "12h",
+        (bt.TimeFrame.Days, 1): "1d",
+        (bt.TimeFrame.Days, 3): "3d",
+        (bt.TimeFrame.Weeks, 1): "1w",
+        (bt.TimeFrame.Weeks, 2): "2w",
+        (bt.TimeFrame.Months, 1): "1M",
+        (bt.TimeFrame.Months, 3): "3M",
+        (bt.TimeFrame.Months, 6): "6M",
+        (bt.TimeFrame.Years, 1): "1y",
     }
 
-    def __init__(self,store,
-                 debug=True, *args, **kwargs):
+    def __init__(self, store, debug=True, *args, **kwargs):
         """feed初始化的时候,先初始化store,实现与交易所对接"""
         self.debug = debug
         self.logger = self.init_logger()
@@ -80,12 +79,16 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
         self.bar_time = None
         self.history_bars = None
         self._state = self._ST_HISTORBACK
-        self.exchange_name, self.asset_type, self.symbol = self.p.dataname.split('___')
+        self.exchange_name, self.asset_type, self.symbol = self.p.dataname.split("___")
         self.period = self.get_granularity(self.p.timeframe, self.p.compression)
         self.subscribe_live_bars()
         self.download_history_bars()
-        self.p.todate = None         # 下载完成历史数据之后,需要把todate给充值为None, 否则next被限制
-        print("CryptoFeed init success, debug = {}, data_num = {}".format(self.debug, self.store.GetDataNum))
+        self.p.todate = None  # 下载完成历史数据之后,需要把todate给充值为None, 否则next被限制
+        print(
+            "CryptoFeed init success, debug = {}, data_num = {}".format(
+                self.debug, self.store.GetDataNum
+            )
+        )
 
     def get_bar_time(self):
         return self.bar_time
@@ -97,19 +100,25 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
         return self.symbol
 
     def download_history_bars(self):
-        self.history_bars = self.store.download_history_bars(self.p.dataname, self.period, count=100, start_time=self.p.fromdate, end_time=self.p.todate)
+        self.history_bars = self.store.download_history_bars(
+            self.p.dataname,
+            self.period,
+            count=100,
+            start_time=self.p.fromdate,
+            end_time=self.p.todate,
+        )
         self.log(f"download {self.p.dataname}, {self.period}, history bar successfully")
 
     def subscribe_live_bars(self):
         if not self.p.historical:
-            if self.exchange_name == 'OKX':
-                topics = [{"topic": "kline", "symbol": self.symbol, "period": self.period},
-                          {"topic": "orders", "symbol":  self.symbol},
-                          {"topic": "positions", "symbol": self.symbol},
-                          ]
+            if self.exchange_name == "OKX":
+                topics = [
+                    {"topic": "kline", "symbol": self.symbol, "period": self.period},
+                    {"topic": "orders", "symbol": self.symbol},
+                    {"topic": "positions", "symbol": self.symbol},
+                ]
             else:
-                topics = [{"topic": "kline", "symbol": self.symbol, "period": self.period}
-                          ]
+                topics = [{"topic": "kline", "symbol": self.symbol, "period": self.period}]
             self.store.feed_api.subscribe(self.p.dataname, topics)
             self.log("subscribe {} topics: {} successfully".format(self.p.dataname, topics))
 
@@ -118,9 +127,9 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
             print_info = True
         else:
             print_info = False
-        logger = SpdLogManager(file_name='cryptofeed.log',
-                               logger_name="feed",
-                               print_info=print_info).create_logger()
+        logger = SpdLogManager(
+            file_name="cryptofeed.log", logger_name="feed", print_info=print_info
+        ).create_logger()
         return logger
 
     def log(self, txt, level="info"):
@@ -142,7 +151,6 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
             time.sleep(1)
             self.log("self.store.bar_queues not found {}".format(key_name))
         return self.store.bar_queues[key_name]
-
 
     def start(self):
         self.log("CryptoFeed begin to start")
@@ -195,13 +203,14 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
                         # self.store.feed_api.subscribe(self.p.dataname, topics)
                         self._state = self._ST_LIVE
                         self.put_notification(self.LIVE)
-                        self.store.subscribe_bar_num+=1
+                        self.store.subscribe_bar_num += 1
                         continue
-
 
     def _update_history_bar(self):
         queues = self.store.bar_queues
-        for data in self.history_bars[:-1]:     # 不考虑最近的一根K线,是因为请求的时候，返回的K线是能是没走完的
+        for data in self.history_bars[
+            :-1
+        ]:  # 不考虑最近的一根K线,是因为请求的时候，返回的K线是能是没走完的
             self.store.dispatch_data_to_queue(data, queues)
 
     def _load_bar(self):
@@ -223,7 +232,7 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
         timestamp = bar_data["open_time"]
         # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
         # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
-        dtime_utc = datetime.fromtimestamp(timestamp//1000, tz=pytz.UTC)
+        dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
         bar_status = bar_data["bar_status"]
         if bar_status is False:
             # print("bar_datetime", bar_data['high_price'], bar_data['low_price'], bar_data['close_price'], bar_data["volume"])
@@ -249,8 +258,10 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
     def get_granularity(self, timeframe, compression):
         granularity = self._GRANULARITIES.get((timeframe, compression))
         if granularity is None:
-            raise ValueError("backtrader bt_api_py module doesn't support fetching OHLCV "
-                             "data for time frame %s, compression %s" % \
-                             (bt.TimeFrame.getname(timeframe), compression))
+            raise ValueError(
+                "backtrader bt_api_py module doesn't support fetching OHLCV "
+                "data for time frame %s, compression %s"
+                % (bt.TimeFrame.getname(timeframe), compression)
+            )
 
         return granularity

@@ -23,6 +23,7 @@ from .. import feed
 from .. import TimeFrame
 from ..utils import date
 
+
 # 处理vc chart csv文件
 class VChartCSVData(feed.CSVDataBase):
     """
@@ -33,11 +34,7 @@ class VChartCSVData(feed.CSVDataBase):
       - ``dataname``: The filename to parse or a file-like object
     """
 
-    vctframes = dict(
-        I=TimeFrame.Minutes,
-        D=TimeFrame.Days,
-        W=TimeFrame.Weeks,
-        M=TimeFrame.Months)
+    vctframes = dict(I=TimeFrame.Minutes, D=TimeFrame.Days, W=TimeFrame.Weeks, M=TimeFrame.Months)
 
     def _loadline(self, linetokens):
         itokens = iter(linetokens)
@@ -55,7 +52,7 @@ class VChartCSVData(feed.CSVDataBase):
         y, m, d = int(dttxt[0:4]), int(dttxt[4:6]), int(dttxt[6:8])
 
         tmtxt = next(itokens)
-        if timeframe == 'I':
+        if timeframe == "I":
             # use the provided time
             hh, mmss = divmod(int(tmtxt), 10000)
             mm, ss = divmod(mmss, 100)

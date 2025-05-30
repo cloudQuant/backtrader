@@ -34,10 +34,15 @@ class _AroonBase(Indicator):
     instance variables, which can be used by subclasses to for assignment or
     further calculations
     """
+
     _up = False
     _down = False
 
-    params = (('period', 14), ('upperband', 70), ('lowerband', 30),)
+    params = (
+        ("period", 14),
+        ("upperband", 70),
+        ("lowerband", 30),
+    )
     plotinfo = dict(plotymargin=0.05, plotyhlines=[0, 100])
 
     def _plotlabel(self):
@@ -85,9 +90,10 @@ class AroonUp(_AroonBase):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:aroon
     """
+
     _up = True
 
-    lines = ('aroonup',)
+    lines = ("aroonup",)
 
     def __init__(self):
         super(AroonUp, self).__init__()
@@ -116,9 +122,10 @@ class AroonDown(_AroonBase):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:aroon
     """
+
     _down = True
 
-    lines = ('aroondown',)
+    lines = ("aroondown",)
 
     def __init__(self):
         super(AroonDown, self).__init__()
@@ -150,7 +157,8 @@ class AroonUpDown(AroonUp, AroonDown):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:aroon
     """
-    alias = ('AroonIndicator',)
+
+    alias = ("AroonIndicator",)
 
 
 class AroonOscillator(_AroonBase):
@@ -166,12 +174,13 @@ class AroonOscillator(_AroonBase):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:aroon
     """
+
     _up = True
     _down = True
 
-    alias = ('AroonOsc',)
+    alias = ("AroonOsc",)
 
-    lines = ('aroonosc',)
+    lines = ("aroonosc",)
 
     def _plotinit(self):
         super(AroonOscillator, self)._plotinit()
@@ -195,4 +204,5 @@ class AroonUpDownOscillator(AroonUpDown, AroonOscillator):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:aroon
     """
-    alias = ('AroonUpDownOsc',)
+
+    alias = ("AroonUpDownOsc",)

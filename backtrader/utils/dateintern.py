@@ -63,7 +63,7 @@ def get_last_timeframe_timestamp(timestamp, time_diff):
         timestamp -= 1
 
 
-def get_string_tz_time(tz='Asia/Singapore', string_format='%Y-%m-%d %H:%M:%S.%f'):
+def get_string_tz_time(tz="Asia/Singapore", string_format="%Y-%m-%d %H:%M:%S.%f"):
     """generate string timezone datetime in particular timezone
     param: tz (str): timezone in pytz.common_timezones
     param: string_format (str): string format
@@ -95,11 +95,11 @@ def timestamp2datestr(timestamp):
     # 将时间戳转换为datetime对象
     dt_object = datetime.datetime.fromtimestamp(timestamp)
     # 将datetime对象格式化为字符串形式
-    formatted_time = dt_object.strftime('%Y-%m-%d %H:%M:%S.%f')
+    formatted_time = dt_object.strftime("%Y-%m-%d %H:%M:%S.%f")
     return formatted_time
 
 
-def datetime2timestamp(time_date, string_format='%Y-%m-%d %H:%M:%S.%f'):
+def datetime2timestamp(time_date, string_format="%Y-%m-%d %H:%M:%S.%f"):
     """把时间转化成时间戳
     param: datetime_string (str): timezone in pytz.common_timezones
     param: string_format (str): string format
@@ -110,7 +110,9 @@ def datetime2timestamp(time_date, string_format='%Y-%m-%d %H:%M:%S.%f'):
     return timestamp
 
 
-def datestr2timestamp(datetime_string="2023-06-01 09:30:00.0", string_format='%Y-%m-%d %H:%M:%S.%f'):
+def datestr2timestamp(
+    datetime_string="2023-06-01 09:30:00.0", string_format="%Y-%m-%d %H:%M:%S.%f"
+):
     """把时间转化成时间戳
     param: datetime_string (str): timezone in pytz.common_timezones
     param: string_format (str): string format
@@ -123,7 +125,7 @@ def datestr2timestamp(datetime_string="2023-06-01 09:30:00.0", string_format='%Y
     return timestamp
 
 
-def str2datetime(datetime_string="2023-06-01 09:30:00.0", string_format='%Y-%m-%d %H:%M:%S.%f'):
+def str2datetime(datetime_string="2023-06-01 09:30:00.0", string_format="%Y-%m-%d %H:%M:%S.%f"):
     """把字符串格式时间转化成时间
     param: datetime_string (str): timezone in pytz.common_timezones
     param: string_format (str): string format
@@ -132,7 +134,7 @@ def str2datetime(datetime_string="2023-06-01 09:30:00.0", string_format='%Y-%m-%
     return datetime.datetime.strptime(datetime_string, string_format)
 
 
-def datetime2str(datetime_obj, string_format='%Y-%m-%d %H:%M:%S.%f'):
+def datetime2str(datetime_obj, string_format="%Y-%m-%d %H:%M:%S.%f"):
     """把时间转化成字符串格式时间
     param: datetime_obj (datetime): timezone in pytz.common_timezones
     param: string_format (str): string format
@@ -156,8 +158,8 @@ def tzparse(tz):
         return Localizer(tz)  # nothing can be done
 
     tzs = tz
-    if tzs == 'CST':  # usual alias
-        tzs = 'CST6CDT'
+    if tzs == "CST":  # usual alias
+        tzs = "CST6CDT"
 
     try:
         tz = pytz.timezone(tzs)
@@ -175,7 +177,7 @@ def Localizer(tz):
     def localize(self, dt):
         return dt.replace(tzinfo=self)
 
-    if tz is not None and not hasattr(tz, 'localize'):
+    if tz is not None and not hasattr(tz, "localize"):
         # patch the tz instance with a bound method
         tz.localize = types.MethodType(localize, tz)
 
@@ -223,9 +225,7 @@ class _LocalTimezone(datetime.tzinfo):
 
     # 判断当前时间是否是夏令时
     def _isdst(self, dt):
-        tt = (dt.year, dt.month, dt.day,
-              dt.hour, dt.minute, dt.second,
-              dt.weekday(), 0, 0)
+        tt = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.weekday(), 0, 0)
         try:
             stamp = _time.mktime(tt)
         except (ValueError, OverflowError):
@@ -252,6 +252,7 @@ MUSECONDS_PER_DAY = MUSECONDS_PER_SECOND * SECONDS_PER_DAY  # 1天有多少微�
 
 
 # 下面这四个函数是经常使用的，注释完成之后，尝试使用cython进行改写，看能提高多少的运算速度
+
 
 def num2date(x, tz=None, naive=True):
     # Same as matplotlib except if tz is None, a naive datetime object
@@ -284,8 +285,8 @@ def num2date(x, tz=None, naive=True):
     if tz is not None:
         # 合成时间
         dt = datetime.datetime(
-            dt.year, dt.month, dt.day, int(hour), int(minute), int(second),
-            microsecond, tzinfo=UTC)
+            dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond, tzinfo=UTC
+        )
         dt = dt.astimezone(tz)
         if naive:
             dt = dt.replace(tzinfo=None)
@@ -293,8 +294,8 @@ def num2date(x, tz=None, naive=True):
         # 如果没有传入tz信息，生成不包含时区信息的时间
         # If not tz has been passed return a non-timezoned dt
         dt = datetime.datetime(
-            dt.year, dt.month, dt.day, int(hour), int(minute), int(second),
-            microsecond)
+            dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond
+        )
 
     if microsecond > 999990:  # compensate for rounding errors
         dt += datetime.timedelta(microseconds=1e6 - microsecond)
@@ -304,17 +305,20 @@ def num2date(x, tz=None, naive=True):
 
 # 数字转换成日期
 
+
 def num2dt(num, tz=None, naive=True):
     return num2date(num, tz=tz, naive=naive).date()
 
 
 # 数字转换成时间
 
+
 def num2time(num, tz=None, naive=True):
     return num2date(num, tz=tz, naive=naive).time()
 
 
 # 日期时间转换成数字
+
 
 def date2num(dt, tz=None):
     """
@@ -325,34 +329,43 @@ def date2num(dt, tz=None):
     if tz is not None:
         dt = tz.localize(dt)
 
-    if hasattr(dt, 'tzinfo') and dt.tzinfo is not None:
+    if hasattr(dt, "tzinfo") and dt.tzinfo is not None:
         delta = dt.tzinfo.utcoffset(dt)
         if delta is not None:
             dt -= delta
 
     base = float(dt.toordinal())
-    if hasattr(dt, 'hour'):
+    if hasattr(dt, "hour"):
         # base += (dt.hour / HOURS_PER_DAY +
         #          dt.minute / MINUTES_PER_DAY +
         #          dt.second / SECONDS_PER_DAY +
         #          dt.microsecond / MUSECONDS_PER_DAY)
         base = math.fsum(
-            (base, dt.hour / HOURS_PER_DAY, dt.minute / MINUTES_PER_DAY,
-             dt.second / SECONDS_PER_DAY, dt.microsecond / MUSECONDS_PER_DAY))
+            (
+                base,
+                dt.hour / HOURS_PER_DAY,
+                dt.minute / MINUTES_PER_DAY,
+                dt.second / SECONDS_PER_DAY,
+                dt.microsecond / MUSECONDS_PER_DAY,
+            )
+        )
 
     return base
 
 
 # 时间转成数字
 
+
 def time2num(tm):
     """
     Converts the hour/minute/second/microsecond part of tm (datetime.datetime
     or time) to a num
     """
-    num = (tm.hour / HOURS_PER_DAY +
-           tm.minute / MINUTES_PER_DAY +
-           tm.second / SECONDS_PER_DAY +
-           tm.microsecond / MUSECONDS_PER_DAY)
+    num = (
+        tm.hour / HOURS_PER_DAY
+        + tm.minute / MINUTES_PER_DAY
+        + tm.second / SECONDS_PER_DAY
+        + tm.microsecond / MUSECONDS_PER_DAY
+    )
 
     return num

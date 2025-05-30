@@ -40,7 +40,7 @@ from . import metabase
 from .utils import num2date, time2num
 
 
-NAN = float('NaN')
+NAN = float("NaN")
 
 
 class LineBuffer(LineSingle):
@@ -65,8 +65,9 @@ class LineBuffer(LineSingle):
     is set in this class,
     it will also be set in the binding.
     LineBuffer主要是用于定义一个操作array.array的接口，在调用line[0]的时候得到的是当前输入输出的活跃值，如果是在next中调用，line[0]就代表着当前时间点的值
-    
+
     """
+
     # 给LineBuffer定义了属性，他们的值分别为0和1
     UnBounded, QBuffer = (0, 1)
 
@@ -80,11 +81,11 @@ class LineBuffer(LineSingle):
         self.useislice = None
         self.array = None
         self._idx = None
-        self.lines = [self]                     # lines是一个包含自身的列表
-        self.mode = self.UnBounded              # self.mode默认值是0
-        self.bindings = list()                  # self.bindlings默认是一个列表
-        self.reset()                            # 重置，调用的是自身的reset方法
-        self._tz = None                         # 时区设置
+        self.lines = [self]  # lines是一个包含自身的列表
+        self.mode = self.UnBounded  # self.mode默认值是0
+        self.bindings = list()  # self.bindlings默认是一个列表
+        self.reset()  # 重置，调用的是自身的reset方法
+        self._tz = None  # 时区设置
 
     # 获取_idx的值
     def get_idx(self):
@@ -106,13 +107,13 @@ class LineBuffer(LineSingle):
                 self._idx = idx
         else:  # default: UnBounded
             self._idx = idx
+
     # property的用法，可以用于获取idx和设置idx
     idx = property(get_idx, set_idx)
 
     # 重置
     def reset(self):
-        """ Resets the internal buffer structure and the indices
-        """
+        """Resets the internal buffer structure and the indices"""
         # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据，有一个最大的长度，超过这个长度的时候回踢出最前面的数据
         if self.mode == self.QBuffer:
             # Add extrasize to ensure resample/replay work.They will
@@ -124,7 +125,7 @@ class LineBuffer(LineSingle):
             self.array = collections.deque(maxlen=self.maxlen + self.extrasize)
             self.useislice = True
         else:
-            self.array = array.array(str('d'))
+            self.array = array.array(str("d"))
             self.useislice = False
         # 默认最开始的时候lencount等于0,idx等于-1,extension等于0
         self.lencount = 0
@@ -133,11 +134,11 @@ class LineBuffer(LineSingle):
 
     # 设置缓存相关的变量
     def qbuffer(self, savemem=0, extrasize=0):
-        self.mode = self.QBuffer                            # 设置具体的模式
-        self.maxlen = self._minperiod                       # 设置最大的长度
-        self.extrasize = extrasize                          # 设置额外的量
-        self.lenmark = self.maxlen - (not self.extrasize)   # 最大长度减去1,如果extrasize=0的话
-        self.reset()                                        # 重置
+        self.mode = self.QBuffer  # 设置具体的模式
+        self.maxlen = self._minperiod  # 设置最大的长度
+        self.extrasize = extrasize  # 设置额外的量
+        self.lenmark = self.maxlen - (not self.extrasize)  # 最大长度减去1,如果extrasize=0的话
+        self.reset()  # 重置
 
     # 获取指标值
     def getindicators(self):
@@ -171,7 +172,7 @@ class LineBuffer(LineSingle):
 
     # 返回line缓存的数据的长度
     def buflen(self):
-        """ Real data that can be currently held in the internal buffer
+        """Real data that can be currently held in the internal buffer
 
         The internal buffer can be longer than the actual stored data to
         allow for "lookahead" operations. The real amount of data that is
@@ -186,7 +187,7 @@ class LineBuffer(LineSingle):
 
     # 获取数据的值，在策略中使用还是比较广泛的
     def get(self, ago=0, size=1):
-        """ Returns a slice of the array relative to *ago*
+        """Returns a slice of the array relative to *ago*
 
         Keyword Args:
             ago (int): Point of the array to which size will be added
@@ -204,13 +205,13 @@ class LineBuffer(LineSingle):
             start = self.idx + ago - size + 1
             end = self.idx + ago + 1
             return list(islice(self.array, start, end))
-        
+
         # 如果不使用切片，直接截取
-        return self.array[self.idx + ago - size + 1:self.idx + ago + 1]
+        return self.array[self.idx + ago - size + 1 : self.idx + ago + 1]
 
     # 返回array真正的0处的变量值
     def getzeroval(self, idx=0):
-        """ Returns a single value of the array relative to the real zero
+        """Returns a single value of the array relative to the real zero
         of the buffer
 
         Keyword Args:
@@ -224,7 +225,7 @@ class LineBuffer(LineSingle):
 
     # 返回array从idx开始，size个长度的数据
     def getzero(self, idx=0, size=1):
-        """ Returns a slice of the array relative to the real zero of the buffer
+        """Returns a slice of the array relative to the real zero of the buffer
 
         Keyword Args:
             idx (int): Where to start relative to the real start of the buffer
@@ -236,11 +237,11 @@ class LineBuffer(LineSingle):
         if self.useislice:
             return list(islice(self.array, idx, idx + size))
 
-        return self.array[idx:idx + size]
+        return self.array[idx : idx + size]
 
     # 给array相关的值
     def __setitem__(self, ago, value):
-        """ Sets a value at position "ago" and executes any associated bindings
+        """Sets a value at position "ago" and executes any associated bindings
 
         Keyword Args:
             ago (int): Point of the array to which size will be added to return
@@ -250,10 +251,10 @@ class LineBuffer(LineSingle):
         self.array[self.idx + ago] = value
         for binding in self.bindings:
             binding[ago] = value
-            
+
     # 给array设置具体的值
     def set(self, value, ago=0):
-        """ Sets a value at position "ago" and executes any associated bindings
+        """Sets a value at position "ago" and executes any associated bindings
 
         Keyword Args:
             value (variable): value to be set
@@ -266,7 +267,7 @@ class LineBuffer(LineSingle):
 
     # 返回到最开始
     def home(self):
-        """ Rewinds the logical index to the beginning
+        """Rewinds the logical index to the beginning
 
         The underlying buffer remains untouched and the actual len can be found
         out with buflen
@@ -276,7 +277,7 @@ class LineBuffer(LineSingle):
 
     # 向前移动一位
     def forward(self, value=NAN, size=1):
-        """ Moves the logical index foward and enlarges the buffer as much as needed
+        """Moves the logical index foward and enlarges the buffer as much as needed
 
         Keyword Args:
             value (variable): value to be set in new positins
@@ -290,7 +291,7 @@ class LineBuffer(LineSingle):
 
     # 向后移动一位
     def backwards(self, size=1, force=False):
-        """ Moves the logical index backwards and reduces the buffer as much as needed
+        """Moves the logical index backwards and reduces the buffer as much as needed
 
         Keyword Args:
             size (int): How many extra positions to rewind and reduce the
@@ -309,7 +310,7 @@ class LineBuffer(LineSingle):
 
     # 把idx和lencount增加size
     def advance(self, size=1):
-        """ Advances the logical index without touching the underlying buffer
+        """Advances the logical index without touching the underlying buffer
 
         Keyword Args:
             size (int): How many extra positions to move forward
@@ -319,7 +320,7 @@ class LineBuffer(LineSingle):
 
     # 向前扩展
     def extend(self, value=NAN, size=0):
-        """ Extends the underlying array with positions that the index will not reach
+        """Extends the underlying array with positions that the index will not reach
 
         Keyword Args:
             value (variable): value to be set in new positins
@@ -334,7 +335,7 @@ class LineBuffer(LineSingle):
 
     # 增加另一条LineBuffer
     def addbinding(self, binding):
-        """ Adds another line binding
+        """Adds another line binding
 
         Keyword Args:
             binding (LineBuffer): another line that must be set when this line
@@ -347,7 +348,7 @@ class LineBuffer(LineSingle):
 
     # 获取从idx开始的全部数据
     def plot(self, idx=0, size=None):
-        """ Returns a slice of the array relative to the real zero of the buffer
+        """Returns a slice of the array relative to the real zero of the buffer
 
         Keyword Args:
             idx (int): Where to start relative to the real start of the buffer
@@ -394,7 +395,7 @@ class LineBuffer(LineSingle):
         return self
 
     bind2line = bind2lines
-    
+
     # 调用的时候返回一个自身的延迟版本或者时间周期改变版本
     def __call__(self, ago=None):
         """Returns either a delayed version of itself in the form of a
@@ -409,6 +410,7 @@ class LineBuffer(LineSingle):
           object will be returned
         """
         from .lineiterator import LineCoupler
+
         if ago is None or isinstance(ago, LineRoot):
             return LineCoupler(self, ago)
 
@@ -416,8 +418,7 @@ class LineBuffer(LineSingle):
 
     # 做一些操作
     def _makeoperation(self, other, operation, r=False, _ownerskip=None):
-        return LinesOperation(self, other, operation, r=r,
-                              _ownerskip=_ownerskip)
+        return LinesOperation(self, other, operation, r=r, _ownerskip=_ownerskip)
 
     # 对自身做操作
     def _makeoperationown(self, operation, _ownerskip=None):
@@ -429,18 +430,15 @@ class LineBuffer(LineSingle):
 
     # 返回具体的日期-时间
     def datetime(self, ago=0, tz=None, naive=True):
-        return num2date(self.array[self.idx + ago],
-                        tz=tz or self._tz, naive=naive)
+        return num2date(self.array[self.idx + ago], tz=tz or self._tz, naive=naive)
 
     # 返回具体的日期
     def date(self, ago=0, tz=None, naive=True):
-        return num2date(self.array[self.idx + ago],
-                        tz=tz or self._tz, naive=naive).date()
+        return num2date(self.array[self.idx + ago], tz=tz or self._tz, naive=naive).date()
 
     # 返回具体的时间
     def time(self, ago=0, tz=None, naive=True):
-        return num2date(self.array[self.idx + ago],
-                        tz=tz or self._tz, naive=naive).time()
+        return num2date(self.array[self.idx + ago], tz=tz or self._tz, naive=naive).time()
 
     # 返回时间相关的浮点数的整数部分
     def dt(self, ago=0):
@@ -563,12 +561,12 @@ class MetaLineActions(LineBuffer.__class__):
     postinit it registers the instance to the owner (remember that owner has
     been found in the base Metaclass for LineRoot)
     """
+
     # LineActions的元类，
     # 在初始化的时候扫描LineBuffer或者LineSingle的父类的实例，用于计算这个实例的最小周期
     # 在postinit的时候，把这个实例注册给父类，这个父类是在LineRoot中已经存在的
-    _acache = dict()                # _acache看起来是缓存的意思
-    _acacheuse = False              # _acachuse是否使用缓存                                                                                                                           
-
+    _acache = dict()  # _acache看起来是缓存的意思
+    _acacheuse = False  # _acachuse是否使用缓存
 
     @classmethod
     def cleancache(cls):
@@ -601,8 +599,7 @@ class MetaLineActions(LineBuffer.__class__):
 
     def dopreinit(cls, _obj, *args, **kwargs):
         # 调用dopreinit生成_obj,args,kwargs
-        _obj, args, kwargs = \
-            super(MetaLineActions, cls).dopreinit(_obj, *args, **kwargs)
+        _obj, args, kwargs = super(MetaLineActions, cls).dopreinit(_obj, *args, **kwargs)
 
         # 让_obj的属性_clock等于_obj的_owner，这个_owner通常是父类
         _obj._clock = _obj._owner  # default setting
@@ -632,8 +629,7 @@ class MetaLineActions(LineBuffer.__class__):
 
     def dopostinit(cls, _obj, *args, **kwargs):
         # dopostinit操作，看起来是增加指标相关的操作
-        _obj, args, kwargs = \
-            super(MetaLineActions, cls).dopostinit(_obj, *args, **kwargs)
+        _obj, args, kwargs = super(MetaLineActions, cls).dopostinit(_obj, *args, **kwargs)
 
         # register with _owner to be kicked later
         _obj._owner.addindicator(_obj)
@@ -643,6 +639,7 @@ class MetaLineActions(LineBuffer.__class__):
 
 class PseudoArray(object):
     """伪array,访问任何的index的时候都会返回来wrapped,使用.array会返回自身"""
+
     def __init__(self, wrapped):
         self.wrapped = wrapped
 
@@ -662,10 +659,11 @@ class LineActions(LineBuffer, metaclass=MetaLineActions):
 
     The metaclass does the dirty job of calculating minperiods and registering
     """
+
     # 继承LineBuffer和MetaLineActions的基础类，定义了一个最小的接口，通过提供_next和_once来兼容LineIterator的操作
     # 这个类还用于计算最小周期和注册
 
-    _ltype = LineBuffer.IndType       # 用于获取这个line的类型，line的类型最开始来自于LineRoot
+    _ltype = LineBuffer.IndType  # 用于获取这个line的类型，line的类型最开始来自于LineRoot
 
     def getindicators(self):
         """获取指标值，返回的是空的列表"""
@@ -692,7 +690,7 @@ class LineActions(LineBuffer, metaclass=MetaLineActions):
         return obj
 
     def _next(self):
-        clock_len = len(self._clock)    # 获取时钟的长度
+        clock_len = len(self._clock)  # 获取时钟的长度
         # 如果时钟大于自身的长度，那么自身就需要往前进一步
         if clock_len > len(self):
             self.forward()
@@ -709,14 +707,14 @@ class LineActions(LineBuffer, metaclass=MetaLineActions):
 
     def _once(self):
         # 调用once的时候进行的操作
-        self.forward(size=self._clock.buflen())                 # 向前移动size位
-        self.home()                                             # 返回原来，idx和count变为0 
+        self.forward(size=self._clock.buflen())  # 向前移动size位
+        self.home()  # 返回原来，idx和count变为0
 
-        self.preonce(0, self._minperiod - 1)                    # preconce操作
-        self.oncestart(self._minperiod - 1, self._minperiod)    # oncestart操作
-        self.once(self._minperiod, self.buflen())               # once操作
+        self.preonce(0, self._minperiod - 1)  # preconce操作
+        self.oncestart(self._minperiod - 1, self._minperiod)  # oncestart操作
+        self.once(self._minperiod, self.buflen())  # once操作
 
-        self.oncebinding()                                      # oncebindling操作
+        self.oncebinding()  # oncebindling操作
 
 
 def LineDelay(a, ago=0, **kwargs):
@@ -737,6 +735,7 @@ class _LineDelay(LineActions):
     Takes a LineBuffer (or derived) object and stores the value from
     "ago" periods effectively delaying the delivery of data
     """
+
     # 对LineBuffer对象或者其子类操作，在delay数据的时候能够有效的保存ago周期前的数据
     def __init__(self, a, ago):
         super(_LineDelay, self).__init__()
@@ -768,6 +767,7 @@ class _LineForward(LineActions):
     Takes a LineBuffer (or derived) object and stores the value from
     "ago" periods from the future
     """
+
     # 跟_LineDelay对应
     def __init__(self, a, ago):
         super(_LineForward, self).__init__()
@@ -795,7 +795,6 @@ class _LineForward(LineActions):
 
 
 class LinesOperation(LineActions):
-
     """
     Holds an operation that operates on two operands. Example: mul
 
@@ -815,18 +814,19 @@ class LinesOperation(LineActions):
     have been kept in place for clarity (although the maps are not really
     unclear here)
     """
+
     # 对两条line进行操作，a是line，b是line或者时间或者数字,operation是操作方法，r代表是否对a和b反转
     def __init__(self, a, b, operation, r=False):
         super(LinesOperation, self).__init__()
 
-        self.operation = operation                              # 操作方法
-        self.a = a                                              # always a linebuffer, a是line
-        self.b = b                                              # 保存b
+        self.operation = operation  # 操作方法
+        self.a = a  # always a linebuffer, a是line
+        self.b = b  # 保存b
 
-        self.r = r                                              # r代表是否对a,b进行反转
-        self.bline = isinstance(b, LineBuffer)                  # 判断b是否是line         
-        self.btime = isinstance(b, datetime.time)               # 判断b是否是时间
-        self.bfloat = not self.bline and not self.btime         # 判断b是否是浮点数
+        self.r = r  # r代表是否对a,b进行反转
+        self.bline = isinstance(b, LineBuffer)  # 判断b是否是line
+        self.btime = isinstance(b, datetime.time)  # 判断b是否是时间
+        self.bfloat = not self.bline and not self.btime  # 判断b是否是浮点数
         # 如果反转，就互换a,b的值
         if r:
             self.a, self.b = b, a
@@ -918,6 +918,7 @@ class LineOwnOperation(LineActions):
     It will "next"/traverse the array applying the operation and storing
     the result in self
     """
+
     # 对line自身进行操作
     def __init__(self, a, operation):
         super(LineOwnOperation, self).__init__()

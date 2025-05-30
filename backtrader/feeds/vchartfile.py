@@ -36,7 +36,6 @@ class MetaVChartFile(bt.DataBase.__class__):
         bt.stores.VChartFile.DataCls = cls
 
 
-
 class VChartFile(bt.DataBase, metaclass=MetaVChartFile):
     """
     Support for `Visual Chart <www.visualchart.com>`_ binary on-disk files for
@@ -65,31 +64,31 @@ class VChartFile(bt.DataBase, metaclass=MetaVChartFile):
 
         # Choose extension and extraction/calculation parameters
         if self.p.timeframe < bt.TimeFrame.Minutes:
-            ext = '.tck'  # seconds will still need resampling
+            ext = ".tck"  # seconds will still need resampling
             # FIXME: find reference to tick counter for format
         elif self.p.timeframe < bt.TimeFrame.Days:
-            ext = '.min'
+            ext = ".min"
             self._dtsize = 2
             self._barsize = 32
-            self._barfmt = 'IIffffII'
+            self._barfmt = "IIffffII"
         else:
-            ext = '.fd'
+            ext = ".fd"
             self._barsize = 28
             self._dtsize = 1
-            self._barfmt = 'IffffII'
+            self._barfmt = "IffffII"
 
         # Construct a full path
         basepath = self._store.get_datapath()
 
         # Example: 01 + 0 + 015ES + .fd -> 010015ES.fd
-        dataname = '01' + '0' + self.p.dataname + ext
+        dataname = "01" + "0" + self.p.dataname + ext
         # 015ES -> 0 + 015 -> 0015
-        mktcode = '0' + self.p.dataname[0:3]
+        mktcode = "0" + self.p.dataname[0:3]
 
         # basepath/0015/010015ES.fd
         path = os.path.join(basepath, mktcode, dataname)
         try:
-            self.f = open(path, 'rb')
+            self.f = open(path, "rb")
         except IOError:
             self.f = None
 
@@ -136,7 +135,7 @@ class VChartFile(bt.DataBase, metaclass=MetaVChartFile):
         self.lines.datetime[0] = date2num(dt)  # Store time
 
         # Get the rest of the fields
-        o, h, l, c, v, oi = bdata[self._dtsize:]
+        o, h, l, c, v, oi = bdata[self._dtsize :]
         self.lines.open[0] = o
         self.lines.high[0] = h
         self.lines.low[0] = l

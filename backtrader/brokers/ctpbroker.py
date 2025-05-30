@@ -28,9 +28,7 @@ class CTPBroker(BrokerBase, metaclass=MetaCTPBroker):
         position
     """
 
-    params = (
-        ("use_positions", True),
-    )
+    params = (("use_positions", True),)
 
     def __init__(self, **kwargs):
         super(CTPBroker, self).__init__()
@@ -55,24 +53,26 @@ class CTPBroker(BrokerBase, metaclass=MetaCTPBroker):
             if positions is None:
                 return
             for p in positions:  # 同一标的可能来一长一短两个仓位记录
-                size = p['volume'] if p['direction'] == 'long' else - p['volume']  # 短仓为负数
-                price = p['price']  # 以后再写，因长短仓同时存处理稍微复杂一些
-                final_size = self.positions[p['local_symbol']].size + size  # 设置本地净仓位数量（循环完后就是净仓位了，因为已经把长短仓抵消了）
+                size = p["volume"] if p["direction"] == "long" else -p["volume"]  # 短仓为负数
+                price = p["price"]  # 以后再写，因长短仓同时存处理稍微复杂一些
+                final_size = (
+                    self.positions[p["local_symbol"]].size + size
+                )  # 设置本地净仓位数量（循环完后就是净仓位了，因为已经把长短仓抵消了）
                 # 以下处理仓位价格，循环完毕后，如果净仓位大于0，则净仓位价格为远端长仓价格（平均价格），否则为短仓价格。
                 # 所以，如果远端同时存在长短仓，则此价格并不是长短仓的平均价格（无法定义）。但若远端不同时存在长短仓，则此价格正确，为仓位平均价格
                 final_price = 0
                 if final_size < 0:
-                    if p['direction'] == 'short':
+                    if p["direction"] == "short":
                         final_price = price
                     else:
-                        final_price = self.positions[p['local_symbol']].price
+                        final_price = self.positions[p["local_symbol"]].price
                 else:
-                    if p['direction'] == 'short':
-                        final_price = self.positions[p['local_symbol']].price
+                    if p["direction"] == "short":
+                        final_price = self.positions[p["local_symbol"]].price
                     else:
                         final_price = price
                 # 循环
-                self.positions[p['local_symbol']] = Position(final_size, final_price)
+                self.positions[p["local_symbol"]] = Position(final_size, final_price)
 
     def stop(self):
         super(CTPBroker, self).stop()

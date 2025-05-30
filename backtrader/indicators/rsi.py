@@ -21,6 +21,7 @@
 from . import Indicator, Max, MovAv
 from . import DivZeroByZero
 
+
 # 计算RSI指标
 class UpDay(Indicator):
     """
@@ -36,8 +37,9 @@ class UpDay(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
     """
-    lines = ('upday',)
-    params = (('period', 1),)
+
+    lines = ("upday",)
+    params = (("period", 1),)
 
     def __init__(self):
         self.lines.upday = Max(self.data - self.data(-self.p.period), 0.0)
@@ -58,8 +60,9 @@ class DownDay(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
     """
-    lines = ('downday',)
-    params = (('period', 1),)
+
+    lines = ("downday",)
+    params = (("period", 1),)
 
     def __init__(self):
         self.lines.downday = Max(self.data(-self.p.period) - self.data, 0.0)
@@ -83,8 +86,9 @@ class UpDayBool(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
     """
-    lines = ('upday',)
-    params = (('period', 1),)
+
+    lines = ("upday",)
+    params = (("period", 1),)
 
     def __init__(self):
         self.lines.upday = self.data > self.data(-self.p.period)
@@ -108,8 +112,9 @@ class DownDayBool(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
     """
-    lines = ('downday',)
-    params = (('period', 1),)
+
+    lines = ("downday",)
+    params = (("period", 1),)
 
     def __init__(self):
         self.lines.downday = self.data(-self.p.period) > self.data
@@ -149,24 +154,29 @@ class RelativeStrengthIndex(Indicator):
       - ``safelow`` (default: 50.0) will be used as RSI value for the
         ``0 / 0`` case
     """
-    alias = ('RSI', 'RSI_SMMA', 'RSI_Wilder',)
 
-    lines = ('rsi',)
+    alias = (
+        "RSI",
+        "RSI_SMMA",
+        "RSI_Wilder",
+    )
+
+    lines = ("rsi",)
     params = (
-        ('period', 14),
-        ('movav', MovAv.Smoothed),
-        ('upperband', 70.0),
-        ('lowerband', 30.0),
-        ('safediv', False),
-        ('safehigh', 100.0),
-        ('safelow', 50.0),
-        ('lookback', 1),
+        ("period", 14),
+        ("movav", MovAv.Smoothed),
+        ("upperband", 70.0),
+        ("lowerband", 30.0),
+        ("safediv", False),
+        ("safehigh", 100.0),
+        ("safelow", 50.0),
+        ("lookback", 1),
     )
 
     def _plotlabel(self):
         plabels = [self.p.period]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
-        plabels += [self.p.lookback] * self.p.notdefault('lookback')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
+        plabels += [self.p.lookback] * self.p.notdefault("lookback")
         return plabels
 
     def _plotinit(self):
@@ -191,11 +201,13 @@ class RelativeStrengthIndex(Indicator):
         try:
             rs = (-100.0 / (rsi - 100.0)) - 1.0
         except ZeroDivisionError:
-            return float('inf')
+            return float("inf")
 
         return rs
 
+
 RSI = RelativeStrengthIndex
+
 
 class RSI_Safe(RSI):
     """
@@ -205,7 +217,8 @@ class RSI_Safe(RSI):
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
     """
-    params = (('safediv', True),)
+
+    params = (("safediv", True),)
 
 
 class RSI_SMA(RSI):
@@ -215,9 +228,10 @@ class RSI_SMA(RSI):
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
     """
-    alias = ('RSI_Cutler',)
 
-    params = (('movav', MovAv.Simple),)
+    alias = ("RSI_Cutler",)
+
+    params = (("movav", MovAv.Simple),)
 
 
 class RSI_EMA(RSI):
@@ -227,5 +241,5 @@ class RSI_EMA(RSI):
     See:
       - http://en.wikipedia.org/wiki/Relative_strength_index
     """
-    params = (('movav', MovAv.Exponential),)
 
+    params = (("movav", MovAv.Exponential),)

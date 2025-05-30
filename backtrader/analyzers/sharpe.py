@@ -107,18 +107,17 @@ class SharpeRatio(Analyzer):
     """
     # 默认的参数
     params = (
-        ('timeframe', TimeFrame.Years),
-        ('compression', 1),
-        ('riskfreerate', 0.01),
-        ('factor', None),
-        ('convertrate', True),
-        ('annualize', False),
-        ('stddev_sample', False),
-
+        ("timeframe", TimeFrame.Years),
+        ("compression", 1),
+        ("riskfreerate", 0.01),
+        ("factor", None),
+        ("convertrate", True),
+        ("annualize", False),
+        ("stddev_sample", False),
         # old behavior
-        ('daysfactor', None),
-        ('legacyannual', False),
-        ('fund', None),
+        ("daysfactor", None),
+        ("legacyannual", False),
+        ("fund", None),
     )
     # 默认的日期转化
     RATEFACTORS = {
@@ -134,9 +133,8 @@ class SharpeRatio(Analyzer):
             self.anret = AnnualReturn()
         else:
             self.timereturn = TimeReturn(
-                timeframe=self.p.timeframe,
-                compression=self.p.compression,
-                fund=self.p.fund)
+                timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
+            )
 
     def stop(self):
         super(SharpeRatio, self).stop()
@@ -160,8 +158,7 @@ class SharpeRatio(Analyzer):
 
             # Hack to identify old code
             # 获取具体的factor日期，如果是日周期并且daysfactor不是None的话，另factor = daysfactor
-            if self.p.timeframe == TimeFrame.Days and \
-               self.p.daysfactor is not None:
+            if self.p.timeframe == TimeFrame.Days and self.p.daysfactor is not None:
 
                 factor = self.p.daysfactor
             # 否则，如果factor这个参数不是None的话，就等于factor这个参数的值，否则根据交易周期从定义的factors里面找
@@ -200,8 +197,7 @@ class SharpeRatio(Analyzer):
                     # 计算得到夏普率
                     ratio = ret_free_avg / retdev
                     # 如果factor不是None,并且把年无风险收益率转化成日了，并且需要计算年化的夏普率
-                    if factor is not None and \
-                       self.p.convertrate and self.p.annualize:
+                    if factor is not None and self.p.convertrate and self.p.annualize:
                         # 把夏普率从日转化成年
                         ratio = math.sqrt(factor) * ratio
                 except (ValueError, TypeError, ZeroDivisionError):
@@ -212,7 +208,7 @@ class SharpeRatio(Analyzer):
             # todo 这里面self.ratio并没有用到，赋值直接用ratio就好了，还能提高运行速度
             # self.ratio = ratio
         # 保存夏普率
-        self.rets['sharperatio'] = ratio
+        self.rets["sharperatio"] = ratio
 
 
 class SharpeRatioA(SharpeRatio):
@@ -224,7 +220,6 @@ class SharpeRatioA(SharpeRatio):
       - ``annualize`` (default: ``True``)
 
     """
+
     # 计算年化的夏普率
-    params = (
-        ('annualize', True),
-    )
+    params = (("annualize", True),)

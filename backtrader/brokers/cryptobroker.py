@@ -14,7 +14,7 @@ class CryptoOrder(Order):
         self.owner = owner
         self.data = data
         self.exectype = exectype
-        self.ordtype = self.Buy if side == 'buy' else self.Sell
+        self.ordtype = self.Buy if side == "buy" else self.Sell
         self.size = float(amount)
         self.price = float(price) if price else None
         self.data_type = data_type if data_type is not None else "order"
@@ -73,6 +73,7 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
 
     Added new private_end_point method to allow using any private non-unified end point
     """
+
     def __init__(self, store=None, **kwargs):
         super(CryptoBroker, self).__init__()
         self.value = None
@@ -99,15 +100,14 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
         self.startingvalue = self.store.getvalue()
         self.log("init store success, debug = {}".format(self.debug))
 
-
     def init_logger(self):
         if self.debug:
             print_info = True
         else:
             print_info = False
-        logger = SpdLogManager(file_name='cryptofeed.log',
-                               logger_name="feed",
-                               print_info=print_info).create_logger()
+        logger = SpdLogManager(
+            file_name="cryptofeed.log", logger_name="feed", print_info=print_info
+        ).create_logger()
         return logger
 
     def log(self, txt, level="info"):
@@ -122,7 +122,7 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
         else:
             pass
 
-    def getcash(self, data = None, cache=True):
+    def getcash(self, data=None, cache=True):
         cash = self.store.getcash(cache=cache)
         if data is None:
             data = self.cerebro.datas[0]
@@ -131,14 +131,14 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
             symbol_name = data.get_symbol_name()
             currency = symbol_name.split("-")[1]
             cash = cash.get(exchange_name, -1.0)
-            if isinstance(cash,dict) and currency is not None:
+            if isinstance(cash, dict) and currency is not None:
                 cash = cash.get(currency, -1.0)
-                if isinstance(cash,dict):
-                    cash = cash['cash']
+                if isinstance(cash, dict):
+                    cash = cash["cash"]
                     return cash
         return cash
 
-    def getvalue(self, data = None, cache=True):
+    def getvalue(self, data=None, cache=True):
         value = self.store.getvalue(cache=cache)
         if data is None:
             data = self.cerebro.datas[0]
@@ -147,10 +147,10 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
             symbol_name = data.get_symbol_name()
             currency = symbol_name.split("-")[1]
             value = value.get(exchange_name, -1.0)
-            if isinstance(value,dict) and currency is not None:
+            if isinstance(value, dict) and currency is not None:
                 value = value.get(currency, -1.0)
-                if isinstance(value,dict):
-                    value = value['value']
+                if isinstance(value, dict):
+                    value = value["value"]
                     return value
         return value
 
@@ -204,7 +204,6 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
                 return data
         return None
 
-
     def convert_bt_api_order_to_backtrader_order(self, data):
         data.init_data()
         exchange_name = data.get_exchange_name()
@@ -225,7 +224,9 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
         order_price = data.get_order_price()
         trade_data = self.getdatabyname(data_name)
         self.log(f"data_name = {data_name}, order_side = {order_side}, order_price = {order_price}")
-        return CryptoOrder(None, trade_data, exectype, order_side, order_amount, order_price, "order", data)
+        return CryptoOrder(
+            None, trade_data, exectype, order_side, order_amount, order_price, "order", data
+        )
 
     def convert_bt_api_trade_to_backtrader_trade(self, data):
         data.init_data()
@@ -247,14 +248,25 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
         trade_data = self.getdatabyname(data_name)
         return CryptoOrder(None, trade_data, exectype, exectype, trade_volume, price, "trade", data)
 
-    def _submit(self, owner, data, size, side=None, price=None, plimit=None,
-            exectype=None, valid=None, tradeid=0, oco=None,
-            trailamount=None, trailpercent=None,
-            **kwargs):
+    def _submit(
+        self,
+        owner,
+        data,
+        size,
+        side=None,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        **kwargs,
+    ):
         self.log("crypto broker begin to submit order")
         order_type = side + "-" + exectype
-        ret_ord = self.store.make_order(data, size, price=price, order_type=order_type,
-                                        **kwargs)
+        ret_ord = self.store.make_order(data, size, price=price, order_type=order_type, **kwargs)
         order = CryptoOrder(owner, data, exectype, side, size, price, "order", ret_ord)
         # self.open_orders.append(order)
         # self.notify(order.clone())  # 先发一个订单创建通知
@@ -262,30 +274,51 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
         return order
 
     # 买入下单
-    def buy(self, owner, data, size, price=None, plimit=None,
-            exectype=None, valid=None, tradeid=0, oco=None,
-            trailamount=None, trailpercent=None,
-            **kwargs):
+    def buy(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        **kwargs,
+    ):
         print("crypto_broker begin to buy")
         self.log("crypto_broker begin to buy")
-        kwargs.pop('parent', None)
-        kwargs.pop('transmit', None)
-        return self._submit(owner, data, size, 'buy', price, exectype=exectype, **kwargs)
+        kwargs.pop("parent", None)
+        kwargs.pop("transmit", None)
+        return self._submit(owner, data, size, "buy", price, exectype=exectype, **kwargs)
 
     # 卖出下单
-    def sell(self, owner, data, size, price=None, plimit=None,
-             exectype=None, valid=None, tradeid=0, oco=None,
-             trailamount=None, trailpercent=None,
-             **kwargs):
+    def sell(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        **kwargs,
+    ):
         self.log("crypto_broker begin to sell")
-        kwargs.pop('parent', None)
-        kwargs.pop('transmit', None)
-        return self._submit(owner, data, size, 'sell', price, exectype=exectype, **kwargs)
+        kwargs.pop("parent", None)
+        kwargs.pop("transmit", None)
+        return self._submit(owner, data, size, "sell", price, exectype=exectype, **kwargs)
 
     # 取消未成交的某个订单
     def cancel(self, order):
         self.store.cancel_order(order)
-
 
     # 用于平掉所有的仓位
     def close(self, owner, data):
@@ -343,4 +376,3 @@ class CryptoBroker(BrokerBase, metaclass=MetaCryptoBroker):
 
     # def next(self):
     #     self.notifs.append(None)  # mark notification boundary
-

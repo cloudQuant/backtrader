@@ -43,9 +43,12 @@ class CalendarDays(metaclass=metabase.MetaParams):
 
         Value to use to fill the missing Open Interest
     """
-    params = (('fill_price', None),
-              ('fill_vol', float('NaN')),
-              ('fill_oi', float('NaN')),)
+
+    params = (
+        ("fill_price", None),
+        ("fill_vol", float("NaN")),
+        ("fill_oi", float("NaN")),
+    )
 
     ONEDAY = timedelta(days=1)
     lastdt = date.max
@@ -92,7 +95,7 @@ class CalendarDays(metaclass=metabase.MetaParams):
             lastdt += self.ONEDAY
 
             # Prepare an array of the necessary size
-            bar = [float('Nan')] * data.size()
+            bar = [float("Nan")] * data.size()
             # Fill the datetime
             bar[data.DateTime] = data.date2num(datetime.combine(lastdt, tm))
 

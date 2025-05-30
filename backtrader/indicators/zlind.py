@@ -51,16 +51,22 @@ class ZeroLagIndicator(MovingAverageBase):
       - http://www.mesasoftware.com/papers/ZeroLag.pdf
 
     """
-    alias = ('ZLIndicator', 'ZLInd', 'EC', 'ErrorCorrecting',)
-    lines = ('ec',)
+
+    alias = (
+        "ZLIndicator",
+        "ZLInd",
+        "EC",
+        "ErrorCorrecting",
+    )
+    lines = ("ec",)
     params = (
-        ('gainlimit', 50),
-        ('_movav', MovAv.EMA),
+        ("gainlimit", 50),
+        ("_movav", MovAv.EMA),
     )
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.gainlimit]
-        plabels += [self.p._movav] * self.p.notdefault('_movav')
+        plabels += [self.p._movav] * self.p.notdefault("_movav")
         return plabels
 
     def __init__(self):

@@ -19,6 +19,7 @@
 #
 ###############################################################################
 import time
+
 try:
     time_clock = time.process_time
 except:
@@ -31,20 +32,20 @@ import backtrader.indicators as btind
 
 class RunStrategy(bt.Strategy):
     params = (
-        ('period', 15),
-        ('maxtrades', None),
-        ('printdata', True),
-        ('printops', True),
-        ('stocklike', True),
+        ("period", 15),
+        ("maxtrades", None),
+        ("printdata", True),
+        ("printops", True),
+        ("stocklike", True),
     )
 
     def log(self, txt, dt=None, nodate=False):
         if not nodate:
             dt = dt or self.data.datetime[0]
             dt = bt.num2date(dt)
-            print('%s, %s' % (dt.isoformat(), txt))
+            print("%s, %s" % (dt.isoformat(), txt))
         else:
-            print('---------- %s' % (txt))
+            print("---------- %s" % (txt))
 
     def notify_trade(self, trade):
         if trade.isclosed:
@@ -57,21 +58,21 @@ class RunStrategy(bt.Strategy):
         if order.status == order.Completed:
             if isinstance(order, bt.BuyOrder):
                 if self.p.printops:
-                    txt = 'BUY, %.2f' % order.executed.price
+                    txt = "BUY, %.2f" % order.executed.price
                     self.log(txt, order.executed.dt)
-                chkprice = '%.2f' % order.executed.price
+                chkprice = "%.2f" % order.executed.price
                 self.buyexec.append(chkprice)
             else:  # elif isinstance(order, SellOrder):
                 if self.p.printops:
-                    txt = 'SELL, %.2f' % order.executed.price
+                    txt = "SELL, %.2f" % order.executed.price
                     self.log(txt, order.executed.dt)
 
-                chkprice = '%.2f' % order.executed.price
+                chkprice = "%.2f" % order.executed.price
                 self.sellexec.append(chkprice)
 
         elif order.status in [order.Expired, order.Canceled, order.Margin]:
             if self.p.printops:
-                self.log('%s ,' % order.Status[order.status])
+                self.log("%s ," % order.Status[order.status])
 
         # Allow new orders
         self.orderid = None
@@ -88,9 +89,8 @@ class RunStrategy(bt.Strategy):
             self.broker.setcommission(commission=2.0, mult=10.0, margin=1000.0)
 
         if self.p.printdata:
-            self.log('-------------------------', nodate=True)
-            self.log('Starting portfolio value: %.2f' % self.broker.getvalue(),
-                     nodate=True)
+            self.log("-------------------------", nodate=True)
+            self.log("Starting portfolio value: %.2f" % self.broker.getvalue(), nodate=True)
 
         self.tstart = time_clock()
 
@@ -103,22 +103,26 @@ class RunStrategy(bt.Strategy):
     def stop(self):
         tused = time_clock() - self.tstart
         if self.p.printdata:
-            self.log('Time used: %s' % str(tused))
-            self.log('Final portfolio value: %.2f' % self.broker.getvalue())
-            self.log('Final cash value: %.2f' % self.broker.getcash())
-            self.log('-------------------------')
+            self.log("Time used: %s" % str(tused))
+            self.log("Final portfolio value: %.2f" % self.broker.getvalue())
+            self.log("Final cash value: %.2f" % self.broker.getcash())
+            self.log("-------------------------")
         else:
             pass
 
     def next(self):
         if self.p.printdata:
             self.log(
-                'Open, High, Low, Close, %.2f, %.2f, %.2f, %.2f, Sma, %f' %
-                (self.data.open[0], self.data.high[0],
-                 self.data.low[0], self.data.close[0],
-                 self.sma[0]))
-            self.log('Close %.2f - Sma %.2f' %
-                     (self.data.close[0], self.sma[0]))
+                "Open, High, Low, Close, %.2f, %.2f, %.2f, %.2f, Sma, %f"
+                % (
+                    self.data.open[0],
+                    self.data.high[0],
+                    self.data.low[0],
+                    self.data.close[0],
+                    self.sma[0],
+                )
+            )
+            self.log("Close %.2f - Sma %.2f" % (self.data.close[0], self.sma[0]))
 
         if self.orderid:
             # if an order is active, no new orders are allowed
@@ -128,18 +132,18 @@ class RunStrategy(bt.Strategy):
             if self.p.maxtrades is None or self.tradecount < self.p.maxtrades:
                 if self.cross > 0.0:
                     if self.p.printops:
-                        self.log('BUY CREATE , %.2f' % self.data.close[0])
+                        self.log("BUY CREATE , %.2f" % self.data.close[0])
 
                     self.orderid = self.buy()
-                    chkprice = '%.2f' % self.data.close[0]
+                    chkprice = "%.2f" % self.data.close[0]
                     self.buycreate.append(chkprice)
 
         elif self.cross < 0.0:
             if self.p.printops:
-                self.log('SELL CREATE , %.2f' % self.data.close[0])
+                self.log("SELL CREATE , %.2f" % self.data.close[0])
 
             self.orderid = self.close()
-            chkprice = '%.2f' % self.data.close[0]
+            chkprice = "%.2f" % self.data.close[0]
             self.sellcreate.append(chkprice)
 
 
@@ -149,14 +153,16 @@ chkdatas = 1
 def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     for maxtrades in [None, 0, 1]:
-        cerebros = testcommon.runtest(datas,
-                                      RunStrategy,
-                                      printdata=main,
-                                      stocklike=False,
-                                      maxtrades=maxtrades,
-                                      printops=main,
-                                      plot=main,
-                                      analyzer=(bt.analyzers.SQN, {}))
+        cerebros = testcommon.runtest(
+            datas,
+            RunStrategy,
+            printdata=main,
+            stocklike=False,
+            maxtrades=maxtrades,
+            printops=main,
+            plot=main,
+            analyzer=(bt.analyzers.SQN, {}),
+        )
 
         for cerebro in cerebros:
             strat = cerebro.runstrats[0][0]  # no optimization, only 1
@@ -171,9 +177,9 @@ def test_run(main=False):
                     assert analysis.trades == maxtrades
                 else:
                     # Handle different precision
-                    assert str(analysis.sqn)[0:14] == '0.912550316439'
-                    assert str(analysis.trades) == '11'
+                    assert str(analysis.sqn)[0:14] == "0.912550316439"
+                    assert str(analysis.trades) == "11"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

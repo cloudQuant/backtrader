@@ -29,15 +29,16 @@ class MetaObserver(ObserverBase.__class__):
         _obj._analyzers = list()  # keep children analyzers
 
         return _obj, args, kwargs  # return the instantiated object and args
+
     # 在dopreinit的时候，如果_stclock属性是True的话，就把_clock设置成_obj的父类
     def dopreinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = \
-            super(MetaObserver, cls).dopreinit(_obj, *args, **kwargs)
+        _obj, args, kwargs = super(MetaObserver, cls).dopreinit(_obj, *args, **kwargs)
 
         if _obj._stclock:  # Change the clock if strategy wide observer
             _obj._clock = _obj._owner
 
         return _obj, args, kwargs
+
 
 # Observer类
 class Observer(ObserverBase, metaclass=MetaObserver):
@@ -56,6 +57,7 @@ class Observer(ObserverBase, metaclass=MetaObserver):
     # The behavior can be overriden by subclasses
     def prenext(self):
         self.next()
+
     # 注册analyzer
     def _register_analyzer(self, analyzer):
         self._analyzers.append(analyzer)

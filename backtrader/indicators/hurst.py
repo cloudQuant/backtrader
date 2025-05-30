@@ -21,47 +21,47 @@
 from . import PeriodN
 from numpy import *
 
-__all__ = ['HurstExponent', 'Hurst']
+__all__ = ["HurstExponent", "Hurst"]
+
 
 # 赫斯特指标
 class HurstExponent(PeriodN):
     """
-    References:
+     References:
 
-      - https://www.quantopian.com/posts/hurst-exponent
-      - https://www.quantopian.com/posts/some-code-from-ernie-chans-new-book-implemented-in-python
+       - https://www.quantopian.com/posts/hurst-exponent
+       - https://www.quantopian.com/posts/some-code-from-ernie-chans-new-book-implemented-in-python
 
-   Interpretation of the results
+    Interpretation of the results
 
-      1. Geometric random walk (H=0.5)
-      2. Mean-reverting series (H<0.5)
-      3. Trending Series (H>0.5)
+       1. Geometric random walk (H=0.5)
+       2. Mean-reverting series (H<0.5)
+       3. Trending Series (H>0.5)
 
-    Important notes:
+     Important notes:
 
-      - The default period is ``40``, but experimentation by users has shown
-        that it would be advisable to have at least 2000 samples (i.e.: a
-        period of at least 2000) to have stable values.
+       - The default period is ``40``, but experimentation by users has shown
+         that it would be advisable to have at least 2000 samples (i.e.: a
+         period of at least 2000) to have stable values.
 
-      - The `lag_start` and `lag_end` values will default to be ``2`` and
-        ``self.p.period / 2`` unless the parameters are specified.
+       - The `lag_start` and `lag_end` values will default to be ``2`` and
+         ``self.p.period / 2`` unless the parameters are specified.
 
-        Experimentation by users has also shown that values of around 10 and 500 produce good results
+         Experimentation by users has also shown that values of around 10 and 500 produce good results
 
-    The original values (40, 2, self.p.period / 2) are kept for backwards
-    compatibility
+     The original values (40, 2, self.p.period / 2) are kept for backwards
+     compatibility
 
     """
-    frompackages = (
-        ('numpy', ('asarray', 'log10', 'polyfit', 'sqrt', 'std', 'subtract')),
-    )
 
-    alias = ('Hurst',)
-    lines = ('hurst',)
+    frompackages = (("numpy", ("asarray", "log10", "polyfit", "sqrt", "std", "subtract")),)
+
+    alias = ("Hurst",)
+    lines = ("hurst",)
     params = (
-        ('period', 40),  # 2000 was proposed
-        ('lag_start', None),  # 10 was proposed
-        ('lag_end', None),  # 500 was proposed
+        ("period", 40),  # 2000 was proposed
+        ("lag_start", None),  # 10 was proposed
+        ("lag_end", None),  # 500 was proposed
     )
 
     def _plotlabel(self):

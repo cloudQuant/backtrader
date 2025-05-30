@@ -20,6 +20,7 @@
 ###############################################################################
 from . import Indicator, MovAv
 
+
 # 计算标准差
 class StandardDeviation(Indicator):
     """
@@ -42,14 +43,19 @@ class StandardDeviation(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Standard_deviation
     """
-    alias = ('StdDev',)
 
-    lines = ('stddev',)
-    params = (('period', 20), ('movav', MovAv.Simple), ('safepow', True),)
+    alias = ("StdDev",)
+
+    lines = ("stddev",)
+    params = (
+        ("period", 20),
+        ("movav", MovAv.Simple),
+        ("safepow", True),
+    )
 
     def _plotlabel(self):
         plabels = [self.p.period]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def __init__(self):
@@ -65,6 +71,7 @@ class StandardDeviation(Indicator):
             self.lines.stddev = pow(abs(meansq - sqmean), 0.5)
         else:
             self.lines.stddev = pow(meansq - sqmean, 0.5)
+
 
 # 平均偏差
 class MeanDeviation(Indicator):
@@ -84,14 +91,18 @@ class MeanDeviation(Indicator):
     See:
       - https://en.wikipedia.org/wiki/Average_absolute_deviation
     """
-    alias = ('MeanDev',)
 
-    lines = ('meandev',)
-    params = (('period', 20), ('movav', MovAv.Simple),)
+    alias = ("MeanDev",)
+
+    lines = ("meandev",)
+    params = (
+        ("period", 20),
+        ("movav", MovAv.Simple),
+    )
 
     def _plotlabel(self):
         plabels = [self.p.period]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def __init__(self):

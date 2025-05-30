@@ -35,7 +35,8 @@ class PeriodN(Indicator):
 
     This class has no defined lines
     """
-    params = (('period', 1),)
+
+    params = (("period", 1),)
 
     def __init__(self):
         super(PeriodN, self).__init__()
@@ -56,6 +57,7 @@ class OperationN(PeriodN):
     Formula:
       - line = func(data, period)
     """
+
     def next(self):
         self.line[0] = self.func(self.data.get(size=self.p.period))
 
@@ -66,7 +68,8 @@ class OperationN(PeriodN):
         func = self.func
 
         for i in range(start, end):
-            dst[i] = func(src[i - period + 1: i + 1])
+            dst[i] = func(src[i - period + 1 : i + 1])
+
 
 # 设置计算指标的时候的可调用函数
 class BaseApplyN(OperationN):
@@ -82,11 +85,13 @@ class BaseApplyN(OperationN):
 
     Any extra lines defined beyond the first (index 0) are not calculated
     """
-    params = (('func', None),)
+
+    params = (("func", None),)
 
     def __init__(self):
         self.func = self.p.func
         super(BaseApplyN, self).__init__()
+
 
 # 根据设置的可调用函数计算具体的line
 class ApplyN(BaseApplyN):
@@ -96,7 +101,8 @@ class ApplyN(BaseApplyN):
     Formula:
       - line = func(data, period)
     """
-    lines = ('apply',)
+
+    lines = ("apply",)
 
 
 # 计算过去N个周期的最高价
@@ -109,8 +115,9 @@ class Highest(OperationN):
     Formula:
       - highest = max(data, period)
     """
-    alias = ('MaxN',)
-    lines = ('highest',)
+
+    alias = ("MaxN",)
+    lines = ("highest",)
     func = max
 
 
@@ -124,8 +131,9 @@ class Lowest(OperationN):
     Formula:
       - lowest = min(data, period)
     """
-    alias = ('MinN',)
-    lines = ('lowest',)
+
+    alias = ("MinN",)
+    lines = ("lowest",)
     func = min
 
 
@@ -147,15 +155,15 @@ class ReduceN(OperationN):
         ``function`` non-named argument as the 1st argument, unlike other
         Indicators which take only named arguments
     """
-    lines = ('reduced',)
+
+    lines = ("reduced",)
     func = functools.reduce
 
     def __init__(self, function, **kwargs):
-        if 'initializer' not in kwargs:
+        if "initializer" not in kwargs:
             self.func = functools.partial(self.func, function)
         else:
-            self.func = functools.partial(self.func, function,
-                                          initializer=kwargs['initializer'])
+            self.func = functools.partial(self.func, function, initializer=kwargs["initializer"])
 
         super(ReduceN, self).__init__()
 
@@ -171,7 +179,8 @@ class SumN(OperationN):
     Formula:
       - sumn = sum(data, period)
     """
-    lines = ('sumn',)
+
+    lines = ("sumn",)
     func = math.fsum
 
 
@@ -186,8 +195,10 @@ class AnyN(OperationN):
     Formula:
       - anyn = any(data, period)
     """
-    lines = ('anyn',)
+
+    lines = ("anyn",)
     func = any
+
 
 # 如果过去N周期所有的都是True，就返回True
 class AllN(OperationN):
@@ -200,8 +211,10 @@ class AllN(OperationN):
     Formula:
       - alln = all(data, period)
     """
-    lines = ('alln',)
+
+    lines = ("alln",)
     func = all
+
 
 # 返回满足条件的最早出现的数据
 class FindFirstIndex(OperationN):
@@ -216,12 +229,14 @@ class FindFirstIndex(OperationN):
     Formula:
       - index = first for which data[index] == _evalfunc(data)
     """
-    lines = ('index',)
-    params = (('_evalfunc', None),)
+
+    lines = ("index",)
+    params = (("_evalfunc", None),)
 
     def func(self, iterable):
         m = self.p._evalfunc(iterable)
         return next(i for i, v in enumerate(reversed(iterable)) if v == m)
+
 
 # 获取过去当中最早出现的最高的价格
 class FindFirstIndexHighest(FindFirstIndex):
@@ -235,7 +250,9 @@ class FindFirstIndexHighest(FindFirstIndex):
     Formula:
       - index = index of first data which is the highest
     """
-    params = (('_evalfunc', max),)
+
+    params = (("_evalfunc", max),)
+
 
 # 获取过去当中最早出现的最低的价格
 class FindFirstIndexLowest(FindFirstIndex):
@@ -249,7 +266,8 @@ class FindFirstIndexLowest(FindFirstIndex):
     Formula:
       - index = index of first data which is the lowest
     """
-    params = (('_evalfunc', min),)
+
+    params = (("_evalfunc", min),)
 
 
 # 获取满足条件的最后一个的index
@@ -265,8 +283,9 @@ class FindLastIndex(OperationN):
     Formula:
       - index = last for which data[index] == _evalfunc(data)
     """
-    lines = ('index',)
-    params = (('_evalfunc', None),)
+
+    lines = ("index",)
+    params = (("_evalfunc", None),)
 
     def func(self, iterable):
         m = self.p._evalfunc(iterable)
@@ -275,6 +294,7 @@ class FindLastIndex(OperationN):
         # which is the current bar is returned and without the -1 then
         # period - index = 1 ... and must be zero!
         return self.p.period - index - 1
+
 
 # 获取过去当中最晚出现的最高的价格
 class FindLastIndexHighest(FindLastIndex):
@@ -288,7 +308,9 @@ class FindLastIndexHighest(FindLastIndex):
     Formula:
       - index = index of last data which is the highest
     """
-    params = (('_evalfunc', max),)
+
+    params = (("_evalfunc", max),)
+
 
 # 获取过去当中最晚出现的最低的价格
 class FindLastIndexLowest(FindLastIndex):
@@ -302,7 +324,9 @@ class FindLastIndexLowest(FindLastIndex):
     Formula:
       - index = index of last data which is the lowest
     """
-    params = (('_evalfunc', min),)
+
+    params = (("_evalfunc", min),)
+
 
 # 计算累计值
 class Accum(Indicator):
@@ -312,9 +336,13 @@ class Accum(Indicator):
     Formula:
       - accum += data
     """
-    alias = ('CumSum', 'CumulativeSum',)
-    lines = ('accum',)
-    params = (('seed', 0.0),)
+
+    alias = (
+        "CumSum",
+        "CumulativeSum",
+    )
+    lines = ("accum",)
+    params = (("seed", 0.0),)
 
     # xxxstart methods use the seed (starting value) and passed data to
     # construct the first value keeping the minperiod to 1 since no
@@ -342,6 +370,7 @@ class Accum(Indicator):
         for i in range(start, end):
             dst[i] = prev = prev + src[i]
 
+
 # 计算平均值
 class Average(PeriodN):
     """
@@ -353,12 +382,15 @@ class Average(PeriodN):
     See also:
       - https://en.wikipedia.org/wiki/Arithmetic_mean
     """
-    alias = ('ArithmeticMean', 'Mean',)
-    lines = ('av',)
+
+    alias = (
+        "ArithmeticMean",
+        "Mean",
+    )
+    lines = ("av",)
 
     def next(self):
-        self.line[0] = \
-            math.fsum(self.data.get(size=self.p.period)) / self.p.period
+        self.line[0] = math.fsum(self.data.get(size=self.p.period)) / self.p.period
 
     def once(self, start, end):
         src = self.data.array
@@ -366,7 +398,8 @@ class Average(PeriodN):
         period = self.p.period
 
         for i in range(start, end):
-            dst[i] = math.fsum(src[i - period + 1:i + 1]) / period
+            dst[i] = math.fsum(src[i - period + 1 : i + 1]) / period
+
 
 # 计算指数平均值
 class ExponentialSmoothing(Average):
@@ -382,8 +415,9 @@ class ExponentialSmoothing(Average):
     See also:
       - https://en.wikipedia.org/wiki/Exponential_smoothing
     """
-    alias = ('ExpSmoothing',)
-    params = (('alpha', None),)
+
+    alias = ("ExpSmoothing",)
+    params = (("alpha", None),)
 
     def __init__(self):
         self.alpha = self.p.alpha
@@ -416,6 +450,7 @@ class ExponentialSmoothing(Average):
         for i in range(start, end):
             larray[i] = prev = prev * alpha1 + darray[i] * alpha
 
+
 # 动态指数移动平均值
 class ExponentialSmoothingDynamic(ExponentialSmoothing):
     """
@@ -433,7 +468,8 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
     See also:
       - https://en.wikipedia.org/wiki/Exponential_smoothing
     """
-    alias = ('ExpSmoothingDynamic',)
+
+    alias = ("ExpSmoothingDynamic",)
 
     def __init__(self):
         super(ExponentialSmoothingDynamic, self).__init__()
@@ -445,8 +481,7 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
         self.lines[0].incminperiod(minperioddiff)
 
     def next(self):
-        self.line[0] = \
-            self.line[-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
+        self.line[0] = self.line[-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
 
     def once(self, start, end):
         darray = self.data.array
@@ -458,6 +493,7 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
         prev = larray[start - 1]
         for i in range(start, end):
             larray[i] = prev = prev * alpha1[i] + darray[i] * alpha[i]
+
 
 # 加权移动平均值
 class WeightedAverage(PeriodN):
@@ -475,9 +511,13 @@ class WeightedAverage(PeriodN):
     See:
       - https://en.wikipedia.org/wiki/Weighted_arithmetic_mean
     """
-    alias = ('AverageWeighted',)
-    lines = ('av',)
-    params = (('coef', 1.0), ('weights', tuple()),)
+
+    alias = ("AverageWeighted",)
+    lines = ("av",)
+    params = (
+        ("coef", 1.0),
+        ("weights", tuple()),
+    )
 
     def __init__(self):
         super(WeightedAverage, self).__init__()
@@ -495,7 +535,8 @@ class WeightedAverage(PeriodN):
         weights = self.p.weights
 
         for i in range(start, end):
-            data = darray[i - period + 1: i + 1]
+            data = darray[i - period + 1 : i + 1]
             larray[i] = coef * math.fsum(map(operator.mul, data, weights))
+
 
 AverageWeighted = WeightedAverage

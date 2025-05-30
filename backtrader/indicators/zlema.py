@@ -20,6 +20,7 @@
 ###############################################################################
 from . import Indicator, MovingAverageBase, MovAv
 
+
 # 零滞后指数移动平均线
 class ZeroLagExponentialMovingAverage(MovingAverageBase):
     """
@@ -35,9 +36,13 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
       - http://user42.tuxfamily.org/chart/manual/Zero_002dLag-Exponential-Moving-Average.html
 
     """
-    alias = ('ZLEMA', 'ZeroLagEma',)
-    lines = ('zlema',)
-    params = (('_movav', MovAv.EMA),)
+
+    alias = (
+        "ZLEMA",
+        "ZeroLagEma",
+    )
+    lines = ("zlema",)
+    params = (("_movav", MovAv.EMA),)
 
     def __init__(self):
         lag = (self.p.period - 1) // 2

@@ -81,5 +81,5 @@ def test_run(main=False):
     check_futures()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

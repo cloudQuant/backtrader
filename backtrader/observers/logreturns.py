@@ -21,7 +21,8 @@
 import backtrader as bt
 
 
-__all__ = ['LogReturns', 'LogReturns2']
+__all__ = ["LogReturns", "LogReturns2"]
+
 
 # 获取对数收益率
 class LogReturns(bt.Observer):
@@ -57,38 +58,45 @@ class LogReturns(bt.Observer):
 
     _stclock = True
 
-    lines = ('logret1',)
+    lines = ("logret1",)
     plotinfo = dict(plot=True, subplot=True)
 
     params = (
-        ('timeframe', None),
-        ('compression', None),
-        ('fund', None),
+        ("timeframe", None),
+        ("compression", None),
+        ("fund", None),
     )
+
     # 画图的标签
     def _plotlabel(self):
-        return [bt.TimeFrame.getname(self.p.timeframe, self.p.compression),
-                str(self.p.compression or 1)]
+        return [
+            bt.TimeFrame.getname(self.p.timeframe, self.p.compression),
+            str(self.p.compression or 1),
+        ]
+
     # 初始化的时候通过LogReturnsRolling计算对数收益率
     def __init__(self):
         self.logret1 = self._owner._addanalyzer_slave(
-            bt.analyzers.LogReturnsRolling,
-            data=self.data0, **self.p._getkwargs())
+            bt.analyzers.LogReturnsRolling, data=self.data0, **self.p._getkwargs()
+        )
+
     # 给logret1赋值
     def next(self):
         self.lines.logret1[0] = self.logret1.rets[self.logret1.dtkey]
 
+
 # 显示第二个品种的对数收益率
 class LogReturns2(LogReturns):
     """Extends the observer LogReturns to show two instruments"""
-    lines = ('logret2',)
+
+    lines = ("logret2",)
 
     def __init__(self):
         super(LogReturns2, self).__init__()
 
         self.logret2 = self._owner._addanalyzer_slave(
-            bt.analyzers.LogReturnsRolling,
-            data=self.data1, **self.p._getkwargs())
+            bt.analyzers.LogReturnsRolling, data=self.data1, **self.p._getkwargs()
+        )
 
     def next(self):
         super(LogReturns2, self).next()

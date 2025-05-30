@@ -63,9 +63,9 @@ class TradeHistory(AutoOrderedDict):
         - ``commission`` (``float``): price of the update
             # 更新的佣金
     """
+
     # 初始化
-    def __init__(self,
-                 status, dt, barlen, size, price, value, pnl, pnlcomm, tz, event=None):
+    def __init__(self, status, dt, barlen, size, price, value, pnl, pnlcomm, tz, event=None):
         """Initializes the object to the current status of the Trade"""
         super(TradeHistory, self).__init__()
         self.status.status = status
@@ -81,9 +81,22 @@ class TradeHistory(AutoOrderedDict):
             self.event = event
 
     def __reduce__(self):
-        return (self.__class__, (self.status.status, self.status.dt, self.status.barlen, self.status.size,
-                                 self.status.price, self.status.value, self.status.pnl, self.status.pnlcomm,
-                                 self.status.tz, self.event, ))
+        return (
+            self.__class__,
+            (
+                self.status.status,
+                self.status.dt,
+                self.status.barlen,
+                self.status.size,
+                self.status.price,
+                self.status.value,
+                self.status.pnl,
+                self.status.pnlcomm,
+                self.status.tz,
+                self.event,
+            ),
+        )
+
     # 做事件的更新
     def doupdate(self, order, size, price, commission):
         """Used to fill the ``update`` part of the history entry"""
@@ -98,6 +111,7 @@ class TradeHistory(AutoOrderedDict):
     def datetime(self, tz=None, naive=True):
         """Returns a datetime for the time the update event happened"""
         return num2date(self.status.dt, tz or self.status.tz, naive)
+
 
 # Trade类
 class Trade(object):
@@ -169,27 +183,44 @@ class Trade(object):
         # 用一个列表保存过去每个trade的事件及状态，第一个是开仓事件，最后一个是平仓事件
 
     """
+
     # trade的计数器
     refbasis = itertools.count(1)
     # trade的状态名字
-    status_names = ['Created', 'Open', 'Closed']
+    status_names = ["Created", "Open", "Closed"]
     Created, Open, Closed = range(3)
+
     # 打印trade相关的信息
     def __str__(self):
         toprint = (
-            'ref', 'data', 'tradeid',
-            'size', 'price', 'value', 'commission', 'pnl', 'pnlcomm',
-            'justopened', 'isopen', 'isclosed',
-            'baropen', 'dtopen', 'barclose', 'dtclose', 'barlen',
-            'historyon', 'history',
-            'status')
-
-        return '\n'.join(
-            (':'.join((x, str(getattr(self, x)))) for x in toprint)
+            "ref",
+            "data",
+            "tradeid",
+            "size",
+            "price",
+            "value",
+            "commission",
+            "pnl",
+            "pnlcomm",
+            "justopened",
+            "isopen",
+            "isclosed",
+            "baropen",
+            "dtopen",
+            "barclose",
+            "dtclose",
+            "barlen",
+            "historyon",
+            "history",
+            "status",
         )
+
+        return "\n".join((":".join((x, str(getattr(self, x)))) for x in toprint))
+
     # 初始化
-    def __init__(self, data=None, tradeid=0, historyon=False,
-                 size=0, price=0.0, value=0.0, commission=0.0):
+    def __init__(
+        self, data=None, tradeid=0, historyon=False, size=0, price=0.0, value=0.0, commission=0.0
+    ):
 
         self.long = None
         self.ref = next(self.refbasis)
@@ -217,10 +248,12 @@ class Trade(object):
         self.history = list()
 
         self.status = self.Created
+
     # 返回交易的绝对大小,todo 感觉这个用法稍微有一些奇怪
     def __len__(self):
         """Absolute size of the trade"""
         return abs(self.size)
+
     # 判断交易是否为0,trade的size是0的时候，代表trade是close的，如果不为0，代表trade是开着的
     def __bool__(self):
         """Trade size is not 0"""
@@ -232,6 +265,7 @@ class Trade(object):
     def getdataname(self):
         """Shortcut to retrieve the name of the data this trade references"""
         return self.data._name
+
     # 返回开仓时间
     def open_datetime(self, tz=None, naive=True):
         """Returns a datetime.datetime object with the datetime in which
@@ -248,8 +282,7 @@ class Trade(object):
         return self.data.num2date(self.dtclose, tz=tz, naive=naive)
 
     # 更新trade的事件
-    def update(self, order, size, price, value, commission, pnl,
-               comminfo):
+    def update(self, order, size, price, value, commission, pnl, comminfo):
         """
         Updates the current trade. The logic does not check if the
         trade is reversed, which is not conceptually supported by the
@@ -353,8 +386,15 @@ class Trade(object):
         if self.historyon:
             dt0 = self.data.datetime[0] if not order.p.simulated else 0.0
             histentry = TradeHistory(
-                self.status, dt0, self.barlen,
-                self.size, self.price, self.value,
-                self.pnl, self.pnlcomm, self.data._tz)
+                self.status,
+                dt0,
+                self.barlen,
+                self.size,
+                self.price,
+                self.value,
+                self.pnl,
+                self.pnlcomm,
+                self.data._tz,
+            )
             histentry.doupdate(order, size, price, commission)
             self.history.append(histentry)

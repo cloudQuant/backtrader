@@ -19,52 +19,52 @@
 #
 ###############################################################################
 tableau20 = [
-    'steelblue',  # 0
-    'lightsteelblue',  # 1
-    'darkorange',  # 2
-    'peachpuff',  # 3
-    'green',  # 4
-    'lightgreen',  # 5
-    'crimson',  # 6
-    'lightcoral',  # 7
-    'mediumpurple',  # 8
-    'thistle',  # 9
-    'saddlebrown',  # 10
-    'rosybrown',  # 11
-    'orchid',  # 12
-    'lightpink',  # 13
-    'gray',  # 14
-    'lightgray',  # 15
-    'olive',  # 16
-    'palegoldenrod',  # 17
-    'mediumturquoise',  # 18
-    'paleturquoise',  # 19
+    "steelblue",  # 0
+    "lightsteelblue",  # 1
+    "darkorange",  # 2
+    "peachpuff",  # 3
+    "green",  # 4
+    "lightgreen",  # 5
+    "crimson",  # 6
+    "lightcoral",  # 7
+    "mediumpurple",  # 8
+    "thistle",  # 9
+    "saddlebrown",  # 10
+    "rosybrown",  # 11
+    "orchid",  # 12
+    "lightpink",  # 13
+    "gray",  # 14
+    "lightgray",  # 15
+    "olive",  # 16
+    "palegoldenrod",  # 17
+    "mediumturquoise",  # 18
+    "paleturquoise",  # 19
 ]
 
 tableau10 = [
-    'blue',  # 'steelblue',  # 0
-    'darkorange',  # 1
-    'green',  # 2
-    'crimson',  # 3
-    'mediumpurple',  # 4
-    'saddlebrown',  # 5
-    'orchid',  # 6
-    'gray',  # 7
-    'olive',  # 8
-    'mediumturquoise',  # 9
+    "blue",  # 'steelblue',  # 0
+    "darkorange",  # 1
+    "green",  # 2
+    "crimson",  # 3
+    "mediumpurple",  # 4
+    "saddlebrown",  # 5
+    "orchid",  # 6
+    "gray",  # 7
+    "olive",  # 8
+    "mediumturquoise",  # 9
 ]
 
 tableau10_light = [
-    'lightsteelblue',  # 0
-    'peachpuff',  # 1
-    'lightgreen',  # 2
-    'lightcoral',  # 3
-    'thistle',  # 4
-    'rosybrown',  # 5
-    'lightpink',  # 6
-    'lightgray',  # 7
-    'palegoldenrod',  # 8
-    'paleturquoise',  # 9
+    "lightsteelblue",  # 0
+    "peachpuff",  # 1
+    "lightgreen",  # 2
+    "lightcoral",  # 3
+    "thistle",  # 4
+    "rosybrown",  # 5
+    "lightpink",  # 6
+    "lightgray",  # 7
+    "palegoldenrod",  # 8
+    "paleturquoise",  # 9
 ]
 
 tab10_index = [3, 0, 2, 1, 2, 4, 5, 6, 7, 8, 9]
@@ -103,14 +103,14 @@ class PlotScheme(object):
 
         # Default plotstyle for the OHLC bars which (line -> line on close)
         # Other options: 'bar' and 'candle'
-        self.style = 'line'
+        self.style = "line"
 
         # Default color for the 'line on close' plot
-        self.loc = 'black'
+        self.loc = "black"
         # Default color for a bullish bar/candle (0.75 -> intensity of gray)
-        self.barup = '0.75'
+        self.barup = "0.75"
         # Default color for a bearish bar/candle
-        self.bardown = 'red'
+        self.bardown = "red"
         # Level of transparency to apply to bars/cancles (NOT USED)
         self.bartrans = 1.0
 
@@ -138,9 +138,9 @@ class PlotScheme(object):
         self.volpushup = 0.00
 
         # Default color for the volume of a bullish day
-        self.volup = '#aaaaaa'  # 0.66 of gray
+        self.volup = "#aaaaaa"  # 0.66 of gray
         # Default color for the volume of a bearish day
-        self.voldown = '#cc6073'  # (204, 96, 115)
+        self.voldown = "#cc6073"  # (204, 96, 115)
         # Transparency to apply to the volume when overlaying
         self.voltrans = 0.50
 
@@ -154,10 +154,10 @@ class PlotScheme(object):
         # Whether indicators have a legend display in their charts
         self.legendind = True
         # Location of the legend for indicators (see matplotlib)
-        self.legendindloc = 'upper left'
+        self.legendindloc = "upper left"
 
         # Location of the legend for datafeeds (see matplotlib)
-        self.legenddataloc = 'upper left'
+        self.legenddataloc = "upper left"
 
         # Plot the last value of a line after the Object name
         self.linevalues = True
@@ -166,9 +166,9 @@ class PlotScheme(object):
         self.valuetags = True
 
         # Default color for horizontal lines (see plotinfo.plothlines)
-        self.hlinescolor = '0.66'  # shade of gray
+        self.hlinescolor = "0.66"  # shade of gray
         # Default style for horizontal lines
-        self.hlinesstyle = '--'
+        self.hlinesstyle = "--"
         # Default width for horizontal lines
         self.hlineswidth = 1.0
 
@@ -176,7 +176,7 @@ class PlotScheme(object):
         self.lcolors = tableau10
 
         # strftime Format string for the display of ticks on the x-axis
-        self.fmt_x_ticks = '%Y-%m-%d %H:%M'
+        self.fmt_x_ticks = "%Y-%m-%d %H:%M"
 
         # strftime Format string for the display of data points values
         self.fmt_x_data = None

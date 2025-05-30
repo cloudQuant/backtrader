@@ -26,6 +26,7 @@ from .. import feed
 from .. import TimeFrame
 from ..utils import date2num
 
+
 # 处理 vc chart的二进制数据，支持天或者日内数据格式
 class VChartData(feed.DataBase):
     """
@@ -54,39 +55,39 @@ class VChartData(feed.DataBase):
         super(VChartData, self).start()
 
         # Not yet known if an extension is needed
-        self.ext = ''
+        self.ext = ""
 
-        if not hasattr(self.p.dataname, 'read'):
+        if not hasattr(self.p.dataname, "read"):
             # assume is a string because it has no write method
 
-            if self.p.dataname.endswith('.fd'):
+            if self.p.dataname.endswith(".fd"):
                 self.p.timeframe = TimeFrame.Days
-            elif self.p.dataname.endswith('.min'):
+            elif self.p.dataname.endswith(".min"):
                 self.p.timeframe = TimeFrame.Minutes
             else:
                 # Neither fd nor min ... just the code, assign extension
                 if self.p.timeframe == TimeFrame.Days:
-                    self.ext = '.fd'
+                    self.ext = ".fd"
                 else:
-                    self.ext = '.min'
+                    self.ext = ".min"
 
         if self.p.timeframe >= TimeFrame.Days:
             self.barsize = 28
             self.dtsize = 1
-            self.barfmt = 'IffffII'
+            self.barfmt = "IffffII"
         else:
             self.dtsize = 2
             self.barsize = 32
-            self.barfmt = 'IIffffII'
+            self.barfmt = "IIffffII"
 
         self.f = None
-        if hasattr(self.p.dataname, 'read'):
+        if hasattr(self.p.dataname, "read"):
             # A file has been passed in (ex: from a GUI)
             self.f = self.p.dataname
         else:
             dataname = self.p.dataname + self.ext
             # Let an exception propagate
-            self.f = open(dataname, 'rb')
+            self.f = open(dataname, "rb")
 
     def stop(self):
         if self.f is not None:
@@ -118,7 +119,7 @@ class VChartData(feed.DataBase):
 
         self.lines.datetime[0] = date2num(dt)
 
-        o, h, l, c, v, oi = bdata[self.dtsize:]
+        o, h, l, c, v, oi = bdata[self.dtsize :]
         self.lines.open[0] = o
         self.lines.high[0] = h
         self.lines.low[0] = l
@@ -132,18 +133,17 @@ class VChartData(feed.DataBase):
 class VChartFeed(feed.FeedBase):
     DataCls = VChartData
 
-    params = (('basepath', ''),) + DataCls.params._gettuple()
+    params = (("basepath", ""),) + DataCls.params._gettuple()
 
     def _getdata(self, dataname, **kwargs):
         maincode = dataname[0:2]
         subcode = dataname[2:6]
 
-        datapath = os.path.join(self.p.basepath,
-                                'RealServer', 'Data',
-                                maincode, subcode,  # 01 00XX
-                                dataname)
+        datapath = os.path.join(
+            self.p.basepath, "RealServer", "Data", maincode, subcode, dataname  # 01 00XX
+        )
 
         newkwargs = self.p._getkwargs()
         newkwargs.update(kwargs)
-        kwargs['dataname'] = datapath
+        kwargs["dataname"] = datapath
         return self.DataCls(**kwargs)

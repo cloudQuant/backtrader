@@ -23,7 +23,7 @@ import math
 import collections
 from . import TimeDrawDown
 
-__all__ = ['Calmar']
+__all__ = ["Calmar"]
 
 
 # 计算calmar比例，总体上来看，这个calmar计算的并不算是太成功，或者说analyzer,observer等系列指标，使用效率并不是很高，
@@ -71,13 +71,17 @@ class Calmar(bt.TimeFrameAnalyzerBase):
     Attributes:
       - ``calmar`` the latest calculated calmar ratio
     """
+
     # 使用到的模块
-    packages = ('collections', 'math',)
+    packages = (
+        "collections",
+        "math",
+    )
     # 参数
     params = (
-        ('timeframe', bt.TimeFrame.Months),  # default in calmar
-        ('period', 36),
-        ('fund', None),
+        ("timeframe", bt.TimeFrame.Months),  # default in calmar
+        ("period", 36),
+        ("fund", None),
     )
 
     # 计算最大回撤
@@ -86,16 +90,14 @@ class Calmar(bt.TimeFrameAnalyzerBase):
         self._fundmode = None
         self._values = None
         self._mdd = None
-        self._maxdd = TimeDrawDown(timeframe=self.p.timeframe,
-                                   compression=self.p.compression)
+        self._maxdd = TimeDrawDown(timeframe=self.p.timeframe, compression=self.p.compression)
 
     # 开始
     def start(self):
         # 最大回撤率
-        self._mdd = float('-inf')
+        self._mdd = float("-inf")
         # 双向队列，保存period个值，默认是36个
-        self._values = collections.deque([float('Nan')] * self.p.period,
-                                         maxlen=self.p.period)
+        self._values = collections.deque([float("Nan")] * self.p.period, maxlen=self.p.period)
         # fundmode
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
@@ -118,7 +120,7 @@ class Calmar(bt.TimeFrameAnalyzerBase):
         # 默认情况下计算得到平均每个月的收益率
         rann = math.log(self._values[-1] / self._values[0]) / len(self._values)
         # 计算calmar指标
-        self.calmar = calmar = rann / (self._mdd or float('Inf'))
+        self.calmar = calmar = rann / (self._mdd or float("Inf"))
         # 保存结果
         self.rets[self.dtkey] = calmar
 

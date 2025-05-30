@@ -34,9 +34,7 @@ class VChartFile(bt.Store):
         be examined to find the root directory of the *Visual Chart* files.
     """
 
-    params = (
-        ('path', None),
-    )
+    params = (("path", None),)
 
     def __init__(self):
         self._path = self.p.path
@@ -47,19 +45,23 @@ class VChartFile(bt.Store):
     def _find_vchart():
         # Find VisualChart registry key to get data directory
         # If not found returns ''
-        VC_KEYNAME = r'SOFTWARE\VCG\Visual Chart 6\Config'
-        VC_KEYVAL = 'DocsDirectory'
-        VC_DATADIR = ['Realserver', 'Data', '01']
+        VC_KEYNAME = r"SOFTWARE\VCG\Visual Chart 6\Config"
+        VC_KEYVAL = "DocsDirectory"
+        VC_DATADIR = ["Realserver", "Data", "01"]
 
-        VC_NONE = ''
+        VC_NONE = ""
 
         from backtrader.utils.py3 import winreg
+
         if winreg is None:
             return VC_NONE
 
         vcdir = None
         # Search for Directory in the usual root keys
-        for rkey in (winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE,):
+        for rkey in (
+            winreg.HKEY_CURRENT_USER,
+            winreg.HKEY_LOCAL_MACHINE,
+        ):
             try:
                 vckey = winreg.OpenKey(rkey, VC_KEYNAME)
             except WindowsError as e:

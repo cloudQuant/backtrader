@@ -24,6 +24,7 @@ from .. import Observer
 
 from ..trade import Trade
 
+
 # 这个类保存所有的trade和trade关闭的时候画出来pnl
 class Trades(Observer):
     """This observer keeps track of full trades and plots the PnL level achieved
@@ -39,26 +40,31 @@ class Trades(Observer):
         Show net/profit and loss, i.e.: after commission.If set to `False`,
         it will show the result of trades before commission
     """
+
     # 属性
     _stclock = True
     # 两条line
-    lines = ('pnlplus', 'pnlminus')
+    lines = ("pnlplus", "pnlminus")
     # 参数
     params = dict(pnlcomm=True)
     # 画图的时候的plotinfo
-    plotinfo = dict(plot=True, subplot=True,
-                    plotname='Trades - Net Profit/Loss',
-                    plotymargin=0.10,
-                    plothlines=[0.0])
+    plotinfo = dict(
+        plot=True,
+        subplot=True,
+        plotname="Trades - Net Profit/Loss",
+        plotymargin=0.10,
+        plothlines=[0.0],
+    )
     # 画图的时候line的设置
     plotlines = dict(
-        pnlplus=dict(_name='Positive',
-                     ls='', marker='o', color='blue',
-                     markersize=8.0, fillstyle='full'),
-        pnlminus=dict(_name='Negative',
-                      ls='', marker='o', color='red',
-                      markersize=8.0, fillstyle='full')
+        pnlplus=dict(
+            _name="Positive", ls="", marker="o", color="blue", markersize=8.0, fillstyle="full"
+        ),
+        pnlminus=dict(
+            _name="Negative", ls="", marker="o", color="red", markersize=8.0, fillstyle="full"
+        ),
     )
+
     # 初始化具trades相关的值
     def __init__(self):
 
@@ -102,6 +108,7 @@ class Trades(Observer):
             else:
                 self.lines.pnlminus[0] = pnl
 
+
 # DataTrades的元类，继承Observer后创建类的时候处理一些脏活
 class MetaDataTrades(Observer.__class__):
     def donew(cls, *args, **kwargs):
@@ -112,7 +119,7 @@ class MetaDataTrades(Observer.__class__):
         if _obj.params.usenames:
             lnames = tuple(x._name for x in _obj.datas)
         else:
-            lnames = tuple('data{}'.format(x) for x in range(len(_obj.datas)))
+            lnames = tuple("data{}".format(x) for x in range(len(_obj.datas)))
 
         # Generate a new lines class
         # 创建一个新的line class
@@ -124,33 +131,70 @@ class MetaDataTrades(Observer.__class__):
 
         # Generate plotlines info
         # 画图的一些配置信息
-        markers = ['o', 'v', '^', '<', '>', '1', '2', '3', '4', '8', 's', 'p',
-                   '*', 'h', 'H', '+', 'x', 'D', 'd']
+        markers = [
+            "o",
+            "v",
+            "^",
+            "<",
+            ">",
+            "1",
+            "2",
+            "3",
+            "4",
+            "8",
+            "s",
+            "p",
+            "*",
+            "h",
+            "H",
+            "+",
+            "x",
+            "D",
+            "d",
+        ]
 
-        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k', 'b', 'g', 'r', 'c', 'm',
-                  'y', 'k', 'b', 'g', 'r', 'c', 'm']
+        colors = [
+            "b",
+            "g",
+            "r",
+            "c",
+            "m",
+            "y",
+            "k",
+            "b",
+            "g",
+            "r",
+            "c",
+            "m",
+            "y",
+            "k",
+            "b",
+            "g",
+            "r",
+            "c",
+            "m",
+        ]
         # 信息
-        basedict = dict(ls='', markersize=8.0, fillstyle='full')
+        basedict = dict(ls="", markersize=8.0, fillstyle="full")
         # 把相关的信息更新后赋值给plines
         plines = dict()
         for lname, marker, color in zip(lnames, markers, colors):
             plines[lname] = d = basedict.copy()
             d.update(marker=marker, color=color)
         # plotlines
-        plotlines = cls.plotlines._derive(
-            uuid.uuid4().hex, plines, [], recurse=True)
+        plotlines = cls.plotlines._derive(uuid.uuid4().hex, plines, [], recurse=True)
         _obj.plotlines = plotlines()
 
         return _obj, args, kwargs  # return the instantiated object and args
+
 
 # DataTrades 这个类好像没有使用
 class DataTrades(Observer, metaclass=MetaDataTrades):
     _stclock = True
 
-    params = (('usenames', True),)
+    params = (("usenames", True),)
 
-    plotinfo = dict(plot=True, subplot=True, plothlines=[0.0],
-                    plotymargin=0.10)
+    plotinfo = dict(plot=True, subplot=True, plothlines=[0.0], plotymargin=0.10)
 
     plotlines = dict()
 

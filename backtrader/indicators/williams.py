@@ -18,8 +18,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from . import (Indicator, Highest, Lowest, If, UpDay, DownDay, Accum, TrueLow,
-               TrueHigh)
+from . import Indicator, Highest, Lowest, If, UpDay, DownDay, Accum, TrueLow, TrueHigh
+
 
 # 威廉指标
 class WilliamsR(Indicator):
@@ -37,13 +37,16 @@ class WilliamsR(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Williams_%25R
     """
-    lines = ('percR',)
-    params = (('period', 14),
-              ('upperband', -20.0),
-              ('lowerband', -80.0),)
 
-    plotinfo = dict(plotname='Williams R%')
-    plotlines = dict(percR=dict(_name='R%'))
+    lines = ("percR",)
+    params = (
+        ("period", 14),
+        ("upperband", -20.0),
+        ("lowerband", -80.0),
+    )
+
+    plotinfo = dict(plotname="Williams R%")
+    plotlines = dict(percR=dict(_name="R%"))
 
     def _plotinif(self):
         self.plotinfo.plotyhlines = [self.p.upperband, self.p.lowerband]
@@ -72,7 +75,8 @@ class WilliamsAD(Indicator):
     - http://www.metastock.com/Customer/Resources/TAAZ/?p=125
     - http://ta.mql4.com/indicators/trends/williams_accumulation_distribution
     """
-    lines = ('ad',)
+
+    lines = ("ad",)
 
     def __init__(self):
         upday = UpDay(self.data.close)

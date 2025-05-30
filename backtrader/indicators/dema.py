@@ -20,6 +20,7 @@
 ###############################################################################
 from . import Indicator, MovingAverageBase, MovAv
 
+
 # 双指数平均值
 class DoubleExponentialMovingAverage(MovingAverageBase):
     """
@@ -35,10 +36,14 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
     See:
       (None)
     """
-    alias = ('DEMA', 'MovingAverageDoubleExponential',)
 
-    lines = ('dema',)
-    params = (('_movav', MovAv.EMA),)
+    alias = (
+        "DEMA",
+        "MovingAverageDoubleExponential",
+    )
+
+    lines = ("dema",)
+    params = (("_movav", MovAv.EMA),)
 
     def __init__(self):
         ema = self.p._movav(self.data, period=self.p.period)
@@ -46,6 +51,7 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
         self.lines.dema = 2.0 * ema - ema2
 
         super(DoubleExponentialMovingAverage, self).__init__()
+
 
 # 三重指数平均值
 class TripleExponentialMovingAverage(MovingAverageBase):
@@ -65,10 +71,14 @@ class TripleExponentialMovingAverage(MovingAverageBase):
     See:
       (None)
     """
-    alias = ('TEMA', 'MovingAverageTripleExponential',)
 
-    lines = ('tema',)
-    params = (('_movav', MovAv.EMA),)
+    alias = (
+        "TEMA",
+        "MovingAverageTripleExponential",
+    )
+
+    lines = ("tema",)
+    params = (("_movav", MovAv.EMA),)
 
     def __init__(self):
         ema1 = self.p._movav(self.data, period=self.p.period)

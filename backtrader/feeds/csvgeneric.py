@@ -68,18 +68,17 @@ class GenericCSVData(feed.CSVDataBase):
 
     # csv data的一些常用的参数
     params = (
-        ('nullvalue', float('NaN')),
-        ('dtformat', '%Y-%m-%d %H:%M:%S'),
-        ('tmformat', '%H:%M:%S'),
-
-        ('datetime', 0),
-        ('time', -1),
-        ('open', 1),
-        ('high', 2),
-        ('low', 3),
-        ('close', 4),
-        ('volume', 5),
-        ('openinterest', 6),
+        ("nullvalue", float("NaN")),
+        ("dtformat", "%Y-%m-%d %H:%M:%S"),
+        ("tmformat", "%H:%M:%S"),
+        ("datetime", 0),
+        ("time", -1),
+        ("open", 1),
+        ("high", 2),
+        ("low", 3),
+        ("close", 4),
+        ("volume", 5),
+        ("openinterest", 6),
     )
 
     # 开始，根据传入的日期参数确定转换的方法
@@ -118,8 +117,8 @@ class GenericCSVData(feed.CSVDataBase):
             # 如果有time这个列，就把日期和时间结合到一起
             if self.p.time >= 0:
                 # add time value and format if it's in a separate field
-                dtfield += 'T' + linetokens[self.p.time]
-                dtformat += 'T' + self.p.tmformat
+                dtfield += "T" + linetokens[self.p.time]
+                dtformat += "T" + self.p.tmformat
             # 然后把字符串时间转化为datetime格式的时间
             dt = datetime.strptime(dtfield, dtformat)
         # 如果不是字符串，就调用start的时候设置好的时间转化函数_dtconvert
@@ -141,7 +140,7 @@ class GenericCSVData(feed.CSVDataBase):
             # 如果结合sessionend的日期转化成的数字大于日期转化后的数字，用前面的数字作为时间
             if dteosnum > dtnum:
                 self.lines.datetime[0] = dteosnum
-            # 如果不大于的话，如果self._tzinput是真的，那么就直接把dt转化成时间，如果不是真的，就使用原先的dtnum                                   
+            # 如果不大于的话，如果self._tzinput是真的，那么就直接把dt转化成时间，如果不是真的，就使用原先的dtnum
             else:
                 # Avoid reconversion if already converted dtin == dt
                 self.l.datetime[0] = date2num(dt) if self._tzinput else dtnum
@@ -151,7 +150,7 @@ class GenericCSVData(feed.CSVDataBase):
 
         # The rest of the fields can be done with the same procedure
         # 剩下的其他的数据可以按照同样的方法去操作，循环不是datetime的列
-        for linefield in (x for x in self.getlinealiases() if x != 'datetime'):
+        for linefield in (x for x in self.getlinealiases() if x != "datetime"):
             # Get the index created from the passed params
             # 获取这个列名称的index
             csvidx = getattr(self.params, linefield)
@@ -164,7 +163,7 @@ class GenericCSVData(feed.CSVDataBase):
                 # get it from the token
                 csvfield = linetokens[csvidx]
             # 如果获取到的数据是空的字符串，把数据设置成NAN
-            if csvfield == '':
+            if csvfield == "":
                 # if empty ... assign the "nullvalue"
                 csvfield = self.p.nullvalue
             # 获取这个列对应的line，然后设置value,没有太明白为什么使用两个float转化一个值，暂且认为是低效的，修改下

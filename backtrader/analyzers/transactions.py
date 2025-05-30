@@ -53,10 +53,11 @@ class Transactions(bt.Analyzer):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     """
+
     # 参数
     params = (
-        ('headers', False),
-        ('_pfheaders', ('date', 'amount', 'price', 'sid', 'symbol', 'value')),
+        ("headers", False),
+        ("_pfheaders", ("date", "amount", "price", "sid", "symbol", "value")),
     )
 
     # 开始

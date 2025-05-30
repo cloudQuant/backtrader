@@ -104,8 +104,8 @@ class RollOver(bt.DataBase, metaclass=MetaRollOver):
 
     params = (
         # ('rolls', []),  # array of futures to roll over
-        ('checkdate', None),  # callable
-        ('checkcondition', None),  # callable
+        ("checkdate", None),  # callable
+        ("checkcondition", None),  # callable
     )
 
     def islive(self):

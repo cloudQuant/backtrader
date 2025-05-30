@@ -31,7 +31,7 @@ from .utils import TIME_MAX
 
 
 #  from timer import * 只能import这几个常量和类
-__all__ = ['SESSION_TIME', 'SESSION_START', 'SESSION_END', 'Timer']
+__all__ = ["SESSION_TIME", "SESSION_START", "SESSION_END", "Timer"]
 
 # 这三个常量的值
 SESSION_TIME, SESSION_START, SESSION_END = range(3)
@@ -42,19 +42,19 @@ class Timer(metaclass=MetaParams):
     # 参数，参数的含义大部分在strategy中的add_timer中进行过分析
     # 参考我的文章：https://yunjinqi.blog.csdn.net/article/details/124560191
     params = (
-        ('tid', None),
-        ('owner', None),
-        ('strats', False),
-        ('when', None),
-        ('offset', timedelta()),
-        ('repeat', timedelta()),
-        ('weekdays', []),
-        ('weekcarry', False),
-        ('monthdays', []),
-        ('monthcarry', True),
-        ('allow', None),  # callable that allows a timer to take place
-        ('tzdata', None),
-        ('cheat', False),
+        ("tid", None),
+        ("owner", None),
+        ("strats", False),
+        ("when", None),
+        ("offset", timedelta()),
+        ("repeat", timedelta()),
+        ("weekdays", []),
+        ("weekcarry", False),
+        ("monthdays", []),
+        ("monthcarry", True),
+        ("allow", None),  # callable that allows a timer to take place
+        ("tzdata", None),
+        ("cheat", False),
     )
 
     # 这三个常量的值

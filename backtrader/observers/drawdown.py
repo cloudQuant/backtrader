@@ -21,6 +21,7 @@
 import backtrader as bt
 from .. import Observer
 
+
 # 回撤
 class DrawDown(Observer):
     """This observer keeps track of the current drawdown level (plotted) and
@@ -38,26 +39,33 @@ class DrawDown(Observer):
         Set it to ``True`` or ``False`` for a specific behavior
 
     """
+
     _stclock = True
 
-    params = (
-        ('fund', None),
-    )
+    params = (("fund", None),)
 
-    lines = ('drawdown', 'maxdrawdown',)
+    lines = (
+        "drawdown",
+        "maxdrawdown",
+    )
 
     plotinfo = dict(plot=True, subplot=True)
 
-    plotlines = dict(maxdrawdown=dict(_plotskip=True,))
+    plotlines = dict(
+        maxdrawdown=dict(
+            _plotskip=True,
+        )
+    )
 
     def __init__(self):
         kwargs = self.p._getkwargs()
-        self._dd = self._owner._addanalyzer_slave(bt.analyzers.DrawDown,
-                                                  **kwargs)
+        self._dd = self._owner._addanalyzer_slave(bt.analyzers.DrawDown, **kwargs)
+
     # 设置回撤和最大回撤的值
     def next(self):
         self.lines.drawdown[0] = self._dd.rets.drawdown  # update drawdown
         self.lines.maxdrawdown[0] = self._dd.rets.max.drawdown  # update max
+
 
 # 回撤的长度
 class DrawDownLength(Observer):
@@ -66,13 +74,21 @@ class DrawDownLength(Observer):
 
     Params: None
     """
+
     _stclock = True
 
-    lines = ('len', 'maxlen',)
+    lines = (
+        "len",
+        "maxlen",
+    )
 
     plotinfo = dict(plot=True, subplot=True)
 
-    plotlines = dict(maxlength=dict(_plotskip=True,))
+    plotlines = dict(
+        maxlength=dict(
+            _plotskip=True,
+        )
+    )
 
     def __init__(self):
         self._dd = self._owner._addanalyzer_slave(bt.analyzers.DrawDown)
@@ -82,6 +98,7 @@ class DrawDownLength(Observer):
         self.lines.len[0] = self._dd.rets.len  # update drawdown length
         self.lines.maxlen[0] = self._dd.rets.max.len  # update max length
 
+
 # 最大回撤旧的方法，通过在这个类里面计算，而不是调用analyzers中的DrawDown
 class DrawDownOld(Observer):
     """This observer keeps track of the current drawdown level (plotted) and
@@ -89,19 +106,27 @@ class DrawDownOld(Observer):
 
     Params: None
     """
+
     _stclock = True
 
-    lines = ('drawdown', 'maxdrawdown',)
+    lines = (
+        "drawdown",
+        "maxdrawdown",
+    )
 
     plotinfo = dict(plot=True, subplot=True)
 
-    plotlines = dict(maxdrawdown=dict(_plotskip='True',))
+    plotlines = dict(
+        maxdrawdown=dict(
+            _plotskip="True",
+        )
+    )
 
     def __init__(self):
         super(DrawDownOld, self).__init__()
 
         self.maxdd = 0.0
-        self.peak = float('-inf')
+        self.peak = float("-inf")
 
     def next(self):
         value = self._owner.broker.getvalue()

@@ -96,7 +96,7 @@ def estimated_sharpe_ratio_stdev(returns=None, *, n=None, skew=None, kurtosis=No
     if sr is None:
         sr = estimated_sharpe_ratio(_returns)
 
-    sr_std = np.sqrt((1 + (0.5 * sr ** 2) - (skew * sr) + (((kurtosis - 3) / 4) * sr ** 2)) / (n - 1))
+    sr_std = np.sqrt((1 + (0.5 * sr**2) - (skew * sr) + (((kurtosis - 3) / 4) * sr**2)) / (n - 1))
 
     if isinstance(returns, pd.DataFrame):
         sr_std = pd.Series(sr_std, index=returns.columns)
@@ -153,7 +153,9 @@ def probabilistic_sharpe_ratio(returns=None, sr_benchmark=0.0, *, sr=None, sr_st
     return psr
 
 
-def min_track_record_length(returns=None, sr_benchmark=0.0, prob=0.95, *, n=None, sr=None, sr_std=None):
+def min_track_record_length(
+    returns=None, sr_benchmark=0.0, prob=0.95, *, n=None, sr=None, sr_std=None
+):
     """
     Calculate the MIn Track Record Length (minTRL).
 
@@ -200,7 +202,7 @@ def min_track_record_length(returns=None, sr_benchmark=0.0, prob=0.95, *, n=None
     if sr_std is None:
         sr_std = estimated_sharpe_ratio_stdev(returns, sr=sr)
 
-    min_trl = 1 + (sr_std ** 2 * (n - 1)) * (scipy_stats.norm.ppf(prob) / (sr - sr_benchmark)) ** 2
+    min_trl = 1 + (sr_std**2 * (n - 1)) * (scipy_stats.norm.ppf(prob) / (sr - sr_benchmark)) ** 2
 
     if isinstance(returns, pd.DataFrame):
         min_trl = pd.Series(min_trl, index=returns.columns)
@@ -213,15 +215,15 @@ def min_track_record_length(returns=None, sr_benchmark=0.0, prob=0.95, *, n=None
 def num_independent_trials(trials_returns=None, *, m=None, p=None):
     """
     Calculate the number of independent trials.
-    
+
     Parameters
     ----------
     trials_returns: pd.DataFrame
         All trials returns, not only the independent trials.
-        
+
     m: int
         Number of total trials.
-        
+
     p: float
         Average correlation between all the trials.
 
@@ -244,22 +246,24 @@ def num_independent_trials(trials_returns=None, *, m=None, p=None):
     return n
 
 
-def expected_maximum_sr(trials_returns=None, expected_mean_sr=0.0, *, independent_trials=None, trials_sr_std=None):
+def expected_maximum_sr(
+    trials_returns=None, expected_mean_sr=0.0, *, independent_trials=None, trials_sr_std=None
+):
     """
     Compute the expected maximum Sharpe ratio (Analytically)
-    
+
     Parameters
     ----------
     trials_returns: pd.DataFrame
         All trials returns, not only the independent trials.
-        
+
     expected_mean_sr: float
         Expected mean SR, usually 0. We assume that random startegies will have a mean SR of 0,
         expressed in the same frequency as the other parameters.
-        
+
     independent_trials: int
         Number of independent trials must be between 1 and `trials_returns.shape[1]`
-        
+
     trials_sr_std: float
         Standard deviation for the Estimated sharpe ratios of all trials,
         expressed in the same frequency as the other parameters.
@@ -277,15 +281,21 @@ def expected_maximum_sr(trials_returns=None, expected_mean_sr=0.0, *, independen
         srs = estimated_sharpe_ratio(trials_returns)
         trials_sr_std = srs.std()
 
-    max_z = (1 - emc) * scipy_stats.norm.ppf(1 - 1. / independent_trials) + emc * scipy_stats.norm.ppf(
-        1 - 1. / (independent_trials * np.e))
+    max_z = (1 - emc) * scipy_stats.norm.ppf(
+        1 - 1.0 / independent_trials
+    ) + emc * scipy_stats.norm.ppf(1 - 1.0 / (independent_trials * np.e))
     expected_max_sr = expected_mean_sr + (trials_sr_std * max_z)
 
     return expected_max_sr
 
 
-def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_mean_sr=0.0, independent_trials=10,
-                          expected_max_sr=None):
+def deflated_sharpe_ratio(
+    trials_returns=None,
+    returns_selected=None,
+    expected_mean_sr=0.0,
+    independent_trials=10,
+    expected_max_sr=None,
+):
     """
     Calculate the Deflated Sharpe Ratio (PSR).
 
@@ -293,13 +303,13 @@ def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_m
     ----------
     trials_returns: pd.DataFrame
         All trials returns, not only the independent trials.
-        
+
     returns_selected: pd.Series
 
     expected_mean_sr: float
         Expected mean SR, usually 0. We assume that random startegies will have a mean SR of 0,
         expressed in the same frequency as the other parameters.
-        
+
     expected_max_sr: float
         The expected maximum sharpe ratio expected after running all the trials,
         expressed in the same frequency as the other parameters.
@@ -318,9 +328,11 @@ def deflated_sharpe_ratio(trials_returns=None, returns_selected=None, expected_m
     https://papers.ssrn.com/sol3/papers.cfm?abstract_id=2460551
     """
     if expected_max_sr is None:
-        expected_max_sr = expected_maximum_sr(trials_returns=trials_returns,
-                                              expected_mean_sr=expected_mean_sr,
-                                              independent_trials=independent_trials)
+        expected_max_sr = expected_maximum_sr(
+            trials_returns=trials_returns,
+            expected_mean_sr=expected_mean_sr,
+            independent_trials=independent_trials,
+        )
 
     dsr = probabilistic_sharpe_ratio(returns=returns_selected, sr_benchmark=expected_max_sr)
 

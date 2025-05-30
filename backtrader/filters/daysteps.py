@@ -32,6 +32,7 @@ class BarReplayerOpen(object):
 
     The split simulates a replay without the need to use the *replay* filter.
     """
+
     def __init__(self, data):
         self.pendingbar = None
         data.resampling = 1

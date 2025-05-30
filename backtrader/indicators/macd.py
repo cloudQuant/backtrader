@@ -20,6 +20,7 @@
 ###############################################################################
 from . import Indicator, MovAv
 
+
 # macd相关的指标
 class MACD(Indicator):
     """
@@ -38,16 +39,24 @@ class MACD(Indicator):
     See:
       - http://en.wikipedia.org/wiki/MACD
     """
-    lines = ('macd', 'signal',)
-    params = (('period_me1', 12), ('period_me2', 26), ('period_signal', 9),
-              ('movav', MovAv.Exponential),)
+
+    lines = (
+        "macd",
+        "signal",
+    )
+    params = (
+        ("period_me1", 12),
+        ("period_me2", 26),
+        ("period_signal", 9),
+        ("movav", MovAv.Exponential),
+    )
 
     plotinfo = dict(plothlines=[0.0])
-    plotlines = dict(signal=dict(ls='--'))
+    plotlines = dict(signal=dict(ls="--"))
 
     def _plotlabel(self):
         plabels = super(MACD, self)._plotlabel()
-        if self.p.isdefault('movav'):
+        if self.p.isdefault("movav"):
             plabels.remove(self.p.movav)
         return plabels
 
@@ -56,8 +65,7 @@ class MACD(Indicator):
         me1 = self.p.movav(self.data, period=self.p.period_me1)
         me2 = self.p.movav(self.data, period=self.p.period_me2)
         self.lines.macd = me1 - me2
-        self.lines.signal = self.p.movav(self.lines.macd,
-                                         period=self.p.period_signal)
+        self.lines.signal = self.p.movav(self.lines.macd, period=self.p.period_signal)
 
 
 class MACDHisto(MACD):
@@ -71,10 +79,11 @@ class MACDHisto(MACD):
     See:
       - http://en.wikipedia.org/wiki/MACD
     """
-    alias = ('MACDHistogram',)
 
-    lines = ('histo',)
-    plotlines = dict(histo=dict(_method='bar', alpha=0.50, width=1.0))
+    alias = ("MACDHistogram",)
+
+    lines = ("histo",)
+    plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
 
     def __init__(self):
         super(MACDHisto, self).__init__()

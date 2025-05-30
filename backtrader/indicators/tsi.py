@@ -21,6 +21,7 @@
 import backtrader as bt
 from . import EMA
 
+
 # 真正强度指标
 class TrueStrengthIndicator(bt.Indicator):
     """
@@ -49,14 +50,15 @@ class TrueStrengthIndicator(bt.Indicator):
       - ``pchange``: the lookback period for the price change
       - ``_movav``: the moving average to apply for the smoothing
     """
-    alias = ('TSI',)
+
+    alias = ("TSI",)
     params = (
-        ('period1', 25),
-        ('period2', 13),
-        ('pchange', 1),
-        ('_movav', EMA),
+        ("period1", 25),
+        ("period2", 13),
+        ("pchange", 1),
+        ("_movav", EMA),
     )
-    lines = ('tsi',)
+    lines = ("tsi",)
 
     def __init__(self):
         pc = self.data - self.data(-self.p.pchange)

@@ -120,7 +120,7 @@ class MyAnnualReturn(Analyzer):
 
     def stop(self):
         # 保存数据的容器---字典
-        if not hasattr(self, 'ret'):
+        if not hasattr(self, "ret"):
             setattr(self, "ret", OrderedDict())
         # 获取数据的时间，并转化为date
         dt_list = self.data.datetime.get(0, size=len(self.data))
@@ -129,14 +129,15 @@ class MyAnnualReturn(Analyzer):
         value_list = self.strategy.stats.broker.value.get(0, size=len(self.data))
         # 转化为pandas格式
         import pandas as pd
+
         df = pd.DataFrame([dt_list, value_list]).T
-        df.columns = ['datetime', 'value']
-        df['pre_value'] = df['value'].shift(1)
+        df.columns = ["datetime", "value"]
+        df["pre_value"] = df["value"].shift(1)
         # 计算每年的持有获得的简单收益率
-        df['year'] = [i.year for i in df['datetime']]
+        df["year"] = [i.year for i in df["datetime"]]
         for year, data in df.groupby("year"):
-            begin_value = list(data['pre_value'])[0]
-            end_value = list(data['value'])[-1]
+            begin_value = list(data["pre_value"])[0]
+            end_value = list(data["value"])[-1]
             annual_return = (end_value / begin_value) - 1
             self.ret[year] = annual_return
 

@@ -36,7 +36,8 @@ class DataFilter(bt.AbstractDataBase):
         - Return value ``True``: current data source bar values will be used
         - Return value ``False``: current data source bar values will discard
     """
-    params = (('funcfilter', None),)
+
+    params = (("funcfilter", None),)
 
     def preload(self):
         if len(self.p.dataname) == self.p.dataname.buflen():

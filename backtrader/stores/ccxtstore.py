@@ -37,7 +37,7 @@ class MetaSingleton(MetaParams):
 
     def __call__(cls, *args, **kwargs):
         if cls._singleton is None:
-            cls._singleton = (super(MetaSingleton, cls).__call__(*args, **kwargs))
+            cls._singleton = super(MetaSingleton, cls).__call__(*args, **kwargs)
 
         return cls._singleton
 
@@ -54,27 +54,27 @@ class CCXTStore(metaclass=MetaSingleton):
 
     # Supported granularities
     _GRANULARITIES = {
-        (bt.TimeFrame.Minutes, 1): '1m',
-        (bt.TimeFrame.Minutes, 3): '3m',
-        (bt.TimeFrame.Minutes, 5): '5m',
-        (bt.TimeFrame.Minutes, 15): '15m',
-        (bt.TimeFrame.Minutes, 30): '30m',
-        (bt.TimeFrame.Minutes, 60): '1h',
-        (bt.TimeFrame.Minutes, 90): '90m',
-        (bt.TimeFrame.Minutes, 120): '2h',
-        (bt.TimeFrame.Minutes, 180): '3h',
-        (bt.TimeFrame.Minutes, 240): '4h',
-        (bt.TimeFrame.Minutes, 360): '6h',
-        (bt.TimeFrame.Minutes, 480): '8h',
-        (bt.TimeFrame.Minutes, 720): '12h',
-        (bt.TimeFrame.Days, 1): '1d',
-        (bt.TimeFrame.Days, 3): '3d',
-        (bt.TimeFrame.Weeks, 1): '1w',
-        (bt.TimeFrame.Weeks, 2): '2w',
-        (bt.TimeFrame.Months, 1): '1M',
-        (bt.TimeFrame.Months, 3): '3M',
-        (bt.TimeFrame.Months, 6): '6M',
-        (bt.TimeFrame.Years, 1): '1y',
+        (bt.TimeFrame.Minutes, 1): "1m",
+        (bt.TimeFrame.Minutes, 3): "3m",
+        (bt.TimeFrame.Minutes, 5): "5m",
+        (bt.TimeFrame.Minutes, 15): "15m",
+        (bt.TimeFrame.Minutes, 30): "30m",
+        (bt.TimeFrame.Minutes, 60): "1h",
+        (bt.TimeFrame.Minutes, 90): "90m",
+        (bt.TimeFrame.Minutes, 120): "2h",
+        (bt.TimeFrame.Minutes, 180): "3h",
+        (bt.TimeFrame.Minutes, 240): "4h",
+        (bt.TimeFrame.Minutes, 360): "6h",
+        (bt.TimeFrame.Minutes, 480): "8h",
+        (bt.TimeFrame.Minutes, 720): "12h",
+        (bt.TimeFrame.Days, 1): "1d",
+        (bt.TimeFrame.Days, 3): "3d",
+        (bt.TimeFrame.Weeks, 1): "1w",
+        (bt.TimeFrame.Weeks, 2): "2w",
+        (bt.TimeFrame.Months, 1): "1M",
+        (bt.TimeFrame.Months, 3): "3M",
+        (bt.TimeFrame.Months, 6): "6M",
+        (bt.TimeFrame.Years, 1): "1y",
     }
 
     BrokerCls = None  # broker class will auto register
@@ -97,32 +97,37 @@ class CCXTStore(metaclass=MetaSingleton):
         self.currency = currency
         self.retries = retries
         self.debug = debug
-        balance = self.exchange.fetch_balance() if 'secret' in config else 0
+        balance = self.exchange.fetch_balance() if "secret" in config else 0
 
-        if balance == 0 or not balance['free'][currency]:
+        if balance == 0 or not balance["free"][currency]:
             self._cash = 0
         else:
-            self._cash = balance['free'][currency]
+            self._cash = balance["free"][currency]
 
-        if balance == 0 or not balance['total'][currency]:
+        if balance == 0 or not balance["total"][currency]:
             self._value = 0
         else:
-            self._value = balance['total'][currency]
+            self._value = balance["total"][currency]
 
     def get_granularity(self, timeframe, compression):
-        if not self.exchange.has['fetchOHLCV']:
-            raise NotImplementedError("'%s' exchange doesn't support fetching OHLCV data" % \
-                                      self.exchange.name)
+        if not self.exchange.has["fetchOHLCV"]:
+            raise NotImplementedError(
+                "'%s' exchange doesn't support fetching OHLCV data" % self.exchange.name
+            )
 
         granularity = self._GRANULARITIES.get((timeframe, compression))
         if granularity is None:
-            raise ValueError("backtrader CCXT module doesn't support fetching OHLCV "
-                             "data for time frame %s, compression %s" % \
-                             (bt.TimeFrame.getname(timeframe), compression))
+            raise ValueError(
+                "backtrader CCXT module doesn't support fetching OHLCV "
+                "data for time frame %s, compression %s"
+                % (bt.TimeFrame.getname(timeframe), compression)
+            )
 
         if self.exchange.timeframes and granularity not in self.exchange.timeframes:
-            raise ValueError("'%s' exchange doesn't support fetching OHLCV data for "
-                             "%s time frame" % (self.exchange.name, granularity))
+            raise ValueError(
+                "'%s' exchange doesn't support fetching OHLCV data for "
+                "%s time frame" % (self.exchange.name, granularity)
+            )
 
         return granularity
 
@@ -131,7 +136,7 @@ class CCXTStore(metaclass=MetaSingleton):
         def retry_method(self, *args, **kwargs):
             for i in range(self.retries):
                 if self.debug:
-                    print('{} - {} - Attempt {}'.format(datetime.now(), method.__name__, i))
+                    print("{} - {} - Attempt {}".format(datetime.now(), method.__name__, i))
                 time.sleep(self.exchange.rateLimit / 1000)
                 try:
                     return method(self, *args, **kwargs)
@@ -149,8 +154,8 @@ class CCXTStore(metaclass=MetaSingleton):
     @retry
     def get_balance(self):
         balance = self.exchange.fetch_balance()
-        cash = balance['free'][self.currency]
-        value = balance['total'][self.currency]
+        cash = balance["free"][self.currency]
+        value = balance["total"][self.currency]
         # Fix if None is returned
         self._cash = cash if cash else 0
         self._value = value if value else 0
@@ -162,8 +167,9 @@ class CCXTStore(metaclass=MetaSingleton):
     @retry
     def create_order(self, symbol, order_type, side, amount, price, params):
         # returns the order
-        return self.exchange.create_order(symbol=symbol, type=order_type, side=side,
-                                          amount=amount, price=price, params=params)
+        return self.exchange.create_order(
+            symbol=symbol, type=order_type, side=side, amount=amount, price=price, params=params
+        )
 
     @retry
     def cancel_order(self, order_id, symbol):
@@ -176,10 +182,14 @@ class CCXTStore(metaclass=MetaSingleton):
     @retry
     def fetch_ohlcv(self, symbol, timeframe, since, limit, params=None):
         if self.debug:
-            print('Fetching: {}, TF: {}, Since: {}, Limit: {}'.format(symbol, timeframe, since, limit))
+            print(
+                "Fetching: {}, TF: {}, Since: {}, Limit: {}".format(symbol, timeframe, since, limit)
+            )
         if params is None:
             params = {}
-        return self.exchange.fetch_ohlcv(symbol, timeframe=timeframe, since=since, limit=limit, params=params)
+        return self.exchange.fetch_ohlcv(
+            symbol, timeframe=timeframe, since=since, limit=limit, params=params
+        )
 
     @retry
     def fetch_order(self, oid, symbol):

@@ -20,6 +20,7 @@
 ###############################################################################
 from .metabase import MetaParams
 
+
 # Sizer类,其他的sizer需要继承这个类并且重写_getsizing类
 class Sizer(metaclass=MetaParams):
     """This is the base class for *Sizers*. Any *sizer* should subclass this
@@ -42,6 +43,7 @@ class Sizer(metaclass=MetaParams):
       # strategy 代表在使用sizer的strategy策略，可以通过strategy调用所有的strategy的api
       # broker 代表使用strategy所在的broker，可以用于获取信息进行计算复杂的手数
     """
+
     strategy = None
     broker = None
 
@@ -84,6 +86,7 @@ class Sizer(metaclass=MetaParams):
     def set(self, strategy, broker):
         self.strategy = strategy
         self.broker = broker
+
 
 # SizerBase类
 SizerBase = Sizer  # alias for old naming

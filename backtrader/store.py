@@ -25,24 +25,27 @@ from backtrader.metabase import MetaParams
 
 class MetaSingleton(MetaParams):
     """Metaclass to make a metaclassed class a singleton"""
+
     def __init__(cls, name, bases, dct):
         super(MetaSingleton, cls).__init__(name, bases, dct)
         cls._singleton = None
 
     def __call__(cls, *args, **kwargs):
         if cls._singleton is None:
-            cls._singleton = (
-                super(MetaSingleton, cls).__call__(*args, **kwargs))
+            cls._singleton = super(MetaSingleton, cls).__call__(*args, **kwargs)
 
         return cls._singleton
+
 
 # 创建一个store类
 class Store(metaclass=MetaSingleton):
     """Base class for all Stores"""
+
     # 开始，默认是False
     _started = False
     # 参数
     params = ()
+
     # 获取数据
     def __init__(self):
         self.broker = None
@@ -82,7 +85,7 @@ class Store(metaclass=MetaSingleton):
             self.datas.append(data)
             # 如果self.broker不是None的话
             if self.broker is not None:
-                if hasattr(self.broker, 'data_started'):
+                if hasattr(self.broker, "data_started"):
                     self.broker.data_started(data)
         # 如果broker不是None的话
         elif broker is not None:

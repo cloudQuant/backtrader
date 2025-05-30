@@ -33,8 +33,8 @@ class MetaBroker(MetaParams):
         # Initialize the class
         super(MetaBroker, cls).__init__(name, bases, dct)
         translations = {
-            'get_cash': 'getcash',
-            'get_value': 'getvalue',
+            "get_cash": "getcash",
+            "get_value": "getvalue",
         }
 
         for attr, trans in translations.items():
@@ -45,9 +45,7 @@ class MetaBroker(MetaParams):
 # broker基类
 class BrokerBase(metaclass=MetaBroker):
     # 参数
-    params = (
-        ('commission', CommInfoBase(percabs=True)),
-    )
+    params = (("commission", CommInfoBase(percabs=True)),)
 
     # 初始化
     def __init__(self):
@@ -90,13 +88,20 @@ class BrokerBase(metaclass=MetaBroker):
         return self.comminfo[None]
 
     # 设置佣金
-    def setcommission(self,
-                      commission=0.0, margin=None, mult=1.0,
-                      commtype=None, percabs=True, stocklike=False,
-                      interest=0.0, interest_long=False, leverage=1.0,
-                      automargin=False,
-                      name=None):
-
+    def setcommission(
+        self,
+        commission=0.0,
+        margin=None,
+        mult=1.0,
+        commtype=None,
+        percabs=True,
+        stocklike=False,
+        interest=0.0,
+        interest_long=False,
+        leverage=1.0,
+        automargin=False,
+        name=None,
+    ):
         """This method sets a `` CommissionInfo`` object for assets managed in
         the broker with the parameters. Consult the reference for
         ``CommInfoBase``
@@ -105,11 +110,18 @@ class BrokerBase(metaclass=MetaBroker):
         other ``CommissionInfo`` scheme can be found
         """
 
-        comm = CommInfoBase(commission=commission, margin=margin, mult=mult,
-                            commtype=commtype, stocklike=stocklike,
-                            percabs=percabs,
-                            interest=interest, interest_long=interest_long,
-                            leverage=leverage, automargin=automargin)
+        comm = CommInfoBase(
+            commission=commission,
+            margin=margin,
+            mult=mult,
+            commtype=commtype,
+            stocklike=stocklike,
+            percabs=percabs,
+            interest=interest,
+            interest_long=interest_long,
+            leverage=leverage,
+            automargin=automargin,
+        )
         self.comminfo[name] = comm
 
     # 增加佣金信息
@@ -166,23 +178,46 @@ class BrokerBase(metaclass=MetaBroker):
         raise NotImplementedError
 
     # 买入下单
-    def buy(self, owner, data, size, price=None, plimit=None,
-            exectype=None, valid=None, tradeid=0, oco=None,
-            trailamount=None, trailpercent=None,
-            **kwargs):
+    def buy(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        **kwargs,
+    ):
 
         raise NotImplementedError
 
     # 卖出下单
-    def sell(self, owner, data, size, price=None, plimit=None,
-             exectype=None, valid=None, tradeid=0, oco=None,
-             trailamount=None, trailpercent=None,
-             **kwargs):
+    def sell(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        **kwargs,
+    ):
 
         raise NotImplementedError
 
     # 下一个bar
     def next(self):
         pass
+
 
 # __all__ = ['BrokerBase', 'fillers', 'filler']

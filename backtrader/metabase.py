@@ -25,6 +25,7 @@ import sys
 import backtrader as bt
 from .utils.py3 import zip, string_types
 
+
 # 寻找基类，这个python函数主要使用了四个python小技巧：
 # 第一个是class.__bases__这个会包含class的基类(父类)
 # 第二个是issubclass用于判断base是否是topclass的子类
@@ -49,9 +50,9 @@ def findbases(kls, topclass):
 # itertools.count(start=0,step=1)用于生成从0开始的步长为1的无界限序列，需要使用break停止循环，在这个使用中，默认是从2开始的，每次步长为1
 # sys._getframe([depth])：从调用堆栈返回帧对象。如果可选参数depth是一个整数，返回在最顶级堆栈下多少层的调用的帧对象，如果这个depth高于调用的层数
 #       - 会抛出一个ValueError.默认参数depth是0,会返回最顶层堆栈的帧对象。从这个函数的使用来看，获取到的frame(帧对象)是最底层调用的帧对象
-#       - Return a frame object from the call stack. 
-#       - If optional integer depth is given, return the frame object that many calls below the top of the stack. 
-#       - If that is deeper than the call stack, ValueError is raised. The default for depth is zero, 
+#       - Return a frame object from the call stack.
+#       - If optional integer depth is given, return the frame object that many calls below the top of the stack.
+#       - If that is deeper than the call stack, ValueError is raised. The default for depth is zero,
 #       - returning the frame at the top of the call stack.
 # sys._getframe().f_locals返回的是帧对象的本地的变量，字典形式，使用get("self",None)是查看本地变量中有没有frame，如果有的话，返回相应的值，如果没有，返回值是None
 # 总结一下这个函数的用法：findowner用于发现owned的父类，这个类是cls的实例，但是同时这个类不能是skip，如果不能满足这些条件，就返回一个None.
@@ -65,7 +66,7 @@ def findowner(owned, cls, startlevel=2, skip=None):
             break
 
         # 'self' in regular code
-        self_ = frame.f_locals.get('self', None)
+        self_ = frame.f_locals.get("self", None)
         # 如果skip和self_不一样，如果self_不是owned并且self_是cls的实例,就返回self_
         if skip is not self_:
             if self_ is not owned and isinstance(self_, cls):
@@ -73,7 +74,7 @@ def findowner(owned, cls, startlevel=2, skip=None):
 
         # '_obj' in metaclasses
         # 如果"_obj"在帧对象本地变量中
-        obj_ = frame.f_locals.get('_obj', None)
+        obj_ = frame.f_locals.get("_obj", None)
         # 如果obj_不是skip，并且obj_不是owned，并且obj_是class的实例，返回obj_
         if skip is not obj_:
             if obj_ is not owned and isinstance(obj_, cls):
@@ -110,9 +111,9 @@ class MetaBase(type):
         # print("__call__")
         # print(cls,args,kwargs)
         # 具体的参数值如下：
-        # <class 'backtrader.order.BuyOrder'> () {'owner': <__main__.DirectStrategy object at 0x7f8079016760>, 
-        # 'data': <backtrader.feeds.pandafeed.PandasDirectData object at 0x7f807953eee0>, 'size': 1, 'price': None, 
-        # 'pricelimit': None, 'exectype': None, 'valid': None, 'tradeid': 0, 'trailamount': None, 'trailpercent': None, 
+        # <class 'backtrader.order.BuyOrder'> () {'owner': <__main__.DirectStrategy object at 0x7f8079016760>,
+        # 'data': <backtrader.feeds.pandafeed.PandasDirectData object at 0x7f807953eee0>, 'size': 1, 'price': None,
+        # 'pricelimit': None, 'exectype': None, 'valid': None, 'tradeid': 0, 'trailamount': None, 'trailpercent': None,
         # 'parent': None, 'transmit': True, 'histnotify': False}
         cls, args, kwargs = cls.doprenew(*args, **kwargs)
         _obj, args, kwargs = cls.donew(*args, **kwargs)
@@ -121,9 +122,10 @@ class MetaBase(type):
         _obj, args, kwargs = cls.dopostinit(_obj, *args, **kwargs)
         return _obj
 
+
 class AutoInfoClass(object):
 
-    #  
+    #
     # 下面的三个函数应该等价于类似的结构.这个结论是推测的
     # @classmethod
     # def _getpairsbase(cls)
@@ -134,7 +136,7 @@ class AutoInfoClass(object):
     # @classmethod
     # def _getrecurse(cls)
     #     return False
-    # 
+    #
 
     _getpairsbase = classmethod(lambda cls: OrderedDict())
     _getpairs = classmethod(lambda cls: OrderedDict())
@@ -152,8 +154,10 @@ class AutoInfoClass(object):
         # collect the 3 set of infos
         # info = OrderedDict(info)
         # print(name,info,otherbases)
-        baseinfo = cls._getpairs().copy()   # 浅拷贝，保证有序字典一级目录下不改变,暂时没有明白为什么要copy
-        obasesinfo = OrderedDict()          # 代表其他类的info
+        baseinfo = (
+            cls._getpairs().copy()
+        )  # 浅拷贝，保证有序字典一级目录下不改变,暂时没有明白为什么要copy
+        obasesinfo = OrderedDict()  # 代表其他类的info
         for obase in otherbases:
             # 如果传入的otherbases是已经获取过类的参数，这些参数值应该是字典或者元组，就更新到obaseinfo中；否则就是类的实例，但是如果是类的实例的话，使用_getpairs()获取的
             # 是具体的cls.baseinfo
@@ -175,10 +179,10 @@ class AutoInfoClass(object):
         # info2add保存的是info和otherbases的相关信息汇总到一起，没包含cls的信息
         info2add = obasesinfo.copy()
         info2add.update(info)
-        
+
         # 接下来创建一个cls的子类，并把这个类赋值给clsmodule的newclsname
         clsmodule = sys.modules[cls.__module__]
-        newclsname = str(cls.__name__ + '_' + name)  # str - Python 2/3 compat
+        newclsname = str(cls.__name__ + "_" + name)  # str - Python 2/3 compat
 
         # This loop makes sure that if the name has already been defined, a new
         # unique name is found. A collision example is in the plotlines names
@@ -193,18 +197,15 @@ class AutoInfoClass(object):
         newcls = type(newclsname, (cls,), {})
         setattr(clsmodule, newclsname, newcls)
         # 给cls的设置几个方法，分别返回baseinfo和clsinfo和recurse的值
-        setattr(newcls, '_getpairsbase',
-                classmethod(lambda cls: baseinfo.copy()))
-        setattr(newcls, '_getpairs', classmethod(lambda cls: clsinfo.copy()))
-        setattr(newcls, '_getrecurse', classmethod(lambda cls: recurse))
+        setattr(newcls, "_getpairsbase", classmethod(lambda cls: baseinfo.copy()))
+        setattr(newcls, "_getpairs", classmethod(lambda cls: clsinfo.copy()))
+        setattr(newcls, "_getrecurse", classmethod(lambda cls: recurse))
 
         for infoname, infoval in info2add.items():
             # 查找具体的AutoInfoClass的使用，暂时没有发现recurse是真的的语句，所以下面条件语句可能不怎么运行。推测这个是递归用的，如果递归，会把infoval下的信息加进去
             if recurse:
                 recursecls = getattr(newcls, infoname, AutoInfoClass)
-                infoval = recursecls._derive(name + '_' + infoname,
-                                             infoval,
-                                             [])
+                infoval = recursecls._derive(name + "_" + infoname, infoval, [])
             # 给newcls设置info和otherbases之类的信息
             setattr(newcls, infoname, infoval)
 
@@ -252,9 +253,7 @@ class AutoInfoClass(object):
 
     def _getkwargs(self, skip_=False):
         # 获取cls的key,value并保存为有序字典
-        l = [
-            (x, getattr(self, x))
-            for x in self._getkeys() if not skip_ or not x.startswith('_')]
+        l = [(x, getattr(self, x)) for x in self._getkeys() if not skip_ or not x.startswith("_")]
         return OrderedDict(l)
 
     def _getvalues(self):
@@ -271,6 +270,7 @@ class AutoInfoClass(object):
                 setattr(obj, infoname, recursecls())
 
         return obj
+
 
 class MetaParams(MetaBase):
     # print("begin--------------------------------")
@@ -291,43 +291,43 @@ class MetaParams(MetaBase):
         #     print("bases",bases)
         #     print(1,"metaprams","__new__","meta:",meta, "name:",name, "bases:",bases, "dct:",dct)
         # 如果dct字典中有params这个key，就删除，并保存到newparams中
-        newparams = dct.pop('params', ())
+        newparams = dct.pop("params", ())
         # 如果存在packages这个key，就删除，然后保存到newpackages中，值类似于这样：'packages': (('pandas', 'pd'), ('statsmodels.api', 'sm'))
-        packs = 'packages'
+        packs = "packages"
         newpackages = tuple(dct.pop(packs, ()))  # remove before creation
         # 如果存在frompackages这个key,就删除，然后保存到fnewpackages中，类似于这样的值： (('numpy', ('asarray', 'log10', 'polyfit', 'sqrt', 'std', 'subtract')),)
-        fpacks = 'frompackages'
+        fpacks = "frompackages"
         fnewpackages = tuple(dct.pop(fpacks, ()))  # remove before creation
-        
+
         # Create the new class - this pulls predefined "params"
         # 创建一个新的类,这个new并没有调用MetaBase类的donew
         cls = super(MetaParams, meta).__new__(meta, name, bases, dct)
-        
+
         # Pulls the param class out of it - default is the empty class
         # 获取cls的params属性，由于前面已经从dct中删除了，基本上params的值就等于AutoInfoClass
-        params = getattr(cls, 'params', AutoInfoClass)
+        params = getattr(cls, "params", AutoInfoClass)
 
         # Pulls the packages class out of it - default is the empty class
         # 这两句返回的是空的元组,这两句写的有失水准，getattr本身获取的应该就是空的元组，又用了一个tuple函数去初始化，浪费了计算资源。尝试改为不用tuple的
-        packages = tuple(getattr(cls, packs, ())) # backtrader自带
-        fpackages = tuple(getattr(cls, fpacks, ())) # backtrader自带
+        packages = tuple(getattr(cls, packs, ()))  # backtrader自带
+        fpackages = tuple(getattr(cls, fpacks, ()))  # backtrader自带
         # packages = getattr(cls, packs, ())
         # fpackages = getattr(cls, fpacks, ())
 
         # get extra (to the right) base classes which have a param attribute
         # 从bases类中获取相应的params的值
-        morebasesparams = [x.params for x in bases[1:] if hasattr(x, 'params')]
+        morebasesparams = [x.params for x in bases[1:] if hasattr(x, "params")]
 
         # Get extra packages, add them to the packages and put all in the class
         # 从bases类中获取packages,然后添加到packages中，这里面似乎不需要循环所有的每个元组了，考虑修改代码如下：
         for y in [x.packages for x in bases[1:] if hasattr(x, packs)]:
-            packages += tuple(y) # backtrader自带
+            packages += tuple(y)  # backtrader自带
         for y in [x.frompackages for x in bases[1:] if hasattr(x, fpacks)]:
-            fpackages += tuple(y) # backtrader自带
+            fpackages += tuple(y)  # backtrader自带
         # for x in [x for x in bases[1:] if hasattr(x, packs)]:
         #     packages += x.packages
         # for x in [x for x in bases[1:] if hasattr(x, fpacks)]:
-        #     fpackages += x.frompackages 
+        #     fpackages += x.frompackages
         # 设置packages和frompackages的属性值
         cls.packages = packages + newpackages
         cls.frompackages = fpackages + fnewpackages
@@ -362,7 +362,7 @@ class MetaParams(MetaBase):
             # 动态加载包，p是具体需要加载的包
             pmod = __import__(p)
             # 看下这个包调用的层数,比如backtrader就是调用了一层，backtrader.date2num就是调用了两层，用len(plevels)判断
-            plevels = p.split('.')
+            plevels = p.split(".")
             # 英文注释部分是一个举例
             if p == palias and len(plevels) > 1:  # 'os.path' not aliased
                 setattr(clsmod, pmod.__name__, pmod)  # set 'os' in module
@@ -411,6 +411,7 @@ class MetaParams(MetaBase):
 class ParamsBase(metaclass=MetaParams):
     pass  # stub to allow easy subclassing without metaclasses
 
+
 # 设置了一个新的类，这个类可以通过index或者name直接获取相应的值
 class ItemCollection(object):
     """
@@ -419,27 +420,34 @@ class ItemCollection(object):
       - Index
       - Name (if set in the append operation)
     """
+
     def __init__(self):
         self._items = list()
         self._names = list()
+
     # 长度
     def __len__(self):
         return len(self._items)
+
     # 添加数据
     def append(self, item, name=None):
         setattr(self, name, item)
         self._items.append(item)
         if name:
             self._names.append(name)
+
     # 根据index返回值
     def __getitem__(self, key):
         return self._items[key]
+
     # 获取全部的名字
     def getnames(self):
         return self._names
+
     # 获取相应的name和value这样一对一对的值
     def getitems(self):
         return zip(self._names, self._items)
+
     # 根据名字获取value
     def getbyname(self, name):
         idx = self._names.index(name)

@@ -70,6 +70,7 @@ class DTFaker(object):
     # 长度
     def __len__(self):
         return len(self.data)
+
     # 调用的时候返回本地化的日期和时间
     def __call__(self, idx=0):
         return self._dtime  # simulates data.datetime.datetime()
@@ -93,7 +94,7 @@ class DTFaker(object):
 
     # 如果idx=0,返回utc的数字格式的时间，否则，返回-inf
     def __getitem__(self, idx):
-        return self._dt if idx == 0 else float('-inf')
+        return self._dt if idx == 0 else float("-inf")
 
     # 数字转化成日期和时间
     def num2date(self, *args, **kwargs):
@@ -107,21 +108,19 @@ class DTFaker(object):
     def _getnexteos(self):
         return self.data._getnexteos()
 
+
 # resampler的基类
 class _BaseResampler(metaclass=metabase.MetaParams):
     # 参数
     params = (
-        ('bar2edge', True),
-        ('adjbartime', True),
-        ('rightedge', True),
-        ('boundoff', 0),
-
-        ('timeframe', TimeFrame.Days),
-        ('compression', 1),
-
-        ('takelate', True),
-
-        ('sessionend', True),
+        ("bar2edge", True),
+        ("adjbartime", True),
+        ("rightedge", True),
+        ("boundoff", 0),
+        ("timeframe", TimeFrame.Days),
+        ("compression", 1),
+        ("takelate", True),
+        ("sessionend", True),
     )
 
     # 初始化
@@ -131,9 +130,11 @@ class _BaseResampler(metaclass=metabase.MetaParams):
         # 如果时间周期小于周，subweeks就是True
         self.subweeks = self.p.timeframe < TimeFrame.Weeks
         # 如果不是subdays，并且数据的时间周期等于参数的时间周期，并且参数的周期数除以数据周期数余数是0，componly是True
-        self.componly = (not self.subdays and
-                         data._timeframe == self.p.timeframe and
-                         not (self.p.compression % data._compression))
+        self.componly = (
+            not self.subdays
+            and data._timeframe == self.p.timeframe
+            and not (self.p.compression % data._compression)
+        )
         # 创建一个对象，用于保存bar的数据
         self.bar = _Bar(maxdate=True)  # bar holder
         # 产生的bar的数目，用于控制周期数
@@ -141,8 +142,7 @@ class _BaseResampler(metaclass=metabase.MetaParams):
         # 是否是第一个bar
         self._firstbar = True
         # 如果bar2edge、adjbartime、subweeks都是True的话，doadjusttime就是True
-        self.doadjusttime = (self.p.bar2edge and self.p.adjbartime and
-                             self.subweeks)
+        self.doadjusttime = self.p.bar2edge and self.p.adjbartime and self.subweeks
         # 该交易日的结束时间
         self._nexteos = None
 
@@ -214,11 +214,13 @@ class _BaseResampler(metaclass=metabase.MetaParams):
         # 如果时间周期等于年，调用_barover_years(data)
         elif tframe == TimeFrame.Years:
             return self._barover_years(data)
+
     # 设置session结束的时间
     def _eosset(self):
         if self._nexteos is None:
             self._nexteos, self._nextdteos = self.data._getnexteos()
             return
+
     # 检查session结束的时间
     def _eoscheck(self, data, seteos=True, exact=False):
         # 如果seteos是True的话，直接调用_eosset计算session结束的时间
@@ -238,8 +240,7 @@ class _BaseResampler(metaclass=metabase.MetaParams):
             # end of the session, It could be a weekend and nothing was delivered
             # until Monday
             if grter:
-                ret = (self.bar.isopen() and
-                       self.bar.datetime <= self._nextdteos)
+                ret = self.bar.isopen() and self.bar.datetime <= self._nextdteos
             else:
                 ret = equal
         # 如果ret是True的话，_lasteos等于_nexteos,_lastdteos等于_nextdteos
@@ -248,7 +249,7 @@ class _BaseResampler(metaclass=metabase.MetaParams):
             self._lasteos = self._nexteos
             self._lastdteos = self._nextdteos
             self._nexteos = None
-            self._nextdteos = float('-inf')
+            self._nextdteos = float("-inf")
 
         return ret
 
@@ -272,6 +273,7 @@ class _BaseResampler(metaclass=metabase.MetaParams):
         # 如果数据的_calendar不是None的话，调用last_weekday
         else:
             return data._calendar.last_weekday(data.datetime.date())
+
     # 检查月
     def _barover_months(self, data):
         dt = data.num2date(self.bar.datetime).date()
@@ -284,8 +286,7 @@ class _BaseResampler(metaclass=metabase.MetaParams):
 
     # 检查年
     def _barover_years(self, data):
-        return (data.datetime.datetime().year >
-                data.num2date(self.bar.datetime).year)
+        return data.datetime.datetime().year > data.num2date(self.bar.datetime).year
 
     # 获取时间的点数
     def _gettmpoint(self, tm):
@@ -490,8 +491,7 @@ class _BaseResampler(metaclass=metabase.MetaParams):
             ph %= 24
 
         # Replace intraday parts with the calculated ones and update it
-        dt = dt.replace(hour=int(ph), minute=int(pm),
-                        second=int(ps), microsecond=int(pus))
+        dt = dt.replace(hour=int(ph), minute=int(pm), second=int(ps), microsecond=int(pus))
         if extradays:
             dt += timedelta(days=extradays)
         dtnum = self.data.date2num(dt)
@@ -557,11 +557,12 @@ class Resampler(_BaseResampler):
         # 是否使用右边的时间边界，比如时间边界是hh:mm:00：hh:mm:05，如果设置成True的话，将会使用hh:mm:05
         # 设置成False, 将会使用hh:mm:00
     """
+
     # 参数
     params = (
-        ('bar2edge', True),
-        ('adjbartime', True),
-        ('rightedge', True),
+        ("bar2edge", True),
+        ("adjbartime", True),
+        ("rightedge", True),
     )
 
     replaying = False
@@ -620,8 +621,7 @@ class Resampler(_BaseResampler):
         if cond:  # original is and, the 2nd term must also be true
             if not onedge:  # onedge true is sufficient
                 if docheckover:
-                    cond = self._checkbarover(data, fromcheck=fromcheck,
-                                              forcedata=forcedata)
+                    cond = self._checkbarover(data, fromcheck=fromcheck, forcedata=forcedata)
         if cond:
             dodeliver = False
             if forcedata is not None:
@@ -651,6 +651,7 @@ class Resampler(_BaseResampler):
                 data.backwards()  # remove used bar
 
         return True
+
 
 # replayer类
 class Replayer(_BaseResampler):
@@ -697,13 +698,15 @@ class Replayer(_BaseResampler):
         If True, the used boundary for the time will be hh:mm:05 (the ending
         boundary)
     """
+
     params = (
-        ('bar2edge', True),
-        ('adjbartime', False),
-        ('rightedge', True),
+        ("bar2edge", True),
+        ("adjbartime", False),
+        ("rightedge", True),
     )
 
     replaying = True
+
     # 调用类的时候运行
     def __call__(self, data, fromcheck=False, forcedata=None):
         # 消耗
@@ -808,52 +811,52 @@ class Replayer(_BaseResampler):
 
 
 class ResamplerTicks(Resampler):
-    params = (('timeframe', TimeFrame.Ticks),)
+    params = (("timeframe", TimeFrame.Ticks),)
 
 
 class ResamplerSeconds(Resampler):
-    params = (('timeframe', TimeFrame.Seconds),)
+    params = (("timeframe", TimeFrame.Seconds),)
 
 
 class ResamplerMinutes(Resampler):
-    params = (('timeframe', TimeFrame.Minutes),)
+    params = (("timeframe", TimeFrame.Minutes),)
 
 
 class ResamplerDaily(Resampler):
-    params = (('timeframe', TimeFrame.Days),)
+    params = (("timeframe", TimeFrame.Days),)
 
 
 class ResamplerWeekly(Resampler):
-    params = (('timeframe', TimeFrame.Weeks),)
+    params = (("timeframe", TimeFrame.Weeks),)
 
 
 class ResamplerMonthly(Resampler):
-    params = (('timeframe', TimeFrame.Months),)
+    params = (("timeframe", TimeFrame.Months),)
 
 
 class ResamplerYearly(Resampler):
-    params = (('timeframe', TimeFrame.Years),)
+    params = (("timeframe", TimeFrame.Years),)
 
 
 class ReplayerTicks(Replayer):
-    params = (('timeframe', TimeFrame.Ticks),)
+    params = (("timeframe", TimeFrame.Ticks),)
 
 
 class ReplayerSeconds(Replayer):
-    params = (('timeframe', TimeFrame.Seconds),)
+    params = (("timeframe", TimeFrame.Seconds),)
 
 
 class ReplayerMinutes(Replayer):
-    params = (('timeframe', TimeFrame.Minutes),)
+    params = (("timeframe", TimeFrame.Minutes),)
 
 
 class ReplayerDaily(Replayer):
-    params = (('timeframe', TimeFrame.Days),)
+    params = (("timeframe", TimeFrame.Days),)
 
 
 class ReplayerWeekly(Replayer):
-    params = (('timeframe', TimeFrame.Weeks),)
+    params = (("timeframe", TimeFrame.Weeks),)
 
 
 class ReplayerMonthly(Replayer):
-    params = (('timeframe', TimeFrame.Months),)
+    params = (("timeframe", TimeFrame.Months),)

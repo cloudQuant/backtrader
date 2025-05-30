@@ -21,7 +21,9 @@
 import itertools
 import sys
 
-PY2 = sys.version_info.major == 2   # 获取当前python的版本，看是否是python2,如果是python2,返回值就是True,否则就是False
+PY2 = (
+    sys.version_info.major == 2
+)  # 获取当前python的版本，看是否是python2,如果是python2,返回值就是True,否则就是False
 
 # 如果是python2
 if PY2:
@@ -78,60 +80,70 @@ if PY2:
     #
     # import Queue as queue
     pass
-    
-    
+
+
 else:
     # python3的注释和上面的注释差不多
     try:
         import winreg
     except ImportError:
         winreg = None
-    
+
     MAXINT = sys.maxsize
     MININT = -sys.maxsize - 1
 
     MAXFLOAT = sys.float_info.max
     MINFLOAT = sys.float_info.min
 
-    string_types = str,
-    integer_types = int,
+    string_types = (str,)
+    integer_types = (int,)
 
     filter = filter
     map = map
     range = range
     zip = zip
     long = int
+
     # 需要注意，这个cmp是自定义的函数，返回值是1,0,-1
-    def cmp(a, b): return (a > b) - (a < b)
+    def cmp(a, b):
+        return (a > b) - (a < b)
 
-    def bytes(x): return x.encode('utf-8')
+    def bytes(x):
+        return x.encode("utf-8")
 
-    def bstr(x): return str(x)
+    def bstr(x):
+        return str(x)
 
     from io import StringIO
 
-    from urllib.request import (urlopen, ProxyHandler, build_opener,
-                                install_opener)
+    from urllib.request import urlopen, ProxyHandler, build_opener, install_opener
     from urllib.parse import quote as urlquote
 
-    def iterkeys(d): return iter(d.keys())
+    def iterkeys(d):
+        return iter(d.keys())
 
-    def itervalues(d): return iter(d.values())
+    def itervalues(d):
+        return iter(d.values())
 
-    def iteritems(d): return iter(d.items())
+    def iteritems(d):
+        return iter(d.items())
 
-    def keys(d): return list(d.keys())
+    def keys(d):
+        return list(d.keys())
 
-    def values(d): return list(d.values())
+    def values(d):
+        return list(d.values())
 
-    def items(d): return list(d.items())
+    def items(d):
+        return list(d.items())
 
     import queue as queue
-    
-    
+
+
 # This is from Armin Ronacher from Flash simplified later by six
 def with_metaclass(meta, *bases):
     """Create a base class with a metaclass."""
+
     # This requires a bit of explanation: the basic idea is to make a dummy
     # metaclass for one level of class instantiation that replaces itself with
     # the actual metaclass.
@@ -143,4 +155,5 @@ def with_metaclass(meta, *bases):
 
         def __new__(cls, name, this_bases, d):
             return meta(name, bases, d)
-    return type.__new__(metaclass, str('temporary_class'), (), {})
+
+    return type.__new__(metaclass, str("temporary_class"), (), {})

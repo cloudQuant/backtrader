@@ -42,9 +42,16 @@ class EnvelopeMixIn(object):
     See also:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_average_envelopes
     """
-    lines = ('top', 'bot',)
-    params = (('perc', 2.5),)
-    plotlines = dict(top=dict(_samecolor=True), bot=dict(_samecolor=True),)
+
+    lines = (
+        "top",
+        "bot",
+    )
+    params = (("perc", 2.5),)
+    plotlines = dict(
+        top=dict(_samecolor=True),
+        bot=dict(_samecolor=True),
+    )
 
     def __init__(self):
         # Mix-in and directly from object -> does not necessarily need super
@@ -56,9 +63,10 @@ class EnvelopeMixIn(object):
 
         super(EnvelopeMixIn, self).__init__()
 
+
 # 基础类
 class _EnvelopeBase(Indicator):
-    lines = ('src',)
+    lines = ("src",)
 
     # plot the envelope lines along the passed source
     plotinfo = dict(subplot=False)
@@ -101,24 +109,26 @@ for movav in MovingAverage._movavs[1:]:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_average_envelopes
     """
     # Skip aliases - they will be created automatically
-    if getattr(movav, 'aliased', ''):
+    if getattr(movav, "aliased", ""):
         continue
 
     movname = movav.__name__
     linename = movav.lines._getlinealias(0)
-    newclsname = movname + 'Envelope'
+    newclsname = movname + "Envelope"
 
     newaliases = []
-    for alias in getattr(movav, 'alias', []):
-        for suffix in ['Envelope']:
+    for alias in getattr(movav, "alias", []):
+        for suffix in ["Envelope"]:
             newaliases.append(alias + suffix)
 
     newclsdoc = _newclsdoc % (movname, linename, movname, linename, linename)
 
-    newclsdct = {'__doc__': newclsdoc,
-                 '__module__': EnvelopeMixIn.__module__,
-                 '_notregister': True,
-                 'alias': newaliases}
+    newclsdct = {
+        "__doc__": newclsdoc,
+        "__module__": EnvelopeMixIn.__module__,
+        "_notregister": True,
+        "alias": newaliases,
+    }
     newcls = type(str(newclsname), (movav, EnvelopeMixIn), newclsdct)
     module = sys.modules[EnvelopeMixIn.__module__]
     setattr(module, newclsname, newcls)

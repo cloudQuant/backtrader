@@ -23,9 +23,7 @@ import testcommon
 import backtrader.indicators as btind
 
 chkdatas = 1
-chkvals = [
-    ['4110.282052', '3644.444667', '3564.906194']
-]
+chkvals = [["4110.282052", "3644.444667", "3564.906194"]]
 
 chkmin = 30
 chkind = btind.ZeroLagIndicator
@@ -33,14 +31,16 @@ chkind = btind.ZeroLagIndicator
 
 def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
-    testcommon.runtest(datas,
-                       testcommon.TestStrategy,
-                       main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+    testcommon.runtest(
+        datas,
+        testcommon.TestStrategy,
+        main=main,
+        plot=main,
+        chkind=chkind,
+        chkmin=chkmin,
+        chkvals=chkvals,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

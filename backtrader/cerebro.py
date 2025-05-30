@@ -24,13 +24,13 @@ import itertools
 import traceback
 import multiprocessing
 from datetime import UTC
+
 try:  # For new Python versions
     collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
 except AttributeError:  # For old Python versions
     collectionsAbc = collections  # collections.Iterable
 import backtrader as bt
-from .utils.py3 import (map, range, zip, string_types,
-                        integer_types)
+from .utils.py3 import map, range, zip, string_types, integer_types
 
 from . import linebuffer
 from . import indicator
@@ -40,8 +40,7 @@ from . import observers
 from .writer import WriterFile
 from .utils import OrderedDict, tzparse, num2date, date2num
 from .strategy import Strategy, SignalStrategy
-from .tradingcal import (TradingCalendarBase, TradingCalendar,
-                         PandasMarketCalendar)
+from .tradingcal import TradingCalendarBase, TradingCalendar, PandasMarketCalendar
 from .timer import Timer
 
 
@@ -56,296 +55,297 @@ class OptReturn(object):
 class Cerebro(metaclass=MetaParams):
     """Params:
 
-      - ``preload`` (default: ``True``)
+    - ``preload`` (default: ``True``)
 
-        Whether to preload the different ``data feeds`` passed to cerebro for
-        the Strategies
+      Whether to preload the different ``data feeds`` passed to cerebro for
+      the Strategies
 
-        # preload这个参数默认的是True，就意味着，在回测的时候，默认是先把数据加载之后传给cerebro，在内存中调用，
-        # 这个步骤导致的结果就是，加载数据会浪费一部分时间，但是，在回测的时候，速度会快一些，总体上的速度还是有所提高的
-        # 所以，建议这个值，使用默认值。
+      # preload这个参数默认的是True，就意味着，在回测的时候，默认是先把数据加载之后传给cerebro，在内存中调用，
+      # 这个步骤导致的结果就是，加载数据会浪费一部分时间，但是，在回测的时候，速度会快一些，总体上的速度还是有所提高的
+      # 所以，建议这个值，使用默认值。
 
-      - ``runonce`` (default: ``True``)
+    - ``runonce`` (default: ``True``)
 
-        Run `Indicators` in vectorized mode to speed up the entire system.
-        Strategies and Observers will always be run on an event-based basis
+      Run `Indicators` in vectorized mode to speed up the entire system.
+      Strategies and Observers will always be run on an event-based basis
 
-         # 如果runonce设置为True，在计算指标的时候，将会按照向量的方式进行.策略和observers将会按照事件驱动的模式进行
+       # 如果runonce设置为True，在计算指标的时候，将会按照向量的方式进行.策略和observers将会按照事件驱动的模式进行
 
-      - ``live`` (default: ``False``)
+    - ``live`` (default: ``False``)
 
-        If no data has reported itself as *live* (via the data's ``islive``
-        method but the end user still wants to run in ``live`` mode, this
-        parameter can be set to true
+      If no data has reported itself as *live* (via the data's ``islive``
+      method but the end user still wants to run in ``live`` mode, this
+      parameter can be set to true
 
-        This will simultaneously deactivate ``preload`` and ``runonce``. It
-        will have no effect on memory saving schemes.
+      This will simultaneously deactivate ``preload`` and ``runonce``. It
+      will have no effect on memory saving schemes.
 
-        # 默认情况是False，意味着，如果我们没有给数据传入 "islive"这个方法，默认的就是回测了。
-        # 如果把live设置成True了，那么，默认就会不使用preload 和 runonce, 这样，一般回测速度就会变慢。
+      # 默认情况是False，意味着，如果我们没有给数据传入 "islive"这个方法，默认的就是回测了。
+      # 如果把live设置成True了，那么，默认就会不使用preload 和 runonce, 这样，一般回测速度就会变慢。
 
-      - ``maxcpus`` (default: None -> all available cores)
+    - ``maxcpus`` (default: None -> all available cores)
 
-         How many cores to use simultaneously for optimization
-        # 优化参数的时候使用的参数，我一般不用这个优化功能，使用的我自己写的多进程回测的模式，优化参数这个地方有bug，有的策略正常，有的策略出错
-        # 不建议使用，如果要使用的时候，建议把maxcpus设置成自己电脑的cpu数目减去一，要不然，可能容易死机。
+       How many cores to use simultaneously for optimization
+      # 优化参数的时候使用的参数，我一般不用这个优化功能，使用的我自己写的多进程回测的模式，优化参数这个地方有bug，有的策略正常，有的策略出错
+      # 不建议使用，如果要使用的时候，建议把maxcpus设置成自己电脑的cpu数目减去一，要不然，可能容易死机。
 
-      - ``stdstats`` (default: ``True``)
+    - ``stdstats`` (default: ``True``)
 
-        If True, default Observers will be added: Broker (Cash and Value),
-        Trades and BuySell
-         # 控制是否会加载observer的参数，默认是True，加载Broker的Cash和Value，Trades and BuySell
-        # 我一般默认的都是True, 画图的时候用的，我其实可以取消，因为不怎么用cerebro.plot()画出来图形来观察买卖点
+      If True, default Observers will be added: Broker (Cash and Value),
+      Trades and BuySell
+       # 控制是否会加载observer的参数，默认是True，加载Broker的Cash和Value，Trades and BuySell
+      # 我一般默认的都是True, 画图的时候用的，我其实可以取消，因为不怎么用cerebro.plot()画出来图形来观察买卖点
 
-      - ``oldbuysell`` (default: ``False``)
+    - ``oldbuysell`` (default: ``False``)
 
-        If ``stdstats`` is ``True`` and observers are getting automatically
-        added, this switch controls the main behavior of the ``BuySell``
-        observer
+      If ``stdstats`` is ``True`` and observers are getting automatically
+      added, this switch controls the main behavior of the ``BuySell``
+      observer
 
-        - ``False``: use the modern behavior in which the buy / sell signals
-          are plotted below / above the low / high prices respectively to avoid
-          cluttering the plot
+      - ``False``: use the modern behavior in which the buy / sell signals
+        are plotted below / above the low / high prices respectively to avoid
+        cluttering the plot
 
-        - ``True``: use the deprecated behavior in which the buy / sell signals
-          are plotted where the average price of the order executions for the
-          given moment in time is. This will, of course, be on top of an OHLC bar
-          or on a Line on Cloe bar, difficult the recognition of the plot.
-           # 如果stdstats设置成True了，那么，oldbuysell的默认值就无关紧要了，都是使用的``BuySell``
+      - ``True``: use the deprecated behavior in which the buy / sell signals
+        are plotted where the average price of the order executions for the
+        given moment in time is. This will, of course, be on top of an OHLC bar
+        or on a Line on Cloe bar, difficult the recognition of the plot.
+         # 如果stdstats设置成True了，那么，oldbuysell的默认值就无关紧要了，都是使用的``BuySell``
 
-        # 如果stdstats设置成True了，如果``oldbuysell``是默认值False，画图的时候，买卖点的位置就会画在K线的
-        # 最高点和最低点之外，避免画到K线上
+      # 如果stdstats设置成True了，如果``oldbuysell``是默认值False，画图的时候，买卖点的位置就会画在K线的
+      # 最高点和最低点之外，避免画到K线上
 
-        # 如果stdstats设置成True了，如果``oldbuysell``是True, 就会把买卖信号画在成交时候的平均价的地方，会在K线上
-        # 比较难辨认。
+      # 如果stdstats设置成True了，如果``oldbuysell``是True, 就会把买卖信号画在成交时候的平均价的地方，会在K线上
+      # 比较难辨认。
 
-      - ``oldtrades`` (default: ``False``)
+    - ``oldtrades`` (default: ``False``)
 
-        If ``stdstats`` is ``True`` and observers are getting automatically
-        added, this switch controls the main behavior of the ``Trades``
-        observer
+      If ``stdstats`` is ``True`` and observers are getting automatically
+      added, this switch controls the main behavior of the ``Trades``
+      observer
 
-        - ``False``: use the modern behavior in which trades for all datas are
-          plotted with different markers
+      - ``False``: use the modern behavior in which trades for all datas are
+        plotted with different markers
 
-        - ``True``: use the old Trades observer which plots the trades with the
-          same markers, differentiating only if they are positive or negative
+      - ``True``: use the old Trades observer which plots the trades with the
+        same markers, differentiating only if they are positive or negative
 
-        # 也和画图相关，oldtrades是True的时候，同一方向的交易没有区别，oldtrades是False的时候,
-        # 不同的交易使用不同的标记
+      # 也和画图相关，oldtrades是True的时候，同一方向的交易没有区别，oldtrades是False的时候,
+      # 不同的交易使用不同的标记
 
 
-      - ``exactbars`` (default: ``False``)
+    - ``exactbars`` (default: ``False``)
 
-        With the default value, each and every value stored in a line is kept in
-        memory
+      With the default value, each and every value stored in a line is kept in
+      memory
 
-        Possible values:
-          - ``True`` or ``1``: all "lines" objects reduce memory usage to the
-            automatically calculated minimum period.
+      Possible values:
+        - ``True`` or ``1``: all "lines" objects reduce memory usage to the
+          automatically calculated minimum period.
 
-            If a Simple Moving Average has a period of 30, the underlying data
-            will have always a running buffer of 30 bars to allow the
-            calculation of the Simple Moving Average
+          If a Simple Moving Average has a period of 30, the underlying data
+          will have always a running buffer of 30 bars to allow the
+          calculation of the Simple Moving Average
 
-            - This setting will deactivate ``preload`` and ``runonce``
-            - Using this setting also deactivates **plotting**
+          - This setting will deactivate ``preload`` and ``runonce``
+          - Using this setting also deactivates **plotting**
 
-          - ``-1``: datafeeds and indicators/operations at strategy level will
-            keep all data in memory.
+        - ``-1``: datafeeds and indicators/operations at strategy level will
+          keep all data in memory.
 
-            For example: a ``RSI`` internally uses the indicator ``UpDay`` to
-            make calculations. This subindicator will not keep all data in
-            memory
+          For example: a ``RSI`` internally uses the indicator ``UpDay`` to
+          make calculations. This subindicator will not keep all data in
+          memory
 
-            - This allows keeping ``plotting`` and ``preloading`` active.
+          - This allows keeping ``plotting`` and ``preloading`` active.
 
-            - ``runonce`` will be deactivated
+          - ``runonce`` will be deactivated
 
-          - ``-2``: data feeds and indicators kept as attributes of the
-            strategy will keep all points in memory.
+        - ``-2``: data feeds and indicators kept as attributes of the
+          strategy will keep all points in memory.
 
-            For example: a ``RSI`` internally uses the indicator ``UpDay`` to
-            make calculations. This subindicator will not keep all data in
-            memory
+          For example: a ``RSI`` internally uses the indicator ``UpDay`` to
+          make calculations. This subindicator will not keep all data in
+          memory
 
-            If in the ``__init__`` something like
-            ``a = self.data.close - self.data.high`` is defined, then ``a``
-            will not keep all data in memory
+          If in the ``__init__`` something like
+          ``a = self.data.close - self.data.high`` is defined, then ``a``
+          will not keep all data in memory
 
-            - This allows keeping ``plotting`` and ``preloading`` active.
+          - This allows keeping ``plotting`` and ``preloading`` active.
 
-            - ``runonce`` will be deactivated
+          - ``runonce`` will be deactivated
 
-             # 储存多少个K线的数据在记忆中
+           # 储存多少个K线的数据在记忆中
 
-        # 当exactbars的值是True或者是1的时候，只保存满足最小需求的K线的数据，这会取消preload, runonce, plotting
+      # 当exactbars的值是True或者是1的时候，只保存满足最小需求的K线的数据，这会取消preload, runonce, plotting
 
-        # 当exactbars的值是-1的时候，数据、指标、运算结果会保存下来，但是指标运算内的中间变量不会保存，这个会取消掉runonce
+      # 当exactbars的值是-1的时候，数据、指标、运算结果会保存下来，但是指标运算内的中间变量不会保存，这个会取消掉runonce
 
-        # 当exactbars的值是-2的时候，数据、指标、运算结果会保存下来，但是指标内的，指标间的变量，如果没有使用self进行保存，就会消失
-        # 可以验证下，-2的结果是否是对的
+      # 当exactbars的值是-2的时候，数据、指标、运算结果会保存下来，但是指标内的，指标间的变量，如果没有使用self进行保存，就会消失
+      # 可以验证下，-2的结果是否是对的
 
-      - ``objcache`` (default: ``False``)
+    - ``objcache`` (default: ``False``)
 
-        Experimental option to implement a cache of lines objects and reduce
-        the amount of them. Example from UltimateOscillator:
+      Experimental option to implement a cache of lines objects and reduce
+      the amount of them. Example from UltimateOscillator:
 
-          bp = self.data.close - TrueLow(self.data)
-          tr = TrueRange(self.data) # -> creates another TrueLow(self.data)
+        bp = self.data.close - TrueLow(self.data)
+        tr = TrueRange(self.data) # -> creates another TrueLow(self.data)
 
-        If this is `True`, the second ``TrueLow(self.data)`` inside ``TrueRange``
-        matches the signature of the one in the ``bp`` calculation. It will be
-        reused.
+      If this is `True`, the second ``TrueLow(self.data)`` inside ``TrueRange``
+      matches the signature of the one in the ``bp`` calculation. It will be
+      reused.
 
-        Corner cases may happen in which this drives a line object off its
-        minimum period and breaks things, and it is therefore disabled.
-         # 缓存，如果设置成True了，在指标计算的过程中，如果上面已经计算过了，形成了一个line，
-        # 下面要用到指标是同样名字的, 就不再计算，而是使用上面缓存中的指标
+      Corner cases may happen in which this drives a line object off its
+      minimum period and breaks things, and it is therefore disabled.
+       # 缓存，如果设置成True了，在指标计算的过程中，如果上面已经计算过了，形成了一个line，
+      # 下面要用到指标是同样名字的, 就不再计算，而是使用上面缓存中的指标
 
-      - ``writer`` (default: ``False``)
+    - ``writer`` (default: ``False``)
 
-        If set to ``True`` a default WriterFile will be created which will
-        print to stdout. It will be added to the strategy (in addition to any
-        other writers added by the user code)
-         # writer 如果设置成True，输出的信息将会保存到一个默认的文件中
-        # 没怎么用过这个功能，每次写策略，都是在strategy中，按照自己需求定制的信息
+      If set to ``True`` a default WriterFile will be created which will
+      print to stdout. It will be added to the strategy (in addition to any
+      other writers added by the user code)
+       # writer 如果设置成True，输出的信息将会保存到一个默认的文件中
+      # 没怎么用过这个功能，每次写策略，都是在strategy中，按照自己需求定制的信息
 
-      - ``tradehistory`` (default: ``False``)
+    - ``tradehistory`` (default: ``False``)
 
-        If set to ``True``, it will activate update event logging in each trade
-        for all strategies. This can also be achieved on a per-strategy
-        basis with the strategy method ``set_tradehistory``
-         # 如果tradehistory设置成了True，这将会激活这样一个功能，在所有策略中，每次交易的信息将会被log
-        # 这个也可以在每个策略层面上，使用set_tradehistory来实现。
+      If set to ``True``, it will activate update event logging in each trade
+      for all strategies. This can also be achieved on a per-strategy
+      basis with the strategy method ``set_tradehistory``
+       # 如果tradehistory设置成了True，这将会激活这样一个功能，在所有策略中，每次交易的信息将会被log
+      # 这个也可以在每个策略层面上，使用set_tradehistory来实现。
 
-      - ``optdatas`` (default: ``True``)
+    - ``optdatas`` (default: ``True``)
 
-        If ``True`` and optimizing (and the system can ``preload`` and use
-        ``runonce``, data preloading will be done only once in the main process
-        to save time and resources.
+      If ``True`` and optimizing (and the system can ``preload`` and use
+      ``runonce``, data preloading will be done only once in the main process
+      to save time and resources.
 
-        The tests show an approximate ``20%`` speed-up moving from a sample
-        execution in ``83`` seconds to ``66``
-         # optdatas设置成True，如果preload和runonce也是True的话，数据的预加载将会只进行一次，在
-        # 优化参数的时候，可以节省很多的时间
+      The tests show an approximate ``20%`` speed-up moving from a sample
+      execution in ``83`` seconds to ``66``
+       # optdatas设置成True，如果preload和runonce也是True的话，数据的预加载将会只进行一次，在
+      # 优化参数的时候，可以节省很多的时间
 
 
-      - ``optreturn`` (default: ``True``)
+    - ``optreturn`` (default: ``True``)
 
-        If `True`, the optimization results will not be full ``Strategy``
-        objects (and all *datas*, *indicators*, *observers* ...) but object
-        with the following attributes (same as in ``Strategy``):
+      If `True`, the optimization results will not be full ``Strategy``
+      objects (and all *datas*, *indicators*, *observers* ...) but object
+      with the following attributes (same as in ``Strategy``):
 
-          - ``params`` (or ``p``) the strategy had for the execution
-          - ``analyzers`` the strategy has executed
+        - ``params`` (or ``p``) the strategy had for the execution
+        - ``analyzers`` the strategy has executed
 
-        On most occasions, only the *analyzers* and with which *params* are
-        the things needed to evaluate the performance of a strategy. If
-        detailed analysis of the generated values for (for example)
-        *indicators* is needed, turn this off
+      On most occasions, only the *analyzers* and with which *params* are
+      the things needed to evaluate the performance of a strategy. If
+      detailed analysis of the generated values for (for example)
+      *indicators* is needed, turn this off
 
-        The tests show a 13% - 15% improvement in execution time. Combined
-        with `optdatas` the total gain increases to a total speed-up of
-        `32%` in an optimization run.
-         # optreturn, 设置成True之后，在优化参数的时候，返回的结果中，只包含参数和analyzers, 为了提高速度，
-        # 舍弃了数据，指标，observers, 这可以提高优化的速度。
+      The tests show a 13% - 15% improvement in execution time. Combined
+      with `optdatas` the total gain increases to a total speed-up of
+      `32%` in an optimization run.
+       # optreturn, 设置成True之后，在优化参数的时候，返回的结果中，只包含参数和analyzers, 为了提高速度，
+      # 舍弃了数据，指标，observers, 这可以提高优化的速度。
 
-      - ``oldsync`` (default: ``False``)
+    - ``oldsync`` (default: ``False``)
 
-        Starting with release 1.9.0.99, the synchronization of multiple datas
-        (same or different timeframes) has been changed to allow datas of
-        different lengths.
+      Starting with release 1.9.0.99, the synchronization of multiple datas
+      (same or different timeframes) has been changed to allow datas of
+      different lengths.
 
-        If the old behavior with data0 as the master of the system is wished,
-        set this parameter to true
-         # 当这个参数设置成False的时候，可以允许数据有不同的长度。如果想要返回旧版本那种，
-        # 用data0作为主数据的方式，就可以把这个参数设置成True
+      If the old behavior with data0 as the master of the system is wished,
+      set this parameter to true
+       # 当这个参数设置成False的时候，可以允许数据有不同的长度。如果想要返回旧版本那种，
+      # 用data0作为主数据的方式，就可以把这个参数设置成True
 
-      - ``tz`` (default: ``None``)
+    - ``tz`` (default: ``None``)
 
-        Adds a global timezone for strategies. The argument ``tz`` can be
+      Adds a global timezone for strategies. The argument ``tz`` can be
 
-          - ``None``: in this case the datetime displayed by strategies will be
-            in UTC, which has always been the standard behavior
+        - ``None``: in this case the datetime displayed by strategies will be
+          in UTC, which has always been the standard behavior
 
-          - ``pytz`` instance. It will be used as such to convert UTC times to
-            the chosen timezone
+        - ``pytz`` instance. It will be used as such to convert UTC times to
+          the chosen timezone
 
-          - ``string``. Instantiating a ``pytz`` instance will be attempted.
+        - ``string``. Instantiating a ``pytz`` instance will be attempted.
 
-          - ``integer``. Use, for the strategy, the same timezone as the
-            corresponding ``data`` in the ``self.datas`` iterable (``0`` would
-            use the timezone from ``data0``)
-            # 给策略添加时区
-        # 如果忽略的话，tz就是None，就默认使用的是UTC时区
-        # 如果是pytz的实例，是一个时区的话，就会把UTC时区转变为选定的新的时区
-        # 如果是一个字符串，将会尝试转化为一个pytz实例
-        # 如果是一个整数，将会使用某个数据的时区作为时区，如0代表第一个加载进去的数据的时区
+        - ``integer``. Use, for the strategy, the same timezone as the
+          corresponding ``data`` in the ``self.datas`` iterable (``0`` would
+          use the timezone from ``data0``)
+          # 给策略添加时区
+      # 如果忽略的话，tz就是None，就默认使用的是UTC时区
+      # 如果是pytz的实例，是一个时区的话，就会把UTC时区转变为选定的新的时区
+      # 如果是一个字符串，将会尝试转化为一个pytz实例
+      # 如果是一个整数，将会使用某个数据的时区作为时区，如0代表第一个加载进去的数据的时区
 
-      - ``cheat_on_open`` (default: ``False``)
+    - ``cheat_on_open`` (default: ``False``)
 
-        The ``next_open`` method of strategies will be called. This happens
-        before ``next`` and before the broker has had a chance to evaluate
-        orders. The indicators have not yet been recalculated. This allows
-        issuing an order which takes into account the indicators of the previous
-        day but uses the ``open`` price for stake calculations
+      The ``next_open`` method of strategies will be called. This happens
+      before ``next`` and before the broker has had a chance to evaluate
+      orders. The indicators have not yet been recalculated. This allows
+      issuing an order which takes into account the indicators of the previous
+      day but uses the ``open`` price for stake calculations
 
-        For cheat_on_open order execution, it is also necessary to make the
-        call ``cerebro.broker.set_coo(True)`` or instantiate a broker with
-        ``BackBroker(coo=True)`` (where *coo* stands for cheat-on-open) or set
-        the ``broker_coo`` parameter to ``True``. Cerebro will do it
-        automatically unless disabled below.
-        # 为了方便使用开盘价计算手数设计的，默认是false，我们下单的时候不知道下个bar的open的开盘价，
-        # 如果要下特定金额的话，只能用收盘价替代，如果下个交易日开盘之后高开或者低开，成交的金额可能离
-        # 我们的目标金额很大。
-        # 如果设置成True的话，我们就可以实现这个功能。在每次next之后，在next_open中进行下单，在next_open的时候
-        # 还没有到next, 系统还没有机会执行订单，指标还未能够重新计算，但是我们已经可以获得下个bar的开盘价了，并且可以
-        # 更加精确的计算相应的手数了。
-        # 使用这个功能，同时还需要设置cerebro.broker.set_coo(True)，或者加载broker的时候使用BackBroker(coo=True)，或者
-        # cerebro的参数额外传入一个broker_coo=True
+      For cheat_on_open order execution, it is also necessary to make the
+      call ``cerebro.broker.set_coo(True)`` or instantiate a broker with
+      ``BackBroker(coo=True)`` (where *coo* stands for cheat-on-open) or set
+      the ``broker_coo`` parameter to ``True``. Cerebro will do it
+      automatically unless disabled below.
+      # 为了方便使用开盘价计算手数设计的，默认是false，我们下单的时候不知道下个bar的open的开盘价，
+      # 如果要下特定金额的话，只能用收盘价替代，如果下个交易日开盘之后高开或者低开，成交的金额可能离
+      # 我们的目标金额很大。
+      # 如果设置成True的话，我们就可以实现这个功能。在每次next之后，在next_open中进行下单，在next_open的时候
+      # 还没有到next, 系统还没有机会执行订单，指标还未能够重新计算，但是我们已经可以获得下个bar的开盘价了，并且可以
+      # 更加精确的计算相应的手数了。
+      # 使用这个功能，同时还需要设置cerebro.broker.set_coo(True)，或者加载broker的时候使用BackBroker(coo=True)，或者
+      # cerebro的参数额外传入一个broker_coo=True
 
-      - ``broker_coo`` (default: ``True``)
+    - ``broker_coo`` (default: ``True``)
 
-        This will automatically invoke the ``set_coo`` method of the broker
-        with ``True`` to activate ``cheat_on_open`` execution. Will only do it
-        if ``cheat_on_open`` is also ``True``
-        # 这个参数是和上个参数cheat_on_open一块使用的
+      This will automatically invoke the ``set_coo`` method of the broker
+      with ``True`` to activate ``cheat_on_open`` execution. Will only do it
+      if ``cheat_on_open`` is also ``True``
+      # 这个参数是和上个参数cheat_on_open一块使用的
 
-      - ``quicknotify`` (default: ``False``)
+    - ``quicknotify`` (default: ``False``)
 
-        Broker notifications are delivered right before the delivery of the
-        *next* prices. For backtesting, this has no implications, but with live
-         brokers, a notification can take place long before the bar is
-        delivered. When set to ``True`` notifications will be delivered as soon
-        as possible (see ``qcheck`` in live feeds)
+      Broker notifications are delivered right before the delivery of the
+      *next* prices. For backtesting, this has no implications, but with live
+       brokers, a notification can take place long before the bar is
+      delivered. When set to ``True`` notifications will be delivered as soon
+      as possible (see ``qcheck`` in live feeds)
 
-        Set to ``False`` for compatibility. May be changed to ``True``
-        # quicknotify，控制broker发送通知的时间，如果设置成False，那么，只有在next的时候才会发送
-        # 设置成True的时候，产生就会立刻发送。
+      Set to ``False`` for compatibility. May be changed to ``True``
+      # quicknotify，控制broker发送通知的时间，如果设置成False，那么，只有在next的时候才会发送
+      # 设置成True的时候，产生就会立刻发送。
 
     """
+
     # 参数
     params = (
-        ('preload', True),
-        ('runonce', True),
-        ('maxcpus', None),
-        ('stdstats', True),
-        ('oldbuysell', False),
-        ('oldtrades', False),
-        ('lookahead', 0),
-        ('exactbars', False),
-        ('optdatas', True),
-        ('optreturn', True),
-        ('objcache', False),
-        ('live', False),
-        ('writer', False),
-        ('tradehistory', False),
-        ('oldsync', False),
-        ('tz', None),
-        ('cheat_on_open', False),
-        ('broker_coo', True),
-        ('quicknotify', False),
+        ("preload", True),
+        ("runonce", True),
+        ("maxcpus", None),
+        ("stdstats", True),
+        ("oldbuysell", False),
+        ("oldtrades", False),
+        ("lookahead", 0),
+        ("exactbars", False),
+        ("optdatas", True),
+        ("optreturn", True),
+        ("objcache", False),
+        ("live", False),
+        ("writer", False),
+        ("tradehistory", False),
+        ("oldsync", False),
+        ("tz", None),
+        ("cheat_on_open", False),
+        ("broker_coo", True),
+        ("quicknotify", False),
     )
 
     # 初始化
@@ -424,7 +424,9 @@ class Cerebro(metaclass=MetaParams):
             if isinstance(elem, string_types):
                 elem = (elem,)
             # elif not isinstance(elem, collections.Iterable):
-            elif not isinstance(elem,collectionsAbc.Iterable):  # Different functions will be called for different Python versions
+            elif not isinstance(
+                elem, collectionsAbc.Iterable
+            ):  # Different functions will be called for different Python versions
                 elem = (elem,)
 
             niterable.append(elem)
@@ -513,26 +515,43 @@ class Cerebro(metaclass=MetaParams):
         pass
 
     # 添加定时器
-    def _add_timer(self, owner, when,
-                   offset=datetime.timedelta(), repeat=datetime.timedelta(),
-                   weekdays=[], weekcarry=False,
-                   monthdays=[], monthcarry=True,
-                   allow=None,
-                   tzdata=None, strats=False, cheat=False,
-                   *args, **kwargs):
+    def _add_timer(
+        self,
+        owner,
+        when,
+        offset=datetime.timedelta(),
+        repeat=datetime.timedelta(),
+        weekdays=[],
+        weekcarry=False,
+        monthdays=[],
+        monthcarry=True,
+        allow=None,
+        tzdata=None,
+        strats=False,
+        cheat=False,
+        *args,
+        **kwargs,
+    ):
         """Internal method to really create the timer (not started yet) which
         can be called by cerebro instances or other objects which can access
         cerebro"""
 
         timer = Timer(
             tid=len(self._pretimers),
-            owner=owner, strats=strats,
-            when=when, offset=offset, repeat=repeat,
-            weekdays=weekdays, weekcarry=weekcarry,
-            monthdays=monthdays, monthcarry=monthcarry,
+            owner=owner,
+            strats=strats,
+            when=when,
+            offset=offset,
+            repeat=repeat,
+            weekdays=weekdays,
+            weekcarry=weekcarry,
+            monthdays=monthdays,
+            monthcarry=monthcarry,
             allow=allow,
-            tzdata=tzdata, cheat=cheat,
-            *args, **kwargs
+            tzdata=tzdata,
+            cheat=cheat,
+            *args,
+            **kwargs,
         )
 
         self._pretimers.append(timer)
@@ -541,14 +560,22 @@ class Cerebro(metaclass=MetaParams):
     # 添加定时器，参数的含义可以参考：
     # https://yunjinqi.blog.csdn.net/article/details/124560191
     # https://yunjinqi.blog.csdn.net/article/details/124652096
-    def add_timer(self, when,
-                  offset=datetime.timedelta(), repeat=datetime.timedelta(),
-                  weekdays=[], weekcarry=False,
-                  monthdays=[], monthcarry=True,
-                  allow=None,
-                  tzdata=None, strats=False, cheat=False,
-                  *args, **kwargs):
-
+    def add_timer(
+        self,
+        when,
+        offset=datetime.timedelta(),
+        repeat=datetime.timedelta(),
+        weekdays=[],
+        weekcarry=False,
+        monthdays=[],
+        monthcarry=True,
+        allow=None,
+        tzdata=None,
+        strats=False,
+        cheat=False,
+        *args,
+        **kwargs,
+    ):
         """
         Schedules a timer to invoke ``notify_timer``
 
@@ -633,17 +660,25 @@ class Cerebro(metaclass=MetaParams):
 
         """
         return self._add_timer(
-            owner=self, when=when, offset=offset, repeat=repeat,
-            weekdays=weekdays, weekcarry=weekcarry,
-            monthdays=monthdays, monthcarry=monthcarry,
+            owner=self,
+            when=when,
+            offset=offset,
+            repeat=repeat,
+            weekdays=weekdays,
+            weekcarry=weekcarry,
+            monthdays=monthdays,
+            monthcarry=monthcarry,
             allow=allow,
-            tzdata=tzdata, strats=strats, cheat=cheat,
-            *args, **kwargs)
+            tzdata=tzdata,
+            strats=strats,
+            cheat=cheat,
+            *args,
+            **kwargs,
+        )
 
     # 添加时区,参数含义参考
     # tz的参数和add_timer中比较类似
     def addtz(self, tz):
-
         """This can also be done with the parameter ``tz``
 
         Adds a global timezone for strategies. The argument ``tz`` can be
@@ -681,7 +716,7 @@ class Cerebro(metaclass=MetaParams):
         # 如果是字符串或者具有valid_days属性，使用PandasMarketCalendar实例化
         if isinstance(cal, string_types):
             cal = PandasMarketCalendar(calendar=cal)
-        elif hasattr(cal, 'valid_days'):
+        elif hasattr(cal, "valid_days"):
             cal = PandasMarketCalendar(calendar=cal)
         # 如果是TradingCalendarBase的子类，直接实例化，如果已经是一个实例，忽略
         else:
@@ -907,7 +942,7 @@ class Cerebro(metaclass=MetaParams):
 
         If `None`, then the name of the first data will be used
         """
-        dname = kwargs.pop('name', None)
+        dname = kwargs.pop("name", None)
         if dname is None:
             dname = args[0]._dataname
         d = bt.feeds.Chainer(dataname=dname, *args)
@@ -927,7 +962,7 @@ class Cerebro(metaclass=MetaParams):
         Any other kwargs will be passed to the RollOver class
 
         """
-        dname = kwargs.pop('name', None)
+        dname = kwargs.pop("name", None)
         if dname is None:
             dname = args[0]._dataname
         d = bt.feeds.RollOver(dataname=dname, *args, **kwargs)
@@ -1073,9 +1108,20 @@ class Cerebro(metaclass=MetaParams):
     # 画图，backtrader的画图主要是基于matplotlib,需要考虑升级换代，
     # todo 后续准备考虑使用pyqt,pyechart,plotly,boken中的一个进行升级
     # 所以，plot部分相关的代码就不在解读
-    def plot(self, plotter=None, numfigs=1, iplot=True, start=None, end=None,
-             width=16, height=9, dpi=300, tight=True, use=None,
-             **kwargs):
+    def plot(
+        self,
+        plotter=None,
+        numfigs=1,
+        iplot=True,
+        start=None,
+        end=None,
+        width=16,
+        height=9,
+        dpi=300,
+        tight=True,
+        use=None,
+        **kwargs,
+    ):
         """
         Plots the strategies inside cerebro
 
@@ -1112,6 +1158,7 @@ class Cerebro(metaclass=MetaParams):
 
         if not plotter:
             from . import plot
+
             if self.p.oldsync:
                 plotter = plot.Plot_OldSync(**kwargs)
             else:
@@ -1126,9 +1173,15 @@ class Cerebro(metaclass=MetaParams):
         figs = []
         for stratlist in self.runstrats:
             for si, strat in enumerate(stratlist):
-                rfig = plotter.plot(strat, figid=si * 100,
-                                    numfigs=numfigs, iplot=iplot,
-                                    start=start, end=end, use=use)
+                rfig = plotter.plot(
+                    strat,
+                    figid=si * 100,
+                    numfigs=numfigs,
+                    iplot=iplot,
+                    start=start,
+                    end=end,
+                    use=use,
+                )
                 # pfillers=pfillers2)
 
                 figs.append(rfig)
@@ -1155,14 +1208,14 @@ class Cerebro(metaclass=MetaParams):
         """
 
         rv = vars(self).copy()
-        if 'runstrats' in rv:
-            del (rv['runstrats'])
+        if "runstrats" in rv:
+            del rv["runstrats"]
         return rv
 
     # 当在策略内部或者其他地方调用这个函数的时候，将会很快停止执行
     def runstop(self):
         """If invoked from inside a strategy or anywhere else, including other
-         threads, the execution will stop as soon as possible."""
+        threads, the execution will stop as soon as possible."""
         self._event_stop = True  # signal a stop has been requested
 
     # 执行回测的核心方法，任何传递的参数将会影响cerebro中的标准参数，如果没有添加数据，将会立即停止
@@ -1262,12 +1315,14 @@ class Cerebro(metaclass=MetaParams):
                 signalst, sargs, skwargs = SignalStrategy, tuple(), dict()
 
             # Add the signal strategy
-            self.addstrategy(signalst,
-                             _accumulate=self._signal_accumulate,
-                             _concurrent=self._signal_concurrent,
-                             signals=self.signals,
-                             *sargs,
-                             **skwargs)
+            self.addstrategy(
+                signalst,
+                _accumulate=self._signal_accumulate,
+                _concurrent=self._signal_concurrent,
+                signals=self.signals,
+                *sargs,
+                **skwargs,
+            )
         # 如果策略列表是空的话，添加策略
         if not self.strats:  # Datas are present, add a strategy
             self.addstrategy(Strategy)
@@ -1346,7 +1401,7 @@ class Cerebro(metaclass=MetaParams):
         # 如果cheat_on_open和broker_coo，给broker进行相应的设置
         if self.p.cheat_on_open and self.p.broker_coo:
             # try to activate in broker
-            if hasattr(self._broker, 'set_coo'):
+            if hasattr(self._broker, "set_coo"):
                 self._broker.set_coo(True)
         # 如果fund历史不是None的话，需要设置fund history
         if self._fhistory is not None:
@@ -1421,8 +1476,7 @@ class Cerebro(metaclass=MetaParams):
                     if self.p.oldbuysell:
                         strat._addobserver(True, observers.BuySell)
                     else:
-                        strat._addobserver(True, observers.BuySell,
-                                           barplot=True)
+                        strat._addobserver(True, observers.BuySell, barplot=True)
                     # 增加observer的trade
                     if self.p.oldtrades or len(self.datas) == 1:
                         strat._addobserver(False, observers.Trades)
@@ -1512,10 +1566,12 @@ class Cerebro(metaclass=MetaParams):
                     a.strategy = None
                     a._parent = None
                     for attrname in dir(a):
-                        if attrname.startswith('data'):
+                        if attrname.startswith("data"):
                             setattr(a, attrname, None)
 
-                oreturn = OptReturn(strat.params, analyzers=strat.analyzers, strategycls=type(strat))
+                oreturn = OptReturn(
+                    strat.params, analyzers=strat.analyzers, strategycls=type(strat)
+                )
                 results.append(oreturn)
 
             return results
@@ -1530,16 +1586,16 @@ class Cerebro(metaclass=MetaParams):
         datainfos = OrderedDict()
         # 获取每个数据的信息，保存到datainfos中，然后保存到cerebroinfo
         for i, data in enumerate(self.datas):
-            datainfos['Data%d' % i] = data.getwriterinfo()
+            datainfos["Data%d" % i] = data.getwriterinfo()
 
-        cerebroinfo['Datas'] = datainfos
+        cerebroinfo["Datas"] = datainfos
         # 获取策略信息，并保存到stratinfos和cerebroinfo
         stratinfos = dict()
         for strat in runstrats:
             stname = strat.__class__.__name__
             stratinfos[stname] = strat.getwriterinfo()
 
-        cerebroinfo['Strategies'] = stratinfos
+        cerebroinfo["Strategies"] = stratinfos
         # 把cerebroinfo写入文件中
         for writer in self.runwriters:
             writer.writedict(dict(Cerebro=cerebroinfo))
@@ -1699,8 +1755,7 @@ class Cerebro(metaclass=MetaParams):
         """
         try:
             # 对数据的时间周期进行排序
-            datas = sorted(self.datas,
-                           key=lambda x: (x._timeframe, x._compression))
+            datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
             # 其他数据
             datas1 = datas[1:]
             # 主数据
@@ -1785,8 +1840,9 @@ class Cerebro(metaclass=MetaParams):
                     if onlyresample or noresample:
                         dt0 = min((d for d in dts if d is not None))
                     else:
-                        dt0 = min((d for i, d in enumerate(dts)
-                                   if d is not None and i not in rsonly))
+                        dt0 = min(
+                            (d for i, d in enumerate(dts) if d is not None and i not in rsonly)
+                        )
                     # 获取主数据，及时间
                     dmaster = datas[dts.index(dt0)]  # and timemaster
                     self._dtmaster = dmaster.num2date(dt0)
@@ -1909,8 +1965,7 @@ class Cerebro(metaclass=MetaParams):
         # were homed before calling once, Hence no "need" to do it
         # here again, because pointers are at 0
         # 对数据进行排序，从小周期开始到大周期
-        datas = sorted(self.datas,
-                       key=lambda x: (x._timeframe, x._compression))
+        datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
 
         while True:
             try:
@@ -1918,7 +1973,7 @@ class Cerebro(metaclass=MetaParams):
                 # 对于每个数据调用advance_peek(),取得最小的一个时间作为第一个
                 dts = [d.advance_peek() for d in datas]
                 dt0 = min(dts)
-                if dt0 == float('inf'):
+                if dt0 == float("inf"):
                     break  # no data delivers anything
 
                 # Timemaster if needed be

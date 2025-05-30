@@ -24,8 +24,17 @@ from datetime import date, datetime, timedelta
 import threading
 
 from backtrader.feed import DataBase
-from backtrader import (TimeFrame, num2date, date2num, BrokerBase,
-                        Order, BuyOrder, SellOrder, OrderBase, OrderData)
+from backtrader import (
+    TimeFrame,
+    num2date,
+    date2num,
+    BrokerBase,
+    Order,
+    BuyOrder,
+    SellOrder,
+    OrderBase,
+    OrderData,
+)
 from backtrader.utils.py3 import bytes, MAXFLOAT
 from backtrader.metabase import MetaParams
 from backtrader.comminfo import CommInfoBase
@@ -68,9 +77,10 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
         Set to ``False`` during instantiation to disregard any existing
         position
     """
+
     params = (
-        ('use_positions', True),
-        ('commission', OandaCommInfo(mult=1.0, stocklike=False)),
+        ("use_positions", True),
+        ("commission", OandaCommInfo(mult=1.0, stocklike=False)),
     )
 
     def __init__(self, **kwargs):
@@ -96,45 +106,63 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
 
         if self.p.use_positions:
             for p in self.o.get_positions():
-                print('position for instrument:', p['instrument'])
-                is_sell = p['side'] == 'sell'
-                size = p['units']
+                print("position for instrument:", p["instrument"])
+                is_sell = p["side"] == "sell"
+                size = p["units"]
                 if is_sell:
                     size = -size
-                price = p['avgPrice']
-                self.positions[p['instrument']] = Position(size, price)
+                price = p["avgPrice"]
+                self.positions[p["instrument"]] = Position(size, price)
 
     def data_started(self, data):
         pos = self.getposition(data)
 
         if pos.size < 0:
-            order = SellOrder(data=data,
-                              size=pos.size, price=pos.price,
-                              exectype=Order.Market,
-                              simulated=True)
+            order = SellOrder(
+                data=data, size=pos.size, price=pos.price, exectype=Order.Market, simulated=True
+            )
 
             order.addcomminfo(self.getcommissioninfo(data))
-            order.execute(0, pos.size, pos.price,
-                          0, 0.0, 0.0,
-                          pos.size, 0.0, 0.0,
-                          0.0, 0.0,
-                          pos.size, pos.price)
+            order.execute(
+                0,
+                pos.size,
+                pos.price,
+                0,
+                0.0,
+                0.0,
+                pos.size,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                pos.size,
+                pos.price,
+            )
 
             order.completed()
             self.notify(order)
 
         elif pos.size > 0:
-            order = BuyOrder(data=data,
-                             size=pos.size, price=pos.price,
-                             exectype=Order.Market,
-                             simulated=True)
+            order = BuyOrder(
+                data=data, size=pos.size, price=pos.price, exectype=Order.Market, simulated=True
+            )
 
             order.addcomminfo(self.getcommissioninfo(data))
-            order.execute(0, pos.size, pos.price,
-                          0, 0.0, 0.0,
-                          pos.size, 0.0, 0.0,
-                          0.0, 0.0,
-                          pos.size, pos.price)
+            order.execute(
+                0,
+                pos.size,
+                pos.price,
+                0,
+                0.0,
+                0.0,
+                pos.size,
+                0.0,
+                0.0,
+                0.0,
+                0.0,
+                pos.size,
+                pos.price,
+            )
 
             order.completed()
             self.notify(order)
@@ -199,12 +227,12 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
         self._bracketize(order, cancel=True)
 
     def _bracketnotif(self, order):
-        pref = getattr(order.parent, 'ref', order.ref)  # parent ref or self
+        pref = getattr(order.parent, "ref", order.ref)  # parent ref or self
         br = self.brackets.get(pref, None)  # to avoid recursion
         return br[-2:] if br is not None else []
 
     def _bracketize(self, order, cancel=False):
-        pref = getattr(order.parent, 'ref', order.ref)  # parent ref or self
+        pref = getattr(order.parent, "ref", order.ref)  # parent ref or self
         br = self.brackets.pop(pref, None)  # to avoid recursion
         if br is None:
             return
@@ -229,24 +257,28 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
         order = self.orders[oref]
 
         if not order.alive():  # can be a bracket
-            pref = getattr(order.parent, 'ref', order.ref)
+            pref = getattr(order.parent, "ref", order.ref)
             if pref not in self.brackets:
-                msg = ('Order fill received for {}, with price {} and size {} '
-                       'but order is no longer alive and is not a bracket. '
-                       'Unknown situation')
+                msg = (
+                    "Order fill received for {}, with price {} and size {} "
+                    "but order is no longer alive and is not a bracket. "
+                    "Unknown situation"
+                )
                 msg.format(order.ref, price, size)
                 self.put_notification(msg, order, price, size)
                 return
 
             # [main, stopside, takeside], neg idx to array are -3, -2, -1
-            if ttype == 'STOP_LOSS_FILLED':
+            if ttype == "STOP_LOSS_FILLED":
                 order = self.brackets[pref][-2]
-            elif ttype == 'TAKE_PROFIT_FILLED':
+            elif ttype == "TAKE_PROFIT_FILLED":
                 order = self.brackets[pref][-1]
             else:
-                msg = ('Order fill received for {}, with price {} and size {} '
-                       'but order is no longer alive and is a bracket. '
-                       'Unknown situation')
+                msg = (
+                    "Order fill received for {}, with price {} and size {} "
+                    "but order is no longer alive and is a bracket. "
+                    "Unknown situation"
+                )
                 msg.format(order.ref, price, size)
                 self.put_notification(msg, order, price, size)
                 return
@@ -261,11 +293,21 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
         openedvalue = openedcomm = 0.0
         margin = pnl = 0.0
 
-        order.execute(data.datetime[0], size, price,
-                      closed, closedvalue, closedcomm,
-                      opened, openedvalue, openedcomm,
-                      margin, pnl,
-                      psize, pprice)
+        order.execute(
+            data.datetime[0],
+            size,
+            price,
+            closed,
+            closedvalue,
+            closedcomm,
+            opened,
+            openedvalue,
+            openedcomm,
+            margin,
+            pnl,
+            psize,
+            pprice,
+        )
 
         if order.executed.remsize:
             order.partial()
@@ -277,7 +319,7 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
 
     def _transmit(self, order):
         oref = order.ref
-        pref = getattr(order.parent, 'ref', oref)  # parent ref or self
+        pref = getattr(order.parent, "ref", oref)  # parent ref or self
 
         if order.transmit:
             if oref != pref:  # children order
@@ -300,35 +342,75 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
         self.opending[pref].append(order)
         return order
 
-    def buy(self, owner, data,
-            size, price=None, plimit=None,
-            exectype=None, valid=None, tradeid=0, oco=None,
-            trailamount=None, trailpercent=None,
-            parent=None, transmit=True,
-            **kwargs):
+    def buy(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        parent=None,
+        transmit=True,
+        **kwargs,
+    ):
 
-        order = BuyOrder(owner=owner, data=data,
-                         size=size, price=price, pricelimit=plimit,
-                         exectype=exectype, valid=valid, tradeid=tradeid,
-                         trailamount=trailamount, trailpercent=trailpercent,
-                         parent=parent, transmit=transmit)
+        order = BuyOrder(
+            owner=owner,
+            data=data,
+            size=size,
+            price=price,
+            pricelimit=plimit,
+            exectype=exectype,
+            valid=valid,
+            tradeid=tradeid,
+            trailamount=trailamount,
+            trailpercent=trailpercent,
+            parent=parent,
+            transmit=transmit,
+        )
 
         order.addinfo(**kwargs)
         order.addcomminfo(self.getcommissioninfo(data))
         return self._transmit(order)
 
-    def sell(self, owner, data,
-             size, price=None, plimit=None,
-             exectype=None, valid=None, tradeid=0, oco=None,
-             trailamount=None, trailpercent=None,
-             parent=None, transmit=True,
-             **kwargs):
+    def sell(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        parent=None,
+        transmit=True,
+        **kwargs,
+    ):
 
-        order = SellOrder(owner=owner, data=data,
-                          size=size, price=price, pricelimit=plimit,
-                          exectype=exectype, valid=valid, tradeid=tradeid,
-                          trailamount=trailamount, trailpercent=trailpercent,
-                          parent=parent, transmit=transmit)
+        order = SellOrder(
+            owner=owner,
+            data=data,
+            size=size,
+            price=price,
+            pricelimit=plimit,
+            exectype=exectype,
+            valid=valid,
+            tradeid=tradeid,
+            trailamount=trailamount,
+            trailpercent=trailpercent,
+            parent=parent,
+            transmit=transmit,
+        )
 
         order.addinfo(**kwargs)
         order.addcomminfo(self.getcommissioninfo(data))

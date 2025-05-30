@@ -38,23 +38,22 @@ class BlazeData(feed.DataBase):
         indicates it's not present in the DataFrame
         it is
     """
+
     # 参数
     params = (
         # datetime must be present
-        ('datetime', 0),
+        ("datetime", 0),
         # pass -1 for any of the following to indicate absence
-        ('open', 1),
-        ('high', 2),
-        ('low', 3),
-        ('close', 4),
-        ('volume', 5),
-        ('openinterest', 6),
+        ("open", 1),
+        ("high", 2),
+        ("low", 3),
+        ("close", 4),
+        ("volume", 5),
+        ("openinterest", 6),
     )
 
     # 列名称
-    datafields = [
-        'datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest'
-    ]
+    datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
     # 开始，直接把数据文件使用iter迭代，接下来_load的时候每次读取一行
     def __init__(self):

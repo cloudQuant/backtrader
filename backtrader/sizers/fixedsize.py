@@ -20,6 +20,7 @@
 ###############################################################################
 import backtrader as bt
 
+
 # 固定手数类，如果下单的时候没有指定size,将会默认调用一个sizer
 class FixedSize(bt.Sizer):
     """
@@ -35,8 +36,7 @@ class FixedSize(bt.Sizer):
     """
 
     # 参数
-    params = (('stake', 1),
-              ('tranches', 1))
+    params = (("stake", 1), ("tranches", 1))
 
     # 返回具体的手数，如果tranches大于1，会把手数分成tranches份，否则直接返回手数
     def _getsizing(self, comminfo, cash, data, isbuy):
@@ -44,12 +44,14 @@ class FixedSize(bt.Sizer):
             return abs(int(self.p.stake / self.p.tranches))
         else:
             return self.p.stake
+
     # 设置手数
     def setsizing(self, stake):
         if self.p.tranches > 1:
             self.p.stake = abs(int(self.p.stake / self.p.tranches))
         else:
             self.p.stake = stake  # OLD METHOD FOR SAMPLE COMPATIBILITY
+
 
 # FixedSize的另一个名称
 SizerFix = FixedSize
@@ -67,7 +69,8 @@ class FixedReverser(bt.Sizer):
     Params:
       - ``stake`` (default: ``1``)
     """
-    params = (('stake', 1),)
+
+    params = (("stake", 1),)
 
     def _getsizing(self, comminfo, cash, data, isbuy):
         position = self.strategy.getposition(data)
@@ -91,8 +94,7 @@ class FixedSizeTarget(bt.Sizer):
       - ``tranches`` (default: ``1``)
     """
 
-    params = (('stake', 1),
-              ('tranches', 1))
+    params = (("stake", 1), ("tranches", 1))
 
     def _getsizing(self, comminfo, cash, data, isbuy):
         if self.p.tranches > 1:
@@ -104,7 +106,6 @@ class FixedSizeTarget(bt.Sizer):
     def setsizing(self, stake):
         if self.p.tranches > 1:
             size = abs(int(self.p.stake / self.p.tranches))
-            self.p.stake = min((self.strategy.position.size + size),
-                               self.p.stake)
+            self.p.stake = min((self.strategy.position.size + size), self.p.stake)
         else:
             self.p.stake = stake  # OLD METHOD FOR SAMPLE COMPATIBILITY

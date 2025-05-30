@@ -22,6 +22,7 @@ from backtrader.utils.py3 import MAXINT
 
 from backtrader.metabase import MetaParams
 
+
 # 固定大小过滤，订单执行的时候只能成交当前成交量，需要下单量和size中最小的一个，如果size是None的话，忽略size
 class FixedSize(metaclass=MetaParams):
     """Returns the execution size for a given order using a *percentage* of the
@@ -39,7 +40,8 @@ class FixedSize(metaclass=MetaParams):
         If the value of this parameter evaluates to False, the entire volume
         of the bar will be used to match the order
     """
-    params = (('size', None),)
+
+    params = (("size", None),)
 
     def __call__(self, order, price, ago):
         size = self.p.size or MAXINT
@@ -59,7 +61,8 @@ class FixedBarPerc(metaclass=MetaParams):
 
         Percentage of the volume bar to use to execute an order
     """
-    params = (('perc', 100.0),)
+
+    params = (("perc", 100.0),)
 
     def __call__(self, order, price, ago):
         # Get the volume and scale it to the requested perc
@@ -91,10 +94,11 @@ class BarPointPerc(metaclass=MetaParams):
         # minmov默认是0.01，根据最高价和最低价之间的距离，看一下可以分成多少份
         # perc默认是100，交易限制是下单只能下每一份的perc
     """
+
     # 具体的参数
     params = (
-        ('minmov', None),
-        ('perc', 100.0),
+        ("minmov", None),
+        ("perc", 100.0),
     )
 
     def __call__(self, order, price, ago):

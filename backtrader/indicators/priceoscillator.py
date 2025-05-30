@@ -20,10 +20,14 @@
 ###############################################################################
 from . import Indicator, Max, MovAv
 
+
 # 两均线差
 class _PriceOscBase(Indicator):
-    params = (('period1', 12), ('period2', 26),
-              ('_movav', MovAv.Exponential),)
+    params = (
+        ("period1", 12),
+        ("period2", 26),
+        ("_movav", MovAv.Exponential),
+    )
 
     plotinfo = dict(plothlines=[0.0])
 
@@ -33,6 +37,7 @@ class _PriceOscBase(Indicator):
         self.lines[0] = self.ma1 - self.ma2
 
         super(_PriceOscBase, self).__init__()
+
 
 # 均线差
 class PriceOscillator(_PriceOscBase):
@@ -46,8 +51,15 @@ class PriceOscillator(_PriceOscBase):
     See:
       - http://www.metastock.com/Customer/Resources/TAAZ/?c=3&p=94
     """
-    alias = ('PriceOsc', 'AbsolutePriceOscillator', 'APO', 'AbsPriceOsc',)
-    lines = ('po',)
+
+    alias = (
+        "PriceOsc",
+        "AbsolutePriceOscillator",
+        "APO",
+        "AbsPriceOsc",
+    )
+    lines = ("po",)
+
 
 # 类似于macd的一个指标，以百分比形式表达
 class PercentagePriceOscillator(_PriceOscBase):
@@ -66,14 +78,18 @@ class PercentagePriceOscillator(_PriceOscBase):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:price_oscillators_ppo
     """
+
     _long = True
 
-    alias = ('PPO', 'PercPriceOsc',)
+    alias = (
+        "PPO",
+        "PercPriceOsc",
+    )
 
-    lines = ('ppo', 'signal', 'histo')
-    params = (('period_signal', 9),)
+    lines = ("ppo", "signal", "histo")
+    params = (("period_signal", 9),)
 
-    plotlines = dict(histo=dict(_method='bar', alpha=0.50, width=1.0))
+    plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
 
     def __init__(self):
         super(PercentagePriceOscillator, self).__init__()
@@ -105,5 +121,9 @@ class PercentagePriceOscillatorShort(PercentagePriceOscillator):
     See:
       - http://www.metastock.com/Customer/Resources/TAAZ/?c=3&p=94
     """
+
     _long = False
-    alias = ('PPOShort', 'PercPriceOscShort',)
+    alias = (
+        "PPOShort",
+        "PercPriceOscShort",
+    )

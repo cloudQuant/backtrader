@@ -20,20 +20,23 @@
 ###############################################################################
 from .. import Observer
 
+
 # 获取cash
 class Cash(Observer):
     """This observer keeps track the current amount of cash in the broker
 
     Params: None
     """
+
     _stclock = True
 
-    lines = ('cash',)
+    lines = ("cash",)
 
     plotinfo = dict(plot=True, subplot=True)
 
     def next(self):
         self.lines[0][0] = self._owner.broker.getcash()
+
 
 # 获取value
 class Value(Observer):
@@ -52,13 +55,12 @@ class Value(Observer):
         Set it to ``True`` or ``False`` for a specific behavior
 
     """
+
     _stclock = True
 
-    params = (
-        ('fund', None),
-    )
+    params = (("fund", None),)
 
-    lines = ('value',)
+    lines = ("value",)
 
     plotinfo = dict(plot=True, subplot=True)
 
@@ -77,6 +79,7 @@ class Value(Observer):
         else:
             self.lines[0][0] = self._owner.broker.fundvalue
 
+
 # 同时获取cash和value
 class Broker(Observer):
     """This observer keeps track of the current cash amount and portfolio value in
@@ -84,14 +87,13 @@ class Broker(Observer):
 
     Params: None
     """
+
     _stclock = True
 
-    params = (
-        ('fund', None),
-    )
+    params = (("fund", None),)
 
-    alias = ('CashValue',)
-    lines = ('cash', 'value')
+    alias = ("CashValue",)
+    lines = ("cash", "value")
 
     plotinfo = dict(plot=True, subplot=True)
 
@@ -106,7 +108,7 @@ class Broker(Observer):
 
         if self._fundmode:
             self.plotlines.cash._plotskip = True
-            self.plotlines.value._name = 'FundValue'
+            self.plotlines.value._name = "FundValue"
 
     def next(self):
         if not self._fundmode:
@@ -115,21 +117,24 @@ class Broker(Observer):
         else:
             self.lines.value[0] = self._owner.broker.fundvalue
 
+
 # fundvalue
 class FundValue(Observer):
     """This observer keeps track of the current fund-like value
 
     Params: None
     """
+
     _stclock = True
 
-    alias = ('FundShareValue', 'FundVal')
-    lines = ('fundval',)
+    alias = ("FundShareValue", "FundVal")
+    lines = ("fundval",)
 
     plotinfo = dict(plot=True, subplot=True)
 
     def next(self):
         self.lines.fundval[0] = self._owner.broker.fundvalue
+
 
 # 基金份额
 class FundShares(Observer):
@@ -137,9 +142,10 @@ class FundShares(Observer):
 
     Params: None
     """
+
     _stclock = True
 
-    lines = ('fundshares',)
+    lines = ("fundshares",)
 
     plotinfo = dict(plot=True, subplot=True)
 

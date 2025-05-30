@@ -23,6 +23,7 @@ from datetime import date, datetime, time
 from .. import feed
 from ..utils import date2num
 
+
 # 解析一个自定义的csv data，主要用于测试使用。
 class BacktraderCSVData(feed.CSVDataBase):
     """
@@ -32,6 +33,7 @@ class BacktraderCSVData(feed.CSVDataBase):
 
       - ``dataname``: The filename to parse or a file-like object
     """
+
     # 对每行数据进行处理
     def _loadline(self, linetokens):
         # 把每行数据进行迭代

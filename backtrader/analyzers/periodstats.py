@@ -23,7 +23,7 @@ from backtrader.utils.py3 import itervalues
 from backtrader.mathsupport import average, standarddev
 from . import TimeReturn
 
-__all__ = ['PeriodStats']
+__all__ = ["PeriodStats"]
 
 
 # 阶段统计
@@ -73,16 +73,17 @@ class PeriodStats(bt.Analyzer):
 
     # 参数
     params = (
-        ('timeframe', bt.TimeFrame.Years),
-        ('compression', 1),
-        ('zeroispos', False),
-        ('fund', None),
+        ("timeframe", bt.TimeFrame.Years),
+        ("compression", 1),
+        ("zeroispos", False),
+        ("fund", None),
     )
 
     # 初始化，调用TimeReturn
     def __init__(self):
-        self._tr = TimeReturn(timeframe=self.p.timeframe,
-                              compression=self.p.compression, fund=self.p.fund)
+        self._tr = TimeReturn(
+            timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
+        )
 
     # 停止
     def stop(self):
@@ -103,16 +104,16 @@ class PeriodStats(bt.Analyzer):
                 else:
                     nul += tret == 0.0
         # 平均收益率
-        self.rets['average'] = avg = average(trets)
+        self.rets["average"] = avg = average(trets)
         # 收益率标准差
-        self.rets['stddev'] = standarddev(trets, avg)
+        self.rets["stddev"] = standarddev(trets, avg)
         # 正的年数
-        self.rets['positive'] = pos
+        self.rets["positive"] = pos
         # 负的年数
-        self.rets['negative'] = neg
+        self.rets["negative"] = neg
         # 没有变化的年数
-        self.rets['nochange'] = nul
+        self.rets["nochange"] = nul
         # 最好的年份的收益率
-        self.rets['best'] = max(trets)
+        self.rets["best"] = max(trets)
         # 最差的年份的收益率
-        self.rets['worst'] = min(trets)
+        self.rets["worst"] = min(trets)

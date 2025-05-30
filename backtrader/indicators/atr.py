@@ -20,6 +20,7 @@
 ###############################################################################
 from . import Indicator, Max, Min, MovAv
 
+
 # 这个文件是几个计算TR、ATR指标的类
 class TrueHigh(Indicator):
     """
@@ -35,7 +36,8 @@ class TrueHigh(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
     """
-    lines = ('truehigh',)
+
+    lines = ("truehigh",)
 
     def __init__(self):
         self.lines.truehigh = Max(self.data.high, self.data.close(-1))
@@ -56,7 +58,8 @@ class TrueLow(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
     """
-    lines = ('truelow',)
+
+    lines = ("truelow",)
 
     def __init__(self):
         self.lines.truelow = Min(self.data.low, self.data.close(-1))
@@ -81,9 +84,10 @@ class TrueRange(Indicator):
     The idea is to take the previous close into account to calculate the range
     if it yields a larger range than the daily range (High - Low)
     """
-    alias = ('TR',)
 
-    lines = ('tr',)
+    alias = ("TR",)
+
+    lines = ("tr",)
 
     def __init__(self):
         self.lines.tr = TrueHigh(self.data) - TrueLow(self.data)
@@ -104,14 +108,15 @@ class AverageTrueRange(Indicator):
     See:
       - http://en.wikipedia.org/wiki/Average_true_range
     """
-    alias = ('ATR',)
 
-    lines = ('atr',)
-    params = (('period', 14), ('movav', MovAv.Smoothed))
+    alias = ("ATR",)
+
+    lines = ("atr",)
+    params = (("period", 14), ("movav", MovAv.Smoothed))
 
     def _plotlabel(self):
         plabels = [self.p.period]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def __init__(self):

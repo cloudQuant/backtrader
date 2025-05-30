@@ -26,36 +26,24 @@ class CommInfo(CommInfoBase):
 
 
 class CommInfoFutures(CommInfoBase):
-    params = (
-        ('stocklike', False),
-    )
+    params = (("stocklike", False),)
 
 
 class CommInfoFuturesPerc(CommInfoFutures):
-    params = (
-        ('commtype', CommInfoBase.COMM_PERC),
-    )
+    params = (("commtype", CommInfoBase.COMM_PERC),)
 
 
 class CommInfoFuturesFixed(CommInfoFutures):
-    params = (
-        ('commtype', CommInfoBase.COMM_FIXED),
-    )
+    params = (("commtype", CommInfoBase.COMM_FIXED),)
 
 
 class CommInfoStocks(CommInfoBase):
-    params = (
-        ('stocklike', True),
-    )
+    params = (("stocklike", True),)
 
 
 class CommInfoStocksPerc(CommInfoStocks):
-    params = (
-        ('commtype', CommInfoBase.COMM_PERC),
-    )
+    params = (("commtype", CommInfoBase.COMM_PERC),)
 
 
 class CommInfoStocksFixed(CommInfoStocks):
-    params = (
-        ('commtype', CommInfoBase.COMM_FIXED),
-    )
+    params = (("commtype", CommInfoBase.COMM_FIXED),)

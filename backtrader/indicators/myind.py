@@ -4,10 +4,11 @@ import math
 
 # 这个文件中保存一些自定义的指标算法
 
+
 class MaBetweenHighAndLow(bt.Indicator):
     # 判断均线是否在最高价和最低价之间
-    lines = ('target',)
-    params = (('period', 5),)
+    lines = ("target",)
+    params = (("period", 5),)
 
     def __init__(self):
         self.ma = bt.indicators.SMA(self.data.close, period=self.p.period)
@@ -20,11 +21,8 @@ class MaBetweenHighAndLow(bt.Indicator):
 
 class BarsLast(bt.Indicator):
     # 这个指标用于分析最近一次满足条件之后到现在的bar的个数
-    lines = ('bar_num',)
-    params = (
-        ('period', 5),
-        ("func", MaBetweenHighAndLow)
-    )
+    lines = ("bar_num",)
+    params = (("period", 5), ("func", MaBetweenHighAndLow))
 
     def __init__(self):
         self.target = self.p.func(self.data, period=self.p.period)
@@ -36,6 +34,7 @@ class BarsLast(bt.Indicator):
         self.lines.bar_num[0] = self.num
         self.num = self.num + 1
 
+
 class NewDiff(bt.Indicator):
     # 根据国泰君安alpha因子编写的指标
     # ：SUM((CLOSE=DELAY(CLOSE,1)?0:CLOSE-(CLOSE>DELAY(CLOSE,1)?MIN(LOW,DELAY(CLOSE,1)):MAX(HIGH,DELAY(CLOSE,1)))),6)
@@ -45,10 +44,8 @@ class NewDiff(bt.Indicator):
     # - b = h?e: f
     # - a = CLOSE = DELAY(CLOSE, 1)?0: CLOSE - b
     # - c = SUM(a, 6)
-    lines = ('factor',)
-    params = (
-        ('period', 5),
-    )
+    lines = ("factor",)
+    params = (("period", 5),)
 
     def __init__(self):
         close = self.data.close
@@ -57,7 +54,6 @@ class NewDiff(bt.Indicator):
         f = bt.Max(self.data.high, pre_close)
         b = bt.If(close > pre_close, e, f)
         self.a = bt.If(close == pre_close, 0, close - b)
-
 
     def next(self):
         if len(self.a) >= self.p.period:

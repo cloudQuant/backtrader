@@ -86,10 +86,11 @@ class Returns(TimeFrameAnalyzerBase):
           - ``rnorm100``: Annualized/Normalized return expressed in 100%
 
     """
+
     # 参数
     params = (
-        ('tann', None),
-        ('fund', None),
+        ("tann", None),
+        ("fund", None),
     )
     # 计算年化的时候的天数等
     _TANN = {
@@ -135,18 +136,18 @@ class Returns(TimeFrameAnalyzerBase):
         try:
             nlrtot = self._value_end / self._value_start
         except ZeroDivisionError:
-            rtot = float('-inf')
+            rtot = float("-inf")
         else:
             if nlrtot < 0.0:
-                rtot = float('-inf')
+                rtot = float("-inf")
             else:
                 rtot = math.log(nlrtot)
 
-        self.rets['rtot'] = rtot
+        self.rets["rtot"] = rtot
 
         # Average return
         # 计算的是平均的收益率,先计算的对数收益率，然后计算的平均的对数收益率
-        self.rets['ravg'] = ravg = rtot / self._tcount
+        self.rets["ravg"] = ravg = rtot / self._tcount
 
         # Annualized normalized return
         # 计算的是年化的收益率
@@ -154,12 +155,12 @@ class Returns(TimeFrameAnalyzerBase):
         if tann is None:
             tann = self._TANN.get(self.data._timeframe, 1.0)  # assign default
 
-        if ravg > float('-inf'):
-            self.rets['rnorm'] = rnorm = math.expm1(ravg * tann)
+        if ravg > float("-inf"):
+            self.rets["rnorm"] = rnorm = math.expm1(ravg * tann)
         else:
-            self.rets['rnorm'] = rnorm = ravg
+            self.rets["rnorm"] = rnorm = ravg
         # 百分比形式的年化收益率
-        self.rets['rnorm100'] = rnorm * 100.0  # human-readable %
+        self.rets["rnorm100"] = rnorm * 100.0  # human-readable %
 
     def _on_dt_over(self):
         self._tcount += 1  # count the subperiod

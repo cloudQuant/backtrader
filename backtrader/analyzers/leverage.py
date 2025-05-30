@@ -44,10 +44,9 @@ class GrossLeverage(bt.Analyzer):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     """
+
     # 参数
-    params = (
-        ('fund', None),
-    )
+    params = (("fund", None),)
 
     # 开始
     def __init__(self):

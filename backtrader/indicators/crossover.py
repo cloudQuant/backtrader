@@ -31,9 +31,10 @@ class NonZeroDifference(Indicator):
       - diff = data - data1
       - nzd = diff if diff else diff(-1)
     """
+
     _mindatas = 2  # requires two (2) data sources
-    alias = ('NZD',)
-    lines = ('nzd',)
+    alias = ("NZD",)
+    lines = ("nzd",)
 
     def nextstart(self):
         self.l.nzd[0] = self.data0[0] - self.data1[0]  # seed value
@@ -43,8 +44,7 @@ class NonZeroDifference(Indicator):
         self.l.nzd[0] = d if d else self.l.nzd[-1]
 
     def oncestart(self, start, end):
-        self.line.array[start] = (
-            self.data0.array[start] - self.data1.array[start])
+        self.line.array[start] = self.data0.array[start] - self.data1.array[start]
 
     def once(self, start, end):
         d0array = self.data0.array
@@ -56,11 +56,12 @@ class NonZeroDifference(Indicator):
             d = d0array[i] - d1array[i]
             larray[i] = prev = d if d else prev
 
+
 # 交叉基础类
 class _CrossBase(Indicator):
     _mindatas = 2
 
-    lines = ('cross',)
+    lines = ("cross",)
 
     plotinfo = dict(plotymargin=0.05, plotyhlines=[0.0, 1.0])
 
@@ -76,6 +77,7 @@ class _CrossBase(Indicator):
 
         self.lines.cross = And(before, after)
 
+
 # 分析是否金叉
 class CrossUp(_CrossBase):
     """
@@ -89,7 +91,9 @@ class CrossUp(_CrossBase):
       - diff = data - data1
       - upcross =  last_non_zero_diff < 0 and data0(0) > data1(0)
     """
+
     _crossup = True
+
 
 # 分析是否死叉
 class CrossDown(_CrossBase):
@@ -104,7 +108,9 @@ class CrossDown(_CrossBase):
       - diff = data - data1
       - downcross = last_non_zero_diff > 0 and data0(0) < data1(0)
     """
+
     _crossup = False
+
 
 # 分析是否交叉
 class CrossOver(Indicator):
@@ -123,9 +129,10 @@ class CrossOver(Indicator):
       - downcross = last_non_zero_diff > 0 and data0(0) < data1(0)
       - crossover = upcross - downcross
     """
+
     _mindatas = 2
 
-    lines = ('crossover',)
+    lines = ("crossover",)
 
     plotinfo = dict(plotymargin=0.05, plotyhlines=[-1.0, 1.0])
 

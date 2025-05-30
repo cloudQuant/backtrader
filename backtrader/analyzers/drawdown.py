@@ -21,7 +21,7 @@
 import backtrader as bt
 from backtrader.utils import AutoOrderedDict
 
-__all__ = ['DrawDown', 'TimeDrawDown']
+__all__ = ["DrawDown", "TimeDrawDown"]
 
 
 # 分析回撤的情况
@@ -57,9 +57,7 @@ class DrawDown(bt.Analyzer):
         - ``max.len`` - max drawdown length
     """
 
-    params = (
-        ('fund', None),
-    )
+    params = (("fund", None),)
 
     # 开始，获取fundmode
     def start(self):
@@ -83,7 +81,7 @@ class DrawDown(bt.Analyzer):
         self.rets.max.drawdown = 0.0
         self.rets.max.moneydown = 0.0
 
-        self._maxvalue = float('-inf')  # any value will outdo it
+        self._maxvalue = float("-inf")  # any value will outdo it
 
     # 停止
     def stop(self):
@@ -161,9 +159,7 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
         - ``maxddlen``
     """
 
-    params = (
-        ('fund', None),
-    )
+    params = (("fund", None),)
 
     def __init__(self):
         self.ddlen = None
@@ -184,7 +180,7 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
         self.dd = 0.0
         self.maxdd = 0.0
         self.maxddlen = 0
-        self.peak = float('-inf')
+        self.peak = float("-inf")
         self.ddlen = 0
 
     # 统计最大回撤以及最大回撤的长度
@@ -209,5 +205,5 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
 
     # 停止的时候，把最大回撤和最大回撤长度添加到字典中
     def stop(self):
-        self.rets['maxdrawdown'] = self.maxdd
-        self.rets['maxdrawdownperiod'] = self.maxddlen
+        self.rets["maxdrawdown"] = self.maxdd
+        self.rets["maxdrawdownperiod"] = self.maxddlen

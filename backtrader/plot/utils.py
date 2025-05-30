@@ -39,21 +39,29 @@ def tag_box_style(x0, y0, width, height, mutation_size, mutation_aspect=1):
     pad = mutation_size * mypad
 
     # width and height with padding added.
-    width, height = width + 2.*pad, height + 2.*pad,
+    width, height = (
+        width + 2.0 * pad,
+        height + 2.0 * pad,
+    )
 
     # boundary of the padded box
-    x0, y0 = x0-pad, y0-pad,
-    x1, y1 = x0+width, y0 + height
+    x0, y0 = (
+        x0 - pad,
+        y0 - pad,
+    )
+    x1, y1 = x0 + width, y0 + height
 
-    cp = [(x0, y0),
-          (x1, y0), (x1, y1), (x0, y1),
-          (x0-pad, (y0+y1)/2.), (x0, y0),
-          (x0, y0)]
+    cp = [(x0, y0), (x1, y0), (x1, y1), (x0, y1), (x0 - pad, (y0 + y1) / 2.0), (x0, y0), (x0, y0)]
 
-    com = [mplpath.Path.MOVETO,
-           mplpath.Path.LINETO, mplpath.Path.LINETO, mplpath.Path.LINETO,
-           mplpath.Path.LINETO, mplpath.Path.LINETO,
-           mplpath.Path.CLOSEPOLY]
+    com = [
+        mplpath.Path.MOVETO,
+        mplpath.Path.LINETO,
+        mplpath.Path.LINETO,
+        mplpath.Path.LINETO,
+        mplpath.Path.LINETO,
+        mplpath.Path.LINETO,
+        mplpath.Path.CLOSEPOLY,
+    ]
 
     path = mplpath.Path(cp, com)
 
@@ -80,7 +88,7 @@ def shade_color(color, percent):
 
     h, l, s = rgb2hls(*rgb)
 
-    l *= 1 + float(percent)/100
+    l *= 1 + float(percent) / 100
 
     l = min(1, l)
     l = max(0, l)

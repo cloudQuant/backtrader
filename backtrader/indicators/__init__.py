@@ -25,6 +25,7 @@ from backtrader.functions import *
 # of prepend an "_" (underscore) to private classes/variables
 
 from .basicops import *
+
 # base for moving averages
 from .mabase import *
 

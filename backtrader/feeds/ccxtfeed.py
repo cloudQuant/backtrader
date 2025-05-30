@@ -63,12 +63,12 @@ class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
     """
 
     params = (
-        ('historical', False),  # only historical download
-        ('backfill_start', False),  # do backfill at the start
-        ('fetch_ohlcv_params', {}),
-        ('ohlcv_limit', 20),
-        ('drop_newest', False),
-        ('debug', False)
+        ("historical", False),  # only historical download
+        ("backfill_start", False),  # do backfill at the start
+        ("fetch_ohlcv_params", {}),
+        ("ohlcv_limit", 20),
+        ("drop_newest", False),
+        ("debug", False),
     )
 
     _store = CCXTStore
@@ -82,7 +82,7 @@ class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
         self._state = None
         self.store = self._store(**kwargs)
         self._data = queue.Queue()  # data queue for price data
-        self._last_id = ''  # last processed trade id for ohlcv
+        self._last_id = ""  # last processed trade id for ohlcv
         self._last_ts = self.utc_to_ts(datetime.utcnow())  # last processed timestamp for ohlcv
         self._last_update_bar_time = 0
 
@@ -91,7 +91,9 @@ class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
         epoch = datetime(1970, 1, 1)
         return int((fromdate - epoch).total_seconds() * 1000)
 
-    def start(self, ):
+    def start(
+        self,
+    ):
         DataBase.start(self)
         if self.p.fromdate:
             self._state = self._ST_HISTORBACK
@@ -102,10 +104,10 @@ class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
             self.put_notification(self.LIVE)
 
     def _load(self):
-        """ 
+        """
         return True  代表从数据源获取数据成功
         return False 代表因为某种原因(比如历史数据源全部数据已经输出完毕)数据源关闭
-        return None  代表暂时无法从数据源获取最新数据,但是以后会有(比如实时数据源中最新的bar还未生成) 
+        return None  代表暂时无法从数据源获取最新数据,但是以后会有(比如实时数据源中最新的bar还未生成)
         """
         if self._state == self._ST_OVER:
             return False
@@ -131,7 +133,7 @@ class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
                 # 我本地时间和交易所时间差70ms左右，所以，这里面我需要增加2s的延时，以方便接收到最新的bar
                 # 大家需要根据自己的实际情况进行修改
                 nts = time.time()
-                if nts - self._last_update_bar_time/1000 >= time_diff+2:
+                if nts - self._last_update_bar_time / 1000 >= time_diff + 2:
                     # nts = get_last_timeframe_timestamp(int(nts), time_diff)
                     # # print(f"上个bar结束时间为:{datetime.fromtimestamp(nts)}")
                     # self._last_update_bar_time = nts
@@ -161,15 +163,23 @@ class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
         if fromdate:
             self._last_ts = self.utc_to_ts(fromdate)
         # 每次获取bar数目的最高限制
-        limit = max(3, self.p.ohlcv_limit)  # 最少不能少于三个,原因:每次头bar时间重复要忽略,尾bar未完整要去掉,只保留中间的,所以最少三个
+        limit = max(
+            3, self.p.ohlcv_limit
+        )  # 最少不能少于三个,原因:每次头bar时间重复要忽略,尾bar未完整要去掉,只保留中间的,所以最少三个
         #
         while True:
             # 先获取数据长度
             dlen = self._data.qsize()
             #
             bars = sorted(
-                self.store.fetch_ohlcv(self.p.dataname, timeframe=granularity, since=self._last_ts, limit=limit,
-                                       params=self.p.fetch_ohlcv_params))
+                self.store.fetch_ohlcv(
+                    self.p.dataname,
+                    timeframe=granularity,
+                    since=self._last_ts,
+                    limit=limit,
+                    params=self.p.fetch_ohlcv_params,
+                )
+            )
             # print([datetime.fromtimestamp(i[0]/1000) for i in bars])
             # Check to see if dropping the latest candle will help with
             # exchanges which return partial data

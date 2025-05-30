@@ -62,22 +62,22 @@ class MetaAnalyzer(bt.MetaParams):
                 linealias = data._getlinealias(l)
                 # 如果line的名字不是None的话，设置属性
                 if linealias:
-                    setattr(_obj, 'data_%s' % linealias, line)
+                    setattr(_obj, "data_%s" % linealias, line)
                 # 根据index设置line的名称
-                setattr(_obj, 'data_%d' % l, line)
+                setattr(_obj, "data_%d" % l, line)
             # 循环数据，给数据设置不同的名称，可以通过data_d访问
             for d, data in enumerate(_obj.datas):
                 # print("d",d)
                 # print("data",data)
                 # print("data.lines",data.lines)
                 # print("data._getlinealias(l)",data._getlinealias(l))
-                setattr(_obj, 'data%d' % d, data)
+                setattr(_obj, "data%d" % d, data)
                 # 对不同的数据设置具体的属性名，可以通过属性名访问line
                 for l, line in enumerate(data.lines):
                     linealias = data._getlinealias(l)
                     if linealias:
-                        setattr(_obj, 'data%d_%s' % (d, linealias), line)
-                    setattr(_obj, 'data%d_%d' % (d, l), line)
+                        setattr(_obj, "data%d_%s" % (d, linealias), line)
+                    setattr(_obj, "data%d_%d" % (d, l), line)
         # 调用create_analysis方法
         _obj.create_analysis()
 
@@ -86,14 +86,14 @@ class MetaAnalyzer(bt.MetaParams):
 
     # dopostint，如果analyzer._perent不是None的话，把_obj注册给analyzer._perent
     def dopostinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = \
-            super(MetaAnalyzer, cls).dopostinit(_obj, *args, **kwargs)
+        _obj, args, kwargs = super(MetaAnalyzer, cls).dopostinit(_obj, *args, **kwargs)
 
         if _obj._parent is not None:
             _obj._parent._register(_obj)
 
         # Return to the normal chain
         return _obj, args, kwargs
+
 
 # Analyzer类
 class Analyzer(metaclass=MetaAnalyzer):
@@ -154,8 +154,10 @@ class Analyzer(metaclass=MetaAnalyzer):
     # 以返回一个字典形式的对象以保存分析的结果
 
     """
+
     # 保存结果到csv中
     csv = True
+
     # 获取analyzer的长度的时候，其实是计算的策略的长度
     def __len__(self):
         """Support for invoking ``len`` on analyzers by actually returning the
@@ -165,6 +167,7 @@ class Analyzer(metaclass=MetaAnalyzer):
     # 添加一个child到self._children
     def _register(self, child):
         self._children.append(child)
+
     # 调用_prenext,对于每个child，调用_prenext
     def _prenext(self):
         for child in self._children:
@@ -178,6 +181,7 @@ class Analyzer(metaclass=MetaAnalyzer):
             child._notify_cashvalue(cash, value)
 
         self.notify_cashvalue(cash, value)
+
     # 通知cash,value,fundvalue,shares
     def _notify_fund(self, cash, value, fundvalue, shares):
         for child in self._children:
@@ -324,6 +328,7 @@ class Analyzer(metaclass=MetaAnalyzer):
         writer.writedict(pdct)
         # writer结束
         writer.stop()
+
     # 使用pprint打印相关的信息
     def pprint(self, *args, **kwargs):
         """Prints the results returned by ``get_analysis`` using the pretty
@@ -337,19 +342,19 @@ class MetaTimeFrameAnalyzerBase(Analyzer.__class__):
     # 如果存在_on_dt_over，改成on_dt_over
     def __new__(meta, name, bases, dct):
         # Hack to support original method name
-        if '_on_dt_over' in dct:
-            dct['on_dt_over'] = dct.pop('_on_dt_over')  # rename method
+        if "_on_dt_over" in dct:
+            dct["on_dt_over"] = dct.pop("_on_dt_over")  # rename method
 
-        return super(MetaTimeFrameAnalyzerBase, meta).__new__(meta, name,
-                                                              bases, dct)
+        return super(MetaTimeFrameAnalyzerBase, meta).__new__(meta, name, bases, dct)
+
 
 # 周期分析基类
 class TimeFrameAnalyzerBase(Analyzer, metaclass=MetaTimeFrameAnalyzerBase):
     # 参数
     params = (
-        ('timeframe', None),
-        ('compression', None),
-        ('_doprenext', True),
+        ("timeframe", None),
+        ("compression", None),
+        ("_doprenext", True),
     )
 
     # 开始
@@ -509,7 +514,8 @@ class TimeFrameAnalyzerBase(Analyzer, metaclass=MetaTimeFrameAnalyzerBase):
         tadjust = datetime.timedelta(
             minutes=self.timeframe == TimeFrame.Minutes,
             seconds=self.timeframe == TimeFrame.Seconds,
-            microseconds=self.timeframe == TimeFrame.MicroSeconds)
+            microseconds=self.timeframe == TimeFrame.MicroSeconds,
+        )
 
         # Add extra day if present
         # 如果下一天是True的话，把时间调整到下一天

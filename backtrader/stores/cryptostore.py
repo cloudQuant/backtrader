@@ -13,8 +13,8 @@ from bt_api_py.functions.log_message import SpdLogManager
 
 # class CryptoStore(with_metaclass(MetaSingleton, object)):
 class CryptoStore(object):
-    """bt_api_py and backtrader store
-    """
+    """bt_api_py and backtrader store"""
+
     BrokerCls = None  # broker class will auto register
     DataCls = None  # data class will auto register
 
@@ -54,9 +54,9 @@ class CryptoStore(object):
             print_info = True
         else:
             print_info = False
-        logger = SpdLogManager(file_name='cryptofeed.log',
-                               logger_name="feed",
-                               print_info=print_info).create_logger()
+        logger = SpdLogManager(
+            file_name="cryptofeed.log", logger_name="feed", print_info=print_info
+        ).create_logger()
         return logger
 
     def log(self, txt, level="info"):
@@ -123,7 +123,7 @@ class CryptoStore(object):
                 # self.log(f"deal data feed, run {exchange_name}, total_keys = {self.data_queues.keys()}")
                 self._load_cache_data(data_queue)
 
-    def _load_cache_data(self,data_queue):
+    def _load_cache_data(self, data_queue):
         while True:
             try:
                 data = data_queue.get(block=False)  # 不阻塞
@@ -133,7 +133,7 @@ class CryptoStore(object):
             # if data.get_bar_status():
             #     self.log(f"{self.data_queues.keys()}")
             #     self.log(f"cryptostore push test info: {data.get_all_data()}")
-                # self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
+            # self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
             if not isinstance(data, BarData):
                 print(data)
             if isinstance(data, BarData):
@@ -212,7 +212,9 @@ class CryptoStore(object):
                 data.init_data()
                 self.log(f"un considered info:{data.get_all_data()}")
 
-    def download_history_bars(self, dataname, granularity, count=100, start_time=None, end_time=None):
+    def download_history_bars(
+        self, dataname, granularity, count=100, start_time=None, end_time=None
+    ):
         self.log(f"store {self.feed_api.exchange_feeds.keys()}")
         bar_data_list = []
         exchange, asset_type, symbol = dataname.split("___")
@@ -290,15 +292,33 @@ class CryptoStore(object):
 
                     # 下载数据
                     data = feed.get_kline(
-                        symbol, granularity, count=count, start_time=begin_stamp, end_time=end_stamp, extra_data=None
+                        symbol,
+                        granularity,
+                        count=count,
+                        start_time=begin_stamp,
+                        end_time=end_stamp,
+                        extra_data=None,
                     )
                     bar_data = data.get_data()
-                    print("symbol = ", symbol, "period = ", granularity, "count = ", count, start_time, end_time)
+                    print(
+                        "symbol = ",
+                        symbol,
+                        "period = ",
+                        granularity,
+                        "count = ",
+                        count,
+                        start_time,
+                        end_time,
+                    )
                     print("bar_data", type(bar_data), bar_data)
                     bar_data_list.extend(bar_data)
-                    self.log(f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
-                             f"begin: {begin_time}, end: {current_end_time}")
-                    new_data = feed.get_kline("BTC-USDT", "15m", 2, start_time=begin_stamp, end_time=end_stamp)
+                    self.log(
+                        f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
+                        f"begin: {begin_time}, end: {current_end_time}"
+                    )
+                    new_data = feed.get_kline(
+                        "BTC-USDT", "15m", 2, start_time=begin_stamp, end_time=end_stamp
+                    )
                     new_bar_list = new_data.get_data()
                     print("new_bar_data", type(new_bar_list), new_bar_list)
                     assert 0
@@ -314,9 +334,10 @@ class CryptoStore(object):
                     self.log(f"download fail, retry: {error_info}")
                     time.sleep(3)  # 暂停 3 秒后重试
 
-            self.log(f"download all data completely:{exchange_name}, {symbol}, period: {granularity}")
+            self.log(
+                f"download all data completely:{exchange_name}, {symbol}, period: {granularity}"
+            )
         return bar_data_list
-
 
     def getcash(self, cache=True):
         if cache is True:
@@ -325,7 +346,7 @@ class CryptoStore(object):
             self.feed_api.update_total_balance()
             return self.feed_api.get_total_cash()
 
-    def getvalue(self,cache=True):
+    def getvalue(self, cache=True):
         if cache is True:
             return self.feed_api.get_total_value()
         else:
@@ -336,13 +357,33 @@ class CryptoStore(object):
     def get_open_orders(self, data=None):
         pass
 
-    def make_order(self, data, vol, price=None, order_type='buy-limit',
-                   offset='open', post_only=False, client_order_id=None, extra_data=None, **kwargs):
+    def make_order(
+        self,
+        data,
+        vol,
+        price=None,
+        order_type="buy-limit",
+        offset="open",
+        post_only=False,
+        client_order_id=None,
+        extra_data=None,
+        **kwargs,
+    ):
         exchange_name = data.get_exchange_name()
         exchange_api = self.exchange_feeds[exchange_name]
         symbol_name = data.get_symbol_name()
         print(f"offset = {offset}")
-        return exchange_api.make_order(symbol_name, vol, price, order_type, offset=offset, post_only=post_only,client_order_id=client_order_id, extra_data=extra_data, **kwargs)
+        return exchange_api.make_order(
+            symbol_name,
+            vol,
+            price,
+            order_type,
+            offset=offset,
+            post_only=post_only,
+            client_order_id=client_order_id,
+            extra_data=extra_data,
+            **kwargs,
+        )
 
     def cancel_order(self, order):
         print("begin to cancel order")

@@ -33,4 +33,4 @@ class SierraChartCSVData(GenericCSVData):
       - Uses GenericCSVData and simply modifies the dateformat (dtformat) to
     """
 
-    params = (('dtformat', '%Y/%m/%d'),)
+    params = (("dtformat", "%Y/%m/%d"),)

@@ -22,6 +22,7 @@ from backtrader.utils.py3 import filter, string_types, integer_types
 from backtrader import date2num
 import backtrader.feed as feed
 
+
 # backtrader通过pandas加载数据
 class PandasDirectData(feed.DataBase):
     """
@@ -39,20 +40,20 @@ class PandasDirectData(feed.DataBase):
         indicates it's not present in the DataFrame
         it is
     """
+
     # 参数
     params = (
-        ('datetime', 0),
-        ('open', 1),
-        ('high', 2),
-        ('low', 3),
-        ('close', 4),
-        ('volume', 5),
-        ('openinterest', 6),
+        ("datetime", 0),
+        ("open", 1),
+        ("high", 2),
+        ("low", 3),
+        ("close", 4),
+        ("volume", 5),
+        ("openinterest", 6),
     )
     # 列名
-    datafields = [
-        'datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest'
-    ]
+    datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
+
     # 开始，把dataframe数据转化成可以迭代的元组，每一行一个元组
     def __init__(self):
         self._rows = None
@@ -73,7 +74,7 @@ class PandasDirectData(feed.DataBase):
         # Set the standard datafields - except for datetime
         # 对于除了datetime之外的列，把数据根据列名添加到line中
         for datafield in self.getlinealiases():
-            if datafield == 'datetime':
+            if datafield == "datetime":
                 continue
 
             # get the column index
@@ -91,7 +92,7 @@ class PandasDirectData(feed.DataBase):
 
         # datetime
         # 对于datetime，获取datetime所在列的index,然后获取时间
-        colidx = getattr(self.params, 'datetime')
+        colidx = getattr(self.params, "datetime")
         tstamp = row[colidx]
 
         # convert to float via datetime and store it
@@ -101,7 +102,7 @@ class PandasDirectData(feed.DataBase):
 
         # get the line to be set
         # 获取datetime的line，然后保存这个数字
-        line = getattr(self.lines, 'datetime')
+        line = getattr(self.lines, "datetime")
         line[0] = dtnum
 
         # Done ... return
@@ -136,33 +137,30 @@ class PandasData(feed.DataBase):
         - -1: autodetect
         - >= 0 or string: specific colum identifier
     """
+
     # 参数及其含义
     params = (
-        ('nocase', True),
-
+        ("nocase", True),
         # Possible values for datetime (must always be present)
         #  None: datetime is the "index" in the Pandas Dataframe
         #  -1: autodetect position or case-wise equal name
         #  >= 0: numeric index to the colum in the pandas dataframe
         #  string: column name (as index) in the pandas dataframe
-        ('datetime', None),
-
+        ("datetime", None),
         # The possible values below:
         #  None : column not present
         #  -1: autodetect position or case-wise equal name
         #  >= 0: numeric index to the colum in the pandas dataframe
         #  string: column name (as index) in the pandas dataframe
-        ('open', -1),
-        ('high', -1),
-        ('low', -1),
-        ('close', -1),
-        ('volume', -1),
-        ('openinterest', -1),
+        ("open", -1),
+        ("high", -1),
+        ("low", -1),
+        ("close", -1),
+        ("volume", -1),
+        ("openinterest", -1),
     )
     # 数据的列名
-    datafields = [
-        'datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest'
-    ]
+    datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
     # 类初始化
     def __init__(self):
@@ -212,11 +210,12 @@ class PandasData(feed.DataBase):
                     # autodetection requested and not found
                     self._colmapping[datafield] = None
                     continue
-                
+
             # 如果datafield用户自己进行了定义，那么就直接使用用户定义的
             else:
                 # all other cases -- used given index
                 self._colmapping[datafield] = defmapping
+
     # 开始处理数据
     def start(self):
         super(PandasData, self).start()
@@ -237,7 +236,7 @@ class PandasData(feed.DataBase):
             if v is None:
                 continue  # special marker for datetime
             # 如果列名是字符串的话，如果大小写不敏感，就先转化成小写，如果不敏感，忽略，然后根据列名得到列所在的index
-            
+
             if isinstance(v, string_types):
                 # 这下面的一些代码似乎有些无效，感觉可以忽略，直接使用self._colmapping[k] = colnames.index(v)替代就好了
                 try:
@@ -266,7 +265,7 @@ class PandasData(feed.DataBase):
         # 循环datafield
         for datafield in self.getlinealiases():
             # 如果是时间，继续上面的循环
-            if datafield == 'datetime':
+            if datafield == "datetime":
                 continue
 
             colindex = self._colmapping[datafield]
@@ -283,7 +282,7 @@ class PandasData(feed.DataBase):
             line[0] = self.p.dataname.iloc[self._idx, colindex]
 
         # datetime conversion
-        coldtime = self._colmapping['datetime']
+        coldtime = self._colmapping["datetime"]
         # 如果datetime所在的列是None的话，直接通过index获取时间，如果不是None的话，通过iloc获取时间数据
         if coldtime is None:
             # standard index in the datetime

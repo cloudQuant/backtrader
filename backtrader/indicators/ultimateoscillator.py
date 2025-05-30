@@ -21,6 +21,7 @@
 import backtrader as bt
 from backtrader.indicators import SumN, TrueLow, TrueRange
 
+
 # 最终震荡指标
 class UltimateOscillator(bt.Indicator):
     """
@@ -42,14 +43,15 @@ class UltimateOscillator(bt.Indicator):
       - https://en.wikipedia.org/wiki/Ultimate_oscillator
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:ultimate_oscillator
     """
-    lines = ('uo',)
+
+    lines = ("uo",)
 
     params = (
-        ('p1', 7),
-        ('p2', 14),
-        ('p3', 28),
-        ('upperband', 70.0),
-        ('lowerband', 30.0),
+        ("p1", 7),
+        ("p2", 14),
+        ("p3", 28),
+        ("upperband", 70.0),
+        ("lowerband", 30.0),
     )
 
     def _plotinit(self):

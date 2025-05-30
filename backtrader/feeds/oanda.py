@@ -21,8 +21,11 @@
 from datetime import datetime, timedelta, UTC
 from backtrader.feed import DataBase
 from backtrader import TimeFrame, date2num, num2date
-from backtrader.utils.py3 import (integer_types, queue, string_types,
-                                  )
+from backtrader.utils.py3 import (
+    integer_types,
+    queue,
+    string_types,
+)
 from backtrader.metabase import MetaParams
 from backtrader.stores import oandastore
 
@@ -35,6 +38,7 @@ class MetaOandaData(DataBase.__class__):
 
         # Register with the store
         oandastore.OandaStore.DataCls = cls
+
 
 # 处理oanda数据，忽略这篇源代码s
 class OandaData(DataBase, metaclass=MetaOandaData):
@@ -133,18 +137,19 @@ class OandaData(DataBase, metaclass=MetaOandaData):
 
     Any other combination will be rejected
     """
+
     params = (
-        ('qcheck', 0.5),
-        ('historical', False),  # do backfill at the start
-        ('backfill_start', True),  # do backfill at the start
-        ('backfill', True),  # do backfill when reconnecting
-        ('backfill_from', None),  # additional data source to do backfill from
-        ('bidask', True),
-        ('useask', False),
-        ('includeFirst', True),
-        ('reconnect', True),
-        ('reconnections', -1),  # forever
-        ('reconntimeout', 5.0),
+        ("qcheck", 0.5),
+        ("historical", False),  # do backfill at the start
+        ("backfill_start", True),  # do backfill at the start
+        ("backfill", True),  # do backfill when reconnecting
+        ("backfill_from", None),  # additional data source to do backfill from
+        ("bidask", True),
+        ("useask", False),
+        ("includeFirst", True),
+        ("reconnect", True),
+        ("reconnections", -1),  # forever
+        ("reconntimeout", 5.0),
     )
 
     _store = oandastore.OandaStore
@@ -171,7 +176,7 @@ class OandaData(DataBase, metaclass=MetaOandaData):
         self._storedmsg = None
         self._statelivereconn = None
         self.o = self._store(**kwargs)
-        self._candleFormat = 'bidask' if self.p.bidask else 'midpoint'
+        self._candleFormat = "bidask" if self.p.bidask else "midpoint"
 
     def setenvironment(self, env):
         """Receives an environment (cerebro) and passes it over to the store it
@@ -220,18 +225,22 @@ class OandaData(DataBase, metaclass=MetaOandaData):
         if self.p.historical:
             self.put_notification(self.DELAYED)
             dtend = None
-            if self.todate < float('inf'):
+            if self.todate < float("inf"):
                 dtend = num2date(self.todate)
 
             dtbegin = None
-            if self.fromdate > float('-inf'):
+            if self.fromdate > float("-inf"):
                 dtbegin = num2date(self.fromdate)
 
             self.qhist = self.o.candles(
-                self.p.dataname, dtbegin, dtend,
-                self._timeframe, self._compression,
+                self.p.dataname,
+                dtbegin,
+                dtend,
+                self._timeframe,
+                self._compression,
                 candleFormat=self._candleFormat,
-                includeFirst=self.p.includeFirst)
+                includeFirst=self.p.includeFirst,
+            )
 
             self._state = self._ST_HISTORBACK
             return True
@@ -266,8 +275,7 @@ class OandaData(DataBase, metaclass=MetaOandaData):
         while True:
             if self._state == self._ST_LIVE:
                 try:
-                    msg = (self._storedmsg.pop(None, None) or
-                           self.qlive.get(timeout=self._qcheck))
+                    msg = self._storedmsg.pop(None, None) or self.qlive.get(timeout=self._qcheck)
                 except queue.Empty:
                     return None  # indicate timeout situation
 
@@ -284,9 +292,9 @@ class OandaData(DataBase, metaclass=MetaOandaData):
                     self._st_start(instart=False, tmout=self.p.reconntimeout)
                     continue
 
-                if 'code' in msg:
+                if "code" in msg:
                     self.put_notification(self.CONNBROKEN)
-                    code = msg['code']
+                    code = msg["code"]
                     if code not in [599, 598, 596]:
                         self.put_notification(self.DISCONNECTED)
                         self._state = self._ST_OVER
@@ -329,19 +337,23 @@ class OandaData(DataBase, metaclass=MetaOandaData):
                 if len(self) > 1:
                     # len == 1 ... forwarded for the 1st time
                     dtbegin = self.datetime.datetime(-1)
-                elif self.fromdate > float('-inf'):
+                elif self.fromdate > float("-inf"):
                     dtbegin = num2date(self.fromdate)
                 else:  # 1st bar and no beginning set
                     # passing None to fetch max possible in 1 request
                     dtbegin = None
 
-                dtend = datetime.fromtimestamp(int(msg['time']) / 10 ** 6, UTC)
+                dtend = datetime.fromtimestamp(int(msg["time"]) / 10**6, UTC)
 
                 self.qhist = self.o.candles(
-                    self.p.dataname, dtbegin, dtend,
-                    self._timeframe, self._compression,
+                    self.p.dataname,
+                    dtbegin,
+                    dtend,
+                    self._timeframe,
+                    self._compression,
                     candleFormat=self._candleFormat,
-                    includeFirst=self.p.includeFirst)
+                    includeFirst=self.p.includeFirst,
+                )
 
                 self._state = self._ST_HISTORBACK
                 self._statelivereconn = False  # no longer in live
@@ -355,7 +367,7 @@ class OandaData(DataBase, metaclass=MetaOandaData):
                     self._state = self._ST_OVER
                     return False  # error management cancelled the queue
 
-                elif 'code' in msg:  # Error
+                elif "code" in msg:  # Error
                     self.put_notification(self.NOTSUBSCRIBED)
                     self.put_notification(self.DISCONNECTED)
                     self._state = self._ST_OVER
@@ -398,7 +410,7 @@ class OandaData(DataBase, metaclass=MetaOandaData):
                     return False
 
     def _load_tick(self, msg):
-        dtobj = datetime.fromtimestamp(int(msg['time']) / 10 ** 6, UTC)
+        dtobj = datetime.fromtimestamp(int(msg["time"]) / 10**6, UTC)
         dt = date2num(dtobj)
         if dt <= self.lines.datetime[-1]:
             return False  # time already seen
@@ -409,7 +421,7 @@ class OandaData(DataBase, metaclass=MetaOandaData):
         self.lines.openinterest[0] = 0.0
 
         # Put the prices into the bar
-        tick = float(msg['ask']) if self.p.useask else float(msg['bid'])
+        tick = float(msg["ask"]) if self.p.useask else float(msg["bid"])
         self.lines.open[0] = tick
         self.lines.high[0] = tick
         self.lines.low[0] = tick
@@ -420,32 +432,32 @@ class OandaData(DataBase, metaclass=MetaOandaData):
         return True
 
     def _load_history(self, msg):
-        dtobj = datetime.fromtimestamp(int(msg['time']) / 10 ** 6, UTC)
+        dtobj = datetime.fromtimestamp(int(msg["time"]) / 10**6, UTC)
         dt = date2num(dtobj)
         if dt <= self.lines.datetime[-1]:
             return False  # time already seen
 
         # Common fields
         self.lines.datetime[0] = dt
-        self.lines.volume[0] = float(msg['volume'])
+        self.lines.volume[0] = float(msg["volume"])
         self.lines.openinterest[0] = 0.0
 
         # Put the prices into the bar
         if self.p.bidask:
             if not self.p.useask:
-                self.lines.open[0] = float(msg['openBid'])
-                self.lines.high[0] = float(msg['highBid'])
-                self.lines.low[0] = float(msg['lowBid'])
-                self.lines.close[0] = float(msg['closeBid'])
+                self.lines.open[0] = float(msg["openBid"])
+                self.lines.high[0] = float(msg["highBid"])
+                self.lines.low[0] = float(msg["lowBid"])
+                self.lines.close[0] = float(msg["closeBid"])
             else:
-                self.lines.open[0] = float(msg['openAsk'])
-                self.lines.high[0] = float(msg['highAsk'])
-                self.lines.low[0] = float(msg['lowAsk'])
-                self.lines.close[0] = float(msg['closeAsk'])
+                self.lines.open[0] = float(msg["openAsk"])
+                self.lines.high[0] = float(msg["highAsk"])
+                self.lines.low[0] = float(msg["lowAsk"])
+                self.lines.close[0] = float(msg["closeAsk"])
         else:
-            self.lines.open[0] = float(msg['openMid'])
-            self.lines.high[0] = float(msg['highMid'])
-            self.lines.low[0] = float(msg['lowMid'])
-            self.lines.close[0] = float(msg['closeMid'])
+            self.lines.open[0] = float(msg["openMid"])
+            self.lines.high[0] = float(msg["highMid"])
+            self.lines.low[0] = float(msg["lowMid"])
+            self.lines.close[0] = float(msg["closeMid"])
 
         return True

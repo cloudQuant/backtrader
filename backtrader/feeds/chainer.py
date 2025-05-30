@@ -22,6 +22,7 @@ from datetime import datetime
 import backtrader as bt
 from backtrader.utils.py3 import range
 
+
 # 创建一个chainer的元类
 class MetaChainer(bt.DataBase.__class__):
     def __init__(cls, name, bases, dct):
@@ -40,14 +41,17 @@ class MetaChainer(bt.DataBase.__class__):
 
         return _obj, args, kwargs
 
+
 #
 class Chainer(bt.DataBase, metaclass=MetaChainer):
     """Class that chains datas"""
+
     # 当数据是实时数据的时候 ，会避免preloading 和 runonce行为
     def islive(self):
         """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
         should be deactivated"""
         return True
+
     # 初始化
     def __init__(self, *args):
         self._lastdt = None
@@ -84,6 +88,7 @@ class Chainer(bt.DataBase, metaclass=MetaChainer):
         if self._args:
             return self._args[0]._gettz()
         return bt.utils.date.Localizer(self.p.tz)
+
     # load数据，这个处理看起挺巧妙的，后续准备对期货数据的换月做一个处理或者数据到期之后就剔除这个数据
     def _load(self):
         while self._d is not None:

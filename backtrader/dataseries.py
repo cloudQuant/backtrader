@@ -29,22 +29,30 @@ from .utils import AutoOrderedDict, OrderedDict, date2num
 
 class TimeFrame(object):
     # 给TimeFrame这个类增加9个属性，用于区分交易的周期
-    (Ticks, MicroSeconds, Seconds, Minutes,
-     Days, Weeks, Months, Years, NoTimeFrame) = range(1, 10)
+    (Ticks, MicroSeconds, Seconds, Minutes, Days, Weeks, Months, Years, NoTimeFrame) = range(1, 10)
     # 增加一个names属性值
-    Names = ['', 'Ticks', 'MicroSeconds', 'Seconds', 'Minutes',
-             'Days', 'Weeks', 'Months', 'Years', 'NoTimeFrame']
+    Names = [
+        "",
+        "Ticks",
+        "MicroSeconds",
+        "Seconds",
+        "Minutes",
+        "Days",
+        "Weeks",
+        "Months",
+        "Years",
+        "NoTimeFrame",
+    ]
 
     names = Names  # support old naming convention
 
-
     # 类方法，获取Timeframe的周期类型
-    @classmethod 
+    @classmethod
     def getname(cls, tframe, compression=None):  # backtrader自带
         # 这里面compression的默认参数设置其实并不合理，如果直接传入了默认参数，在下面对比中会报错
         # 修改默认参数为1 或者增加对compression的判断，个人感觉改为1可能更恰当一些
-    # @classmethod
-    # def getname(cls, tframe, compression=1):
+        # @classmethod
+        # def getname(cls, tframe, compression=1):
         tname = cls.Names[tframe]
         if compression > 1 or tname == cls.Names[-1]:
             return tname  # for plural or 'NoTimeFrame' return plain entry
@@ -69,7 +77,7 @@ class DataSeries(LineSeries):
     plotinfo = dict(plot=True, plotind=True, plotylimited=True)
 
     # 设置dataseries的_name属性，通常在策略中可以直接使用data._name获取data具体的值
-    _name = ''
+    _name = ""
     # todo 尝试增加一个name属性，和_name一样，便于使用data.name进行访问数据，避免pycharm提醒访问私有变量
     name = _name
     # 设置_compression属性，默认是1,意味着交易周期是单数的，比如1秒，1分钟，1天，1周这样的
@@ -84,12 +92,12 @@ class DataSeries(LineSeries):
 
     # 获取dataseries的header的变量名称，
     def getwriterheaders(self):
-        headers = [self._name, 'len']
+        headers = [self._name, "len"]
 
         for lo in self.LineOrder:
             headers.append(self._getlinealias(lo))
 
-        morelines = self.getlinealiases()[len(self.LineOrder):]
+        morelines = self.getlinealiases()[len(self.LineOrder) :]
         headers.extend(morelines)
 
         return headers
@@ -106,7 +114,7 @@ class DataSeries(LineSeries):
             for i in range(len(self.LineOrder), self.lines.size()):
                 values.append(self.lines[i][0])
         else:
-            values.extend([''] * self.lines.size())  # no values yet
+            values.extend([""] * self.lines.size())  # no values yet
 
         return values
 
@@ -114,9 +122,9 @@ class DataSeries(LineSeries):
     def getwriterinfo(self):
         # returns dictionary with information
         info = OrderedDict()
-        info['Name'] = self._name
-        info['Timeframe'] = TimeFrame.TName(self._timeframe)
-        info['Compression'] = self._compression
+        info["Name"] = self._name
+        info["Timeframe"] = TimeFrame.TName(self._timeframe)
+        info["Compression"] = self._compression
 
         return info
 
@@ -126,12 +134,19 @@ class DataSeries(LineSeries):
 
 class OHLC(DataSeries):
     # 继承DataSeries，lines剔除了datetime只剩下6条
-    lines = ('close', 'low', 'high', 'open', 'volume', 'openinterest',)
+    lines = (
+        "close",
+        "low",
+        "high",
+        "open",
+        "volume",
+        "openinterest",
+    )
 
 
 class OHLCDateTime(OHLC):
     # 继承DataSeries，lines只保留了datetime
-    lines = (('datetime'),)
+    lines = (("datetime"),)
 
 
 class SimpleFilterWrapper(object):
@@ -147,6 +162,7 @@ class SimpleFilterWrapper(object):
     The wrapper takes the return value and executes the bar removal
     if needed to be
     """
+
     # 这是一个增加过滤器的类，可以根据过滤器的需要对数据进行一定的操作比如去除
     # 这个过滤器通常是类或者是函数
     def __init__(self, data, ffilter, *args, **kwargs):
@@ -178,6 +194,7 @@ class _Bar(AutoOrderedDict):
     Order of definition is important and must match that of the lines
     definition in DataBase (which directly inherits from OHLCDateTime)
     """
+
     # 这个bar是具有标准line的DataBase的占位符,常用于把小周期K线合成大周期K线。
     replaying = False
 
@@ -201,10 +218,10 @@ class _Bar(AutoOrderedDict):
         """Initializes a bar to the default not-updated vaues"""
         # 准备开始前，先初始化
         # Order is important: defined in DataSeries/OHLC/OHLCDateTime
-        self.close = float('NaN')
-        self.low = float('inf')
-        self.high = float('-inf')
-        self.open = float('NaN')
+        self.close = float("NaN")
+        self.low = float("inf")
+        self.high = float("-inf")
+        self.open = float("NaN")
         self.volume = 0.0
         self.openinterest = 0.0
         self.datetime = self.MAXDATE if maxdate else None

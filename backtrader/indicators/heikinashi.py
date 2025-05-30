@@ -22,7 +22,8 @@ import backtrader as bt
 from backtrader.utils.py3 import range
 
 
-__all__ = ['HeikinAshi']
+__all__ = ["HeikinAshi"]
+
 
 # HeikinAshi 形成另类的K线
 class HeikinAshi(bt.Indicator):
@@ -39,13 +40,31 @@ class HeikinAshi(bt.Indicator):
         https://en.wikipedia.org/wiki/Candlestick_chart#Heikin_Ashi_candlesticks
         http://stockcharts.com/school/doku.php?id=chart_school:chart_analysis:heikin_ashi
     """
-    lines = ('ha_open', 'ha_high', 'ha_low', 'ha_close',)
+
+    lines = (
+        "ha_open",
+        "ha_high",
+        "ha_low",
+        "ha_close",
+    )
 
     linealias = (
-        ('ha_open', 'open',),
-        ('ha_high', 'high',),
-        ('ha_low', 'low',),
-        ('ha_close', 'close',),
+        (
+            "ha_open",
+            "open",
+        ),
+        (
+            "ha_high",
+            "high",
+        ),
+        (
+            "ha_low",
+            "low",
+        ),
+        (
+            "ha_close",
+            "close",
+        ),
     )
 
     plotinfo = dict(subplot=False)

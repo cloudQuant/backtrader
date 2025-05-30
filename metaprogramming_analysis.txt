@@ -1,0 +1,304 @@
+BACKTRADER 元编程详细分析报告
+============================================================
+
+METACLASS_USAGE
+----------------------------------------
+analyzer.py: MetaAnalyzer
+analyzer.py: MetaTimeFrameAnalyzerBase
+broker.py: MetaBroker
+cerebro.py: MetaParams
+comminfo.py: MetaParams
+feed.py: MetaAbstractDataBase
+feed.py: metabase
+feed.py: MetaCSVDataBase
+fillers.py: MetaParams
+fillers.py: MetaParams
+fillers.py: MetaParams
+flt.py: MetaParams
+indicator.py: MetaIndicator
+indicator.py: MtLinePlotterIndicator
+linebuffer.py: MetaLineActions
+lineiterator.py: MetaLineIterator
+lineroot.py: MetaLineRoot
+lineseries.py: MetaLineSeries
+metabase.py: MetaParams
+observer.py: MetaObserver
+order.py: MetaParams
+resamplerfilter.py: metabase
+sizer.py: MetaParams
+store.py: MetaSingleton
+strategy.py: MetaStrategy
+strategy.py: MetaSigStrategy
+talib.py: _MetaTALibIndicator
+timer.py: MetaParams
+tradingcal.py: MetaParams
+writer.py: bt
+brokers\ccxtbroker.py: MetaCCXTBroker
+brokers\cryptobroker.py: MetaCryptoBroker
+brokers\ctpbroker.py: MetaCTPBroker
+brokers\ibbroker.py: MetaIBBroker
+brokers\oandabroker.py: MetaOandaBroker
+brokers\vcbroker.py: MetaVCBroker
+feeds\ccxtfeed.py: MetaCCXTFeed
+feeds\chainer.py: MetaChainer
+feeds\cryptofeed.py: MetaCryptoFeed
+feeds\ctpdata.py: MetaCTPData
+feeds\ibdata.py: MetaIBData
+feeds\oanda.py: MetaOandaData
+feeds\rollover.py: MetaRollOver
+feeds\vcdata.py: MetaVCData
+feeds\vchartfile.py: MetaVChartFile
+filters\bsplitter.py: bt
+filters\calendardays.py: metabase
+filters\session.py: metabase
+filters\session.py: metabase
+filters\session.py: metabase
+indicators\mabase.py: MetaMovAvBase
+observers\trades.py: MetaDataTrades
+plot\plot.py: MetaParams
+stores\ccxtstore.py: MetaSingleton
+stores\ctpstore.py: MetaSingleton
+stores\ibstore.py: MetaSingleton
+stores\oandastore.py: MetaSingleton
+stores\vcstore.py: MetaSingleton
+
+TYPE_CREATION
+----------------------------------------
+cerebro.py: type(strat)
+lineiterator.py: type(nclsname, (MultiCoupler,)
+lineseries.py: type(str(cls.__name__ + '_' + name)
+lineseries.py: type(str(alias)
+lineseries.py: type(str(alias)
+lineseries.py: type(ago)
+metabase.py: type(newclsname, (cls,)
+strategy.py: type(self.broker)
+strategy.py: type(self.broker)
+talib.py: type(str(name)
+analyzers\sharpe_ratio_stats.py: type(returns)
+analyzers\sharpe_ratio_stats.py: type(sr_std)
+analyzers\sharpe_ratio_stats.py: type(psr)
+analyzers\sharpe_ratio_stats.py: type(min_trl)
+indicators\envelope.py: type(str(newclsname)
+indicators\oscillator.py: type(str(newclsname)
+stores\cryptostore.py: type(input_time)
+stores\cryptostore.py: type(bar_data)
+stores\cryptostore.py: type(new_bar_list)
+stores\vcstore.py: type(hevt)
+utils\autodict.py: type(self)
+utils\autodict.py: type(self)
+utils\autodict.py: type(other)
+utils\autodict.py: type(other)
+utils\autodict.py: type(self)
+utils\autodict.py: type(other)
+utils\autodict.py: type(other)
+utils\autodict.py: type(self)
+utils\autodict.py: type(other)
+utils\autodict.py: type(other)
+utils\autodict.py: type(self)
+utils\autodict.py: type(other)
+utils\autodict.py: type(other)
+utils\autodict.py: type(self)
+utils\autodict.py: type(other)
+utils\autodict.py: type(other)
+
+SETATTR_USAGE
+----------------------------------------
+analyzer.py: setattr(_obj, 'data_%s' % linealias, line)
+analyzer.py: setattr(_obj, 'data_%d' % l, line)
+analyzer.py: setattr(_obj, 'data%d' % d, data)
+analyzer.py: setattr(_obj, 'data%d_%s' % (d, linealias)
+analyzer.py: setattr(_obj, 'data%d_%d' % (d, l)
+broker.py: setattr(cls, name, getattr(cls, trans)
+cerebro.py: setattr(self, k, v)
+cerebro.py: setattr(self.params, key, val)
+cerebro.py: setattr(a, attrname, None)
+comminfo.py: setattr(self.params, k, v)
+feed.py: setattr(self, 'tick_' + lalias, None)
+feed.py: setattr(self, 'tick_' + lalias,
+                            getattr(self.lines, lalias)
+lineiterator.py: setattr(_obj, 'data_%s' % linealias, line)
+lineiterator.py: setattr(_obj, 'data_%d' % l, line)
+lineiterator.py: setattr(_obj, 'data%d' % d, data)
+lineiterator.py: setattr(_obj, 'data%d_%s' % (d, linealias)
+lineiterator.py: setattr(_obj, 'data%d_%d' % (d, l)
+lineiterator.py: setattr(thismod, ncls.__name__, ncls)
+lineseries.py: setattr(clsmodule, str(cls.__name__ + '_' + name)
+lineseries.py: setattr(newcls, '_getlinesbase', classmethod(lambda cls: baselines)
+lineseries.py: setattr(newcls, '_getlines', classmethod(lambda cls: clslines)
+lineseries.py: setattr(newcls, '_getlinesextrabase',
+                classmethod(lambda cls: baseextralines)
+lineseries.py: setattr(newcls, '_getlinesextra',
+                classmethod(lambda cls: clsextralines)
+lineseries.py: setattr(newcls, linealias, desc)
+lineseries.py: setattr(newcls, ename, desc)
+lineseries.py: setattr(self, self._getlinealias(line)
+lineseries.py: setattr(clsmodule, alias, newcls)
+lineseries.py: setattr(plotinfo, pname, kwargs.pop(pname, pdef)
+lineseries.py: setattr(_obj, 'line_%s' % l, _obj._getlinealias(l)
+lineseries.py: setattr(_obj, 'line_%d' % l, line)
+lineseries.py: setattr(_obj, 'line%d' % l, line)
+lineseries.py: setattr(clsmodule, alias, newcls)
+lineseries.py: setattr(plotinfo, pname, kwargs.pop(pname, pdef)
+lineseries.py: setattr(_obj, 'line_%s' % l, _obj._getlinealias(l)
+lineseries.py: setattr(_obj, 'line_%d' % l, line)
+lineseries.py: setattr(_obj, 'line%d' % l, line)
+lineseries.py: setattr(self.lines, self.lines._getlinealias(key)
+metabase.py: setattr(clsmodule, newclsname, newcls)
+metabase.py: setattr(newcls, '_getpairsbase',
+                classmethod(lambda cls: baseinfo.copy()
+metabase.py: setattr(newcls, '_getpairs', classmethod(lambda cls: clsinfo.copy()
+metabase.py: setattr(newcls, '_getrecurse', classmethod(lambda cls: recurse)
+metabase.py: setattr(newcls, infoname, infoval)
+metabase.py: setattr(obj, infoname, recursecls()
+metabase.py: setattr(clsmod, pmod.__name__, pmod)
+metabase.py: setattr(clsmod, palias, pmod)
+metabase.py: setattr(clsmod, falias, pattr)
+metabase.py: setattr(sys.modules[basecls.__module__], falias, pattr)
+metabase.py: setattr(params, pname, kwargs.pop(pname, pdef)
+metabase.py: setattr(self, name, item)
+order.py: setattr(self.params, name, value)
+strategy.py: setattr(self.stats, obsname, list()
+talib.py: setattr(clsmodule, str(name)
+analyzers\annualreturn.py: setattr(self, "rets", list()
+analyzers\annualreturn.py: setattr(self, "ret", OrderedDict()
+analyzers\annualreturn.py: setattr(self, "ret", OrderedDict()
+analyzers\drawdown.py: setattr(self, "_fundmode", self.strategy.broker.fundmode)
+analyzers\drawdown.py: setattr(self, "_fundmode", self.p.fund)
+brokers\ibbroker.py: setattr(self, fname, getattr(orderstate, fname)
+brokers\ibbroker.py: setattr(self, (not hasattr(self, k)
+brokers\vcbroker.py: setattr(order, k, kwargs[k])
+indicators\envelope.py: setattr(module, newclsname, newcls)
+indicators\mabase.py: setattr(cls, clsname, regcls)
+indicators\mabase.py: setattr(cls, clsalias, regcls)
+indicators\oscillator.py: setattr(module, newclsname, newcls)
+plot\plot.py: setattr(self.p.scheme, pname, pvalue)
+stores\ibstore.py: setattr(self, name, func(next(tokens)
+stores\vcstore.py: setattr(self, f, getattr(syminfo, f)
+vectors\cs.py: setattr(self, rank_name, df2)
+indicators\contrib\__init__.py: setattr(bt.indicators, name, getattr(vortex, name)
+
+GETATTR_USAGE
+----------------------------------------
+broker.py: getattr(cls, trans)
+dataseries.py: getattr(cls, name)
+feed.py: getattr(self, 'tick_' + alias0, None)
+feed.py: getattr(self.lines, lalias)
+feed.py: getattr(self.lines, alias0)
+feed.py: getattr(self.p, pname)
+feed.py: getattr(self.p, pname)
+indicator.py: getattr(cls, cls._refname)
+indicator.py: getattr(cls, 'lines', Lines)
+linebuffer.py: getattr(self._owner.lines, binding)
+lineiterator.py: getattr(d, '_name', '')
+lineiterator.py: getattr(indicator, '_nextforce', False)
+lineiterator.py: getattr(self._owner.lines, lineowner)
+lineiterator.py: getattr(self.lines, lineown)
+lineiterator.py: getattr(cdata, '_clock', None)
+lineiterator.py: getattr(clock, '_clock', None)
+lineiterator.py: getattr(clock, 'data', None)
+lineseries.py: getattr(cls, 'linealias', AutoInfoClass)
+lineseries.py: getattr(cls, 'lines', Lines)
+lineseries.py: getattr(cls, 'plotinfo', AutoInfoClass)
+lineseries.py: getattr(cls, 'plotlines', AutoInfoClass)
+lineseries.py: getattr(cls, 'linealias', AutoInfoClass)
+lineseries.py: getattr(cls, 'lines', Lines)
+lineseries.py: getattr(cls, 'plotinfo', AutoInfoClass)
+lineseries.py: getattr(cls, 'plotlines', AutoInfoClass)
+lineseries.py: getattr(self.lines, name)
+lineseries.py: getattr(self.lines, line)
+metabase.py: getattr(newcls, infoname, AutoInfoClass)
+metabase.py: getattr(self, name, default)
+metabase.py: getattr(self, x)
+metabase.py: getattr(self, x)
+metabase.py: getattr(cls, infoname)
+metabase.py: getattr(cls, 'params', AutoInfoClass)
+metabase.py: getattr(cls, packs, ()
+metabase.py: getattr(cls, fpacks, ()
+metabase.py: getattr(cls, packs, ()
+metabase.py: getattr(cls, fpacks, ()
+metabase.py: getattr(pmod, plevel)
+metabase.py: getattr(pmod, fp)
+order.py: getattr(self.params, name)
+order.py: getattr(cls, exectype)
+signal.py: getattr(self.data0, '_clock', self.data0)
+strategy.py: getattr(lineiter, '_clock', None)
+strategy.py: getattr(lineiter._owner, '_clock', None)
+strategy.py: getattr(clk, '_clock', None)
+strategy.py: getattr(clk._owner, '_clock', None)
+strategy.py: getattr(self.stats, obsname)
+talib.py: getattr(talib, tafuncinfo['name'], None)
+trade.py: getattr(self, x)
+brokers\bbroker.py: getattr(order.parent, 'ref', oref)
+brokers\bbroker.py: getattr(order.parent, 'ref', oref)
+brokers\bbroker.py: getattr(data, 'tick_open', None)
+brokers\bbroker.py: getattr(data, 'tick_high', None)
+brokers\bbroker.py: getattr(data, 'tick_low', None)
+brokers\bbroker.py: getattr(data, 'tick_close', None)
+brokers\ibbroker.py: getattr(orderstate, fname)
+brokers\ibbroker.py: getattr(self, fname)
+brokers\oandabroker.py: getattr(order.parent, 'ref', order.ref)
+brokers\oandabroker.py: getattr(order.parent, 'ref', order.ref)
+brokers\oandabroker.py: getattr(order.parent, 'ref', order.ref)
+brokers\oandabroker.py: getattr(order.parent, 'ref', oref)
+btrun\btrun.py: getattr(bt.signal, 'SIGNAL_' + sigtype.upper()
+feeds\blaze.py: getattr(self.params, datafield)
+feeds\blaze.py: getattr(self.lines, datafield)
+feeds\blaze.py: getattr(self.params, self.datafields[0])
+feeds\blaze.py: getattr(self.lines, self.datafields[0])
+feeds\csvgeneric.py: getattr(self.params, linefield)
+feeds\csvgeneric.py: getattr(self.lines, linefield)
+feeds\ibdata.py: getattr(self.p.backfill_from.lines, alias)
+feeds\ibdata.py: getattr(self.lines, alias)
+feeds\oanda.py: getattr(self.p.backfill_from.lines, alias)
+feeds\oanda.py: getattr(self.lines, alias)
+feeds\pandafeed.py: getattr(self.params, datafield)
+feeds\pandafeed.py: getattr(self.lines, datafield)
+feeds\pandafeed.py: getattr(self.params, 'datetime')
+feeds\pandafeed.py: getattr(self.lines, 'datetime')
+feeds\pandafeed.py: getattr(self.params, datafield)
+feeds\pandafeed.py: getattr(self.params, k)
+feeds\pandafeed.py: getattr(self.lines, datafield)
+indicators\envelope.py: getattr(movav, 'aliased', '')
+indicators\envelope.py: getattr(movav, 'alias', [])
+indicators\mabase.py: getattr(regcls, '_notregister', False)
+indicators\oscillator.py: getattr(movav, 'aliased', '')
+indicators\oscillator.py: getattr(movav, 'alias', [])
+plot\plot.py: getattr(self.pinf.clock, '_compression', 1)
+plot\plot.py: getattr(self.pinf.clock, '_timeframe', TimeFrame.Days)
+plot\plot.py: getattr(ind.plotlines, '_%d' % lineidx, None)
+plot\plot.py: getattr(ind.plotlines, linealias, None)
+plot\plot.py: getattr(ind.plotlines, '_%d' % lineidx, None)
+plot\plot.py: getattr(ind.plotlines, linealias, None)
+plot\plot.py: getattr(ax, lineplotinfo._get('_method', 'plot')
+plot\plot.py: getattr(ind, fref)
+plot\plot.py: getattr(data.plotinfo, 'sameaxis', False)
+plot\plot.py: getattr(data.plotinfo, 'plotlinevalues', True)
+plot\plot.py: getattr(x._clock, 'owner', x._clock)
+plot\plot.py: getattr(x._clock, 'owner', x._clock)
+plot\plot.py: getattr(x.plotinfo, 'plotforce', False)
+stores\ccxtstore.py: getattr(ccxt, exchange)
+stores\ccxtstore.py: getattr(self.exchange, endpoint)
+stores\ibstore.py: getattr(method, '_ibregister', False)
+stores\ibstore.py: getattr(ibopt.message, name)
+stores\oandastore.py: getattr(self.client, method)
+stores\vcstore.py: getattr(syminfo, f)
+stores\vcstore.py: getattr(self.vcrtmod, name)
+utils\autodict.py: getattr(d, '_name', '')
+indicators\contrib\__init__.py: getattr(vortex, name)
+
+FINDOWNER_USAGE
+----------------------------------------
+analyzer.py: findowner(_obj, bt.Strategy)
+analyzer.py: findowner(_obj, Analyzer)
+analyzer.py: findowner(_obj, bt.Observer)
+feed.py: findowner(_obj, FeedBase)
+lineroot.py: findowner(_obj,
+                                         _obj._OwnerCls or LineMultiple,
+                                         skip=ownerskip)
+metabase.py: findowner(owned, cls, startlevel=2, skip=None)
+strategy.py: findowner(_obj, bt.Cerebro)
+talib.py: findowner(_obj, bt.Cerebro)
+
+DYNAMIC_ATTRIBUTES
+----------------------------------------
+

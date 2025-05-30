@@ -53,10 +53,13 @@ class SessionFiller(metaclass=metabase.MetaParams):
         Upon seeing the 1st valid bar do not fill from the sessionstart up to
         that bar
     """
-    params = (('fill_price', None),
-              ('fill_vol', float('NaN')),
-              ('fill_oi', float('NaN')),
-              ('skip_first_fill', True))
+
+    params = (
+        ("fill_price", None),
+        ("fill_vol", float("NaN")),
+        ("fill_oi", float("NaN")),
+        ("skip_first_fill", True),
+    )
 
     MAXDATE = datetime.max
 
@@ -108,9 +111,7 @@ class SessionFiller(metaclass=metabase.MetaParams):
             # bar over session end - fill up and invalidate
             # Do not put current bar in stack to let it be evaluated below
             # Fill up to endsession + the smallest unit of timeframe
-            ret = self._fillbars(data, self.dtime_prev,
-                                 self.sessend + self._tdframe,
-                                 tostack=False)
+            ret = self._fillbars(data, self.dtime_prev, self.sessend + self._tdframe, tostack=False)
             self.sessend = self.MAXDATE
 
         # Fall through from previous check ... the bar which is over the
@@ -124,8 +125,7 @@ class SessionFiller(metaclass=metabase.MetaParams):
             if sessstart <= dtime_cur <= sessend:
                 # 1st bar from session in the session - fill from session start
                 if self.seenbar or not self.p.skip_first_fill:
-                    ret = self._fillbars(data,
-                                         sessstart - self._tdunit, dtime_cur)
+                    ret = self._fillbars(data, sessstart - self._tdunit, dtime_cur)
 
             self.seenbar = True
             self.dtime_prev = dtime_cur
@@ -158,7 +158,7 @@ class SessionFiller(metaclass=metabase.MetaParams):
 
     def _fillbar(self, data, dtime):
         # Prepare an array of the necessary size
-        bar = [float('Nan')] * data.size()
+        bar = [float("Nan")] * data.size()
 
         # Fill datetime
         bar[data.DateTime] = data.date2num(dtime)
@@ -196,6 +196,7 @@ class SessionFilterSimple(metaclass=metabase.MetaParams):
     Bar Management will be done by the SimpleFilterWrapper class made which is
     added durint the DataBase.addfilter_simple call
     """
+
     def __init__(self, data):
         pass
 
@@ -207,8 +208,7 @@ class SessionFilterSimple(metaclass=metabase.MetaParams):
           - True: filter current bar (because it's not in the session times)
         """
         # Both ends of the comparison are in the session
-        return not (
-            data.p.sessionstart <= data.datetime.time(0) <= data.p.sessionend)
+        return not (data.p.sessionstart <= data.datetime.time(0) <= data.p.sessionend)
 
 
 class SessionFilter(metaclass=metabase.MetaParams):
@@ -222,6 +222,7 @@ class SessionFilter(metaclass=metabase.MetaParams):
 
     It needs no "last" method because it has nothing to deliver
     """
+
     def __init__(self, data):
         pass
 

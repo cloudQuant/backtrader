@@ -146,14 +146,16 @@ class CommInfoBase(metaclass=MetaParams):
     COMM_PERC, COMM_FIXED = range(2)
     # 参数
     params = (
-        ('commission', 0.0), ('mult', 1.0), ('margin', None),
-        ('commtype', None),
-        ('stocklike', False),
-        ('percabs', False),
-        ('interest', 0.0),
-        ('interest_long', False),
-        ('leverage', 1.0),
-        ('automargin', False),
+        ("commission", 0.0),
+        ("mult", 1.0),
+        ("margin", None),
+        ("commtype", None),
+        ("stocklike", False),
+        ("percabs", False),
+        ("interest", 0.0),
+        ("interest_long", False),
+        ("leverage", 1.0),
+        ("automargin", False),
     )
 
     # 初始化
@@ -315,8 +317,7 @@ class CommInfoBase(metaclass=MetaParams):
         if dt0 <= dt1:
             return 0.0
 
-        return self._get_credit_interest(data, size, price,
-                                         (dt0 - dt1).days, dt0, dt1)
+        return self._get_credit_interest(data, size, price, (dt0 - dt1).days, dt0, dt1)
 
     # 计算利息的方法，可以重写
     def _get_credit_interest(self, data, size, price, days, dt0, dt1):
@@ -372,17 +373,16 @@ class CommissionInfo(CommInfoBase):
         If this param is False: XX%
 
     """
-    params = (
-        ('percabs', True),  # Original CommissionInfo took 0.xx for percentages
-    )
+
+    params = (("percabs", True),)  # Original CommissionInfo took 0.xx for percentages
 
 
 class ComminfoDC(CommInfoBase):
     # 实现一个数字货币的佣金类
     params = (
-        ('stocklike', False),
-        ('commtype', CommInfoBase.COMM_PERC),
-        ('percabs', True),
+        ("stocklike", False),
+        ("commtype", CommInfoBase.COMM_PERC),
+        ("percabs", True),
         ("interest", 3),
     )
 
@@ -395,9 +395,9 @@ class ComminfoDC(CommInfoBase):
     # 计算利息费用,这里面涉及到一些简化
     def get_credit_interest(self, data, pos, dt):
         """例如我持有100U，要买300U的BTC，杠杆为三倍，这时候我只需要借入2*100U的钱就可以了，
-       所以利息应该是200U * interest，同理，对于n倍开多，需要付（n-1）*base的利息
-        如果我要开空，我只有100U，我必须借入BTC先卖掉，就算是一倍开空，也得借入100U的BTC，
-        所以对于n倍开空，需要付n*base的利息"""
+        所以利息应该是200U * interest，同理，对于n倍开多，需要付（n-1）*base的利息
+         如果我要开空，我只有100U，我必须借入BTC先卖掉，就算是一倍开空，也得借入100U的BTC，
+         所以对于n倍开空，需要付n*base的利息"""
         # 仓位及价格
         size, price = pos.size, pos.price
         # 持仓时间
@@ -423,10 +423,12 @@ class ComminfoFuturesPercent(CommInfoBase):
     # write by myself,using in the future backtest,it means we should give a percent comminfo to broker
 
     params = (
-        ('commission', 0.0), ('mult', 1.0), ('margin', None),
-        ('stocklike', False),
-        ('commtype', CommInfoBase.COMM_PERC),
-        ('percabs', True)
+        ("commission", 0.0),
+        ("mult", 1.0),
+        ("margin", None),
+        ("stocklike", False),
+        ("commtype", CommInfoBase.COMM_PERC),
+        ("percabs", True),
     )
 
     # def __init__(self, commission=0.0002, margin=1, mult=1, **kwargs):
@@ -452,13 +454,16 @@ class ComminfoFuturesPercent(CommInfoBase):
 # cerebro = bt.Cerebro()
 # cerebro.broker.addcommissioninfo(comm_rb, name='RB')
 
+
 class ComminfoFuturesFixed(CommInfoBase):
     # write by myself,using in the future backtest,it means we should give a fixed comminfo evey lot to broker
     params = (
-        ('commission', 0.0), ('mult', 1.0), ('margin', None),
-        ('stocklike', False),
-        ('commtype', CommInfoBase.COMM_FIXED),
-        ('percabs', True)
+        ("commission", 0.0),
+        ("mult", 1.0),
+        ("margin", None),
+        ("stocklike", False),
+        ("commtype", CommInfoBase.COMM_FIXED),
+        ("percabs", True),
     )
 
     def _getcommission(self, size, price, pseudoexec):
@@ -471,10 +476,12 @@ class ComminfoFuturesFixed(CommInfoBase):
 class ComminfoFundingRate(CommInfoBase):
     # 实现一个数字货币的资金费率类
     params = (
-        ('commission', 0.0), ('mult', 1.0), ('margin', None),
-        ('stocklike', False),
-        ('commtype', CommInfoBase.COMM_PERC),
-        ('percabs', True)
+        ("commission", 0.0),
+        ("mult", 1.0),
+        ("margin", None),
+        ("stocklike", False),
+        ("commtype", CommInfoBase.COMM_PERC),
+        ("percabs", True),
     )
 
     def __init__(self):

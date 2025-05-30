@@ -23,8 +23,7 @@ from datetime import date, datetime
 import io
 import itertools
 
-from ..utils.py3 import (urlopen, urlquote, ProxyHandler, build_opener,
-                         install_opener)
+from ..utils.py3 import urlopen, urlquote, ProxyHandler, build_opener, install_opener
 
 import backtrader as bt
 from .. import feed
@@ -75,17 +74,18 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         swap the columns again arose.
 
     """
+
     # 增加一个line
-    lines = ('adjclose',)
+    lines = ("adjclose",)
 
     params = (
-        ('reverse', False),
-        ('adjclose', True),
-        ('adjvolume', True),
-        ('round', True),
-        ('decimals', 2),
-        ('roundvolume', False),
-        ('swapcloses', False),
+        ("reverse", False),
+        ("adjclose", True),
+        ("adjvolume", True),
+        ("round", True),
+        ("decimals", 2),
+        ("roundvolume", False),
+        ("swapcloses", False),
     )
 
     def start(self):
@@ -113,7 +113,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         while True:
             nullseen = False
             for tok in linetokens[1:]:
-                if tok == 'null':
+                if tok == "null":
                     nullseen = True
                     linetokens = self._getnextline()  # refetch tokens
                     if not linetokens:
@@ -195,9 +195,8 @@ class YahooLegacyCSV(YahooFinanceCSVData):
     discontinued the original service in May-2017
     # 用于load 2017年5月之前下载的数据
     """
-    params = (
-        ('version', ''),
-    )
+
+    params = (("version", ""),)
 
 
 class YahooFinanceCSV(feed.CSVFeedBase):
@@ -252,15 +251,15 @@ class YahooFinanceData(YahooFinanceCSVData):
         Number of times (each) to try to get a ``crumb`` cookie and download
         the data
 
-      """
+    """
 
     params = (
-        ('proxies', {}),
-        ('period', 'd'),
-        ('reverse', False),
-        ('urlhist', 'https://finance.yahoo.com/quote/{}/history'),
-        ('urldown', 'https://query1.finance.yahoo.com/v7/finance/download'),
-        ('retries', 3),
+        ("proxies", {}),
+        ("period", "d"),
+        ("reverse", False),
+        ("urlhist", "https://finance.yahoo.com/quote/{}/history"),
+        ("urldown", "https://query1.finance.yahoo.com/v7/finance/download"),
+        ("retries", 3),
     )
 
     def __init__(self):
@@ -271,9 +270,11 @@ class YahooFinanceData(YahooFinanceCSVData):
         try:
             import requests
         except ImportError:
-            msg = ('The new Yahoo data feed requires to have the requests '
-                   'module installed. Please use pip install requests or '
-                   'the method of your choice')
+            msg = (
+                "The new Yahoo data feed requires to have the requests "
+                "module installed. Please use pip install requests or "
+                "the method of your choice"
+            )
             raise Exception(msg)
 
         self.error = None
@@ -281,7 +282,7 @@ class YahooFinanceData(YahooFinanceCSVData):
 
         sesskwargs = dict()
         if self.p.proxies:
-            sesskwargs['proxies'] = self.p.proxies
+            sesskwargs["proxies"] = self.p.proxies
 
         crumb = None
         sess = requests.Session()
@@ -291,13 +292,13 @@ class YahooFinanceData(YahooFinanceCSVData):
                 continue
 
             txt = resp.text
-            i = txt.find('CrumbStore')
+            i = txt.find("CrumbStore")
             if i == -1:
                 continue
-            i = txt.find('crumb', i)
+            i = txt.find("crumb", i)
             if i == -1:
                 continue
-            istart = txt.find('"', i + len('crumb') + 1)
+            istart = txt.find('"', i + len("crumb") + 1)
             if istart == -1:
                 continue
             istart += 1
@@ -306,11 +307,11 @@ class YahooFinanceData(YahooFinanceCSVData):
                 continue
 
             crumb = txt[istart:iend]
-            crumb = crumb.encode('ascii').decode('unicode-escape')
+            crumb = crumb.encode("ascii").decode("unicode-escape")
             break
 
         if crumb is None:
-            self.error = 'Crumb not found'
+            self.error = "Crumb not found"
             self.f = None
             return
 
@@ -319,39 +320,39 @@ class YahooFinanceData(YahooFinanceCSVData):
         # urldown/ticker?period1=posix1&period2=posix2&interval=1d&events=history&crumb=crumb
 
         # Try to download
-        urld = '{}/{}'.format(self.p.urldown, self.p.dataname)
+        urld = "{}/{}".format(self.p.urldown, self.p.dataname)
 
         urlargs = []
         posix = date(1970, 1, 1)
         if self.p.todate is not None:
             period2 = (self.p.todate.date() - posix).total_seconds()
-            urlargs.append('period2={}'.format(int(period2)))
+            urlargs.append("period2={}".format(int(period2)))
 
         if self.p.todate is not None:
             period1 = (self.p.fromdate.date() - posix).total_seconds()
-            urlargs.append('period1={}'.format(int(period1)))
+            urlargs.append("period1={}".format(int(period1)))
 
         intervals = {
-            bt.TimeFrame.Days: '1d',
-            bt.TimeFrame.Weeks: '1wk',
-            bt.TimeFrame.Months: '1mo',
+            bt.TimeFrame.Days: "1d",
+            bt.TimeFrame.Weeks: "1wk",
+            bt.TimeFrame.Months: "1mo",
         }
 
-        urlargs.append('interval={}'.format(intervals[self.p.timeframe]))
-        urlargs.append('events=history')
-        urlargs.append('crumb={}'.format(crumb))
+        urlargs.append("interval={}".format(intervals[self.p.timeframe]))
+        urlargs.append("events=history")
+        urlargs.append("crumb={}".format(crumb))
 
-        urld = '{}?{}'.format(urld, '&'.join(urlargs))
+        urld = "{}?{}".format(urld, "&".join(urlargs))
         f = None
         for i in range(self.p.retries + 1):  # at least once
             resp = sess.get(urld, **sesskwargs)
             if resp.status_code != requests.codes.ok:
                 continue
 
-            ctype = resp.headers['Content-Type']
+            ctype = resp.headers["Content-Type"]
             # Cover as many text types as possible for Yahoo changes
-            if not ctype.startswith('text/'):
-                self.error = 'Wrong content type: %s' % ctype
+            if not ctype.startswith("text/"):
+                self.error = "Wrong content type: %s" % ctype
                 continue  # HTML returned? wrong url?
 
             # buffer everything from the socket into a local buffer
@@ -371,7 +372,6 @@ class YahooFinanceData(YahooFinanceCSVData):
 
         # Prepared a "path" file -  CSV Parser can take over
         super(YahooFinanceData, self).start()
-
 
 
 class YahooFinance(feed.CSVFeedBase):

@@ -19,7 +19,7 @@
 #
 ###############################################################################
 
-__all__ = ['HeikinAshi']
+__all__ = ["HeikinAshi"]
 
 
 class HeikinAshi(object):
@@ -32,6 +32,7 @@ class HeikinAshi(object):
       - http://stockcharts.com/school/doku.php?id=chart_school:chart_analysis:heikin_ashi
 
     """
+
     def __init__(self, data):
         pass
 

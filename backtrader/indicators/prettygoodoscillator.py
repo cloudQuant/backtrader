@@ -20,6 +20,7 @@
 ###############################################################################
 from . import Indicator, MovAv, ATR
 
+
 # 价格与均线的距离除以ATR的值
 class PrettyGoodOscillator(Indicator):
     """
@@ -43,10 +44,17 @@ class PrettyGoodOscillator(Indicator):
       - http://user42.tuxfamily.org/chart/manual/Pretty-Good-Oscillator.html
 
     """
-    alias = ('PGO', 'PrettyGoodOsc',)
-    lines = ('pgo',)
 
-    params = (('period', 14), ('_movav', MovAv.Simple),)
+    alias = (
+        "PGO",
+        "PrettyGoodOsc",
+    )
+    lines = ("pgo",)
+
+    params = (
+        ("period", 14),
+        ("_movav", MovAv.Simple),
+    )
 
     def __init__(self):
         movav = self.p._movav(self.data, period=self.p.period)

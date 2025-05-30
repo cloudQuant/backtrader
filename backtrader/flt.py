@@ -21,8 +21,8 @@
 from .metabase import MetaParams
 
 
+__all__ = ["Filter"]
 
-__all__ = ['Filter']
 
 # Filter元类
 class MetaFilter(MetaParams):

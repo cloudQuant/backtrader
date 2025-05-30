@@ -57,10 +57,11 @@ class PositionsValue(bt.Analyzer):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     """
+
     # 参数
     params = (
-        ('headers', False),
-        ('cash', False),
+        ("headers", False),
+        ("cash", False),
     )
 
     # 开始
@@ -70,10 +71,9 @@ class PositionsValue(bt.Analyzer):
     def start(self):
         # 如果headers参数是True,每个data的命字作为header
         if self.p.headers:
-            headers = [d._name or 'Data%d' % i
-                       for i, d in enumerate(self.datas)]
+            headers = [d._name or "Data%d" % i for i, d in enumerate(self.datas)]
             # 如果cash是True的话，也会保存cash
-            self.rets['Datetime'] = headers + ['cash'] * self.p.cash
+            self.rets["Datetime"] = headers + ["cash"] * self.p.cash
         # 时间周期
         tf = min(d._timeframe for d in self.datas)
         # 如果时间周期大于等于日，usedate参数设置成True

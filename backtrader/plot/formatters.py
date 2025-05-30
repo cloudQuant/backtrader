@@ -25,7 +25,7 @@ from ..utils import num2date
 
 
 class MyVolFormatter(mplticker.Formatter):
-    Suffixes = ['', 'K', 'M', 'G', 'T', 'P']
+    Suffixes = ["", "K", "M", "G", "T", "P"]
 
     def __init__(self, volmax):
         self.volmax = volmax
@@ -41,14 +41,14 @@ class MyVolFormatter(mplticker.Formatter):
         """Return the label for time x at position pos"""
 
         if y > self.volmax * 1.20:
-            return ''
+            return ""
 
         y = int(y / self.divisor)
-        return '%d%s' % (y, self.suffix)
+        return "%d%s" % (y, self.suffix)
 
 
 class MyDateFormatter(mplticker.Formatter):
-    def __init__(self, dates, fmt='%Y-%m-%d'):
+    def __init__(self, dates, fmt="%Y-%m-%d"):
         self.dates = dates
         self.lendates = len(dates)
         self.fmt = fmt
@@ -95,10 +95,12 @@ def patch_locator(locator, xdates):
 def patch_formatter(formatter, xdates):
     def newcall(self, x, pos=0):
         if False and x < 0:
-            raise ValueError('DateFormatter found a value of x=0, which is '
-                             'an illegal date.  This usually occurs because '
-                             'you have not informed the axis that it is '
-                             'plotting dates, e.g., with ax.xaxis_date()')
+            raise ValueError(
+                "DateFormatter found a value of x=0, which is "
+                "an illegal date.  This usually occurs because "
+                "you have not informed the axis that it is "
+                "plotting dates, e.g., with ax.xaxis_date()"
+            )
 
         x = xdates[int(x)]
         dt = num2date(x, self.tz)
@@ -111,10 +113,7 @@ def patch_formatter(formatter, xdates):
 def getlocator(xdates, numticks=5, tz=None):
     span = xdates[-1] - xdates[0]
 
-    locator, formatter = mdates.date_ticker_factory(
-        span=span,
-        tz=tz,
-        numticks=numticks)
+    locator, formatter = mdates.date_ticker_factory(span=span, tz=tz, numticks=numticks)
 
     patch_locator(locator, xdates)
     patch_formatter(formatter, xdates)

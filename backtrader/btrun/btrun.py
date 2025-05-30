@@ -40,17 +40,17 @@ DATAFORMATS = dict(
 )
 
 try:
-    DATAFORMATS['vcdata'] = bt.feeds.VCData
+    DATAFORMATS["vcdata"] = bt.feeds.VCData
 except AttributeError:
     pass  # no comtypes available
 
 try:
-    DATAFORMATS['ibdata'] = bt.feeds.IBData,
+    DATAFORMATS["ibdata"] = (bt.feeds.IBData,)
 except AttributeError:
     pass  # no ibpy available
 
 try:
-    DATAFORMATS['oandadata'] = bt.feeds.OandaData,
+    DATAFORMATS["oandadata"] = (bt.feeds.OandaData,)
 except AttributeError:
     pass  # no oandapy available
 
@@ -65,7 +65,7 @@ TIMEFRAMES = dict(
 )
 
 
-def btrun(pargs=''):
+def btrun(pargs=""):
     args = parse_args(pargs)
 
     if args.flush:
@@ -74,20 +74,20 @@ def btrun(pargs=''):
     stdstats = not args.nostdstats
 
     cer_kwargs_str = args.cerebro
-    cer_kwargs = eval('dict(' + cer_kwargs_str + ')')
-    if 'stdstats' not in cer_kwargs:
+    cer_kwargs = eval("dict(" + cer_kwargs_str + ")")
+    if "stdstats" not in cer_kwargs:
         cer_kwargs.update(stdstats=stdstats)
 
     cerebro = bt.Cerebro(**cer_kwargs)
 
     if args.resample is not None or args.replay is not None:
         if args.resample is not None:
-            tfcp = args.resample.split(':')
+            tfcp = args.resample.split(":")
         elif args.replay is not None:
-            tfcp = args.replay.split(':')
+            tfcp = args.replay.split(":")
 
         # compression may be skipped and it will default to 1
-        if len(tfcp) == 1 or tfcp[1] == '':
+        if len(tfcp) == 1 or tfcp[1] == "":
             tf, cp = tfcp[0], 1
         else:
             tf, cp = tfcp
@@ -106,7 +106,7 @@ def btrun(pargs=''):
     # get and add signals
     signals = getobjects(args.signals, bt.Indicator, bt.signals, issignal=True)
     for sig, kwargs, sigtype in signals:
-        stype = getattr(bt.signal, 'SIGNAL_' + sigtype.upper())
+        stype = getattr(bt.signal, "SIGNAL_" + sigtype.upper())
         cerebro.add_signal(stype, sig, **kwargs)
 
     # get and add strategies
@@ -129,7 +129,7 @@ def btrun(pargs=''):
     setbroker(args, cerebro)
 
     for wrkwargs_str in args.writers or []:
-        wrkwargs = eval('dict(' + wrkwargs_str + ')')
+        wrkwargs = eval("dict(" + wrkwargs_str + ")")
         cerebro.addwriter(bt.WriterFile, **wrkwargs)
 
     ans = getfunctions(args.hooks, bt.Cerebro)
@@ -140,23 +140,23 @@ def btrun(pargs=''):
 
     if args.pranalyzer or args.ppranalyzer:
         if runst.analyzers:
-            print('====================')
-            print('== Analyzers')
-            print('====================')
+            print("====================")
+            print("== Analyzers")
+            print("====================")
             for name, analyzer in runst.analyzers.getitems():
                 if args.pranalyzer:
                     analyzer.print()
                 elif args.ppranalyzer:
-                    print('##########')
+                    print("##########")
                     print(name)
-                    print('##########')
+                    print("##########")
                     analyzer.pprint()
 
     if args.plot:
-        pkwargs = dict(style='bar')
+        pkwargs = dict(style="bar")
         if args.plot is not True:
             # evaluates to True but is not "True" - args were passed
-            ekwargs = eval('dict(' + args.plot + ')')
+            ekwargs = eval("dict(" + args.plot + ")")
             pkwargs.update(ekwargs)
 
         # cerebro.plot(numfigs=args.plotfigs, style=args.plotstyle)
@@ -171,29 +171,33 @@ def setbroker(args, cerebro):
 
     commkwargs = dict()
     if args.commission is not None:
-        commkwargs['commission'] = args.commission
+        commkwargs["commission"] = args.commission
     if args.margin is not None:
-        commkwargs['margin'] = args.margin
+        commkwargs["margin"] = args.margin
     if args.mult is not None:
-        commkwargs['mult'] = args.mult
+        commkwargs["mult"] = args.mult
     if args.interest is not None:
-        commkwargs['interest'] = args.interest
+        commkwargs["interest"] = args.interest
     if args.interest_long is not None:
-        commkwargs['interest_long'] = args.interest_long
+        commkwargs["interest_long"] = args.interest_long
 
     if commkwargs:
         broker.setcommission(**commkwargs)
 
     if args.slip_perc is not None:
-        cerebro.broker.set_slippage_perc(args.slip_perc,
-                                         slip_open=args.slip_open,
-                                         slip_match=not args.no_slip_match,
-                                         slip_out=args.slip_out)
+        cerebro.broker.set_slippage_perc(
+            args.slip_perc,
+            slip_open=args.slip_open,
+            slip_match=not args.no_slip_match,
+            slip_out=args.slip_out,
+        )
     elif args.slip_fixed is not None:
-        cerebro.broker.set_slippage_fixed(args.slip_fixed,
-                                          slip_open=args.slip_open,
-                                          slip_match=not args.no_slip_match,
-                                          slip_out=args.slip_out)
+        cerebro.broker.set_slippage_fixed(
+            args.slip_fixed,
+            slip_open=args.slip_open,
+            slip_match=not args.no_slip_match,
+            slip_out=args.slip_out,
+        )
 
 
 def getdatas(args):
@@ -202,35 +206,35 @@ def getdatas(args):
 
     # Prepare some args
     dfkwargs = dict()
-    if args.format == 'yahoo_unreversed':
-        dfkwargs['reverse'] = True
+    if args.format == "yahoo_unreversed":
+        dfkwargs["reverse"] = True
 
-    fmtstr = '%Y-%m-%d'
+    fmtstr = "%Y-%m-%d"
     if args.fromdate:
-        dtsplit = args.fromdate.split('T')
+        dtsplit = args.fromdate.split("T")
         if len(dtsplit) > 1:
-            fmtstr += 'T%H:%M:%S'
+            fmtstr += "T%H:%M:%S"
 
         fromdate = datetime.datetime.strptime(args.fromdate, fmtstr)
-        dfkwargs['fromdate'] = fromdate
+        dfkwargs["fromdate"] = fromdate
 
-    fmtstr = '%Y-%m-%d'
+    fmtstr = "%Y-%m-%d"
     if args.todate:
-        dtsplit = args.todate.split('T')
+        dtsplit = args.todate.split("T")
         if len(dtsplit) > 1:
-            fmtstr += 'T%H:%M:%S'
+            fmtstr += "T%H:%M:%S"
         todate = datetime.datetime.strptime(args.todate, fmtstr)
-        dfkwargs['todate'] = todate
+        dfkwargs["todate"] = todate
 
     if args.timeframe is not None:
-        dfkwargs['timeframe'] = TIMEFRAMES[args.timeframe]
+        dfkwargs["timeframe"] = TIMEFRAMES[args.timeframe]
 
     if args.compression is not None:
-        dfkwargs['compression'] = args.compression
+        dfkwargs["compression"] = args.compression
 
     datas = list()
     for dname in args.data:
-        dfkwargs['dataname'] = dname
+        dfkwargs["dataname"] = dname
         data = dfcls(**dfkwargs)
         datas.append(data)
 
@@ -256,8 +260,9 @@ def getmodclasses(mod, clstype, clsname=None):
 
 
 def getmodfunctions(mod, funcname=None):
-    members = inspect.getmembers(mod, inspect.isfunction) + \
-              inspect.getmembers(mod, inspect.ismethod)
+    members = inspect.getmembers(mod, inspect.isfunction) + inspect.getmembers(
+        mod, inspect.ismethod
+    )
 
     funclist = list()
     for name, member in members:
@@ -271,15 +276,15 @@ def getmodfunctions(mod, funcname=None):
     return funclist
 
 
-def loadmodule(modpath, modname=''):
+def loadmodule(modpath, modname=""):
     # generate a random name for the module
 
-    if not modpath.endswith('.py'):
-        modpath += '.py'
+    if not modpath.endswith(".py"):
+        modpath += ".py"
 
     if not modname:
         chars = string.ascii_uppercase + string.digits
-        modname = ''.join(random.choice(chars) for _ in range(10))
+        modname = "".join(random.choice(chars) for _ in range(10))
 
     version = (sys.version_info[0], sys.version_info[1])
 
@@ -293,6 +298,7 @@ def loadmodule(modpath, modname=''):
 
 def loadmodule2(modpath, modname):
     import imp
+
     try:
         mod = imp.load_source(modname, modpath)
     except Exception as e:
@@ -318,35 +324,35 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
 
     for item in iterable or []:
         if issignal:
-            sigtokens = item.split('+', 1)
+            sigtokens = item.split("+", 1)
             if len(sigtokens) == 1:  # no + seen
-                sigtype = 'longshort'
+                sigtype = "longshort"
             else:
                 sigtype, item = sigtokens
 
-        tokens = item.split(':', 1)
+        tokens = item.split(":", 1)
 
         if len(tokens) == 1:
             modpath = tokens[0]
-            name = ''
+            name = ""
             kwargs = dict()
         else:
             modpath, name = tokens
-            kwtokens = name.split(':', 1)
+            kwtokens = name.split(":", 1)
             if len(kwtokens) == 1:
                 # no '(' found
                 kwargs = dict()
             else:
                 name = kwtokens[0]
-                kwtext = 'dict(' + kwtokens[1] + ')'
+                kwtext = "dict(" + kwtokens[1] + ")"
                 kwargs = eval(kwtext)
 
         if modpath:
             mod, e = loadmodule(modpath)
 
             if not mod:
-                print('')
-                print('Failed to load module %s:' % modpath, e)
+                print("")
+                print("Failed to load module %s:" % modpath, e)
                 sys.exit(1)
         else:
             mod = modbase
@@ -354,7 +360,7 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
         loaded = getmodclasses(mod=mod, clstype=clsbase, clsname=name)
 
         if not loaded:
-            print('No class %s / module %s' % (str(name), modpath))
+            print("No class %s / module %s" % (str(name), modpath))
             sys.exit(1)
 
         if issignal:
@@ -369,29 +375,29 @@ def getfunctions(iterable, modbase):
     retfunctions = list()
 
     for item in iterable or []:
-        tokens = item.split(':', 1)
+        tokens = item.split(":", 1)
 
         if len(tokens) == 1:
             modpath = tokens[0]
-            name = ''
+            name = ""
             kwargs = dict()
         else:
             modpath, name = tokens
-            kwtokens = name.split(':', 1)
+            kwtokens = name.split(":", 1)
             if len(kwtokens) == 1:
                 # no '(' found
                 kwargs = dict()
             else:
                 name = kwtokens[0]
-                kwtext = 'dict(' + kwtokens[1] + ')'
+                kwtext = "dict(" + kwtokens[1] + ")"
                 kwargs = eval(kwtext)
 
         if modpath:
             mod, e = loadmodule(modpath)
 
             if not mod:
-                print('')
-                print('Failed to load module %s:' % modpath, e)
+                print("")
+                print("Failed to load module %s:" % modpath, e)
                 sys.exit(1)
         else:
             mod = modbase
@@ -399,7 +405,7 @@ def getfunctions(iterable, modbase):
         loaded = getmodfunctions(mod=mod, funcname=name)
 
         if not loaded:
-            print('No function %s / module %s' % (str(name), modpath))
+            print("No function %s / module %s" % (str(name), modpath))
             sys.exit(1)
 
         retfunctions.append((loaded[0], kwargs))
@@ -407,325 +413,453 @@ def getfunctions(iterable, modbase):
     return retfunctions
 
 
-def parse_args(pargs=''):
+def parse_args(pargs=""):
     parser = argparse.ArgumentParser(
-        description='Backtrader Run Script',
+        description="Backtrader Run Script",
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
-    group = parser.add_argument_group(title='Data options')
+    group = parser.add_argument_group(title="Data options")
     # Data options
-    group.add_argument('--data', '-d', action='append', required=True,
-                       help='Data files to be added to the system')
-
-    group = parser.add_argument_group(title='Cerebro options')
     group.add_argument(
-        '--cerebro', '-cer',
-        metavar='kwargs',
-        required=False, const='', default='', nargs='?',
-        help=('The argument can be specified with the following form:\n'
-              '\n'
-              '  - kwargs\n'
-              '\n'
-              '    Example: "preload=True" which set its to True\n'
-              '\n'
-              'The passed kwargs will be passed directly to the cerebro\n'
-              'instance created for the execution\n'
-              '\n'
-              'The available kwargs to cerebro are:\n'
-              '  - preload (default: True)\n'
-              '  - runonce (default: True)\n'
-              '  - maxcpus (default: None)\n'
-              '  - stdstats (default: True)\n'
-              '  - live (default: False)\n'
-              '  - exactbars (default: False)\n'
-              '  - preload (default: True)\n'
-              '  - writer (default False)\n'
-              '  - oldbuysell (default False)\n'
-              '  - tradehistory (default False)\n')
+        "--data", "-d", action="append", required=True, help="Data files to be added to the system"
     )
 
-    group.add_argument('--nostdstats', action='store_true',
-                       help='Disable the standard statistics observers')
+    group = parser.add_argument_group(title="Cerebro options")
+    group.add_argument(
+        "--cerebro",
+        "-cer",
+        metavar="kwargs",
+        required=False,
+        const="",
+        default="",
+        nargs="?",
+        help=(
+            "The argument can be specified with the following form:\n"
+            "\n"
+            "  - kwargs\n"
+            "\n"
+            '    Example: "preload=True" which set its to True\n'
+            "\n"
+            "The passed kwargs will be passed directly to the cerebro\n"
+            "instance created for the execution\n"
+            "\n"
+            "The available kwargs to cerebro are:\n"
+            "  - preload (default: True)\n"
+            "  - runonce (default: True)\n"
+            "  - maxcpus (default: None)\n"
+            "  - stdstats (default: True)\n"
+            "  - live (default: False)\n"
+            "  - exactbars (default: False)\n"
+            "  - preload (default: True)\n"
+            "  - writer (default False)\n"
+            "  - oldbuysell (default False)\n"
+            "  - tradehistory (default False)\n"
+        ),
+    )
+
+    group.add_argument(
+        "--nostdstats", action="store_true", help="Disable the standard statistics observers"
+    )
 
     datakeys = list(DATAFORMATS)
-    group.add_argument('--format', '--csvformat', '-c', required=False,
-                       default='btcsv', choices=datakeys,
-                       help='CSV Format')
+    group.add_argument(
+        "--format",
+        "--csvformat",
+        "-c",
+        required=False,
+        default="btcsv",
+        choices=datakeys,
+        help="CSV Format",
+    )
 
-    group.add_argument('--fromdate', '-f', required=False, default=None,
-                       help='Starting date in YYYY-MM-DD[THH:MM:SS] format')
+    group.add_argument(
+        "--fromdate",
+        "-f",
+        required=False,
+        default=None,
+        help="Starting date in YYYY-MM-DD[THH:MM:SS] format",
+    )
 
-    group.add_argument('--todate', '-t', required=False, default=None,
-                       help='Ending date in YYYY-MM-DD[THH:MM:SS] format')
+    group.add_argument(
+        "--todate",
+        "-t",
+        required=False,
+        default=None,
+        help="Ending date in YYYY-MM-DD[THH:MM:SS] format",
+    )
 
-    group.add_argument('--timeframe', '-tf', required=False, default='days',
-                       choices=TIMEFRAMES.keys(),
-                       help='Ending date in YYYY-MM-DD[THH:MM:SS] format')
+    group.add_argument(
+        "--timeframe",
+        "-tf",
+        required=False,
+        default="days",
+        choices=TIMEFRAMES.keys(),
+        help="Ending date in YYYY-MM-DD[THH:MM:SS] format",
+    )
 
-    group.add_argument('--compression', '-cp', required=False, default=1,
-                       type=int,
-                       help='Ending date in YYYY-MM-DD[THH:MM:SS] format')
+    group.add_argument(
+        "--compression",
+        "-cp",
+        required=False,
+        default=1,
+        type=int,
+        help="Ending date in YYYY-MM-DD[THH:MM:SS] format",
+    )
 
     group = parser.add_mutually_exclusive_group(required=False)
 
-    group.add_argument('--resample', '-rs', required=False, default=None,
-                       help='resample with timeframe:compression values')
-
-    group.add_argument('--replay', '-rp', required=False, default=None,
-                       help='replay with timeframe:compression values')
+    group.add_argument(
+        "--resample",
+        "-rs",
+        required=False,
+        default=None,
+        help="resample with timeframe:compression values",
+    )
 
     group.add_argument(
-        '--hook', dest='hooks',
-        action='append', required=False,
-        metavar='module:hookfunction:kwargs',
-        help=('This option can be specified multiple times.\n'
-              '\n'
-              'The argument can be specified with the following form:\n'
-              '\n'
-              '  - module:hookfunction:kwargs\n'
-              '\n'
-              '    Example: mymod:myhook:a=1,b=2\n'
-              '\n'
-              'kwargs is optional\n'
-              '\n'
-              'If module is omitted then hookfunction will be sought\n'
-              'as the built-in cerebro method. Example:\n'
-              '\n'
-              '  - :addtz:tz=America/St_Johns\n'
-              '\n'
-              'If name is omitted, then the 1st function found in the\n'
-              'mod will be used. Such as in:\n'
-              '\n'
-              '  - module or module::kwargs\n'
-              '\n'
-              'The function specified will be called, with cerebro\n'
-              'instance passed as the first argument together with\n'
-              'kwargs, if any were specified. This allows to customize\n'
-              'cerebro, beyond options provided by this script\n\n')
+        "--replay",
+        "-rp",
+        required=False,
+        default=None,
+        help="replay with timeframe:compression values",
+    )
+
+    group.add_argument(
+        "--hook",
+        dest="hooks",
+        action="append",
+        required=False,
+        metavar="module:hookfunction:kwargs",
+        help=(
+            "This option can be specified multiple times.\n"
+            "\n"
+            "The argument can be specified with the following form:\n"
+            "\n"
+            "  - module:hookfunction:kwargs\n"
+            "\n"
+            "    Example: mymod:myhook:a=1,b=2\n"
+            "\n"
+            "kwargs is optional\n"
+            "\n"
+            "If module is omitted then hookfunction will be sought\n"
+            "as the built-in cerebro method. Example:\n"
+            "\n"
+            "  - :addtz:tz=America/St_Johns\n"
+            "\n"
+            "If name is omitted, then the 1st function found in the\n"
+            "mod will be used. Such as in:\n"
+            "\n"
+            "  - module or module::kwargs\n"
+            "\n"
+            "The function specified will be called, with cerebro\n"
+            "instance passed as the first argument together with\n"
+            "kwargs, if any were specified. This allows to customize\n"
+            "cerebro, beyond options provided by this script\n\n"
+        ),
     )
 
     # Module where to read the strategy from
-    group = parser.add_argument_group(title='Strategy options')
+    group = parser.add_argument_group(title="Strategy options")
     group.add_argument(
-        '--strategy', '-st', dest='strategies',
-        action='append', required=False,
-        metavar='module:name:kwargs',
-        help=('This option can be specified multiple times.\n'
-              '\n'
-              'The argument can be specified with the following form:\n'
-              '\n'
-              '  - module:classname:kwargs\n'
-              '\n'
-              '    Example: mymod:myclass:a=1,b=2\n'
-              '\n'
-              'kwargs is optional\n'
-              '\n'
-              'If module is omitted then class name will be sought in\n'
-              'the built-in strategies module. Such as in:\n'
-              '\n'
-              '  - :name:kwargs or :name\n'
-              '\n'
-              'If name is omitted, then the 1st strategy found in the mod\n'
-              'will be used. Such as in:\n'
-              '\n'
-              '  - module or module::kwargs')
+        "--strategy",
+        "-st",
+        dest="strategies",
+        action="append",
+        required=False,
+        metavar="module:name:kwargs",
+        help=(
+            "This option can be specified multiple times.\n"
+            "\n"
+            "The argument can be specified with the following form:\n"
+            "\n"
+            "  - module:classname:kwargs\n"
+            "\n"
+            "    Example: mymod:myclass:a=1,b=2\n"
+            "\n"
+            "kwargs is optional\n"
+            "\n"
+            "If module is omitted then class name will be sought in\n"
+            "the built-in strategies module. Such as in:\n"
+            "\n"
+            "  - :name:kwargs or :name\n"
+            "\n"
+            "If name is omitted, then the 1st strategy found in the mod\n"
+            "will be used. Such as in:\n"
+            "\n"
+            "  - module or module::kwargs"
+        ),
     )
 
     # Module where to read the strategy from
-    group = parser.add_argument_group(title='Signals')
+    group = parser.add_argument_group(title="Signals")
     group.add_argument(
-        '--signal', '-sig', dest='signals',
-        action='append', required=False,
-        metavar='module:signaltype:name:kwargs',
-        help=('This option can be specified multiple times.\n'
-              '\n'
-              'The argument can be specified with the following form:\n'
-              '\n'
-              '  - signaltype:module:signaltype:classname:kwargs\n'
-              '\n'
-              '    Example: longshort+mymod:myclass:a=1,b=2\n'
-              '\n'
-              'signaltype may be ommited: longshort will be used\n'
-              '\n'
-              '    Example: mymod:myclass:a=1,b=2\n'
-              '\n'
-              'kwargs is optional\n'
-              '\n'
-              'signaltype will be uppercased to match the defintions\n'
-              'fromt the backtrader.signal module\n'
-              '\n'
-              'If module is omitted then class name will be sought in\n'
-              'the built-in signals module. Such as in:\n'
-              '\n'
-              '  - LONGSHORT::name:kwargs or :name\n'
-              '\n'
-              'If name is omitted, then the 1st signal found in the mod\n'
-              'will be used. Such as in:\n'
-              '\n'
-              '  - module or module:::kwargs')
+        "--signal",
+        "-sig",
+        dest="signals",
+        action="append",
+        required=False,
+        metavar="module:signaltype:name:kwargs",
+        help=(
+            "This option can be specified multiple times.\n"
+            "\n"
+            "The argument can be specified with the following form:\n"
+            "\n"
+            "  - signaltype:module:signaltype:classname:kwargs\n"
+            "\n"
+            "    Example: longshort+mymod:myclass:a=1,b=2\n"
+            "\n"
+            "signaltype may be ommited: longshort will be used\n"
+            "\n"
+            "    Example: mymod:myclass:a=1,b=2\n"
+            "\n"
+            "kwargs is optional\n"
+            "\n"
+            "signaltype will be uppercased to match the defintions\n"
+            "fromt the backtrader.signal module\n"
+            "\n"
+            "If module is omitted then class name will be sought in\n"
+            "the built-in signals module. Such as in:\n"
+            "\n"
+            "  - LONGSHORT::name:kwargs or :name\n"
+            "\n"
+            "If name is omitted, then the 1st signal found in the mod\n"
+            "will be used. Such as in:\n"
+            "\n"
+            "  - module or module:::kwargs"
+        ),
     )
 
     # Observers
-    group = parser.add_argument_group(title='Observers and statistics')
+    group = parser.add_argument_group(title="Observers and statistics")
     group.add_argument(
-        '--observer', '-ob', dest='observers',
-        action='append', required=False,
-        metavar='module:name:kwargs',
-        help=('This option can be specified multiple times.\n'
-              '\n'
-              'The argument can be specified with the following form:\n'
-              '\n'
-              '  - module:classname:kwargs\n'
-              '\n'
-              '    Example: mymod:myclass:a=1,b=2\n'
-              '\n'
-              'kwargs is optional\n'
-              '\n'
-              'If module is omitted then class name will be sought in\n'
-              'the built-in observers module. Such as in:\n'
-              '\n'
-              '  - :name:kwargs or :name\n'
-              '\n'
-              'If name is omitted, then the 1st observer found in the\n'
-              'will be used. Such as in:\n'
-              '\n'
-              '  - module or module::kwargs')
+        "--observer",
+        "-ob",
+        dest="observers",
+        action="append",
+        required=False,
+        metavar="module:name:kwargs",
+        help=(
+            "This option can be specified multiple times.\n"
+            "\n"
+            "The argument can be specified with the following form:\n"
+            "\n"
+            "  - module:classname:kwargs\n"
+            "\n"
+            "    Example: mymod:myclass:a=1,b=2\n"
+            "\n"
+            "kwargs is optional\n"
+            "\n"
+            "If module is omitted then class name will be sought in\n"
+            "the built-in observers module. Such as in:\n"
+            "\n"
+            "  - :name:kwargs or :name\n"
+            "\n"
+            "If name is omitted, then the 1st observer found in the\n"
+            "will be used. Such as in:\n"
+            "\n"
+            "  - module or module::kwargs"
+        ),
     )
     # Analyzers
-    group = parser.add_argument_group(title='Analyzers')
+    group = parser.add_argument_group(title="Analyzers")
     group.add_argument(
-        '--analyzer', '-an', dest='analyzers',
-        action='append', required=False,
-        metavar='module:name:kwargs',
-        help=('This option can be specified multiple times.\n'
-              '\n'
-              'The argument can be specified with the following form:\n'
-              '\n'
-              '  - module:classname:kwargs\n'
-              '\n'
-              '    Example: mymod:myclass:a=1,b=2\n'
-              '\n'
-              'kwargs is optional\n'
-              '\n'
-              'If module is omitted then class name will be sought in\n'
-              'the built-in analyzers module. Such as in:\n'
-              '\n'
-              '  - :name:kwargs or :name\n'
-              '\n'
-              'If name is omitted, then the 1st analyzer found in the\n'
-              'will be used. Such as in:\n'
-              '\n'
-              '  - module or module::kwargs')
+        "--analyzer",
+        "-an",
+        dest="analyzers",
+        action="append",
+        required=False,
+        metavar="module:name:kwargs",
+        help=(
+            "This option can be specified multiple times.\n"
+            "\n"
+            "The argument can be specified with the following form:\n"
+            "\n"
+            "  - module:classname:kwargs\n"
+            "\n"
+            "    Example: mymod:myclass:a=1,b=2\n"
+            "\n"
+            "kwargs is optional\n"
+            "\n"
+            "If module is omitted then class name will be sought in\n"
+            "the built-in analyzers module. Such as in:\n"
+            "\n"
+            "  - :name:kwargs or :name\n"
+            "\n"
+            "If name is omitted, then the 1st analyzer found in the\n"
+            "will be used. Such as in:\n"
+            "\n"
+            "  - module or module::kwargs"
+        ),
     )
 
     # Analyzer - Print
     group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument('--pranalyzer', '-pralyzer',
-                       required=False, action='store_true',
-                       help='Automatically print analyzers')
+    group.add_argument(
+        "--pranalyzer",
+        "-pralyzer",
+        required=False,
+        action="store_true",
+        help="Automatically print analyzers",
+    )
 
-    group.add_argument('--ppranalyzer', '-ppralyzer',
-                       required=False, action='store_true',
-                       help='Automatically PRETTY print analyzers')
+    group.add_argument(
+        "--ppranalyzer",
+        "-ppralyzer",
+        required=False,
+        action="store_true",
+        help="Automatically PRETTY print analyzers",
+    )
 
     # Indicators
-    group = parser.add_argument_group(title='Indicators')
+    group = parser.add_argument_group(title="Indicators")
     group.add_argument(
-        '--indicator', '-ind', dest='indicators',
-        metavar='module:name:kwargs',
-        action='append', required=False,
-        help=('This option can be specified multiple times.\n'
-              '\n'
-              'The argument can be specified with the following form:\n'
-              '\n'
-              '  - module:classname:kwargs\n'
-              '\n'
-              '    Example: mymod:myclass:a=1,b=2\n'
-              '\n'
-              'kwargs is optional\n'
-              '\n'
-              'If module is omitted then class name will be sought in\n'
-              'the built-in analyzers module. Such as in:\n'
-              '\n'
-              '  - :name:kwargs or :name\n'
-              '\n'
-              'If name is omitted, then the 1st analyzer found in the\n'
-              'will be used. Such as in:\n'
-              '\n'
-              '  - module or module::kwargs')
+        "--indicator",
+        "-ind",
+        dest="indicators",
+        metavar="module:name:kwargs",
+        action="append",
+        required=False,
+        help=(
+            "This option can be specified multiple times.\n"
+            "\n"
+            "The argument can be specified with the following form:\n"
+            "\n"
+            "  - module:classname:kwargs\n"
+            "\n"
+            "    Example: mymod:myclass:a=1,b=2\n"
+            "\n"
+            "kwargs is optional\n"
+            "\n"
+            "If module is omitted then class name will be sought in\n"
+            "the built-in analyzers module. Such as in:\n"
+            "\n"
+            "  - :name:kwargs or :name\n"
+            "\n"
+            "If name is omitted, then the 1st analyzer found in the\n"
+            "will be used. Such as in:\n"
+            "\n"
+            "  - module or module::kwargs"
+        ),
     )
 
     # Writer
-    group = parser.add_argument_group(title='Writers')
+    group = parser.add_argument_group(title="Writers")
     group.add_argument(
-        '--writer', '-wr',
-        dest='writers', metavar='kwargs', nargs='?',
-        action='append', required=False, const='',
-        help=('This option can be specified multiple times.\n'
-              '\n'
-              'The argument can be specified with the following form:\n'
-              '\n'
-              '  - kwargs\n'
-              '\n'
-              '    Example: a=1,b=2\n'
-              '\n'
-              'kwargs is optional\n'
-              '\n'
-              'It creates a system wide writer which outputs run data\n'
-              '\n'
-              'Please see the documentation for the available kwargs')
+        "--writer",
+        "-wr",
+        dest="writers",
+        metavar="kwargs",
+        nargs="?",
+        action="append",
+        required=False,
+        const="",
+        help=(
+            "This option can be specified multiple times.\n"
+            "\n"
+            "The argument can be specified with the following form:\n"
+            "\n"
+            "  - kwargs\n"
+            "\n"
+            "    Example: a=1,b=2\n"
+            "\n"
+            "kwargs is optional\n"
+            "\n"
+            "It creates a system wide writer which outputs run data\n"
+            "\n"
+            "Please see the documentation for the available kwargs"
+        ),
     )
 
     # Broker/Commissions
-    group = parser.add_argument_group(title='Cash and Commission Scheme Args')
-    group.add_argument('--cash', '-cash', required=False, type=float,
-                       help='Cash to set to the broker')
-    group.add_argument('--commission', '-comm', required=False, type=float,
-                       help='Commission value to set')
-    group.add_argument('--margin', '-marg', required=False, type=float,
-                       help='Margin type to set')
-    group.add_argument('--mult', '-mul', required=False, type=float,
-                       help='Multiplier to use')
+    group = parser.add_argument_group(title="Cash and Commission Scheme Args")
+    group.add_argument(
+        "--cash", "-cash", required=False, type=float, help="Cash to set to the broker"
+    )
+    group.add_argument(
+        "--commission", "-comm", required=False, type=float, help="Commission value to set"
+    )
+    group.add_argument("--margin", "-marg", required=False, type=float, help="Margin type to set")
+    group.add_argument("--mult", "-mul", required=False, type=float, help="Multiplier to use")
 
-    group.add_argument('--interest', required=False, type=float,
-                       default=None,
-                       help='Credit Interest rate to apply (0.0x)')
+    group.add_argument(
+        "--interest",
+        required=False,
+        type=float,
+        default=None,
+        help="Credit Interest rate to apply (0.0x)",
+    )
 
-    group.add_argument('--interest_long', action='store_true',
-                       required=False, default=None,
-                       help='Apply credit interest to long positions')
+    group.add_argument(
+        "--interest_long",
+        action="store_true",
+        required=False,
+        default=None,
+        help="Apply credit interest to long positions",
+    )
 
-    group.add_argument('--slip_perc', required=False, default=None,
-                       type=float,
-                       help='Enable slippage with a percentage value')
-    group.add_argument('--slip_fixed', required=False, default=None,
-                       type=float,
-                       help='Enable slippage with a fixed point value')
+    group.add_argument(
+        "--slip_perc",
+        required=False,
+        default=None,
+        type=float,
+        help="Enable slippage with a percentage value",
+    )
+    group.add_argument(
+        "--slip_fixed",
+        required=False,
+        default=None,
+        type=float,
+        help="Enable slippage with a fixed point value",
+    )
 
-    group.add_argument('--slip_open', required=False, action='store_true',
-                       help='enable slippage for when matching opening prices')
+    group.add_argument(
+        "--slip_open",
+        required=False,
+        action="store_true",
+        help="enable slippage for when matching opening prices",
+    )
 
-    group.add_argument('--no-slip_match', required=False, action='store_true',
-                       help=('Disable slip_match, ie: matching capped at \n'
-                             'high-low if slippage goes over those limits'))
-    group.add_argument('--slip_out', required=False, action='store_true',
-                       help='with slip_match enabled, match outside high-low')
+    group.add_argument(
+        "--no-slip_match",
+        required=False,
+        action="store_true",
+        help=(
+            "Disable slip_match, ie: matching capped at \n"
+            "high-low if slippage goes over those limits"
+        ),
+    )
+    group.add_argument(
+        "--slip_out",
+        required=False,
+        action="store_true",
+        help="with slip_match enabled, match outside high-low",
+    )
 
     # Output flushing
-    group.add_argument('--flush', required=False, action='store_true',
-                       help='flush the output - useful under win32 systems')
+    group.add_argument(
+        "--flush",
+        required=False,
+        action="store_true",
+        help="flush the output - useful under win32 systems",
+    )
 
     # Plot options
     parser.add_argument(
-        '--plot', '-p', nargs='?',
-        metavar='kwargs',
-        default=False, const=True, required=False,
-        help=('Plot the read data applying any kwargs passed\n'
-              '\n'
-              'For example:\n'
-              '\n'
-              '  --plot style="candle" (to plot candlesticks)\n')
+        "--plot",
+        "-p",
+        nargs="?",
+        metavar="kwargs",
+        default=False,
+        const=True,
+        required=False,
+        help=(
+            "Plot the read data applying any kwargs passed\n"
+            "\n"
+            "For example:\n"
+            "\n"
+            '  --plot style="candle" (to plot candlesticks)\n'
+        ),
     )
 
     if pargs:
@@ -734,5 +868,5 @@ def parse_args(pargs=''):
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     btrun()

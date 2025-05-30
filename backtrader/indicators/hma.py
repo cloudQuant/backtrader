@@ -46,11 +46,15 @@ class HullMovingAverage(MovingAverageBase):
         In the default case of `30`, the final minimum period before the
         moving average produces a non-NAN value is ``34``
     """
-    alias = ('HMA', 'HullMA',)
-    lines = ('hma',)
+
+    alias = (
+        "HMA",
+        "HullMA",
+    )
+    lines = ("hma",)
 
     # param 'period' is inherited from MovingAverageBase
-    params = (('_movav', MovAv.WMA),)
+    params = (("_movav", MovAv.WMA),)
 
     def __init__(self):
         wma = self.p._movav(self.data, period=self.params.period)

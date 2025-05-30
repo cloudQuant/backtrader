@@ -30,6 +30,7 @@ module author:: Daniel Rodriguez
 import operator
 from . import metabase
 from .utils.py3 import range
+
 # import metabase
 
 
@@ -45,11 +46,9 @@ class MetaLineRoot(metabase.MetaParams):
 
         # Find the owner and store it
         # startlevel = 4 ... to skip intermediate call stacks
-        ownerskip = kwargs.pop('_ownerskip', None)
+        ownerskip = kwargs.pop("_ownerskip", None)
         # findowner用于寻找_obj的父类，属于_obj._OwnerCls或者LineMultiple的实例，同时这个父类还不能是ownerskip
-        _obj._owner = metabase.findowner(_obj,
-                                         _obj._OwnerCls or LineMultiple,
-                                         skip=ownerskip)
+        _obj._owner = metabase.findowner(_obj, _obj._OwnerCls or LineMultiple, skip=ownerskip)
 
         # Parameter values have now been set before __init__
         return _obj, args, kwargs
@@ -69,10 +68,11 @@ class LineRoot(metaclass=MetaLineRoot):
     这个类继承了MetaLineRoot和object，LineRoot继承的是temporary_class
     到这里的继承关系如下：LineRoot-->MetaLineRoot-->MetaParams-->MetaBase-->type
     """
+
     # 初始化的时候类的属性
-    _OwnerCls = None    # 默认的父类实例是None
-    _minperiod = 1      # 最小周期是1
-    _opstage = 1        # 操作状态默认是1
+    _OwnerCls = None  # 默认的父类实例是None
+    _minperiod = 1  # 最小周期是1
+    _opstage = 1  # 操作状态默认是1
 
     # 指标类型、策略类型和观察类型的值分别是0,1,2
     IndType, StratType, ObsType = range(3)
@@ -88,11 +88,10 @@ class LineRoot(metaclass=MetaLineRoot):
     # 根据line的操作状态决定调用哪种操作算法
     def _operation(self, other, operation, r=False, intify=False):
         if self._opstage == 1:
-            return self._operation_stage1(
-                other, operation, r=r, intify=intify)
+            return self._operation_stage1(other, operation, r=r, intify=intify)
 
         return self._operation_stage2(other, operation, r=r)
-    
+
     # 自身的操作
     def _operationown(self, operation):
         if self._opstage == 1:
@@ -116,7 +115,7 @@ class LineRoot(metaclass=MetaLineRoot):
         Direct minperiod manipulation.It could be used, for example,
         by a strategy
         to not wait for all indicators to produce a value
-        
+
         """
         self._minperiod = minperiod
 
@@ -149,7 +148,7 @@ class LineRoot(metaclass=MetaLineRoot):
         It will be called during the "minperiod" phase of an iteration.
         """
         pass
-    
+
     # 在最小周期迭代结束的时候，即将开始next的时候调用一次
     def nextstart(self):
         """
@@ -180,7 +179,7 @@ class LineRoot(metaclass=MetaLineRoot):
         post-minperiod value
 
         Only called once and defaults to automatically calling once
-        
+
         """
         self.once(start, end)
 
@@ -188,7 +187,7 @@ class LineRoot(metaclass=MetaLineRoot):
     def once(self, start, end):
         """
         Called to calculate values at "once" when the minperiod is over
-        
+
         """
         pass
 
@@ -207,7 +206,7 @@ class LineRoot(metaclass=MetaLineRoot):
         Operation with single operand which is "self"
         """
         return self._makeoperationown(operation, _ownerskip=self)
-    
+
     # 自身操作阶段2
     def _operationown_stage2(self, operation):
         return operation(self[0])
@@ -246,7 +245,6 @@ class LineRoot(metaclass=MetaLineRoot):
 
         return operation(self[0], other)
 
-    
     # 加
     def __add__(self, other):
         return self._operation(other, operator.__add__)
@@ -352,6 +350,7 @@ class LineMultiple(LineRoot):
     LineMultiple-->LineRoot-->MetaLineRoot-->MetaParams-->MetaBase-->type
     # 这个类继承自LineRoot，用于操作line多余1条的类
     """
+
     # 重置
     def reset(self):
         self._stage1()
@@ -368,6 +367,7 @@ class LineMultiple(LineRoot):
         super(LineMultiple, self)._stage2()
         for line in self.lines:
             line._stage2()
+
     # # 对每一条line增加一个最小周期
     def addminperiod(self, minperiod):
         """
@@ -411,17 +411,17 @@ class LineSingle(LineRoot):
     LineSingle-->LineRoot-->MetaLineRoot-->MetaParams-->MetaBase-->type
     # 这个类继承自LineRoot，用于操作line是一条的类
     """
+
     # 增加minperiod，增加的时候需要减去初始化设置的时候self._minperiod=1的设置
     def addminperiod(self, minperiod):
         """
         Add the minperiod (substracting the overlapping 1 minimum period)
         """
         self._minperiod += minperiod - 1
+
     # 增加minperiod,不考虑初始的self._minperiod的值
     def incminperiod(self, minperiod):
         """
         Increment the minperiod with no considerations
         """
         self._minperiod += minperiod
-
-

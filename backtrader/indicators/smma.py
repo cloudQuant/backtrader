@@ -20,6 +20,7 @@
 ###############################################################################
 from . import MovingAverageBase, ExponentialSmoothing
 
+
 # 指数平滑移动平均线
 class SmoothedMovingAverage(MovingAverageBase):
     """
@@ -41,15 +42,20 @@ class SmoothedMovingAverage(MovingAverageBase):
     See also:
       - http://en.wikipedia.org/wiki/Moving_average#Modified_moving_average
     """
-    alias = ('SMMA', 'WilderMA', 'MovingAverageSmoothed',
-             'MovingAverageWilder', 'ModifiedMovingAverage',)
-    lines = ('smma',)
+
+    alias = (
+        "SMMA",
+        "WilderMA",
+        "MovingAverageSmoothed",
+        "MovingAverageWilder",
+        "ModifiedMovingAverage",
+    )
+    lines = ("smma",)
 
     def __init__(self):
         # Before super to ensure mixins (right-hand side in subclassing)
         # can see the assignment operation and operate on the line
         self.lines[0] = ExponentialSmoothing(
-            self.data,
-            period=self.p.period,
-            alpha=1.0 / self.p.period)
+            self.data, period=self.p.period, alpha=1.0 / self.p.period
+        )
         super(SmoothedMovingAverage, self).__init__()

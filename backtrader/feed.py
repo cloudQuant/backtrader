@@ -25,14 +25,14 @@ import io
 import os.path
 
 import backtrader as bt
-from backtrader import (date2num, num2date, time2num, TimeFrame, dataseries,
-                        metabase)
+from backtrader import date2num, num2date, time2num, TimeFrame, dataseries, metabase
 
-from backtrader.utils.py3 import  zip, range, string_types
+from backtrader.utils.py3 import zip, range, string_types
 from backtrader.utils import tzparse
 from .dataseries import SimpleFilterWrapper
 from .resamplerfilter import Resampler, Replayer
 from .tradingcal import PandasMarketCalendar
+
 
 # 这个元抽象类主要继承OHLCDateTime，然后在初始化的时候对数据的名称、时间、过滤器等进行一定的处理
 class MetaAbstractDataBase(dataseries.OHLCDateTime.__class__):
@@ -47,7 +47,7 @@ class MetaAbstractDataBase(dataseries.OHLCDateTime.__class__):
         # cls已经被创建出来了，进行初始化
         super(MetaAbstractDataBase, cls).__init__(name, bases, dct)
         # 如果cls的名字是空的，并且name不等于“DataBase",并且不是以"_"开始的，就把name作为key，cls作为value添加到cls的_indcol属性中
-        if not cls.aliased and name != 'DataBase' and not name.startswith('_'):
+        if not cls.aliased and name != "DataBase" and not name.startswith("_"):
             cls._indcol[name] = cls
 
     def dopreinit(cls, _obj, *args, **kwargs):
@@ -61,7 +61,7 @@ class MetaAbstractDataBase(dataseries.OHLCDateTime.__class__):
         # 从参数中获取_dataname的值
         _obj._dataname = _obj.p.dataname
         # 默认_name属性是空
-        _obj._name = ''
+        _obj._name = ""
         return _obj, args, kwargs
 
     def dopostinit(cls, _obj, *args, **kwargs):
@@ -95,16 +95,14 @@ class MetaAbstractDataBase(dataseries.OHLCDateTime.__class__):
         if isinstance(_obj.p.fromdate, datetime.date):
             # push it to the end of the day, or else intraday
             # values before the end of the day would be gone
-            if not hasattr(_obj.p.fromdate, 'hour'):
-                _obj.p.fromdate = datetime.datetime.combine(
-                    _obj.p.fromdate, _obj.p.sessionstart)
+            if not hasattr(_obj.p.fromdate, "hour"):
+                _obj.p.fromdate = datetime.datetime.combine(_obj.p.fromdate, _obj.p.sessionstart)
         # 如果结束日期是date格式，如果没有hour的属性的话，就增加sessionend的时间，把结束日期变成了日期+时间的格式
         if isinstance(_obj.p.todate, datetime.date):
             # push it to the end of the day, or else intraday
             # values before the end of the day would be gone
-            if not hasattr(_obj.p.todate, 'hour'):
-                _obj.p.todate = datetime.datetime.combine(
-                    _obj.p.todate, _obj.p.sessionend)
+            if not hasattr(_obj.p.todate, "hour"):
+                _obj.p.todate = datetime.datetime.combine(_obj.p.todate, _obj.p.sessionend)
         # 设置_barstack,_barstash两个属性作为队列，用于过滤操作
         _obj._barstack = collections.deque()  # for filter operations
         _obj._barstash = collections.deque()  # for filter operations
@@ -116,7 +114,7 @@ class MetaAbstractDataBase(dataseries.OHLCDateTime.__class__):
         for fp in _obj.p.filters:
             if inspect.isclass(fp):
                 fp = fp(_obj)
-                if hasattr(fp, 'last'):
+                if hasattr(fp, "last"):
                     _obj._ffilters.append((fp, [], {}))
 
             _obj._filters.append((fp, [], {}))
@@ -128,29 +126,44 @@ class MetaAbstractDataBase(dataseries.OHLCDateTime.__class__):
 class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
     # 参数的初始化设置
     params = (
-        ('dataname', None),
-        ('name', ''),
-        ('compression', 1),
-        ('timeframe', TimeFrame.Days),
-        ('fromdate', None),
-        ('todate', None),
-        ('sessionstart', None),
-        ('sessionend', None),
-        ('filters', []),
-        ('tz', None),
-        ('tzinput', None),
-        ('qcheck', 0.0),  # timeout in seconds (float) to check for events
-        ('calendar', None),
+        ("dataname", None),
+        ("name", ""),
+        ("compression", 1),
+        ("timeframe", TimeFrame.Days),
+        ("fromdate", None),
+        ("todate", None),
+        ("sessionstart", None),
+        ("sessionend", None),
+        ("filters", []),
+        ("tz", None),
+        ("tzinput", None),
+        ("qcheck", 0.0),  # timeout in seconds (float) to check for events
+        ("calendar", None),
     )
 
     # 数据的八种不同的状态
-    (CONNECTED, DISCONNECTED, CONNBROKEN, DELAYED,
-     LIVE, NOTSUBSCRIBED, NOTSUPPORTED_TF, UNKNOWN) = range(8)
+    (
+        CONNECTED,
+        DISCONNECTED,
+        CONNBROKEN,
+        DELAYED,
+        LIVE,
+        NOTSUBSCRIBED,
+        NOTSUPPORTED_TF,
+        UNKNOWN,
+    ) = range(8)
 
     # 通知的名字
     _NOTIFNAMES = [
-        'CONNECTED', 'DISCONNECTED', 'CONNBROKEN', 'DELAYED',
-        'LIVE', 'NOTSUBSCRIBED', 'NOTSUPPORTED_TIMEFRAME', 'UNKNOWN']
+        "CONNECTED",
+        "DISCONNECTED",
+        "CONNBROKEN",
+        "DELAYED",
+        "LIVE",
+        "NOTSUBSCRIBED",
+        "NOTSUPPORTED_TIMEFRAME",
+        "UNKNOWN",
+    ]
 
     # 类方法，获取数据的状态
     def __init__(self):
@@ -201,19 +214,19 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
         # 把用户输入的开始和结束时间转化为具体的数字，如果是None的话，开始时间是无限小的数字，结束时间是无限大的数字
         # 如果是具体的时间的话，就使用date2num转化为具体的数字
         if self.p.fromdate is None:
-            self.fromdate = float('-inf')
+            self.fromdate = float("-inf")
         else:
             self.fromdate = self.date2num(self.p.fromdate)
 
         if self.p.todate is None:
-            self.todate = float('inf')
+            self.todate = float("inf")
         else:
             self.todate = self.date2num(self.p.todate)
 
         # FIXME: These two are never used and could be removed
         # 这两个是不会用到的，可以删除
-        self.sessionstart = time2num(self.p.sessionstart)     
-        self.sessionend = time2num(self.p.sessionend)         
+        self.sessionstart = time2num(self.p.sessionstart)
+        self.sessionend = time2num(self.p.sessionend)
 
         # 从参数中获取日历，如果日历是None的话，就从本地环境中寻找_tradingcal，如果是字符串的话，就使用PandasMarketCalendar
         self._calendar = cal = self.p.calendar
@@ -380,7 +393,7 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
             pobj = p(self, *args, **kwargs)
             self._filters.append((pobj, [], {}))
 
-            if hasattr(pobj, 'last'):
+            if hasattr(pobj, "last"):
                 self._ffilters.append((pobj, [], {}))
 
         else:
@@ -400,8 +413,8 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
         # a real-time data feed is in use and 1-minute bars are being
         # constructed with 5-second updates
         for lalias in self.getlinealiases():
-            if lalias != 'datetime':
-                setattr(self, 'tick_' + lalias, None)
+            if lalias != "datetime":
+                setattr(self, "tick_" + lalias, None)
 
         self.tick_last = None
 
@@ -409,11 +422,10 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
     def _tick_fill(self, force=False):
         # If nothing filled the tick_xxx attributes, the bar is the tick
         alias0 = self._getlinealias(0)
-        if force or getattr(self, 'tick_' + alias0, None) is None:
+        if force or getattr(self, "tick_" + alias0, None) is None:
             for lalias in self.getlinealiases():
-                if lalias != 'datetime':
-                    setattr(self, 'tick_' + lalias,
-                            getattr(self.lines, lalias)[0])
+                if lalias != "datetime":
+                    setattr(self, "tick_" + lalias, getattr(self.lines, lalias)[0])
 
             self.tick_last = getattr(self.lines, alias0)[0]
 
@@ -422,7 +434,7 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
         if len(self) < self.buflen():
             return self.lines.datetime[1]  # return the future
 
-        return float('inf')  # max date else
+        return float("inf")  # max date else
 
     # 把数据向前移动size
     def advance(self, size=1, datamaster=None, ticks=True):
@@ -509,7 +521,7 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
     # 使用过滤器的最后一个机会
     def _last(self, datamaster=None):
         # A last chance for filters to deliver something
-        
+
         ret = 0
         for ff, fargs, fkwargs in self._ffilters:
             ret += ff.last(self, *fargs, **fkwargs)
@@ -531,13 +543,13 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
     def _check(self, forcedata=None):
         ret = 0
         for ff, fargs, fkwargs in self._filters:
-            if not hasattr(ff, 'check'):
+            if not hasattr(ff, "check"):
                 continue
             ff.check(self, _forcedata=forcedata, *fargs, **fkwargs)
 
     # 加载数据
     def load(self):
-        
+
         while True:
             # move a data pointer forward for new bar
             # 把数据指针向前移动一位
@@ -562,7 +574,7 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
                     # signal no bar is available, but the data feed is not
                     # done. False means game over
                     return _loadret
-                
+
             # 如果既没有从self._barstack中获取到bar，但是在self._barstash中获取到了bar,就需要对bar进行处理
             # Get a reference to current loaded time
             # 获取当前的时间
@@ -635,7 +647,7 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
 
         Parameter ``erase`` determines removal from the data stream
         """
-        
+
         bar = [line[0] for line in self.itersize()]
         if not stash:
             self._barstack.append(bar)
@@ -677,7 +689,7 @@ class AbstractDataBase(dataseries.OHLCDateTime, metaclass=MetaAbstractDataBase):
             return True
 
         return False
-    
+
     #  增加抽样过滤器
     def resample(self, **kwargs):
         self.addfilter(Resampler, **kwargs)
@@ -700,12 +712,12 @@ class FeedBase(metaclass=metabase.MetaParams):
     # 初始化的时候，datas设置成空的列表
     def __init__(self):
         self.datas = list()
-        
+
     # 数据开始
     def start(self):
         for data in self.datas:
             data.start()
-            
+
     # 数据结束
     def stop(self):
         for data in self.datas:
@@ -717,7 +729,7 @@ class FeedBase(metaclass=metabase.MetaParams):
         for pname, pvalue in self.p._getitems():
             kwargs.setdefault(pname, getattr(self.p, pname))
 
-        kwargs['dataname'] = dataname
+        kwargs["dataname"] = dataname
         data = self._getdata(**kwargs)
 
         data._name = name
@@ -730,7 +742,7 @@ class FeedBase(metaclass=metabase.MetaParams):
         for pname, pvalue in self.p._getitems():
             kwargs.setdefault(pname, getattr(self.p, pname))
         # 增加一个dataname的key
-        kwargs['dataname'] = dataname
+        kwargs["dataname"] = dataname
         return self.DataCls(**kwargs)
 
 
@@ -742,8 +754,7 @@ class MetaCSVDataBase(DataBase.__class__):
         if not _obj.p.name and not _obj._name:
             _obj._name, _ = os.path.splitext(os.path.basename(_obj.p.dataname))
 
-        _obj, args, kwargs = \
-            super(MetaCSVDataBase, cls).dopostinit(_obj, *args, **kwargs)
+        _obj, args, kwargs = super(MetaCSVDataBase, cls).dopostinit(_obj, *args, **kwargs)
 
         return _obj, args, kwargs
 
@@ -762,10 +773,14 @@ class CSVDataBase(DataBase, metaclass=MetaCSVDataBase):
     The return value of ``_loadline`` (True/False) will be the return value
     of ``_load`` which has been overriden by this base class
     """
+
     # 数据默认是None
     f = None
     # 设置具体的参数
-    params = (('headers', True), ('separator', ','),)
+    params = (
+        ("headers", True),
+        ("separator", ","),
+    )
 
     # 获取数据并简单处理
     def __init__(self):
@@ -776,12 +791,12 @@ class CSVDataBase(DataBase, metaclass=MetaCSVDataBase):
         # 如果数据是None的话
         if self.f is None:
             # 如果参数中dataname具有readline属性，那么就说明dataname是一个数据，直接f等于参数中的数据
-            if hasattr(self.p.dataname, 'readline'):
+            if hasattr(self.p.dataname, "readline"):
                 self.f = self.p.dataname
             # 如果没有readline属性的话，说明dataname是一个地址，那么就根据这个地址打开文件，获取数据
             else:
                 # Let an exception propagate to let the caller know
-                self.f = io.open(self.p.dataname, 'r')
+                self.f = io.open(self.p.dataname, "r")
         # 如果有headers的话，就读取一行，跳过headers
         if self.p.headers:
             self.f.readline()  # skip the headers
@@ -822,7 +837,7 @@ class CSVDataBase(DataBase, metaclass=MetaCSVDataBase):
         if not line:
             return False
 
-        line = line.rstrip('\n')
+        line = line.rstrip("\n")
         linetokens = line.split(self.separator)
         return self._loadline(linetokens)
 
@@ -838,25 +853,26 @@ class CSVDataBase(DataBase, metaclass=MetaCSVDataBase):
         if not line:
             return None
 
-        line = line.rstrip('\n')
+        line = line.rstrip("\n")
         linetokens = line.split(self.separator)
         return linetokens
 
 
 class CSVFeedBase(FeedBase):
     # 设置参数
-    params = (('basepath', ''),) + CSVDataBase.params._gettuple()
+    params = (("basepath", ""),) + CSVDataBase.params._gettuple()
+
     # 获取数据
     def _getdata(self, dataname, **kwargs):
-        return self.DataCls(dataname=self.p.basepath + dataname,
-                            **self.p._getkwargs())
+        return self.DataCls(dataname=self.p.basepath + dataname, **self.p._getkwargs())
+
 
 # 数据克隆
 class DataClone(AbstractDataBase):
-    
+
     # _clone属性设置为True
     _clone = True
-    
+
     # 初始化，data等于参数中的dataname的值,_datename等于data的_dataname属性值
     # 然后copy日期、时间、交易间隔、compression的参数
     def __init__(self):
@@ -892,8 +908,8 @@ class DataClone(AbstractDataBase):
         self.todate = self.data.todate
 
         # FIXME: if removed from guest, remove here too
-        self.sessionstart = self.data.sessionstart    
-        self.sessionend = self.data.sessionend        
+        self.sessionstart = self.data.sessionstart
+        self.sessionend = self.data.sessionend
 
     # 开始
     def start(self):
@@ -929,8 +945,8 @@ class DataClone(AbstractDataBase):
 
         # Not preloading
         # 这句语法不怎么高效，换成len(self.data)<=self._dlen，可能可以少做一个判断
-        if len(self.data) <= self._dlen: 
-        # if not (len(self.data) > self._dlen): # backtrader自带
+        if len(self.data) <= self._dlen:
+            # if not (len(self.data) > self._dlen): # backtrader自带
             # Data not beyond last seen bar
             return False
 
@@ -942,7 +958,7 @@ class DataClone(AbstractDataBase):
             line[0] = dline[0]
 
         return True
-    
+
     # 向前移动size的量
     def advance(self, size=1, datamaster=None, ticks=True):
         self._dlen += size

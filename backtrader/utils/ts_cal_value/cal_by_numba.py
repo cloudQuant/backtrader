@@ -2,13 +2,15 @@ import numpy as np
 from numba import njit
 from numba.pycc import CC
 
-cc = CC('calculation_by_numba')
+cc = CC("calculation_by_numba")
 cc.verbose = True
 
 
-@cc.export('cal_value_by_numba', 'f8[:](f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8, f8, f8)')
+@cc.export("cal_value_by_numba", "f8[:](f8[:], f8[:], f8[:], f8[:], f8[:], f8[:], f8, f8, f8)")
 @njit
-def cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signal_arr, commission, init_value, percent):
+def cal_value_by_numba(
+    open_arr, high_arr, low_arr, close_arr, volume_arr, signal_arr, commission, init_value, percent
+):
     # 循环计算具体地持仓，盈亏，value的情况
     # 初始化持仓，可用资金，持仓盈亏，价值
     symbol_open_price_arr = np.zeros(signal_arr.shape)
@@ -49,7 +51,9 @@ def cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signa
                 # 保存开仓价格
                 symbol_open_price_arr[i] = open_price
                 # 价值变化
-                value_change = (close_arr[i] - open_price) / open_price * pre_signal * open_value * percent
+                value_change = (
+                    (close_arr[i] - open_price) / open_price * pre_signal * open_value * percent
+                )
                 # 当前的价格
                 value_arr[i] = open_value + value_change - now_commission
 
@@ -61,7 +65,9 @@ def cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signa
             if pre_signal != 0 and now_signal == 0:
                 open_price = symbol_open_price_arr[i - 1]
                 open_value = symbol_open_value_arr[i - 1]
-                value_change = (open_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+                value_change = (
+                    (open_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+                )
                 value_arr[i] = open_value + value_change - now_commission
                 now_commission = open_arr[i + 1] / open_price * open_value * percent * commission
                 value_arr[i] = value_arr[i] - now_commission
@@ -81,7 +87,9 @@ def cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signa
                 # 平旧仓位
                 open_price = symbol_open_price_arr[i - 1]
                 open_value = symbol_open_value_arr[i - 1]
-                value_change = (open_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+                value_change = (
+                    (open_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+                )
                 value_arr[i] = value_arr[i - 1] + value_change - now_commission
                 # 新开仓
                 open_value = value_arr[i]
@@ -100,7 +108,9 @@ def cal_value_by_numba(open_arr, high_arr, low_arr, close_arr, volume_arr, signa
             open_price = symbol_open_price_arr[i]
             open_value = symbol_open_value_arr[i]
             symbol_open_price_arr[i + 1] = open_price
-            value_change = (close_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+            value_change = (
+                (close_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+            )
             value_arr[i + 1] = open_value + value_change
             symbol_open_value_arr[i + 1] = open_value
 

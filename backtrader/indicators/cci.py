@@ -20,6 +20,7 @@
 ###############################################################################
 from . import Indicator, Max, MovAv, MeanDev
 
+
 # CCI指标
 class CommodityChannelIndex(Indicator):
     """
@@ -37,19 +38,22 @@ class CommodityChannelIndex(Indicator):
     See:
       - https://en.wikipedia.org/wiki/Commodity_channel_index
     """
-    alias = ('CCI',)
 
-    lines = ('cci',)
+    alias = ("CCI",)
 
-    params = (('period', 20),
-              ('factor', 0.015),
-              ('movav', MovAv.Simple),
-              ('upperband', 100.0),
-              ('lowerband', -100.0),)
+    lines = ("cci",)
+
+    params = (
+        ("period", 20),
+        ("factor", 0.015),
+        ("movav", MovAv.Simple),
+        ("upperband", 100.0),
+        ("lowerband", -100.0),
+    )
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.factor]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def _plotinit(self):

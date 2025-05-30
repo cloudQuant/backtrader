@@ -23,14 +23,14 @@ from datetime import date, datetime
 import io
 import itertools
 
-from ..utils.py3 import (urlopen, urlquote, ProxyHandler, build_opener,
-                         install_opener)
+from ..utils.py3 import urlopen, urlquote, ProxyHandler, build_opener, install_opener
 
 from .. import feed
 from ..utils import date2num
 
 
-__all__ = ['QuandlCSV', 'Quandl']
+__all__ = ["QuandlCSV", "Quandl"]
+
 
 #  处理quandlcsv数据
 class QuandlCSV(feed.CSVDataBase):
@@ -61,13 +61,14 @@ class QuandlCSV(feed.CSVDataBase):
 
         Number of decimals to round to
     """
+
     _online = False  # flag to avoid double reversal
 
     params = (
-        ('reverse', False),
-        ('adjclose', True),
-        ('round', False),
-        ('decimals', 2),
+        ("reverse", False),
+        ("adjclose", True),
+        ("round", False),
+        ("decimals", 2),
     )
 
     def start(self):
@@ -170,17 +171,17 @@ class Quandl(QuandlCSV):
 
         String identifying the dataset to query. Defaults to ``WIKI``
 
-      """
+    """
 
     _online = True  # flag to avoid double reversal
 
     params = (
-        ('baseurl', 'https://www.quandl.com/api/v3/datasets'),
-        ('proxies', {}),
-        ('buffered', True),
-        ('reverse', True),
-        ('apikey', None),
-        ('dataset', 'WIKI'),
+        ("baseurl", "https://www.quandl.com/api/v3/datasets"),
+        ("proxies", {}),
+        ("buffered", True),
+        ("reverse", True),
+        ("apikey", None),
+        ("dataset", "WIKI"),
     )
 
     def __init__(self):
@@ -189,26 +190,25 @@ class Quandl(QuandlCSV):
     def start(self):
         self.error = None
 
-        url = '{}/{}/{}.csv'.format(
-            self.p.baseurl, self.p.dataset, urlquote(self.p.dataname))
+        url = "{}/{}/{}.csv".format(self.p.baseurl, self.p.dataset, urlquote(self.p.dataname))
 
         urlargs = []
         if self.p.reverse:
-            urlargs.append('order=asc')
+            urlargs.append("order=asc")
 
         if self.p.apikey is not None:
-            urlargs.append('api_key={}'.format(self.p.apikey))
+            urlargs.append("api_key={}".format(self.p.apikey))
 
         if self.p.fromdate:
-            dtxt = self.p.fromdate.strftime('%Y-%m-%d')
-            urlargs.append('start_date={}'.format(dtxt))
+            dtxt = self.p.fromdate.strftime("%Y-%m-%d")
+            urlargs.append("start_date={}".format(dtxt))
 
         if self.p.todate:
-            dtxt = self.p.todate.strftime('%Y-%m-%d')
-            urlargs.append('end_date={}'.format(dtxt))
+            dtxt = self.p.todate.strftime("%Y-%m-%d")
+            urlargs.append("end_date={}".format(dtxt))
 
         if urlargs:
-            url += '?' + '&'.join(urlargs)
+            url += "?" + "&".join(urlargs)
 
         if self.p.proxies:
             proxy = ProxyHandler(self.p.proxies)
@@ -222,13 +222,13 @@ class Quandl(QuandlCSV):
             # leave us empty
             return
 
-        if datafile.headers['Content-Type'] != 'text/csv':
-            self.error = 'Wrong content type: %s' % datafile.headers
+        if datafile.headers["Content-Type"] != "text/csv":
+            self.error = "Wrong content type: %s" % datafile.headers
             return  # HTML returned? wrong url?
 
         if self.params.buffered:
             # buffer everything from the socket into a local buffer
-            f = io.StringIO(datafile.read().decode('utf-8'), newline=None)
+            f = io.StringIO(datafile.read().decode("utf-8"), newline=None)
             datafile.close()
         else:
             f = datafile

@@ -96,10 +96,10 @@ class VWR(TimeFrameAnalyzerBase):
 
     # 参数
     params = (
-        ('tann', None),
-        ('tau', 0.20),
-        ('sdev_max', 2.0),
-        ('fund', None),
+        ("tann", None),
+        ("tau", 0.20),
+        ("sdev_max", 2.0),
+        ("fund", None),
     )
 
     # 一年对应的交易周期
@@ -116,9 +116,9 @@ class VWR(TimeFrameAnalyzerBase):
         self._pns = None
         self._pis = None
         self._fundmode = None
-        self._returns = Returns(timeframe=self.p.timeframe,
-                                compression=self.p.compression,
-                                tann=self.p.tann)
+        self._returns = Returns(
+            timeframe=self.p.timeframe, compression=self.p.compression, tann=self.p.tann
+        )
 
     # 开始
     def start(self):
@@ -150,8 +150,8 @@ class VWR(TimeFrameAnalyzerBase):
         # Get results from children
         # 获取收益率
         rs = self._returns.get_analysis()
-        ravg = rs['ravg']
-        rnorm100 = rs['rnorm100']
+        ravg = rs["ravg"]
+        rnorm100 = rs["rnorm100"]
 
         # make n 1 based in enumerate (number of periods and not index)
         # skip initial placeholders for synchronization
@@ -166,7 +166,7 @@ class VWR(TimeFrameAnalyzerBase):
         sdev_p = standarddev(dts, bessel=True)
         # 计算vmr的值
         vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
-        self.rets['vwr'] = vwr
+        self.rets["vwr"] = vwr
 
     # fund通知
     def notify_fund(self, cash, value, fundvalue, shares):

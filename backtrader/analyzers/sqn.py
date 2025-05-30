@@ -50,8 +50,9 @@ class SQN(Analyzer):
         considered trades)
 
     """
+
     # 系统质量数
-    alias = ('SystemQualityNumber',)
+    alias = ("SystemQualityNumber",)
 
     # 创建分析
     def create_analysis(self):

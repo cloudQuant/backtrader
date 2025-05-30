@@ -20,19 +20,28 @@
 ###############################################################################
 from . import Indicator, Max, MovAv, Highest, Lowest, DivByZero
 
+
 # kdj随机指标
 class _StochasticBase(Indicator):
-    lines = ('percK', 'percD',)
-    params = (('period', 14), ('period_dfast', 3), ('movav', MovAv.Simple),
-              ('upperband', 80.0), ('lowerband', 20.0),
-              ('safediv', False), ('safezero', 0.0))
+    lines = (
+        "percK",
+        "percD",
+    )
+    params = (
+        ("period", 14),
+        ("period_dfast", 3),
+        ("movav", MovAv.Simple),
+        ("upperband", 80.0),
+        ("lowerband", 20.0),
+        ("safediv", False),
+        ("safezero", 0.0),
+    )
 
-    plotlines = dict(percD=dict(_name='%D', ls='--'),
-                     percK=dict(_name='%K'))
+    plotlines = dict(percD=dict(_name="%D", ls="--"), percK=dict(_name="%K"))
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.period_dfast]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def _plotinit(self):
@@ -75,6 +84,7 @@ class StochasticFast(_StochasticBase):
     See:
       - http://en.wikipedia.org/wiki/Stochastic_oscillator
     """
+
     def __init__(self):
         super(StochasticFast, self).__init__()
         self.lines.percK = self.k
@@ -97,12 +107,13 @@ class Stochastic(_StochasticBase):
     See:
       - http://en.wikipedia.org/wiki/Stochastic_oscillator
     """
-    alias = ('StochasticSlow',)
-    params = (('period_dslow', 3),)
+
+    alias = ("StochasticSlow",)
+    params = (("period_dslow", 3),)
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.period_dfast, self.p.period_dslow]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def __init__(self):
@@ -127,19 +138,19 @@ class StochasticFull(_StochasticBase):
     See:
       - http://en.wikipedia.org/wiki/Stochastic_oscillator
     """
-    lines = ('percDSlow',)
-    params = (('period_dslow', 3),)
 
-    plotlines = dict(percDSlow=dict(_name='%DSlow'))
+    lines = ("percDSlow",)
+    params = (("period_dslow", 3),)
+
+    plotlines = dict(percDSlow=dict(_name="%DSlow"))
 
     def _plotlabel(self):
         plabels = [self.p.period, self.p.period_dfast, self.p.period_dslow]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def __init__(self):
         super(StochasticFull, self).__init__()
         self.lines.percK = self.k
         self.lines.percD = self.d
-        self.l.percDSlow = self.p.movav(
-            self.l.percD, period=self.p.period_dslow)
+        self.l.percDSlow = self.p.movav(self.l.percD, period=self.p.period_dslow)

@@ -20,6 +20,7 @@
 ###############################################################################
 from copy import copy
 
+
 # Position类，保持和更新持仓的大小和价格，和其他的任何资产没有关系，它仅仅保存大小和价格
 class Position(object):
     """
@@ -35,6 +36,7 @@ class Position(object):
     is not null
 
     """
+
     # 打印position的时候可以显示的信息
     def __str__(self):
         return (
@@ -71,6 +73,7 @@ class Position(object):
         self.size = size
         self.price = price
         return self.size == oldsize
+
     # 设置position的size和price
     def set(self, size, price):
         # 如果现在的持仓大于0,并且理论上的size大于当前的size，就意味着要新开仓；
@@ -113,9 +116,11 @@ class Position(object):
             self.price = 0.0
 
         return self.size, self.price, self.upopened, self.upclosed
+
     # 调用len(position)的时候，返回持仓的绝对值
     def __len__(self):
         return abs(self.size)
+
     # 调用bool(position)判断当前size是否等于0
     def __bool__(self):
         return bool(self.size != 0)

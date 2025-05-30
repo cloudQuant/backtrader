@@ -24,20 +24,23 @@ from .lineiterator import LineIterator, IndicatorBase
 from .lineseries import LineSeriesMaker, Lines
 from .metabase import AutoInfoClass
 
+
 # 指标元类
 class MetaIndicator(IndicatorBase.__class__):
     # 指标名称(_refname)
-    _refname = '_indcol'
+    _refname = "_indcol"
     # 指标列
     _indcol = dict()
     # 指标缓存
     _icache = dict()
     # 指标缓存使用
     _icacheuse = False
+
     # 类方法，清除缓存
     @classmethod
     def cleancache(cls):
         cls._icache = dict()
+
     # 类方法，设置是否使用缓存
     @classmethod
     def usecache(cls, onoff):
@@ -74,7 +77,7 @@ class MetaIndicator(IndicatorBase.__class__):
         # Initialize the class
         super(MetaIndicator, cls).__init__(name, bases, dct)
         # 如果不是alised ，同时name也不等于指标，同时name并不是以_开头的，
-        if not cls.aliased and name != 'Indicator' and not name.startswith('_'):
+        if not cls.aliased and name != "Indicator" and not name.startswith("_"):
             # 获取refattr属性，并添加name和cls到这个属性值中
             refattr = getattr(cls, cls._refname)
             refattr[name] = cls
@@ -93,11 +96,12 @@ class MetaIndicator(IndicatorBase.__class__):
 
 
 # 指标类
-class Indicator(IndicatorBase,metaclass=MetaIndicator):
+class Indicator(IndicatorBase, metaclass=MetaIndicator):
     # line的类型被设置为指标
     _ltype = LineIterator.IndType
     # 输出到csv文件被设置成False
     csv = False
+
     # 当数据小于当前时间的时候，数据向前移动size
     def advance(self, size=1):
         # Need intercepting this call to support datas with
@@ -134,6 +138,7 @@ class Indicator(IndicatorBase,metaclass=MetaIndicator):
 
             self.advance()
             self.nextstart()
+
     # next重写了，但是once没有重写，需要的操作
     def once_via_next(self, start, end):
         # Not overridden, next must be there ...
@@ -147,15 +152,16 @@ class Indicator(IndicatorBase,metaclass=MetaIndicator):
             self.advance()
             self.next()
 
+
 # 指标画出多条line的类，下面这两个类，在整个项目中并没有使用到
 class MtLinePlotterIndicator(Indicator.__class__):
     def donew(cls, *args, **kwargs):
         # line的名字
-        lname = kwargs.pop('name')
+        lname = kwargs.pop("name")
         # 类的名字
         name = cls.__name__
         # 获取cls的liens,如果没有，就返回Lines
-        lines = getattr(cls, 'lines', Lines)
+        lines = getattr(cls, "lines", Lines)
         # 对lines进行相应的操作
         cls.lines = lines._derive(name, (lname,), 0, [])
         # plotlines响应的操作
@@ -166,13 +172,14 @@ class MtLinePlotterIndicator(Indicator.__class__):
 
         # Create the object and set the params in place
         # 创建具体的类并设置参数
-        _obj, args, kwargs =  super(MtLinePlotterIndicator, cls).donew(*args, **kwargs)
+        _obj, args, kwargs = super(MtLinePlotterIndicator, cls).donew(*args, **kwargs)
         # 设置_obj的owner属性值
         _obj.owner = _obj.data.owner._clock
         # 增加另一条linebuffer
         _obj.data.lines[0].addbinding(_obj.lines[0])
         # Return the object and arguments to the chain
         return _obj, args, kwargs
+
 
 # LinePlotterIndicator类，同样没有用到
 class LinePlotterIndicator(Indicator, metaclass=MtLinePlotterIndicator):

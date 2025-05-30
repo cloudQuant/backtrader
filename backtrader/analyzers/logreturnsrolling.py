@@ -23,7 +23,7 @@ import math
 
 import backtrader as bt
 
-__all__ = ['LogReturnsRolling']
+__all__ = ["LogReturnsRolling"]
 
 
 class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
@@ -88,11 +88,12 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     """
+
     # 参数
     params = (
-        ('data', None),
-        ('firstopen', True),
-        ('fund', None),
+        ("data", None),
+        ("firstopen", True),
+        ("fund", None),
     )
 
     # 开始
@@ -109,8 +110,7 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
         else:
             self._fundmode = self.p.fund
         # 比较特殊的地方在于self._values设置成了一个队列，这里面self.compression这个参数用于控制队列保存多少个元素
-        self._values = collections.deque([float('Nan')] * self.compression,
-                                         maxlen=self.compression)
+        self._values = collections.deque([float("Nan")] * self.compression, maxlen=self.compression)
 
         if self.p.data is None:
             # keep the initial portfolio value if not tracing data

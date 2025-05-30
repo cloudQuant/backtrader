@@ -21,7 +21,7 @@
 from . import Filter
 
 
-__all__ = ['Renko']
+__all__ = ["Renko"]
 
 
 class Renko(Filter):
@@ -60,12 +60,12 @@ class Renko(Filter):
     """
 
     params = (
-        ('hilo', False),
-        ('size', None),
-        ('autosize', 20.0),
-        ('dynamic', False),
-        ('align', 1.0),
-        ('roundstart', True),
+        ("hilo", False),
+        ("size", None),
+        ("autosize", 20.0),
+        ("dynamic", False),
+        ("align", 1.0),
+        ("roundstart", True),
     )
 
     def __init__(self, data):

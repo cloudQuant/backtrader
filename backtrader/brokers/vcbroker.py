@@ -120,9 +120,10 @@ class VCBroker(BrokerBase, metaclass=MetaVCBroker):
         order has been canceled due to expiration. And therefore, expired
         orders are reported as canceled.
     """
+
     params = (
-        ('account', None),
-        ('commission', None),
+        ("account", None),
+        ("commission", None),
     )
 
     def __init__(self, **kwargs):
@@ -172,7 +173,8 @@ class VCBroker(BrokerBase, metaclass=MetaVCBroker):
         }
 
         self._futlikes = (
-            self.store.vcdsmod.IT_Future, self.store.vcdsmod.IT_Option,
+            self.store.vcdsmod.IT_Future,
+            self.store.vcdsmod.IT_Option,
             self.store.vcdsmod.IT_Fund,
         )
 
@@ -220,10 +222,19 @@ class VCBroker(BrokerBase, metaclass=MetaVCBroker):
 
         return VCCommInfo(mult=data._syminfo.PointValue, stocklike=stocklike)
 
-    def _makeorder(self, ordtype, owner, data,
-                   size, price=None, plimit=None,
-                   exectype=None, valid=None,
-                   tradeid=0, **kwargs):
+    def _makeorder(
+        self,
+        ordtype,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        **kwargs,
+    ):
 
         order = self.store.vcctmod.Order()
         order.Account = self._acc_name
@@ -237,11 +248,11 @@ class VCBroker(BrokerBase, metaclass=MetaVCBroker):
 
         # order.UserName = 'danjrod'  # str(tradeid)
         # order.OrderId = 'a' * 50  # str(tradeid)
-        order.UserOrderId = ''
+        order.UserOrderId = ""
         if tradeid:
-            order.ExtendedInfo = 'TradeId {}'.format(tradeid)
+            order.ExtendedInfo = "TradeId {}".format(tradeid)
         else:
-            order.ExtendedInfo = ''
+            order.ExtendedInfo = ""
 
         order.Volume = abs(size)
 
@@ -290,10 +301,16 @@ class VCBroker(BrokerBase, metaclass=MetaVCBroker):
 
         vco = vcorder
         oid = self.store.vcct.SendOrder(
-            vco.Account, vco.SymbolCode,
-            vco.OrderType, vco.OrderSide, vco.Volume, vco.Price, vco.StopPrice,
-            vco.VolumeRestriction, vco.TimeRestriction,
-            ValidDate=vco.ValidDate
+            vco.Account,
+            vco.SymbolCode,
+            vco.OrderType,
+            vco.OrderSide,
+            vco.Volume,
+            vco.Price,
+            vco.StopPrice,
+            vco.VolumeRestriction,
+            vco.TimeRestriction,
+            ValidDate=vco.ValidDate,
         )
 
         order.vcorder = oid
@@ -304,37 +321,67 @@ class VCBroker(BrokerBase, metaclass=MetaVCBroker):
         self.notify(order)
         return order
 
-    def buy(self, owner, data,
-            size, price=None, plimit=None,
-            exectype=None, valid=None, tradeid=0,
-            **kwargs):
+    def buy(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        **kwargs,
+    ):
 
-        order = BuyOrder(owner=owner, data=data,
-                         size=size, price=price, pricelimit=plimit,
-                         exectype=exectype, valid=valid, tradeid=tradeid)
+        order = BuyOrder(
+            owner=owner,
+            data=data,
+            size=size,
+            price=price,
+            pricelimit=plimit,
+            exectype=exectype,
+            valid=valid,
+            tradeid=tradeid,
+        )
 
         order.addinfo(**kwargs)
 
-        vcorder = self._makeorder(order.ordtype, owner, data, size, price,
-                                  plimit, exectype, valid, tradeid,
-                                  **kwargs)
+        vcorder = self._makeorder(
+            order.ordtype, owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
+        )
 
         return self.submit(order, vcorder)
 
-    def sell(self, owner, data,
-             size, price=None, plimit=None,
-             exectype=None, valid=None, tradeid=0,
-             **kwargs):
+    def sell(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        **kwargs,
+    ):
 
-        order = SellOrder(owner=owner, data=data,
-                          size=size, price=price, pricelimit=plimit,
-                          exectype=exectype, valid=valid, tradeid=tradeid)
+        order = SellOrder(
+            owner=owner,
+            data=data,
+            size=size,
+            price=price,
+            pricelimit=plimit,
+            exectype=exectype,
+            valid=valid,
+            tradeid=tradeid,
+        )
 
         order.addinfo(**kwargs)
 
-        vcorder = self._makeorder(order.ordtype, owner, data, size, price,
-                                  plimit, exectype, valid, tradeid,
-                                  **kwargs)
+        vcorder = self._makeorder(
+            order.ordtype, owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
+        )
 
         return self.submit(order, vcorder)
 
@@ -416,12 +463,21 @@ class VCBroker(BrokerBase, metaclass=MetaVCBroker):
 
         # NOTE: No commission information available in the Trader interface
         # CHECK: Use reported time instead of last data time?
-        border.execute(border.data.datetime[0],
-                       size, price,
-                       closed, closedvalue, closedcomm,
-                       opened, openedvalue, openedcomm,
-                       margin, pnl,
-                       psize, pprice)  # pnl
+        border.execute(
+            border.data.datetime[0],
+            size,
+            price,
+            closed,
+            closedvalue,
+            closedcomm,
+            opened,
+            openedvalue,
+            openedcomm,
+            margin,
+            pnl,
+            psize,
+            pprice,
+        )  # pnl
 
         if partial:
             border.partial()

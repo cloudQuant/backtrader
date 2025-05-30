@@ -21,7 +21,7 @@
 ###############################################################################
 import backtrader as bt
 
-__all__ = ['Vortex']
+__all__ = ["Vortex"]
 
 
 class Vortex(bt.Indicator):
@@ -30,11 +30,15 @@ class Vortex(bt.Indicator):
       - http://www.vortexindicator.com/VFX_VORTEX.PDF
 
     """
-    lines = ('vi_plus', 'vi_minus',)
 
-    params = (('period', 14),)
+    lines = (
+        "vi_plus",
+        "vi_minus",
+    )
 
-    plotlines = dict(vi_plus=dict(_name='+VI'), vi_minus=dict(_name='-VI'))
+    params = (("period", 14),)
+
+    plotlines = dict(vi_plus=dict(_name="+VI"), vi_minus=dict(_name="-VI"))
 
     def __init__(self):
         h0l1 = abs(self.data.high(0) - self.data.low(-1))

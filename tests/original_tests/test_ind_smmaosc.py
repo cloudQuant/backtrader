@@ -23,9 +23,7 @@ import testcommon
 import backtrader.indicators as btind
 
 chkdatas = 1
-chkvals = [
-    ['98.370275', '51.185333', '-59.347648']
-]
+chkvals = [["98.370275", "51.185333", "-59.347648"]]
 
 chkmin = 30
 chkind = btind.SMMAOsc
@@ -33,14 +31,16 @@ chkind = btind.SMMAOsc
 
 def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
-    testcommon.runtest(datas,
-                       testcommon.TestStrategy,
-                       main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+    testcommon.runtest(
+        datas,
+        testcommon.TestStrategy,
+        main=main,
+        plot=main,
+        chkind=chkind,
+        chkmin=chkmin,
+        chkvals=chkvals,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

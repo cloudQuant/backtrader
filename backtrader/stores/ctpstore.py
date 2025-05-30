@@ -6,8 +6,13 @@ import numpy as np
 import backtrader as bt
 from backtrader.metabase import MetaParams
 from backtrader.utils.py3 import queue
-from backtrader.utils.date import get_last_timeframe_timestamp, datetime2str, str2datetime, datetime2timestamp, \
-    timestamp2datetime
+from backtrader.utils.date import (
+    get_last_timeframe_timestamp,
+    datetime2str,
+    str2datetime,
+    datetime2timestamp,
+    timestamp2datetime,
+)
 from ctpbee import CtpbeeApi, CtpBee, helper
 from ctpbee.constant import *
 
@@ -55,16 +60,16 @@ class MyCtpbeeApi(CtpbeeApi):
                 self._bar_interval = "1m"
 
     def on_contract(self, contract: ContractData):
-        """ 处理推送的合约信息 """
+        """处理推送的合约信息"""
         # print(contract)
         pass
 
     def on_log(self, log: LogData):
-        """ 处理日志信息 ,特殊需求才用到 """
+        """处理日志信息 ,特殊需求才用到"""
         pass
 
     def on_tick(self, tick: TickData) -> None:
-        """ 处理推送的tick """
+        """处理推送的tick"""
         # print('on_tick: ', tick)
         # print(f"进入on_tick, {tick.datetime}")
         # 如果bar结束时间是None的话,需要计算出bar结束时间
@@ -79,15 +84,19 @@ class MyCtpbeeApi(CtpbeeApi):
         nts = tick.datetime
         # print(f"nts = {nts}, self._bar_begin_time = {self._bar_begin_time}, self._bar_end_time = {self._bar_end_time}")
         if nts >= self._bar_end_time:
-            bar = BarData._create_class({"symbol": tick.symbol,
-                                         "exchange": tick.exchange,
-                                         "datetime": tick.datetime,
-                                         "interval": self._bar_interval,
-                                         "volume": self.bar_volume,
-                                         "open_price": self.bar_open_price,
-                                         "high_price": self.bar_high_price,
-                                         "low_price": self.bar_low_price,
-                                         "close_price": self.bar_close_price})
+            bar = BarData._create_class(
+                {
+                    "symbol": tick.symbol,
+                    "exchange": tick.exchange,
+                    "datetime": tick.datetime,
+                    "interval": self._bar_interval,
+                    "volume": self.bar_volume,
+                    "open_price": self.bar_open_price,
+                    "high_price": self.bar_high_price,
+                    "low_price": self.bar_low_price,
+                    "close_price": self.bar_close_price,
+                }
+            )
             self.md_queue[self._data_name].put(bar)
             self.bar_datetime = self._bar_begin_time
             self.bar_open_price = tick.last_price
@@ -96,7 +105,9 @@ class MyCtpbeeApi(CtpbeeApi):
             self.bar_close_price = tick.last_price
             self.bar_volume = tick.volume
             self._bar_begin_time = self._bar_end_time
-            self._bar_end_time = timestamp2datetime(datetime2timestamp(self._bar_end_time) + self.time_diff)
+            self._bar_end_time = timestamp2datetime(
+                datetime2timestamp(self._bar_end_time) + self.time_diff
+            )
         else:
             self.bar_datetime = self._bar_begin_time
             self.bar_high_price = max(self.bar_high_price, tick.last_price)
@@ -105,33 +116,42 @@ class MyCtpbeeApi(CtpbeeApi):
             self.bar_volume += tick.volume
 
     def on_bar(self, bar: BarData) -> None:
-        """ 处理ctpbee生成的bar """
-        print('on_bar: ', bar.local_symbol, bar.datetime, bar.open_price, bar.high_price, bar.low_price,
-              bar.close_price, bar.volume, bar.interval)
+        """处理ctpbee生成的bar"""
+        print(
+            "on_bar: ",
+            bar.local_symbol,
+            bar.datetime,
+            bar.open_price,
+            bar.high_price,
+            bar.low_price,
+            bar.close_price,
+            bar.volume,
+            bar.interval,
+        )
         self.md_queue[bar.local_symbol].put(bar)  # 分发行情数据到对应的队列
 
     def on_init(self, init):
         pass
 
     def on_order(self, order: OrderData) -> None:
-        """ 报单回报 """
-        print('on_order: ', order)
+        """报单回报"""
+        print("on_order: ", order)
         # 这里应该将ctpbee的order类型转换为backtrader的order类型,然后通过notify_order通知策略
         pass
 
     def on_trade(self, trade: TradeData) -> None:
-        """ 成交回报 """
-        print('on_trade: ', trade)
+        """成交回报"""
+        print("on_trade: ", trade)
         # 这里应该通过ctpbee的trade去更新backtrader的order,然后通过notify_order通知策略
         pass
 
     def on_position(self, position: PositionData) -> None:
-        """ 处理持仓回报 """
+        """处理持仓回报"""
         # print('on_position', position)
         self.is_position_ok = True
 
     def on_account(self, account: AccountData) -> None:
-        """ 处理账户信息 """
+        """处理账户信息"""
         # print('on_account', account)
         self.is_account_ok = True
 
@@ -157,9 +177,7 @@ class CTPStore(metaclass=MetaSingleton):
     BrokerCls = None  # broker class will auto register
     DataCls = None  # data class will auto register
 
-    params = (
-        ("debug", False),
-    )
+    params = (("debug", False),)
 
     @classmethod
     def getdata(cls, *args, **kwargs):
@@ -190,12 +208,11 @@ class CTPStore(metaclass=MetaSingleton):
             if self.main_ctpbee_api.is_account_ok:
                 break
         # 调试输出
-        print('positions===>', self.main_ctpbee_api.center.positions)
-        print('account===>', self.main_ctpbee_api.center.account)
+        print("positions===>", self.main_ctpbee_api.center.positions)
+        print("account===>", self.main_ctpbee_api.center.account)
 
     def register(self, feed):
-        """ 注册feed行情队列,传入feed,为它创建一个queue,并加进字典
-        """
+        """注册feed行情队列,传入feed,为它创建一个queue,并加进字典"""
         self.q_feed_qlive[feed.p.dataname] = queue.Queue()
         return self.q_feed_qlive[feed.p.dataname]
 
@@ -210,12 +227,12 @@ class CTPStore(metaclass=MetaSingleton):
 
     def get_positions(self):
         positions = self.main_ctpbee_api.center.positions
-        print('positions:', positions)
+        print("positions:", positions)
         return positions
 
     def get_balance(self):
         account = self.main_ctpbee_api.center.account
-        print('account:', account)
+        print("account:", account)
         self._cash = account.available
         self._value = account.balance
 

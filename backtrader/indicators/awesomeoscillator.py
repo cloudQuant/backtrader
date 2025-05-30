@@ -22,7 +22,8 @@ import backtrader as bt
 from . import MovAv
 
 
-__all__ = ['AwesomeOscillator', 'AwesomeOsc', 'AO']
+__all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
+
 
 # AwesomeOscillator指标
 class AwesomeOscillator(bt.Indicator):
@@ -41,18 +42,19 @@ class AwesomeOscillator(bt.Indicator):
       - https://www.ifcmarkets.com/en/ntx-indicators/awesome-oscillator
 
     """
+
     # 别名
-    alias = ('AwesomeOsc', 'AO')
+    alias = ("AwesomeOsc", "AO")
     # 要生成的line
-    lines = ('ao',)
+    lines = ("ao",)
     # 参数
     params = (
-        ('fast', 5),
-        ('slow', 34),
-        ('movav', MovAv.SMA),
+        ("fast", 5),
+        ("slow", 34),
+        ("movav", MovAv.SMA),
     )
     # 画图的参数
-    plotlines = dict(ao=dict(_method='bar', alpha=0.50, width=1.0))
+    plotlines = dict(ao=dict(_method="bar", alpha=0.50, width=1.0))
 
     # 初始化的时候，创建指标
     def __init__(self):
@@ -66,5 +68,6 @@ class AwesomeOscillator(bt.Indicator):
         self.l.ao = sma1 - sma2
         # super
         super(AwesomeOscillator, self).__init__()
+
 
 AwesomeOsc = AO = AwesomeOscillator

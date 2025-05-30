@@ -21,9 +21,10 @@
 from . import PeriodN
 
 
-__all__ = ['ParabolicSAR', 'PSAR']
+__all__ = ["ParabolicSAR", "PSAR"]
 
 # 这个用于计算SAR指标
+
 
 class _SarStatus(object):
     sar = None
@@ -33,11 +34,11 @@ class _SarStatus(object):
 
     def __str__(self):
         txt = []
-        txt.append('sar: {}'.format(self.sar))
-        txt.append('tr: {}'.format(self.tr))
-        txt.append('af: {}'.format(self.af))
-        txt.append('ep: {}'.format(self.ep))
-        return '\n'.join(txt)
+        txt.append("sar: {}".format(self.sar))
+        txt.append("tr: {}".format(self.tr))
+        txt.append("af: {}".format(self.af))
+        txt.append("ep: {}".format(self.ep))
+        return "\n".join(txt)
 
 
 class ParabolicSAR(PeriodN):
@@ -55,19 +56,18 @@ class ParabolicSAR(PeriodN):
       - https://en.wikipedia.org/wiki/Parabolic_SAR
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:parabolic_sar
     """
-    alias = ('PSAR',)
-    lines = ('psar',)
+
+    alias = ("PSAR",)
+    lines = ("psar",)
     params = (
-        ('period', 2),  # when to start showing values
-        ('af', 0.02),
-        ('afmax', 0.20),
+        ("period", 2),  # when to start showing values
+        ("af", 0.02),
+        ("afmax", 0.20),
     )
 
     plotinfo = dict(subplot=False)
     plotlines = dict(
-        psar=dict(
-            marker='.', markersize=4.0, color='black', fillstyle='full', ls=''
-        ),
+        psar=dict(marker=".", markersize=4.0, color="black", fillstyle="full", ls=""),
     )
 
     def __init__(self):
@@ -84,7 +84,7 @@ class ParabolicSAR(PeriodN):
         else:
             self.next()  # regular calc
 
-        self.lines.psar[0] = float('NaN')  # no return yet still prenext
+        self.lines.psar[0] = float("NaN")  # no return yet still prenext
 
     def nextstart(self):
         if self._status:  # some states have been calculated
@@ -172,5 +172,6 @@ class ParabolicSAR(PeriodN):
         newstatus.sar = sar
         newstatus.ep = ep
         newstatus.af = af
+
 
 PSAR = ParabolicSAR

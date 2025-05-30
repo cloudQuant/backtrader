@@ -49,10 +49,10 @@ class DataFiller(AbstractDataBase):
     """
 
     params = (
-        ('fill_price', None),
-        ('fill_vol', float('NaN')),
-        ('fill_oi', float('NaN')),
-        )
+        ("fill_price", None),
+        ("fill_vol", float("NaN")),
+        ("fill_oi", float("NaN")),
+    )
 
     def __init__(self):
         self._timeframe = None
@@ -154,8 +154,7 @@ class DataFiller(AbstractDataBase):
                 dtime_prev += self._tdunit
 
             # Calculate session start for new bar
-            sstart = datetime.combine(
-                dtime_cur.date(), self.p.dataname.sessionstart)
+            sstart = datetime.combine(dtime_cur.date(), self.p.dataname.sessionstart)
 
             # 2. check for missing bars from new boundary (start)
             # check a gap from new sessionstart

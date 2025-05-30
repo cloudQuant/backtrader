@@ -20,6 +20,7 @@
 ###############################################################################
 import backtrader as bt
 
-from .import vortex as vortex
+from . import vortex as vortex
+
 for name in vortex.__all__:
     setattr(bt.indicators, name, getattr(vortex, name))

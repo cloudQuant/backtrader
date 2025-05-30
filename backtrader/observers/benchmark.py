@@ -21,6 +21,7 @@
 import backtrader as bt
 from . import TimeReturn
 
+
 # 基准
 class Benchmark(TimeReturn):
     """This observer stores the *returns* of the strategy and the *return* of a
@@ -75,23 +76,25 @@ class Benchmark(TimeReturn):
     by looking at the *lines* by name at index ``0``.
 
     """
+
     _stclock = True
 
-    lines = ('benchmark',)
-    plotlines = dict(benchmark=dict(_name='Benchmark'))
+    lines = ("benchmark",)
+    plotlines = dict(benchmark=dict(_name="Benchmark"))
 
     params = (
-        ('data', None),
-        ('_doprenext', False),
+        ("data", None),
+        ("_doprenext", False),
         # Set to False, to ensure the asset is measured at 0% in the 1st tick
-        ('firstopen', False),
-        ('fund', None)
+        ("firstopen", False),
+        ("fund", None),
     )
 
     def _plotlabel(self):
         labels = super(Benchmark, self)._plotlabel()
         labels.append(self.p.data._name)
         return labels
+
     # 初始化，如果没有设置data,用第一个data
     def __init__(self):
         if self.p.data is None:  # use the 1st data in the system if none given
@@ -110,8 +113,8 @@ class Benchmark(TimeReturn):
     # 设置benchmark的值
     def next(self):
         super(Benchmark, self).next()
-        self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey,
-                                                       float('NaN'))
+        self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey, float("NaN"))
+
     # prenext
     def prenext(self):
         if self.p._doprenext:

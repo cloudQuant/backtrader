@@ -22,6 +22,7 @@ from ..utils.py3 import range
 
 from . import MovingAverageBase, AverageWeighted
 
+
 # 加权平均均线
 class WeightedMovingAverage(MovingAverageBase):
     """
@@ -36,8 +37,12 @@ class WeightedMovingAverage(MovingAverageBase):
     See also:
       - http://en.wikipedia.org/wiki/Moving_average#Weighted_moving_average
     """
-    alias = ('WMA', 'MovingAverageWeighted',)
-    lines = ('wma',)
+
+    alias = (
+        "WMA",
+        "MovingAverageWeighted",
+    )
+    lines = ("wma",)
 
     def __init__(self):
         coef = 2.0 / (self.p.period * (self.p.period + 1.0))
@@ -45,8 +50,6 @@ class WeightedMovingAverage(MovingAverageBase):
 
         # Before super to ensure mixins (right-hand side in subclassing)
         # can see the assignment operation and operate on the line
-        self.lines[0] = AverageWeighted(
-            self.data, period=self.p.period,
-            coef=coef, weights=weights)
+        self.lines[0] = AverageWeighted(self.data, period=self.p.period, coef=coef, weights=weights)
 
         super(WeightedMovingAverage, self).__init__()

@@ -51,9 +51,8 @@ class DaySplitterClose(metaclass=bt.MetaParams):
     **This filter is meant to be used together with** ``cerebro.replaydata``
 
     """
-    params = (
-        ('closevol', 0.5),  # 0 -> 1 amount of volume to keep for close
-    )
+
+    params = (("closevol", 0.5),)  # 0 -> 1 amount of volume to keep for close
 
     # replaying = True
 

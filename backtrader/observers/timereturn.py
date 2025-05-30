@@ -26,6 +26,7 @@ from .. import Observer, TimeFrame
 
 from backtrader.utils.py3 import MAXINT
 
+
 # 时间收益率的类
 class TimeReturn(Observer):
     """This observer stores the *returns* of the strategy.
@@ -57,32 +58,35 @@ class TimeReturn(Observer):
     by looking at the *lines* by name at index ``0``.
 
     """
+
     _stclock = True
     # 设置line
-    lines = ('timereturn',)
+    lines = ("timereturn",)
     # plotinfo信息
     plotinfo = dict(plot=True, subplot=True)
     # 设置line
-    plotlines = dict(timereturn=dict(_name='Return'))
+    plotlines = dict(timereturn=dict(_name="Return"))
     # 参数
     params = (
-        ('timeframe', None),
-        ('compression', None),
-        ('fund', None),
+        ("timeframe", None),
+        ("compression", None),
+        ("fund", None),
     )
+
     # 画图时候的标签
     def _plotlabel(self):
         return [
             # Use the final tf/comp values calculated by the return analyzer
-            TimeFrame.getname(self.treturn.timeframe,
-                              self.treturn.compression),
-            str(self.treturn.compression)
+            TimeFrame.getname(self.treturn.timeframe, self.treturn.compression),
+            str(self.treturn.compression),
         ]
+
     # 初始化，增加analyzers中的TimeReturn
     def __init__(self):
-        self.treturn = self._owner._addanalyzer_slave(bt.analyzers.TimeReturn,
-                                                      **self.p._getkwargs())
+        self.treturn = self._owner._addanalyzer_slave(
+            bt.analyzers.TimeReturn, **self.p._getkwargs()
+        )
+
     # 每个next设置当前的收益率
     def next(self):
-        self.lines.timereturn[0] = self.treturn.rets.get(self.treturn.dtkey,
-                                                         float('NaN'))
+        self.lines.timereturn[0] = self.treturn.rets.get(self.treturn.dtkey, float("NaN"))

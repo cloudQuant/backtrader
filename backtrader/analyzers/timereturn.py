@@ -84,11 +84,12 @@ class TimeReturn(TimeFrameAnalyzerBase):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     """
+
     # 参数
     params = (
-        ('data', None),
-        ('firstopen', True),
-        ('fund', None),
+        ("data", None),
+        ("firstopen", True),
+        ("fund", None),
     )
 
     # 开始
