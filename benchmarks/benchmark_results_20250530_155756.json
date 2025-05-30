@@ -1,0 +1,15 @@
+{
+  "benchmark_time": "2025-05-30T15:57:56.150134",
+  "test_data_size": 1000,
+  "results": [
+    {
+      "name": "Cerebro Engine",
+      "duration": 5.139721700019436,
+      "memory_peak_mb": 2.323370933532715,
+      "memory_current_mb": 2.3132638931274414,
+      "iterations": 10,
+      "avg_per_iteration": 0.5139721700019436,
+      "timestamp": "2025-05-30T15:57:55.679356"
+    }
+  ]
+}
