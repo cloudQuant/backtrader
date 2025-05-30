@@ -7,25 +7,16 @@ from functools import wraps
 import backtrader as bt
 import ccxt
 from backtrader.metabase import MetaParams
+from backtrader.mixins import ParameterizedSingletonMixin
 from ccxt.base.errors import NetworkError, ExchangeError
 
 
-class MetaSingleton(MetaParams):
-    """Metaclass to make a metaclassed class a singleton"""
-
-    def __init__(cls, name, bases, dct):
-        super(MetaSingleton, cls).__init__(name, bases, dct)
-        cls._singleton = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._singleton is None:
-            cls._singleton = super(MetaSingleton, cls).__call__(*args, **kwargs)
-
-        return cls._singleton
-
-
-class CCXTStore(metaclass=MetaSingleton):
+class CCXTStore(ParameterizedSingletonMixin, MetaParams):
     """API provider for CCXT feed and broker classes.
+
+    This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass
+    to implement the singleton pattern. This provides the same functionality without
+    metaclasses while maintaining full backward compatibility.
 
     Added a new get_wallet_balance method. This will allow manual checking of the balance.
         The method will allow setting parameters. Useful for getting margin balances

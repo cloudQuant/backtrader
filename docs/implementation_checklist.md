@@ -43,17 +43,17 @@
 ### Phase 2: Singleton模式重构 (Week 3-4)
 
 #### Week 3: Store系统重构
-- [ ] **Day 15-16**: IBStore重构
-  - [ ] 分析IBStore的MetaSingleton使用
-  - [ ] 实现SingletonMixin基类
-  - [ ] 重构IBStore继承结构
-  - [ ] 编写单元测试
+- [x] **Day 15-16**: IBStore重构
+  - [x] 分析IBStore的MetaSingleton使用
+  - [x] 实现SingletonMixin基类
+  - [x] 重构IBStore继承结构
+  - [x] 编写单元测试 (跳过 - 用户选择)
 
-- [ ] **Day 17-18**: 其他Store重构
-  - [ ] 重构OandaStore
-  - [ ] 重构CCXTStore
-  - [ ] 重构CTPStore
-  - [ ] 重构VCStore
+- [x] **Day 17-18**: 其他Store重构
+  - [x] 重构OandaStore
+  - [x] 重构CCXTStore
+  - [x] 重构CTPStore
+  - [x] 重构VCStore
 
 - [ ] **Day 19-21**: Store系统测试
   - [ ] 线程安全性测试

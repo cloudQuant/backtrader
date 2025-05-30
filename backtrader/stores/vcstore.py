@@ -19,6 +19,7 @@ from backtrader.utils.py3 import (
     string_types,
 )
 from backtrader.utils import AutoDict
+from backtrader.mixins import ParameterizedSingletonMixin
 
 
 # 对SymbolInfo对象进行复制，把syminfo的属性及值设置到类实例里面
@@ -159,22 +160,12 @@ class RTEventSink(object):
         self.store._vcrt_connection(self.store._RT_BASEMSG - p2)
 
 
-class MetaSingleton(MetaParams):
-    """Metaclass to make a metaclassed class a singleton"""
-
-    def __init__(cls, name, bases, dct):
-        super(MetaSingleton, cls).__init__(name, bases, dct)
-        cls._singleton = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._singleton is None:
-            cls._singleton = super(MetaSingleton, cls).__call__(*args, **kwargs)
-
-        return cls._singleton
-
-
-class VCStore(metaclass=MetaSingleton):
+class VCStore(ParameterizedSingletonMixin, MetaParams):
     """Singleton class wrapping an ibpy ibConnection instance.
+
+    This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass
+    to implement the singleton pattern. This provides the same functionality without
+    metaclasses while maintaining full backward compatibility.
 
     The parameters can also be specified in the classes which use this store,
     like ``VCData`` and ``VCBroker``

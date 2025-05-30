@@ -14,6 +14,7 @@ import ib.opt as ibopt
 
 from backtrader import TimeFrame, Position
 from backtrader.metabase import MetaParams
+from backtrader.mixins import ParameterizedSingletonMixin
 from backtrader.utils.py3 import bytes, bstr, queue, long
 from backtrader.utils import AutoDict, UTC
 
@@ -68,29 +69,18 @@ class RTVolume(object):
             self.datetime += tmoffset
 
 
-class MetaSingleton(MetaParams):
-    """Metaclass to make a metaclassed class a singleton"""
-
-    # todo 这个元类的用处理解还不是特别深，等到后续详细讲backtrader的元类的时候重新拉出来分析
-    def __init__(cls, name, bases, dct):
-        super(MetaSingleton, cls).__init__(name, bases, dct)
-        cls._singleton = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._singleton is None:
-            cls._singleton = super(MetaSingleton, cls).__call__(*args, **kwargs)
-
-        return cls._singleton
-
-
 # Decorator to mark methods to register with ib.opt
 def ibregister(f):
     f._ibregister = True
     return f
 
 
-class IBStore(metaclass=MetaSingleton):
+class IBStore(ParameterizedSingletonMixin, MetaParams):
     """Singleton class wrapping an ibpy ibConnection instance.
+
+    This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass
+    to implement the singleton pattern. This provides the same functionality without
+    metaclasses while maintaining full backward compatibility.
 
     The parameters can also be specified in the classes which use this store,
     like ``IBData`` and ``IBBroker``

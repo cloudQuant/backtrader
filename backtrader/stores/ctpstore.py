@@ -15,6 +15,10 @@ from backtrader.utils.date import (
 )
 from ctpbee import CtpbeeApi, CtpBee, helper
 from ctpbee.constant import *
+from ctpbee.api import CtpbeeApi
+from ctpbee.constant import BarData, TickData, OrderData, TradeData, PositionData, AccountData, ContractData, LogData
+from ctpbee.helpers import get_last_timeframe_timestamp, timestamp2datetime, datetime2timestamp
+from backtrader.mixins import ParameterizedSingletonMixin
 
 
 class MyCtpbeeApi(CtpbeeApi):
@@ -156,22 +160,13 @@ class MyCtpbeeApi(CtpbeeApi):
         self.is_account_ok = True
 
 
-class MetaSingleton(MetaParams):
-    """Metaclass to make a metaclassed class a singleton"""
-
-    def __init__(cls, name, bases, dct):
-        super(MetaSingleton, cls).__init__(name, bases, dct)
-        cls._singleton = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._singleton is None:
-            cls._singleton = super(MetaSingleton, cls).__call__(*args, **kwargs)
-        return cls._singleton
-
-
-class CTPStore(metaclass=MetaSingleton):
+class CTPStore(ParameterizedSingletonMixin, MetaParams):
     """
-    Singleton class wrapping
+    Singleton class wrapping CTP connection using ParameterizedSingletonMixin.
+
+    This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass
+    to implement the singleton pattern. This provides the same functionality without
+    metaclasses while maintaining full backward compatibility.
     """
 
     BrokerCls = None  # broker class will auto register
