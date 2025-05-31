@@ -12,7 +12,7 @@ SET BENCHMARKS_DIR=.benchmarks
 
 :: 安装 requirements.txt 中的依赖
 echo Installing dependencies from requirements.txt...
-pip install -U -r ./%PACKAGE_NAME%/requirements.txt
+:: pip install -U -r ./%PACKAGE_NAME%/requirements.txt
 IF %ERRORLEVEL% NEQ 0 (
     echo Failed to install dependencies. Please check the requirements.txt file.
     exit /b 1

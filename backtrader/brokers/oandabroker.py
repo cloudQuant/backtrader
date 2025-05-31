@@ -2,15 +2,12 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 
 import collections
-from copy import copy
-from datetime import date, datetime, timedelta
-import threading
 
-from backtrader.feed import DataBase
+from datetime import datetime
+
+import backtrader
 from backtrader import (
     TimeFrame,
-    num2date,
-    date2num,
     BrokerBase,
     Order,
     BuyOrder,
@@ -19,12 +16,12 @@ from backtrader import (
     OrderData,
 )
 from backtrader.utils.py3 import bytes, MAXFLOAT
-from backtrader.metabase import MetaParams
 from backtrader.comminfo import CommInfoBase
 from backtrader.position import Position
 from backtrader.stores import oandastore
 from backtrader.utils import AutoDict, AutoOrderedDict
-from backtrader.comminfo import CommInfoBase
+from backtrader.parameters import ParameterDescriptor, Bool, ParameterizedBase, BoolParam
+from backtrader.utils.py3 import with_metaclass
 
 
 class OandaCommInfo(CommInfoBase):
@@ -61,13 +58,15 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
         position
     """
 
-    params = (
-        ("use_positions", True),
-        ("commission", OandaCommInfo(mult=1.0, stocklike=False)),
+    # 参数描述符定义
+    use_positions = BoolParam(default=True, doc="使用position API")
+    commission = ParameterDescriptor(
+        default=lambda: CommInfoBase(percabs=True),
+        doc="Default commission scheme which applies to all assets"
     )
 
     def __init__(self, **kwargs):
-        super(OandaBroker, self).__init__()
+        super(OandaBroker, self).__init__(**kwargs)
 
         self.o = oandastore.OandaStore(**kwargs)
 
@@ -87,7 +86,7 @@ class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
         self.startingcash = self.cash = cash = self.o.get_cash()
         self.startingvalue = self.value = self.o.get_value()
 
-        if self.p.use_positions:
+        if self.get_param('use_positions'):
             for p in self.o.get_positions():
                 print("position for instrument:", p["instrument"])
                 is_sell = p["side"] == "sell"

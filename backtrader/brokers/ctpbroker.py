@@ -1,6 +1,8 @@
 import collections
 from backtrader import BrokerBase, Order, BuyOrder, SellOrder
 from backtrader.position import Position
+from backtrader.parameters import Bool
+from ..parameters import ParameterizedBase, BoolParam
 
 from backtrader.stores.ctpstore import CTPStore
 
@@ -28,10 +30,11 @@ class CTPBroker(BrokerBase, metaclass=MetaCTPBroker):
         position
     """
 
-    params = (("use_positions", True),)
+    # 参数定义 - 转换为ParameterDescriptor系统
+    use_positions = BoolParam(default=True, doc="Use existing positions to kickstart the broker")
 
     def __init__(self, **kwargs):
-        super(CTPBroker, self).__init__()
+        super(CTPBroker, self).__init__(**kwargs)
         self.o = CTPStore(**kwargs)
 
         self.orders = collections.OrderedDict()  # orders by order id
@@ -48,7 +51,7 @@ class CTPBroker(BrokerBase, metaclass=MetaCTPBroker):
         self.startingcash = self.cash = self.o.get_cash()
         self.startingvalue = self.value = self.o.get_value()
 
-        if self.p.use_positions:
+        if self.get_param('use_positions'):
             positions = self.o.get_positions()
             if positions is None:
                 return

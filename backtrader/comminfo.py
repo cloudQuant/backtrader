@@ -9,7 +9,7 @@
 
 from .parameters import (
     ParameterDescriptor, ParameterizedBase,
-    Float, OneOf
+    FloatParam, BoolParam, Float, OneOf
 )
 
 
@@ -39,14 +39,14 @@ class CommInfoBase(ParameterizedBase):
     commission = ParameterDescriptor(
         default=0.0, 
         type_=float, 
-        validator=Float(min_val=0.0),
+        validator=Float(min_val=0.0),  # 非负验证
         doc="基础佣金，百分比或货币单位"
     )
     
     mult = ParameterDescriptor(
         default=1.0, 
         type_=float, 
-        validator=Float(min_val=0.001),
+        validator=Float(min_val=0.001),  # 必须为正
         doc="资产乘数"
     )
     
@@ -61,35 +61,32 @@ class CommInfoBase(ParameterizedBase):
         doc="佣金类型 (COMM_PERC/COMM_FIXED)"
     )
     
-    stocklike = ParameterDescriptor(
-        default=False, 
-        type_=bool,
+    stocklike = BoolParam(
+        default=False,
         doc="是否为股票类型"
     )
     
-    percabs = ParameterDescriptor(
-        default=False, 
-        type_=bool,
+    percabs = BoolParam(
+        default=False,
         doc="百分比是否为绝对值"
     )
     
     interest = ParameterDescriptor(
         default=0.0, 
         type_=float, 
-        validator=Float(min_val=0.0),
+        validator=Float(min_val=0.0),  # 非负验证
         doc="年利率"
     )
     
-    interest_long = ParameterDescriptor(
-        default=False, 
-        type_=bool,
+    interest_long = BoolParam(
+        default=False,
         doc="多头是否收取利息"
     )
     
     leverage = ParameterDescriptor(
         default=1.0, 
         type_=float, 
-        validator=Float(min_val=0.001),
+        validator=Float(min_val=0.001),  # 必须为正
         doc="杠杆水平"
     )
     
@@ -279,9 +276,8 @@ class CommissionInfo(CommInfoBase):
     The default value of ``percabs`` is also changed to ``True``
     """
     
-    percabs = ParameterDescriptor(
-        default=True, 
-        type_=bool,
+    percabs = BoolParam(
+        default=True,
         doc="百分比是否为绝对值"
     )
 

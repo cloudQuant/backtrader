@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 
-import collections
-from datetime import date, datetime, timedelta
 import threading
+import collections
+from datetime import datetime, date, timedelta
 
-from backtrader import BrokerBase, Order, BuyOrder, SellOrder
-from backtrader.comminfo import CommInfoBase
-from backtrader.feed import DataBase
-from backtrader.metabase import MetaParams
+from backtrader.order import Order, BuyOrder, SellOrder
+from backtrader.brokerbase import BrokerBase
 from backtrader.position import Position
-
+from backtrader.comminfo import CommInfoBase
+from backtrader.parameters import ParameterDescriptor, String
+from backtrader.utils.py3 import with_metaclass
+from ..parameters import ParameterizedBase, StringParam
 
 from backtrader.stores import vcstore
 
@@ -104,13 +105,15 @@ class VCBroker(BrokerBase, metaclass=MetaVCBroker):
         orders are reported as canceled.
     """
 
-    params = (
-        ("account", None),
-        ("commission", None),
+    # 参数描述符定义
+    account = StringParam(default='', doc="账户名称")
+    commission = ParameterDescriptor(
+        default=lambda: CommInfoBase(percabs=True),
+        doc="Default commission scheme which applies to all assets"
     )
 
     def __init__(self, **kwargs):
-        super(VCBroker, self).__init__()
+        super(VCBroker, self).__init__(**kwargs)
 
         self.store = vcstore.VCStore(**kwargs)
 

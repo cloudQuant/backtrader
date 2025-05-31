@@ -135,10 +135,31 @@ class ParameterDescriptor:
             if self.required and value is None:
                 return False
             
-            # Type check
+            # Type check - be more flexible with numeric types
             if self.type_ is not None and value is not None:
-                if not isinstance(value, self.type_):
-                    self.type_(value)  # Test conversion
+                if self.type_ == float:
+                    # For float, accept int, float, and convertible strings
+                    if not isinstance(value, (int, float)):
+                        try:
+                            float(value)  # Test conversion
+                        except (ValueError, TypeError):
+                            return False
+                elif self.type_ == int:
+                    # For int, accept int and convertible values
+                    if not isinstance(value, int):
+                        try:
+                            int(value)  # Test conversion
+                        except (ValueError, TypeError):
+                            return False
+                elif self.type_ == bool:
+                    # For bool, be flexible with boolean-like values
+                    if not isinstance(value, bool) and value not in (0, 1, 'True', 'False', 'true', 'false'):
+                        return False
+                elif not isinstance(value, self.type_):
+                    try:
+                        self.type_(value)  # Test conversion for other types
+                    except (ValueError, TypeError):
+                        return False
             
             # Custom validation
             if self.validator is not None:
@@ -249,9 +270,12 @@ class ParameterManager:
         if self._in_transaction and name in self._transaction_changes:
             return self._transaction_changes[name]
             
-        if name in self._values:
+        # Check if value is explicitly set and not None
+        if name in self._values and self._values[name] is not None:
             return self._values[name]
-        elif name in self._defaults:
+        
+        # If value is None or not set, check defaults
+        if name in self._defaults:
             # Check for lazy default
             if name in self._lazy_defaults:
                 if name not in self._computed_defaults:
@@ -1367,20 +1391,117 @@ def Float(min_val: Optional[float] = None, max_val: Optional[float] = None) -> C
     Create a validator for float parameters with optional range checking.
     
     Args:
-        min_val: Minimum allowed value
+        min_val: Minimum allowed value  
         max_val: Maximum allowed value
         
     Returns:
         Validator function
     """
     def validator(value):
+        if value is None:
+            return True
+        # Only accept int and float types, not strings
         if not isinstance(value, (int, float)):
             return False
-        if min_val is not None and value < min_val:
+        
+        float_value = float(value)
+        if min_val is not None and float_value < min_val:
             return False
-        if max_val is not None and value > max_val:
+        if max_val is not None and float_value > max_val:
             return False
         return True
+    return validator
+
+
+def FloatParam(default=None, min_val: Optional[float] = None, max_val: Optional[float] = None, doc: str = None) -> ParameterDescriptor:
+    """
+    Create a Float parameter descriptor with optional range validation.
+    
+    Args:
+        default: Default value
+        min_val: Minimum allowed value  
+        max_val: Maximum allowed value
+        doc: Parameter documentation
+        
+    Returns:
+        ParameterDescriptor with float type and validation
+    """
+    validator = Float(min_val=min_val, max_val=max_val) if (min_val is not None or max_val is not None) else None
+    return ParameterDescriptor(default=default, type_=float, validator=validator, doc=doc)
+
+
+def BoolParam(default=None, doc: str = None) -> ParameterDescriptor:
+    """
+    Create a Boolean parameter descriptor.
+    
+    Args:
+        default: Default value
+        doc: Parameter documentation
+        
+    Returns:
+        ParameterDescriptor with bool type
+    """
+    def validator(value):
+        if value is None:
+            return True
+        return isinstance(value, bool) or value in (0, 1, 'True', 'False', 'true', 'false')
+    
+    return ParameterDescriptor(default=default, type_=bool, validator=validator, doc=doc)
+
+
+def StringParam(default=None, min_length: Optional[int] = None, max_length: Optional[int] = None, doc: str = None) -> ParameterDescriptor:
+    """
+    Create a String parameter descriptor with optional length validation.
+    
+    Args:
+        default: Default value
+        min_length: Minimum string length
+        max_length: Maximum string length
+        doc: Parameter documentation
+        
+    Returns:
+        ParameterDescriptor with string type and validation
+    """
+    validator = String(min_length=min_length, max_length=max_length) if (min_length is not None or max_length is not None) else None
+    return ParameterDescriptor(default=default, type_=str, validator=validator, doc=doc)
+
+
+def String(min_length: Optional[int] = None, max_length: Optional[int] = None) -> Callable[[Any], bool]:
+    """
+    Create a validator for string parameters with optional length validation.
+    
+    Args:
+        min_length: Minimum string length
+        max_length: Maximum string length
+        
+    Returns:
+        Validator function
+    """
+    def validator(value):
+        if value is None:
+            return True
+        # Only accept string types, no conversion
+        if not isinstance(value, str):
+            return False
+        if min_length is not None and len(value) < min_length:
+            return False
+        if max_length is not None and len(value) > max_length:
+            return False
+        return True
+    return validator
+
+
+def Bool() -> Callable[[Any], bool]:
+    """
+    Create a validator for boolean parameters.
+    
+    Returns:
+        Validator function
+    """
+    def validator(value):
+        if value is None:
+            return True
+        return isinstance(value, bool) or value in (0, 1, 'True', 'False', 'true', 'false')
     return validator
 
 
@@ -1396,28 +1517,6 @@ def OneOf(*choices) -> Callable[[Any], bool]:
     """
     def validator(value):
         return value in choices
-    return validator
-
-
-def String(min_length: Optional[int] = None, max_length: Optional[int] = None) -> Callable[[Any], bool]:
-    """
-    Create a validator for string parameters with optional length checking.
-    
-    Args:
-        min_length: Minimum string length
-        max_length: Maximum string length
-        
-    Returns:
-        Validator function
-    """
-    def validator(value):
-        if not isinstance(value, string_types):
-            return False
-        if min_length is not None and len(value) < min_length:
-            return False
-        if max_length is not None and len(value) > max_length:
-            return False
-        return True
     return validator
 
 

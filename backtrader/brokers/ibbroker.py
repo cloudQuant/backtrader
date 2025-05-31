@@ -13,12 +13,12 @@ import ib.opt as ibopt
 from backtrader.feed import DataBase
 from backtrader import TimeFrame, num2date, date2num, BrokerBase, Order, OrderBase, OrderData
 from backtrader.utils.py3 import bytes, bstr, queue, MAXFLOAT
-from backtrader.metabase import MetaParams
 from backtrader.comminfo import CommInfoBase
 from backtrader.position import Position
 from backtrader.stores import ibstore
 from backtrader.utils import AutoDict, AutoOrderedDict
-from backtrader.comminfo import CommInfoBase
+from backtrader.parameters import ParameterizedBase
+from backtrader.utils.py3 import with_metaclass
 
 bytes = bstr  # py2/3 need for ibpy
 
@@ -39,16 +39,14 @@ class IBOrderState(object):
     ]
 
     def __init__(self, orderstate):
-        for f in self._fields:
-            fname = "m_" + f
-            setattr(self, fname, getattr(orderstate, fname))
+        for field in self._fields:
+            setattr(self, field, getattr(orderstate, field, None))
 
     def __str__(self):
-        txt = list()
+        txt = []
         txt.append("--- ORDERSTATE BEGIN")
-        for f in self._fields:
-            fname = "m_" + f
-            txt.append("{}: {}".format(f.capitalize(), getattr(self, fname)))
+        for field in self._fields:
+            txt.append("{}: {}".format(field.capitalize(), getattr(self, field)))
         txt.append("--- ORDERSTATE END")
         return "\n".join(txt)
 
@@ -267,7 +265,7 @@ class IBBroker(BrokerBase, metaclass=MetaIBBroker):
     # 允许tradeid具有多个id值(盈亏在本地计算),可以看做是为了实盘broker做的妥协
     """
 
-    params = ()
+    # IBBroker没有额外的参数，所以不需要定义参数
 
     def __init__(self, **kwargs):
         super(IBBroker, self).__init__()
