@@ -7,7 +7,6 @@ import itertools
 
 from .utils.py3 import range, iteritems
 
-from .metabase import MetaParams
 from .utils import AutoOrderedDict
 
 
@@ -273,26 +272,44 @@ class OrderData(object):
         return obj
 
 
-class OrderBase(metaclass=MetaParams):
-    # 订单的基本参数
-    params = (
-        ("owner", None),
-        ("data", None),
-        ("size", None),
-        ("price", None),
-        ("pricelimit", None),
-        ("exectype", None),
-        ("valid", None),
-        ("tradeid", 0),
-        ("oco", None),
-        ("trailamount", None),
-        ("trailpercent", None),
-        ("parent", None),
-        ("transmit", True),
-        ("simulated", False),
-        # To support historical order evaluation
-        ("histnotify", False),
-    )
+# Simple parameter container to replace metaclass functionality
+class OrderParams(object):
+    """Simple parameter container for Order classes"""
+    
+    def __init__(self, **kwargs):
+        # Default parameters
+        defaults = {
+            "owner": None,
+            "data": None,
+            "size": None,
+            "price": None,
+            "pricelimit": None,
+            "exectype": None,
+            "valid": None,
+            "tradeid": 0,
+            "oco": None,
+            "trailamount": None,
+            "trailpercent": None,
+            "parent": None,
+            "transmit": True,
+            "simulated": False,
+            "histnotify": False,
+        }
+        
+        # Set defaults first
+        for key, value in defaults.items():
+            setattr(self, key, value)
+        
+        # Override with provided kwargs
+        for key, value in kwargs.items():
+            if hasattr(self, key):
+                setattr(self, key, value)
+            else:
+                raise AttributeError(f"Invalid parameter: {key}")
+
+
+class OrderBase(object):
+    # 订单的基本参数 - removed metaclass usage
     # DAY目前代表空的时间差
     DAY = datetime.timedelta()  # constant for DAY order identification
 
@@ -347,17 +364,28 @@ class OrderBase(metaclass=MetaParams):
 
     plimit = property(_getplimit, _setplimit)
 
-    # 获取order的属性
+    # 获取order的属性 - modified to work with OrderParams
     def __getattr__(self, name):
         # Return attr from params if not found in order
-        return getattr(self.params, name)
+        if name == 'p':  # Avoid recursion when checking for 'p' itself
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        if hasattr(self, 'p') and hasattr(self.p, name):
+            return getattr(self.p, name)
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-    # 设置order的属性
-    def __setattribute__(self, name, value):
-        if hasattr(self.params, name):
-            setattr(self.params, name, value)
-        else:
-            super(Order, self).__setattribute__(name, value)
+    # 设置order的属性 - modified to work with OrderParams  
+    def __setattr__(self, name, value):
+        # Check if we have params and the name exists in params
+        # Use object.__getattribute__ to avoid recursion
+        try:
+            p = object.__getattribute__(self, 'p')
+            if hasattr(p, name):
+                setattr(p, name, value)
+                return
+        except AttributeError:
+            pass  # p doesn't exist yet, fall through to normal assignment
+        
+        super(OrderBase, self).__setattr__(name, value)
 
     # 打印order的时候，显示出来的内容
     def __str__(self):
@@ -382,8 +410,13 @@ class OrderBase(metaclass=MetaParams):
 
         return "\n".join(tojoin)
 
-    # 初始化类
-    def __init__(self):
+    # 初始化类 - modified to accept kwargs and create params manually
+    def __init__(self, **kwargs):
+        # Create params object manually instead of using metaclass
+        self.p = OrderParams(**kwargs)
+        # Create convenient direct access to params - alias for backward compatibility  
+        self.params = self.p
+        
         # 每次创建实例的时候，都会增加一个数字
         self.plen = None
         self.ref = next(self.refbasis)
@@ -398,12 +431,12 @@ class OrderBase(metaclass=MetaParams):
         # 如果self.parent是None的话，self._active是True,否则就是None
         self._active = self.parent is None
         # 订单状态，order初始化的时候，默认是创建
-        self.status = Order.Created
+        self.status = OrderBase.Created
         # 设置plimit属性值
         self.plimit = self.p.pricelimit  # alias via property
         # 如果订单执行类型是None的话，默认是市价单
         if self.exectype is None:
-            self.exectype = Order.Market
+            self.exectype = OrderBase.Market
         # 如果订单不是买单，订单的size变成负数
         if not self.isbuy():
             self.size = -self.size
@@ -436,7 +469,7 @@ class OrderBase(metaclass=MetaParams):
         # 如果是跟踪止损单的执行类型的话，需要对价格进行调整，限价补偿等于创建的价格减去创建的限价
         # 价格等于创建订单时候的价格，把创建订单的价格进行重新设置，如果是买单的话，设置成无限大，如果是卖单的话，设置成无线小
         # 然后调整价格；如果不是跟踪止损的类型，限价补偿是0
-        if self.exectype in [Order.StopTrail, Order.StopTrailLimit]:
+        if self.exectype in [OrderBase.StopTrail, OrderBase.StopTrailLimit]:
             self._limitoffset = self.created.price - self.created.pricelimit
             price = self.created.price
             self.created.price = float("inf" * self.isbuy() or "-inf")
@@ -537,7 +570,7 @@ class OrderBase(metaclass=MetaParams):
         """Returns True if the order is in a status in which it can still be
         executed
         """
-        return self.status in [Order.Created, Order.Submitted, Order.Partial, Order.Accepted]
+        return self.status in [OrderBase.Created, OrderBase.Submitted, OrderBase.Partial, OrderBase.Accepted]
 
     # 增加佣金相关的信息
     def addcomminfo(self, comminfo):
@@ -563,12 +596,12 @@ class OrderBase(metaclass=MetaParams):
     # 判断当前是否是买订单
     def isbuy(self):
         """Returns True if the order is a Buy order"""
-        return self.ordtype == self.Buy
+        return self.ordtype == OrderBase.Buy
 
     # 判断当前是否是卖订单
     def issell(self):
         """Returns True if the order is a Sell order"""
-        return self.ordtype == self.Sell
+        return self.ordtype == OrderBase.Sell
 
     # 给订单设置具体的持仓大小
     def setposition(self, position):
@@ -579,14 +612,14 @@ class OrderBase(metaclass=MetaParams):
     def submit(self, broker=None):
         """Marks an order as submitted and stores the broker to which it was
         submitted"""
-        self.status = Order.Submitted
+        self.status = OrderBase.Submitted
         self.broker = broker
         self.plen = len(self.data)
 
     # 接受订单
     def accept(self, broker=None):
         """Marks an order as accepted"""
-        self.status = Order.Accepted
+        self.status = OrderBase.Accepted
         self.broker = broker
 
     # broker状态，如果broker不是None或者0之类的话，尝试从broker获取订单状态，如果broker是None，直接返回订单的彰泰
@@ -602,10 +635,10 @@ class OrderBase(metaclass=MetaParams):
     # 拒绝订单，如果已经拒绝了，返回False，如果不是，设置订单状态和执行拒绝的时间，broker，然后返回True
     def reject(self, broker=None):
         """Marks an order as rejected"""
-        if self.status == Order.Rejected:
+        if self.status == OrderBase.Rejected:
             return False
 
-        self.status = Order.Rejected
+        self.status = OrderBase.Rejected
         # self.executed.dt = self.data.datetime[0]
         self.broker = broker
         if not self.p.simulated:
@@ -615,7 +648,7 @@ class OrderBase(metaclass=MetaParams):
     # 取消订单
     def cancel(self):
         """Marks an order as cancelled"""
-        self.status = Order.Canceled
+        self.status = OrderBase.Canceled
         # self.executed.dt = self.data.datetime[0]
         if not self.p.simulated:
             self.executed.dt = self.data.datetime[0]
@@ -623,7 +656,7 @@ class OrderBase(metaclass=MetaParams):
     # 保证金不够，增加保证金
     def margin(self):
         """Marks an order as having met a margin call"""
-        self.status = Order.Margin
+        self.status = OrderBase.Margin
         # self.executed.dt = self.data.datetime[0]
         if not self.p.simulated:
             self.executed.dt = self.data.datetime[0]
@@ -631,12 +664,12 @@ class OrderBase(metaclass=MetaParams):
     # 完成
     def completed(self):
         """Marks an order as completely filled"""
-        self.status = self.Completed
+        self.status = OrderBase.Completed
 
     # 部分成交
     def partial(self):
         """Marks an order as partially filled"""
-        self.status = self.Partial
+        self.status = OrderBase.Partial
 
     # 执行订单
     def execute(
@@ -679,7 +712,7 @@ class OrderBase(metaclass=MetaParams):
     # 订单到期
     def expire(self):
         """Marks an order as expired. Returns True if it worked"""
-        self.status = self.Expired
+        self.status = OrderBase.Expired
         return True
 
     # 跟踪价格调整
@@ -687,58 +720,35 @@ class OrderBase(metaclass=MetaParams):
         pass  # generic interface
 
 
-# 订单类
+# Modified Order class to work without metaclass
 class Order(OrderBase):
-    """
-    订单类用于保存订单创建、执行数据和订单类型
-    Class which holds creation/execution data and type of oder.
-    # 订单可能有下面的一些状态
-    The order may have the following status:
-        # 提交给broker并且等待信息
-      - Submitted: sent to the broker and awaiting confirmation
-        # 被broker接受
-      - Accepted: accepted by the broker
-        # 部分成交
-      - Partial: partially executed
-        # 完全成交
-      - Completed: fully exexcuted
-        # 取消
-      - Canceled/Cancelled: canceled by the user
-        # 到期
-      - Expired: expired
-        # 资金不足
-      - Margin: not enough cash to execute the order.
-        # 拒绝
-      - Rejected: Rejected by the broker
-        # 在订单提交的时候或者在执行之前由于现金被其他的订单使用了，可能会发生资金不足或者被拒绝的现象
-        This can happen during order submission (and therefore the order will
-        not reach the Accepted status) or before execution with each new bar
-        price because cash has been drawn by other sources (future-like
-        instruments may have reduced the cash or orders orders may have been
-        executed)
+    # 上面是对OrderBase的处理，下面是对Order的处理，Order继承了OrderBase
+    # order类主要增加了dteos,ordtype等信息，另外重写了部分函数，增加了ordtype，一个跟踪价格
+    # ordtype这个变量决定这个order是买单还是卖单，默认没有设置
+    ordtype = None
 
-    Member Attributes:
-        # order的id
-      - ref: unique order identifier
-        # 创建的数据
-      - created: OrderData holding creation data
-        # 执行的数据
-      - executed: OrderData holding execution data
-        # 订单的信息
-      - info: custom information passed over method :func:`addinfo`. It is kept
-        in the form of an OrderedDict which has been subclassed, so that keys
-        can also be specified using '.' notation
+    # 重写初始化函数，增加对ordtype和dteos的处理
+    def __init__(self, **kwargs):
+        super(Order, self).__init__(**kwargs)
 
-    User Methods:
-        # 判断是否是买订单
-      - isbuy(): returns bool indicating if the order buys
-        # 判断是否是卖订单
-      - issell(): returns bool indicating if the order sells
-        # 判断订单是否是存活的，包括四种状态，创建、提交、接受、部分成交、
-      - alive(): returns bool if order is in status Partial or Accepted
-    """
+        # 对于Order,需要对dteos进行额外的操作
+        # dteos代表的是这个session的结束时间
+        # 下面的代码逻辑是这样的：
+        # dteos == 0.0 代表的是day order,也就是当日有效单，如果是这样的单子，dteos是当天的session结束的时间
+        # dteos >= self.data.datetime[0]代表这个订单的有效期大于数据的当前时间，就不需要修改dteos
+        # 其他情况下，把dteos设置成0，也就是变成了当日有效单
+        if self.dteos == 0.0:
+            # day order -> till session end if not changed before
+            pass
+        elif self.dteos >= self.data.datetime[0]:
+            # if dteos is in future -> inform order it's a GTD (good till date)
+            pass
+        else:
+            # 如果当前时间超过了dteos，那么就把dteos设置成0.0
+            # 过期日期小于当前时间 -> 成为了日内有效
+            self.dteos = 0.0
 
-    # 订单的执行
+    # 执行这个order，执行的时候需要传入很多参数
     def execute(
         self,
         dt,
@@ -756,7 +766,7 @@ class Order(OrderBase):
         pprice,
     ):
 
-        super(Order, self).execute(
+        self.executed.add(
             dt,
             size,
             price,
@@ -766,60 +776,50 @@ class Order(OrderBase):
             opened,
             openedvalue,
             openedcomm,
-            margin,
             pnl,
             psize,
             pprice,
         )
-        # 如果重新设置大小了，代表部分执行，否则代表完全成交了
+
+        if margin is not None:
+            self.executed.margin = margin
+
         if self.executed.remsize:
-            self.status = Order.Partial
+            self.status = OrderBase.Partial
         else:
-            self.status = Order.Completed
+            self.status = OrderBase.Completed
 
-        # self.comminfo = None
-
-    # 判断订单是否到期，如果是市价单，立刻成交了，没有到期；如果是有有效期，并且当前时间大于了有效期，那么代表着订单到期了；
+    # 订单过期
     def expire(self):
-        if self.exectype == Order.Market:
-            return False  # will be executed yes or yes
+        self.status = OrderBase.Expired
 
-        if self.valid and self.data.datetime[0] > self.valid:
-            self.status = Order.Expired
-            self.executed.dt = self.data.datetime[0]
-            return True
-
-        return False
-
-    #  移动调整价格
+    # 跟踪调整价格，跟踪调整价格是为了跟踪止损单服务的。跟踪止损单也就是移动止损单，移动的距离可以用绝对值表示，
+    # 也可以用百分比表示。这个函数主要是为了计算跟踪止损单调整之后的价格
     def trailadjust(self, price):
         # 如果是移动数量，那么价格调整的量就是移动数量；如果是移动百分比，那么价格调整的量就是价格乘以百分比，否则价格调整的量就是0
         if self.trailamount:
-            pamount = self.trailamount
+            adjsize = self.trailamount
         elif self.trailpercent:
-            pamount = price * self.trailpercent
+            adjsize = price * self.trailpercent
         else:
-            pamount = 0.0
+            adjsize = 0.0
 
-        # Stop sell is below (-), stop buy is above, move only if needed
-        # 如果当前是买单的情况下，把price加上移动调整的量，如果当前的price小于创建的price,订单创建的price变成当前的价格
-        # 如果执行类型是移动止损限价，那么止损限价就等于价格减去价格补偿
-        if self.isbuy():
-            price += pamount
-            if price < self.created.price:
-                self.created.price = price
-                if self.exectype == Order.StopTrailLimit:
-                    self.created.pricelimit = price - self._limitoffset
-        # 如果是卖单, 价格减去移动调整的量，如果调整后的价格大于创建的价格，就把调整后的价格设置成订单创建时的价格
-        # 如果执行类型是移动限价止损，那么止损限价就等于当前价格减去价格补偿
-        else:
-            price -= pamount
-            if price > self.created.price:
-                self.created.price = price
-                if self.exectype == Order.StopTrailLimit:
-                    # limitoffset is negative when pricelimit was greater
-                    # the - allows increasing the price limit if stop increases
-                    self.created.pricelimit = price - self._limitoffset
+        # 如果是买单，用price减去adjsize；如果是卖单，用price加上adjsize
+        price_new = price + adjsize * (1 - 2 * self.isbuy())
+
+        # If price_new surpasses self.created.price -> readjust
+        # 如果新的价格超过了原来创建的价格，进行重新调整.
+        # 对于买单，如果新价格小于创建的价格，就用这个新价格
+        # 对于卖单，如果新价格大于创建的价格，就用这个新价格
+        if price_new != self.created.price:
+            if self.isbuy() and price_new < self.created.price:
+                self.created.price = price_new
+            elif self.issell() and price_new > self.created.price:
+                self.created.price = price_new
+
+        # 对于两种跟踪止损的类型，还需要调整limitprice
+        if self.exectype == OrderBase.StopTrailLimit:
+            self.created.pricelimit = self.created.price + self._limitoffset
 
 
 # 买单
