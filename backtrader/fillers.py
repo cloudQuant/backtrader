@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from backtrader.utils.py3 import MAXINT
+from backtrader.utils.autodict import DictKeyAsAttr
 
-from backtrader.metabase import MetaParams
+from backtrader.parameters import ParameterizedBase
 
 
 # 固定大小过滤，订单执行的时候只能成交当前成交量，需要下单量和size中最小的一个，如果size是None的话，忽略size
-class FixedSize(metaclass=MetaParams):
+class FixedSize(ParameterizedBase):
     """Returns the execution size for a given order using a *percentage* of the
     volume in a bar.
 
@@ -31,7 +32,7 @@ class FixedSize(metaclass=MetaParams):
 
 
 # 固定百分比，用当前成交量的一定的百分比和需要下单的量对比，选择最小的进行交易
-class FixedBarPerc(metaclass=MetaParams):
+class FixedBarPerc(ParameterizedBase):
     """Returns the execution size for a given order using a *percentage* of the
     volume in a bar.
 
@@ -54,7 +55,7 @@ class FixedBarPerc(metaclass=MetaParams):
 
 
 # 根据bar的波动幅度按照百分比分配
-class BarPointPerc(metaclass=MetaParams):
+class BarPointPerc(ParameterizedBase):
     """Returns the execution size for a given order. The volume will be
     distributed uniformly in the range *high*-*low* using ``minmov`` to
     partition.
