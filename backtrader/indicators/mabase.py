@@ -58,27 +58,19 @@ class MovAv(MovingAverage):
     pass  # alias
 
 
-# 移动平均的基类
-class MetaMovAvBase(Indicator.__class__):
-    # Register any MovingAverage with the placeholder to allow the automatic
-    # creation of envelopes and oscillators
-    # 创建移动平均值的类
-    def __new__(meta, name, bases, dct):
-        # Create the class
-        cls = super(MetaMovAvBase, meta).__new__(meta, name, bases, dct)
-
-        MovingAverage.register(cls)
-
-        # return the class
-        return cls
-
-
-# 移动平均的基类，增加参数和画图的设置
-class MovingAverageBase(Indicator, metaclass=MetaMovAvBase):
+# 移动平均的基类，增加参数和画图的设置 - refactored to remove metaclass
+class MovingAverageBase(Indicator):
     # 参数
     params = (("period", 30),)
     # 默认画到主图上
     plotinfo = dict(subplot=False)
+
+    def __init_subclass__(cls, **kwargs):
+        """Register moving average classes automatically"""
+        super().__init_subclass__(**kwargs)
+        # Register any MovingAverage with the placeholder to allow the automatic
+        # creation of envelopes and oscillators
+        MovingAverage.register(cls)
 
 
 SMA = MovingAverage

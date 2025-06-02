@@ -84,7 +84,7 @@ class Oscillator(Indicator):
 
 # Automatic creation of Oscillating Lines
 
-for movav in MovingAverage._movavs[1:]:
+for movav in MovingAverage._movavs[0:]:
     _newclsdoc = """
     Oscillation of a %s around its data
     """

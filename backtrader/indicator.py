@@ -7,82 +7,85 @@ from .lineseries import LineSeriesMaker, Lines
 from .metabase import AutoInfoClass
 
 
-# 指标元类
-class MetaIndicator(IndicatorBase.__class__):
-    # 指标名称(_refname)
-    _refname = "_indcol"
-    # 指标列
+# Simple indicator registry to replace MetaIndicator functionality
+class IndicatorRegistry:
+    """Registry to manage indicator classes and provide caching functionality"""
     _indcol = dict()
-    # 指标缓存
     _icache = dict()
-    # 指标缓存使用
     _icacheuse = False
 
-    # 类方法，清除缓存
     @classmethod
+    def register(cls, name, indicator_cls):
+        """Register an indicator class"""
+        if not name.startswith("_") and name != "Indicator":
+            cls._indcol[name] = indicator_cls
+
+    @classmethod  
     def cleancache(cls):
+        """Clear the indicator cache"""
         cls._icache = dict()
 
-    # 类方法，设置是否使用缓存
     @classmethod
     def usecache(cls, onoff):
+        """Enable or disable caching"""
         cls._icacheuse = onoff
 
-    # Object cache deactivated on 2016-08-17. If the object is being used
-    # inside another object, the minperiod information carried over
-    # influences the first usage when being modified during the 2nd usage
-    # 调用的时候
-    def __call__(cls, *args, **kwargs):
-        # 如果不是使用缓存的话，调用元类的__call__方法，生成cls
+    @classmethod
+    def get_cached_or_create(cls, indicator_cls, *args, **kwargs):
+        """Get cached indicator instance or create new one"""
         if not cls._icacheuse:
-            return super(MetaIndicator, cls).__call__(*args, **kwargs)
+            return indicator_cls(*args, **kwargs)
 
         # implement a cache to avoid duplicating lines actions
-        # 如果使用缓存的话，创建一个缓存，避免重复的line行为，下面ckey是一个可以哈希的元组，可以作为字典的key
-        ckey = (cls, tuple(args), tuple(kwargs.items()))  # tuples hashable
-        # 如果缓存中已经存在了ckey的key和值，直接返回相应的值，如果不是可以哈希的，调用元类的__call__方法，生成cls
+        ckey = (indicator_cls, tuple(args), tuple(kwargs.items()))  # tuples hashable
         try:
             return cls._icache[ckey]
         except TypeError:  # something is not hashable
-            return super(MetaIndicator, cls).__call__(*args, **kwargs)
+            return indicator_cls(*args, **kwargs)
         except KeyError:
             pass  # hashable but not in the cache
-        # 如果缓存中没有ckey，那么调用元类的__call__方法，生成一个实例，并把这个实例设为ckey的值
-        _obj = super(MetaIndicator, cls).__call__(*args, **kwargs)
+
+        _obj = indicator_cls(*args, **kwargs)
         return cls._icache.setdefault(ckey, _obj)
 
-    # 初始化
-    def __init__(cls, name, bases, dct):
-        """
-        Class has already been created ... register subclasses
-        """
-        # Initialize the class
-        super(MetaIndicator, cls).__init__(name, bases, dct)
-        # 如果不是alised ，同时name也不等于指标，同时name并不是以_开头的，
-        if not cls.aliased and name != "Indicator" and not name.startswith("_"):
-            # 获取refattr属性，并添加name和cls到这个属性值中
-            refattr = getattr(cls, cls._refname)
-            refattr[name] = cls
 
-        # Check if next and once have both been overridden
-        # 检查next和once是否被重写了
-        next_over = cls.next != IndicatorBase.next
-        once_over = cls.once != IndicatorBase.once
-        # 如果只有next被重写了，但是once没有被重写
-        if next_over and not once_over:
-            # No -> need pointer movement to once simulation via next
-            # 需要通过next来模拟once的指针运动
-            cls.once = cls.once_via_next
-            cls.preonce = cls.preonce_via_prenext
-            cls.oncestart = cls.oncestart_via_nextstart
-
-
-# 指标类
-class Indicator(IndicatorBase, metaclass=MetaIndicator):
+# 指标类 - refactored to remove metaclass usage
+class Indicator(IndicatorBase):
     # line的类型被设置为指标
     _ltype = LineIterator.IndType
     # 输出到csv文件被设置成False
     csv = False
+    # Track if this is an aliased indicator
+    aliased = False
+
+    def __init_subclass__(cls, **kwargs):
+        """Handle subclass registration without metaclass"""
+        super().__init_subclass__(**kwargs)
+        
+        # Register subclasses automatically  
+        if not cls.aliased and cls.__name__ != "Indicator" and not cls.__name__.startswith("_"):
+            IndicatorRegistry.register(cls.__name__, cls)
+
+        # Check if next and once have both been overridden
+        next_over = cls.next != IndicatorBase.next
+        once_over = cls.once != IndicatorBase.once
+        
+        if next_over and not once_over:
+            # No -> need pointer movement to once simulation via next
+            cls.once = cls.once_via_next
+            cls.preonce = cls.preonce_via_prenext
+            cls.oncestart = cls.oncestart_via_nextstart
+
+    # Cache related methods - moved from metaclass
+    @classmethod
+    def cleancache(cls):
+        """Clear the indicator cache"""
+        IndicatorRegistry.cleancache()
+
+    @classmethod
+    def usecache(cls, onoff):
+        """Enable or disable caching""" 
+        IndicatorRegistry.usecache(onoff)
 
     # 当数据小于当前时间的时候，数据向前移动size
     def advance(self, size=1):

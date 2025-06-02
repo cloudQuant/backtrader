@@ -78,7 +78,7 @@ class Envelope(_EnvelopeBase, EnvelopeMixIn):
 
 # Automatic creation of Moving Average Envelope classes
 
-for movav in MovingAverage._movavs[1:]:
+for movav in MovingAverage._movavs[0:]:
     _newclsdoc = """
     %s and envelope bands separated "perc" from it
 
