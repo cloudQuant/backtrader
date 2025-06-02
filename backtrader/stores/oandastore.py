@@ -11,7 +11,8 @@ import oandapy
 import requests  # oandapy depdendency
 
 import backtrader as bt
-from backtrader.metabase import MetaParams
+# Remove MetaParams import since we'll eliminate metaclass usage
+# from backtrader.metabase import MetaParams
 from backtrader.mixins import ParameterizedSingletonMixin
 from backtrader.utils.py3 import queue, with_metaclass
 from backtrader.utils import AutoDict
@@ -146,7 +147,7 @@ class Streamer(oandapy.Streamer):
         self.q.put(OandaStreamError(data).error_response)
 
 
-class OandaStore(ParameterizedSingletonMixin, MetaParams):
+class OandaStore(ParameterizedSingletonMixin):
     """Singleton class wrapping to control the connections to Oanda.
 
     This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass

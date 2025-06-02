@@ -6,12 +6,11 @@ from functools import wraps
 
 import backtrader as bt
 import ccxt
-from backtrader.metabase import MetaParams
-from backtrader.mixins import ParameterizedSingletonMixin
 from ccxt.base.errors import NetworkError, ExchangeError
+from backtrader.mixins import ParameterizedSingletonMixin
 
 
-class CCXTStore(ParameterizedSingletonMixin, MetaParams):
+class CCXTStore(ParameterizedSingletonMixin):
     """API provider for CCXT feed and broker classes.
 
     This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass

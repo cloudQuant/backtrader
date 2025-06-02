@@ -8,10 +8,12 @@ import threading
 import time as _timemod
 import traceback
 import ctypes
+from copy import copy
+from queue import Queue
 
 from backtrader import TimeFrame, Position
 from backtrader.feed import DataBase
-from backtrader.metabase import MetaParams
+from backtrader.mixins import ParameterizedSingletonMixin
 from backtrader.utils.py3 import (
     MAXINT,
     range,
@@ -19,7 +21,6 @@ from backtrader.utils.py3 import (
     string_types,
 )
 from backtrader.utils import AutoDict
-from backtrader.mixins import ParameterizedSingletonMixin
 
 
 # 对SymbolInfo对象进行复制，把syminfo的属性及值设置到类实例里面
@@ -160,7 +161,7 @@ class RTEventSink(object):
         self.store._vcrt_connection(self.store._RT_BASEMSG - p2)
 
 
-class VCStore(ParameterizedSingletonMixin, MetaParams):
+class VCStore(ParameterizedSingletonMixin):
     """Singleton class wrapping an ibpy ibConnection instance.
 
     This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass
@@ -435,7 +436,7 @@ class VCStore(ParameterizedSingletonMixin, MetaParams):
         return vctimeframe == self.vcdsmod.CT_Ticks
 
     def _getq(self, data):
-        q = queue.Queue()
+        q = Queue()
         self._dqs.append(q)
         self._qdatas[q] = data
         return q

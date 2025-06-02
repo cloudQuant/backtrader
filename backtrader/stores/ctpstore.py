@@ -1,11 +1,17 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; py-indent-offset:4 -*-
+import time
 import collections
+import threading
+# Remove MetaParams import since we'll eliminate metaclass usage
+# from backtrader.metabase import MetaParams
+from backtrader.mixins import ParameterizedSingletonMixin
+from backtrader.utils.py3 import queue
+from backtrader.utils import AutoDict
 from datetime import datetime
 from time import sleep
-import time
 import numpy as np
 import backtrader as bt
-from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import queue
 from backtrader.utils.date import (
     get_last_timeframe_timestamp,
     datetime2str,
@@ -18,7 +24,6 @@ from ctpbee.constant import *
 from ctpbee.api import CtpbeeApi
 from ctpbee.constant import BarData, TickData, OrderData, TradeData, PositionData, AccountData, ContractData, LogData
 from ctpbee.helpers import get_last_timeframe_timestamp, timestamp2datetime, datetime2timestamp
-from backtrader.mixins import ParameterizedSingletonMixin
 
 
 class MyCtpbeeApi(CtpbeeApi):
@@ -160,7 +165,7 @@ class MyCtpbeeApi(CtpbeeApi):
         self.is_account_ok = True
 
 
-class CTPStore(ParameterizedSingletonMixin, MetaParams):
+class CTPStore(ParameterizedSingletonMixin):
     """
     Singleton class wrapping CTP connection using ParameterizedSingletonMixin.
 

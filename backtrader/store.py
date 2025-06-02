@@ -2,25 +2,48 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 
-from backtrader.metabase import MetaParams
+# Remove MetaParams import since we'll eliminate metaclass usage
+# from backtrader.metabase import MetaParams
 
 
-class MetaSingleton(MetaParams):
-    """Metaclass to make a metaclassed class a singleton"""
-
-    def __init__(cls, name, bases, dct):
-        super(MetaSingleton, cls).__init__(name, bases, dct)
-        cls._singleton = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._singleton is None:
-            cls._singleton = super(MetaSingleton, cls).__call__(*args, **kwargs)
-
+# Simple singleton implementation without metaclass
+class SingletonMixin(object):
+    """Mixin class to make a class a singleton without using metaclasses"""
+    
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(cls, '_singleton'):
+            cls._singleton = super(SingletonMixin, cls).__new__(cls)
+            cls._singleton._initialized = False
         return cls._singleton
+    
+    def __init__(self, *args, **kwargs):
+        if self._initialized:
+            return
+        self._initialized = True
+        # Call the original __init__ if it exists
+        super(SingletonMixin, self).__init__(*args, **kwargs)
 
 
-# 创建一个store类
-class Store(metaclass=MetaSingleton):
+# Store parameter management
+class StoreParams(object):
+    """Simple parameter management for Store classes"""
+    
+    def __init__(self):
+        # Initialize parameters from the class-level params tuple
+        self.p = type('Params', (), {})()
+        params = getattr(self.__class__, 'params', ())
+        
+        # Set default values from params tuple
+        for param in params:
+            if isinstance(param, tuple) and len(param) >= 2:
+                name, default_value = param[0], param[1]
+                setattr(self.p, name, default_value)
+            elif isinstance(param, str):
+                setattr(self.p, param, None)
+
+
+# Store基类
+class Store(SingletonMixin, StoreParams):
     """Base class for all Stores"""
 
     # 开始，默认是False
@@ -30,6 +53,7 @@ class Store(metaclass=MetaSingleton):
 
     # 获取数据
     def __init__(self):
+        super(Store, self).__init__()
         self.broker = None
         self._env = None
         self._cerebro = None

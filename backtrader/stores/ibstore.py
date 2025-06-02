@@ -13,7 +13,8 @@ from ib.ext.Contract import Contract
 import ib.opt as ibopt
 
 from backtrader import TimeFrame, Position
-from backtrader.metabase import MetaParams
+# Remove MetaParams import since we'll eliminate metaclass usage
+# from backtrader.metabase import MetaParams
 from backtrader.mixins import ParameterizedSingletonMixin
 from backtrader.utils.py3 import bytes, bstr, queue, long
 from backtrader.utils import AutoDict, UTC
@@ -75,7 +76,7 @@ def ibregister(f):
     return f
 
 
-class IBStore(ParameterizedSingletonMixin, MetaParams):
+class IBStore(ParameterizedSingletonMixin):
     """Singleton class wrapping an ibpy ibConnection instance.
 
     This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass
