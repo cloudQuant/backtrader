@@ -2,10 +2,10 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from datetime import date, datetime, timedelta
 from backtrader import TimeFrame
-from .. import metabase
+from ..parameters import ParameterizedBase
 
 
-class CalendarDays(metaclass=metabase.MetaParams):
+class CalendarDays(ParameterizedBase):
     """
     Bar Filler to add missing calendar days to trading days
 
@@ -35,8 +35,8 @@ class CalendarDays(metaclass=metabase.MetaParams):
     ONEDAY = timedelta(days=1)
     lastdt = date.max
 
-    def __init__(self, data):
-        pass
+    def __init__(self, data, **kwargs):
+        super(CalendarDays, self).__init__(**kwargs)
 
     def __call__(self, data):
         """

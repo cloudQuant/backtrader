@@ -3,9 +3,10 @@
 
 import datetime
 import backtrader as bt
+from backtrader.parameters import ParameterizedBase
 
 
-class DaySplitterClose(metaclass=bt.MetaParams):
+class DaySplitterClose(ParameterizedBase):
     """
     Splits a daily bar in two parts simulating 2 ticks which will be used to
     replay the data:
@@ -39,7 +40,8 @@ class DaySplitterClose(metaclass=bt.MetaParams):
 
     # replaying = True
 
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
+        super(DaySplitterClose, self).__init__(**kwargs)
         self.lastdt = None
 
     def __call__(self, data):

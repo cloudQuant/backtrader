@@ -3,7 +3,7 @@
 from datetime import datetime, date, timedelta, UTC
 
 from .dataseries import TimeFrame, _Bar
-from . import metabase
+from .parameters import ParameterizedBase
 from .utils.date import date2num, num2date
 
 
@@ -92,7 +92,7 @@ class DTFaker(object):
 
 
 # resampler的基类
-class _BaseResampler(metaclass=metabase.MetaParams):
+class _BaseResampler(ParameterizedBase):
     # 参数
     params = (
         ("bar2edge", True),
@@ -106,7 +106,8 @@ class _BaseResampler(metaclass=metabase.MetaParams):
     )
 
     # 初始化
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
+        super(_BaseResampler, self).__init__(**kwargs)
         # 如果时间周期小于日，但是大于tick,subdays就是True，subdays代表是日内的时间周期
         self.subdays = TimeFrame.Ticks < self.p.timeframe < TimeFrame.Days
         # 如果时间周期小于周，subweeks就是True
