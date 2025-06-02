@@ -13,17 +13,7 @@ from backtrader.metabase import MetaParams
 from backtrader.stores import ibstore
 
 
-class MetaIBData(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaIBData, cls).__init__(name, bases, dct)
-
-        # Register with the store
-        ibstore.IBStore.DataCls = cls
-
-
-class IBData(DataBase, metaclass=MetaIBData):
+class IBData(DataBase):
     """Interactive Brokers Data Feed.
     # 获取数据的时候，支持的dataname格式
     Supports the following contract specifications in parameter ``dataname``:
@@ -70,7 +60,7 @@ class IBData(DataBase, metaclass=MetaIBData):
 
         Default value to apply as *exchange* if not provided in the
         ``dataname`` specification
-        # 如果没有在名字中指定的话，默认的交易所是“SMART”
+        # 如果没有在名字中指定的话，默认的交易所是"SMART"
 
       - ``currency`` (default: ``''``)
 
@@ -272,6 +262,10 @@ class IBData(DataBase, metaclass=MetaIBData):
 
     # 初始化
     def __init__(self, **kwargs):
+        super(IBData, self).__init__(**kwargs)
+        # 处理原来元类的注册功能
+        ibstore.IBStore.DataCls = self.__class__
+        
         self.tradecontractdetails = None
         self.tradecontract = None
         self.contractdetails = None

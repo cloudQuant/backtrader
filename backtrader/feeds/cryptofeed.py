@@ -10,16 +10,7 @@ from backtrader.stores.cryptostore import CryptoStore
 from bt_api_py.functions.log_message import SpdLogManager
 
 
-class MetaCryptoFeed(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaCryptoFeed, cls).__init__(name, bases, dct)
-        # Register with the store
-        CryptoStore.DataCls = cls
-
-
-class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
+class CryptoFeed(DataBase):
     """
     CryptoCurrency eXchange Trading Library Data Feed.
     Params:
@@ -71,6 +62,10 @@ class CryptoFeed(DataBase, metaclass=MetaCryptoFeed):
 
     def __init__(self, store, debug=True, *args, **kwargs):
         """feed初始化的时候,先初始化store,实现与交易所对接"""
+        super(CryptoFeed, self).__init__(**kwargs)
+        # 处理原来元类的注册功能
+        CryptoStore.DataCls = self.__class__
+        
         self.debug = debug
         self.logger = self.init_logger()
         self.store = store

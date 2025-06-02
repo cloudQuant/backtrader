@@ -7,16 +7,7 @@ import akshare as ak
 import pytz
 
 
-class MetaCTPData(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaCTPData, cls).__init__(name, bases, dct)
-        # Register with the store
-        CTPStore.DataCls = cls
-
-
-class CTPData(DataBase, metaclass=MetaCTPData):
+class CTPData(DataBase):
     """CTP Data Feed.
 
     Params:
@@ -49,6 +40,10 @@ class CTPData(DataBase, metaclass=MetaCTPData):
         return True
 
     def __init__(self, **kwargs):
+        super(CTPData, self).__init__(**kwargs)
+        # 处理原来元类的注册功能
+        CTPStore.DataCls = self.__class__
+        
         self._state = None
         self.o = self._store(**kwargs)
         self.qlive = self.o.register(self)

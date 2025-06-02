@@ -3,26 +3,17 @@
 
 import time
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import backtrader as bt
+from backtrader import TimeFrame, date2num, num2date
 from backtrader.feed import DataBase
-from backtrader.utils.py3 import queue
-from backtrader.stores.ccxtstore import CCXTStore
+from backtrader.utils.py3 import queue, string_types
+from backtrader.stores import ccxtstore
 from backtrader.utils.date import get_last_timeframe_timestamp
 
 
-class MetaCCXTFeed(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaCCXTFeed, cls).__init__(name, bases, dct)
-
-        # Register with the store
-        CCXTStore.DataCls = cls
-
-
-class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
+class CCXTFeed(DataBase):
     """
     CryptoCurrency eXchange Trading Library Data Feed.
     Params:
@@ -53,7 +44,7 @@ class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
         ("debug", False),
     )
 
-    _store = CCXTStore
+    _store = ccxtstore.CCXTStore
 
     # States for the Finite State Machine in _load
     _ST_LIVE, _ST_HISTORBACK, _ST_OVER = range(3)
@@ -194,7 +185,7 @@ class CCXTFeed(DataBase, metaclass=MetaCCXTFeed):
             return None  # no data in the queue
         tstamp, open_, high, low, close, volume = bar
         dtime = datetime.utcfromtimestamp(tstamp // 1000)
-        self.lines.datetime[0] = bt.date2num(dtime)
+        self.lines.datetime[0] = date2num(dtime)
         self.lines.open[0] = open_
         self.lines.high[0] = high
         self.lines.low[0] = low

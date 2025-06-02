@@ -14,18 +14,7 @@ from backtrader.utils.py3 import (
 from backtrader.stores import vcstore
 
 
-class MetaVCData(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaVCData, cls).__init__(name, bases, dct)
-
-        # Register with the store
-        vcstore.VCStore.DataCls = cls
-
-
-# vc数据
-class VCData(DataBase, metaclass=MetaVCData):
+class VCData(DataBase):
     """VisualChart Data Feed.
 
     Params:
@@ -73,6 +62,42 @@ class VCData(DataBase, metaclass=MetaVCData):
 
         Disabling it will remove timezone usage (may help if the load is
         excesive)
+
+      - ``what`` (default: ``None``)
+
+        If ``None`` the default for different assets types will be used for
+        historical data requests:
+
+          - 'BID' for CASH assets
+          - 'TRADES' for any other
+
+        Check the VisualChart API docs if another value is wished
+
+      - ``backfill_start`` (default: ``True``)
+
+        Perform backfilling at the start. The maximum possible historical data
+        will be fetched in a single request.
+
+      - ``backfill`` (default: ``True``)
+
+        Perform backfilling after a disconnection/reconnection cycle. The gap
+        duration will be used to download the smallest possible amount of data
+
+      - ``backfill_from`` (default: ``None``)
+
+        An additional data source can be passed to do an initial layer of
+        backfilling. Once the data source is depleted and if requested,
+        backfilling from VisualChart will take place. This is ideally meant to backfill
+        from already stored sources like a file on disk, but not limited to.
+
+      - ``latethrough`` (default: ``False``)
+
+        If the data source is resampled/replayed, some ticks may come in too
+        late for the already delivered resampled/replayed bar. If this is
+        ``True`` those ticks will bet let through in any case.
+
+        Check the Resampler documentation to see who to take those ticks into
+        account.
     """
 
     params = (
@@ -81,6 +106,11 @@ class VCData(DataBase, metaclass=MetaVCData):
         ("millisecond", True),  # fix missing millisecond in time
         ("tradename", None),  # name of the real asset to trade on
         ("usetimezones", True),  # use pytz timezones if found
+        ("what", None),  # historical - what to show
+        ("backfill_start", True),  # do backfill at the start
+        ("backfill", True),  # do backfill when reconnecting
+        ("backfill_from", None),  # additional data source to do backfill from
+        ("latethrough", False),  # let late samples through
     )
 
     # Holds the calculated offset to the timestamps of the VC Server
@@ -282,6 +312,9 @@ class VCData(DataBase, metaclass=MetaVCData):
         return True
 
     def __init__(self, **kwargs):
+        super(VCData, self).__init__(**kwargs)
+        # 处理原来元类的注册功能
+        vcstore.VCStore.DataCls = self.__class__
         self._state = None
         self.q = None
         self._mktoffdiff = None
@@ -289,7 +322,6 @@ class VCData(DataBase, metaclass=MetaVCData):
         self._mktoffset = None
         self._syminfo = None
         self._ticking = None
-        self._comp = None
         self._tf = None
         self.qrt = None
         self._newticks = None

@@ -4,26 +4,7 @@ from datetime import datetime
 import backtrader as bt
 
 
-# rollover元类
-class MetaRollOver(bt.DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaRollOver, cls).__init__(name, bases, dct)
-
-    def donew(cls, *args, **kwargs):
-        """Intercept const. to copy timeframe/compression from 1st data"""
-        # Create the object and set the params in place
-        _obj, args, kwargs = super(MetaRollOver, cls).donew(*args, **kwargs)
-
-        if args:
-            _obj.p.timeframe = args[0]._timeframe
-            _obj.p.compression = args[0]._compression
-
-        return _obj, args, kwargs
-
-
-class RollOver(bt.DataBase, metaclass=MetaRollOver):
+class RollOver(bt.DataBase):
     # 当条件满足之后，移动到下一个合约上
     """Class that rolls over to the next future when a condition is met
 
@@ -96,7 +77,15 @@ class RollOver(bt.DataBase, metaclass=MetaRollOver):
         should be deactivated"""
         return True
 
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
+        # 处理timeframe和compression参数，原来由元类处理
+        if args:
+            # 从第一个数据源复制timeframe和compression
+            kwargs.setdefault('timeframe', getattr(args[0], '_timeframe', None))
+            kwargs.setdefault('compression', getattr(args[0], '_compression', None))
+        
+        super(RollOver, self).__init__(**kwargs)
+        
         # 准备用于换月的期货合约
         self._dts = None
         self._dexp = None

@@ -6,27 +6,7 @@ import backtrader as bt
 from backtrader.utils.py3 import range
 
 
-# 创建一个chainer的元类
-class MetaChainer(bt.DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaChainer, cls).__init__(name, bases, dct)
-
-    def donew(cls, *args, **kwargs):
-        """Intercept const. to copy timeframe/compression from 1st data"""
-        # Create the object and set the params in place
-        _obj, args, kwargs = super(MetaChainer, cls).donew(*args, **kwargs)
-
-        if args:
-            _obj.p.timeframe = args[0]._timeframe
-            _obj.p.compression = args[0]._compression
-
-        return _obj, args, kwargs
-
-
-#
-class Chainer(bt.DataBase, metaclass=MetaChainer):
+class Chainer(bt.DataBase):
     """Class that chains datas"""
 
     # 当数据是实时数据的时候 ，会避免preloading 和 runonce行为
@@ -36,7 +16,15 @@ class Chainer(bt.DataBase, metaclass=MetaChainer):
         return True
 
     # 初始化
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
+        # 处理timeframe和compression参数，原来由元类处理
+        if args:
+            # 从第一个数据源复制timeframe和compression
+            kwargs.setdefault('timeframe', getattr(args[0], '_timeframe', None))
+            kwargs.setdefault('compression', getattr(args[0], '_compression', None))
+        
+        super(Chainer, self).__init__(**kwargs)
+        
         self._lastdt = None
         self._d = None
         self._ds = None

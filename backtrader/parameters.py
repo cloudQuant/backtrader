@@ -222,6 +222,10 @@ class ParameterManager:
         self._enable_history = enable_history
         self._enable_callbacks = enable_callbacks
         
+        # Simple caching for faster parameter access
+        self._cache = {}  # {param_name: cached_value}
+        self._cache_valid = {}  # {param_name: bool}
+        
         # Change tracking
         self._history = {} if enable_history else None  # {param_name: [(old_value, new_value, timestamp), ...]}
         self._change_callbacks = {} if enable_callbacks else None  # {param_name: [callback_func, ...]}
@@ -255,9 +259,19 @@ class ParameterManager:
         if initial_values:
             self.update(initial_values)
     
+    def _invalidate_cache(self, name: str) -> None:
+        """Invalidate cache for a specific parameter."""
+        if name in self._cache_valid:
+            self._cache_valid[name] = False
+    
+    def _clear_cache(self) -> None:
+        """Clear all cached values."""
+        self._cache.clear()
+        self._cache_valid.clear()
+    
     def get(self, name: str, default: Any = None) -> Any:
         """
-        Get parameter value with enhanced features.
+        Get parameter value with enhanced features and caching.
         
         Args:
             name: Parameter name
@@ -266,24 +280,33 @@ class ParameterManager:
         Returns:
             Parameter value
         """
+        # Check cache first for fast access
+        if name in self._cache_valid and self._cache_valid[name]:
+            return self._cache[name]
+        
         # Check transaction changes first
         if self._in_transaction and name in self._transaction_changes:
-            return self._transaction_changes[name]
-            
+            value = self._transaction_changes[name]
         # Check if value is explicitly set and not None
-        if name in self._values and self._values[name] is not None:
-            return self._values[name]
-        
+        elif name in self._values and self._values[name] is not None:
+            value = self._values[name]
         # If value is None or not set, check defaults
-        if name in self._defaults:
+        elif name in self._defaults:
             # Check for lazy default
             if name in self._lazy_defaults:
                 if name not in self._computed_defaults:
                     self._computed_defaults[name] = self._lazy_defaults[name]()
-                return self._computed_defaults[name]
-            return self._defaults[name]
+                value = self._computed_defaults[name]
+            else:
+                value = self._defaults[name]
         else:
-            return default
+            value = default
+        
+        # Cache the value for future access
+        self._cache[name] = value
+        self._cache_valid[name] = True
+        
+        return value
     
     def set(self, name: str, value: Any, force: bool = False, 
             trigger_callbacks: bool = True, skip_validation: bool = False) -> None:
@@ -332,6 +355,9 @@ class ParameterManager:
                 if not descriptor.validator(value):
                     raise ValueError(f"Invalid value for parameter '{name}': {value}")
         
+        # Invalidate cache for this parameter
+        self._invalidate_cache(name)
+        
         # Set the value
         if self._in_transaction:
             if name not in self._transaction_rollback:
@@ -372,6 +398,9 @@ class ParameterManager:
         """
         if not force and name in self._locked_params:
             raise ValueError(f"Parameter '{name}' is locked and cannot be reset")
+        
+        # Invalidate cache for this parameter
+        self._invalidate_cache(name)
         
         if name in self._values:
             old_value = self._values[name]
@@ -513,6 +542,9 @@ class ParameterManager:
                           if name in self._descriptors]
         
         conflicts = []
+        
+        # Clear cache since we're changing values
+        self._clear_cache()
         
         for name in param_names:
             if name in self._descriptors:
@@ -657,6 +689,8 @@ class ParameterManager:
             del self._lazy_defaults[name]
         if name in self._computed_defaults:
             del self._computed_defaults[name]
+        # Invalidate cache so get() will return the original default value
+        self._invalidate_cache(name)
     
     # ========================
     # Change Tracking and Callbacks
@@ -816,6 +850,9 @@ class ParameterManager:
         if not self._in_transaction:
             raise RuntimeError("Not in a transaction")
         
+        # Clear cache since values are changing
+        self._clear_cache()
+        
         # Apply all changes
         self._values.update(self._transaction_changes)
         
@@ -833,6 +870,9 @@ class ParameterManager:
         """Rollback the current transaction."""
         if not self._in_transaction:
             raise RuntimeError("Not in a transaction")
+        
+        # Clear cache since we're reverting changes
+        self._clear_cache()
         
         self._in_transaction = False
         self._transaction_changes.clear()

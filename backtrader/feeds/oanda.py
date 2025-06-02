@@ -12,18 +12,8 @@ from backtrader.metabase import MetaParams
 from backtrader.stores import oandastore
 
 
-class MetaOandaData(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaOandaData, cls).__init__(name, bases, dct)
-
-        # Register with the store
-        oandastore.OandaStore.DataCls = cls
-
-
 # 处理oanda数据，忽略这篇源代码s
-class OandaData(DataBase, metaclass=MetaOandaData):
+class OandaData(DataBase):
     """Oanda Data Feed.
 
     Params:
@@ -151,6 +141,10 @@ class OandaData(DataBase, metaclass=MetaOandaData):
         return True
 
     def __init__(self, **kwargs):
+        super(OandaData, self).__init__(**kwargs)
+        # 处理原来元类的注册功能
+        oandastore.OandaStore.DataCls = self.__class__
+        
         self._state = None
         self._reconns = None
         self.contractdetails = None
