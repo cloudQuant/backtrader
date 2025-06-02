@@ -143,7 +143,10 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
 
     params = (("fund", None),)
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # 调用父类的__init__方法以支持timeframe和compression参数
+        super(TimeDrawDown, self).__init__(*args, **kwargs)
+        
         self.ddlen = None
         self.peak = None
         self.maxddlen = None

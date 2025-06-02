@@ -904,6 +904,33 @@ class ParameterAccessor:
         """Backward compatibility method for old parameter system."""
         return list(self._manager.values())
 
+    def _getkwargs(self, skip_=False):
+        """
+        Backward compatibility method for old parameter system.
+        
+        Args:
+            skip_: If True, skip parameters starting with underscore
+            
+        Returns:
+            OrderedDict with parameter names as keys and values as values
+        """
+        from collections import OrderedDict
+        
+        result = OrderedDict()
+        
+        for name in self._manager.keys():
+            if skip_ and name.startswith('_'):
+                continue
+                
+            try:
+                value = self._manager.get(name)
+                result[name] = value
+            except Exception:
+                # If we can't get the value, skip it
+                continue
+                
+        return result
+
 
 class HybridParameterMeta(type):
     """
@@ -999,30 +1026,40 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
     
     def __init__(self, **kwargs):
         """
-        Initialize parameterized object with enhanced error handling.
-        
-        Args:
-            **kwargs: Keyword arguments including parameter values
+        Initialize the parameterized object with the new parameter system.
         """
-        try:
-            # Initialize parameter manager
-            descriptors = getattr(self.__class__, '_parameter_descriptors', {})
-            
-            # Check for MetaParams heritage and handle compatibility
-            if getattr(self.__class__, '_has_metaparams_heritage', False):
-                self._init_with_metaparams_compatibility(descriptors, kwargs)
+        # Get parameter descriptors from the class hierarchy
+        descriptors = self._get_parameter_descriptors()
+        
+        if descriptors:
+            # Use the modern parameter system
+            self._init_with_new_system(descriptors, kwargs)
+        else:
+            # Fall back to compatibility mode if needed
+            legacy_params = getattr(self, 'params', ())
+            if legacy_params:
+                # Convert legacy params to descriptors
+                legacy_descriptors = MetaParamsBridge.convert_legacy_params_tuple(legacy_params)
+                self._init_with_metaparams_compatibility(legacy_descriptors, kwargs)
             else:
-                self._init_with_new_system(descriptors, kwargs)
-            
-            # Enhanced error handling for parameter validation
-            validation_errors = self.validate_params()
-            if validation_errors:
-                error_msg = "Parameter validation failed:\n" + "\n".join(f"  - {err}" for err in validation_errors)
-                raise ValueError(error_msg)
-                
-        except Exception as e:
-            self._handle_initialization_error(e)
-            raise
+                # No parameters at all
+                self._param_manager = ParameterManager({})
+        
+        # Set up parameter accessor as 'p' for backward compatibility
+        if hasattr(self, '_param_manager'):
+            self.p = ParameterAccessor(self._param_manager)
+        else:
+            self.p = None
+
+    def _get_parameter_descriptors(self) -> Dict[str, ParameterDescriptor]:
+        """
+        Get parameter descriptors from the class hierarchy.
+        
+        Returns:
+            Dictionary of parameter descriptors
+        """
+        # Get descriptors from class attribute
+        return getattr(self.__class__, '_parameter_descriptors', {})
     
     def _init_with_metaparams_compatibility(self, descriptors: Dict[str, ParameterDescriptor], kwargs: Dict[str, Any]):
         """
@@ -1101,6 +1138,15 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
                 param_kwargs[key] = value
             else:
                 other_kwargs[key] = value
+        
+        # Check required parameters first
+        missing_required = []
+        for name, desc in descriptors.items():
+            if desc.required and name not in param_kwargs:
+                missing_required.append(name)
+        
+        if missing_required:
+            raise ValueError(f"Parameter validation failed: Missing required parameters: {missing_required}")
         
         # Set parameter values with validation
         if param_kwargs:
@@ -1312,48 +1358,37 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
                          param_names: Optional[List[str]] = None,
                          exclude: Optional[List[str]] = None) -> None:
         """
-        Copy parameters from another ParameterizedBase instance.
+        Copy parameter values from another ParameterizedBase instance.
         
         Args:
-            other: Source object to copy parameters from
-            param_names: Specific parameter names to copy (None for all)
-            exclude: Parameter names to exclude from copying
-            
-        Raises:
-            TypeError: If other is not a ParameterizedBase instance
-            ValueError: If parameter copying fails
+            other: Source instance to copy parameters from
+            param_names: List of specific parameter names to copy (None = all)
+            exclude: List of parameter names to exclude from copying
         """
         if not isinstance(other, ParameterizedBase):
-            raise TypeError(f"Can only copy parameters from ParameterizedBase instances, got {type(other)}")
+            raise TypeError(f"Cannot copy parameters from {type(other)}. Must be ParameterizedBase instance.")
         
         try:
-            if not hasattr(other, '_param_manager'):
-                warnings.warn(f"Source object {other.__class__.__name__} has no parameter manager")
-                return
-            
-            # Determine which parameters to copy
+            # Get the list of parameters to copy
             if param_names is None:
                 param_names = list(other._param_manager.keys())
             
             if exclude:
                 param_names = [name for name in param_names if name not in exclude]
             
-            # Copy parameters
-            copied_count = 0
-            for name in param_names:
-                if name in self._param_manager._descriptors:
+            # Copy each parameter
+            for param_name in param_names:
+                if param_name in other._param_manager:
                     try:
-                        value = other._param_manager.get(name)
-                        self._param_manager.set(name, value)
-                        copied_count += 1
+                        value = other._param_manager.get(param_name)
+                        self._param_manager.set(param_name, value, force=True)
                     except Exception as e:
-                        warnings.warn(f"Failed to copy parameter '{name}': {e}")
-            
-            print(f"Copied {copied_count} parameters from {other.__class__.__name__}")
-            
+                        # Log the error but continue with other parameters
+                        print(f"Warning: Failed to copy parameter '{param_name}': {e}")
+                        
         except Exception as e:
-            raise ValueError(f"Failed to copy parameters: {e}")
-    
+            raise RuntimeError(f"Failed to copy parameters from {type(other).__name__}: {e}")
+
     def __repr__(self) -> str:
         """Enhanced string representation including parameter information."""
         class_name = self.__class__.__name__
@@ -1361,6 +1396,7 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
         modified_count = len(self.get_modified_params()) if hasattr(self, '_param_manager') else 0
         
         return f"{class_name}(params={param_count}, modified={modified_count})"
+
 
 
 # Type checking helper functions

@@ -79,7 +79,10 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
     )
 
     # 开始
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # 调用父类的__init__方法以支持timeframe和compression参数
+        super(LogReturnsRolling, self).__init__(*args, **kwargs)
+        
         self._value = None
         self._lastvalue = None
         self._values = None

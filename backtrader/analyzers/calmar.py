@@ -67,7 +67,10 @@ class Calmar(bt.TimeFrameAnalyzerBase):
     )
 
     # 计算最大回撤
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # 调用父类的__init__方法以支持timeframe和compression参数
+        super(Calmar, self).__init__(*args, **kwargs)
+        
         self.calmar = None
         self._fundmode = None
         self._values = None

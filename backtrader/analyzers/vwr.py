@@ -93,7 +93,10 @@ class VWR(TimeFrameAnalyzerBase):
     }
 
     # 初始化，获取收益率
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # 调用父类的__init__方法以支持timeframe和compression参数
+        super(VWR, self).__init__(*args, **kwargs)
+        
         # Children log return analyzer
         self._pns = None
         self._pis = None

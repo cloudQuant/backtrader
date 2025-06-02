@@ -8,77 +8,11 @@ import pprint as pp
 import backtrader as bt
 from backtrader import TimeFrame
 from backtrader.utils.py3 import MAXINT
+from backtrader.parameters import ParameterizedBase
 
 
-# analyzer元类
-class MetaAnalyzer(bt.MetaParams):
-    def donew(cls, *args, **kwargs):
-        """
-        Intercept the strategy parameter
-        """
-        # Create the object and set the params in place
-        _obj, args, kwargs = super(MetaAnalyzer, cls).donew(*args, **kwargs)
-
-        _obj._children = list()
-        # findowner用于发现_obj的父类，bt.Strategy的实例，如果没有找到，返回None
-        _obj.strategy = strategy = bt.metabase.findowner(_obj, bt.Strategy)
-        # findowner用于发现_obj的父类，属于Analyzer的实例,如果没有找到，返回None
-        _obj._parent = bt.metabase.findowner(_obj, Analyzer)
-        # Register with a master observer if created inside one
-        # findowner用于发现_obj的父类，但是属于bt.Observer的实例,如果没有找到，返回None
-        masterobs = bt.metabase.findowner(_obj, bt.Observer)
-        # 如果有obs的话，就把analyzer注册到obs中
-        if masterobs is not None:
-            masterobs._register_analyzer(_obj)
-        # analyzer的数据
-        _obj.datas = strategy.datas
-
-        # For each data add aliases: for first data: data and data0
-        # 如果analyzer的数据不是None的话
-        if _obj.datas:
-            # analyzer的data就是第一个数据
-            _obj.data = data = _obj.datas[0]
-            # 对于数据里面的每条line
-            for l, line in enumerate(data.lines):
-                # 获取line的名字
-                linealias = data._getlinealias(l)
-                # 如果line的名字不是None的话，设置属性
-                if linealias:
-                    setattr(_obj, "data_%s" % linealias, line)
-                # 根据index设置line的名称
-                setattr(_obj, "data_%d" % l, line)
-            # 循环数据，给数据设置不同的名称，可以通过data_d访问
-            for d, data in enumerate(_obj.datas):
-                # print("d",d)
-                # print("data",data)
-                # print("data.lines",data.lines)
-                # print("data._getlinealias(l)",data._getlinealias(l))
-                setattr(_obj, "data%d" % d, data)
-                # 对不同的数据设置具体的属性名，可以通过属性名访问line
-                for l, line in enumerate(data.lines):
-                    linealias = data._getlinealias(l)
-                    if linealias:
-                        setattr(_obj, "data%d_%s" % (d, linealias), line)
-                    setattr(_obj, "data%d_%d" % (d, l), line)
-        # 调用create_analysis方法
-        _obj.create_analysis()
-
-        # Return to the normal chain
-        return _obj, args, kwargs
-
-    # dopostint，如果analyzer._perent不是None的话，把_obj注册给analyzer._perent
-    def dopostinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = super(MetaAnalyzer, cls).dopostinit(_obj, *args, **kwargs)
-
-        if _obj._parent is not None:
-            _obj._parent._register(_obj)
-
-        # Return to the normal chain
-        return _obj, args, kwargs
-
-
-# Analyzer类
-class Analyzer(metaclass=MetaAnalyzer):
+# Analyzer类 - 重构为不使用元类
+class Analyzer(ParameterizedBase):
     """Analyzer base class. All analyzers are subclass of this one
 
     An Analyzer instance operates in the frame of a strategy and provides an
@@ -140,6 +74,68 @@ class Analyzer(metaclass=MetaAnalyzer):
     # 保存结果到csv中
     csv = True
 
+    def __new__(cls, *args, **kwargs):
+        """
+        Custom __new__ to implement the functionality previously in MetaAnalyzer.donew
+        """
+        # Create the object using parent's __new__
+        _obj = super(Analyzer, cls).__new__(cls)
+        
+        # Initialize children list
+        _obj._children = list()
+        
+        return _obj
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize Analyzer with functionality previously in MetaAnalyzer
+        """
+        # Initialize parent first
+        super(Analyzer, self).__init__(*args, **kwargs)
+        
+        # findowner用于发现_obj的父类，bt.Strategy的实例，如果没有找到，返回None
+        self.strategy = strategy = bt.metabase.findowner(self, bt.Strategy)
+        # findowner用于发现_obj的父类，属于Analyzer的实例,如果没有找到，返回None
+        self._parent = bt.metabase.findowner(self, Analyzer)
+        # Register with a master observer if created inside one
+        # findowner用于发现_obj的父类，但是属于bt.Observer的实例,如果没有找到，返回None
+        masterobs = bt.metabase.findowner(self, bt.Observer)
+        # 如果有obs的话，就把analyzer注册到obs中
+        if masterobs is not None:
+            masterobs._register_analyzer(self)
+        # analyzer的数据
+        self.datas = strategy.datas if strategy is not None else []
+
+        # For each data add aliases: for first data: data and data0
+        # 如果analyzer的数据不是None的话
+        if self.datas:
+            # analyzer的data就是第一个数据
+            self.data = data = self.datas[0]
+            # 对于数据里面的每条line
+            for l, line in enumerate(data.lines):
+                # 获取line的名字
+                linealias = data._getlinealias(l)
+                # 如果line的名字不是None的话，设置属性
+                if linealias:
+                    setattr(self, "data_%s" % linealias, line)
+                # 根据index设置line的名称
+                setattr(self, "data_%d" % l, line)
+            # 循环数据，给数据设置不同的名称，可以通过data_d访问
+            for d, data in enumerate(self.datas):
+                setattr(self, "data%d" % d, data)
+                # 对不同的数据设置具体的属性名，可以通过属性名访问line
+                for l, line in enumerate(data.lines):
+                    linealias = data._getlinealias(l)
+                    if linealias:
+                        setattr(self, "data%d_%s" % (d, linealias), line)
+                    setattr(self, "data%d_%d" % (d, l), line)
+        # 调用create_analysis方法
+        self.create_analysis()
+
+        # Handle parent registration (previously in dopostinit)
+        if self._parent is not None:
+            self._parent._register(self)
+
     # 获取analyzer的长度的时候，其实是计算的策略的长度
     def __len__(self):
         """Support for invoking ``len`` on analyzers by actually returning the
@@ -199,84 +195,71 @@ class Analyzer(metaclass=MetaAnalyzer):
 
         self.next()
 
-    # 调用_start
+    # _start，对于所有的child进行_start调用
     def _start(self):
         for child in self._children:
             child._start()
 
         self.start()
 
-    # 调用_stop
+    # _stop，对于所有的child进行_stop调用
     def _stop(self):
         for child in self._children:
             child._stop()
 
         self.stop()
 
-    # 通知cash 和 value
+    # 通知cash,value
     def notify_cashvalue(self, cash, value):
-        """Receives the cash/value notification before each next cycle"""
         pass
 
-    # 通知 fund
+    # 通知fund
     def notify_fund(self, cash, value, fundvalue, shares):
-        """Receives the current cash, value, fundvalue and fund shares"""
         pass
 
-    # 通知order
+    # 通知order，可以在子类中重写
     def notify_order(self, order):
-        """Receives order notifications before each next cycle"""
         pass
 
-    # 通知 trade
+    # 通知trade，可以在子类中重写
     def notify_trade(self, trade):
-        """Receives trade notifications before each next cycle"""
         pass
 
-    # next
+    # next，可以在子类中重写
     def next(self):
-        """Invoked for each next invocation of the strategy, once the minium
-        preiod of the strategy has been reached"""
         pass
 
-    # prenext
+    # prenext如果等于next的话，在子类中重写prenext，
+    # 一般情况下，prenext需要和next做同样的计算或者pass
     def prenext(self):
-        """Invoked for each prenext invocation of the strategy, until the minimum
-        period of the strategy has been reached
-
-        The default behavior for an analyzer is to invoke ``next``
-        """
+        # prenext and next until a minimum period of total_lines has been
+        # reached
+        # 默认调用next，除非是子类中特别重写了prenext，否则prenext调用next
         self.next()
 
-    # nextstart
+    # nextstart，一般被下一类重写，或者调用next
     def nextstart(self):
-        """Invoked exactly once for the nextstart invocation of the strategy,
-        when the minimum period has been first reached
-        """
+        # Called once when the minimum period for all lines has been meet
+        # It's default behavior is to call next
+        # 默认调用next
         self.next()
 
-    # start
+    # start，可以在子类中重写
     def start(self):
-        """Invoked to indicate the start of operations, giving the analyzer
-        time to setup up needed things"""
         pass
 
-    # stop
+    # stop，可以在子类中重写
     def stop(self):
-        """Invoked to indicate the end of operations, giving the analyzer
-        time to shut down needed things"""
         pass
 
-    # create_analysis 会创建一个有序字典
+    # 创建analysis，在子类中重写
     def create_analysis(self):
-        """Meant to be overriden by subclasses. Gives a chance to create the
-        structures that hold the analysis.
-
-        The default behaviour is to create a ``OrderedDict`` named ``rets``
-        """
+        # create a dict placeholder for the analysis
+        # 创建一个字典分析结果的占位符
+        # self.rets 可以通过get_analysis获取到
         self.rets = OrderedDict()
 
-    # 获取分析结果，会返回self.rets
+    # 获取analysis
     def get_analysis(self):
         """Returns a *dict-like* object with the results of the analysis
 
@@ -289,227 +272,205 @@ class Analyzer(metaclass=MetaAnalyzer):
         The default implementation returns the default OrderedDict ``rets``
         created by the default ``create_analysis`` method
 
+        # 返回字典形式的结果分析，具体的格式取决于实现
         """
         return self.rets
 
-    # print数据，通过writerfile打印相应的数据到标准输出
+    # 打印analysis
     def print(self, *args, **kwargs):
         """Prints the results returned by ``get_analysis`` via a standard
-        ``Writerfile`` object, which defaults to writing things to standard
-        output
-        """
-        # 创建一个writer
-        writer = bt.WriterFile(*args, **kwargs)
-        # writer开始
-        writer.start()
-        # pdct代表一个空字典
-        pdct = dict()
-        # 用类名作为key,保存分析的结果
-        pdct[self.__class__.__name__] = self.get_analysis()
-        # 把pdct保存到writer中
-        writer.writedict(pdct)
-        # writer结束
-        writer.stop()
+        ``print`` call"""
+        # print analysis 通过调用打印分析结果，这个内容可以通过get_analysis获取到
+        print(self.get_analysis())
 
-    # 使用pprint打印相关的信息
+    # pprint analysis
     def pprint(self, *args, **kwargs):
-        """Prints the results returned by ``get_analysis`` using the pretty
-        print Python module (*pprint*)
-        """
+        """Prints the results returned by ``get_analysis`` via a pretty print
+        call"""
+        # pretty print analysis，和上面类似
         pp.pprint(self.get_analysis(), *args, **kwargs)
 
 
-# 周期分析元类
-class MetaTimeFrameAnalyzerBase(Analyzer.__class__):
-    # 如果存在_on_dt_over，改成on_dt_over
-    def __new__(meta, name, bases, dct):
-        # Hack to support original method name
-        if "_on_dt_over" in dct:
-            dct["on_dt_over"] = dct.pop("_on_dt_over")  # rename method
-
-        return super(MetaTimeFrameAnalyzerBase, meta).__new__(meta, name, bases, dct)
-
-
-# 周期分析基类
-class TimeFrameAnalyzerBase(Analyzer, metaclass=MetaTimeFrameAnalyzerBase):
+# TimeFrameAnalyzerBase类 - 重构为不使用元类
+class TimeFrameAnalyzerBase(Analyzer):
     # 参数
     params = (
-        ("timeframe", None),
-        ("compression", None),
-        ("_doprenext", True),
+        ("timeframe", TimeFrame.Days),
+        ("compression", 1),
+        ('_doprenext', True),  # override default behavior
     )
 
-    # 开始
+    def __init__(self, *args, **kwargs):
+        """Initialize with functionality previously in MetaTimeFrameAnalyzerBase"""
+        super(TimeFrameAnalyzerBase, self).__init__(*args, **kwargs)
+        
+        # Hack to support original method name - add on_dt_over_orig if on_dt_over_orig exists
+        if hasattr(self, 'on_dt_over_orig') and not hasattr(self, 'on_dt_over'):
+            self.on_dt_over = self.on_dt_over_orig
+
     def _start(self):
         # Override to add specific attributes
         # 设置交易周期，比如分钟
-        self.timeframe = self.p.timeframe or self.data._timeframe
-        # 设置周期的数目，比如5，
-        self.compression = self.p.compression or self.data._compression
-
-        self.dtcmp, self.dtkey = self._get_dt_cmpkey(datetime.datetime.min)
         super(TimeFrameAnalyzerBase, self)._start()
+        # 设置交易周期
+        self.timeframe = self.p.timeframe
+        # 设置压缩
+        self.compression = self.p.compression
+        # 当前的时间 - 检查datetime数组是否有数据
+        if len(self.strategy.datetime) > 0:
+            self.dtcmp, self.dtkey = self._get_dt_cmpkey(self.strategy.datetime[0])
+        else:
+            # 如果没有数据，使用默认值
+            self.dtcmp = 0
+            self.dtkey = datetime.datetime.min
 
-    # 调用_prenext
     def _prenext(self):
-        for child in self._children:
-            child._prenext()
-
-        if self._dt_over():
-            self.on_dt_over()
-
+        # 如果dopprenext是true的话
         if self.p._doprenext:
-            self.prenext()
+            # 保存当前的状态
+            self._save_dtcmp()
+            # 做prenext分析
+            self._dt_prenext()
+            super(TimeFrameAnalyzerBase, self)._prenext()
 
-    # 调用_nextstart
     def _nextstart(self):
-        for child in self._children:
-            child._nextstart()
+        # 保存当前状态
+        self._save_dtcmp()
+        # next分析
+        self._dt_next()
+        super(TimeFrameAnalyzerBase, self)._nextstart()
 
-        if self._dt_over() or not self.p._doprenext:  # exec if no prenext
-            self.on_dt_over()
-
-        self.nextstart()
-
-    # 调用_next
     def _next(self):
-        for child in self._children:
-            child._next()
+        # 保存当前状态
+        self._save_dtcmp()
+        # next分析
+        self._dt_next()
+        super(TimeFrameAnalyzerBase, self)._next()
 
-        if self._dt_over():
-            self.on_dt_over()
-
-        self.next()
-
-    # 调用on_dt_over
+    # 这个方法子类一般需要重写
     def on_dt_over(self):
         pass
 
-    # _dt_over
+    # 如果_dt_over，就设置dt_over是True，调用on_dt_over
     def _dt_over(self):
         # 如果交易周期等于没有时间周期，dtcmp等于最大整数，dtkey等于最大时间
         if self.timeframe == TimeFrame.NoTimeFrame:
-            dtcmp, dtkey = MAXINT, datetime.datetime.max
-        # 否则，就调用_get_dt_cmpkey(dt)获取dtcmp, dtkey
+            self.dtcmp = MAXINT
+            self.dtkey = datetime.datetime.max
         else:
-            # With >= 1.9.x the system datetime is in the strategy
-            dt = self.strategy.datetime.datetime()
-            dtcmp, dtkey = self._get_dt_cmpkey(dt)
-        # 如果dtcmp是None，或者dtcmp大于self.dtcmp的话
-        if self.dtcmp is None or dtcmp > self.dtcmp:
-            # 设置dtkey，dtkey1，dtcmp，dtcmp1返回True
-            self.dtkey, self.dtkey1 = dtkey, self.dtkey
-            self.dtcmp, self.dtcmp1 = dtcmp, self.dtcmp
-            return True
-        # 返回False
-        return False
+            # 设置dtcmp和dtkey
+            self.dtcmp, self.dtkey = self._get_dt_cmpkey(self.strategy.datetime[0])
+        # 如果子类重写了这个方法，调用这个方法
+        self.on_dt_over()
 
-    # 获取dtcmp, dtkey
+    # 保存dtcmp
+    def _save_dtcmp(self):
+        # 保存之前的dtcmp
+        self.dtcmp_prev = self.dtcmp
+
+    # prenext的时候调用
+    def _dt_prenext(self):
+        # 获取dtcmp和dtkey
+        dtcmp, dtkey = self._get_dt_cmpkey(self.strategy.datetime[0])
+        # 如果当前的dtcmp不等于dtcmp，调用dt_over
+        if self.dtcmp != dtcmp:
+            self._dt_over()
+
+    # next的时候调用，和prenext逻辑一样
+    def _dt_next(self):
+        dtcmp, dtkey = self._get_dt_cmpkey(self.strategy.datetime[0])
+        if self.dtcmp != dtcmp:
+            self._dt_over()
+
+    # 获取dtcmp和dtkey
     def _get_dt_cmpkey(self, dt):
         # 如果当前的交易周期是没有时间周期的话，返回两个None
         if self.timeframe == TimeFrame.NoTimeFrame:
-            return None, None
-        # 如果当前的交易周期是年的话
-        if self.timeframe == TimeFrame.Years:
-            dtcmp = dt.year
-            dtkey = datetime.date(dt.year, 12, 31)
-        # 如果交易周期是月的话
-        elif self.timeframe == TimeFrame.Months:
-            dtcmp = dt.year * 100 + dt.month
-            # 获取最后一天
-            _, lastday = calendar.monthrange(dt.year, dt.month)
-            # 获取每月最后一天
-            dtkey = datetime.datetime(dt.year, dt.month, lastday)
-        # 如果交易周期是星期的话
-        elif self.timeframe == TimeFrame.Weeks:
-            # 对日期返回年、周数和周几
-            isoyear, isoweek, isoweekday = dt.isocalendar()
-            # todo 推测这个里面乘以的数应该是1000，乘以100，有可能和months相等
-            # dtcmp = isoyear * 100 + isoweek
-            dtcmp = isoyear * 1000 + isoweek
-            # 周末
-            sunday = dt + datetime.timedelta(days=7 - isoweekday)
-            # 获取每周的最后一天
-            dtkey = datetime.datetime(sunday.year, sunday.month, sunday.day)
-        # 如果交易周期是天的话，计算具体的dtcmp，dtkey
-        elif self.timeframe == TimeFrame.Days:
-            dtcmp = dt.year * 10000 + dt.month * 100 + dt.day
-            dtkey = datetime.datetime(dt.year, dt.month, dt.day)
-        # 如果交易周期小于天的话，调用_get_subday_cmpkey来获取
+            return MAXINT, datetime.datetime.max
+        
+        # Convert float timestamp to datetime if necessary
+        if isinstance(dt, float):
+            # Convert from ordinal to datetime
+            point = datetime.datetime.fromordinal(int(dt))
+            # Handle fractional part for intraday
+            fractional = dt - int(dt)
+            if fractional > 0:
+                seconds = fractional * 86400  # 24 * 60 * 60
+                point = point.replace(hour=int(seconds // 3600),
+                                    minute=int((seconds % 3600) // 60),
+                                    second=int(seconds % 60),
+                                    microsecond=int((seconds % 1) * 1000000))
         else:
-            dtcmp, dtkey = self._get_subday_cmpkey(dt)
+            point = dt
+            
+        # Calculate intraday position
+        if self.timeframe < TimeFrame.Days:
+            return self._get_subday_cmpkey(point)
 
-        return dtcmp, dtkey
+        # Day or above
+        # 如果周期是周的话，计算周
+        if self.timeframe == TimeFrame.Weeks:
+            # iso calendar 返回Year, week of year, weekday
+            isoyear, isoweek, isoweekday = point.isocalendar()
+            # 获取年
+            point = point.replace(month=1, day=1)  # 1st of Jan
+            # 获取天
+            point = point.replace(year=isoyear)  # year
+            # 获取周，通过加天数
+            point += datetime.timedelta(weeks=isoweek - 1)
+            # Get end of period -> Weekdays start at 1
+            point += datetime.timedelta(days=7 - 1)
+        # 如果是月的话
+        elif self.timeframe == TimeFrame.Months:
+            # 月的最后一天
+            _, lastday = calendar.monthrange(point.year, point.month)
+            point = point.replace(day=lastday)
+        # 如果是年的话
+        elif self.timeframe == TimeFrame.Years:
+            # 12月31号
+            point = point.replace(month=12, day=31)
+        # 返回时间戳和point
+        return point.toordinal(), point
 
-    # 如果交易周期小于天
+    # 获取分钟内的时间
     def _get_subday_cmpkey(self, dt):
         # Calculate intraday position
+        # 确保dt是datetime对象
+        if isinstance(dt, float):
+            # Convert from ordinal to datetime
+            point = datetime.datetime.fromordinal(int(dt))
+            # Handle fractional part for intraday
+            fractional = dt - int(dt)
+            if fractional > 0:
+                seconds = fractional * 86400  # 24 * 60 * 60
+                point = point.replace(hour=int(seconds // 3600),
+                                    minute=int((seconds % 3600) // 60),
+                                    second=int(seconds % 60),
+                                    microsecond=int((seconds % 1) * 1000000))
+        else:
+            point = dt
+            
         # 计算当前的分钟数目
-        point = dt.hour * 60 + dt.minute
-        # 如果当前的交易周期小于分钟，point转换成秒
-        if self.timeframe < TimeFrame.Minutes:
-            point = point * 60 + dt.second
-        # 如果当前的交易周期小于秒，point转变为毫秒
-        if self.timeframe < TimeFrame.Seconds:
-            point = point * 1e6 + dt.microsecond
-
-        # Apply compression to update point position (comp 5 -> 200 // 5)
-        # 根据周期的数目，计算当前的point
-        point = point // self.compression
-
-        # Move to next boundary
-        # 移动到下个
-        point += 1
-
-        # Restore point to the timeframe units by de-applying compression
-        # 计算下个point结束的点位
-        point *= self.compression
-
-        # Get hours, minutes, seconds and microseconds
-        # 如果交易周期等于分钟，得到ph,pm
+        point = point.replace(second=0, microsecond=0)
+        # 如果周期是分钟的话
         if self.timeframe == TimeFrame.Minutes:
-            ph, pm = divmod(point, 60)
-            ps = 0
-            pus = 0
-        # 如果交易周期等于秒，得到ph,pm,ps
+            # Get current minute and compress
+            # 当前分钟，compression表示压缩比例，默认是1，即1分钟
+            minute = point.minute
+            # 压缩之后的分钟数
+            point = point.replace(minute=minute - minute % self.compression)
+            # 加compression分钟
+            point += datetime.timedelta(minutes=self.compression - 1)
+        # 如果周期等于秒的话
         elif self.timeframe == TimeFrame.Seconds:
-            ph, pm = divmod(point, 60 * 60)
-            pm, ps = divmod(pm, 60)
-            pus = 0
-        # 如果是毫秒，得到ph,pm,ps,pus
+            second = point.second
+            point = point.replace(second=second - second % self.compression)
+            point += datetime.timedelta(seconds=self.compression - 1)
+        # 如果是毫秒的话
         elif self.timeframe == TimeFrame.MicroSeconds:
-            ph, pm = divmod(point, 60 * 60 * 1e6)
-            pm, psec = divmod(pm, 60 * 1e6)
-            ps, pus = divmod(psec, 1e6)
-        # 是否是下一天
-        extradays = 0
-        #  小时大于23，整除，计算是不是下一天了
-        if ph > 23:  # went over midnight:
-            extradays = ph // 24
-            ph %= 24
-
-        # moving 1 minor unit to the left to be in the boundary
-        # pm -= self.timeframe == TimeFrame.Minutes
-        # ps -= self.timeframe == TimeFrame.Seconds
-        # pus -= self.timeframe == TimeFrame.MicroSeconds
-        # 需要调整的时间
-        tadjust = datetime.timedelta(
-            minutes=self.timeframe == TimeFrame.Minutes,
-            seconds=self.timeframe == TimeFrame.Seconds,
-            microseconds=self.timeframe == TimeFrame.MicroSeconds,
-        )
-
-        # Add extra day if present
-        # 如果下一天是True的话，把时间调整到下一天
-        if extradays:
-            dt += datetime.timedelta(days=extradays)
-
-        # Replace intraday parts with the calculated ones and update it
-        # 计算dtcmp
-        dtcmp = dt.replace(hour=ph, minute=pm, second=ps, microsecond=pus)
-        # 对dtcmp进行调整
-        dtcmp -= tadjust
-        # dtkey等于dtcmp
-        dtkey = dtcmp
-
-        return dtcmp, dtkey
+            # 微妙的话
+            microsecond = point.microsecond
+            point = point.replace(microsecond=microsecond - microsecond % self.compression)
+            point += datetime.timedelta(microseconds=self.compression - 1)
+        # 返回时间戳和point
+        return point.timestamp(), point
