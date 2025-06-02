@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from datetime import datetime, timedelta, time
 
-from .metabase import MetaParams
+from .parameters import ParameterizedBase
 from backtrader.utils.py3 import string_types
 from backtrader.utils import UTC
 
@@ -28,8 +28,8 @@ ISOWEEKEND = [ISOSATURDAY, ISOSUNDAY]
 ONEDAY = timedelta(days=1)
 
 
-# 交易日历基类，定义了具体的方法
-class TradingCalendarBase(metaclass=MetaParams):
+# 交易日历基类，定义了具体的方法 - 重构为不使用元类
+class TradingCalendarBase(ParameterizedBase):
     # 返回day之后的下一个交易日和日历组成
     def _nextday(self, day):
         """
@@ -98,7 +98,7 @@ class TradingCalendarBase(metaclass=MetaParams):
         return day.year != self._nextday(day)[0].year
 
 
-# 交易日历类
+# 交易日历类 - 重构为不使用元类
 class TradingCalendar(TradingCalendarBase):
     """
     Wrapper of ``pandas_market_calendars`` for a trading calendar. The package
@@ -150,7 +150,8 @@ class TradingCalendar(TradingCalendarBase):
     )
 
     # 初始化，根据earlydays，获取这些日期，为了加快搜索的速度
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super(TradingCalendar, self).__init__(**kwargs)
         self._earlydays = [x[0] for x in self.p.earlydays]  # speed up searches
 
     # 获取下一个交易日
@@ -252,7 +253,8 @@ class PandasMarketCalendar(TradingCalendarBase):
     )
 
     # 初始化
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super(PandasMarketCalendar, self).__init__(**kwargs)
         self._calendar = self.p.calendar
         # 如果self._calendar是字符串，使用get_calendar转换成calendar实例
         if isinstance(self._calendar, string_types):  # use passed mkt name
