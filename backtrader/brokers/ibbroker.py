@@ -227,17 +227,17 @@ class IBCommInfo(CommInfoBase):
         return abs(size) * price
 
 
-# IBBroker元类
-class MetaIBBroker(BrokerBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaIBBroker, cls).__init__(name, bases, dct)
-        ibstore.IBStore.BrokerCls = cls
+# 注册机制，在导入模块时自动注册broker类
+def _register_broker_class(broker_cls):
+    """Register broker class with the store when module is loaded"""
+    from backtrader.stores import ibstore
+    ibstore.IBStore.BrokerCls = broker_cls
+    return broker_cls
 
 
-# IBbroker
-class IBBroker(BrokerBase, metaclass=MetaIBBroker):
+# IBbroker - 不再使用元类
+@_register_broker_class
+class IBBroker(BrokerBase):
     """Broker implementation for Interactive Brokers.
 
     This class maps the orders/positions from Interactive Brokers to the

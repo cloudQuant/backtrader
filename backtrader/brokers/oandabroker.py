@@ -21,7 +21,6 @@ from backtrader.position import Position
 from backtrader.stores import oandastore
 from backtrader.utils import AutoDict, AutoOrderedDict
 from backtrader.parameters import ParameterDescriptor, Bool, ParameterizedBase, BoolParam
-from backtrader.utils.py3 import with_metaclass
 
 
 class OandaCommInfo(CommInfoBase):
@@ -35,15 +34,15 @@ class OandaCommInfo(CommInfoBase):
         return abs(size) * price
 
 
-class MetaOandaBroker(BrokerBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaOandaBroker, cls).__init__(name, bases, dct)
-        oandastore.OandaStore.BrokerCls = cls
+# 注册机制，在导入模块时自动注册broker类
+def _register_oanda_broker_class(broker_cls):
+    """Register broker class with the store when module is loaded"""
+    oandastore.OandaStore.BrokerCls = broker_cls
+    return broker_cls
 
 
-class OandaBroker(BrokerBase, metaclass=MetaOandaBroker):
+@_register_oanda_broker_class
+class OandaBroker(BrokerBase):
     """Broker implementation for Oanda.
 
     This class maps the orders/positions from Oanda to the

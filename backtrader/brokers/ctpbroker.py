@@ -7,15 +7,15 @@ from ..parameters import ParameterizedBase, BoolParam
 from backtrader.stores.ctpstore import CTPStore
 
 
-class MetaCTPBroker(BrokerBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaCTPBroker, cls).__init__(name, bases, dct)
-        CTPStore.BrokerCls = cls
+# 注册机制，在导入模块时自动注册broker类
+def _register_ctp_broker_class(broker_cls):
+    """Register broker class with the store when module is loaded"""
+    CTPStore.BrokerCls = broker_cls
+    return broker_cls
 
 
-class CTPBroker(BrokerBase, metaclass=MetaCTPBroker):
+@_register_ctp_broker_class
+class CTPBroker(BrokerBase):
     """Broker implementation for ctp
 
     This class maps the orders/positions from MetaTrader to the

@@ -25,15 +25,15 @@ class CCXTOrder(Order):
         super(CCXTOrder, self).__init__()
 
 
-class MetaCCXTBroker(BrokerBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaCCXTBroker, cls).__init__(name, bases, dct)
-        CCXTStore.BrokerCls = cls
+# 注册机制，在导入模块时自动注册broker类
+def _register_ccxt_broker_class(broker_cls):
+    """Register broker class with the store when module is loaded"""
+    CCXTStore.BrokerCls = broker_cls
+    return broker_cls
 
 
-class CCXTBroker(BrokerBase, metaclass=MetaCCXTBroker):
+@_register_ccxt_broker_class
+class CCXTBroker(BrokerBase):
     """Broker implementation for CCXT cryptocurrency trading library.
     This class maps the orders/positions from CCXT to the
     internal API of `backtrader`.

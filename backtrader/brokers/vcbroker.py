@@ -10,7 +10,6 @@ from backtrader.brokerbase import BrokerBase
 from backtrader.position import Position
 from backtrader.comminfo import CommInfoBase
 from backtrader.parameters import ParameterDescriptor, String
-from backtrader.utils.py3 import with_metaclass
 from ..parameters import ParameterizedBase, StringParam
 
 from backtrader.stores import vcstore
@@ -40,15 +39,15 @@ class VCCommInfo(CommInfoBase):
         return abs(size) * price
 
 
-class MetaVCBroker(BrokerBase.__class__):
-    def __init__(cls, name, bases, dct):
-        """Class has already been created ... register"""
-        # Initialize the class
-        super(MetaVCBroker, cls).__init__(name, bases, dct)
-        vcstore.VCStore.BrokerCls = cls
+# 注册机制，在导入模块时自动注册broker类
+def _register_vc_broker_class(broker_cls):
+    """Register broker class with the store when module is loaded"""
+    vcstore.VCStore.BrokerCls = broker_cls
+    return broker_cls
 
 
-class VCBroker(BrokerBase, metaclass=MetaVCBroker):
+@_register_vc_broker_class
+class VCBroker(BrokerBase):
     """Broker implementation for VisualChart.
 
     This class maps the orders/positions from VisualChart to the

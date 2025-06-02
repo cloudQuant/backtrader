@@ -8,24 +8,21 @@ from backtrader.parameters import ParameterizedBase, ParameterDescriptor
 # from . import fillers as filler
 
 
-# broker元类，使得get_cash与getcash,get_value与getvalue方法相同
-class MetaBroker(type):
-    def __init__(cls, name, bases, dct):
-        # Class has already been created ... fill missing methods if needed be
-        # Initialize the class
-        super(MetaBroker, cls).__init__(name, bases, dct)
-        translations = {
-            "get_cash": "getcash",
-            "get_value": "getvalue",
-        }
-
-        for attr, trans in translations.items():
-            if not hasattr(cls, attr):
-                setattr(cls, attr, getattr(cls, trans))
+# 创建一个mixin来处理别名，而不使用元类
+class BrokerAliasMixin(object):
+    """Mixin to provide method aliases without using metaclasses"""
+    
+    def __init__(self, *args, **kwargs):
+        super(BrokerAliasMixin, self).__init__(*args, **kwargs)
+        # Create aliases if they don't exist
+        if not hasattr(self, 'get_cash'):
+            self.get_cash = self.getcash
+        if not hasattr(self, 'get_value'):
+            self.get_value = self.getvalue
 
 
 # broker基类 - 使用新的参数系统
-class BrokerBase(ParameterizedBase):
+class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     # 使用新的参数描述符
     commission = ParameterDescriptor(
         default=CommInfoBase(percabs=True),
