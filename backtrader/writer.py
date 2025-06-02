@@ -11,14 +11,15 @@ except AttributeError:  # For old Python versions
     collectionsAbc = collections
 import backtrader as bt
 from backtrader.utils.py3 import map, string_types, integer_types
+from backtrader.parameters import ParameterizedBase
 
 
-# WriterBase类
-class WriterBase(metaclass=bt.MetaParams):
+# WriterBase类 - 重构为不使用元类
+class WriterBase(ParameterizedBase):
     pass
 
 
-# WriterFile类
+# WriterFile类 - 重构为不使用元类
 class WriterFile(WriterBase):
     """
     The system-wide writer class.
@@ -103,7 +104,9 @@ class WriterFile(WriterBase):
     )
 
     # 初始化
-    def __init__(self):
+    def __init__(self, **kwargs):
+        # Initialize parent class first
+        super(WriterFile, self).__init__(**kwargs)
         # _len是一个计数器
         self._len = itertools.count(1)
         # headers
@@ -156,7 +159,7 @@ class WriterFile(WriterBase):
         if self.p.csv:
             self.headers.extend(headers)
 
-    # 如果csv是True的话，如果需要过滤nan的话，就把nan替换成‘’，并把values添加到self.values
+    # 如果csv是True的话，如果需要过滤nan的话，就把nan替换成''，并把values添加到self.values
     def addvalues(self, values):
         if self.p.csv:
             if self.p.csv_filternan:
@@ -260,19 +263,33 @@ class WriterFile(WriterBase):
                 self.writeline(kline)
 
 
-# 写入StringIO
+# 写入StringIO - 重构为不使用元类
 class WriterStringIO(WriterFile):
     # 参数out设置成了stringIO
     params = (("out", io.StringIO),)
 
-    def __init__(self):
-        super(WriterStringIO, self).__init__()
+    def __init__(self, **kwargs):
+        self._stringio = io.StringIO()
+        self.close_out = False
+        super(WriterStringIO, self).__init__(**kwargs)
 
-    def _start_output(self):
-        super(WriterStringIO, self)._start_output()
-        self.out = self.out()
+    @property  
+    def out(self):
+        """Always return our StringIO object."""
+        return self._stringio
+
+    @out.setter
+    def out(self, value):
+        """Ignore attempts to set out - we control it."""
+        pass
 
     def stop(self):
-        super(WriterStringIO, self).stop()
-        # Leave the file positioned at the beginning
-        self.out.seek(0)
+        """Seek to beginning for reading."""
+        if self._stringio:
+            self._stringio.seek(0)
+
+    def getvalue(self):
+        """Get the content from the StringIO object.""" 
+        if self._stringio:
+            return self._stringio.getvalue()
+        return ""
