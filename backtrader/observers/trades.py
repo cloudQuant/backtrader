@@ -91,87 +91,12 @@ class Trades(Observer):
                 self.lines.pnlminus[0] = pnl
 
 
-# DataTrades的元类，继承Observer后创建类的时候处理一些脏活
-class MetaDataTrades(Observer.__class__):
-    def donew(cls, *args, **kwargs):
-        _obj, args, kwargs = super(MetaDataTrades, cls).donew(*args, **kwargs)
-
-        # Recreate the lines dynamically
-        # 动态的重新创建line的名字
-        if _obj.params.usenames:
-            lnames = tuple(x._name for x in _obj.datas)
-        else:
-            lnames = tuple("data{}".format(x) for x in range(len(_obj.datas)))
-
-        # Generate a new lines class
-        # 创建一个新的line class
-        linescls = cls.lines._derive(uuid.uuid4().hex, lnames, 0, ())
-
-        # Instantiate lines
-        # 实例化，并赋值给_obj
-        _obj.lines = linescls()
-
-        # Generate plotlines info
-        # 画图的一些配置信息
-        markers = [
-            "o",
-            "v",
-            "^",
-            "<",
-            ">",
-            "1",
-            "2",
-            "3",
-            "4",
-            "8",
-            "s",
-            "p",
-            "*",
-            "h",
-            "H",
-            "+",
-            "x",
-            "D",
-            "d",
-        ]
-
-        colors = [
-            "b",
-            "g",
-            "r",
-            "c",
-            "m",
-            "y",
-            "k",
-            "b",
-            "g",
-            "r",
-            "c",
-            "m",
-            "y",
-            "k",
-            "b",
-            "g",
-            "r",
-            "c",
-            "m",
-        ]
-        # 信息
-        basedict = dict(ls="", markersize=8.0, fillstyle="full")
-        # 把相关的信息更新后赋值给plines
-        plines = dict()
-        for lname, marker, color in zip(lnames, markers, colors):
-            plines[lname] = d = basedict.copy()
-            d.update(marker=marker, color=color)
-        # plotlines
-        plotlines = cls.plotlines._derive(uuid.uuid4().hex, plines, [], recurse=True)
-        _obj.plotlines = plotlines()
-
-        return _obj, args, kwargs  # return the instantiated object and args
-
-
-# DataTrades 这个类好像没有使用
-class DataTrades(Observer, metaclass=MetaDataTrades):
+# DataTrades类 - 重构为不使用元类和动态类创建
+class DataTrades(Observer):
+    """
+    DataTrades observer that has been refactored to remove metaclass usage
+    and dynamic class creation. Uses fixed line definitions for common cases.
+    """
     _stclock = True
 
     params = (("usenames", True),)
@@ -179,6 +104,52 @@ class DataTrades(Observer, metaclass=MetaDataTrades):
     plotinfo = dict(plot=True, subplot=True, plothlines=[0.0], plotymargin=0.10)
 
     plotlines = dict()
+    
+    # Define a reasonable number of lines for common use cases
+    # This replaces the dynamic line creation from the metaclass
+    lines = ('data0', 'data1', 'data2', 'data3', 'data4', 'data5', 'data6', 'data7', 'data8', 'data9')
+
+    def __init__(self, *args, **kwargs):
+        """
+        Initialize with standard line system
+        """
+        # Initialize parent first - this will set up the line system
+        super(DataTrades, self).__init__(*args, **kwargs)
+        
+        # Setup plotlines configuration after parent initialization
+        self._setup_plotlines_simple()
+
+    def _setup_plotlines_simple(self):
+        """Setup plotlines configuration using simple dictionary approach"""
+        # Only set up plotlines if we have access to datas
+        if not hasattr(self, 'datas') or not self.datas:
+            return
+            
+        # Create line names based on data
+        if self.params.usenames:
+            lnames = [x._name for x in self.datas]
+        else:
+            lnames = ["data{}".format(x) for x in range(len(self.datas))]
+
+        markers = [
+            "o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "D", "d",
+        ]
+
+        colors = [
+            "b", "g", "r", "c", "m", "y", "k", "b", "g", "r", "c", "m", "y", "k", "b", "g", "r", "c", "m",
+        ]
+        
+        # Base style for all markers
+        basedict = dict(ls="", markersize=8.0, fillstyle="full")
+        
+        # Create plotlines configuration using simple dict update
+        for i, (lname, marker, color) in enumerate(zip(lnames, markers, colors)):
+            if i < len(self.lines):  # Only configure lines that exist
+                plot_config = basedict.copy()
+                plot_config.update(marker=marker, color=color)
+                # Set plotline configuration as attribute
+                line_name = getattr(self.lines, '_getlinealias', lambda x: 'data{}'.format(x))(i)
+                setattr(self.plotlines, line_name, plot_config)
 
     def next(self):
         for trade in self._owner._tradespending:
@@ -187,5 +158,8 @@ class DataTrades(Observer, metaclass=MetaDataTrades):
 
             if not trade.isclosed:
                 continue
-            # 设置pnl
-            self.lines[trade.data._id - 1][0] = trade.pnl
+            
+            # Set pnl using standard line system
+            data_id = trade.data._id - 1
+            if data_id >= 0 and data_id < len(self.lines):
+                self.lines[data_id][0] = trade.pnl
