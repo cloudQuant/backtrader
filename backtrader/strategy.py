@@ -1,4 +1,4 @@
-#!/usr/bin389/env python
+#!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 import copy
@@ -1786,69 +1786,13 @@ class Strategy(StrategyBase):
     # 根据sizer获取要下单的大小
     def getsizing(self, data=None, isbuy=True):
         """
-        Return the stake calculated by the sizer instance for the current
-        situation
+        Returns the sizer which is in used if automatic stake calculation is
+        used
         """
-        data = data if data is not None else self.datas[0]
         # Ensure sizer has broker reference
         if hasattr(self._sizer, 'broker') and self._sizer.broker is None:
             self._sizer.set(self, self.broker)
-        return self._sizer.getsizing(data, isbuy=isbuy)
-
-
-# 信号策略元类，
-class MetaSigStrategy(Strategy.__class__):
-
-    def __new__(meta, name, bases, dct):
-        # map user defined next to custom to be able to call own method before
-        # 如果有next，就使用_next_custom替代
-        if "next" in dct:
-            dct["_next_custom"] = dct.pop("next")
-
-        cls = super(MetaSigStrategy, meta).__new__(meta, name, bases, dct)
-
-        # after class creation remap _next_catch to be next
-        # 信号策略类的next等于_next_catch
-        cls.next = cls._next_catch
-        return cls
-
-    def dopreinit(cls, _obj, *args, **kwargs):
-
-        _obj, args, kwargs = super(MetaSigStrategy, cls).dopreinit(_obj, *args, **kwargs)
-        # 初始化_signals为一个默认字典
-        _obj._signals = collections.defaultdict(list)
-        # 设置下单的数据
-        _data = _obj.p._data
-        if _data is None:
-            _obj._dtarget = _obj.data0
-        elif isinstance(_data, integer_types):
-            _obj._dtarget = _obj.datas[_data]
-        elif isinstance(_data, string_types):
-            _obj._dtarget = _obj.getdatabyname(_data)
-        elif isinstance(_data, bt.LineRoot):
-            _obj._dtarget = _data
-        else:
-            _obj._dtarget = _obj.data0
-
-        return _obj, args, kwargs
-
-    def dopostinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = super(MetaSigStrategy, cls).dopostinit(_obj, *args, **kwargs)
-        # 把信号数据保存到signals中
-        for sigtype, sigcls, sigargs, sigkwargs in _obj.p.signals:
-            _obj._signals[sigtype].append(sigcls(*sigargs, **sigkwargs))
-
-        # Record types of signals
-        # 根据_signals中的信号，保存不同类型的对象到具体的属性中
-        _obj._longshort = bool(_obj._signals[bt.SIGNAL_LONGSHORT])
-
-        _obj._long = bool(_obj._signals[bt.SIGNAL_LONG])
-        _obj._short = bool(_obj._signals[bt.SIGNAL_SHORT])
-
-        _obj._longexit = bool(_obj._signals[bt.SIGNAL_LONGEXIT])
-        _obj._shortexit = bool(_obj._signals[bt.SIGNAL_SHORTEXIT])
-
-        return _obj, args, kwargs
+        return self._sizer.getsizing(data, isbuy)
 
 
 # 信号策略类，使用信号可以自动操作的策略的子类
