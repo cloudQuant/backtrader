@@ -19,80 +19,65 @@ from .utils import OrderedDict, AutoOrderedDict, AutoDictList
 from backtrader.utils.log_message import SpdLogManager
 
 
-# 策略元类，用于策略创建的时候进行一些处理
-class MetaStrategy(StrategyBase.__class__):
-    _indcol = dict()
-
-    # 支持notify_order和notify_trade的原生方法
-    def __new__(meta, name, bases, dct):
-        # Hack to support original method name for notify_order
-        if "notify" in dct:
-            # rename the 'notify' to 'notify_order'
-            dct["notify_order"] = dct.pop("notify")
-        if "notify_operation" in dct:
-            # rename the 'notify' to 'notify_order'
-            dct["notify_trade"] = dct.pop("notify_operation")
-
-        return super(MetaStrategy, meta).__new__(meta, name, bases, dct)
-
-    # 注册次级类
-    def __init__(cls, name, bases, dct):
-        """
-        Class has already been created ... register subclasses
-        """
-        # Initialize the class
-        super(MetaStrategy, cls).__init__(name, bases, dct)
-
-        if not cls.aliased and name != "Strategy" and not name.startswith("_"):
-            cls._indcol[name] = cls
-
-    # 注册环境和id
-    def donew(cls, *args, **kwargs):
-        _obj, args, kwargs = super(MetaStrategy, cls).donew(*args, **kwargs)
-
-        # Find the owner and store it
-        # findowner用于发现_obj的父类，但是属于bt.Cerebro的实例
-        _obj.env = _obj.cerebro = cerebro = findowner(_obj, bt.Cerebro)
-        _obj._id = cerebro._next_stid()
-
-        return _obj, args, kwargs
-
-    # 初始化broker,_sizer,_orders,_orderspending,_trades,_tradespending,stats,analyzers,_alnames,writers
-    # _slave_analyzers,_tradehistoryon
-    def dopreinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = super(MetaStrategy, cls).dopreinit(_obj, *args, **kwargs)
-        _obj.broker = _obj.env.broker
-        _obj._sizer = bt.sizers.FixedSize()
-        _obj._orders = list()
-        _obj._orderspending = list()
-        _obj._trades = collections.defaultdict(AutoDictList)
-        _obj._tradespending = list()
-
-        _obj.stats = _obj.observers = ItemCollection()
-        _obj.analyzers = ItemCollection()
-        _obj._alnames = collections.defaultdict(itertools.count)
-        _obj.writers = list()
-
-        _obj._slave_analyzers = list()
-
-        _obj._tradehistoryon = False
-
-        return _obj, args, kwargs
-
-    # 给_sizer设置策略和broker
-    def dopostinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = super(MetaStrategy, cls).dopostinit(_obj, *args, **kwargs)
-
-        _obj._sizer.set(_obj, _obj.broker)
-
-        return _obj, args, kwargs
-
-
 # Strategy类，用户编写策略的时候可以继承这个类
-class Strategy(StrategyBase, metaclass=MetaStrategy):
+class Strategy(StrategyBase):
     """
     Base class to be subclassed for user defined strategies.
     """
+    
+    # Class-level storage for strategies
+    _indcol = dict()
+
+    def __new__(cls, *args, **kwargs):
+        """Override __new__ to handle method renaming that was done in MetaStrategy"""
+        # Handle method renaming like the old MetaStrategy.__new__ did
+        if hasattr(cls, 'notify') and not hasattr(cls, 'notify_order'):
+            cls.notify_order = cls.notify
+            delattr(cls, 'notify')
+        if hasattr(cls, 'notify_operation') and not hasattr(cls, 'notify_trade'):
+            cls.notify_trade = cls.notify_operation
+            delattr(cls, 'notify_operation')
+            
+        # Create the instance
+        instance = super(Strategy, cls).__new__(cls)
+        
+        # Register subclasses (from MetaStrategy.__init__)
+        if not getattr(cls, 'aliased', False) and cls.__name__ != "Strategy" and not cls.__name__.startswith("_"):
+            cls._indcol[cls.__name__] = cls
+            
+        # Initialize critical attributes early (from MetaStrategy.donew and dopreinit)
+        # These need to be available before __init__ completes since methods might be called
+        instance.env = instance.cerebro = cerebro = findowner(instance, bt.Cerebro)
+        instance._id = cerebro._next_stid()
+        instance.broker = instance.env.broker
+        instance._sizer = bt.sizers.FixedSize()
+        
+        instance.stats = instance.observers = ItemCollection()
+        instance.analyzers = ItemCollection()
+        instance._alnames = collections.defaultdict(itertools.count)
+        instance.writers = list()
+        instance._slave_analyzers = list()
+        instance._tradehistoryon = False
+        instance._orders = list()
+        instance._orderspending = list()
+        instance._trades = collections.defaultdict(AutoDictList)
+        instance._tradespending = list()
+            
+        return instance
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the strategy with functionality from MetaStrategy methods"""
+        # Critical attributes already initialized in __new__
+        # self.env = self.cerebro = cerebro = findowner(self, bt.Cerebro)  # Already done in __new__
+        # self._id = cerebro._next_stid()  # Already done in __new__
+        # self.broker = self.env.broker  # Already done in __new__
+        # self._sizer = bt.sizers.FixedSize()  # Already done in __new__
+        
+        # Handle the functionality that was in MetaStrategy.dopostinit
+        self._sizer.set(self, self.broker)
+        
+        # Call parent initialization
+        super(Strategy, self).__init__(*args, **kwargs)
 
     # line类型是策略类型
     _ltype = LineIterator.StratType
@@ -1805,6 +1790,9 @@ class Strategy(StrategyBase, metaclass=MetaStrategy):
         situation
         """
         data = data if data is not None else self.datas[0]
+        # Ensure sizer has broker reference
+        if hasattr(self._sizer, 'broker') and self._sizer.broker is None:
+            self._sizer.set(self, self.broker)
         return self._sizer.getsizing(data, isbuy=isbuy)
 
 
@@ -1864,7 +1852,7 @@ class MetaSigStrategy(Strategy.__class__):
 
 
 # 信号策略类，使用信号可以自动操作的策略的子类
-class SignalStrategy(Strategy, metaclass=MetaSigStrategy):
+class SignalStrategy(Strategy):
     """This subclass of ``Strategy`` is meant to to auto-operate using
     **signals**.
 
@@ -1976,6 +1964,55 @@ class SignalStrategy(Strategy, metaclass=MetaSigStrategy):
         ("_concurrent", False),
         ("_data", None),
     )
+
+    def __new__(cls, *args, **kwargs):
+        """Override __new__ to handle next method remapping that was done in MetaSigStrategy"""
+        # Handle next method remapping like the old MetaSigStrategy.__new__ did
+        if hasattr(cls, 'next') and not hasattr(cls, '_next_custom'):
+            cls._next_custom = cls.next
+            
+        # Create the instance
+        instance = super(SignalStrategy, cls).__new__(cls, *args, **kwargs)
+        
+        # Set the next method to _next_catch (from MetaSigStrategy)
+        instance.next = instance._next_catch
+        
+        return instance
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the signal strategy with functionality from MetaSigStrategy methods"""
+        # Handle the functionality that was in MetaSigStrategy.dopreinit
+        self._signals = collections.defaultdict(list)
+        
+        # Set the data target (from MetaSigStrategy.dopreinit)
+        _data = getattr(self.p, '_data', None)
+        if _data is None:
+            self._dtarget = self.data0
+        elif isinstance(_data, integer_types):
+            self._dtarget = self.datas[_data]
+        elif isinstance(_data, string_types):
+            self._dtarget = self.getdatabyname(_data)
+        elif isinstance(_data, bt.LineRoot):
+            self._dtarget = _data
+        else:
+            self._dtarget = self.data0
+            
+        # Call parent initialization
+        super(SignalStrategy, self).__init__(*args, **kwargs)
+        
+        # Handle the functionality that was in MetaSigStrategy.dopostinit
+        # Add signals from params
+        for sigtype, sigcls, sigargs, sigkwargs in self.p.signals:
+            self._signals[sigtype].append(sigcls(*sigargs, **sigkwargs))
+
+        # Record types of signals
+        self._longshort = bool(self._signals[bt.SIGNAL_LONGSHORT])
+
+        self._long = bool(self._signals[bt.SIGNAL_LONG])
+        self._short = bool(self._signals[bt.SIGNAL_SHORT])
+
+        self._longexit = bool(self._signals[bt.SIGNAL_LONGEXIT])
+        self._shortexit = bool(self._signals[bt.SIGNAL_SHORTEXIT])
 
     # 开始
     def _start(self):
