@@ -14,7 +14,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from backtrader.parameters import (
     ParameterDescriptor, ParameterManager, ParameterAccessor, 
-    ParameterizedBase, ParameterizedMeta,
+    ParameterizedBase,
     Int, Float, OneOf, String
 )
 
@@ -112,9 +112,12 @@ class TestParameterDescriptor:
         class TestClass(ParameterizedBase):
             my_param = ParameterDescriptor(default=42)
         
+        # Ensure descriptors are computed
+        descriptors = TestClass._compute_parameter_descriptors()
+        
         # Verify that __set_name__ was called and name was set correctly
-        assert TestClass._parameter_descriptors['my_param'].name == 'my_param'
-        assert TestClass._parameter_descriptors['my_param']._attr_name == '_param_my_param'
+        assert descriptors['my_param'].name == 'my_param'
+        assert descriptors['my_param']._attr_name == '_param_my_param'
         
         # Test that descriptor is properly registered
         obj = TestClass()
@@ -166,7 +169,8 @@ class TestParameterManager:
         # Child should inherit param1 from parent
         assert child.get('param1') == 100
         # Child shouldn't inherit param2 (not in child's descriptors)
-        assert child.get('param2') is None
+        # but get() will return the default value for unknown parameters
+        assert child.get('param2', None) is None
         # Child should have its own param3
         assert child.get('param3') == 30
     
@@ -389,7 +393,7 @@ class TestComplexScenarios:
         int_info = param_info['int_param']
         assert int_info['name'] == 'int_param'
         assert int_info['type'] == int
-        assert int_info['default'] == 10
+        assert int_info['default_value'] == 10
         assert int_info['has_validator'] == True
         assert int_info['doc'] == "An integer parameter"
 

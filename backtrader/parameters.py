@@ -8,7 +8,7 @@ validation, and maintainability while maintaining backward compatibility.
 Key Components:
 - ParameterDescriptor: Core descriptor for parameter handling
 - ParameterManager: Parameter storage and management
-- ParameterizedBase: Base class for parameterized objects
+- ParameterizedBase: Base class for parameterized objects (without metaclass)
 - Type checking and validation mechanisms
 - Python 3.6+ __set_name__ support
 """
@@ -70,10 +70,8 @@ class ParameterDescriptor:
         self.name = name
         self._attr_name = f'_param_{name}'
         
-        # Register this descriptor with the owner class
-        if not hasattr(owner, '_parameter_descriptors'):
-            owner._parameter_descriptors = {}
-        owner._parameter_descriptors[name] = self
+        # Don't register with owner._parameter_descriptors here since we use lazy loading
+        # The _compute_parameter_descriptors method will find this descriptor later
     
     def __get__(self, obj, objtype=None):
         """Get parameter value from object instance."""
@@ -198,7 +196,6 @@ class ParameterManager:
     - Advanced inheritance with conflict resolution
     - Lazy default value evaluation
     - Transactional batch updates
-    - Dependency tracking between parameters
     """
     
     def __init__(self, descriptors: Dict[str, ParameterDescriptor], 
@@ -206,72 +203,75 @@ class ParameterManager:
                  enable_history: bool = True,
                  enable_callbacks: bool = True):
         """
-        Initialize enhanced parameter manager.
+        Initialize parameter manager.
         
         Args:
             descriptors: Dictionary of parameter descriptors
             initial_values: Initial parameter values
-            enable_history: Whether to track parameter changes
+            enable_history: Whether to track parameter change history
             enable_callbacks: Whether to enable change callbacks
         """
         self._descriptors = descriptors.copy()
         self._values = {}
-        self._defaults = {name: desc.default for name, desc in descriptors.items()}
+        self._defaults = {}
+        self._modified = set()
         
-        # Enhanced features
+        # Extract defaults from descriptors
+        for name, desc in descriptors.items():
+            self._defaults[name] = desc.default
+        
+        # Advanced features
         self._enable_history = enable_history
         self._enable_callbacks = enable_callbacks
         
-        # Simple caching for faster parameter access
-        self._cache = {}  # {param_name: cached_value}
-        self._cache_valid = {}  # {param_name: bool}
-        
         # Change tracking
-        self._history = {} if enable_history else None  # {param_name: [(old_value, new_value, timestamp), ...]}
-        self._change_callbacks = {} if enable_callbacks else None  # {param_name: [callback_func, ...]}
-        self._global_callbacks = [] if enable_callbacks else None  # [callback_func, ...]
+        self._change_history = {} if enable_history else None
+        self._change_callbacks = {} if enable_callbacks else None
+        self._global_callbacks = [] if enable_callbacks else None
         
         # Parameter locking
-        self._locked_params = set()  # Set of locked parameter names
+        self._locked_params = set()
         
         # Parameter groups
-        self._groups = {}  # {group_name: [param_names]}
-        self._param_groups = {}  # {param_name: group_name}
-        
-        # Inheritance tracking
-        self._inheritance_chain = []  # List of parent managers in inheritance order
-        self._inherited_params = {}  # {param_name: source_manager}
+        self._param_groups = {}
+        self._param_to_group = {}
         
         # Lazy defaults
-        self._lazy_defaults = {}  # {param_name: lazy_func}
-        self._computed_defaults = {}  # {param_name: computed_value}
+        self._lazy_defaults = {}
         
         # Dependencies
-        self._dependencies = {}  # {param_name: [dependent_param_names]}
-        self._dependents = {}  # {param_name: [param_names_that_depend_on_this]}
+        self._dependencies = {}  # param -> list of dependents
+        self._dependents = {}    # dependent -> list of params it depends on
         
         # Transaction support
         self._in_transaction = False
-        self._transaction_changes = {}  # Changes made during transaction
-        self._transaction_rollback = {}  # Values to rollback to
+        self._transaction_snapshot = None
         
-        # Initialize with provided values
+        # Value cache for lazy evaluation
+        self._value_cache = {}
+        self._cache_valid = set()
+        
+        # Inheritance tracking
+        self._inheritance_sources = {}  # param -> source ParameterManager
+        
+        # Set initial values
         if initial_values:
-            self.update(initial_values)
-    
+            self.update(initial_values, validate_all=False)
+
     def _invalidate_cache(self, name: str) -> None:
-        """Invalidate cache for a specific parameter."""
-        if name in self._cache_valid:
-            self._cache_valid[name] = False
-    
+        """Invalidate cache for a parameter."""
+        self._cache_valid.discard(name)
+        if name in self._value_cache:
+            del self._value_cache[name]
+
     def _clear_cache(self) -> None:
         """Clear all cached values."""
-        self._cache.clear()
+        self._value_cache.clear()
         self._cache_valid.clear()
-    
+
     def get(self, name: str, default: Any = None) -> Any:
         """
-        Get parameter value with enhanced features and caching.
+        Get parameter value with lazy evaluation support.
         
         Args:
             name: Parameter name
@@ -280,302 +280,352 @@ class ParameterManager:
         Returns:
             Parameter value
         """
-        # Check cache first for fast access
-        if name in self._cache_valid and self._cache_valid[name]:
-            return self._cache[name]
+        # Check if we have a custom value
+        if name in self._values:
+            return self._values[name]
         
-        # Check transaction changes first
-        if self._in_transaction and name in self._transaction_changes:
-            value = self._transaction_changes[name]
-        # Check if value is explicitly set and not None
-        elif name in self._values and self._values[name] is not None:
-            value = self._values[name]
-        # If value is None or not set, check defaults
-        elif name in self._defaults:
-            # Check for lazy default
-            if name in self._lazy_defaults:
-                if name not in self._computed_defaults:
-                    self._computed_defaults[name] = self._lazy_defaults[name]()
-                value = self._computed_defaults[name]
-            else:
-                value = self._defaults[name]
-        else:
-            value = default
+        # Check lazy defaults
+        if name in self._lazy_defaults:
+            if name not in self._cache_valid:
+                try:
+                    self._value_cache[name] = self._lazy_defaults[name]()
+                    self._cache_valid.add(name)
+                except Exception as e:
+                    # If lazy evaluation fails, use descriptor default
+                    if name in self._descriptors:
+                        return self._descriptors[name].default
+                    return default
+            return self._value_cache[name]
         
-        # Cache the value for future access
-        self._cache[name] = value
-        self._cache_valid[name] = True
+        # Use descriptor default
+        if name in self._descriptors:
+            return self._descriptors[name].default
         
-        return value
-    
+        # Use provided default
+        return default
+
     def set(self, name: str, value: Any, force: bool = False, 
             trigger_callbacks: bool = True, skip_validation: bool = False) -> None:
         """
-        Set parameter value with enhanced validation and tracking.
+        Set parameter value with validation and dependency updates.
         
         Args:
             name: Parameter name
             value: Parameter value
-            force: Whether to override locked parameters
+            force: Force setting even if parameter is locked
             trigger_callbacks: Whether to trigger change callbacks
-            skip_validation: Whether to skip type and value validation
-            
-        Raises:
-            AttributeError: If parameter doesn't exist
-            TypeError: If type validation fails
-            ValueError: If value validation fails or parameter is locked
+            skip_validation: Skip validation (use with caution)
         """
-        if name not in self._descriptors:
-            raise AttributeError(f"Unknown parameter: {name}")
-        
         # Check if parameter is locked
         if not force and name in self._locked_params:
             raise ValueError(f"Parameter '{name}' is locked and cannot be modified")
         
-        # Store old value for history and callbacks
+        # Get old value for callbacks and history
         old_value = self.get(name)
         
-        if not skip_validation:
-            # Validate through descriptor
+        # Validate if not skipping validation
+        if not skip_validation and name in self._descriptors:
             descriptor = self._descriptors[name]
-            
-            # Type checking
-            if descriptor.type_ is not None and value is not None:
-                if not isinstance(value, descriptor.type_):
-                    try:
-                        value = descriptor.type_(value)
-                    except (ValueError, TypeError) as e:
-                        raise TypeError(
-                            f"Parameter '{name}' expects {descriptor.type_.__name__}, "
-                            f"got {type(value).__name__}. Conversion failed: {e}"
-                        )
-            
-            # Value validation
-            if descriptor.validator is not None:
-                if not descriptor.validator(value):
-                    raise ValueError(f"Invalid value for parameter '{name}': {value}")
-        
-        # Invalidate cache for this parameter
-        self._invalidate_cache(name)
+            if not descriptor.validate(value):
+                raise ValueError(f"Invalid value for parameter '{name}': {value}")
         
         # Set the value
-        if self._in_transaction:
-            if name not in self._transaction_rollback:
-                self._transaction_rollback[name] = old_value
-            self._transaction_changes[name] = value
-        else:
-            self._values[name] = value
+        self._values[name] = value
+        self._modified.add(name)
         
-        # Track change in history
-        if self._enable_history and self._history is not None:
-            import time
-            if name not in self._history:
-                self._history[name] = []
-            self._history[name].append((old_value, value, time.time()))
+        # Invalidate cache
+        self._invalidate_cache(name)
+        
+        # Record change in history
+        if self._enable_history and self._change_history is not None:
+            if name not in self._change_history:
+                self._change_history[name] = []
             
-            # Limit history size
-            if len(self._history[name]) > 100:  # Keep last 100 changes
-                self._history[name] = self._history[name][-100:]
+            import time
+            self._change_history[name].append({
+                'timestamp': time.time(),
+                'old_value': old_value,
+                'new_value': value,
+                'forced': force
+            })
         
-        # Trigger callbacks (not during transactions)
-        if self._enable_callbacks and not self._in_transaction:
-            self._trigger_change_callbacks(name, old_value, self.get(name))
+        # Trigger callbacks only if not in transaction
+        if trigger_callbacks and self._enable_callbacks and not self._in_transaction:
+            self._trigger_change_callbacks(name, old_value, value)
         
         # Update dependent parameters
         self._update_dependents(name, value)
-        
-        # Clear computed lazy defaults for this parameter
-        if name in self._computed_defaults:
-            del self._computed_defaults[name]
-    
+
     def reset(self, name: str, force: bool = False) -> None:
         """
-        Reset parameter to default value.
+        Reset parameter to its default value.
         
         Args:
             name: Parameter name
-            force: Whether to override locked parameters
+            force: Force reset even if parameter is locked
         """
+        # Check if parameter is locked
         if not force and name in self._locked_params:
             raise ValueError(f"Parameter '{name}' is locked and cannot be reset")
         
-        # Invalidate cache for this parameter
+        # Get old value for callbacks
+        old_value = self.get(name)
+        
+        # Remove from values (will revert to default)
+        if name in self._values:
+            del self._values[name]
+        
+        # Remove from modified set
+        self._modified.discard(name)
+        
+        # Invalidate cache
         self._invalidate_cache(name)
         
-        if name in self._values:
-            old_value = self._values[name]
-            del self._values[name]
-            
-            # Track in history
-            if self._enable_history and self._history is not None:
-                import time
-                if name not in self._history:
-                    self._history[name] = []
-                default_value = self.get(name)  # Get the default
-                self._history[name].append((old_value, default_value, time.time()))
-            
-            # Trigger callbacks (not during transactions)
-            if self._enable_callbacks and not self._in_transaction:
-                self._trigger_change_callbacks(name, old_value, self.get(name))
+        # Get new value (should be default)
+        new_value = self.get(name)
         
-        # Clear computed lazy defaults
-        if name in self._computed_defaults:
-            del self._computed_defaults[name]
-    
+        # Record change in history
+        if self._enable_history and self._change_history is not None:
+            if name not in self._change_history:
+                self._change_history[name] = []
+            
+            import time
+            self._change_history[name].append({
+                'timestamp': time.time(),
+                'old_value': old_value,
+                'new_value': new_value,
+                'reset': True,
+                'forced': force
+            })
+        
+        # Trigger callbacks
+        if self._enable_callbacks:
+            self._trigger_change_callbacks(name, old_value, new_value)
+
     def update(self, values: Union[Dict[str, Any], 'ParameterManager'], 
                force: bool = False, validate_all: bool = True) -> None:
         """
-        Enhanced batch update parameters with validation and transaction support.
+        Update multiple parameters at once.
         
         Args:
-            values: Dictionary of values or another ParameterManager
-            force: Whether to override locked parameters
-            validate_all: Whether to validate all parameters before applying any
+            values: Dictionary of parameter values or another ParameterManager
+            force: Force update even for locked parameters
+            validate_all: Validate all parameters before updating any
         """
-        if isinstance(values, dict):
-            update_dict = values
-        elif isinstance(values, ParameterManager):
-            update_dict = {name: value for name, value in values._values.items()
-                         if name in self._descriptors}
-        else:
-            raise TypeError("Values must be dict or ParameterManager")
+        if isinstance(values, ParameterManager):
+            values = values.to_dict()
         
-        # Pre-validation if requested
+        # Validate all parameters first if requested
         if validate_all:
             validation_errors = []
-            for name, value in update_dict.items():
+            
+            # Check for locked parameters
+            for name, value in values.items():
+                if not force and name in self._locked_params:
+                    validation_errors.append(f"Parameter '{name}' is locked")
+            
+            # Check parameter validation
+            for name, value in values.items():
                 if name in self._descriptors:
-                    if not force and name in self._locked_params:
-                        validation_errors.append(f"Parameter '{name}' is locked")
-                    else:
-                        descriptor = self._descriptors[name]
-                        if not descriptor.validate(value):
-                            validation_errors.append(f"Invalid value for '{name}': {value}")
+                    descriptor = self._descriptors[name]
+                    if not descriptor.validate(value):
+                        validation_errors.append(f"Invalid value for '{name}': {value}")
             
             if validation_errors:
                 raise ValueError("Validation errors: " + "; ".join(validation_errors))
         
-        # Apply updates
-        for name, value in update_dict.items():
-            if name in self._descriptors:
-                self.set(name, value, force=force)
-    
+        # Update parameters
+        for name, value in values.items():
+            self.set(name, value, force=force, skip_validation=not validate_all)
+
     def to_dict(self) -> Dict[str, Any]:
-        """Convert to dictionary with all current values."""
+        """
+        Convert parameter manager to dictionary.
+        
+        Returns:
+            Dictionary of current parameter values
+        """
         result = {}
-        
-        # Add defaults first
-        for name, default in self._defaults.items():
-            if name in self._lazy_defaults:
-                if name not in self._computed_defaults:
-                    self._computed_defaults[name] = self._lazy_defaults[name]()
-                result[name] = self._computed_defaults[name]
-            else:
-                result[name] = default
-        
-        # Override with current values
-        result.update(self._values)
-        
+        for name in self._descriptors:
+            result[name] = self.get(name)
         return result
-    
+
     def keys(self):
-        """Get all parameter names."""
-        return set(self._defaults.keys()) | set(self._values.keys())
-    
+        """Get parameter names."""
+        return self._descriptors.keys()
+
     def items(self):
-        """Get all parameter items."""
-        return self.to_dict().items()
-    
+        """Get parameter name-value pairs."""
+        for name in self._descriptors:
+            yield name, self.get(name)
+
     def values(self):
-        """Get all parameter values."""
-        return self.to_dict().values()
-    
+        """Get parameter values."""
+        for name in self._descriptors:
+            yield self.get(name)
+
     def __getitem__(self, name):
         return self.get(name)
-    
+
     def __setitem__(self, name, value):
         self.set(name, value)
-    
+
     def __contains__(self, name):
         return name in self._descriptors
-    
+
     def __len__(self):
         return len(self._descriptors)
-    
+
     def __iter__(self):
-        return iter(self.keys())
-    
+        return iter(self._descriptors)
+
     def copy(self) -> 'ParameterManager':
-        """Create a deep copy of this parameter manager."""
+        """
+        Create a copy of this parameter manager.
+        
+        Returns:
+            New ParameterManager instance with same values
+        """
         new_manager = ParameterManager(
-            self._descriptors, 
+            self._descriptors,
             enable_history=self._enable_history,
             enable_callbacks=self._enable_callbacks
         )
+        
+        # Copy current values
         new_manager._values = self._values.copy()
+        new_manager._modified = self._modified.copy()
+        
+        # Copy advanced features
+        if self._enable_history and self._change_history:
+            new_manager._change_history = {k: v.copy() for k, v in self._change_history.items()}
+        
         new_manager._locked_params = self._locked_params.copy()
-        new_manager._groups = {k: v.copy() for k, v in self._groups.items()}
         new_manager._param_groups = self._param_groups.copy()
+        new_manager._param_to_group = self._param_to_group.copy()
+        new_manager._lazy_defaults = self._lazy_defaults.copy()
+        new_manager._dependencies = {k: v.copy() for k, v in self._dependencies.items()}
+        new_manager._dependents = {k: v.copy() for k, v in self._dependents.items()}
+        
         return new_manager
-    
-    # ========================
-    # Enhanced Inheritance System
-    # ========================
-    
+
     def inherit_from(self, parent: 'ParameterManager', 
                      strategy: str = 'merge', 
                      conflict_resolution: str = 'parent',
                      selective: Optional[List[str]] = None) -> None:
         """
-        Enhanced inheritance with conflict resolution and selective inheritance.
+        Inherit parameters from another ParameterManager.
         
         Args:
-            parent: Parent parameter manager
-            strategy: 'merge', 'replace', or 'selective'
-            conflict_resolution: 'parent', 'child', or 'raise'
-            selective: List of parameter names to inherit (for selective strategy)
+            parent: Parent ParameterManager to inherit from
+            strategy: Inheritance strategy ('merge', 'replace', 'add_only', 'selective')
+            conflict_resolution: How to resolve conflicts ('parent', 'child', 'error', 'raise')
+            selective: Only inherit specific parameters (list of names)
         """
-        if strategy == 'selective':
-            param_names = selective or []
-        else:
-            param_names = [name for name in parent._values.keys() 
-                          if name in self._descriptors]
-        
-        conflicts = []
-        
-        # Clear cache since we're changing values
-        self._clear_cache()
-        
-        for name in param_names:
-            if name in self._descriptors:
-                parent_value = parent.get(name)
-                has_current_value = name in self._values
-                
-                if has_current_value and strategy == 'merge':
-                    # Handle conflicts
-                    if conflict_resolution == 'parent':
+        if strategy == 'replace':
+            # Replace all parameters
+            if selective:
+                for name in selective:
+                    if name in parent._descriptors:
+                        self._descriptors[name] = parent._descriptors[name]
+                        self._defaults[name] = parent._defaults[name]
+                        # Get the actual current value from parent
+                        parent_value = parent.get(name)
                         self._values[name] = parent_value
-                        self._inherited_params[name] = parent
-                    elif conflict_resolution == 'child':
-                        # Keep current value
-                        pass
-                    elif conflict_resolution == 'raise':
-                        conflicts.append(name)
+                        self._inheritance_sources[name] = parent
+            else:
+                self._descriptors.update(parent._descriptors)
+                self._defaults.update(parent._defaults)
+                # Copy all current values from parent
+                for name in parent._descriptors:
+                    parent_value = parent.get(name)
+                    self._values[name] = parent_value
+                    self._inheritance_sources[name] = parent
+        
+        elif strategy == 'merge':
+            # Merge parameters, handling conflicts
+            params_to_process = selective if selective else parent._descriptors.keys()
+            
+            for name in params_to_process:
+                if name in parent._descriptors and name in self._descriptors:
+                    # Only process parameters that exist in both parent and child
+                    parent_value = parent.get(name)
+                    parent_default = parent._defaults.get(name)
+                    
+                    # Check if parent has actually set this parameter (has non-default value)
+                    parent_has_value = (parent_value != parent_default or name in parent._values)
+                    
+                    # Parameter exists in both parent and child
+                    child_value = self.get(name)
+                    child_default = self._defaults.get(name)
+                    child_has_value = (child_value != child_default or name in self._values)
+                    
+                    if parent_has_value and child_has_value:
+                        # Both have values - this is a conflict
+                        if conflict_resolution == 'parent':
+                            self._descriptors[name] = parent._descriptors[name]
+                            self._defaults[name] = parent._defaults[name]
+                            self._values[name] = parent_value
+                            self._inheritance_sources[name] = parent
+                        elif conflict_resolution == 'child':
+                            # Keep current values
+                            pass
+                        elif conflict_resolution in ('error', 'raise'):
+                            raise ValueError(f"Parameter '{name}' conflicts between parent and child")
+                    elif parent_has_value and not child_has_value:
+                        # Parent has value, child has default - inherit from parent
+                        self._descriptors[name] = parent._descriptors[name]
+                        self._defaults[name] = parent._defaults[name]
+                        self._values[name] = parent_value
+                        self._inheritance_sources[name] = parent
+                    # If only child has value, keep child's value
+        
+        elif strategy == 'add_only':
+            # Only add parameters that don't exist
+            params_to_process = selective if selective else parent._descriptors.keys()
+            
+            for name in params_to_process:
+                if name in parent._descriptors and name not in self._descriptors:
+                    self._descriptors[name] = parent._descriptors[name]
+                    self._defaults[name] = parent._defaults[name]
+                    # Get the actual current value from parent
+                    parent_value = parent.get(name)
+                    self._values[name] = parent_value
+                    self._inheritance_sources[name] = parent
+        
+        elif strategy == 'selective':
+            # Selective inheritance (same as merge with selective list)
+            if not selective:
+                raise ValueError("Selective strategy requires a list of parameter names")
+            
+            for name in selective:
+                if name in parent._descriptors:
+                    if name in self._descriptors:
+                        # Handle conflicts based on conflict_resolution
+                        if conflict_resolution == 'parent':
+                            self._descriptors[name] = parent._descriptors[name]
+                            self._defaults[name] = parent._defaults[name]
+                            # Get the actual current value from parent
+                            parent_value = parent.get(name)
+                            self._values[name] = parent_value
+                            self._inheritance_sources[name] = parent
+                        elif conflict_resolution == 'child':
+                            # Keep current values
+                            pass
+                        elif conflict_resolution in ('error', 'raise'):
+                            raise ValueError(f"Parameter '{name}' conflicts between parent and child")
                     else:
-                        raise ValueError(f"Unknown conflict resolution: {conflict_resolution}")
-                else:
-                    # No conflict or replace strategy
-                    if not has_current_value or strategy == 'replace':
+                        # No conflict, add parameter
+                        self._descriptors[name] = parent._descriptors[name]
+                        self._defaults[name] = parent._defaults[name]
+                        # Get the actual current value from parent
+                        parent_value = parent.get(name)
                         self._values[name] = parent_value
-                        self._inherited_params[name] = parent
+                        self._inheritance_sources[name] = parent
         
-        if conflicts:
-            raise ValueError(f"Parameter conflicts: {conflicts}")
-        
-        # Track inheritance chain
-        if parent not in self._inheritance_chain:
-            self._inheritance_chain.append(parent)
-    
+        else:
+            raise ValueError(f"Unknown inheritance strategy: {strategy}")
+
     def get_inheritance_info(self, name: str) -> Optional[Dict[str, Any]]:
         """
         Get inheritance information for a parameter.
@@ -584,28 +634,44 @@ class ParameterManager:
             name: Parameter name
             
         Returns:
-            Dictionary with inheritance info or None
+            Dictionary with inheritance information, or None if not available
         """
-        if name in self._inherited_params:
-            source = self._inherited_params[name]
-            return {
-                'inherited': True,
-                'source': source,
-                'chain_position': self._inheritance_chain.index(source) if source in self._inheritance_chain else -1
-            }
-        return None
-    
-    # ========================
-    # Parameter Locking
-    # ========================
-    
+        if name not in self._descriptors:
+            return None
+        
+        descriptor = self._descriptors[name]
+        
+        # Check if parameter is inherited (not in _modified set and has different value than default)
+        current_value = self.get(name)
+        is_inherited = (name not in self._modified and 
+                       current_value != descriptor.default and
+                       name in self._values)
+        
+        return {
+            'name': name,
+            'current_value': current_value,
+            'default_value': descriptor.default,
+            'is_modified': name in self._modified,
+            'type': descriptor.type_,
+            'has_validator': descriptor.validator is not None,
+            'doc': descriptor.doc,
+            'is_locked': name in self._locked_params,
+            'group': self._param_to_group.get(name),
+            'has_lazy_default': name in self._lazy_defaults,
+            'dependents': self._dependencies.get(name, []),
+            'depends_on': self._dependents.get(name, []),
+            'inherited': is_inherited,
+            'source': self._inheritance_sources.get(name)
+        }
+
+    # Parameter locking methods
     def lock_parameter(self, name: str) -> None:
         """Lock a parameter to prevent modification."""
         if name in self._descriptors:
             self._locked_params.add(name)
         else:
-            raise AttributeError(f"Unknown parameter: {name}")
-    
+            raise ValueError(f"Parameter '{name}' does not exist")
+
     def unlock_parameter(self, name: str) -> None:
         """Unlock a parameter to allow modification."""
         self._locked_params.discard(name)
@@ -615,106 +681,99 @@ class ParameterManager:
         return name in self._locked_params
     
     def get_locked_parameters(self) -> List[str]:
-        """Get list of all locked parameters."""
+        """Get list of locked parameter names."""
         return list(self._locked_params)
-    
-    # ========================
-    # Parameter Groups
-    # ========================
-    
+
+    # Parameter grouping methods  
     def create_group(self, group_name: str, param_names: List[str]) -> None:
         """
         Create a parameter group.
         
         Args:
             group_name: Name of the group
-            param_names: List of parameter names in the group
+            param_names: List of parameter names to include in the group
         """
-        # Validate parameter names
+        # Validate that all parameters exist
         invalid_params = [name for name in param_names if name not in self._descriptors]
         if invalid_params:
-            raise AttributeError(f"Unknown parameters: {invalid_params}")
+            raise AttributeError(f"Invalid parameters for group '{group_name}': {invalid_params}")
         
-        self._groups[group_name] = param_names.copy()
-        for name in param_names:
-            self._param_groups[name] = group_name
-    
+        self._param_groups[group_name] = param_names.copy()
+        
+        # Update reverse mapping
+        for param_name in param_names:
+            self._param_to_group[param_name] = group_name
+
     def get_group(self, group_name: str) -> List[str]:
         """Get parameter names in a group."""
-        return self._groups.get(group_name, []).copy()
+        return self._param_groups.get(group_name, []).copy()
     
     def get_parameter_group(self, param_name: str) -> Optional[str]:
         """Get the group name for a parameter."""
-        return self._param_groups.get(param_name)
+        return self._param_to_group.get(param_name)
     
     def set_group(self, group_name: str, values: Dict[str, Any]) -> None:
         """Set values for all parameters in a group."""
-        if group_name not in self._groups:
-            raise ValueError(f"Unknown group: {group_name}")
+        if group_name not in self._param_groups:
+            raise ValueError(f"Group '{group_name}' does not exist")
         
-        group_params = self._groups[group_name]
-        group_values = {name: values[name] for name in group_params if name in values}
-        self.update(group_values)
+        group_params = self._param_groups[group_name]
+        filtered_values = {k: v for k, v in values.items() if k in group_params}
+        self.update(filtered_values)
     
     def get_group_values(self, group_name: str) -> Dict[str, Any]:
         """Get values for all parameters in a group."""
-        if group_name not in self._groups:
-            raise ValueError(f"Unknown group: {group_name}")
+        if group_name not in self._param_groups:
+            raise ValueError(f"Group '{group_name}' does not exist")
         
-        return {name: self.get(name) for name in self._groups[group_name]}
-    
-    # ========================
-    # Lazy Defaults
-    # ========================
-    
+        group_params = self._param_groups[group_name]
+        return {name: self.get(name) for name in group_params}
+
+    # Lazy defaults
     def set_lazy_default(self, name: str, lazy_func: Callable[[], Any]) -> None:
         """
-        Set a lazy default value function for a parameter.
+        Set a lazy default function for a parameter.
         
         Args:
             name: Parameter name
             lazy_func: Function that returns the default value when called
         """
         if name not in self._descriptors:
-            raise AttributeError(f"Unknown parameter: {name}")
+            raise ValueError(f"Parameter '{name}' does not exist")
         
         self._lazy_defaults[name] = lazy_func
-        # Clear any previously computed value
-        if name in self._computed_defaults:
-            del self._computed_defaults[name]
-    
+        self._invalidate_cache(name)
+
     def clear_lazy_default(self, name: str) -> None:
         """Clear lazy default for a parameter."""
         if name in self._lazy_defaults:
             del self._lazy_defaults[name]
-        if name in self._computed_defaults:
-            del self._computed_defaults[name]
-        # Invalidate cache so get() will return the original default value
-        self._invalidate_cache(name)
-    
-    # ========================
-    # Change Tracking and Callbacks
-    # ========================
-    
+            self._invalidate_cache(name)
+
+    # Change callbacks
     def add_change_callback(self, callback: Callable[[str, Any, Any], None], 
                            param_name: Optional[str] = None) -> None:
         """
-        Add a callback for parameter changes.
+        Add a callback function that will be called when parameters change.
         
         Args:
-            callback: Function called with (param_name, old_value, new_value)
+            callback: Function to call with (param_name, old_value, new_value)
             param_name: Specific parameter to watch, or None for all parameters
         """
         if not self._enable_callbacks:
             return
         
         if param_name is None:
-            self._global_callbacks.append(callback)
+            # Global callback
+            if self._global_callbacks is not None:
+                self._global_callbacks.append(callback)
         else:
-            if param_name not in self._change_callbacks:
-                self._change_callbacks[param_name] = []
-            self._change_callbacks[param_name].append(callback)
-    
+            # Parameter-specific callback
+            if self._change_callbacks is not None:
+                if param_name not in self._change_callbacks:
+                    self._change_callbacks[param_name] = []
+                self._change_callbacks[param_name].append(callback)
+
     def remove_change_callback(self, callback: Callable[[str, Any, Any], None],
                               param_name: Optional[str] = None) -> None:
         """Remove a change callback."""
@@ -722,68 +781,81 @@ class ParameterManager:
             return
         
         if param_name is None:
-            if callback in self._global_callbacks:
+            # Remove from global callbacks
+            if self._global_callbacks is not None and callback in self._global_callbacks:
                 self._global_callbacks.remove(callback)
         else:
-            if param_name in self._change_callbacks:
-                if callback in self._change_callbacks[param_name]:
-                    self._change_callbacks[param_name].remove(callback)
-    
+            # Remove from parameter-specific callbacks
+            if (self._change_callbacks is not None and 
+                param_name in self._change_callbacks and 
+                callback in self._change_callbacks[param_name]):
+                self._change_callbacks[param_name].remove(callback)
+
     def _trigger_change_callbacks(self, name: str, old_value: Any, new_value: Any) -> None:
         """Trigger change callbacks for a parameter."""
         if not self._enable_callbacks:
             return
         
-        # Parameter-specific callbacks
-        if name in self._change_callbacks:
+        # Trigger parameter-specific callbacks
+        if self._change_callbacks is not None and name in self._change_callbacks:
             for callback in self._change_callbacks[name]:
                 try:
                     callback(name, old_value, new_value)
                 except Exception as e:
-                    # Log error but don't let callback errors break parameter setting
-                    print(f"Warning: Callback error for parameter '{name}': {e}")
+                    # Log error but don't fail the parameter change
+                    print(f"Warning: Change callback failed for parameter '{name}': {e}")
         
-        # Global callbacks
-        for callback in self._global_callbacks:
-            try:
-                callback(name, old_value, new_value)
-            except Exception as e:
-                print(f"Warning: Global callback error for parameter '{name}': {e}")
-    
+        # Trigger global callbacks
+        if self._global_callbacks is not None:
+            for callback in self._global_callbacks:
+                try:
+                    callback(name, old_value, new_value)
+                except Exception as e:
+                    print(f"Warning: Global change callback failed for parameter '{name}': {e}")
+
+    # History methods
     def get_change_history(self, name: str, limit: Optional[int] = None) -> List[tuple]:
         """
         Get change history for a parameter.
         
         Args:
             name: Parameter name
-            limit: Maximum number of changes to return (most recent first)
+            limit: Maximum number of history entries to return
             
         Returns:
-            List of (old_value, new_value, timestamp) tuples
+            List of history entries (newest first) in format (old_value, new_value, timestamp)
         """
-        if not self._enable_history or self._history is None:
+        if not self._enable_history or self._change_history is None:
             return []
         
-        history = self._history.get(name, [])
-        if limit is not None:
-            history = history[-limit:]
+        history = self._change_history.get(name, [])
         
-        return history.copy()
-    
+        # Sort by timestamp (newest first)
+        sorted_history = sorted(history, key=lambda x: x['timestamp'], reverse=True)
+        
+        if limit is not None:
+            sorted_history = sorted_history[:limit]
+        
+        # Convert to tuple format (old_value, new_value, timestamp)
+        return [(entry['old_value'], entry['new_value'], entry['timestamp']) 
+                for entry in sorted_history]
+
     def clear_history(self, name: Optional[str] = None) -> None:
-        """Clear change history for a parameter or all parameters."""
-        if not self._enable_history or self._history is None:
+        """
+        Clear change history.
+        
+        Args:
+            name: Specific parameter name, or None to clear all history
+        """
+        if not self._enable_history or self._change_history is None:
             return
         
         if name is None:
-            self._history.clear()
-        elif name in self._history:
-            del self._history[name]
-    
-    # ========================
-    # Dependencies
-    # ========================
-    
+            self._change_history.clear()
+        elif name in self._change_history:
+            del self._change_history[name]
+
+    # Dependency management
     def add_dependency(self, param_name: str, dependent_param: str) -> None:
         """
         Add a dependency relationship between parameters.
@@ -792,21 +864,24 @@ class ParameterManager:
             param_name: Parameter that others depend on
             dependent_param: Parameter that depends on param_name
         """
+        # Validate parameters exist
         if param_name not in self._descriptors:
-            raise AttributeError(f"Unknown parameter: {param_name}")
+            raise AttributeError(f"Parameter '{param_name}' does not exist")
         if dependent_param not in self._descriptors:
-            raise AttributeError(f"Unknown parameter: {dependent_param}")
+            raise AttributeError(f"Dependent parameter '{dependent_param}' does not exist")
         
+        # Add to dependencies
         if param_name not in self._dependencies:
             self._dependencies[param_name] = []
         if dependent_param not in self._dependencies[param_name]:
             self._dependencies[param_name].append(dependent_param)
         
+        # Add to dependents (reverse mapping)
         if dependent_param not in self._dependents:
             self._dependents[dependent_param] = []
         if param_name not in self._dependents[dependent_param]:
             self._dependents[dependent_param].append(param_name)
-    
+
     def remove_dependency(self, param_name: str, dependent_param: str) -> None:
         """Remove a dependency relationship."""
         if param_name in self._dependencies:
@@ -816,68 +891,70 @@ class ParameterManager:
         if dependent_param in self._dependents:
             if param_name in self._dependents[dependent_param]:
                 self._dependents[dependent_param].remove(param_name)
-    
+
     def get_dependencies(self, param_name: str) -> List[str]:
         """Get list of parameters that depend on the given parameter."""
         return self._dependencies.get(param_name, []).copy()
     
     def get_dependents(self, param_name: str) -> List[str]:
-        """Get list of parameters that the given parameter depends on."""
+        """Get list of parameters that this parameter depends on."""
         return self._dependents.get(param_name, []).copy()
-    
+
     def _update_dependents(self, param_name: str, new_value: Any) -> None:
         """Update dependent parameters when a parameter changes."""
-        # This is a placeholder for dependency update logic
-        # In a real implementation, you might want to trigger recalculation
-        # of dependent parameters or notify them of changes
-        pass
-    
-    # ========================
-    # Transaction Support
-    # ========================
-    
+        if param_name in self._dependencies:
+            for dependent in self._dependencies[param_name]:
+                # This is a placeholder for custom dependency logic
+                # In a real implementation, you might have specific update rules
+                pass
+
+    # Transaction support
     def begin_transaction(self) -> None:
         """Begin a parameter transaction."""
         if self._in_transaction:
             raise RuntimeError("Already in a transaction")
         
         self._in_transaction = True
-        self._transaction_changes.clear()
-        self._transaction_rollback.clear()
-    
+        self._transaction_snapshot = {
+            'values': self._values.copy(),
+            'modified': self._modified.copy()
+        }
+
     def commit_transaction(self) -> None:
         """Commit the current transaction."""
         if not self._in_transaction:
             raise RuntimeError("Not in a transaction")
         
-        # Clear cache since values are changing
-        self._clear_cache()
+        # Collect changes made during transaction for callbacks
+        if self._enable_callbacks and self._transaction_snapshot:
+            old_values = self._transaction_snapshot['values']
+            for name in self._values:
+                if name not in old_values or self._values[name] != old_values.get(name):
+                    # Parameter was changed during transaction
+                    old_value = old_values.get(name, self._defaults.get(name))
+                    new_value = self._values[name]
+                    self._trigger_change_callbacks(name, old_value, new_value)
         
-        # Apply all changes
-        self._values.update(self._transaction_changes)
-        
-        # Trigger callbacks for all changes
-        if self._enable_callbacks:
-            for name, new_value in self._transaction_changes.items():
-                old_value = self._transaction_rollback.get(name, self.get(name))
-                self._trigger_change_callbacks(name, old_value, new_value)
-        
+        # Transaction is committed by keeping current state
         self._in_transaction = False
-        self._transaction_changes.clear()
-        self._transaction_rollback.clear()
-    
+        self._transaction_snapshot = None
+
     def rollback_transaction(self) -> None:
         """Rollback the current transaction."""
         if not self._in_transaction:
             raise RuntimeError("Not in a transaction")
         
-        # Clear cache since we're reverting changes
-        self._clear_cache()
+        # Restore snapshot
+        if self._transaction_snapshot:
+            self._values = self._transaction_snapshot['values'].copy()
+            self._modified = self._transaction_snapshot['modified'].copy()
         
         self._in_transaction = False
-        self._transaction_changes.clear()
-        self._transaction_rollback.clear()
-    
+        self._transaction_snapshot = None
+        
+        # Clear cache since values changed
+        self._clear_cache()
+
     def is_in_transaction(self) -> bool:
         """Check if currently in a transaction."""
         return self._in_transaction
@@ -885,191 +962,197 @@ class ParameterManager:
 
 class ParameterAccessor:
     """
-    Backward compatibility accessor for parameters.
+    Parameter accessor that provides dict-like and attribute-like access to parameters.
     
-    This class provides the same interface as the old parameter system
-    (obj.params.param_name and obj.p.param_name) while using the new
-    descriptor-based system internally.
+    This class serves as a bridge between the new parameter system and the old
+    MetaParams-style parameter access patterns. It provides backward compatibility
+    by supporting both attribute access (obj.p.param_name) and dict-like access.
     """
     
     def __init__(self, param_manager: ParameterManager):
-        """
-        Initialize parameter accessor.
+        """Initialize with a parameter manager."""
+        # Use object.__setattr__ to avoid our custom __setattr__
+        object.__setattr__(self, '_param_manager', param_manager)
         
-        Args:
-            param_manager: Underlying parameter manager
-        """
-        self._manager = param_manager
-    
+        # Create a dict-like interface for _getitems() compatibility
+        object.__setattr__(self, '_items_cache', None)
+
     def __getattr__(self, name):
-        """Get parameter value by attribute access."""
-        return self._manager.get(name)
-    
+        """Get parameter value via attribute access."""
+        return self._param_manager.get(name)
+
     def __setattr__(self, name, value):
-        """Set parameter value by attribute access."""
+        """Set parameter value via attribute access."""
         if name.startswith('_'):
-            super().__setattr__(name, value)
+            object.__setattr__(self, name, value)
         else:
-            self._manager.set(name, value)
-    
+            self._param_manager.set(name, value)
+
     def __getitem__(self, name):
-        """Get parameter value by index access."""
-        return self._manager.get(name)
-    
+        """Get parameter value via dict-like access."""
+        return self._param_manager.get(name)
+
     def __setitem__(self, name, value):
-        """Set parameter value by index access."""
-        self._manager.set(name, value)
-    
+        """Set parameter value via dict-like access."""  
+        self._param_manager.set(name, value)
+
     def __contains__(self, name):
         """Check if parameter exists."""
-        return name in self._manager
-    
+        return name in self._param_manager
+
     def __iter__(self):
         """Iterate over parameter names."""
-        return iter(self._manager.keys())
-    
+        return iter(self._param_manager)
+
     def __len__(self):
         """Get number of parameters."""
-        return len(self._manager)
-    
+        return len(self._param_manager)
+
     def _getitems(self):
-        """Backward compatibility method for old parameter system."""
-        return self._manager.items()
-    
+        """Get parameter items as list of tuples (name, value) for MetaParams compatibility."""
+        return list(self._param_manager.items())
+
     def _getkeys(self):
-        """Backward compatibility method for old parameter system."""
-        return list(self._manager.keys())
-    
+        """Get parameter keys for MetaParams compatibility."""
+        return list(self._param_manager.keys())
+
     def _getvalues(self):
-        """Backward compatibility method for old parameter system."""
-        return list(self._manager.values())
+        """Get parameter values for MetaParams compatibility."""
+        return list(self._param_manager.values())
 
     def _getkwargs(self, skip_=False):
         """
-        Backward compatibility method for old parameter system.
+        Get parameters as keyword arguments for MetaParams compatibility.
         
         Args:
-            skip_: If True, skip parameters starting with underscore
+            skip_: Whether to skip parameters starting with underscore
             
         Returns:
-            OrderedDict with parameter names as keys and values as values
+            Dictionary of parameter names and values
         """
-        from collections import OrderedDict
-        
-        result = OrderedDict()
-        
-        for name in self._manager.keys():
+        kwargs = {}
+        for name, value in self._param_manager.items():
             if skip_ and name.startswith('_'):
                 continue
-                
-            try:
-                value = self._manager.get(name)
-                result[name] = value
-            except Exception:
-                # If we can't get the value, skip it
-                continue
-                
-        return result
+            kwargs[name] = value
+        return kwargs
+
+    def __repr__(self):
+        """String representation showing parameter values."""
+        items = list(self._param_manager.items())
+        return f"ParameterAccessor({dict(items)})"
 
 
-class HybridParameterMeta(type):
+class ParameterizedBase:
     """
-    Hybrid metaclass for temporary integration with MetaParams.
+    Enhanced base class for objects with parameters - without metaclass.
     
-    This metaclass bridges the gap between the new descriptor-based parameter 
-    system and the existing MetaParams system during the transition period.
-    It provides compatibility with both systems while gradually migrating
-    to the new approach.
+    This class provides the modern parameter system interface while maintaining
+    backward compatibility with the old MetaParams-based system. It uses
+    regular class mechanisms instead of metaclass.
     """
     
-    def __new__(mcs, name, bases, namespace, **kwargs):
-        """Create a new class with hybrid parameter support."""
-        # Check if any base classes use MetaParams
-        has_metaparams_base = False
-        metaparams_bases = []
+    def __init_subclass__(cls, **kwargs):
+        """
+        Called when a class is subclassed. Replaces metaclass functionality.
         
-        for base in bases:
-            if hasattr(base, 'params') and hasattr(base.params, '_getitems'):
-                has_metaparams_base = True
-                metaparams_bases.append(base)
+        This method sets up the class for lazy parameter descriptor resolution
+        to avoid inheritance contamination issues.
+        """
+        super().__init_subclass__(**kwargs)
         
-        # Collect parameter descriptors from all bases
-        all_descriptors = {}
+        # Don't compute _parameter_descriptors here - do it lazily
+        # This prevents child class definitions from affecting parent classes
+        cls._parameter_descriptors = None  # Mark as not computed
+        cls._parameter_descriptors_computed = False
         
-        # First, collect from base classes (in MRO order)
-        for base in reversed(bases):
-            if hasattr(base, '_parameter_descriptors'):
-                all_descriptors.update(base._parameter_descriptors)
+        # Check for MetaParams compatibility
+        cls._has_metaparams_heritage = any(
+            hasattr(base, 'params') and hasattr(getattr(base, 'params', None), '_getitems')
+            for base in cls.__mro__[1:]  # Skip self
+        )
+    
+    @classmethod
+    def _compute_parameter_descriptors(cls):
+        """
+        Compute parameter descriptors for this class on-demand.
         
-        # Then, collect from current class namespace
-        current_descriptors = {}
-        for key, value in list(namespace.items()):
-            if isinstance(value, ParameterDescriptor):
-                current_descriptors[key] = value
-                # Set name if not already set
-                if value.name is None:
-                    value.name = key
-                    value._attr_name = f'_param_{key}'
+        This is called lazily to avoid inheritance contamination issues
+        that occur when descriptors are computed during class definition.
+        """
+        if cls._parameter_descriptors_computed:
+            return cls._parameter_descriptors
         
-        all_descriptors.update(current_descriptors)
+        # Create a completely new _parameter_descriptors for this class
+        # Each class must have its own independent dictionary
+        computed_descriptors = {}
         
-        # Handle legacy params definition
-        if 'params' in namespace and isinstance(namespace['params'], (tuple, list)):
-            legacy_params = namespace.pop('params')
-            for param_def in legacy_params:
-                if isinstance(param_def, (tuple, list)) and len(param_def) >= 2:
-                    param_name, param_default = param_def[0], param_def[1]
-                    if param_name not in all_descriptors:
-                        all_descriptors[param_name] = ParameterDescriptor(
+        # STEP 1: Collect all parameters from the inheritance hierarchy
+        # Process base classes in reverse MRO order to respect inheritance precedence
+        all_params = {}
+        
+        # Process base classes from least specific to most specific
+        # This way, more specific classes override less specific ones
+        for base_cls in reversed(cls.__mro__[1:-1]):  # Skip cls and object, reverse order
+            # FIRST: Look for parameter descriptors directly defined in this base class
+            if hasattr(base_cls, '__dict__'):
+                for attr_name, attr_value in base_cls.__dict__.items():
+                    if isinstance(attr_value, ParameterDescriptor):
+                        # More specific classes override less specific ones
+                        # Since we process from least to most specific, always update
+                        all_params[attr_name] = attr_value
+            
+            # SECOND: Look for legacy params tuple in this base class  
+            if hasattr(base_cls, '__dict__') and 'params' in base_cls.__dict__:
+                base_params = base_cls.__dict__['params']
+                if isinstance(base_params, (tuple, list)):
+                    for param_def in base_params:
+                        if isinstance(param_def, (tuple, list)) and len(param_def) >= 2:
+                            param_name, param_default = param_def[0], param_def[1]
+                            # More specific classes override less specific ones
+                            # Since we process from least to most specific, always update
+                            all_params[param_name] = ParameterDescriptor(
+                                default=param_default, 
+                                name=param_name
+                            )
+        
+        # STEP 2: Add descriptors from the current class (highest precedence)
+        # These override any inherited parameters with the same name
+        if hasattr(cls, '__dict__'):
+            for attr_name, attr_value in cls.__dict__.items():
+                if isinstance(attr_value, ParameterDescriptor):
+                    all_params[attr_name] = attr_value
+                    # Ensure descriptor has proper name set
+                    if attr_value.name is None:
+                        attr_value.name = attr_name
+                        attr_value._attr_name = f'_param_{attr_name}'
+        
+        # STEP 3: Handle legacy params definition in current class
+        if hasattr(cls, '__dict__') and 'params' in cls.__dict__:
+            current_params = cls.__dict__['params']
+            if isinstance(current_params, (tuple, list)):
+                for param_def in current_params:
+                    if isinstance(param_def, (tuple, list)) and len(param_def) >= 2:
+                        param_name, param_default = param_def[0], param_def[1]
+                        # Current class params override inherited ones
+                        all_params[param_name] = ParameterDescriptor(
                             default=param_default, 
                             name=param_name
                         )
         
-        # Store collected descriptors in the namespace
-        namespace['_parameter_descriptors'] = all_descriptors
+        # STEP 4: Set the final descriptors for this class and mark as computed
+        cls._parameter_descriptors = all_params
+        cls._parameter_descriptors_computed = True
         
-        # Store information about MetaParams compatibility
-        namespace['_has_metaparams_heritage'] = has_metaparams_base
-        namespace['_metaparams_bases'] = metaparams_bases
-        
-        # Create the class
-        cls = super().__new__(mcs, name, bases, namespace)
-        
-        return cls
-
-
-class ParameterizedMeta(HybridParameterMeta):
-    """
-    Enhanced metaclass for parameterized classes.
-    
-    This metaclass extends HybridParameterMeta to provide full parameter
-    descriptor collection and validation during class creation.
-    """
-    pass
-
-
-class ParameterizedBase(metaclass=ParameterizedMeta):
-    """
-    Enhanced base class for objects with parameters.
-    
-    This class provides the modern parameter system interface while maintaining
-    backward compatibility with the old MetaParams-based system. It automatically
-    handles parameter initialization, validation, and access with enhanced error
-    handling and temporary MetaParams integration.
-    
-    Day 34-35 Enhancements:
-    - Temporary MetaParams integration for seamless migration
-    - Enhanced error handling and validation
-    - Improved backward compatibility interfaces
-    - Parameter inheritance from MetaParams-based classes
-    """
+        return all_params
     
     def __init__(self, **kwargs):
-        """
-        Initialize the parameterized object with the new parameter system.
-        """
+        """Initialize the parameterized object."""
+        # Initialize parent first
+        super().__init__()
+        
         # Get parameter descriptors from the class hierarchy
-        descriptors = self._get_parameter_descriptors()
+        descriptors = self._compute_parameter_descriptors()
         
         if descriptors:
             # Use the modern parameter system
@@ -1079,7 +1162,7 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
             legacy_params = getattr(self, 'params', ())
             if legacy_params:
                 # Convert legacy params to descriptors
-                legacy_descriptors = MetaParamsBridge.convert_legacy_params_tuple(legacy_params)
+                legacy_descriptors = ParamsBridge.convert_legacy_params_tuple(legacy_params)
                 self._init_with_metaparams_compatibility(legacy_descriptors, kwargs)
             else:
                 # No parameters at all
@@ -1088,8 +1171,11 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
         # Set up parameter accessor as 'p' for backward compatibility
         if hasattr(self, '_param_manager'):
             self.p = ParameterAccessor(self._param_manager)
+            # Also create 'params' accessor for full compatibility
+            self.params = self.p
         else:
             self.p = None
+            self.params = None
 
     def _get_parameter_descriptors(self) -> Dict[str, ParameterDescriptor]:
         """
@@ -1098,8 +1184,7 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
         Returns:
             Dictionary of parameter descriptors
         """
-        # Get descriptors from class attribute
-        return getattr(self.__class__, '_parameter_descriptors', {})
+        return self.__class__._compute_parameter_descriptors()
     
     def _init_with_metaparams_compatibility(self, descriptors: Dict[str, ParameterDescriptor], kwargs: Dict[str, Any]):
         """
@@ -1117,19 +1202,24 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
         )
         
         # Handle inheritance from MetaParams-based classes
-        metaparams_bases = getattr(self.__class__, '_metaparams_bases', [])
-        for base in metaparams_bases:
-            if hasattr(base, 'params') and hasattr(base.params, '_getitems'):
-                # Extract parameters from MetaParams base
-                for param_name, param_default in base.params._getitems():
-                    if param_name not in descriptors:
-                        # Create a descriptor for the MetaParams parameter
-                        descriptors[param_name] = ParameterDescriptor(
-                            default=param_default,
-                            name=param_name
-                        )
-                        self._param_manager._descriptors[param_name] = descriptors[param_name]
-                        self._param_manager._defaults[param_name] = param_default
+        if self._has_metaparams_heritage:
+            for base in self.__class__.__mro__[1:]:  # Skip self
+                if hasattr(base, 'params') and hasattr(getattr(base, 'params', None), '_getitems'):
+                    # Extract parameters from MetaParams base
+                    try:
+                        for param_name, param_default in base.params._getitems():
+                            if param_name not in descriptors:
+                                # Create a descriptor for the MetaParams parameter
+                                descriptors[param_name] = ParameterDescriptor(
+                                    default=param_default,
+                                    name=param_name
+                                )
+                                self._param_manager._descriptors[param_name] = descriptors[param_name]
+                                self._param_manager._defaults[param_name] = param_default
+                                self._inheritance_sources[param_name] = base
+                    except (AttributeError, TypeError):
+                        # Skip if _getitems() doesn't work as expected
+                        pass
         
         # Separate parameter kwargs from other kwargs
         param_kwargs = {}
@@ -1146,14 +1236,10 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
             try:
                 self._param_manager.update(param_kwargs)
             except Exception as e:
-                raise ValueError(f"Failed to set parameters {list(param_kwargs.keys())}: {e}")
+                self._handle_initialization_error(e)
         
-        # Create backward compatibility accessors
-        self.params = ParameterAccessor(self._param_manager)
-        self.p = self.params  # Short alias
-        
-        # Call parent __init__ with remaining kwargs
-        super().__init__(**other_kwargs)
+        # Return other kwargs for parent class initialization
+        return other_kwargs
     
     def _init_with_new_system(self, descriptors: Dict[str, ParameterDescriptor], kwargs: Dict[str, Any]):
         """
@@ -1179,57 +1265,41 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
             else:
                 other_kwargs[key] = value
         
-        # Check required parameters first
-        missing_required = []
-        for name, desc in descriptors.items():
-            if desc.required and name not in param_kwargs:
-                missing_required.append(name)
-        
-        if missing_required:
-            raise ValueError(f"Parameter validation failed: Missing required parameters: {missing_required}")
-        
-        # Set parameter values with validation
+        # Set parameter values
         if param_kwargs:
             try:
                 self._param_manager.update(param_kwargs)
             except Exception as e:
-                raise ValueError(f"Failed to set parameters {list(param_kwargs.keys())}: {e}")
+                self._handle_initialization_error(e)
         
-        # Create backward compatibility accessors
-        self.params = ParameterAccessor(self._param_manager)
-        self.p = self.params  # Short alias
-        
-        # Call parent __init__ with remaining kwargs
-        super().__init__(**other_kwargs)
-    
+        # Return other kwargs for parent class initialization
+        return other_kwargs
+
     def _handle_initialization_error(self, error: Exception):
         """
-        Handle initialization errors with enhanced debugging information.
+        Handle initialization errors with enhanced error messages.
         
         Args:
-            error: The exception that occurred
+            error: The original exception
         """
-        error_context = {
-            'class_name': self.__class__.__name__,
-            'module': self.__class__.__module__,
-            'has_metaparams_heritage': getattr(self.__class__, '_has_metaparams_heritage', False),
-            'parameter_count': len(getattr(self.__class__, '_parameter_descriptors', {})),
-            'error_type': type(error).__name__,
-            'error_message': str(error)
-        }
+        error_msg = f"Parameter initialization failed for {self.__class__.__name__}: {error}"
         
-        # Log detailed error information (in production, this would use proper logging)
-        print(f"ParameterizedBase initialization error context: {error_context}")
+        # Add helpful information about available parameters
+        if hasattr(self, '_param_manager'):
+            available_params = list(self._param_manager.keys())
+            if available_params:
+                error_msg += f". Available parameters: {available_params}"
         
-        # Add additional context to certain error types
-        if isinstance(error, (TypeError, ValueError)):
-            # Enhance the error message with parameter information
-            param_info = self.get_param_info() if hasattr(self, '_param_manager') else {}
-            error.args = (f"{error}. Available parameters: {list(param_info.keys())}",)
-    
+        # Re-raise with enhanced message
+        if isinstance(error, (ValueError, TypeError)):
+            raise type(error)(error_msg) from error
+        else:
+            raise ValueError(error_msg) from error
+
+    # Parameter access methods for backward compatibility and convenience
     def get_param(self, name: str, default: Any = None) -> Any:
         """
-        Get parameter value with enhanced error handling.
+        Get parameter value with fallback.
         
         Args:
             name: Parameter name
@@ -1237,114 +1307,75 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
             
         Returns:
             Parameter value
-            
-        Raises:
-            AttributeError: If parameter doesn't exist and no default provided
         """
-        try:
+        if hasattr(self, '_param_manager'):
             return self._param_manager.get(name, default)
-        except AttributeError:
-            if default is None:
-                available_params = list(self._param_manager.keys()) if hasattr(self, '_param_manager') else []
-                raise AttributeError(
-                    f"Parameter '{name}' not found in {self.__class__.__name__}. "
-                    f"Available parameters: {available_params}"
-                )
-            return default
-    
+        return default
+
     def set_param(self, name: str, value: Any, validate: bool = True) -> None:
         """
-        Set parameter value with enhanced validation.
+        Set parameter value with optional validation.
         
         Args:
             name: Parameter name
             value: Parameter value
-            validate: Whether to validate the value before setting
+            validate: Whether to perform validation
             
         Raises:
-            AttributeError: If parameter doesn't exist
+            AttributeError: If parameter manager not initialized
             ValueError: If validation fails
-            TypeError: If type conversion fails
         """
+        if not hasattr(self, '_param_manager'):
+            raise AttributeError(f"Parameter manager not initialized for {self.__class__.__name__}")
+        
         try:
-            if validate:
-                # Pre-validate the value
-                descriptors = getattr(self.__class__, '_parameter_descriptors', {})
-                if name in descriptors:
-                    descriptor = descriptors[name]
-                    if not descriptor.validate(value):
-                        raise ValueError(
-                            f"Validation failed for parameter '{name}' with value {value}. "
-                            f"Expected type: {descriptor.type_}, Required: {descriptor.required}"
-                        )
-            
-            self._param_manager.set(name, value)
-        except AttributeError:
-            available_params = list(self._param_manager.keys()) if hasattr(self, '_param_manager') else []
-            raise AttributeError(
-                f"Cannot set unknown parameter '{name}' in {self.__class__.__name__}. "
-                f"Available parameters: {available_params}"
-            )
-    
+            self._param_manager.set(name, value, skip_validation=not validate)
+        except Exception as e:
+            raise ValueError(f"Failed to set parameter '{name}' to {value}: {e}") from e
+
     def get_param_info(self) -> Dict[str, Dict[str, Any]]:
         """
         Get comprehensive information about all parameters.
         
         Returns:
-            Dictionary mapping parameter names to their detailed information
+            Dictionary with parameter information
         """
-        descriptors = getattr(self.__class__, '_parameter_descriptors', {})
-        param_info = {}
+        if not hasattr(self, '_param_manager'):
+            return {}
         
-        for name, desc in descriptors.items():
-            try:
-                current_value = self._param_manager.get(name) if hasattr(self, '_param_manager') else desc.default
-                type_info = desc.get_type_info()
-                type_info.update({
-                    'current_value': current_value,
-                    'is_default': current_value == desc.default,
-                    'source': 'new_system'
-                })
-                param_info[name] = type_info
-            except Exception as e:
-                # Ensure we don't fail if parameter access fails
-                param_info[name] = {
+        info = {}
+        for name in self._param_manager.keys():
+            inheritance_info = self._param_manager.get_inheritance_info(name)
+            if inheritance_info:
+                info[name] = inheritance_info
+            else:
+                # Fallback for parameters without inheritance info
+                info[name] = {
                     'name': name,
-                    'error': str(e),
-                    'source': 'error'
+                    'current_value': self._param_manager.get(name),
+                    'type': 'unknown'
                 }
         
-        return param_info
-    
+        return info
+
     def validate_params(self) -> List[str]:
         """
-        Validate all current parameter values with enhanced reporting.
+        Validate all parameters and return list of validation errors.
         
         Returns:
             List of validation error messages (empty if all valid)
         """
-        errors = []
-        descriptors = getattr(self.__class__, '_parameter_descriptors', {})
+        if not hasattr(self, '_param_manager'):
+            return []
         
-        for name, descriptor in descriptors.items():
-            try:
-                current_value = self._param_manager.get(name) if hasattr(self, '_param_manager') else descriptor.default
-                
-                # Check required parameters
-                if descriptor.required and current_value is None:
-                    errors.append(f"Required parameter '{name}' is missing or None")
-                    continue
-                
-                # Validate current value
-                if not descriptor.validate(current_value):
-                    type_info = f" (expected: {descriptor.type_.__name__})" if descriptor.type_ else ""
-                    errors.append(f"Parameter '{name}' has invalid value: {current_value}{type_info}")
-                    
-            except Exception as e:
-                errors.append(f"Failed to validate parameter '{name}': {e}")
+        errors = []
+        for name, descriptor in self._param_manager._descriptors.items():
+            current_value = self._param_manager.get(name)
+            if not descriptor.validate(current_value):
+                errors.append(f"Parameter '{name}' has invalid value: {current_value}")
         
         return errors
-    
+
     def reset_param(self, name: str) -> None:
         """
         Reset parameter to its default value.
@@ -1353,231 +1384,213 @@ class ParameterizedBase(metaclass=ParameterizedMeta):
             name: Parameter name
             
         Raises:
-            AttributeError: If parameter doesn't exist
+            AttributeError: If parameter manager not initialized
+            ValueError: If parameter doesn't exist or is locked
         """
+        if not hasattr(self, '_param_manager'):
+            raise AttributeError(f"Parameter manager not initialized for {self.__class__.__name__}")
+        
         try:
             self._param_manager.reset(name)
-        except AttributeError:
-            available_params = list(self._param_manager.keys()) if hasattr(self, '_param_manager') else []
-            raise AttributeError(
-                f"Cannot reset unknown parameter '{name}' in {self.__class__.__name__}. "
-                f"Available parameters: {available_params}"
-            )
-    
+        except Exception as e:
+            raise ValueError(f"Failed to reset parameter '{name}': {e}") from e
+
     def reset_all_params(self) -> None:
         """Reset all parameters to their default values."""
         if hasattr(self, '_param_manager'):
             for name in list(self._param_manager.keys()):
                 try:
                     self._param_manager.reset(name)
-                except Exception as e:
-                    warnings.warn(f"Failed to reset parameter '{name}': {e}")
-    
+                except Exception:
+                    # Continue with other parameters even if one fails
+                    pass
+
     def get_modified_params(self) -> Dict[str, Any]:
         """
-        Get only parameters that have been modified from their defaults.
+        Get parameters that have been modified from their defaults.
         
         Returns:
-            Dictionary of modified parameters and their values
+            Dictionary of modified parameter names and values
         """
-        modified = {}
-        descriptors = getattr(self.__class__, '_parameter_descriptors', {})
+        if not hasattr(self, '_param_manager'):
+            return {}
         
-        for name, descriptor in descriptors.items():
-            try:
-                current_value = self._param_manager.get(name) if hasattr(self, '_param_manager') else descriptor.default
-                if current_value != descriptor.default:
-                    modified[name] = current_value
-            except Exception:
-                # Skip parameters that can't be accessed
-                continue
+        modified = {}
+        for name in self._param_manager._modified:
+            modified[name] = self._param_manager.get(name)
         
         return modified
-    
+
     def copy_params_from(self, other: 'ParameterizedBase', 
                          param_names: Optional[List[str]] = None,
                          exclude: Optional[List[str]] = None) -> None:
         """
-        Copy parameter values from another ParameterizedBase instance.
+        Copy parameters from another ParameterizedBase instance.
         
         Args:
-            other: Source instance to copy parameters from
-            param_names: List of specific parameter names to copy (None = all)
-            exclude: List of parameter names to exclude from copying
+            other: Source object to copy parameters from
+            param_names: Specific parameter names to copy (None for all)
+            exclude: Parameter names to exclude from copying
         """
-        if not isinstance(other, ParameterizedBase):
-            raise TypeError(f"Cannot copy parameters from {type(other)}. Must be ParameterizedBase instance.")
+        if not hasattr(self, '_param_manager') or not hasattr(other, '_param_manager'):
+            return
         
-        try:
-            # Get the list of parameters to copy
-            if param_names is None:
-                param_names = list(other._param_manager.keys())
-            
-            if exclude:
-                param_names = [name for name in param_names if name not in exclude]
-            
-            # Copy each parameter
-            for param_name in param_names:
-                if param_name in other._param_manager:
-                    try:
-                        value = other._param_manager.get(param_name)
-                        self._param_manager.set(param_name, value, force=True)
-                    except Exception as e:
-                        # Log the error but continue with other parameters
-                        print(f"Warning: Failed to copy parameter '{param_name}': {e}")
-                        
-        except Exception as e:
-            raise RuntimeError(f"Failed to copy parameters from {type(other).__name__}: {e}")
+        # Determine which parameters to copy
+        if param_names is None:
+            param_names = list(other._param_manager.keys())
+        
+        if exclude:
+            param_names = [name for name in param_names if name not in exclude]
+        
+        # Copy parameters
+        for name in param_names:
+            if name in self._param_manager._descriptors and name in other._param_manager._descriptors:
+                try:
+                    value = other._param_manager.get(name)
+                    self._param_manager.set(name, value)
+                except Exception:
+                    # Skip parameters that can't be copied
+                    pass
 
     def __repr__(self) -> str:
-        """Enhanced string representation including parameter information."""
+        """Enhanced string representation with parameter information."""
         class_name = self.__class__.__name__
-        param_count = len(getattr(self.__class__, '_parameter_descriptors', {}))
-        modified_count = len(self.get_modified_params()) if hasattr(self, '_param_manager') else 0
-        
-        return f"{class_name}(params={param_count}, modified={modified_count})"
+        if hasattr(self, '_param_manager') and self._param_manager:
+            param_count = len(self._param_manager)
+            return f"{class_name}(parameters={param_count})"
+        else:
+            return f"{class_name}(no_parameters)"
 
 
-
-# Type checking helper functions
+# Convenience functions for creating parameter descriptors with validation
 def Int(min_val: Optional[int] = None, max_val: Optional[int] = None) -> Callable[[Any], bool]:
     """
-    Create a validator for integer parameters with optional range checking.
+    Create an integer validator function.
     
     Args:
         min_val: Minimum allowed value
         max_val: Maximum allowed value
         
     Returns:
-        Validator function
+        Validator function for integer parameters
     """
     def validator(value):
-        if not isinstance(value, int):
+        # Only accept actual int values, not floats or other types
+        if not isinstance(value, int) or isinstance(value, bool):
             return False
-        if min_val is not None and value < min_val:
+        try:
+            int_val = int(value)
+            if min_val is not None and int_val < min_val:
+                return False
+            if max_val is not None and int_val > max_val:
+                return False
+            return True
+        except (ValueError, TypeError):
             return False
-        if max_val is not None and value > max_val:
-            return False
-        return True
+    
     return validator
 
 
 def Float(min_val: Optional[float] = None, max_val: Optional[float] = None) -> Callable[[Any], bool]:
     """
-    Create a validator for float parameters with optional range checking.
+    Create a float validator function.
     
     Args:
-        min_val: Minimum allowed value  
+        min_val: Minimum allowed value
         max_val: Maximum allowed value
         
     Returns:
-        Validator function
+        Validator function for float parameters
     """
     def validator(value):
-        if value is None:
-            return True
-        # Only accept int and float types, not strings
+        # Only accept actual numeric types, not strings
         if not isinstance(value, (int, float)):
             return False
-        
-        float_value = float(value)
-        if min_val is not None and float_value < min_val:
+        try:
+            float_val = float(value)
+            if min_val is not None and float_val < min_val:
+                return False
+            if max_val is not None and float_val > max_val:
+                return False
+            return True
+        except (ValueError, TypeError):
             return False
-        if max_val is not None and float_value > max_val:
-            return False
-        return True
+    
     return validator
 
 
+# Convenience functions for creating typed parameter descriptors
 def FloatParam(default=None, min_val: Optional[float] = None, max_val: Optional[float] = None, doc: str = None) -> ParameterDescriptor:
-    """
-    Create a Float parameter descriptor with optional range validation.
-    
-    Args:
-        default: Default value
-        min_val: Minimum allowed value  
-        max_val: Maximum allowed value
-        doc: Parameter documentation
-        
-    Returns:
-        ParameterDescriptor with float type and validation
-    """
-    validator = Float(min_val=min_val, max_val=max_val) if (min_val is not None or max_val is not None) else None
-    return ParameterDescriptor(default=default, type_=float, validator=validator, doc=doc)
+    """Create a float parameter descriptor with validation."""
+    return ParameterDescriptor(
+        default=default,
+        type_=float,
+        validator=Float(min_val, max_val),
+        doc=doc
+    )
 
 
 def BoolParam(default=None, doc: str = None) -> ParameterDescriptor:
-    """
-    Create a Boolean parameter descriptor.
-    
-    Args:
-        default: Default value
-        doc: Parameter documentation
-        
-    Returns:
-        ParameterDescriptor with bool type
-    """
+    """Create a boolean parameter descriptor."""
     def validator(value):
-        if value is None:
+        """Boolean validator that accepts various boolean representations."""
+        if isinstance(value, bool):
             return True
-        return isinstance(value, bool) or value in (0, 1, 'True', 'False', 'true', 'false')
+        if value in (0, 1, 'True', 'False', 'true', 'false', 'TRUE', 'FALSE'):
+            return True
+        return False
     
-    return ParameterDescriptor(default=default, type_=bool, validator=validator, doc=doc)
+    return ParameterDescriptor(
+        default=default,
+        type_=bool,
+        validator=validator,
+        doc=doc
+    )
 
 
 def StringParam(default=None, min_length: Optional[int] = None, max_length: Optional[int] = None, doc: str = None) -> ParameterDescriptor:
-    """
-    Create a String parameter descriptor with optional length validation.
-    
-    Args:
-        default: Default value
-        min_length: Minimum string length
-        max_length: Maximum string length
-        doc: Parameter documentation
-        
-    Returns:
-        ParameterDescriptor with string type and validation
-    """
-    validator = String(min_length=min_length, max_length=max_length) if (min_length is not None or max_length is not None) else None
-    return ParameterDescriptor(default=default, type_=str, validator=validator, doc=doc)
+    """Create a string parameter descriptor with length validation."""
+    return ParameterDescriptor(
+        default=default,
+        type_=str,
+        validator=String(min_length, max_length),
+        doc=doc
+    )
 
 
 def String(min_length: Optional[int] = None, max_length: Optional[int] = None) -> Callable[[Any], bool]:
     """
-    Create a validator for string parameters with optional length validation.
+    Create a string validator function.
     
     Args:
-        min_length: Minimum string length
-        max_length: Maximum string length
+        min_length: Minimum allowed string length
+        max_length: Maximum allowed string length
         
     Returns:
-        Validator function
+        Validator function for string parameters
     """
     def validator(value):
-        if value is None:
-            return True
-        # Only accept string types, no conversion
-        if not isinstance(value, str):
+        if not isinstance(value, string_types):
             return False
         if min_length is not None and len(value) < min_length:
             return False
         if max_length is not None and len(value) > max_length:
             return False
         return True
+    
     return validator
 
 
 def Bool() -> Callable[[Any], bool]:
     """
-    Create a validator for boolean parameters.
+    Create a boolean validator function.
     
     Returns:
-        Validator function
+        Validator function for boolean parameters
     """
     def validator(value):
-        if value is None:
-            return True
         return isinstance(value, bool) or value in (0, 1, 'True', 'False', 'true', 'false')
+    
     return validator
 
 
@@ -1586,50 +1599,52 @@ def OneOf(*choices) -> Callable[[Any], bool]:
     Create a validator that checks if value is one of the given choices.
     
     Args:
-        *choices: Valid choices
+        *choices: Allowed values
         
     Returns:
         Validator function
     """
     def validator(value):
         return value in choices
+    
     return validator
 
 
-# Legacy compatibility functions
 def create_param_descriptor(name: str, default: Any = None, doc: str = None) -> ParameterDescriptor:
     """
-    Create a parameter descriptor for backward compatibility.
+    Create a basic parameter descriptor.
     
     Args:
         name: Parameter name
         default: Default value
-        doc: Documentation
+        doc: Documentation string
         
     Returns:
         ParameterDescriptor instance
     """
-    return ParameterDescriptor(default=default, doc=doc, name=name)
+    return ParameterDescriptor(default=default, name=name, doc=doc)
 
 
 def derive_params(base_params, new_params, other_base_params=None):
     """
-    Create derived parameter set for backward compatibility.
+    Derive parameters by combining base parameters with new ones.
     
-    This function mimics the behavior of AutoInfoClass._derive() for
-    compatibility with existing code during the transition period.
+    Args:
+        base_params: Base parameter descriptors or tuples
+        new_params: New parameter descriptors or tuples
+        other_base_params: Additional base parameters
+        
+    Returns:
+        Dictionary of combined parameter descriptors
     """
-    # This is a simplified implementation for testing
-    # In practice, this would need to handle all the complexity of the original
     combined_params = {}
     
     # Add base parameters
     if hasattr(base_params, '_parameter_descriptors'):
         combined_params.update(base_params._parameter_descriptors)
-    
-    # Add other base parameters
-    if other_base_params:
-        for base in other_base_params:
+    elif hasattr(base_params, '__mro__'):
+        # It's a class, collect from all bases
+        for base in base_params.__mro__:
             if hasattr(base, '_parameter_descriptors'):
                 combined_params.update(base._parameter_descriptors)
     
@@ -1646,7 +1661,7 @@ def derive_params(base_params, new_params, other_base_params=None):
     return combined_params
 
 
-class MetaParamsBridge:
+class ParamsBridge:
     """
     Bridge class for transitioning from MetaParams to new parameter system.
     
@@ -1719,7 +1734,7 @@ class MetaParamsBridge:
             New class that uses the modern parameter system
         """
         # Extract existing parameters
-        descriptors = MetaParamsBridge.extract_params_from_metaparams_class(metaparams_class)
+        descriptors = ParamsBridge.extract_params_from_metaparams_class(metaparams_class)
         
         # Create new class with descriptor-based parameters
         class_name = f"Modern{metaparams_class.__name__}"
@@ -1734,8 +1749,8 @@ class MetaParamsBridge:
         for name, descriptor in descriptors.items():
             namespace[name] = descriptor
         
-        # Create the new class
-        new_class = ParameterizedMeta(
+        # Create the new class using regular class creation (no metaclass)
+        new_class = type(
             class_name,
             (ParameterizedBase,),
             namespace
