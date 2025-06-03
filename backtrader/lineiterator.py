@@ -9,138 +9,132 @@ from .utils import DotDict
 
 from .lineroot import LineRoot, LineSingle
 from .linebuffer import LineActions, LineNum
-from .lineseries import LineSeries, LineSeriesMaker
+from .lineseries import LineSeries, LineSeriesMaker, MetaLineSeries
 from .dataseries import DataSeries
 from . import metabase
 
 
-class MetaLineIterator(LineSeries.__class__):
-    # 为LineIterator做一些处理工作
+class MetaLineIterator(MetaLineSeries):
+    """Metaclass for LineIterator that handles data argument processing"""
+    
     def donew(cls, *args, **kwargs):
-        # 创建类
-        _obj, args, kwargs = super(MetaLineIterator, cls).donew(*args, **kwargs)
-
-        # Prepare to hold children that need to be calculated and
-        # influence minperiod - Moved here to support LineNum below
-        # 给_obj增加一个_lineiterators属性，这个是默认的字典，默认值是空列表
-        _obj._lineiterators = collections.defaultdict(list)
-
-        # Scan args for datas ... if none are found,
-        # use the _owner (to have a clock)
-        # 获取_obj的_mindatas值
-        mindatas = _obj._mindatas
-        # 最后一个参数0
+        """Process data arguments and filter them before instance creation"""
+        # Process data arguments before creating instance
+        mindatas = cls._mindatas
         lastarg = 0
-        # _obj.datas属性设置成一个空列表
-        _obj.datas = []
-        # 遍历args
+        datas = []
+        
+        # Process args to extract data sources
         for arg in args:
-            # 如果arg是line，使用LineSeriesMaker转化成LineSeries，增加到datas中
             if isinstance(arg, LineRoot):
-                _obj.datas.append(LineSeriesMaker(arg))
-            # 如果mindatas的值是0的话，直接break
+                datas.append(LineSeriesMaker(arg))
             elif not mindatas:
                 break  # found not data and must not be collected
-            # 如果arg既不是line，mindatas还大于0的话，先对arg进行操作，尝试生成一个伪的array，然后生成一个LineDelay，添加到datas中，如果出现错误，就break
             else:
                 try:
-                    _obj.datas.append(LineSeriesMaker(LineNum(arg)))
+                    datas.append(LineSeriesMaker(LineNum(arg)))
                 except:
                     # Not a LineNum and is not a LineSeries - bail out
                     break
-            # mindatas减去1,mindatas保证要大于等于1
             mindatas = max(0, mindatas - 1)
-            # lastarg加1
             lastarg += 1
-        # 截取剩下的args
-        newargs = args[lastarg:]
+        
+        # Create the instance with filtered arguments
+        remaining_args = args[lastarg:]
+        _obj, remaining_args, kwargs = super(MetaLineIterator, cls).donew(*remaining_args, **kwargs)
+        
+        # Initialize _lineiterators
+        _obj._lineiterators = collections.defaultdict(list)
+        _obj.datas = datas
 
-        # If no datas have been passed to an indicator ... use the
-        # main datas of the owner, easing up adding "self.data" ...
-        # 如果_obj的datas还是空列表，并且_obj是指标类或者观察类
-        if not _obj.datas and isinstance(_obj, (IndicatorBase, ObserverBase)):
-            # 直接调用父类的datas给它赋值
-            _obj.datas = _obj._owner.datas[0:mindatas]
+        # If no datas have been passed to an indicator, use owner's datas
+        # Check for owner's existence more carefully to avoid __bool__ issues
+        if not _obj.datas and hasattr(_obj, '_owner') and _obj._owner is not None:
+            try:
+                # Check if this is an indicator or observer by looking at class hierarchy
+                class_name = _obj.__class__.__name__
+                is_indicator_or_observer = ('Indicator' in class_name or 'Observer' in class_name or
+                                          hasattr(_obj, '_mindatas'))
+                if is_indicator_or_observer:
+                    _obj.datas = _obj._owner.datas[0:_obj._mindatas]
+            except (AttributeError, IndexError):
+                pass
 
-        # Create a dictionary to be able to check for presence
-        # lists in python use "==" operator when testing for presence with "in"
-        # which doesn't really check for presence but for equality
-        # 创建一个ddatas的属性
+        # Create ddatas dictionary
         _obj.ddatas = {x: None for x in _obj.datas}
 
-        # For each found data add access member -
-        # for the first data 2 (data and data0)
-        # 设置_obj的data属性，如果datas不是空的话，默认取出来的是第一个data
+        # Set data aliases
         if _obj.datas:
             _obj.data = data = _obj.datas[0]
-            # 给data的line设置具体的别名
+            # Set line aliases for first data
             for l, line in enumerate(data.lines):
                 linealias = data._getlinealias(l)
                 if linealias:
                     setattr(_obj, "data_%s" % linealias, line)
                 setattr(_obj, "data_%d" % l, line)
-            # 给data、以及data的line设置具体的别名
+            
+            # Set aliases for all datas
             for d, data in enumerate(_obj.datas):
                 setattr(_obj, "data%d" % d, data)
-
                 for l, line in enumerate(data.lines):
                     linealias = data._getlinealias(l)
                     if linealias:
                         setattr(_obj, "data%d_%s" % (d, linealias), line)
                     setattr(_obj, "data%d_%d" % (d, l), line)
 
-        # Parameter values have now been set before __init__
-        # 设置dnames的值，如果d设置了_name属性
+        # Set dnames
         _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, "_name", "")])
-
-        return _obj, newargs, kwargs
-
+        
+        # Return with filtered arguments
+        return _obj, remaining_args, kwargs
+        
     def dopreinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = super(MetaLineIterator, cls).dopreinit(_obj, *args, **kwargs)
-
-        # if no datas were found use, use the _owner (to have a clock)
-        # 如果没有数据被使用到，为了能够有一个时间，使用_obj._owner
-        _obj.datas = _obj.datas or [_obj._owner]
-
+        """Handle pre-initialization setup"""
+        # if no datas were found, use the _owner (to have a clock)
+        if not _obj.datas and hasattr(_obj, '_owner') and _obj._owner is not None:
+            _obj.datas = [_obj._owner]
+        elif not _obj.datas:
+            _obj.datas = []
+        
         # 1st data source is our ticking clock
-        # 第一个数据是我们的基准数据，用作时钟，每次next进入下一个
-        _obj._clock = _obj.datas[0]
+        if _obj.datas and _obj.datas[0] is not None:
+            _obj._clock = _obj.datas[0]
+        elif hasattr(_obj, '_owner') and _obj._owner is not None:
+            _obj._clock = _obj._owner
+        else:
+            _obj._clock = None
 
-        # To automatically set the period Start by scanning the found datas
-        # No calculation can take place until all datas have yielded "data"
-        # A data could be an indicator and it could take x bars until
-        # something is produced
-        # 获取_obj的最小周期
-        _obj._minperiod = max([x._minperiod for x in _obj.datas] or [_obj._minperiod])
+        # Calculate minimum period from datas
+        if _obj.datas:
+            data_minperiods = [getattr(x, '_minperiod', 1) for x in _obj.datas if x is not None]
+            _obj._minperiod = max(data_minperiods + [getattr(_obj, '_minperiod', 1)])
+        else:
+            _obj._minperiod = getattr(_obj, '_minperiod', 1)
 
-        # The lines carry at least the same minperiod as
-        # that provided by the datas
-        # 给每条line增加一个最小周期
-        for line in _obj.lines:
-            line.addminperiod(_obj._minperiod)
-
+        # Add minperiod to lines
+        if hasattr(_obj, 'lines'):
+            for line in _obj.lines:
+                if hasattr(line, 'addminperiod'):
+                    line.addminperiod(_obj._minperiod)
+                    
         return _obj, args, kwargs
-
+        
     def dopostinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = super(MetaLineIterator, cls).dopostinit(_obj, *args, **kwargs)
+        """Handle post-initialization setup"""
+        # Calculate minperiod from lines
+        if hasattr(_obj, 'lines'):
+            line_minperiods = [getattr(x, '_minperiod', 1) for x in _obj.lines]
+            if line_minperiods:
+                _obj._minperiod = max(line_minperiods)
 
-        # my minperiod is as large as the minperiod of my lines
-        # 获取各条line中最大的一个最小周期
-        _obj._minperiod = max([x._minperiod for x in _obj.lines])
-
-        # Recalc the period
-        #######
-        # 暂时没有理解，为啥能够调用子类的方法。。。元编程果然神奇，我看了几遍源代码都没看懂。。。
-        # 这个地方标记起来，拿到语法里面具体去研究
-        #######
+        # Recalculate period
         _obj._periodrecalc()
 
-        # Register (my)self as indicator to owner once
-        # _minperiod has been calculated
-        # 如果_owner不是None的话，那么这个_obj就是创建的一个指标，调用addindicator增加进去
-        if _obj._owner is not None:
-            _obj._owner.addindicator(_obj)
-
+        # Register self as indicator to owner
+        if hasattr(_obj, '_owner') and _obj._owner is not None:
+            if hasattr(_obj._owner, 'addindicator'):
+                _obj._owner.addindicator(_obj)
+                
         return _obj, args, kwargs
 
 
@@ -169,6 +163,10 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
         plotforce=False,
         plotmaster=None,
     )
+
+    def __init__(self, *args, **kwargs):
+        # Initialize parent class
+        super(LineIterator, self).__init__(*args, **kwargs)
 
     def _periodrecalc(self):
         # last check in case not all lineiterators were assigned to
