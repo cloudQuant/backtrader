@@ -34,7 +34,8 @@ from dash.dependencies import Input, Output
 from collections import OrderedDict
 
 from ..utils.py3 import range, string_types, integer_types
-from .. import AutoInfoClass, MetaParams, TimeFrame, date2num
+from .. import AutoInfoClass, TimeFrame, date2num
+from ..parameters import ParameterizedBase, ParameterDescriptor
 
 from .finance import plot_candlestick, plot_ohlc, plot_volume, plot_lineonclose
 from .formatters import MyVolFormatter, MyDateFormatter, getlocator
@@ -713,10 +714,14 @@ class PInfo(object):
         return self.zorder[ax]
 
 
-class Plot_OldSync(metaclass=MetaParams):
-    params = (("scheme", PlotScheme()),)
+class Plot_OldSync(ParameterizedBase):
+    scheme = ParameterDescriptor(default=PlotScheme(), doc="Plotting scheme to use")
 
     def __init__(self, **kwargs):
+        # 首先调用父类初始化，这样 self.p 才能被正确设置
+        super(Plot_OldSync, self).__init__()
+        
+        # 然后设置 scheme 的属性
         for pname, pvalue in kwargs.items():
             setattr(self.p.scheme, pname, pvalue)
 

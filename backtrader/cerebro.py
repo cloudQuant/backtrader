@@ -17,7 +17,7 @@ from .utils.py3 import map, range, zip, string_types, integer_types
 from . import linebuffer
 from . import indicator
 from .brokers import BackBroker
-from .metabase import MetaParams
+from .parameters import ParameterizedBase, ParameterDescriptor
 from . import observers
 from .writer import WriterFile
 from .utils import OrderedDict, tzparse, num2date, date2num
@@ -34,7 +34,7 @@ class OptReturn(object):
             setattr(self, k, v)
 
 
-class Cerebro(metaclass=MetaParams):
+class Cerebro(ParameterizedBase):
     """Params:
 
     - ``preload`` (default: ``True``)
@@ -307,31 +307,32 @@ class Cerebro(metaclass=MetaParams):
 
     """
 
-    # 参数
-    params = (
-        ("preload", True),
-        ("runonce", True),
-        ("maxcpus", None),
-        ("stdstats", True),
-        ("oldbuysell", False),
-        ("oldtrades", False),
-        ("lookahead", 0),
-        ("exactbars", False),
-        ("optdatas", True),
-        ("optreturn", True),
-        ("objcache", False),
-        ("live", False),
-        ("writer", False),
-        ("tradehistory", False),
-        ("oldsync", False),
-        ("tz", None),
-        ("cheat_on_open", False),
-        ("broker_coo", True),
-        ("quicknotify", False),
-    )
+    # Parameter descriptors using new system
+    preload = ParameterDescriptor(default=True, type_=bool, doc="Whether to preload the different data feeds")
+    runonce = ParameterDescriptor(default=True, type_=bool, doc="Run Indicators in vectorized mode")
+    maxcpus = ParameterDescriptor(default=None, doc="How many cores to use for optimization")
+    stdstats = ParameterDescriptor(default=True, type_=bool, doc="Add default Observers")
+    oldbuysell = ParameterDescriptor(default=False, type_=bool, doc="Use old BuySell observer behavior")
+    oldtrades = ParameterDescriptor(default=False, type_=bool, doc="Use old Trades observer behavior")
+    lookahead = ParameterDescriptor(default=0, type_=int, doc="Lookahead parameter")
+    exactbars = ParameterDescriptor(default=False, doc="Memory usage control for lines objects")
+    optdatas = ParameterDescriptor(default=True, type_=bool, doc="Optimize data preloading during optimization")
+    optreturn = ParameterDescriptor(default=True, type_=bool, doc="Return simplified objects during optimization")
+    objcache = ParameterDescriptor(default=False, type_=bool, doc="Cache lines objects to reduce memory")
+    live = ParameterDescriptor(default=False, type_=bool, doc="Run in live mode")
+    writer = ParameterDescriptor(default=False, type_=bool, doc="Add a default WriterFile")
+    tradehistory = ParameterDescriptor(default=False, type_=bool, doc="Activate trade history logging")
+    oldsync = ParameterDescriptor(default=False, type_=bool, doc="Use old synchronization behavior")
+    tz = ParameterDescriptor(default=None, doc="Global timezone for strategies")
+    cheat_on_open = ParameterDescriptor(default=False, type_=bool, doc="Enable cheat-on-open execution")
+    broker_coo = ParameterDescriptor(default=True, type_=bool, doc="Auto-activate broker cheat-on-open")
+    quicknotify = ParameterDescriptor(default=False, type_=bool, doc="Deliver broker notifications quickly")
 
     # 初始化
-    def __init__(self):
+    def __init__(self, **kwargs):
+        # 首先调用父类初始化
+        super(Cerebro, self).__init__(**kwargs)
+        
         # 是否实盘，初始化的时候，默认不是实盘
         self._timerscheat = None
         self._timers = None
@@ -396,6 +397,12 @@ class Cerebro(metaclass=MetaParams):
         self._ohistory = list()
         # fund历史默认是None
         self._fhistory = None
+
+        # 用传递过来的关键字参数覆盖标准参数
+        pkeys = self.params._getkeys()
+        for key, val in kwargs.items():
+            if key in pkeys:
+                setattr(self.params, key, val)
 
     # 这个函数会把可迭代对象中的每个元素变成都是可迭代的
     @staticmethod
