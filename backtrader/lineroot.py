@@ -13,30 +13,27 @@ import operator
 from . import metabase
 from .utils.py3 import range
 
-# import metabase
 
-
-class MetaLineRoot(metabase.MetaParams):
-    """
-    Once the object is created (effectively pre-init), the "owner" of this
-    class is sought
-    # 当这个类在创建之前(pre-init之前)，会寻找这个类的一个父类，并保存到_owner属性上
-    """
-
+class LineRootMixin:
+    """Mixin to provide LineRoot functionality without metaclass"""
+    
+    @classmethod
     def donew(cls, *args, **kwargs):
-        _obj, args, kwargs = super(MetaLineRoot, cls).donew(*args, **kwargs)
+        """Create new instance with owner finding logic"""
+        _obj, args, kwargs = super().donew(*args, **kwargs) if hasattr(super(), 'donew') else (cls.__new__(cls), args, kwargs)
 
         # Find the owner and store it
         # startlevel = 4 ... to skip intermediate call stacks
         ownerskip = kwargs.pop("_ownerskip", None)
-        # findowner用于寻找_obj的父类，属于_obj._OwnerCls或者LineMultiple的实例，同时这个父类还不能是ownerskip
+        # Import LineMultiple here to avoid circular imports
+        from .lineroot import LineMultiple
         _obj._owner = metabase.findowner(_obj, _obj._OwnerCls or LineMultiple, skip=ownerskip)
 
         # Parameter values have now been set before __init__
         return _obj, args, kwargs
 
 
-class LineRoot(metaclass=MetaLineRoot):
+class LineRoot(LineRootMixin, metabase.BaseMixin):
     """
     Defines a common base and interfaces for Single and Multiple
     LineXXX instances
@@ -45,10 +42,6 @@ class LineRoot(metaclass=MetaLineRoot):
         Iteration management
         Operation (dual/single operand) Management
         Rich Comparison operator definition
-    为line实例定义一个共同的基类和接口，主要用于周期管理、迭代管理、操作管理和丰富的对比操作。
-    需要额外注意的是，with_metaclass(MetaLineRoot,object)创建了一个类：temporary_class,
-    这个类继承了MetaLineRoot和object，LineRoot继承的是temporary_class
-    到这里的继承关系如下：LineRoot-->MetaLineRoot-->MetaParams-->MetaBase-->type
     """
 
     # 初始化的时候类的属性
@@ -327,81 +320,56 @@ class LineRoot(metaclass=MetaLineRoot):
 
 
 class LineMultiple(LineRoot):
-    """
-    Base class for LineXXX instances that hold more than one line
-    LineMultiple-->LineRoot-->MetaLineRoot-->MetaParams-->MetaBase-->type
-    # 这个类继承自LineRoot，用于操作line多余1条的类
-    """
-
-    # 重置
     def reset(self):
-        self._stage1()
-        self.lines.reset()
+        for line in self.lines:
+            line.reset()
 
-    # 对每一条line设置为操作状态1
     def _stage1(self):
         super(LineMultiple, self)._stage1()
         for line in self.lines:
             line._stage1()
 
-    # 对每一条line设置为操作状态2
     def _stage2(self):
         super(LineMultiple, self)._stage2()
         for line in self.lines:
             line._stage2()
 
-    # # 对每一条line增加一个最小周期
     def addminperiod(self, minperiod):
         """
         The passed minperiod is fed to the lines
         """
-        # pass it down to the lines
         for line in self.lines:
             line.addminperiod(minperiod)
 
-    # 对每一条line增加最小周期，但是这个在LineRoot里面好没有实施
     def incminperiod(self, minperiod):
         """
         The passed minperiod is fed to the lines
         """
-        # pass it down to the lines
         for line in self.lines:
             line.incminperiod(minperiod)
 
-    # 多条line操作的时候是对第一条line进行操作
     def _makeoperation(self, other, operation, r=False, _ownerskip=None):
-        return self.lines[0]._makeoperation(other, operation, r, _ownerskip)
+        raise NotImplementedError
 
-    # 多条line操作的时候是对第一条line的自身进行操作
     def _makeoperationown(self, operation, _ownerskip=None):
-        return self.lines[0]._makeoperationown(operation, _ownerskip)
+        raise NotImplementedError
 
-    # 对多条line设置qbuffer
     def qbuffer(self, savemem=0):
         for line in self.lines:
-            line.qbuffer(savemem=1)
+            line.qbuffer(savemem=savemem)
 
-    # 对多条line设置最小的缓存量
     def minbuffer(self, size):
         for line in self.lines:
             line.minbuffer(size)
 
 
 class LineSingle(LineRoot):
-    """
-    Base class for LineXXX instances that hold a single line
-    LineSingle-->LineRoot-->MetaLineRoot-->MetaParams-->MetaBase-->type
-    # 这个类继承自LineRoot，用于操作line是一条的类
-    """
-
-    # 增加minperiod，增加的时候需要减去初始化设置的时候self._minperiod=1的设置
     def addminperiod(self, minperiod):
         """
         Add the minperiod (substracting the overlapping 1 minimum period)
         """
         self._minperiod += minperiod - 1
 
-    # 增加minperiod,不考虑初始的self._minperiod的值
     def incminperiod(self, minperiod):
         """
         Increment the minperiod with no considerations

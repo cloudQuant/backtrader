@@ -65,6 +65,20 @@ class Indicator(IndicatorBase):
         # Register subclasses automatically  
         if not cls.aliased and cls.__name__ != "Indicator" and not cls.__name__.startswith("_"):
             IndicatorRegistry.register(cls.__name__, cls)
+            
+            # Handle aliases - register them to the indicators module
+            if hasattr(cls, 'alias') and cls.alias:
+                import sys
+                indicators_module = sys.modules.get('backtrader.indicators')
+                if indicators_module:
+                    # Set the main class name
+                    setattr(indicators_module, cls.__name__, cls)
+                    # Set all aliases - handle both tuple and list formats
+                    aliases = cls.alias
+                    if isinstance(aliases, (list, tuple)):
+                        for alias in aliases:
+                            if isinstance(alias, str):
+                                setattr(indicators_module, alias, cls)
 
         # Check if next and once have both been overridden
         next_over = cls.next != IndicatorBase.next

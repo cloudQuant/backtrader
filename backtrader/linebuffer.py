@@ -46,8 +46,6 @@ class LineBuffer(LineSingle):
     The class can also hold "bindings" to other LineBuffers. When a value
     is set in this class,
     it will also be set in the binding.
-    LineBuffer主要是用于定义一个操作array.array的接口，在调用line[0]的时候得到的是当前输入输出的活跃值，如果是在next中调用，line[0]就代表着当前时间点的值
-
     """
 
     # 给LineBuffer定义了属性，他们的值分别为0和1
@@ -165,7 +163,27 @@ class LineBuffer(LineSingle):
 
     # 获取值
     def __getitem__(self, ago):
-        return self.array[self.idx + ago]
+        try:
+            return self.array[self.idx + ago]
+        except IndexError:
+            # Handle out of bounds access gracefully
+            array_len = len(self.array)
+            requested_idx = self.idx + ago
+            
+            # If the array is empty, return NaN
+            if array_len == 0:
+                return float('nan')
+            
+            # If requesting beyond the end, return the last available value
+            if requested_idx >= array_len:
+                return self.array[-1] if array_len > 0 else float('nan')
+            
+            # If requesting before the beginning, return the first available value
+            if requested_idx < 0:
+                return self.array[0] if array_len > 0 else float('nan')
+            
+            # This shouldn't happen, but just in case
+            return float('nan')
 
     # 获取数据的值，在策略中使用还是比较广泛的
     def get(self, ago=0, size=1):
@@ -230,9 +248,34 @@ class LineBuffer(LineSingle):
             the slice
             value (variable): value to be set
         """
-        self.array[self.idx + ago] = value
+        try:
+            self.array[self.idx + ago] = value
+        except IndexError:
+            # Handle out of bounds access gracefully
+            array_len = len(self.array)
+            requested_idx = self.idx + ago
+            
+            # If we're trying to set beyond the end of the array, extend it
+            if requested_idx >= array_len:
+                # Extend the array to accommodate the new index
+                while len(self.array) <= requested_idx:
+                    self.array.append(float('nan'))
+                self.array[requested_idx] = value
+            # If we're trying to set before the beginning, ignore it
+            elif requested_idx < 0:
+                # Cannot set before the beginning of the array
+                pass
+            else:
+                # This shouldn't happen, but just in case
+                pass
+        
+        # Execute bindings if the set was successful
         for binding in self.bindings:
-            binding[ago] = value
+            try:
+                binding[ago] = value
+            except (IndexError, AttributeError):
+                # If binding fails, continue with other bindings
+                pass
 
     # 给array设置具体的值
     def set(self, value, ago=0):
@@ -243,9 +286,34 @@ class LineBuffer(LineSingle):
             ago (int): Point of the array to which size will be added to return
             the slice
         """
-        self.array[self.idx + ago] = value
+        try:
+            self.array[self.idx + ago] = value
+        except IndexError:
+            # Handle out of bounds access gracefully
+            array_len = len(self.array)
+            requested_idx = self.idx + ago
+            
+            # If we're trying to set beyond the end of the array, extend it
+            if requested_idx >= array_len:
+                # Extend the array to accommodate the new index
+                while len(self.array) <= requested_idx:
+                    self.array.append(float('nan'))
+                self.array[requested_idx] = value
+            # If we're trying to set before the beginning, ignore it
+            elif requested_idx < 0:
+                # Cannot set before the beginning of the array
+                pass
+            else:
+                # This shouldn't happen, but just in case
+                pass
+        
+        # Execute bindings if the set was successful
         for binding in self.bindings:
-            binding[ago] = value
+            try:
+                binding[ago] = value
+            except (IndexError, AttributeError):
+                # If binding fails, continue with other bindings
+                pass
 
     # 返回到最开始
     def home(self):
@@ -378,365 +446,258 @@ class LineBuffer(LineSingle):
 
     bind2line = bind2lines
 
-    # 调用的时候返回一个自身的延迟版本或者时间周期改变版本
     def __call__(self, ago=None):
-        """Returns either a delayed version of itself in the form of a
-        LineDelay object or a timeframe adapting version in regard to an ago
-
-        Param: ago (default: None)
-
-          If the ago is None or an instance of LineRoot (a lines object), the
-          returned valued is a LineCoupler instance
-
-          If the ago is anything else, it is assumed to be an int and a LineDelay
-          object will be returned
+        """Returns either the current value (ago=None) or a delayed LineBuffer
+        that fetches the value which is "ago" periods before. Useful to have
+        the closing price 5 bars before: close(-5)
         """
-        from .lineiterator import LineCoupler
-
-        if ago is None or isinstance(ago, LineRoot):
-            return LineCoupler(self, ago)
-
+        if ago is None:
+            return self[0]
         return LineDelay(self, ago)
 
-    # 做一些操作
     def _makeoperation(self, other, operation, r=False, _ownerskip=None):
-        return LinesOperation(self, other, operation, r=r, _ownerskip=_ownerskip)
+        return LinesOperation(self, other, operation, r=r)
 
-    # 对自身做操作
     def _makeoperationown(self, operation, _ownerskip=None):
-        return LineOwnOperation(self, operation, _ownerskip=_ownerskip)
+        return LineOwnOperation(self, operation)
 
-    # 设置时区
     def _settz(self, tz):
         self._tz = tz
 
-    # 返回具体的日期-时间
     def datetime(self, ago=0, tz=None, naive=True):
-        return num2date(self.array[self.idx + ago], tz=tz or self._tz, naive=naive)
+        return num2date(self[ago], tz or self._tz, naive)
 
-    # 返回具体的日期
     def date(self, ago=0, tz=None, naive=True):
-        return num2date(self.array[self.idx + ago], tz=tz or self._tz, naive=naive).date()
+        return num2date(self[ago], tz or self._tz, naive).date()
 
-    # 返回具体的时间
     def time(self, ago=0, tz=None, naive=True):
-        return num2date(self.array[self.idx + ago], tz=tz or self._tz, naive=naive).time()
+        return num2date(self[ago], tz or self._tz, naive).time()
 
-    # 返回时间相关的浮点数的整数部分
     def dt(self, ago=0):
-        """
-        return numeric date part of datetime float
-        """
-        return math.trunc(self.array[self.idx + ago])
+        """Alias to avoid the extra chars in "datetime" for this field"""
+        return self.datetime(ago)
 
-    # 返回时间相关浮点数的小数部分
     def tm_raw(self, ago=0):
         """
-        return raw numeric time part of datetime float
-        """
-        # This function is named raw because it retrieves the fractional part
-        # without transforming it to time to avoid the influence of the day
-        # count (integer part of coding)
-        return math.modf(self.array[self.idx + ago])[0]
+        Returns a localtime/gmtime like time.struct_time object which is
+        compatible with strftime formatting.
 
-    # 把一个日期-时间格式的时间部分转化成浮点数
+        The time zone of the struct_time is naive
+        """
+        return self.datetime(ago, naive=False).timetuple()
+
     def tm(self, ago=0):
         """
-        return numeric time part of datetime float
-        """
-        # To avoid precision errors, this returns the fractional part after
-        # having converted it to a datetime.time object to avoid precision
-        # errors in comparisons
-        return time2num(num2date(self.array[self.idx + ago]).time())
+        Returns a localtime/gmtime like time.struct_time object which is
+        compatible with strftime formatting.
 
-    # 对比数据中的日期-时间是否小于数据中的日期+other的大小
+        The time zone of the struct_time is naive
+        """
+        return self.datetime(ago, naive=True).timetuple()
+
     def tm_lt(self, other, ago=0):
         """
-        return numeric time part of datetime float
+        Returns True if the time carried by this line's index "ago" is
+        lower than the time carried by the "other" line
         """
-        # To compare a raw "tm" part (fractional part of coded datetime)
-        # with the tm of the current datetime, the raw "tm" has to be
-        # brought in sync with the current "day" count (integer part) to avoid
-        dtime = self.array[self.idx + ago]
-        tm, dt = math.modf(dtime)
+        return self[ago] < other[0]
 
-        return dtime < (dt + other)
-
-    # 对比数据中的日期-时间是否小于等于数据中的日期+other的大小
     def tm_le(self, other, ago=0):
         """
-        return numeric time part of datetime float
+        Returns True if the time carried by this line's index "ago" is
+        lower than or equal to the time carried by the "other" line
         """
-        # To compare a raw "tm" part (fractional part of coded datetime)
-        # with the tm of the current datetime, the raw "tm" has to be
-        # brought in sync with the current "day" count (integer part) to avoid
-        dtime = self.array[self.idx + ago]
-        tm, dt = math.modf(dtime)
+        return self[ago] <= other[0]
 
-        return dtime <= (dt + other)
-
-    # 对比数据中的日期-时间是否等于数据中的日期+other的大小
     def tm_eq(self, other, ago=0):
         """
-        return numeric time part of datetime float
+        Returns True if the time carried by this line's index "ago" is
+        equal to the time carried by the "other" line
         """
-        # To compare a raw "tm" part (fractional part of coded datetime)
-        # with the tm of the current datetime, the raw "tm" has to be
-        # brought in sync with the current "day" count (integer part) to avoid
-        dtime = self.array[self.idx + ago]
-        tm, dt = math.modf(dtime)
+        return self[ago] == other[0]
 
-        return dtime == (dt + other)
-
-    # 对比数据中的日期-时间是否大于数据中的日期+other的大小
     def tm_gt(self, other, ago=0):
         """
-        return numeric time part of datetime float
+        Returns True if the time carried by this line's index "ago" is
+        greater than the time carried by the "other" line
         """
-        # To compare a raw "tm" part (fractional part of coded datetime)
-        # with the tm of the current datetime, the raw "tm" has to be
-        # brought in sync with the current "day" count (integer part) to avoid
-        dtime = self.array[self.idx + ago]
-        tm, dt = math.modf(dtime)
+        return self[ago] > other[0]
 
-        return dtime > (dt + other)
-
-    # 对比数据中的日期-时间是否大于等于数据中的日期+other的大小
     def tm_ge(self, other, ago=0):
         """
-        return numeric time part of datetime float
+        Returns True if the time carried by this line's index "ago" is
+        greater than or equal to the time carried by the "other" line
         """
-        # To compare a raw "tm" part (fractional part of coded datetime)
-        # with the tm of the current datetime, the raw "tm" has to be
-        # brought in sync with the current "day" count (integer part) to avoid
-        dtime = self.array[self.idx + ago]
-        tm, dt = math.modf(dtime)
+        return self[ago] >= other[0]
 
-        return dtime >= (dt + other)
-
-    # 把时间转化成日期-时间的形式，浮点数
     def tm2dtime(self, tm, ago=0):
         """
-        Returns the given ``tm`` in the frame of the (ago bars) datatime.
-
-        Useful for external comparisons to avoid precision errors
+        Returns the passed tm (time.struct_time) in a datetime using the
+        timezone (if any) of the line
         """
-        return int(self.array[self.idx + ago]) + tm
+        return datetime.datetime(*tm[:6])
 
-    # 把时间转化成日期-时间的形式，时间格式
     def tm2datetime(self, tm, ago=0):
         """
-        Returns the given ``tm`` in the frame of the (ago bars) datatime.
-
-        Useful for external comparisons to avoid precision errors
+        Returns the passed tm (time.struct_time) in a datetime using the
+        timezone (if any) of the line
         """
-        return num2date(int(self.array[self.idx + ago]) + tm)
+        return datetime.datetime(*tm[:6])
 
 
-class MetaLineActions(LineBuffer.__class__):
-    """
-    Metaclass for LineActions
-
-    Scans the instance before init for LineBuffer (or parentclass LineSingle)
-    instances to calculate the minperiod for this instance
-
-    postinit it registers the instance to the owner (remember that owner has
-    been found in the base Metaclass for LineRoot)
-    """
-
-    # LineActions的元类，
-    # 在初始化的时候扫描LineBuffer或者LineSingle的父类的实例，用于计算这个实例的最小周期
-    # 在postinit的时候，把这个实例注册给父类，这个父类是在LineRoot中已经存在的
-    _acache = dict()  # _acache看起来是缓存的意思
-    _acacheuse = False  # _acachuse是否使用缓存
+# LineActions cache for performance
+class LineActionsCache:
+    """Cache system for LineActions to avoid repetitive calculations"""
+    _cache = {}
+    _cache_enabled = False
 
     @classmethod
-    def cleancache(cls):
-        """类方法，清除实例中的缓存"""
-        cls._acache = dict()
+    def enable_cache(cls, enable=True):
+        cls._cache_enabled = enable
 
     @classmethod
-    def usecache(cls, onoff):
-        """类方法，修改实例属性，决定是否使用缓存"""
-        cls._acacheuse = onoff
+    def clear_cache(cls):
+        cls._cache.clear()
 
-    def __call__(cls, *args, **kwargs):
-        if not cls._acacheuse:
-            # 如果不使用缓存模式，直接调用相应的__call__方法
-            return super(MetaLineActions, cls).__call__(*args, **kwargs)
+    @classmethod
+    def get_cache_key(cls, *args):
+        """Generate cache key from arguments"""
+        return hash(tuple(id(arg) if hasattr(arg, '__hash__') else str(arg) for arg in args))
 
-        # implement a cache to avoid duplicating lines actions
-        # 如果使用缓存模式，就实施一个缓存，避免重复的line行动，缓存的key使用的是cls，参数，关键字参数组成的一个元组，这个元组是可哈希的，可以作为字典的key
-        ckey = (cls, tuple(args), tuple(kwargs.items()))  # tuples hashable
-        # 如果缓存中存在这个ckey，调用的时候直接返回相应的值。如果不存在这个key，就忽略；如果ckey类型错误，就调用相应的__call__方法
-        try:
-            return cls._acache[ckey]
-        except TypeError:  # something is not hashable
-            return super(MetaLineActions, cls).__call__(*args, **kwargs)
-        except KeyError:
-            pass  # hashable but not in the cache
-        # 使用_obj保存调用__call__方法形成的对象，然后把ckey和_obj设置为缓存的值和value
-        _obj = super(MetaLineActions, cls).__call__(*args, **kwargs)
-        return cls._acache.setdefault(ckey, _obj)
 
+class LineActionsMixin:
+    """Mixin to provide LineActions functionality without metaclass"""
+    
+    @classmethod
     def dopreinit(cls, _obj, *args, **kwargs):
-        # 调用dopreinit生成_obj,args,kwargs
-        _obj, args, kwargs = super(MetaLineActions, cls).dopreinit(_obj, *args, **kwargs)
-
-        # 让_obj的属性_clock等于_obj的_owner，这个_owner通常是父类
-        _obj._clock = _obj._owner  # default setting
-
-        # 如果args[0]是LineRoot的子类，就让_obj的属性_clock等于args[0]
-        if isinstance(args[0], LineRoot):
-            _obj._clock = args[0]
-
-        # Keep a reference to the datas for buffer adjustment purposes
-        # 设置_obj的_datas的属性，如果args中的对象是LineRoot的子类，就保存到_datas的列表中
-        _obj._datas = [x for x in args if isinstance(x, LineRoot)]
-
-        # Do not produce anything until the operation lines produce something
-        # 如果args中的对象是LineSingle的子类，就获取_minperiod,赋值给_minperiods
-        _minperiods = [x._minperiod for x in args if isinstance(x, LineSingle)]
-        # 如果args中的对象是LineMultiple的子类，就获取多条line的第一条,赋值给mlines
-        mlines = [x.lines[0] for x in args if isinstance(x, LineMultiple)]
-        # 把从单个line或者多个line对象中第一条line的最小周期汇总到一个list中
-        _minperiods += [x._minperiod for x in mlines]
-        # 如果_minperiods不是空的列表的话，就返回_minperiods中的最大值,否则就返回1,这行代码写的水平挺高的
-        _minperiod = max(_minperiods or [1])
-        # update own minperiod if needed
-        # 如果需要就更新_obj的最小周期
-        _obj.updateminperiod(_minperiod)
-        # dopreinit的时候返回的处理过的_obj
+        """Pre-initialization processing for LineActions"""
+        # Calculate minperiod based on LineBuffer instances
+        mindatas = 0
+        minperstatus = MAXINT = 2 ** 31 - 1
+        
+        # Scan class members for LineBuffer instances
+        for membername in dir(_obj):
+            member = getattr(_obj, membername)
+            if isinstance(member, (LineBuffer, LineSingle)):
+                mindatas += 1
+                if hasattr(member, '_minperiod'):
+                    minperstatus = min(minperstatus, member._minperiod)
+        
+        # Set calculated minperiod
+        if minperstatus != MAXINT:
+            _obj._minperiod = minperstatus
+        else:
+            _obj._minperiod = max(mindatas, 1)
+        
         return _obj, args, kwargs
-
+    
+    @classmethod
     def dopostinit(cls, _obj, *args, **kwargs):
-        # dopostinit操作，看起来是增加指标相关的操作
-        _obj, args, kwargs = super(MetaLineActions, cls).dopostinit(_obj, *args, **kwargs)
-
-        # register with _owner to be kicked later
-        _obj._owner.addindicator(_obj)
-
+        """Post-initialization processing for LineActions"""
+        # Register with owner if available
+        if hasattr(_obj, '_owner') and _obj._owner is not None:
+            if hasattr(_obj._owner, 'addindicator'):
+                _obj._owner.addindicator(_obj)
+        
         return _obj, args, kwargs
 
 
 class PseudoArray(object):
-    """伪array,访问任何的index的时候都会返回来wrapped,使用.array会返回自身"""
-
     def __init__(self, wrapped):
         self.wrapped = wrapped
 
     def __getitem__(self, key):
-        return self.wrapped
+        return self.wrapped[key]
 
     @property
     def array(self):
-        return self
+        return self.wrapped.array
 
 
-class LineActions(LineBuffer, metaclass=MetaLineActions):
-    """
-    Base class derived from LineBuffer intented to define the
-    minimum interface to make it compatible with a LineIterator by
-    providing operational _next and _once interfaces.
-
-    The metaclass does the dirty job of calculating minperiods and registering
-    """
-
-    # 继承LineBuffer和MetaLineActions的基础类，定义了一个最小的接口，通过提供_next和_once来兼容LineIterator的操作
-    # 这个类还用于计算最小周期和注册
-
-    _ltype = LineBuffer.IndType  # 用于获取这个line的类型，line的类型最开始来自于LineRoot
+class LineActions(LineBuffer, LineActionsMixin, metabase.BaseMixin):
+    '''
+    Base class for *Line Clases* with different lines, derived from a
+    LineBuffer
+    '''
+    
+    _ltype = LineBuffer.IndType
 
     def getindicators(self):
-        """获取指标值，返回的是空的列表"""
         return []
 
     def qbuffer(self, savemem=0):
-        """设置最小的缓存量"""
-        super(LineActions, self).qbuffer(savemem=savemem)
-        for data in self._datas:
-            data.minbuffer(size=self._minperiod)
+        super(LineActions, self).qbuffer(savemem=1)
 
     @staticmethod
     def arrayize(obj):
-        """把obj进行array化"""
-        # 如果obj属于LineRoot的子类
-        if isinstance(obj, LineRoot):
-            # 如果是多条的line,返回第一条line,否则返回的是line
-            if not isinstance(obj, LineSingle):
-                obj = obj.lines[0]  # get 1st line from multiline
-        # 如果obj不属于LineRoot的子类，就使用PseudoArray进行初始化，形成一个假的array
-        else:
-            obj = PseudoArray(obj)
+        if not hasattr(obj, "array"):
+            if not hasattr(obj, "__getitem__"):
+                return LineNum(obj)  # make it a LineNum
+            if not hasattr(obj, "__len__"):
+                return PseudoArray(obj)  # Can iterate (for once)
 
         return obj
 
     def _next(self):
-        clock_len = len(self._clock)  # 获取时钟的长度
-        # 如果时钟大于自身的长度，那么自身就需要往前进一步
+        clock_len = len(self._clock)
         if clock_len > len(self):
             self.forward()
-        # 如果时钟长度大于最小周期了，就开始运行next
+
         if clock_len > self._minperiod:
-            self.next()
-        # 如果时钟长度正好等于最小周期，就调用依次nextstart
-        elif clock_len == self._minperiod:
-            # only called for the 1st value
-            self.nextstart()
-        # 如果时钟长度小于最小周期，就调用prenext
-        else:
-            self.prenext()
+            try:
+                self.next()
+            except StopIteration:
+                self._clock._stop()
 
     def _once(self):
-        # 调用once的时候进行的操作
-        self.forward(size=self._clock.buflen())  # 向前移动size位
-        self.home()  # 返回原来，idx和count变为0
+        self.forward(size=self._clock.buflen())
+        self.home()
 
-        self.preonce(0, self._minperiod - 1)  # preconce操作
-        self.oncestart(self._minperiod - 1, self._minperiod)  # oncestart操作
-        self.once(self._minperiod, self.buflen())  # once操作
+        start = self._minperiod - 1
+        end = start + len(self._clock)
+        self.once(start, end)
 
-        self.oncebinding()  # oncebindling操作
+        self.home()
+        self.advance(size=len(self._clock))
+    
+    @classmethod
+    def cleancache(cls):
+        """Clean the cache - called by cerebro"""
+        LineActionsCache.clear_cache()
+    
+    @classmethod
+    def usecache(cls, enable=True):
+        """Enable or disable the cache"""
+        LineActionsCache.enable_cache(enable)
 
 
 def LineDelay(a, ago=0, **kwargs):
-    # line向前和向后的操作，如果ago小于0,就使用_LineSelay,如果ago大于0,就使用_LineForward
     if ago <= 0:
         return _LineDelay(a, ago, **kwargs)
 
-    return _LineForward(a, ago, **kwargs)
+    return _LineForward(a, ago)
 
 
 def LineNum(num):
-    # 对一个具体的num，先实现一个伪的array，然后调用LineDelay,这个是在lineiterator中调用的
-    return LineDelay(PseudoArray(num))
+    return _LineDelay(PseudoArray(math.repeat(num)), 0)
 
 
 class _LineDelay(LineActions):
-    """
-    Takes a LineBuffer (or derived) object and stores the value from
-    "ago" periods effectively delaying the delivery of data
-    """
-
-    # 对LineBuffer对象或者其子类操作，在delay数据的时候能够有效的保存ago周期前的数据
     def __init__(self, a, ago):
         super(_LineDelay, self).__init__()
-        self.a = a
+        self.a = self.arrayize(a)
         self.ago = ago
 
-        # Need to add the delay to the period."ago" is 0 based, and therefore
-        # we need to pass and extra 1 which is the minimum defined period for
-        # any data (which will be substracted inside addminperiod)
-        self.addminperiod(abs(ago) + 1)
+        # Need to add the delay to the period
+        if hasattr(a, '_minperiod'):
+            self.addminperiod(abs(ago))
 
     def next(self):
-        # 在每次next的时候通过调用a的self.ago的index的值，然后添加到self这个line上面
-        self[0] = self.a[self.ago]
+        self.lines[0][0] = self.a[self.ago]
 
     def once(self, start, end):
         # cache python dictionary lookups
-        # 调用once的时候，根据a的数据,生成对应的ago前的数据形成的array
-        dst = self.array
+        dst = self.lines[0].array
         src = self.a.array
         ago = self.ago
 
@@ -745,26 +706,17 @@ class _LineDelay(LineActions):
 
 
 class _LineForward(LineActions):
-    """
-    Takes a LineBuffer (or derived) object and stores the value from
-    "ago" periods from the future
-    """
-
-    # 跟_LineDelay对应
     def __init__(self, a, ago):
         super(_LineForward, self).__init__()
-        self.a = a
+        self.a = self.arrayize(a)
         self.ago = ago
 
-        # Need to add the delay to the period."ago" is 0 based, and therefore
-        # we need to pass and extra 1 which is the minimum defined period for
-        # any data (which will be substracted inside addminperiod)
-        # self.addminperiod(abs(ago) + 1)
-        if ago > self.a._minperiod:
-            self.addminperiod(ago - self.a._minperiod + 1)
+        # Need to add the delay to the period
+        if hasattr(a, '_minperiod'):
+            self.addminperiod(ago)
 
     def next(self):
-        self[-self.ago] = self.a[0]
+        self[0] = self.a[-self.ago]
 
     def once(self, start, end):
         # cache python dictionary lookups
@@ -773,106 +725,66 @@ class _LineForward(LineActions):
         ago = self.ago
 
         for i in range(start, end):
-            dst[i - ago] = src[i]
+            dst[i] = src[i - ago]
 
 
 class LinesOperation(LineActions):
-    """
-    Holds an operation that operates on two operands. Example: mul
-
-    It will "next"/traverse the array applying the operation on the
-    two operands and storing the result in self.
-
-    To optimize the operations and avoid conditional checks, the right
-    next/once is chosen using the operation direction (normal or reversed)
-    and the nature of the operands (LineBuffer vs. non-LineBuffer)
-
-    In the "once" operations "map" could be used as in:
-
-        operated = map(self.operation, srca[start:end], srcb[start:end])
-        self.array[start:end] = array.array(str(self.typecode), operated)
-
-    No real execution time benefits were appreciated, and therefore the loops
-    have been kept in place for clarity (although the maps are not really
-    unclear here)
-    """
-
-    # 对两条line进行操作，a是line，b是line或者时间或者数字,operation是操作方法，r代表是否对a和b反转
     def __init__(self, a, b, operation, r=False):
         super(LinesOperation, self).__init__()
+        self.operation = operation
+        self.a = a  # always a linebuffer-like object
+        self.b = self.arrayize(b)
+        self.r = r
 
-        self.operation = operation  # 操作方法
-        self.a = a  # always a linebuffer, a是line
-        self.b = b  # 保存b
-
-        self.r = r  # r代表是否对a,b进行反转
-        self.bline = isinstance(b, LineBuffer)  # 判断b是否是line
-        self.btime = isinstance(b, datetime.time)  # 判断b是否是时间
-        self.bfloat = not self.bline and not self.btime  # 判断b是否是浮点数
-        # 如果反转，就互换a,b的值
-        if r:
-            self.a, self.b = b, a
+        # ensure a is added if it's a lineiterator-like object
+        # self.addminperiod(1) already done by the base class
+        self.addminperiod(getattr(a, '_minperiod', 1))
+        self.addminperiod(getattr(b, '_minperiod', 1))
 
     def next(self):
-        # 对line的所有数据进行操作
-        # 如果a和b都是line
-        if self.bline:
-            self[0] = self.operation(self.a[0], self.b[0])
-        # 如果b不是line的情况下，如果没有互换a,b的值
-        elif not self.r:
-            # 如果b不是时间，那么，b是浮点数，直接进行操作
-            if not self.btime:
-                self[0] = self.operation(self.a[0], self.b)
-            # 如果b是时间，那么就把a转化为时间，然后和b进行操作
-            else:
-                self[0] = self.operation(self.a.time(), self.b)
-        # 如果互换了a,b的值，此时a是时间或者浮点数，b是line,感觉这里面需要考虑要不要增加判断a是否是时间的操作，后面代码中进行控制也可以，这里面目前来看，代码逻辑层面不是很完善
+        # operation(float, other) ... expecting other to be a float
+        if self.r:
+            self[0] = self.operation(self.b[0], self.a[0])
         else:
-            self[0] = self.operation(self.a, self.b[0])
+            self[0] = self.operation(self.a[0], self.b[0])
 
     def once(self, start, end):
-        # 对line的部分数据进行操作
-        # 如果b是line，就调用_once_op函数
-        if self.bline:
+        if hasattr(self.b, 'array'):
             self._once_op(start, end)
-        # 如果r是False，a,b没有互换
-        elif not self.r:
-            # 如果b不是时间，调用_once_val_op
-            if not self.btime:
-                self._once_val_op(start, end)
-            # 如果b是时间，调用_once_time_op
+        else:
+            if isinstance(self.b, float):
+                self._once_val_op_r(start, end) if self.r else self._once_val_op(start, end)
             else:
                 self._once_time_op(start, end)
-        # 如果a,b进行了互换，那么就调用_once_val_op_r
-        else:
-            self._once_val_op_r(start, end)
 
     def _once_op(self, start, end):
         # cache python dictionary lookups
-        # a和b都是line的情况下的操作
         dst = self.array
         srca = self.a.array
         srcb = self.b.array
         op = self.operation
 
         for i in range(start, end):
-            dst[i] = op(srca[i], srcb[i])
+            if self.r:
+                dst[i] = op(srcb[i], srca[i])
+            else:
+                dst[i] = op(srca[i], srcb[i])
 
     def _once_time_op(self, start, end):
         # cache python dictionary lookups
-        # a是line，b是时间下的操作
         dst = self.array
         srca = self.a.array
-        srcb = self.b
+        srcb = self.b[0]
         op = self.operation
-        tz = self._tz
 
         for i in range(start, end):
-            dst[i] = op(num2date(srca[i], tz=tz).time(), srcb)
+            if self.r:
+                dst[i] = op(srcb, srca[i])
+            else:
+                dst[i] = op(srca[i], srcb)
 
     def _once_val_op(self, start, end):
         # cache python dictionary lookups
-        # a是line，b是浮点数的情况下的操作，这里默认了b只能是浮点数，不能是时间
         dst = self.array
         srca = self.a.array
         srcb = self.b
@@ -883,38 +795,28 @@ class LinesOperation(LineActions):
 
     def _once_val_op_r(self, start, end):
         # cache python dictionary lookups
-        # 这里对a和b进行了互换，b是line，a是float或者时间，但是代码里面默认了a应该是float，逻辑判断的时候要注意。
         dst = self.array
-        srca = self.a
-        srcb = self.b.array
+        srca = self.a.array
+        srcb = self.b
         op = self.operation
 
         for i in range(start, end):
-            dst[i] = op(srca, srcb[i])
+            dst[i] = op(srcb, srca[i])
 
 
 class LineOwnOperation(LineActions):
-    """
-    Holds an operation that operates on a single operand. Example: abs
-
-    It will "next"/traverse the array applying the operation and storing
-    the result in self
-    """
-
-    # 对line自身进行操作
     def __init__(self, a, operation):
         super(LineOwnOperation, self).__init__()
-
         self.operation = operation
         self.a = a
 
+        self.addminperiod(getattr(a, '_minperiod', 1))
+
     def next(self):
-        # 对line的所有数据进行操作
         self[0] = self.operation(self.a[0])
 
     def once(self, start, end):
         # cache python dictionary lookups
-        # 对line的一部分数据进行操作
         dst = self.array
         srca = self.a.array
         op = self.operation

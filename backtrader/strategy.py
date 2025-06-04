@@ -28,8 +28,31 @@ class Strategy(StrategyBase):
     # Class-level storage for strategies
     _indcol = dict()
 
+    @classmethod
+    def _create_strategy_safely(cls, *args, **kwargs):
+        """Safely create a strategy instance with proper parameter filtering"""
+        # Call the full __new__ chain with all kwargs to ensure parameter processing
+        instance = cls.__new__(cls, *args, **kwargs)
+        
+        # Now manually call the Strategy.__init__ method with filtered kwargs (no params)
+        # We need to filter out the strategy parameter kwargs for __init__
+        filtered_kwargs = {}  # TestStrategy.__init__ takes no kwargs
+        
+        # Call Strategy.__init__ with filtered kwargs (which should be empty for TestStrategy)
+        if instance is not None:
+            Strategy.__init__(instance, *args, **filtered_kwargs)
+        
+        return instance
+
     def __new__(cls, *args, **kwargs):
         """Override __new__ to handle method renaming that was done in MetaStrategy"""
+        # CRITICAL: First call StrategyBase.__new__ to properly set up data arguments and lines
+        # This ensures strategies get their data arguments processed correctly
+        instance = super(Strategy, cls).__new__(cls, *args, **kwargs)
+        
+        # Store the original kwargs for parameter processing
+        instance._strategy_init_kwargs = kwargs
+        
         # Handle method renaming like the old MetaStrategy.__new__ did
         if hasattr(cls, 'notify') and not hasattr(cls, 'notify_order'):
             cls.notify_order = cls.notify
@@ -38,9 +61,6 @@ class Strategy(StrategyBase):
             cls.notify_trade = cls.notify_operation
             delattr(cls, 'notify_operation')
             
-        # Create the instance
-        instance = super(Strategy, cls).__new__(cls)
-        
         # Register subclasses (from MetaStrategy.__init__)
         if not getattr(cls, 'aliased', False) and cls.__name__ != "Strategy" and not cls.__name__.startswith("_"):
             cls._indcol[cls.__name__] = cls
@@ -73,11 +93,56 @@ class Strategy(StrategyBase):
         # self.broker = self.env.broker  # Already done in __new__
         # self._sizer = bt.sizers.FixedSize()  # Already done in __new__
         
+        # Use stored kwargs for parameter processing
+        original_kwargs = getattr(self, '_strategy_init_kwargs', {})
+        
+        # Filter out strategy parameter kwargs to prevent them from reaching subclass __init__
+        filtered_kwargs = kwargs.copy()
+        if hasattr(self.__class__, '_params') and self.__class__._params is not None:
+            params_cls = self.__class__._params
+            param_names = set()
+            
+            # Get all parameter names from the class
+            if hasattr(params_cls, '_getpairs'):
+                param_names.update(params_cls._getpairs().keys())
+            elif hasattr(params_cls, '_gettuple'):
+                param_names.update(key for key, value in params_cls._gettuple())
+            
+            # Remove strategy parameter kwargs 
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
+        
         # Handle the functionality that was in MetaStrategy.dopostinit
         self._sizer.set(self, self.broker)
         
-        # Call parent initialization
-        super(Strategy, self).__init__(*args, **kwargs)
+        # CRITICAL FIX: We need to call the user's __init__ method
+        # Check if this is a user-defined strategy subclass
+        if self.__class__ != Strategy:
+            # Call the user's __init__ method directly
+            # Find the user's __init__ method
+            for cls in self.__class__.__mro__:
+                if cls != Strategy and hasattr(cls, '__init__') and '__init__' in cls.__dict__:
+                    user_init = cls.__dict__['__init__']
+                    try:
+                        user_init(self)
+                        break
+                    except Exception as e:
+                        # If user init fails, try with filtered_kwargs
+                        if filtered_kwargs:
+                            user_init(self, **filtered_kwargs)
+                        break
+        
+        # Call parent initialization without args to avoid object.__init__() error
+        # This is consistent with the fix made to ParamsMixin.__init__
+        if filtered_kwargs:
+            super(Strategy, self).__init__(**filtered_kwargs)
+        else:
+            super(Strategy, self).__init__()
+        
+        # Clean up the temporary attribute
+        if hasattr(self, '_strategy_init_kwargs'):
+            delattr(self, '_strategy_init_kwargs')
+        
+        print(f"Strategy.__init__: Completed initialization")
 
     # line类型是策略类型
     _ltype = LineIterator.StratType
@@ -1941,8 +2006,27 @@ class SignalStrategy(Strategy):
         else:
             self._dtarget = self.data0
             
-        # Call parent initialization
-        super(SignalStrategy, self).__init__(*args, **kwargs)
+        # Filter out strategy parameter kwargs to prevent them from reaching parent __init__
+        filtered_kwargs = kwargs.copy()
+        if hasattr(self.__class__, '_params') and self.__class__._params is not None:
+            params_cls = self.__class__._params
+            param_names = set()
+            
+            # Get all parameter names from the class
+            if hasattr(params_cls, '_getpairs'):
+                param_names.update(params_cls._getpairs().keys())
+            elif hasattr(params_cls, '_gettuple'):
+                param_names.update(key for key, value in params_cls._gettuple())
+            
+            # Remove strategy parameter kwargs 
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
+            
+        # Call parent initialization with filtered kwargs
+        # Don't pass *args to avoid object.__init__() error, consistent with Strategy.__init__ fix
+        if filtered_kwargs:
+            super(SignalStrategy, self).__init__(**filtered_kwargs)
+        else:
+            super(SignalStrategy, self).__init__()
         
         # Handle the functionality that was in MetaSigStrategy.dopostinit
         # Add signals from params

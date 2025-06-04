@@ -9,14 +9,19 @@ from .utils import DotDict
 
 from .lineroot import LineRoot, LineSingle
 from .linebuffer import LineActions, LineNum
-from .lineseries import LineSeries, LineSeriesMaker, MetaLineSeries
+from .lineseries import LineSeries, LineSeriesMaker
 from .dataseries import DataSeries
 from . import metabase
 
 
-class MetaLineIterator(MetaLineSeries):
-    """Metaclass for LineIterator that handles data argument processing"""
+class LineIteratorMixin:
+    """Mixin for LineIterator that handles data argument processing"""
     
+    def __init_subclass__(cls, **kwargs):
+        """Handle subclass initialization"""
+        super().__init_subclass__(**kwargs)
+        
+    @classmethod
     def donew(cls, *args, **kwargs):
         """Process data arguments and filter them before instance creation"""
         # Process data arguments before creating instance
@@ -26,22 +31,55 @@ class MetaLineIterator(MetaLineSeries):
         
         # Process args to extract data sources
         for arg in args:
-            if isinstance(arg, LineRoot):
-                datas.append(LineSeriesMaker(arg))
-            elif not mindatas:
-                break  # found not data and must not be collected
-            else:
+            # Use string-based type checking to avoid circular import issues
+            try:
+                # Check if arg is a LineRoot by checking its class hierarchy
+                arg_type_name = arg.__class__.__name__
+                arg_module_name = getattr(arg.__class__.__module__, 'name', arg.__class__.__module__)
+                
+                # Check if it's a LineRoot or similar line-based object
+                is_line_object = (
+                    hasattr(arg, 'lines') or 
+                    'LineRoot' in arg_type_name or
+                    'LineSeries' in arg_type_name or
+                    'LineBuffer' in arg_type_name or
+                    hasattr(arg, '_getlinealias') or
+                    (hasattr(arg, '__class__') and 
+                     any('line' in base.__name__.lower() for base in arg.__class__.__mro__))
+                )
+                
+                if is_line_object:
+                    datas.append(LineSeriesMaker(arg))
+                elif not mindatas:
+                    break  # found not data and must not be collected
+                else:
+                    try:
+                        datas.append(LineSeriesMaker(LineNum(arg)))
+                    except:
+                        # Not a LineNum and is not a LineSeries - bail out
+                        break
+            except:
+                # If anything fails in type checking, try to treat as numeric
+                if not mindatas:
+                    break
                 try:
                     datas.append(LineSeriesMaker(LineNum(arg)))
                 except:
-                    # Not a LineNum and is not a LineSeries - bail out
                     break
+                    
             mindatas = max(0, mindatas - 1)
             lastarg += 1
         
+        # For observers (_mindatas = 0), we should filter out all data arguments
+        # since they don't consume data like indicators do
+        if cls._mindatas == 0:
+            # Observers don't take data arguments - filter them all out
+            remaining_args = ()  # No args should be passed to observers
+        else:
+            remaining_args = args[lastarg:]
+        
         # Create the instance with filtered arguments
-        remaining_args = args[lastarg:]
-        _obj, remaining_args, kwargs = super(MetaLineIterator, cls).donew(*remaining_args, **kwargs)
+        _obj, remaining_args, kwargs = super(LineIteratorMixin, cls).donew(*remaining_args, **kwargs)
         
         # Initialize _lineiterators
         _obj._lineiterators = collections.defaultdict(list)
@@ -56,7 +94,11 @@ class MetaLineIterator(MetaLineSeries):
                 is_indicator_or_observer = ('Indicator' in class_name or 'Observer' in class_name or
                                           hasattr(_obj, '_mindatas'))
                 if is_indicator_or_observer:
-                    _obj.datas = _obj._owner.datas[0:_obj._mindatas]
+                    # Safeguard against circular references: don't use owner's datas if owner has no datas
+                    # or if this would create a circular reference
+                    if (hasattr(_obj._owner, 'datas') and _obj._owner.datas and 
+                        _obj not in _obj._owner.datas):  # Prevent circular reference
+                        _obj.datas = _obj._owner.datas[0:_obj._mindatas]
             except (AttributeError, IndexError):
                 pass
 
@@ -85,9 +127,24 @@ class MetaLineIterator(MetaLineSeries):
         # Set dnames
         _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, "_name", "")])
         
-        # Return with filtered arguments
+        # CRITICAL: Set up clock immediately for strategies
+        if is_strategy:
+            # For strategies, the first data feed should be the clock
+            if _obj.datas and _obj.datas[0] is not None:
+                _obj._clock = _obj.datas[0]
+            else:
+                _obj._clock = None
+        else:
+            # For indicators/observers, clock will be set up in dopreinit
+            _obj._clock = None
+        
+        # Store the processed arguments for __init__ to access if needed
+        _obj._processed_args = remaining_args
+        _obj._processed_kwargs = kwargs
+        
         return _obj, remaining_args, kwargs
         
+    @classmethod
     def dopreinit(cls, _obj, *args, **kwargs):
         """Handle pre-initialization setup"""
         # if no datas were found, use the _owner (to have a clock)
@@ -119,6 +176,7 @@ class MetaLineIterator(MetaLineSeries):
                     
         return _obj, args, kwargs
         
+    @classmethod
     def dopostinit(cls, _obj, *args, **kwargs):
         """Handle post-initialization setup"""
         # Calculate minperiod from lines
@@ -138,7 +196,7 @@ class MetaLineIterator(MetaLineSeries):
         return _obj, args, kwargs
 
 
-class LineIterator(LineSeries, metaclass=MetaLineIterator):
+class LineIterator(LineIteratorMixin, LineSeries):
     # _nextforce默认是False
     _nextforce = False  # force cerebro to run in next mode (runonce=False)
     # 最小的数据数目是1
@@ -164,9 +222,261 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
         plotmaster=None,
     )
 
+    IndType, StratType, ObsType = range(3)
+
+    def __new__(cls, *args, **kwargs):
+        # This replaces the metaclass functionality
+        # We need to process arguments and set up the object BEFORE any __init__ methods are called
+        
+        # CRITICAL: Handle the case where arguments get lost in the inheritance chain
+        # Store the original arguments globally so we can retrieve them if needed
+        if not hasattr(cls, '_creation_args_cache'):
+            cls._creation_args_cache = {}
+        
+        # Create a unique key for this creation attempt
+        import threading
+        thread_id = threading.get_ident()
+        cache_key = (cls.__name__, thread_id)
+        
+        # If we're a strategy and have no args but there should be args, check the cache
+        is_strategy = (hasattr(cls, '_ltype') and getattr(cls, '_ltype', None) == LineIterator.StratType) or \
+                     'Strategy' in cls.__name__ or \
+                     any('Strategy' in base.__name__ for base in cls.__mro__)
+        
+        if is_strategy and not args and cache_key in cls._creation_args_cache:
+            # Retrieve the cached arguments
+            args, kwargs = cls._creation_args_cache[cache_key]
+            print(f"Strategy detection: Retrieved cached args = {args}")
+            # Clean up the cache
+            del cls._creation_args_cache[cache_key]
+        elif is_strategy and args:
+            # Store the arguments in case they get lost
+            cls._creation_args_cache[cache_key] = (args, kwargs)
+            print(f"Strategy detection: Cached args = {args}")
+        
+        # First, let parent classes (especially ParamsMixin) set up the instance properly
+        instance = super(LineIterator, cls).__new__(cls, *args, **kwargs)
+        
+        # CRITICAL: Initialize the lines system before any __init__ methods run
+        # This is what the metaclass used to do
+        if hasattr(cls, 'lines') and hasattr(cls.lines, '__call__'):
+            # cls.lines is a Lines class, instantiate it
+            instance.lines = cls.lines()
+        else:
+            # Fallback - create a basic Lines instance
+            from .lineseries import Lines
+            instance.lines = Lines()
+        
+        # CRITICAL: Initialize line buffers for assignment
+        # The LineBuffers need to be properly sized and positioned before any assignments
+        for line in instance.lines:
+            if hasattr(line, 'extend'):
+                # Extend the line buffer to make it ready for assignments
+                line.extend(size=1)  # At least 1 position for current assignment
+        
+        # Check if this is a strategy being created
+        is_strategy = (hasattr(cls, '_ltype') and getattr(cls, '_ltype', None) == LineIterator.StratType) or \
+                     'Strategy' in cls.__name__ or \
+                     any('Strategy' in base.__name__ for base in cls.__mro__)
+        
+        # Initialize _lineiterators
+        import collections
+        instance._lineiterators = collections.defaultdict(list)
+        
+        if is_strategy:
+            # For strategies: the data feeds are passed as arguments directly from cerebro
+            # cerebro does: sargs = self.datas + list(sargs); strat = stratcls(*sargs, **skwargs)
+            
+            print(f"Strategy detection: Processing strategy {cls.__name__}")
+            print(f"Strategy detection: args = {args}")
+            
+            # Initialize datas from arguments passed by cerebro
+            datas = []
+            lastarg = 0
+            
+            # For strategies, the first N arguments are data feeds from cerebro.datas
+            for i, arg in enumerate(args):
+                print(f"Strategy detection: Checking arg {i}: {arg}")
+                print(f"Strategy detection: Arg type: {type(arg)}")
+                try:
+                    # Check if this looks like a data feed - be more specific about data feed detection
+                    has_lines = hasattr(arg, 'lines')
+                    has_getlinealias = hasattr(arg, '_getlinealias')
+                    has_datetime = hasattr(arg, 'datetime')
+                    has_name = hasattr(arg, '_name')
+                    
+                    print(f"Strategy detection: has_lines={has_lines}, has_getlinealias={has_getlinealias}, has_datetime={has_datetime}, has_name={has_name}")
+                    
+                    if has_lines and has_getlinealias and has_datetime and has_name:
+                        # This is definitely a data feed
+                        print(f"Strategy data identification: Found data feed {arg}")
+                        datas.append(arg)
+                        lastarg += 1
+                    elif has_lines and any('Data' in cls_name for cls_name in [arg.__class__.__name__] + [base.__name__ for base in arg.__class__.__mro__]):
+                        # Alternative check: looks like a data class
+                        print(f"Strategy data identification: Found data class {arg}")
+                        datas.append(arg)
+                        lastarg += 1
+                    else:
+                        # Not a data feed, stop processing
+                        print(f"Strategy data identification: Not a data feed {arg}, stopping")
+                        break
+                except Exception as e:
+                    # Not a data feed, stop processing
+                    print(f"Strategy data identification: Exception checking {arg}: {e}")
+                    import traceback
+                    traceback.print_exc()
+                    break
+            
+            instance.datas = datas
+            remaining_args = args[lastarg:]
+            print(f"Strategy setup: instance.datas = {instance.datas}")
+            print(f"Strategy setup: remaining_args = {remaining_args}")
+            
+        else:
+            # For indicators and observers: use the original logic
+            mindatas = getattr(cls, '_mindatas', 1)
+            lastarg = 0
+            datas = []
+            
+            # Process args to extract data sources
+            for arg in args:
+                # Use string-based type checking to avoid circular import issues
+                try:
+                    # Check if arg is a LineRoot by checking its class hierarchy
+                    arg_type_name = arg.__class__.__name__
+                    
+                    # Check if it's a LineRoot or similar line-based object
+                    is_line_object = (
+                        hasattr(arg, 'lines') or 
+                        'LineRoot' in arg_type_name or
+                        'LineSeries' in arg_type_name or
+                        'LineBuffer' in arg_type_name or
+                        hasattr(arg, '_getlinealias') or
+                        (hasattr(arg, '__class__') and 
+                         any('line' in base.__name__.lower() for base in arg.__class__.__mro__))
+                    )
+                    
+                    if is_line_object:
+                        from .lineseries import LineSeriesMaker
+                        datas.append(LineSeriesMaker(arg))
+                    elif not mindatas:
+                        break  # found not data and must not be collected
+                    else:
+                        try:
+                            from .lineseries import LineSeriesMaker
+                            from .linebuffer import LineNum
+                            datas.append(LineSeriesMaker(LineNum(arg)))
+                        except:
+                            # Not a LineNum and is not a LineSeries - bail out
+                            break
+                except:
+                    # If anything fails in type checking, try to treat as numeric
+                    if not mindatas:
+                        break
+                    try:
+                        from .lineseries import LineSeriesMaker
+                        from .linebuffer import LineNum
+                        datas.append(LineSeriesMaker(LineNum(arg)))
+                    except:
+                        break
+                        
+                mindatas = max(0, mindatas - 1)
+                lastarg += 1
+            
+            # For observers (_mindatas = 0), we should filter out all data arguments
+            if getattr(cls, '_mindatas', 1) == 0:
+                # Observers don't take data arguments - filter them all out
+                remaining_args = ()  # No args should be passed to observers
+            else:
+                remaining_args = args[lastarg:]
+            
+            instance.datas = datas
+
+            # If no datas have been passed to an indicator, use owner's datas
+            if not instance.datas and hasattr(instance, '_owner') and instance._owner is not None:
+                try:
+                    # Check if this is an indicator or observer by looking at class hierarchy
+                    class_name = instance.__class__.__name__
+                    is_indicator_or_observer = ('Indicator' in class_name or 'Observer' in class_name or
+                                              hasattr(instance, '_mindatas'))
+                    if is_indicator_or_observer:
+                        # Safeguard against circular references: don't use owner's datas if owner has no datas
+                        if (hasattr(instance._owner, 'datas') and instance._owner.datas and 
+                            instance not in instance._owner.datas):  # Prevent circular reference
+                            instance.datas = instance._owner.datas[0:getattr(instance, '_mindatas', 1)]
+                except (AttributeError, IndexError):
+                    pass
+
+        # Create ddatas dictionary
+        instance.ddatas = {x: None for x in instance.datas}
+
+        # Set data aliases
+        if instance.datas:
+            instance.data = data = instance.datas[0]
+            # Set line aliases for first data
+            for l, line in enumerate(data.lines):
+                linealias = data._getlinealias(l)
+                if linealias:
+                    setattr(instance, "data_%s" % linealias, line)
+                setattr(instance, "data_%d" % l, line)
+            
+            # Set aliases for all datas
+            for d, data in enumerate(instance.datas):
+                setattr(instance, "data%d" % d, data)
+                for l, line in enumerate(data.lines):
+                    linealias = data._getlinealias(l)
+                    if linealias:
+                        setattr(instance, "data%d_%s" % (d, linealias), line)
+                    setattr(instance, "data%d_%d" % (d, l), line)
+
+        # Set dnames
+        from .utils import DotDict
+        instance.dnames = DotDict([(d._name, d) for d in instance.datas if getattr(d, "_name", "")])
+        
+        # CRITICAL: Set up clock immediately for strategies
+        if is_strategy:
+            # For strategies, the first data feed should be the clock
+            if instance.datas and instance.datas[0] is not None:
+                instance._clock = instance.datas[0]
+            else:
+                instance._clock = None
+        else:
+            # For indicators/observers, clock will be set up in dopreinit
+            instance._clock = None
+        
+        # Store the processed arguments for __init__ to access if needed
+        instance._processed_args = remaining_args
+        instance._processed_kwargs = kwargs
+        
+        return instance
+
     def __init__(self, *args, **kwargs):
-        # Initialize parent class
-        super(LineIterator, self).__init__(*args, **kwargs)
+        # Since we removed the metaclass system, we need to manually call the lifecycle methods
+        # that were previously called automatically by the metaclass
+        
+        # The arguments have already been processed in __new__, so we ignore the original args/kwargs
+        # and use the processed ones if they exist
+        if hasattr(self, '_processed_args'):
+            processed_args = self._processed_args
+            processed_kwargs = self._processed_kwargs
+            # Clean up the temporary attributes
+            delattr(self, '_processed_args')
+            delattr(self, '_processed_kwargs')
+        else:
+            # Fallback in case __new__ wasn't called (shouldn't happen)
+            processed_args = args
+            processed_kwargs = kwargs
+        
+        # Now call parent initialization with NO arguments
+        # self.data and self.p should now be available to user __init__ methods
+        super(LineIterator, self).__init__()
+        
+        # Call dopreinit to set up clock and other attributes
+        self.__class__.dopreinit(self, *processed_args, **processed_kwargs)
+        
+        # Call dopostinit for final setup
+        self.__class__.dopostinit(self, *processed_args, **processed_kwargs)
 
     def _periodrecalc(self):
         # last check in case not all lineiterators were assigned to
@@ -184,24 +494,64 @@ class LineIterator(LineSeries, metaclass=MetaLineIterator):
     def _stage2(self):
         # 设置_stage2状态
         super(LineIterator, self)._stage2()
+        
+        # Recursion guard: track objects currently being processed to prevent infinite loops
+        if not hasattr(self, '_stage2_in_progress'):
+            self._stage2_in_progress = set()
+        
+        # Add this object to the processing set
+        self_id = id(self)
+        if self_id in self._stage2_in_progress:
+            # Already processing this object, avoid recursion
+            return
+        
+        self._stage2_in_progress.add(self_id)
+        
+        try:
+            for data in self.datas:
+                data_id = id(data)
+                if data_id not in self._stage2_in_progress:
+                    data._stage2()
 
-        for data in self.datas:
-            data._stage2()
-
-        for lineiterators in self._lineiterators.values():
-            for lineiterator in lineiterators:
-                lineiterator._stage2()
+            for lineiterators in self._lineiterators.values():
+                for lineiterator in lineiterators:
+                    lineiterator_id = id(lineiterator)
+                    if lineiterator_id not in self._stage2_in_progress:
+                        lineiterator._stage2()
+        finally:
+            # Remove this object from the processing set when done
+            self._stage2_in_progress.discard(self_id)
 
     def _stage1(self):
         # 设置_stage1状态
         super(LineIterator, self)._stage1()
+        
+        # Recursion guard: track objects currently being processed to prevent infinite loops
+        if not hasattr(self, '_stage1_in_progress'):
+            self._stage1_in_progress = set()
+        
+        # Add this object to the processing set
+        self_id = id(self)
+        if self_id in self._stage1_in_progress:
+            # Already processing this object, avoid recursion
+            return
+        
+        self._stage1_in_progress.add(self_id)
+        
+        try:
+            for data in self.datas:
+                data_id = id(data)
+                if data_id not in self._stage1_in_progress:
+                    data._stage1()
 
-        for data in self.datas:
-            data._stage1()
-
-        for lineiterators in self._lineiterators.values():
-            for lineiterator in lineiterators:
-                lineiterator._stage1()
+            for lineiterators in self._lineiterators.values():
+                for lineiterator in lineiterators:
+                    lineiterator_id = id(lineiterator)
+                    if lineiterator_id not in self._stage1_in_progress:
+                        lineiterator._stage1()
+        finally:
+            # Remove this object from the processing set when done
+            self._stage1_in_progress.discard(self_id)
 
     def getindicators(self):
         # 获取指标
@@ -421,15 +771,238 @@ class DataAccessor(LineIterator):
 
 
 class IndicatorBase(DataAccessor):
-    pass
+    _ltype = LineIterator.IndType
+    
+    def __init_subclass__(cls, **kwargs):
+        """Automatically patch __init__ methods of indicator subclasses to handle arguments"""
+        super().__init_subclass__(**kwargs)
+        
+        # Get the original __init__ method
+        if '__init__' in cls.__dict__:  # Only patch if this class defines its own __init__
+            original_init = cls.__init__
+            
+            def patched_init(self, *args, **kwargs):
+                """Patched __init__ that ignores arguments and calls original with no args"""
+                # Arguments have already been processed in LineIterator.__new__
+                # Call the original __init__ with no arguments
+                try:
+                    original_init(self)
+                except TypeError as e:
+                    # If original __init__ doesn't work with no args, this shouldn't happen
+                    # but handle it gracefully
+                    print(f"Warning: Failed to call {cls.__name__}.__init__() with no args: {e}")
+                    # Try calling with the original arguments as fallback
+                    original_init(self, *args, **kwargs)
+            
+            # Replace the __init__ method
+            cls.__init__ = patched_init
+    
+    def __init__(self, *args, **kwargs):
+        # For indicators, we need to filter out arguments before they reach user __init__ methods
+        # The arguments have already been processed in LineIterator.__new__, so we ignore them
+        super(IndicatorBase, self).__init__()  # Call with no arguments
+
+    @staticmethod
+    def _register_indicator_aliases():
+        """Register all indicator aliases to the indicators module"""
+        import sys
+        indicators_module = sys.modules.get('backtrader.indicators')
+        if not indicators_module:
+            return
+        
+        # Import all common indicators and register their aliases
+        try:
+            from backtrader.indicators.ema import ExponentialMovingAverage
+            setattr(indicators_module, 'EMA', ExponentialMovingAverage)
+            setattr(indicators_module, 'ExponentialMovingAverage', ExponentialMovingAverage)
+        except ImportError:
+            pass
+            
+        try:
+            from backtrader.indicators.sma import SimpleMovingAverage
+            setattr(indicators_module, 'SMA', SimpleMovingAverage)
+            setattr(indicators_module, 'SimpleMovingAverage', SimpleMovingAverage)
+        except ImportError:
+            pass
+            
+        try:
+            from backtrader.indicators.wma import WeightedMovingAverage
+            setattr(indicators_module, 'WMA', WeightedMovingAverage)
+            setattr(indicators_module, 'WeightedMovingAverage', WeightedMovingAverage)
+        except ImportError:
+            pass
+            
+        try:
+            from backtrader.indicators.hma import HullMovingAverage
+            setattr(indicators_module, 'HMA', HullMovingAverage)
+            setattr(indicators_module, 'HullMovingAverage', HullMovingAverage)
+        except ImportError:
+            pass
+            
+        try:
+            from backtrader.indicators.dema import DoubleExponentialMovingAverage
+            setattr(indicators_module, 'DEMA', DoubleExponentialMovingAverage)
+            setattr(indicators_module, 'DoubleExponentialMovingAverage', DoubleExponentialMovingAverage)
+        except ImportError:
+            pass
+            
+        try:
+            from backtrader.indicators.tema import TripleExponentialMovingAverage
+            setattr(indicators_module, 'TEMA', TripleExponentialMovingAverage)
+            setattr(indicators_module, 'TripleExponentialMovingAverage', TripleExponentialMovingAverage)
+        except ImportError:
+            pass
+            
+        try:
+            from backtrader.indicators.tsi import TrueStrengthIndicator
+            setattr(indicators_module, 'TSI', TrueStrengthIndicator)
+            setattr(indicators_module, 'TrueStrengthIndicator', TrueStrengthIndicator)
+        except ImportError:
+            pass
+            
+        # Add other common indicators as needed
+        try:
+            from backtrader.indicators.bollinger import BollingerBands
+            setattr(indicators_module, 'BBands', BollingerBands)
+            setattr(indicators_module, 'BollingerBands', BollingerBands)
+        except ImportError:
+            pass
+            
+        try:
+            from backtrader.indicators.cci import CommodityChannelIndex
+            setattr(indicators_module, 'CCI', CommodityChannelIndex)
+            setattr(indicators_module, 'CommodityChannelIndex', CommodityChannelIndex)
+        except ImportError:
+            pass
 
 
 class ObserverBase(DataAccessor):
-    pass
+    _ltype = LineIterator.ObsType
+    _mindatas = 0  # Observers don't consume data arguments like indicators do
+    
+    def __init_subclass__(cls, **kwargs):
+        """Automatically wrap __init__ methods of observer subclasses to handle extra arguments"""
+        super().__init_subclass__(**kwargs)
+        
+        # Get the original __init__ method
+        original_init = cls.__init__
+        
+        # Only wrap if this class defines its own __init__ method (not inherited)
+        if '__init__' in cls.__dict__:
+            def wrapped_init(self, *args, **kwargs):
+                """Wrapped __init__ that properly handles observer initialization"""
+                # Call the original __init__ with no arguments first
+                try:
+                    original_init(self)
+                except TypeError:
+                    # If that fails, try with the original arguments
+                    original_init(self, *args, **kwargs)
+                
+                # Find the strategy owner using metabase.findowner
+                # This is how observers are supposed to find their strategy
+                from . import metabase
+                self._owner = metabase.findowner(self, None)
+                
+                # If findowner didn't work, fallback to looking in call stack
+                if self._owner is None:
+                    import inspect
+                    frame = inspect.currentframe()
+                    try:
+                        # Look through the call stack to find a strategy
+                        while frame:
+                            frame = frame.f_back
+                            if frame is None:
+                                break
+                            frame_locals = frame.f_locals
+                            # Look for 'self' that is a strategy
+                            if 'self' in frame_locals:
+                                potential_owner = frame_locals['self']
+                                if hasattr(potential_owner, 'broker') and hasattr(potential_owner, '_addobserver'):
+                                    # This looks like a strategy
+                                    self._owner = potential_owner
+                                    break
+                    finally:
+                        del frame
+                
+                # Set up clock from strategy for timing
+                if self._owner is not None:
+                    if hasattr(self._owner, '_clock'):
+                        self._clock = self._owner._clock
+                    elif hasattr(self._owner, 'datas') and self._owner.datas:
+                        self._clock = self._owner.datas[0]
+                    else:
+                        self._clock = self._owner
+                
+                # Ensure observer has the required attributes
+                if not hasattr(self, 'datas'):
+                    self.datas = []
+                if not hasattr(self, 'ddatas'):
+                    self.ddatas = []
+                if not hasattr(self, '_lineiterators'):
+                    self._lineiterators = {
+                        LineIterator.IndType: [],
+                        LineIterator.ObsType: [],
+                        LineIterator.StratType: []
+                    }
+                if not hasattr(self, 'data'):
+                    self.data = None
+                if not hasattr(self, 'dnames'):
+                    self.dnames = []
+                
+            # Replace the __init__ method
+            cls.__init__ = wrapped_init
 
 
 class StrategyBase(DataAccessor):
-    pass
+    _ltype = LineIterator.StratType
+    
+    def __new__(cls, *args, **kwargs):
+        """Ensure strategies get proper data setup by directly calling LineIterator.__new__"""
+        # Directly call LineIterator.__new__ to bypass inheritance issues that lose arguments
+        # This ensures strategies get their data arguments properly processed
+        return LineIterator.__new__(cls, *args, **kwargs)
+    
+    def __init__(self, *args, **kwargs):
+        """Initialize strategy and fix missing data if needed"""
+        # Call parent initialization
+        super(StrategyBase, self).__init__(*args, **kwargs)
+        
+        # CRITICAL FIX: If strategies have empty datas, try to get them from cerebro
+        if not getattr(self, 'datas', None):
+            # Try to get data from the cerebro that's creating this strategy
+            import inspect
+            frame = inspect.currentframe()
+            try:
+                # Look for cerebro in the call stack
+                while frame:
+                    frame = frame.f_back
+                    if frame is None:
+                        break
+                    frame_locals = frame.f_locals
+                    # Look for cerebro or brain object
+                    if 'self' in frame_locals:
+                        potential_cerebro = frame_locals['self']
+                        if hasattr(potential_cerebro, 'datas') and hasattr(potential_cerebro, 'strategies'):
+                            # This looks like cerebro
+                            if potential_cerebro.datas:
+                                print(f"Strategy data fix: Found cerebro with {len(potential_cerebro.datas)} datas")
+                                self.datas = list(potential_cerebro.datas)
+                                self.data = self.datas[0] if self.datas else None
+                                # Set up data aliases
+                                if self.datas:
+                                    for d, data in enumerate(self.datas):
+                                        setattr(self, "data%d" % d, data)
+                                        for l, line in enumerate(data.lines):
+                                            linealias = data._getlinealias(l)
+                                            if linealias:
+                                                setattr(self, "data%d_%s" % (d, linealias), line)
+                                            setattr(self, "data%d_%d" % (d, l), line)
+                                    # Set up clock
+                                    self._clock = self.datas[0]
+                                print(f"Strategy data fix: Set up {len(self.datas)} datas and clock")
+                                break
+            finally:
+                del frame
 
 
 # Utility class to couple lines/lineiterators which may have different lengths
@@ -523,3 +1096,11 @@ def LinesCoupler(cdata, clock=None, **kwargs):
 
 # Add an alias (which seems a lot more sensible for "Single Line" lines
 LineCoupler = LinesCoupler
+
+# Initialize indicator aliases when this module is loaded
+try:
+    import sys
+    if 'backtrader.indicators' in sys.modules:
+        IndicatorBase._register_indicator_aliases()
+except:
+    pass

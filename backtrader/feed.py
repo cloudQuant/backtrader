@@ -66,10 +66,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     ]
 
     def __init__(self, *args, **kwargs):
-        # 使用现有的元类系统提供的参数对象，如果没有则创建
-        if not hasattr(self, 'p') or self.p is None:
-            self.p = self._create_params_object(**kwargs)
-        
         # 执行原来元类中dopreinit的功能
         self._init_preinit(*args, **kwargs)
         
@@ -85,39 +81,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         self._barstack = None
         self._laststatus = None
 
-    def _create_params_object(self, **kwargs):
-        """创建参数对象，确保可以通过self.p访问"""
-        class Params:
-            pass
-        
-        params_obj = Params()
-        
-        # 处理类层次结构中的所有params
-        all_params = []
-        
-        # 递归地从类层次结构中收集_params_tuple定义
-        for cls in self.__class__.__mro__:
-            if hasattr(cls, '__dict__') and '_params_tuple' in cls.__dict__:
-                cls_params = cls.__dict__['_params_tuple']
-                if isinstance(cls_params, (tuple, list)):
-                    all_params.extend(cls_params)
-        
-        # 设置参数
-        for param_tuple in all_params:
-            if isinstance(param_tuple, (tuple, list)) and len(param_tuple) >= 2:
-                param_name, param_default = param_tuple[0], param_tuple[1]
-                # 使用传入的值或默认值
-                if not hasattr(params_obj, param_name):  # 避免重复设置
-                    param_value = kwargs.get(param_name, param_default)
-                    setattr(params_obj, param_name, param_value)
-        
-        # 设置其他传入的参数
-        for key, value in kwargs.items():
-            if not hasattr(params_obj, key):
-                setattr(params_obj, key, value)
-                
-        return params_obj
-
     def _init_preinit(self, *args, **kwargs):
         """替代原来的MetaAbstractDataBase.dopreinit"""
         # Find the owner and store it
@@ -131,6 +94,10 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     def _init_postinit(self, *args, **kwargs):
         """替代原来的MetaAbstractDataBase.dopostinit"""
+        # Debug: check parameter state at the beginning
+        # print(f"_init_postinit start: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
+        # print(f"_init_postinit kwargs: {kwargs}")
+        
         # Either set by subclass or the parameter or use the dataname (ticker)
         # 重新设置_name属性，如果_name属性不是空的，就保持，如果是空的，就让它等于参数中的name的值
         self._name = self._name or getattr(self.p, 'name', '')
@@ -142,20 +109,24 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # _timeframe的值等于参数timeframe的值
         self._timeframe = getattr(self.p, 'timeframe', TimeFrame.Days)
         
-        # 开始的时间如果是datetime格式，就等于从sessionstart获取具体的时间，如果是None的话，等于最小的时间
+        # Only set sessionstart/sessionend defaults if they weren't explicitly passed
+        # 开始的时间如果是datetime格式，就等于从sessionstart获取具体的时间，如果是None的话，只在未明确传入时等于最小的时间
         sessionstart = getattr(self.p, 'sessionstart', None)
         if isinstance(sessionstart, datetime.datetime):
             self.p.sessionstart = sessionstart.time()
-        elif sessionstart is None:
+        elif sessionstart is None and 'sessionstart' not in kwargs:
             self.p.sessionstart = datetime.time.min
             
-        # 结束的时间如果是datetime格式，就等于从sessionend获取具体的时间，如果是None的话，等于23：59：59.999990
+        # 结束的时间如果是datetime格式，就等于从sessionend获取具体的时间，如果是None的话，只在未明确传入时等于23：59：59.999990
         sessionend = getattr(self.p, 'sessionend', None)
         if isinstance(sessionend, datetime.datetime):
             self.p.sessionend = sessionend.time()
-        elif sessionend is None:
+        elif sessionend is None and 'sessionend' not in kwargs:
             # remove 9 to avoid precision rounding errors
             self.p.sessionend = datetime.time(23, 59, 59, 999990)
+            
+        # Debug: check parameter state after modification
+        # print(f"_init_postinit end: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
             
         # 如果开始日期是date格式，如果没有hour的属性的话，就增加sessionstart的时间，把开始日期变成了日期+时间的格式
         fromdate = getattr(self.p, 'fromdate', None)
@@ -165,7 +136,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             if not hasattr(fromdate, "hour"):
                 self.p.fromdate = datetime.datetime.combine(fromdate, self.p.sessionstart)
                 
-        # 如果结束日期是date格式，如果没有hour的属性的话，就增加sessionend的时间，把结束日期变成了日期+时间的格式
+        # 如果结束日期是date格式，如果没有hour的属性的话，就增加sessionend的时间，把开始日期变成了日期+时间的格式
         todate = getattr(self.p, 'todate', None)
         if isinstance(todate, datetime.date):
             # push it to the end of the day, or else intraday
@@ -736,6 +707,11 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     # 增加重播过滤器
     def replay(self, **kwargs):
         self.addfilter(Replayer, **kwargs)
+
+    @classmethod
+    def _gettuple(cls):
+        """为了兼容性，提供_gettuple方法"""
+        return cls._params_tuple if hasattr(cls, '_params_tuple') else cls.params
 
 
 # DataBase类，直接继承的是抽象的DataBase

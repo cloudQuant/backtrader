@@ -18,13 +18,11 @@ from .utils.py3 import zip, string_types
 # 不算是高频率使用的函数。关于改写list()的原因可以参考这篇文章：https://blog.csdn.net/weixin_44799217/article/details/119877699
 # 查找这个函数的时候，发现backtrader几乎没有使用到。忽略就好。
 def findbases(kls, topclass):
-    # retval = list() # backtrader自带
     retval = []
     for base in kls.__bases__:
         if issubclass(base, topclass):
             retval.extend(findbases(base, topclass))
             retval.append(base)
-
     return retval
 
 
@@ -51,7 +49,7 @@ def findowner(owned, cls, startlevel=2, skip=None):
         self_ = frame.f_locals.get("self", None)
         # 如果skip和self_不一样，如果self_不是owned并且self_是cls的实例,就返回self_
         if skip is not self_:
-            if self_ is not owned and isinstance(self_, cls):
+            if self_ is not owned and cls is not None and isinstance(self_, cls):
                 return self_
 
         # '_obj' in metaclasses
@@ -59,50 +57,74 @@ def findowner(owned, cls, startlevel=2, skip=None):
         obj_ = frame.f_locals.get("_obj", None)
         # 如果obj_不是skip，并且obj_不是owned，并且obj_是class的实例，返回obj_
         if skip is not obj_:
-            if obj_ is not owned and isinstance(obj_, cls):
+            if obj_ is not owned and cls is not None and isinstance(obj_, cls):
                 return obj_
     # 前两种情况都不是的话，返回None
     return None
 
 
-# 这是一个看起来更加复杂的使用元编程的技巧,MetaParams是其子类，很多地方都在使用，为了能够搞懂MetaParams，需要对这个类有足够的了解.
-# csdn上有一篇文章讲解backtrader元类的，可以借鉴一下：https://blog.csdn.net/h00cker/article/details/121523010
-# MetaBase作为一个创建元类的类，开始的时候首先调用的是__call__()的函数，在这个函数下，依次对cls进行doprenew,donew,dopreinit,doinit,dopostinit
-# 这几个方法的处理，然后返回创建好的类。为了更好的理解MetaBase,需要结合MetaParams一块，先移步到这个类上。
-# 从MetaParams上来看，这个子类主要是重写了__new__和donew这两个，在调用的时候，看起来是先调用__new__，然后调用donew,依次看这两个
-class MetaBase(type):
+class ObjectFactory:
+    """Factory class to replace MetaBase functionality"""
+    
+    @staticmethod
+    def create(cls, *args, **kwargs):
+        """Create an object with the old metaclass-style lifecycle hooks"""
+        # Pre-new processing
+        if hasattr(cls, 'doprenew'):
+            cls, args, kwargs = cls.doprenew(*args, **kwargs)
+        
+        # Object creation
+        if hasattr(cls, 'donew'):
+            _obj, args, kwargs = cls.donew(*args, **kwargs)
+        else:
+            _obj = cls.__new__(cls)
+        
+        # Pre-init processing
+        if hasattr(cls, 'dopreinit'):
+            _obj, args, kwargs = cls.dopreinit(_obj, *args, **kwargs)
+        
+        # Main initialization
+        if hasattr(cls, 'doinit'):
+            _obj, args, kwargs = cls.doinit(_obj, *args, **kwargs)
+        else:
+            _obj.__init__(*args, **kwargs)
+        
+        # Post-init processing
+        if hasattr(cls, 'dopostinit'):
+            _obj, args, kwargs = cls.dopostinit(_obj, *args, **kwargs)
+        
+        return _obj
+
+
+class BaseMixin:
+    """Mixin to provide factory-based object creation without metaclass"""
+    
+    @classmethod
     def doprenew(cls, *args, **kwargs):
         return cls, args, kwargs
 
+    @classmethod
     def donew(cls, *args, **kwargs):
-        # print("metabase donew")
-        _obj = cls.__new__(cls, *args, **kwargs)
+        _obj = cls.__new__(cls)
         return _obj, args, kwargs
 
+    @classmethod
     def dopreinit(cls, _obj, *args, **kwargs):
         return _obj, args, kwargs
 
+    @classmethod
     def doinit(cls, _obj, *args, **kwargs):
         _obj.__init__(*args, **kwargs)
         return _obj, args, kwargs
 
+    @classmethod
     def dopostinit(cls, _obj, *args, **kwargs):
         return _obj, args, kwargs
 
-    def __call__(cls, *args, **kwargs):
-        # print("__call__")
-        # print(cls,args,kwargs)
-        # 具体的参数值如下：
-        # <class 'backtrader.order.BuyOrder'> () {'owner': <__main__.DirectStrategy object at 0x7f8079016760>,
-        # 'data': <backtrader.feeds.pandafeed.PandasDirectData object at 0x7f807953eee0>, 'size': 1, 'price': None,
-        # 'pricelimit': None, 'exectype': None, 'valid': None, 'tradeid': 0, 'trailamount': None, 'trailpercent': None,
-        # 'parent': None, 'transmit': True, 'histnotify': False}
-        cls, args, kwargs = cls.doprenew(*args, **kwargs)
-        _obj, args, kwargs = cls.donew(*args, **kwargs)
-        _obj, args, kwargs = cls.dopreinit(_obj, *args, **kwargs)
-        _obj, args, kwargs = cls.doinit(_obj, *args, **kwargs)
-        _obj, args, kwargs = cls.dopostinit(_obj, *args, **kwargs)
-        return _obj
+    @classmethod
+    def create(cls, *args, **kwargs):
+        """Factory method to create instances"""
+        return ObjectFactory.create(cls, *args, **kwargs)
 
 
 class AutoInfoClass(object):
@@ -254,144 +276,263 @@ class AutoInfoClass(object):
         return obj
 
 
-class MetaParams(MetaBase):
-    # print("begin--------------------------------")
-    def __new__(meta, name, bases, dct):
-        # name,bases的值大概是这样：name: AroonUpDown bases: (<class 'backtrader.indicators.aroon.AroonUp'>, <class 'backtrader.indicators.aroon.AroonDown'>)
-        # print(1,"metaprams","__new__","meta:",meta, "name:",name, "bases:",bases, "dct:",dct)
-        # print(1,"metaprams","__new__")
-        # Remove params from class definition to avoid inheritance
-        # (and hence "repetition")
-        # 测试一下dct字典中有没有保存这三个key,经过测试，表明params、packages、frompackages这几个key是可能存在的，
-        # if "params" in dct:
-        #     print("dct has params","meta:",meta, "name:",name, "bases:",bases, "dct:",dct)
-        # if 'packages' in dct:
-        #     print("dct has 'packages'","meta:",meta, "name:",name, "bases:",bases, "dct:",dct)
-        # if 'frompackages' in dct:
-        #     print("dct has 'frompackages'","meta:",meta, "name:",name, "bases:",bases, "dct:",dct)
-        # if len(bases)>1:
-        #     print("bases",bases)
-        #     print(1,"metaprams","__new__","meta:",meta, "name:",name, "bases:",bases, "dct:",dct)
-        # 如果dct字典中有params这个key，就删除，并保存到newparams中
-        newparams = dct.pop("params", ())
-        # 如果存在packages这个key，就删除，然后保存到newpackages中，值类似于这样：'packages': (('pandas', 'pd'), ('statsmodels.api', 'sm'))
-        packs = "packages"
-        newpackages = tuple(dct.pop(packs, ()))  # remove before creation
-        # 如果存在frompackages这个key,就删除，然后保存到fnewpackages中，类似于这样的值： (('numpy', ('asarray', 'log10', 'polyfit', 'sqrt', 'std', 'subtract')),)
-        fpacks = "frompackages"
-        fnewpackages = tuple(dct.pop(fpacks, ()))  # remove before creation
-
-        # Create the new class - this pulls predefined "params"
-        # 创建一个新的类,这个new并没有调用MetaBase类的donew
-        cls = super(MetaParams, meta).__new__(meta, name, bases, dct)
-
-        # Pulls the param class out of it - default is the empty class
-        # 获取cls的params属性，由于前面已经从dct中删除了，基本上params的值就等于AutoInfoClass
-        params = getattr(cls, "params", AutoInfoClass)
-
-        # Pulls the packages class out of it - default is the empty class
-        # 这两句返回的是空的元组,这两句写的有失水准，getattr本身获取的应该就是空的元组，又用了一个tuple函数去初始化，浪费了计算资源。尝试改为不用tuple的
-        packages = tuple(getattr(cls, packs, ()))  # backtrader自带
-        fpackages = tuple(getattr(cls, fpacks, ()))  # backtrader自带
-        # packages = getattr(cls, packs, ())
-        # fpackages = getattr(cls, fpacks, ())
-
-        # get extra (to the right) base classes which have a param attribute
-        # 从bases类中获取相应的params的值
-        morebasesparams = [x.params for x in bases[1:] if hasattr(x, "params")]
-
-        # Get extra packages, add them to the packages and put all in the class
-        # 从bases类中获取packages,然后添加到packages中，这里面似乎不需要循环所有的每个元组了，考虑修改代码如下：
-        for y in [x.packages for x in bases[1:] if hasattr(x, packs)]:
-            packages += tuple(y)  # backtrader自带
-        for y in [x.frompackages for x in bases[1:] if hasattr(x, fpacks)]:
-            fpackages += tuple(y)  # backtrader自带
-        # for x in [x for x in bases[1:] if hasattr(x, packs)]:
-        #     packages += x.packages
-        # for x in [x for x in bases[1:] if hasattr(x, fpacks)]:
-        #     fpackages += x.frompackages
-        # 设置packages和frompackages的属性值
-        cls.packages = packages + newpackages
-        cls.frompackages = fpackages + fnewpackages
-        # AutoInfoClass._derive设置类的参数
-        # Subclass and store the newly derived params class
-        cls.params = params._derive(name, newparams, morebasesparams)
-        # if len(cls.packages)>0:
-        #     print(cls.packages)
-
-        return cls
-
-    def donew(cls, *args, **kwargs):
-        # print(2,"metaprams","donew",cls)
-        # cls.__module__返回cls定义所在的文件
-        # sys.modules返回本地的module
-        # clsmod用于返回具体的类，比如，如果cls是bt.Cerebro(),clsmod的结果是：
-        # <module 'backtrader.cerebro' from '/home/yun/anaconda3/lib/python3.8/site-packages/backtrader/cerebro.py'>
+class ParameterManager:
+    """Manager for handling parameter operations without metaclass"""
+    
+    @staticmethod
+    def setup_class_params(cls, params=(), packages=(), frompackages=()):
+        """Setup parameters for a class"""
+        # Remove params from class definition if present
+        newparams = OrderedDict(params) if params else OrderedDict()
+        
+        # Handle base class parameters
+        morebasesparams = []
+        for base in cls.__bases__:
+            if hasattr(base, '_params'):
+                morebasesparams.append(base._params)
+        
+        # Create derived parameters - ensure we always create a parameter class
+        if newparams or morebasesparams or not hasattr(cls, '_params'):
+            cls._params = ParameterManager._derive_params('params', newparams, morebasesparams)
+        
+        # Handle packages
+        if packages or frompackages:
+            ParameterManager._handle_packages(cls, packages, frompackages)
+    
+    @staticmethod
+    def _derive_params(name, params, otherbases):
+        """Derive parameter class"""
+        # Create a simple parameter class
+        class_name = f"Params_{name}"
+        
+        # Collect all parameters
+        all_params = OrderedDict()
+        for base in otherbases:
+            if hasattr(base, '_getpairs'):
+                all_params.update(base._getpairs())
+        
+        # Handle params - could be tuple or dict-like
+        if isinstance(params, (tuple, list)):
+            # Convert tuple to dict
+            for item in params:
+                if isinstance(item, (tuple, list)) and len(item) == 2:
+                    key, value = item
+                    all_params[key] = value
+                elif isinstance(item, string_types):
+                    # Just a key with None value
+                    all_params[item] = None
+        elif hasattr(params, 'items'):
+            # Dict-like object
+            all_params.update(params)
+        
+        # Create new parameter class with all necessary methods
+        # Use a custom class that ensures _gettuple is always available
+        class ParamClass(AutoInfoClass):
+            @classmethod
+            def _getpairs(cls):
+                return all_params.copy()
+            
+            @classmethod
+            def _gettuple(cls):
+                return tuple(all_params.items())
+        
+        ParamClass.__name__ = class_name
+        return ParamClass
+    
+    @staticmethod
+    def _handle_packages(cls, packages, frompackages):
+        """Handle package imports"""
+        cls.packages = packages
+        cls.frompackages = frompackages
+        
         clsmod = sys.modules[cls.__module__]
-        # import specified packages
-        # 循环packages的路径,尝试了cerebro和strategy，发现这两个cls.packages都是空元组，如果空元组，很多操作就没有了，如果有具体的packages,就进入下面的循环
-        # 使用下面的几行代码测试了一下，发现cls.packages和cls.frompackages这两个都是空元组，没有什么用处，所以这下面的一些代码可能是多余的,至少在一个普通策略中是多余的
-        # if len(cls.packages)>0 or len(cls.frompackages)>0:
-        #     print(cls.__name__)
-        #     print(cls.packages)
-        #     print(cls.frompackages)
-        for p in cls.packages:
-            # 如果p是元组或者列表,就拆分这个列表或者元组,否则就让palias等于p，比如(('pandas', 'pd'), ('statsmodels.api', 'sm'))，或者这样的值：('collections', 'math')
-            if isinstance(p, (tuple, list)):
-                p, palias = p
+        
+        for package in packages:
+            if isinstance(package, (tuple, list)):
+                package, alias = package
             else:
-                palias = p
-            # 动态加载包，p是具体需要加载的包
-            pmod = __import__(p)
-            # 看下这个包调用的层数,比如backtrader就是调用了一层，backtrader.date2num就是调用了两层，用len(plevels)判断
-            plevels = p.split(".")
-            # 英文注释部分是一个举例
-            if p == palias and len(plevels) > 1:  # 'os.path' not aliased
-                setattr(clsmod, pmod.__name__, pmod)  # set 'os' in module
-
-            else:  # aliased and/or dots
-                for plevel in plevels[1:]:  # recurse down the mod
-                    pmod = getattr(pmod, plevel)
-
-                setattr(clsmod, palias, pmod)
-
-        # import from specified packages - the 2nd part is a string or iterable
-        for p, frompackage in cls.frompackages:
+                alias = package
+            
+            try:
+                pmod = __import__(package)
+                for part in package.split('.')[1:]:
+                    pmod = getattr(pmod, part)
+                setattr(clsmod, alias, pmod)
+            except ImportError:
+                pass
+        
+        for packageitems in frompackages:
+            if len(packageitems) != 2:
+                continue
+            package, frompackage = packageitems
+            
             if isinstance(frompackage, string_types):
-                frompackage = (frompackage,)  # make it a tuple
-
-            for fp in frompackage:
-                if isinstance(fp, (tuple, list)):
-                    fp, falias = fp
+                frompackage = (frompackage,)
+            
+            for fromitem in frompackage:
+                if isinstance(fromitem, (tuple, list)):
+                    fromitem, alias = fromitem
                 else:
-                    fp, falias = fp, fp  # assumed is string
-
-                # complain "not string" without fp (unicode vs bytes)
-                pmod = __import__(p, fromlist=[str(fp)])
-                pattr = getattr(pmod, fp)
-                setattr(clsmod, falias, pattr)
-                for basecls in cls.__bases__:
-                    setattr(sys.modules[basecls.__module__], falias, pattr)
-        # 下面是用于给cls设定具体的参数，后续比较方便使用cls.p或者cls.params调用具体的参数
-        # Create params and set the values from the kwargs
-        params = cls.params()
-        # print("params",cls.params,cls.params())
-        # params的值类似于这样： <backtrader.metabase.AutoInfoClass_OrderBase_Order_SellOrder object at 0x7f2fc14dc7f0>
-        for pname, pdef in cls.params._getitems():
-            setattr(params, pname, kwargs.pop(pname, pdef))
-
-        # Create the object and set the params in place
-        # 创建类，然后赋予params、p属性值
-        _obj, args, kwargs = super(MetaParams, cls).donew(*args, **kwargs)
-        _obj.params = params
-        _obj.p = params  # shorter alias
-
-        # Parameter values have now been set before __init__
-        return _obj, args, kwargs
+                    alias = fromitem
+                
+                try:
+                    pmod = __import__(package, fromlist=[fromitem])
+                    pattr = getattr(pmod, fromitem)
+                    setattr(clsmod, alias, pattr)
+                except (ImportError, AttributeError):
+                    pass
 
 
-class ParamsBase(metaclass=MetaParams):
-    pass  # stub to allow easy subclassing without metaclasses
+class ParamsMixin(BaseMixin):
+    """Mixin to provide parameter functionality without metaclass"""
+    
+    def __init_subclass__(cls, **kwargs):
+        """Called when a class is subclassed - replaces metaclass functionality"""
+        super().__init_subclass__(**kwargs)
+        
+        # Get params from the class __dict__ to avoid getting the property
+        cls_params = cls.__dict__.get('params', ())
+        cls_frompackages = cls.__dict__.get('frompackages', ())
+        cls_packages = cls.__dict__.get('packages', ())
+        
+        # Use ParameterManager to set up parameters
+        ParameterManager.setup_class_params(
+            cls, 
+            params=cls_params,
+            packages=cls_packages, 
+            frompackages=cls_frompackages
+        )
+        
+        # Handle plotinfo and other info attributes (like the old metaclass system)
+        info_attributes = ['plotinfo', 'plotlines', 'plotinfoargs']
+        for info_attr in info_attributes:
+            if info_attr in cls.__dict__:
+                info_dict = cls.__dict__[info_attr]
+                if isinstance(info_dict, dict):
+                    # Convert dictionary to attribute-accessible object
+                    info_obj = type(f'{info_attr}_obj', (), info_dict)()
+                    setattr(cls, info_attr, info_obj)
+        
+        # Ensure the class has a params attribute that can handle _gettuple calls
+        if hasattr(cls, '_params'):
+            # If _params is not a proper parameter class, make it one
+            if isinstance(cls._params, (tuple, list)) or not hasattr(cls._params, '_gettuple'):
+                # Create a wrapper that provides _gettuple functionality
+                class ParamsWrapper:
+                    def __init__(self, data):
+                        if isinstance(data, (tuple, list)):
+                            self.data = data
+                        elif hasattr(data, '_gettuple'):
+                            self.data = data._gettuple()
+                        else:
+                            self.data = ()
+                    
+                    def _gettuple(self):
+                        return self.data if isinstance(self.data, tuple) else tuple(self.data)
+                
+                cls._params = ParamsWrapper(cls._params)
+            
+            # Set class-level params attribute for compatibility
+            cls.params = cls._params
+    
+    def __new__(cls, *args, **kwargs):
+        """Create instance and set up parameters before __init__ is called"""
+        # Create the instance first
+        instance = super().__new__(cls)
+        
+        # Set up parameters for this instance
+        if hasattr(cls, '_params') and cls._params is not None:
+            params_cls = cls._params
+            param_names = set()
+            
+            # Get all parameter names from the class
+            if hasattr(params_cls, '_getpairs'):
+                param_names.update(params_cls._getpairs().keys())
+            elif hasattr(params_cls, '_gettuple'):
+                param_names.update(key for key, value in params_cls._gettuple())
+            
+            # Separate parameter and non-parameter kwargs
+            param_kwargs = {}
+            for key, value in kwargs.items():
+                if key in param_names:
+                    param_kwargs[key] = value
+                    
+            # Create parameter instance
+            try:
+                instance._params_instance = params_cls()
+            except:
+                # If instantiation fails, create a simple object
+                instance._params_instance = type('ParamsInstance', (), {})()
+                
+            # Set all parameter values - first defaults, then custom values
+            if hasattr(params_cls, '_getpairs'):
+                for key, value in params_cls._getpairs().items():
+                    # Use custom value if provided, otherwise use default
+                    final_value = param_kwargs.get(key, value)
+                    setattr(instance._params_instance, key, final_value)
+            elif hasattr(params_cls, '_gettuple'):
+                for key, value in params_cls._gettuple():
+                    # Use custom value if provided, otherwise use default
+                    final_value = param_kwargs.get(key, value)
+                    setattr(instance._params_instance, key, final_value)
+        else:
+            # No parameters defined, create empty parameter instance  
+            instance._params_instance = type('ParamsInstance', (), {})()
+            
+        return instance
+
+    def __init__(self, *args, **kwargs):
+        """Initialize with only non-parameter kwargs"""
+        # Filter out parameter kwargs before calling super().__init__
+        if hasattr(self.__class__, '_params') and self.__class__._params is not None:
+            params_cls = self.__class__._params
+            param_names = set()
+            
+            # Get all parameter names from the class
+            if hasattr(params_cls, '_getpairs'):
+                param_names.update(params_cls._getpairs().keys())
+            elif hasattr(params_cls, '_gettuple'):
+                param_names.update(key for key, value in params_cls._gettuple())
+            
+            # Filter kwargs to remove parameter kwargs
+            filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
+            
+            # Call super().__init__ without args to avoid object.__init__() error
+            # Only pass kwargs to prevent "object.__init__() takes exactly one argument" error
+            if filtered_kwargs:
+                super().__init__(**filtered_kwargs)
+            else:
+                super().__init__()
+        else:
+            # No parameters, but still avoid passing args to object.__init__
+            if kwargs:
+                super().__init__(**kwargs)
+            else:
+                super().__init__()
+    
+    @property
+    def params(self):
+        """Instance-level params property for backward compatibility"""
+        return getattr(self, '_params_instance', None)
+    
+    @params.setter
+    def params(self, value):
+        """Allow setting params instance"""
+        self._params_instance = value
+    
+    @property 
+    def p(self):
+        """Provide p property for backward compatibility"""
+        return getattr(self, '_params_instance', None)
+    
+    @p.setter
+    def p(self, value):
+        """Allow setting p instance"""
+        self._params_instance = value
+
+
+# For backward compatibility, keep the old class names as aliases
+ParamsBase = ParamsMixin
 
 
 # 设置了一个新的类，这个类可以通过index或者name直接获取相应的值
@@ -404,33 +545,41 @@ class ItemCollection(object):
     """
 
     def __init__(self):
-        self._items = list()
-        self._names = list()
+        self.items = list()
 
     # 长度
     def __len__(self):
-        return len(self._items)
+        return len(self.items)
 
     # 添加数据
     def append(self, item, name=None):
-        setattr(self, name, item)
-        self._items.append(item)
-        if name:
-            self._names.append(name)
+        setattr(self, name or item.__name__, item)
+        self.items.append(item)
 
     # 根据index返回值
     def __getitem__(self, key):
-        return self._items[key]
+        return self.items[key]
 
     # 获取全部的名字
     def getnames(self):
-        return self._names
+        return [x.__name__ for x in self.items]
 
     # 获取相应的name和value这样一对一对的值
     def getitems(self):
-        return zip(self._names, self._items)
+        return self.items
 
     # 根据名字获取value
     def getbyname(self, name):
-        idx = self._names.index(name)
-        return self._items[idx]
+        return getattr(self, name)
+
+
+def _initialize_indicator_aliases():
+    """Initialize indicator aliases when the module is loaded"""
+    try:
+        from .lineiterator import IndicatorBase
+        IndicatorBase._register_indicator_aliases()
+    except ImportError:
+        pass
+
+# Call the initialization function when module is loaded
+_initialize_indicator_aliases()

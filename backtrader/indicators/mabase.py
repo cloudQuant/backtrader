@@ -74,3 +74,70 @@ class MovingAverageBase(Indicator):
 
 
 SMA = MovingAverage
+
+
+# Direct registration of common moving averages to fix import issues  
+# This is a temporary fix until the __init_subclass__ registration works properly
+def _register_common_moving_averages():
+    """Directly register common moving averages"""
+    # We need to import and register manually since __init_subclass__ isn't working
+    import sys
+    
+    # Create placeholder attributes
+    class EMAPlaceholder:
+        pass
+    
+    class SMAPlaceholder:  
+        pass
+        
+    class WMAPlaceholder:
+        pass
+        
+    class HMAPlaceholder:
+        pass
+    
+    # Set the placeholders - these will be replaced when actual classes are imported
+    MovAv.EMA = EMAPlaceholder
+    MovAv.SMA = SMAPlaceholder
+    MovAv.WMA = WMAPlaceholder
+    MovAv.HMA = HMAPlaceholder
+    
+    # Try to replace with actual classes if they exist
+    try:
+        from . import ema
+        if hasattr(ema, 'ExponentialMovingAverage'):
+            MovAv.EMA = ema.ExponentialMovingAverage
+            MovAv.ExponentialMovingAverage = ema.ExponentialMovingAverage
+            MovingAverage.register(ema.ExponentialMovingAverage)
+    except ImportError:
+        pass
+    
+    try:
+        from . import sma
+        if hasattr(sma, 'SimpleMovingAverage'):
+            MovAv.SMA = sma.SimpleMovingAverage
+            MovAv.SimpleMovingAverage = sma.SimpleMovingAverage
+            MovingAverage.register(sma.SimpleMovingAverage)
+    except ImportError:
+        pass
+    
+    try:
+        from . import wma  
+        if hasattr(wma, 'WeightedMovingAverage'):
+            MovAv.WMA = wma.WeightedMovingAverage
+            MovAv.WeightedMovingAverage = wma.WeightedMovingAverage
+            MovingAverage.register(wma.WeightedMovingAverage)
+    except ImportError:
+        pass
+        
+    try:
+        from . import hma
+        if hasattr(hma, 'HullMovingAverage'):
+            MovAv.HMA = hma.HullMovingAverage
+            MovAv.HullMovingAverage = hma.HullMovingAverage
+            MovingAverage.register(hma.HullMovingAverage)
+    except ImportError:
+        pass
+
+# Call the registration immediately
+_register_common_moving_averages()

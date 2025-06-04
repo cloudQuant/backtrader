@@ -1433,7 +1433,12 @@ class Cerebro(ParameterizedBase):
             sargs = self.datas + list(sargs)
             # 实例化策略
             try:
-                strat = stratcls(*sargs, **skwargs)
+                # Use safe strategy creation to handle parameter filtering
+                if hasattr(stratcls, '_create_strategy_safely'):
+                    strat = stratcls._create_strategy_safely(*sargs, **skwargs)
+                else:
+                    # Fallback to direct instantiation
+                    strat = stratcls(*sargs, **skwargs)
             except bt.errors.StrategySkipError:
                 continue  # do not add strategy to the mix
             # 旧的数据同步方法

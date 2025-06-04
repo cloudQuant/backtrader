@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import backtrader as bt
-from . import EMA
+from .ema import ExponentialMovingAverage
 
 
 # 真正强度指标
@@ -38,7 +38,7 @@ class TrueStrengthIndicator(bt.Indicator):
         ("period1", 25),
         ("period2", 13),
         ("pchange", 1),
-        ("_movav", EMA),
+        ("_movav", ExponentialMovingAverage),
     )
     lines = ("tsi",)
 
