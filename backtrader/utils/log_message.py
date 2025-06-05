@@ -1,4 +1,26 @@
-import spdlog
+try:
+    import spdlog
+    SPDLOG_AVAILABLE = True
+except ImportError:
+    SPDLOG_AVAILABLE = False
+    # Create a dummy spdlog module to prevent errors
+    class DummySpdLog:
+        @staticmethod
+        def stdout_sink_st():
+            return None
+        @staticmethod
+        def daily_file_sink_st(filename, hour, minute):
+            return None
+        @staticmethod
+        def SinkLogger(name, sinks):
+            class DummyLogger:
+                def info(self, msg): print(f"[INFO] {msg}")
+                def warning(self, msg): print(f"[WARNING] {msg}")
+                def error(self, msg): print(f"[ERROR] {msg}")
+                def debug(self, msg): print(f"[DEBUG] {msg}")
+            return DummyLogger()
+    
+    spdlog = DummySpdLog()
 
 
 class SpdLogManager(object):
@@ -21,8 +43,18 @@ class SpdLogManager(object):
         self.rotation_hour = rotation_hour
         self.rotation_minute = rotation_minute
         self.print_info = print_info
+        self.spdlog_available = SPDLOG_AVAILABLE
 
     def create_logger(self):
+        if not self.spdlog_available:
+            # Return a simple logger that prints to console
+            class SimpleLogger:
+                def info(self, msg): print(f"[INFO] {msg}")
+                def warning(self, msg): print(f"[WARNING] {msg}")
+                def error(self, msg): print(f"[ERROR] {msg}")
+                def debug(self, msg): print(f"[DEBUG] {msg}")
+            return SimpleLogger()
+            
         if self.print_info:
             sinks = [
                 spdlog.stdout_sink_st(),
@@ -41,4 +73,4 @@ class SpdLogManager(object):
             ]
         logger = spdlog.SinkLogger(self.logger_name, sinks)
         # logger = spdlog.create(self.logger_name, sinks)
-        return logger
+        return logger 

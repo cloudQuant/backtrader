@@ -112,7 +112,8 @@ def patch_strategy_clk_update():
                         # If setting datetime fails, use a default
                         self.lines.datetime[0] = 0.0
                 else:
-                    # No valid times available, use a reasonable default
+                    # CRITICAL FIX: This was the main bug - calling max() on empty list
+                    # Instead use a reasonable default datetime value
                     self.lines.datetime[0] = 0.0
             
             # Return the length of this strategy (number of processed bars)
@@ -542,12 +543,12 @@ class ParameterManager:
                     if name == '_movav' and value is None:
                         # Try to import and return SMA as default
                         try:
-                            from backtrader.indicators.mabase import MovAv
+                            from .indicators.mabase import MovAv
                             return MovAv.SMA
                         except ImportError:
                             # If import fails, return a simple fallback
                             try:
-                                from backtrader.indicators.sma import MovingAverageSimple
+                                from .indicators.sma import MovingAverageSimple
                                 return MovingAverageSimple
                             except ImportError:
                                 # Final fallback - return None
@@ -573,7 +574,7 @@ class ParameterManager:
                         # Special handling for movav aliases
                         if canonical_name == '_movav' and value is None:
                             try:
-                                from backtrader.indicators.mabase import MovAv
+                                from .indicators.mabase import MovAv
                                 return MovAv.SMA
                             except ImportError:
                                 return None
@@ -584,7 +585,7 @@ class ParameterManager:
                     return 14
                 if name in ('_movav', 'movav', 'ma', 'moving_average'):
                     try:
-                        from backtrader.indicators.mabase import MovAv
+                        from .indicators.mabase import MovAv
                         return MovAv.SMA
                     except ImportError:
                         return None
@@ -774,13 +775,51 @@ class ParamsMixin(BaseMixin):
                     
                     # CRITICAL FIX: Ensure the object can be used like a dict too
                     # Some code might expect dict-like access
-                    info_obj.__getitem__ = lambda self, key: getattr(self, key, None)
-                    info_obj.__setitem__ = lambda self, key, value: setattr(self, key, value)
-                    info_obj.__contains__ = lambda self, key: hasattr(self, key)
-                    info_obj.get = lambda self, key, default=None: getattr(self, key, default)
-                    info_obj.keys = lambda self: [attr for attr in dir(self) if not attr.startswith('_')]
-                    info_obj.values = lambda self: [getattr(self, attr) for attr in self.keys()]
-                    info_obj.items = lambda self: [(attr, getattr(self, attr)) for attr in self.keys()]
+                    def info_getitem(self, key):
+                        # CRITICAL FIX: Ensure key is a string before using hasattr()
+                        if isinstance(key, str) and hasattr(self, key):
+                            return getattr(self, key)
+                        return None
+                    
+                    def info_setitem(self, key, value):
+                        # Only set if key is a string
+                        if isinstance(key, str):
+                            setattr(self, key, value)
+                    
+                    def info_contains(self, key):
+                        # CRITICAL FIX: Only check if key is a string
+                        return isinstance(key, str) and hasattr(self, key)
+                    
+                    def info_get(self, key, default=None):
+                        # CRITICAL FIX: Ensure key is a string before using hasattr()
+                        if isinstance(key, str) and hasattr(self, key):
+                            return getattr(self, key)
+                        return default
+                    
+                    def info_get_method(self, key, default=None):
+                        """CRITICAL: _get method expected by plotting system"""
+                        # CRITICAL FIX: Ensure key is a string before using hasattr()
+                        if isinstance(key, str) and hasattr(self, key):
+                            return getattr(self, key)
+                        return default
+                    
+                    def info_keys(self):
+                        return [attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr))]
+                    
+                    def info_values(self):
+                        return [getattr(self, attr) for attr in self.keys()]
+                    
+                    def info_items(self):
+                        return [(attr, getattr(self, attr)) for attr in self.keys()]
+                    
+                    info_obj.__getitem__ = info_getitem
+                    info_obj.__setitem__ = info_setitem
+                    info_obj.__contains__ = info_contains
+                    info_obj.get = info_get
+                    info_obj._get = info_get_method  # CRITICAL: Add _get method for plotting compatibility
+                    info_obj.keys = info_keys
+                    info_obj.values = info_values
+                    info_obj.items = info_items
                     
                     setattr(cls, info_attr, info_obj)
         
@@ -1010,19 +1049,38 @@ def _initialize_indicator_aliases():
                             'plotmaster': None,
                         }
                         self._data.update(defaults)
+                        # CRITICAL FIX: Set attributes directly on the object for compatibility
+                        for key, value in defaults.items():
+                            setattr(self, key, value)
                     
                     def _get(self, key, default=None):
                         """Get plot info attribute with default - CRITICAL METHOD"""
-                        return self._data.get(key, default)
+                        # CRITICAL FIX: Ensure key is a string before using hasattr()
+                        if isinstance(key, str) and hasattr(self, key):
+                            return getattr(self, key)
+                        # Then try the _data dict
+                        if hasattr(self, '_data') and key in self._data:
+                            return self._data[key]
+                        return default
                     
                     def get(self, key, default=None):
                         """Standard get method for dict-like access"""
-                        return self._data.get(key, default)
+                        # CRITICAL FIX: Ensure key is a string before using hasattr()
+                        if isinstance(key, str) and hasattr(self, key):
+                            return getattr(self, key)
+                        # Then try the _data dict
+                        if hasattr(self, '_data') and key in self._data:
+                            return self._data[key]
+                        return default
                     
                     def __getattr__(self, name):
-                        if name.startswith('_'):
+                        if name.startswith('_') and name != '_data':
                             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-                        return self._data.get(name)
+                        # Try _data dict first
+                        if hasattr(self, '_data') and name in self._data:
+                            return self._data[name]
+                        # Return None for missing attributes to prevent errors
+                        return None
                     
                     def __setattr__(self, name, value):
                         if name.startswith('_') and name != '_data':
@@ -1031,22 +1089,29 @@ def _initialize_indicator_aliases():
                             if not hasattr(self, '_data'):
                                 super().__setattr__('_data', {})
                             self._data[name] = value
+                            # CRITICAL FIX: Also set as direct attribute for compatibility
+                            super().__setattr__(name, value)
                     
                     def __contains__(self, key):
                         """Support 'in' operator"""
-                        return key in self._data
+                        # CRITICAL FIX: Ensure key is a string before using hasattr()
+                        string_check = isinstance(key, str) and hasattr(self, key)
+                        dict_check = key in getattr(self, '_data', {})
+                        return string_check or dict_check
                     
                     def keys(self):
                         """Return all keys"""
-                        return self._data.keys()
+                        keys = set(getattr(self, '_data', {}).keys())
+                        keys.update(attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr)))
+                        return list(keys)
                     
                     def values(self):
                         """Return all values"""
-                        return self._data.values()
+                        return [self._get(key) for key in self.keys()]
                     
                     def items(self):
                         """Return all items"""
-                        return self._data.items()
+                        return [(key, self._get(key)) for key in self.keys()]
                 
                 self.plotinfo = PlotInfo()
             else:
@@ -1095,7 +1160,7 @@ def _initialize_indicator_aliases():
         
         # CRITICAL FIX: Patch specific indicator classes that are known to be problematic
         try:
-            from backtrader.indicators.sma import MovingAverageSimple
+            from .indicators.sma import MovingAverageSimple
             if not hasattr(MovingAverageSimple, '_plotinit'):
                 MovingAverageSimple._plotinit = universal_plotinit
                 print(f"DEBUG: DIRECT PATCH - Added _plotinit to MovingAverageSimple")
