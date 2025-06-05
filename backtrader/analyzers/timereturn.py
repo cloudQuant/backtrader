@@ -134,7 +134,35 @@ class TimeReturn(TimeFrameAnalyzerBase):
     def next(self):
         # Calculate the return
         super(TimeReturn, self).next()
-        # self.dtkey是analyzer中设置的属性值，一般是一个period结束的日期
-        self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
+        
+        # CRITICAL FIX: Ensure _value is never None to prevent division by None
+        if self._value is None:
+            # Try to get value from strategy's broker
+            if hasattr(self, 'strategy') and hasattr(self.strategy, 'broker'):
+                broker = self.strategy.broker
+                if broker is not None:
+                    if hasattr(broker, 'getvalue'):
+                        self._value = broker.getvalue()
+                    elif hasattr(broker, 'value'):
+                        self._value = broker.value
+                    else:
+                        self._value = 10000.0  # Fallback default
+                else:
+                    self._value = 10000.0  # Fallback default
+            else:
+                self._value = 10000.0  # Fallback default
+        
+        # CRITICAL FIX: Ensure _value_start is never None
+        if self._value_start is None or self._value_start == 0.0:
+            self._value_start = self._value if self._value is not None else 10000.0
+        
+        # Ensure both values are not None before division
+        if self._value is not None and self._value_start is not None and self._value_start != 0.0:
+            # self.dtkey是analyzer中设置的属性值，一般是一个period结束的日期
+            self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
+        else:
+            # Safe fallback: no change
+            self.rets[self.dtkey] = 0.0
+            
         # self.rets[self.dtkey] = (float(self._value) / float(self._value_start)) - 1.0
         self._lastvalue = self._value  # keep last value

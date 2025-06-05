@@ -119,7 +119,7 @@ class CrossOver(Indicator):
     plotinfo = dict(plotymargin=0.05, plotyhlines=[-1.0, 1.0])
 
     def __init__(self):
-        upcross = CrossUp(self.data, self.data1)
-        downcross = CrossDown(self.data, self.data1)
+        upcross = CrossUp(self.data0, self.data1)
+        downcross = CrossDown(self.data0, self.data1)
 
         self.lines.crossover = upcross - downcross

@@ -70,3 +70,9 @@ from .hadelta import *
 
 # 增加一些自定义的指标
 from .myind import *
+
+# At the end of the file, after all imports
+from .mabase import _register_common_moving_averages
+
+# Register moving averages after all modules are loaded to avoid circular imports
+_register_common_moving_averages()

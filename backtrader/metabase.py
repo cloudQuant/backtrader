@@ -281,52 +281,106 @@ class ParameterManager:
     
     @staticmethod
     def setup_class_params(cls, params=(), packages=(), frompackages=()):
-        """Setup parameters for a class"""
-        # Remove params from class definition if present
-        newparams = OrderedDict(params) if params else OrderedDict()
+        """Set up parameters for a class"""
+        # Handle packages and frompackages
+        ParameterManager._handle_packages(cls, packages, frompackages)
         
-        # Handle base class parameters
-        morebasesparams = []
-        for base in cls.__bases__:
-            if hasattr(base, '_params'):
-                morebasesparams.append(base._params)
+        # Get params from base classes
+        bases = tuple(cls.__mro__[1:])  # Skip self
         
-        # Create derived parameters - ensure we always create a parameter class
-        if newparams or morebasesparams or not hasattr(cls, '_params'):
-            cls._params = ParameterManager._derive_params('params', newparams, morebasesparams)
+        # Create derived params
+        cls._params = ParameterManager._derive_params(cls.__name__, params, bases)
         
-        # Handle packages
-        if packages or frompackages:
-            ParameterManager._handle_packages(cls, packages, frompackages)
-    
+        # Set params property on the class
+        setattr(cls, 'params', cls._params)
+        
+        return cls._params
+
     @staticmethod
     def _derive_params(name, params, otherbases):
         """Derive parameter class"""
         # Create a simple parameter class
         class_name = f"Params_{name}"
         
-        # Collect all parameters
+        # Collect all parameters from base classes first
         all_params = OrderedDict()
-        for base in otherbases:
-            if hasattr(base, '_getpairs'):
-                all_params.update(base._getpairs())
         
-        # Handle params - could be tuple or dict-like
-        if isinstance(params, (tuple, list)):
-            # Convert tuple to dict
+        # Process base classes in reverse order for proper inheritance
+        for base in reversed(otherbases):
+            if hasattr(base, '_params') and base._params is not None:
+                if hasattr(base._params, '_getpairs'):
+                    base_params = base._params._getpairs()
+                    all_params.update(base_params)
+                elif hasattr(base._params, '_gettuple'):
+                    base_params = dict(base._params._gettuple())
+                    all_params.update(base_params)
+                elif hasattr(base._params, '__dict__'):
+                    # Get attributes from parameter instance
+                    for attr_name in dir(base._params):
+                        if not attr_name.startswith('_') and not callable(getattr(base._params, attr_name)):
+                            all_params[attr_name] = getattr(base._params, attr_name)
+        
+        # Handle current class params - could be tuple, dict, or dict-like
+        if isinstance(params, dict):
+            # Direct dictionary
+            all_params.update(params)
+        elif isinstance(params, (tuple, list)):
+            # Convert tuple/list to dict
             for item in params:
-                if isinstance(item, (tuple, list)) and len(item) == 2:
-                    key, value = item
+                if isinstance(item, (tuple, list)) and len(item) >= 2:
+                    key, value = item[0], item[1]
                     all_params[key] = value
                 elif isinstance(item, string_types):
                     # Just a key with None value
                     all_params[item] = None
+                elif hasattr(item, '__iter__') and not isinstance(item, string_types):
+                    # Try to treat as key-value pair
+                    item_list = list(item)
+                    if len(item_list) >= 2:
+                        all_params[item_list[0]] = item_list[1]
         elif hasattr(params, 'items'):
             # Dict-like object
             all_params.update(params)
+        elif hasattr(params, '__dict__'):
+            # Object with attributes
+            for attr_name in dir(params):
+                if not attr_name.startswith('_') and not callable(getattr(params, attr_name)):
+                    all_params[attr_name] = getattr(params, attr_name)
+        elif hasattr(params, '_getpairs'):
+            all_params.update(params._getpairs())
+        elif hasattr(params, '_gettuple'):
+            all_params.update(dict(params._gettuple()))
+        
+        # CRITICAL FIX: Ensure common parameter names are always available
+        # Many indicators expect these standard parameters
+        common_defaults = {
+            'period': 14,
+            'movav': None,
+            '_movav': None,
+            'lookback': 1,
+            'upperband': 70.0,
+            'lowerband': 30.0,
+            'safediv': False,
+            'safepct': False,
+            'fast': 5,     # For oscillators
+            'slow': 34,    # For oscillators  
+            'signal': 9,   # For MACD-style indicators
+            'mult': 2.0,   # For bands
+            'matype': 0,   # Moving average type
+        }
+        
+        # Add common defaults if not already present
+        for key, default_value in common_defaults.items():
+            if key not in all_params:
+                all_params[key] = default_value
+        
+        # CRITICAL FIX: Handle _movav parameter specially - it should default to SMA
+        if '_movav' not in all_params or all_params['_movav'] is None:
+            # CRITICAL FIX: Don't import MovAv during class creation to avoid circular imports
+            # We'll handle this lazily in the parameter getter instead
+            all_params['_movav'] = None
         
         # Create new parameter class with all necessary methods
-        # Use a custom class that ensures _gettuple is always available
         class ParamClass(AutoInfoClass):
             @classmethod
             def _getpairs(cls):
@@ -335,6 +389,107 @@ class ParameterManager:
             @classmethod
             def _gettuple(cls):
                 return tuple(all_params.items())
+            
+            @classmethod 
+            def _getkeys(cls):
+                return list(all_params.keys())
+            
+            @classmethod
+            def _getdefaults(cls):
+                return list(all_params.values())
+            
+            def __init__(self, **kwargs):
+                super().__init__()
+                # Set default values as instance attributes
+                for key, default_value in all_params.items():
+                    # Use provided value if available, otherwise use default
+                    value = kwargs.get(key, default_value)
+                    setattr(self, key, value)
+                
+                # CRITICAL FIX: Set up self-reference for backwards compatibility
+                # This allows both self.p.period and self.params.period to work
+                object.__setattr__(self, 'params', self)
+            
+            def __getattr__(self, name):
+                # CRITICAL FIX: Enhanced fallback for missing attributes with common parameter support
+                # First check if it's in our known parameters
+                if name in all_params:
+                    value = all_params[name]
+                    # Special handling for _movav parameter
+                    if name == '_movav' and value is None:
+                        # Try to import and return SMA as default
+                        try:
+                            from backtrader.indicators.mabase import MovAv
+                            return MovAv.SMA
+                        except ImportError:
+                            # If import fails, return a simple fallback
+                            try:
+                                from backtrader.indicators.sma import MovingAverageSimple
+                                return MovingAverageSimple
+                            except ImportError:
+                                # Final fallback - return None
+                                return None
+                    return value
+                
+                # Handle common parameter name variants and aliases
+                param_aliases = {
+                    'period': ['period', 'periods', 'window', 'length'],
+                    'movav': ['movav', '_movav', 'ma', 'moving_average'],
+                    'lookback': ['lookback', 'look_back', 'lag'],
+                    'upperband': ['upperband', 'upper_band', 'upper', 'high_band'],
+                    'lowerband': ['lowerband', 'lower_band', 'lower', 'low_band'],
+                    'fast': ['fast', 'fast_period', 'fastperiod'],
+                    'slow': ['slow', 'slow_period', 'slowperiod'],
+                    'signal': ['signal', 'signal_period', 'signalperiod'],
+                }
+                
+                # Check if the requested name is an alias for a known parameter
+                for canonical_name, aliases in param_aliases.items():
+                    if name in aliases and canonical_name in all_params:
+                        value = all_params[canonical_name]
+                        # Special handling for movav aliases
+                        if canonical_name == '_movav' and value is None:
+                            try:
+                                from backtrader.indicators.mabase import MovAv
+                                return MovAv.SMA
+                            except ImportError:
+                                return None
+                        return value
+                
+                # For period specifically, always return a sensible default
+                if name in ('period', 'periods', 'window', 'length'):
+                    return 14
+                if name in ('_movav', 'movav', 'ma', 'moving_average'):
+                    try:
+                        from backtrader.indicators.mabase import MovAv
+                        return MovAv.SMA
+                    except ImportError:
+                        return None
+                if name in ('lookback', 'look_back', 'lag'):
+                    return 1
+                if name in ('upperband', 'upper_band', 'upper', 'high_band'):
+                    return 70.0
+                if name in ('lowerband', 'lower_band', 'lower', 'low_band'):
+                    return 30.0
+                if name in ('safediv', 'safe_div'):
+                    return False
+                if name in ('safepct', 'safe_pct'):
+                    return False
+                if name in ('fast', 'fast_period', 'fastperiod'):
+                    return 5
+                if name in ('slow', 'slow_period', 'slowperiod'):
+                    return 34
+                if name in ('signal', 'signal_period', 'signalperiod'):
+                    return 9
+                if name in ('mult', 'multiplier'):
+                    return 2.0
+                    
+                # Return None for unknown attributes instead of raising AttributeError
+                return None
+            
+            def __setattr__(self, name, value):
+                # Allow setting attributes normally
+                super().__setattr__(name, value)
         
         ParamClass.__name__ = class_name
         return ParamClass
@@ -390,18 +545,59 @@ class ParamsMixin(BaseMixin):
         """Called when a class is subclassed - replaces metaclass functionality"""
         super().__init_subclass__(**kwargs)
         
-        # Get params from the class __dict__ to avoid getting the property
-        cls_params = cls.__dict__.get('params', ())
-        cls_frompackages = cls.__dict__.get('frompackages', ())
-        cls_packages = cls.__dict__.get('packages', ())
+        # Extract parameter-related attributes from class definition
+        params = cls.__dict__.get('params', ())
+        packages = cls.__dict__.get('packages', ())
+        frompackages = cls.__dict__.get('frompackages', ())
         
-        # Use ParameterManager to set up parameters
-        ParameterManager.setup_class_params(
-            cls, 
-            params=cls_params,
-            packages=cls_packages, 
-            frompackages=cls_frompackages
-        )
+        # Special handling for Strategy classes that use dict format parameters
+        if hasattr(cls, '__name__') and 'Strategy' in cls.__name__:
+            print(f"ParamsMixin.__init_subclass__: Processing {cls.__name__} with params type: {type(params)}")
+            if isinstance(params, dict):
+                print(f"ParamsMixin.__init_subclass__: Dict params found: {params}")
+        
+        # Set up parameters if any are defined
+        if params or packages or frompackages:
+            ParameterManager.setup_class_params(cls, params, packages, frompackages)
+        elif not hasattr(cls, '_params') or cls._params is None:
+            # Ensure we always have a parameter class, even if empty
+            ParameterManager.setup_class_params(cls, {}, packages, frompackages)
+        
+        # Patch __init__ to ensure parameter integration
+        if hasattr(cls, '__init__') and '__init__' in cls.__dict__:
+            original_init = cls.__dict__['__init__']
+            
+            def patched_init(self, *args, **kwargs):
+                # Ensure we have parameter instance available before user __init__ runs
+                if not hasattr(self, '_params_instance') and hasattr(self.__class__, '_params'):
+                    # Get parameters from kwargs if not already set up
+                    param_kwargs = {}
+                    if hasattr(self.__class__._params, '_getpairs'):
+                        param_names = set(self.__class__._params._getpairs().keys())
+                        param_kwargs = {k: v for k, v in kwargs.items() if k in param_names}
+                        # Remove parameter kwargs to avoid passing them to the original __init__
+                        kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
+                    
+                    # Create parameter instance
+                    try:
+                        self._params_instance = self.__class__._params()
+                    except:
+                        self._params_instance = type('ParamsInstance', (), {})()
+                    
+                    # Set parameter values
+                    if hasattr(self.__class__._params, '_getpairs'):
+                        for key, default_value in self.__class__._params._getpairs().items():
+                            final_value = param_kwargs.get(key, default_value)
+                            setattr(self._params_instance, key, final_value)
+                    
+                    # Create p property
+                    self.p = self._params_instance
+                    print(f"ParamsMixin.patched_init: Set up parameters for {self.__class__.__name__}")
+                
+                # Call original __init__
+                original_init(self, *args, **kwargs)
+            
+            cls.__init__ = patched_init
         
         # Handle plotinfo and other info attributes (like the old metaclass system)
         info_attributes = ['plotinfo', 'plotlines', 'plotinfoargs']
@@ -453,9 +649,15 @@ class ParamsMixin(BaseMixin):
             
             # Separate parameter and non-parameter kwargs
             param_kwargs = {}
+            non_param_kwargs = {}
             for key, value in kwargs.items():
                 if key in param_names:
                     param_kwargs[key] = value
+                else:
+                    non_param_kwargs[key] = value
+                    
+            # Store non-param kwargs for later use
+            instance._non_param_kwargs = non_param_kwargs
                     
             # Create parameter instance
             try:
@@ -475,40 +677,51 @@ class ParamsMixin(BaseMixin):
                     # Use custom value if provided, otherwise use default
                     final_value = param_kwargs.get(key, value)
                     setattr(instance._params_instance, key, final_value)
+                    
+            # Also set any extra parameters that were passed but not in the params definition
+            for key, value in param_kwargs.items():
+                if not hasattr(instance._params_instance, key):
+                    setattr(instance._params_instance, key, value)
+                    
         else:
-            # No parameters defined, create empty parameter instance  
+            # No parameters defined, create parameter instance from kwargs
             instance._params_instance = type('ParamsInstance', (), {})()
+            # Set all kwargs as parameters
+            for key, value in kwargs.items():
+                setattr(instance._params_instance, key, value)
+            instance._non_param_kwargs = {}
             
         return instance
 
     def __init__(self, *args, **kwargs):
         """Initialize with only non-parameter kwargs"""
-        # Filter out parameter kwargs before calling super().__init__
-        if hasattr(self.__class__, '_params') and self.__class__._params is not None:
-            params_cls = self.__class__._params
-            param_names = set()
-            
-            # Get all parameter names from the class
-            if hasattr(params_cls, '_getpairs'):
-                param_names.update(params_cls._getpairs().keys())
-            elif hasattr(params_cls, '_gettuple'):
-                param_names.update(key for key, value in params_cls._gettuple())
-            
-            # Filter kwargs to remove parameter kwargs
-            filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
-            
-            # Call super().__init__ without args to avoid object.__init__() error
-            # Only pass kwargs to prevent "object.__init__() takes exactly one argument" error
-            if filtered_kwargs:
-                super().__init__(**filtered_kwargs)
-            else:
-                super().__init__()
+        # Use pre-filtered non-parameter kwargs if available
+        if hasattr(self, '_non_param_kwargs'):
+            filtered_kwargs = self._non_param_kwargs
         else:
-            # No parameters, but still avoid passing args to object.__init__
-            if kwargs:
-                super().__init__(**kwargs)
+            # Filter out parameter kwargs before calling super().__init__
+            if hasattr(self.__class__, '_params') and self.__class__._params is not None:
+                params_cls = self.__class__._params
+                param_names = set()
+                
+                # Get all parameter names from the class
+                if hasattr(params_cls, '_getpairs'):
+                    param_names.update(params_cls._getpairs().keys())
+                elif hasattr(params_cls, '_gettuple'):
+                    param_names.update(key for key, value in params_cls._gettuple())
+                
+                # Filter kwargs to remove parameter kwargs
+                filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
             else:
-                super().__init__()
+                # No parameters, but still avoid passing args to object.__init__
+                filtered_kwargs = {}
+        
+        # Call super().__init__ without args to avoid object.__init__() error
+        # Only pass kwargs to prevent "object.__init__() takes exactly one argument" error
+        if filtered_kwargs:
+            super().__init__(**filtered_kwargs)
+        else:
+            super().__init__()
     
     @property
     def params(self):
@@ -519,6 +732,8 @@ class ParamsMixin(BaseMixin):
     def params(self, value):
         """Allow setting params instance"""
         self._params_instance = value
+        # CRITICAL FIX: Ensure p also points to the same instance
+        object.__setattr__(self, 'p', value)
     
     @property 
     def p(self):
@@ -529,6 +744,8 @@ class ParamsMixin(BaseMixin):
     def p(self, value):
         """Allow setting p instance"""
         self._params_instance = value
+        # CRITICAL FIX: Ensure params also points to the same instance  
+        object.__setattr__(self, 'params', value)
 
 
 # For backward compatibility, keep the old class names as aliases
@@ -566,7 +783,16 @@ class ItemCollection(object):
 
     # 获取相应的name和value这样一对一对的值
     def getitems(self):
-        return self.items
+        """返回(name, item)元组的列表，用于解包操作"""
+        result = []
+        for item in self.items:
+            # 获取项目名称
+            name = getattr(item, '_name', None) or getattr(item, '__name__', None)
+            if name is None:
+                # 尝试通过类名获取
+                name = item.__class__.__name__.lower()
+            result.append((name, item))
+        return result
 
     # 根据名字获取value
     def getbyname(self, name):

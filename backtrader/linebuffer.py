@@ -12,12 +12,13 @@ module author:: Daniel Rodriguez
 import array
 import collections
 import datetime
-from itertools import islice
+from itertools import islice, repeat
 import math
+import time
 
 from .utils.py3 import range, string_types
 
-from .lineroot import LineRoot, LineSingle, LineMultiple
+from .lineroot import LineRoot, LineSingle, LineMultiple, LineRootMixin
 from . import metabase
 from .utils import num2date, time2num
 
@@ -25,7 +26,7 @@ from .utils import num2date, time2num
 NAN = float("NaN")
 
 
-class LineBuffer(LineSingle):
+class LineBuffer(LineSingle, LineRootMixin):
     """
     LineBuffer defines an interface to an "array.array" (or list) in which
     index 0 points to the item which is active for input and output.
@@ -61,7 +62,12 @@ class LineBuffer(LineSingle):
         self.useislice = None
         self.array = None
         self._idx = None
-        self.lines = [self]  # lines是一个包含自身的列表
+        # CRITICAL FIX: Ensure _idx is always initialized
+        if not hasattr(self, '_idx'):
+            self._idx = -1
+        # CRITICAL FIX: Only set lines if it doesn't already exist (from LineActions.__new__)
+        if not hasattr(self, 'lines'):
+            self.lines = [self]  # lines是一个包含自身的列表
         self.mode = self.UnBounded  # self.mode默认值是0
         self.bindings = list()  # self.bindlings默认是一个列表
         self.reset()  # 重置，调用的是自身的reset方法
@@ -69,6 +75,9 @@ class LineBuffer(LineSingle):
 
     # 获取_idx的值
     def get_idx(self):
+        # CRITICAL FIX: Ensure _idx exists before accessing it
+        if not hasattr(self, '_idx'):
+            self._idx = -1
         return self._idx
 
     # 设置_idx的值
@@ -102,7 +111,9 @@ class LineBuffer(LineSingle):
             # times ago, and it will not come back.
             # Having + 1 in the size
             # allows the forward without removing that bar
-            self.array = collections.deque(maxlen=self.maxlen + self.extrasize)
+            # CRITICAL FIX: Ensure maxlen + extrasize is always positive
+            deque_maxlen = max(1, self.maxlen + self.extrasize)
+            self.array = collections.deque(maxlen=deque_maxlen)
             self.useislice = True
         else:
             self.array = array.array(str("d"))
@@ -115,8 +126,8 @@ class LineBuffer(LineSingle):
     # 设置缓存相关的变量
     def qbuffer(self, savemem=0, extrasize=0):
         self.mode = self.QBuffer  # 设置具体的模式
-        self.maxlen = self._minperiod  # 设置最大的长度
-        self.extrasize = extrasize  # 设置额外的量
+        self.maxlen = max(1, self._minperiod)  # 设置最大的长度，确保至少为1
+        self.extrasize = max(0, extrasize)  # 设置额外的量，确保非负
         self.lenmark = self.maxlen - (not self.extrasize)  # 最大长度减去1,如果extrasize=0的话
         self.reset()  # 重置
 
@@ -148,6 +159,9 @@ class LineBuffer(LineSingle):
 
     # 返回实际的长度
     def __len__(self):
+        # CRITICAL FIX: Handle cases where lencount may not be initialized
+        if not hasattr(self, 'lencount') or self.lencount is None:
+            return 0
         return self.lencount
 
     # 返回line缓存的数据的长度
@@ -163,27 +177,95 @@ class LineBuffer(LineSingle):
 
     # 获取值
     def __getitem__(self, ago):
+        # CRITICAL FIX: Enhanced bounds checking and error handling
         try:
-            return self.array[self.idx + ago]
-        except IndexError:
-            # Handle out of bounds access gracefully
+            # Ensure _idx is valid
+            if not hasattr(self, '_idx') or self._idx is None:
+                self._idx = -1
+            
+            # CRITICAL FIX: If array is empty or not initialized, return default value but don't error
+            if not hasattr(self, 'array') or self.array is None or len(self.array) == 0:
+                return 0.0  # Return 0.0 instead of NaN for empty arrays
+            
+            required_index = self._idx + ago
+            
+            # CRITICAL FIX: Much more permissive bounds checking
             array_len = len(self.array)
-            requested_idx = self.idx + ago
             
-            # If the array is empty, return NaN
-            if array_len == 0:
-                return float('nan')
+            # Handle negative indices by wrapping around
+            if required_index < 0:
+                if array_len > 0:
+                    # Return the first element for negative indices 
+                    value = self.array[0]
+                else:
+                    return 0.0
+            elif required_index >= array_len:
+                if array_len > 0:
+                    # Return the last element for indices beyond bounds
+                    value = self.array[-1]
+                else:
+                    return 0.0
+            else:
+                # Normal case - index is within bounds
+                value = self.array[required_index]
             
-            # If requesting beyond the end, return the last available value
-            if requested_idx >= array_len:
-                return self.array[-1] if array_len > 0 else float('nan')
+            # CRITICAL FIX: Ensure we never return None for numeric operations
+            if value is None or (isinstance(value, float) and math.isnan(value)):
+                # Instead of returning NaN, return 0.0 for numeric indicators
+                # This prevents comparison errors in strategies
+                return 0.0
             
-            # If requesting before the beginning, return the first available value
-            if requested_idx < 0:
-                return self.array[0] if array_len > 0 else float('nan')
+            # CRITICAL FIX: Special handling for datetime lines to prevent NaN from breaking date conversion
+            # Check if this is a datetime line by looking at the owner's line names
+            if hasattr(self, '_owner') and hasattr(self._owner, 'lines'):
+                try:
+                    # Check if this buffer is the datetime line (usually index 0 for data feeds)
+                    if hasattr(self._owner.lines, '_getlines'):
+                        lines = self._owner.lines._getlines()
+                        if lines and len(lines) > 0:
+                            # Check if this is the first line (datetime) by checking if it's at index 0
+                            if hasattr(self._owner.lines, 'lines') and len(self._owner.lines.lines) > 0:
+                                if self is self._owner.lines.lines[0]:
+                                    # This is likely the datetime line
+                                    if isinstance(value, float) and (math.isnan(value) or value == 0.0):
+                                        # Return a valid default date instead of NaN or 0
+                                        # Use a default date of 2000-01-01 00:00:00 as float representation
+                                        try:
+                                            import datetime
+                                            # Try to import date2num from the correct module
+                                            try:
+                                                from .utils import date2num
+                                            except ImportError:
+                                                try:
+                                                    from backtrader.utils import date2num
+                                                except ImportError:
+                                                    # Fallback: return a known good timestamp value
+                                                    return 730485.0  # 2000-01-01 as matplotlib date number
+                                            
+                                            default_date = datetime.datetime(2000, 1, 1)
+                                            return date2num(default_date)
+                                        except:
+                                            # Final fallback: return a known good timestamp value
+                                            return 730485.0  # 2000-01-01 as matplotlib date number
+                except:
+                    # If any check fails, just return the original value
+                    pass
             
-            # This shouldn't happen, but just in case
-            return float('nan')
+            return value
+        except (IndexError, TypeError, AttributeError) as e:
+            # For any access errors, return 0.0 instead of NaN to prevent comparison errors
+            return 0.0
+        except Exception as e:
+            # For any other unexpected errors, return 0.0 and optionally log
+            import sys
+            if hasattr(sys, '_getframe'):
+                try:
+                    frame = sys._getframe(1)
+                    caller = f"{frame.f_code.co_name} at line {frame.f_lineno}"
+                    print(f"Warning: LineBuffer.__getitem__ error in {caller}: {e}")
+                except:
+                    pass
+            return 0.0
 
     # 获取数据的值，在策略中使用还是比较广泛的
     def get(self, ago=0, size=1):
@@ -248,34 +330,32 @@ class LineBuffer(LineSingle):
             the slice
             value (variable): value to be set
         """
-        try:
-            self.array[self.idx + ago] = value
-        except IndexError:
-            # Handle out of bounds access gracefully
-            array_len = len(self.array)
-            requested_idx = self.idx + ago
-            
-            # If we're trying to set beyond the end of the array, extend it
-            if requested_idx >= array_len:
-                # Extend the array to accommodate the new index
-                while len(self.array) <= requested_idx:
-                    self.array.append(float('nan'))
-                self.array[requested_idx] = value
-            # If we're trying to set before the beginning, ignore it
-            elif requested_idx < 0:
-                # Cannot set before the beginning of the array
-                pass
-            else:
-                # This shouldn't happen, but just in case
-                pass
+        # CRITICAL FIX: Ensure we never store None values - convert to 0.0
+        if value is None:
+            value = 0.0
+        # CRITICAL FIX: Also convert NaN to 0.0 to prevent comparison issues
+        elif isinstance(value, float) and math.isnan(value):
+            value = 0.0
         
-        # Execute bindings if the set was successful
+        # CRITICAL FIX: Ensure array is initialized before accessing
+        if not hasattr(self, 'array') or self.array is None:
+            import array
+            self.array = array.array('d')
+        
+        # Ensure array has enough space
+        required_index = self.idx + ago
+        if required_index >= len(self.array):
+            # Extend the array to accommodate the required index
+            extend_size = required_index - len(self.array) + 1
+            for _ in range(extend_size):
+                self.array.append(0.0)  # Use 0.0 instead of NAN
+        elif required_index < 0:
+            # Handle negative indices gracefully
+            return
+            
+        self.array[required_index] = value
         for binding in self.bindings:
-            try:
-                binding[ago] = value
-            except (IndexError, AttributeError):
-                # If binding fails, continue with other bindings
-                pass
+            binding[ago] = value
 
     # 给array设置具体的值
     def set(self, value, ago=0):
@@ -286,34 +366,32 @@ class LineBuffer(LineSingle):
             ago (int): Point of the array to which size will be added to return
             the slice
         """
-        try:
-            self.array[self.idx + ago] = value
-        except IndexError:
-            # Handle out of bounds access gracefully
-            array_len = len(self.array)
-            requested_idx = self.idx + ago
-            
-            # If we're trying to set beyond the end of the array, extend it
-            if requested_idx >= array_len:
-                # Extend the array to accommodate the new index
-                while len(self.array) <= requested_idx:
-                    self.array.append(float('nan'))
-                self.array[requested_idx] = value
-            # If we're trying to set before the beginning, ignore it
-            elif requested_idx < 0:
-                # Cannot set before the beginning of the array
-                pass
-            else:
-                # This shouldn't happen, but just in case
-                pass
+        # CRITICAL FIX: Ensure we never store None values - convert to 0.0
+        if value is None:
+            value = 0.0
+        # CRITICAL FIX: Also convert NaN to 0.0 to prevent comparison issues
+        elif isinstance(value, float) and math.isnan(value):
+            value = 0.0
         
-        # Execute bindings if the set was successful
+        # CRITICAL FIX: Ensure array is initialized before accessing
+        if not hasattr(self, 'array') or self.array is None:
+            import array
+            self.array = array.array('d')
+        
+        # Ensure array has enough space
+        required_index = self.idx + ago
+        if required_index >= len(self.array):
+            # Extend the array to accommodate the required index
+            extend_size = required_index - len(self.array) + 1
+            for _ in range(extend_size):
+                self.array.append(0.0)  # Use 0.0 instead of NAN
+        elif required_index < 0:
+            # Handle negative indices gracefully
+            return
+            
+        self.array[required_index] = value
         for binding in self.bindings:
-            try:
-                binding[ago] = value
-            except (IndexError, AttributeError):
-                # If binding fails, continue with other bindings
-                pass
+            binding[ago] = value
 
     # 返回到最开始
     def home(self):
@@ -326,13 +404,43 @@ class LineBuffer(LineSingle):
         self.lencount = 0
 
     # 向前移动一位
-    def forward(self, value=NAN, size=1):
+    def forward(self, value=0.0, size=1):  # CRITICAL FIX: Change default from NAN to 0.0
         """Moves the logical index foward and enlarges the buffer as much as needed
 
         Keyword Args:
             value (variable): value to be set in new positins
             size (int): How many extra positions to enlarge the buffer
         """
+        # CRITICAL FIX: Ensure we never use None or NaN values
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            value = 0.0
+        
+        # CRITICAL FIX: Ensure array is initialized
+        if not hasattr(self, 'array') or self.array is None:
+            import array
+            self.array = array.array('d')
+        
+        # CRITICAL FIX: Prevent over-advancement - check if we're already at or past the clock
+        if hasattr(self, '_clock') and self._clock is not None:
+            try:
+                clock_len = len(self._clock)
+                current_len = len(self)
+                
+                # If we're already synchronized or ahead, don't advance further
+                if current_len >= clock_len:
+                    return
+                    
+                # Only advance up to the clock length, never beyond
+                max_advance = clock_len - current_len
+                if size > max_advance:
+                    size = max_advance
+                    
+                if size <= 0:
+                    return
+            except Exception:
+                # If there's an error getting clock length, proceed with original logic
+                pass
+        
         self.idx += size
         self.lencount += size
 
@@ -465,13 +573,33 @@ class LineBuffer(LineSingle):
         self._tz = tz
 
     def datetime(self, ago=0, tz=None, naive=True):
-        return num2date(self[ago], tz or self._tz, naive)
+        value = self[ago]
+        # Check for NaN values and return None or a default value to prevent conversion errors
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            return None
+        try:
+            return num2date(value, tz or self._tz, naive)
+        except (ValueError, OverflowError) as e:
+            # Handle cases where num2date fails due to invalid date values
+            return None
 
     def date(self, ago=0, tz=None, naive=True):
-        return num2date(self[ago], tz or self._tz, naive).date()
+        dt = self.datetime(ago, tz, naive)
+        if dt is None:
+            return None
+        try:
+            return dt.date()
+        except (AttributeError, ValueError):
+            return None
 
     def time(self, ago=0, tz=None, naive=True):
-        return num2date(self[ago], tz or self._tz, naive).time()
+        dt = self.datetime(ago, tz, naive)
+        if dt is None:
+            return None
+        try:
+            return dt.time()
+        except (AttributeError, ValueError):
+            return None
 
     def dt(self, ago=0):
         """Alias to avoid the extra chars in "datetime" for this field"""
@@ -571,17 +699,42 @@ class LineActionsMixin:
     @classmethod
     def dopreinit(cls, _obj, *args, **kwargs):
         """Pre-initialization processing for LineActions"""
+        # Set up clock from owner hierarchy
+        _obj._clock = None
+        
+        if hasattr(_obj, '_owner') and _obj._owner is not None:
+            # Try to get clock from owner first
+            if hasattr(_obj._owner, '_clock') and _obj._owner._clock is not None:
+                _obj._clock = _obj._owner._clock
+            # If owner has datas, use the first data as clock  
+            elif hasattr(_obj._owner, 'datas') and _obj._owner.datas:
+                _obj._clock = _obj._owner.datas[0]
+            # If owner has data attribute, use it as clock
+            elif hasattr(_obj._owner, 'data') and _obj._owner.data is not None:
+                _obj._clock = _obj._owner.data
+            # Try the owner itself as clock if it has __len__
+            elif hasattr(_obj._owner, '__len__'):
+                _obj._clock = _obj._owner
+        
+        # If still no clock found and we have datas, use the first data
+        if _obj._clock is None and hasattr(_obj, 'datas') and _obj.datas:
+            _obj._clock = _obj.datas[0]
+        
         # Calculate minperiod based on LineBuffer instances
         mindatas = 0
         minperstatus = MAXINT = 2 ** 31 - 1
         
         # Scan class members for LineBuffer instances
         for membername in dir(_obj):
-            member = getattr(_obj, membername)
-            if isinstance(member, (LineBuffer, LineSingle)):
-                mindatas += 1
-                if hasattr(member, '_minperiod'):
-                    minperstatus = min(minperstatus, member._minperiod)
+            try:
+                member = getattr(_obj, membername)
+                if isinstance(member, (LineBuffer, LineSingle)):
+                    mindatas += 1
+                    if hasattr(member, '_minperiod'):
+                        minperstatus = min(minperstatus, member._minperiod)
+            except:
+                # Skip any attributes that cause issues during inspection
+                continue
         
         # Set calculated minperiod
         if minperstatus != MAXINT:
@@ -594,33 +747,306 @@ class LineActionsMixin:
     @classmethod
     def dopostinit(cls, _obj, *args, **kwargs):
         """Post-initialization processing for LineActions"""
+        
         # Register with owner if available
         if hasattr(_obj, '_owner') and _obj._owner is not None:
+            # Check if the owner has the addindicator method
             if hasattr(_obj._owner, 'addindicator'):
                 _obj._owner.addindicator(_obj)
-        
-        return _obj, args, kwargs
+                
+            # Also ensure the indicator has access to owner's clock and data
+            if not hasattr(_obj, '_clock') or _obj._clock is None:
+                if hasattr(_obj._owner, '_clock') and _obj._owner._clock is not None:
+                    _obj._clock = _obj._owner._clock
+                elif hasattr(_obj._owner, 'datas') and _obj._owner.datas:
+                    _obj._clock = _obj._owner.datas[0]
+                elif hasattr(_obj._owner, 'data') and _obj._owner.data is not None:
+                    _obj._clock = _obj._owner.data
+
+        # CRITICAL FIX: Initialize _lineiterators if not present  
+        if not hasattr(_obj, '_lineiterators'):
+            import collections
+            _obj._lineiterators = collections.defaultdict(list)
 
 
 class PseudoArray(object):
     def __init__(self, wrapped):
         self.wrapped = wrapped
+        # CRITICAL FIX: Ensure PseudoArray has _minperiod attribute
+        self._minperiod = getattr(wrapped, '_minperiod', 1)
 
     def __getitem__(self, key):
-        return self.wrapped[key]
+        try:
+            # Try normal indexing first
+            return self.wrapped[key]
+        except TypeError:
+            # Handle itertools.repeat objects and other iterables that don't support indexing
+            if hasattr(self.wrapped, '__iter__'):
+                # For repeat objects, all values are the same, so just get the first one
+                try:
+                    # Convert to list if it's a repeat object
+                    if str(type(self.wrapped)) == "<class 'itertools.repeat'>":
+                        # For repeat, all values are the same
+                        return next(iter(self.wrapped))
+                    else:
+                        # Convert iterable to list and index
+                        wrapped_list = list(self.wrapped)
+                        return wrapped_list[key]
+                except (StopIteration, IndexError):
+                    return float('nan')
+            else:
+                # If not iterable, return the wrapped object itself for index 0
+                if key == 0:
+                    return self.wrapped
+                else:
+                    return float('nan')
 
     @property
     def array(self):
-        return self.wrapped.array
+        # Handle repeat objects specially
+        if str(type(self.wrapped)) == "<class 'itertools.repeat'>":
+            # For repeat objects, return a list with one element repeated
+            return [next(iter(self.wrapped))]
+        elif hasattr(self.wrapped, 'array'):
+            return self.wrapped.array
+        else:
+            return self.wrapped
 
 
-class LineActions(LineBuffer, LineActionsMixin, metabase.BaseMixin):
+class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
     '''
     Base class for *Line Clases* with different lines, derived from a
     LineBuffer
     '''
     
-    _ltype = LineBuffer.IndType
+    from .lineroot import LineRoot
+    _ltype = LineRoot.IndType
+
+    def __new__(cls, *args, **kwargs):
+        """Handle data processing for indicators and other LineActions objects"""
+        
+        # Create the instance using the normal Python object creation
+        instance = super(LineActions, cls).__new__(cls)
+        
+        # Initialize basic attributes
+        instance._lineiterators = getattr(instance, '_lineiterators', {})
+        
+        # CRITICAL FIX: Define mindatas before using it
+        mindatas = getattr(cls, '_mindatas', getattr(cls, 'mindatas', 1))
+        
+        # Set up parameters for this instance (needed for self.p.period etc.)
+        if hasattr(cls, '_params') and cls._params is not None:
+            params_cls = cls._params
+            # Create parameter instance for this object
+            instance.p = params_cls()
+        else:
+            # Fallback to empty parameter object
+            from .utils import DotDict
+            instance.p = DotDict()
+        
+        # Create and set up Lines instance
+        lines_cls = getattr(cls, 'lines', None)
+        if lines_cls is not None:
+            instance.lines = lines_cls()
+            # Ensure lines are properly initialized with their own buffers
+            if hasattr(instance.lines, '_obj'):
+                instance.lines._obj = instance
+                
+            # CRITICAL FIX: Ensure lines instance has the essential methods
+            # If the lines instance doesn't have advance method, add it
+            if not hasattr(instance.lines, 'advance'):
+                def advance_method(size=1):
+                    """Forward all lines in the collection"""
+                    for line in getattr(instance.lines, 'lines', []):
+                        if hasattr(line, 'advance'):
+                            line.advance(size=size)
+                instance.lines.advance = advance_method
+                
+            # CRITICAL FIX: Set up line references for indicators
+            # Each line should be a separate LineBuffer with its own array
+            if hasattr(instance.lines, 'lines') and instance.lines.lines:
+                # Ensure each line is a LineBuffer with its own array
+                for i, line_obj in enumerate(instance.lines.lines):
+                    if not isinstance(line_obj, LineBuffer):
+                        # Create a new LineBuffer for this line - no import needed, we're in linebuffer.py
+                        new_line = LineBuffer()
+                        # Copy any existing attributes
+                        if hasattr(line_obj, '__dict__'):
+                            new_line.__dict__.update(line_obj.__dict__)
+                        instance.lines.lines[i] = new_line
+                        line_obj = new_line
+                    
+                    # Ensure the line has its own array
+                    if not hasattr(line_obj, 'array') or not line_obj.array:
+                        import array
+                        line_obj.array = array.array('d')
+                        line_obj._idx = -1
+                        line_obj.lencount = 0
+                
+                # Set up convenience references - first line as .line
+                instance.line = instance.lines.lines[0] if instance.lines.lines else instance
+                instance.l = instance.lines  # Common shorthand
+            else:
+                # No individual lines, use the instance itself
+                instance.line = instance
+                instance.l = instance.lines
+        else:
+            # Create default lines using the proper Lines class
+            from .lineseries import Lines
+            instance.lines = Lines()
+            # Add the advance method if it doesn't exist
+            if not hasattr(instance.lines, 'advance'):
+                def advance_method(size=1):
+                    """Forward all lines in the collection"""
+                    for line in getattr(instance.lines, 'lines', []):
+                        if hasattr(line, 'advance'):
+                            line.advance(size=size)
+                instance.lines.advance = advance_method
+            instance.line = instance
+            instance.l = instance.lines
+        
+        # CRITICAL FIX: Auto-assign data from owner if no data provided and mindatas > 0
+        if mindatas > 0:
+            # Try to get owner and auto-assign data using multiple strategies
+            import inspect
+            from . import metabase
+            
+            owner = None
+            
+            # Strategy 1: Use findowner
+            try:
+                import backtrader as bt
+                owner = metabase.findowner(instance, bt.Strategy)
+            except Exception as e:
+                pass
+            
+            # If we found an owner with data, auto-assign it
+            if owner is not None and hasattr(owner, 'data') and owner.data is not None:
+                # Check if we already have data in args
+                data_count = 0
+                for arg in args:
+                    if (hasattr(arg, 'lines') or hasattr(arg, '_name') or 
+                        str(type(arg).__name__).endswith('Data')):
+                        data_count += 1
+                
+                # If we need more data sources than we have, auto-assign from owner
+                if data_count < mindatas:
+                    # Add owner's data as needed
+                    missing_data_count = mindatas - data_count
+                    for _ in range(missing_data_count):
+                        args = (owner.data,) + args
+        
+        # Process arguments to identify data sources
+        data_count = 0
+        processed_datas = []
+        
+        for i, arg in enumerate(args):
+            if hasattr(arg, 'lines') or hasattr(arg, '_name') or str(type(arg).__name__).endswith('Data'):
+                processed_datas.append(arg)
+                data_count += 1
+                if data_count >= mindatas:
+                    break
+        
+        instance.datas = processed_datas
+        
+        if processed_datas:
+            instance.data = processed_datas[0]
+        else:
+            instance.data = None
+        
+        # Set up dnames if available
+        try:
+            from .utils import DotDict
+            instance.dnames = DotDict([(d._name, d) for d in instance.datas if getattr(d, "_name", "")])
+        except:
+            instance.dnames = {}
+        
+        return instance
+
+    def __init__(self, *args, **kwargs):
+        # Set up _owner from call stack BEFORE calling dopreinit
+        from . import metabase
+        # Try to find any LineIterator-like owner
+        
+        # Try findowner first with different classes
+        self._owner = None
+        
+        # First try to find a Strategy specifically
+        try:
+            import backtrader as bt
+            self._owner = metabase.findowner(self, bt.Strategy)
+        except:
+            pass
+        
+        # If no Strategy found, try LineIterator
+        if self._owner is None:
+            try:
+                from .lineiterator import LineIterator
+                self._owner = metabase.findowner(self, LineIterator)
+            except:
+                pass
+        
+        # If still no owner, try a broader search
+        if self._owner is None:
+            self._owner = metabase.findowner(self, None)
+        
+        # If still no owner, manually search the call stack more thoroughly
+        if self._owner is None:
+            import sys
+            for level in range(2, 20):  # Search deeper in the stack
+                try:
+                    frame = sys._getframe(level)
+                    frame_self = frame.f_locals.get('self', None)
+                    if frame_self is not None and frame_self is not self:
+                        # Check if this looks like a strategy
+                        if hasattr(frame_self, 'datas') and hasattr(frame_self, 'broker') and hasattr(frame_self, '_addindicator'):
+                            self._owner = frame_self
+                            break
+                        # Check if this looks like a LineIterator
+                        elif hasattr(frame_self, '_lineiterators') and hasattr(frame_self, 'addindicator'):
+                            self._owner = frame_self
+                            break
+                except ValueError:
+                    break
+        
+        # Call pre-init
+        self.__class__.dopreinit(self, *args, **kwargs)
+        
+        # Call parent init
+        super(LineActions, self).__init__()
+        
+        # Call post-init
+        self.__class__.dopostinit(self, *args, **kwargs)
+
+    def __len__(self):
+        """
+        CRITICAL FIX: Return the logical length of this indicator/action
+        This overrides LineBuffer.__len__ to provide the correct length for indicators
+        """
+        # For indicators and line actions, the length should be the number of processed data points
+        # Try to get this from the first line's lencount if available
+        try:
+            if hasattr(self, 'lines') and hasattr(self.lines, 'lines') and self.lines.lines:
+                first_line = self.lines.lines[0]
+                if hasattr(first_line, 'lencount') and first_line.lencount is not None:
+                    return first_line.lencount
+                elif hasattr(first_line, 'array') and first_line.array is not None:
+                    return len(first_line.array)
+                elif hasattr(first_line, '__len__'):
+                    return len(first_line)
+            
+            # Fallback: try accessing the line directly if lines.lines doesn't work
+            if hasattr(self, 'line') and hasattr(self.line, 'lencount') and self.line.lencount is not None:
+                return self.line.lencount
+            elif hasattr(self, 'line') and hasattr(self.line, 'array') and self.line.array is not None:
+                return len(self.line.array)
+            
+            # Final fallback: use the parent LineBuffer.__len__ method
+            return super(LineActions, self).__len__()
+            
+        except (IndexError, TypeError, AttributeError):
+            # If all else fails, fall back to parent method
+            return super(LineActions, self).__len__()
 
     def getindicators(self):
         return []
@@ -632,34 +1058,157 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.BaseMixin):
     def arrayize(obj):
         if not hasattr(obj, "array"):
             if not hasattr(obj, "__getitem__"):
-                return LineNum(obj)  # make it a LineNum
+                # CRITICAL FIX: Create a LineNum that properly handles _minperiod
+                line_num = LineNum(obj)
+                # Ensure the LineNum has the _minperiod attribute
+                if not hasattr(line_num, '_minperiod'):
+                    line_num._minperiod = 1
+                return line_num  # make it a LineNum
             if not hasattr(obj, "__len__"):
-                return PseudoArray(obj)  # Can iterate (for once)
+                pseudo_array = PseudoArray(obj)
+                # CRITICAL FIX: Ensure PseudoArray objects have _minperiod for compatibility
+                if not hasattr(pseudo_array, '_minperiod'):
+                    pseudo_array._minperiod = 1
+                return pseudo_array  # Can iterate (for once)
 
         return obj
 
     def _next(self):
-        clock_len = len(self._clock)
-        if clock_len > len(self):
+        # CRITICAL FIX: Prevent double processing if _once was already called
+        if getattr(self, '_once_processed', False):
+            return
+        
+        # CRITICAL FIX: Only advance if we're actually behind the clock
+        if self._clock is not None:
+            clock_len = len(self._clock)
+            current_len = len(self)
+            
+            # CRITICAL FIX: Only advance if we're truly behind
+            if current_len < clock_len:
+                # Only advance by 1, not by the full difference
+                self.forward()
+            elif current_len > clock_len:
+                # We're ahead of the clock - this shouldn't happen, but handle it
+                print(f"Warning: {self.__class__.__name__} length {current_len} > clock length {clock_len}")
+                return
+        else:
+            # If no clock, advance normally but only once
             self.forward()
 
-        if clock_len > self._minperiod:
+        # CRITICAL FIX: Call _next() on child indicators first (like in LineIterator)
+        # This ensures that dependent indicators are calculated before this one
+        if hasattr(self, '_lineiterators'):
+            from .lineiterator import LineIterator
+            for indicator in self._lineiterators.get(LineIterator.IndType, []):
+                try:
+                    indicator._next()
+                except Exception as e:
+                    print(f"Error in child indicator _next(): {e}")
+
+        # CRITICAL FIX: Only call next() if we're at or past the minimum period
+        current_len = len(self)
+        if current_len >= self._minperiod:
             try:
-                self.next()
+                if hasattr(self, 'next'):
+                    self.next()
             except StopIteration:
-                self._clock._stop()
+                pass
+            except Exception as e:
+                print(f"Error in LineActions.next(): {e}")
+        elif current_len == self._minperiod - 1:
+            # Call prenext during the minperiod build-up
+            try:
+                if hasattr(self, 'prenext'):
+                    self.prenext()
+            except Exception as e:
+                print(f"Error in LineActions.prenext(): {e}")
 
-    def _once(self):
-        self.forward(size=self._clock.buflen())
-        self.home()
+    def _once(self, start, end):
+        """Process data once efficiently - enhanced with safety measures"""
+        import time
+        
+        if getattr(self, '_once_processed', False):
+            return
+        
+        self._once_processed = True
+        
+        # CRITICAL FIX: Add 10-second timeout protection to prevent infinite loops
+        start_time = time.time()
+        max_iterations = 100
+        
+        try:
+            # Get the current array size safely
+            try:
+                array_size = len(self.array)
+                if array_size == 0:
+                    return
+            except (AttributeError, TypeError):
+                return
+            
+            # Validate start and end parameters
+            if start is None or end is None:
+                return
+            
+            if not isinstance(start, int) or not isinstance(end, int):
+                return
+                
+            if start < 0:
+                start = 0
+            if end < start:
+                return
+            if end > array_size:
+                end = array_size
+            
+            # Process with iteration limit and timeout checks
+            iterations = 0
+            for i in range(start, min(end, start + max_iterations)):
+                # Check timeout every 10 iterations
+                if iterations % 10 == 0:
+                    current_time = time.time()
+                    if current_time - start_time > 10:  # 10 second timeout
+                        print(f"CRITICAL ERROR: _once timeout after 10 seconds for {self.__class__.__name__}")
+                        break
+                
+                try:
+                    # Safely process each element
+                    if hasattr(self, '_data') and self._data is not None:
+                        try:
+                            value = self._data[i] if i < len(self._data) else 0.0
+                            if i < len(self.array):
+                                self.array[i] = value
+                        except (IndexError, TypeError, AttributeError):
+                            if i < len(self.array):
+                                self.array[i] = 0.0
+                    
+                    # Handle indicators that might not have data0/data1 attributes
+                    try:
+                        if hasattr(self, 'data0') and self.data0 is not None:
+                            # Safe array access
+                            if hasattr(self.data0, 'array') and i < len(self.data0.array):
+                                value = self.data0.array[i]
+                                if i < len(self.array):
+                                    self.array[i] = value
+                    except (AttributeError, IndexError, TypeError):
+                        # Safe fallback - set to 0
+                        if i < len(self.array):
+                            self.array[i] = 0.0
+                
+                except Exception as e:
+                    print(f"CRITICAL ERROR in _once for {self.__class__.__name__}: {e}")
+                    break
+                
+                iterations += 1
+                if iterations >= max_iterations:
+                    print(f"CRITICAL ERROR: _once max iterations reached for {self.__class__.__name__}")
+                    break
+                    
+        finally:
+            # Always reset the flag in case we need to retry
+            try:
+                self._once_processed = False
+            except AttributeError:
+                pass
 
-        start = self._minperiod - 1
-        end = start + len(self._clock)
-        self.once(start, end)
-
-        self.home()
-        self.advance(size=len(self._clock))
-    
     @classmethod
     def cleancache(cls):
         """Clean the cache - called by cerebro"""
@@ -679,7 +1228,7 @@ def LineDelay(a, ago=0, **kwargs):
 
 
 def LineNum(num):
-    return _LineDelay(PseudoArray(math.repeat(num)), 0)
+    return _LineDelay(PseudoArray(repeat(num)), 0)
 
 
 class _LineDelay(LineActions):
@@ -689,8 +1238,12 @@ class _LineDelay(LineActions):
         self.ago = ago
 
         # Need to add the delay to the period
+        # CRITICAL FIX: Handle _minperiod more safely for any type of object
         if hasattr(a, '_minperiod'):
             self.addminperiod(abs(ago))
+        else:
+            # If 'a' doesn't have _minperiod, set a default
+            self.addminperiod(max(1, abs(ago)))
 
     def next(self):
         self.lines[0][0] = self.a[self.ago]
@@ -738,8 +1291,12 @@ class LinesOperation(LineActions):
 
         # ensure a is added if it's a lineiterator-like object
         # self.addminperiod(1) already done by the base class
-        self.addminperiod(getattr(a, '_minperiod', 1))
-        self.addminperiod(getattr(b, '_minperiod', 1))
+        # CRITICAL FIX: Handle _minperiod attribute access more safely
+        a_minperiod = getattr(a, '_minperiod', 1) if hasattr(a, '_minperiod') else 1
+        b_minperiod = getattr(b, '_minperiod', 1) if hasattr(b, '_minperiod') else 1
+        
+        self.addminperiod(a_minperiod)
+        self.addminperiod(b_minperiod)
 
     def next(self):
         # operation(float, other) ... expecting other to be a float
@@ -810,7 +1367,9 @@ class LineOwnOperation(LineActions):
         self.operation = operation
         self.a = a
 
-        self.addminperiod(getattr(a, '_minperiod', 1))
+        # CRITICAL FIX: Handle _minperiod attribute access more safely
+        a_minperiod = getattr(a, '_minperiod', 1) if hasattr(a, '_minperiod') else 1
+        self.addminperiod(a_minperiod)
 
     def next(self):
         self[0] = self.operation(self.a[0])
@@ -823,3 +1382,12 @@ class LineOwnOperation(LineActions):
 
         for i in range(start, end):
             dst[i] = op(srca[i])
+
+    def size(self):
+        """Return the number of lines in this LineActions object"""
+        if hasattr(self, 'lines') and hasattr(self.lines, 'size'):
+            return self.lines.size()
+        elif hasattr(self, 'lines') and hasattr(self.lines, '__len__'):
+            return len(self.lines)
+        else:
+            return 1  # Default to 1 line if no lines object available

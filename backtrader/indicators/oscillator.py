@@ -93,7 +93,17 @@ for movav in MovingAverage._movavs[0:]:
         continue
 
     movname = movav.__name__
-    linename = movav.lines._getlinealias(0)
+    # Handle both tuple lines and Lines objects after refactoring
+    if hasattr(movav.lines, '_getlinealias'):
+        # It's a Lines object
+        linename = movav.lines._getlinealias(0)
+    elif isinstance(movav.lines, (tuple, list)) and movav.lines:
+        # It's a tuple/list of line names
+        linename = movav.lines[0]
+    else:
+        # Fallback to first line name or class name
+        linename = getattr(movav.lines, '_getlinealias', lambda x: movav.__name__.lower())(0) if hasattr(movav.lines, '_getlinealias') else movav.__name__.lower()
+    
     newclsname = movname + "Oscillator"
 
     newaliases = [movname + "Osc"]

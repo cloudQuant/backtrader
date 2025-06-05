@@ -42,7 +42,7 @@ IF EXIST %EGG_INFO_DIR% (
 echo Running %PACKAGE_NAME% tests...
 :: pytest tests -n 4
 cd tests
-pytest --ignore=crypto_tests . -n 8
+pytest --ignore=crypto_tests . -n 8 --timeout=30
 :: python tests/crypto_tests/test_binance_ma.py
 :: python tests/crypto_tests/test_base_funding_rate.py
 :: python tests/crypto_tests/test_data_strategy.py

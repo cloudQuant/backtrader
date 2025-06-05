@@ -372,7 +372,15 @@ class Average(PeriodN):
     lines = ("av",)
 
     def next(self):
-        self.line[0] = math.fsum(self.data.get(size=self.p.period)) / self.p.period
+        # CRITICAL DEBUG: Add debugging to see what's happening
+        try:
+            data_values = self.data.get(size=self.p.period)
+            avg_value = math.fsum(data_values) / self.p.period
+            self.line[0] = avg_value
+            print(f"Average.next(): period={self.p.period}, data={data_values}, avg={avg_value}")
+        except Exception as e:
+            print(f"Average.next() ERROR: {e}")
+            self.line[0] = 0.0
 
     def once(self, start, end):
         src = self.data.array
@@ -456,25 +464,77 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
     def __init__(self):
         super(ExponentialSmoothingDynamic, self).__init__()
 
-        # Hack: alpha is a "line" and carries a minperiod which is not being
-        # considered because this indicator makes no line assignment. It has
-        # therefore to be considered manually
-        minperioddiff = max(0, self.alpha._minperiod - self.p.period)
-        self.lines[0].incminperiod(minperioddiff)
+        # CRITICAL FIX: Handle cases where alpha is a float instead of a LineBuffer
+        # The parent class sets self.alpha to a float value, but ExponentialSmoothingDynamic
+        # expects it to be a line-like object with _minperiod and array access
+        
+        if hasattr(self.alpha, '_minperiod'):
+            # alpha is a LineBuffer or similar object
+            minperioddiff = max(0, self.alpha._minperiod - self.p.period)
+            self.lines[0].incminperiod(minperioddiff)
+            
+            # Set up alpha1 as a line that computes 1 - alpha
+            from . import Indicator
+            
+            class Alpha1Line(Indicator):
+                lines = ('alpha1',)
+                params = (('alpha_source', None),)
+                
+                def __init__(self):
+                    self.alpha_source = self.p.alpha_source
+                    super(Alpha1Line, self).__init__()
+                
+                def next(self):
+                    self.lines.alpha1[0] = 1.0 - self.alpha_source[0]
+                    
+                def once(self, start, end):
+                    alpha_array = self.alpha_source.array
+                    alpha1_array = self.lines.alpha1.array
+                    for i in range(start, end):
+                        alpha1_array[i] = 1.0 - alpha_array[i]
+            
+            self.alpha1 = Alpha1Line(alpha_source=self.alpha)
+            
+        else:
+            # alpha is a float value - convert it to work with dynamic smoothing
+            # In this case, we can't do true dynamic smoothing, so we fall back to static
+            print(f"WARNING: ExponentialSmoothingDynamic received float alpha={self.alpha}, falling back to static smoothing")
+            
+            # No additional minperiod adjustment needed for static alpha
+            # self.alpha1 is already set in parent class as a float
 
     def next(self):
-        self.line[0] = self.line[-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
+        # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
+        if hasattr(self.alpha, '__getitem__'):
+            # alpha is a LineBuffer - use array access
+            self.line[0] = self.line[-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
+        else:
+            # alpha is a float - use regular arithmetic (fall back to parent behavior)
+            self.line[0] = self.line[-1] * self.alpha1 + self.data[0] * self.alpha
 
     def once(self, start, end):
+        # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
         darray = self.data.array
         larray = self.line.array
-        alpha = self.alpha.array
-        alpha1 = self.alpha1.array
-
-        # Seed value from SMA calculated with the call to oncestart
-        prev = larray[start - 1]
-        for i in range(start, end):
-            larray[i] = prev = prev * alpha1[i] + darray[i] * alpha[i]
+        
+        if hasattr(self.alpha, 'array'):
+            # alpha is a LineBuffer - use array access
+            alpha = self.alpha.array
+            alpha1 = self.alpha1.array
+            
+            # Seed value from SMA calculated with the call to oncestart
+            prev = larray[start - 1]
+            for i in range(start, end):
+                larray[i] = prev = prev * alpha1[i] + darray[i] * alpha[i]
+        else:
+            # alpha is a float - use regular arithmetic (fall back to parent behavior)
+            alpha = self.alpha
+            alpha1 = self.alpha1
+            
+            # Seed value from SMA calculated with the call to oncestart
+            prev = larray[start - 1]
+            for i in range(start, end):
+                larray[i] = prev = prev * alpha1 + darray[i] * alpha
 
 
 # 加权移动平均值

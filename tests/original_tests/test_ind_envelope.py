@@ -35,8 +35,31 @@ chkind = btind.Envelope
 
 class TS2(testcommon.TestStrategy):
     def __init__(self):
-        ind = btind.MovAv.SMA(self.data)
+        print(f"DEBUG: btind.MovAv.SMA = {btind.MovAv.SMA}")
+        print(f"DEBUG: btind.MovAv.SMA.__bases__ = {getattr(btind.MovAv.SMA, '__bases__', 'NO BASES')}")
+        print(f"DEBUG: Creating SMA indicator...")
+        print(f"DEBUG: self.data = {self.data}")
+        print(f"DEBUG: type(self.data) = {type(self.data)}")
+        
+        try:
+            print(f"DEBUG: About to call btind.MovAv.SMA(self.data)")
+            ind = btind.MovAv.SMA(self.data)
+            print(f"DEBUG: SMA creation returned: {ind}")
+            print(f"DEBUG: SMA indicator type: {type(ind)}")
+        except Exception as e:
+            print(f"ERROR: SMA creation failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise
+        
+        print(f"DEBUG: SMA indicator created: {ind}")
+        print(f"DEBUG: SMA indicator type: {type(ind)}")
+        print(f"DEBUG: SMA indicator MRO: {type(ind).__mro__}")
+        print(f"DEBUG: SMA indicator _owner: {getattr(ind, '_owner', 'NO OWNER')}")
+        print(f"DEBUG: SMA indicator has __init__: {hasattr(ind, '__init__')}")
+        print(f"DEBUG: About to set inddata")
         self.p.inddata = [ind]
+        print(f"DEBUG: inddata set to: {self.p.inddata}")
         super(TS2, self).__init__()
 
 

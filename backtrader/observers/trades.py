@@ -125,9 +125,18 @@ class DataTrades(Observer):
         if not hasattr(self, 'datas') or not self.datas:
             return
             
+        # CRITICAL FIX: Access parameter properly through self.params or self.p
+        try:
+            use_names = getattr(self.params, 'usenames', True)
+        except AttributeError:
+            try:
+                use_names = getattr(self.p, 'usenames', True)
+            except AttributeError:
+                use_names = True  # Default fallback
+            
         # Create line names based on data
-        if self.params.usenames:
-            lnames = [x._name for x in self.datas]
+        if use_names:
+            lnames = [getattr(x, '_name', f'data{i}') for i, x in enumerate(self.datas)]
         else:
             lnames = ["data{}".format(x) for x in range(len(self.datas))]
 
