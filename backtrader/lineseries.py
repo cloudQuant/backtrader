@@ -1151,3 +1151,111 @@ def LineSeriesMaker(arg, slave=False):
         return arg
 
     return LineSeriesStub(arg, slave=slave)
+
+
+# CRITICAL FIX: Patch Strategy._clk_update after the main classes are loaded
+def _patch_strategy_clk_update():
+    """Apply critical fix to Strategy._clk_update to prevent max() on empty iterable"""
+    try:
+        import math
+        
+        def safe_clk_update(self):
+            """CRITICAL FIX: Safe _clk_update that prevents max() on empty iterable"""
+            
+            # CRITICAL FIX: Handle the old sync method safely
+            if hasattr(self, '_oldsync') and self._oldsync:
+                # Try to call parent method if available
+                try:
+                    from .lineiterator import StrategyBase
+                    if hasattr(super(type(self), self), '_clk_update'):
+                        clk_len = super(type(self), self)._clk_update()
+                    else:
+                        clk_len = 1
+                except Exception:
+                    clk_len = 1
+                
+                # CRITICAL FIX: Set datetime safely
+                if hasattr(self, 'datas') and self.datas and hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                    valid_data_times = []
+                    for d in self.datas:
+                        try:
+                            if len(d) > 0 and hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
+                                dt_val = d.datetime[0]
+                                if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
+                                    valid_data_times.append(dt_val)
+                        except (IndexError, AttributeError, TypeError):
+                            continue
+                    
+                    if valid_data_times:
+                        try:
+                            self.lines.datetime[0] = max(valid_data_times)
+                        except (ValueError, IndexError, AttributeError):
+                            self.lines.datetime[0] = 0.0
+                    else:
+                        self.lines.datetime[0] = 0.0
+                
+                return clk_len
+            
+            # CRITICAL FIX: Handle normal case
+            if not hasattr(self, '_dlens'):
+                self._dlens = [len(d) if hasattr(d, '__len__') else 0 for d in (self.datas if hasattr(self, 'datas') else [])]
+            
+            # Get new data lengths safely
+            if hasattr(self, 'datas') and self.datas:
+                newdlens = []
+                for d in self.datas:
+                    try:
+                        newdlens.append(len(d) if hasattr(d, '__len__') else 0)
+                    except Exception:
+                        newdlens.append(0)
+            else:
+                newdlens = []
+            
+            # Forward if needed
+            if newdlens and hasattr(self, '_dlens') and any(nl > l for l, nl in zip(self._dlens, newdlens) if l is not None and nl is not None):
+                try:
+                    if hasattr(self, 'forward'):
+                        self.forward()
+                except Exception:
+                    pass
+            
+            self._dlens = newdlens
+            
+            # CRITICAL FIX: Set datetime safely - CHECK IF EMPTY BEFORE CALLING max()
+            if hasattr(self, 'datas') and self.datas and hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                # CRITICAL PART: Collect valid datetime values
+                valid_data_times = [d.datetime[0] for d in self.datas if len(d)]
+                
+                # CRITICAL FIX: Only call max() if we have data sources with length > 0
+                if valid_data_times:
+                    try:
+                        self.lines.datetime[0] = max(valid_data_times)
+                    except (ValueError, IndexError, AttributeError):
+                        self.lines.datetime[0] = 0.0
+                else:
+                    # This is the fix - instead of calling max() on empty list, use default
+                    self.lines.datetime[0] = 0.0
+            
+            return len(self)
+        
+        # Import and patch the Strategy class
+        try:
+            from .strategy import Strategy
+            original_clk_update = Strategy._clk_update
+            Strategy._clk_update = safe_clk_update
+            print("CRITICAL FIX: Successfully patched Strategy._clk_update from lineseries.py")
+            return True
+        except ImportError:
+            # Strategy module not loaded yet
+            return False
+        except Exception as e:
+            print(f"CRITICAL FIX: Error patching Strategy._clk_update: {e}")
+            return False
+            
+    except Exception as e:
+        print(f"CRITICAL FIX: Error in _patch_strategy_clk_update: {e}")
+        return False
+
+
+# Apply the patch when this module is loaded
+_patch_strategy_clk_update()

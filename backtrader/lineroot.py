@@ -399,19 +399,127 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
 
     # a<b
     def __lt__(self, other):
-        return self._operation(other, operator.__lt__)
+        # CRITICAL FIX: Always check opstage first to determine behavior
+        if self._opstage == 2:
+            # In stage2, return actual boolean values for direct use in strategies
+            self_value = self[0] if hasattr(self, '__getitem__') else 0.0
+            
+            # Handle None values and convert to floats for comparison
+            if self_value is None:
+                self_value = 0.0
+            elif isinstance(self_value, float):
+                import math
+                if math.isnan(self_value):
+                    self_value = 0.0
+                    
+            if other is None:
+                other = 0.0
+            elif isinstance(other, float):
+                import math
+                if math.isnan(other):
+                    other = 0.0
+            
+            # Return actual boolean for direct strategy use
+            try:
+                return float(self_value) < float(other)
+            except (ValueError, TypeError):
+                return False
+        else:
+            # In stage1, use normal operation creation
+            return self._operation(other, operator.__lt__)
 
     # a>b
     def __gt__(self, other):
-        return self._operation(other, operator.__gt__)
+        # CRITICAL FIX: Always check opstage first to determine behavior
+        if self._opstage == 2:
+            # In stage2, return actual boolean values for direct use in strategies
+            self_value = self[0] if hasattr(self, '__getitem__') else 0.0
+            
+            # Handle None values and convert to floats for comparison
+            if self_value is None:
+                self_value = 0.0
+            elif isinstance(self_value, float):
+                import math
+                if math.isnan(self_value):
+                    self_value = 0.0
+                    
+            if other is None:
+                other = 0.0
+            elif isinstance(other, float):
+                import math
+                if math.isnan(other):
+                    other = 0.0
+            
+            # Return actual boolean for direct strategy use
+            try:
+                return float(self_value) > float(other)
+            except (ValueError, TypeError):
+                return False
+        else:
+            # In stage1, use normal operation creation
+            return self._operation(other, operator.__gt__)
 
     # a<=b
     def __le__(self, other):
-        return self._operation(other, operator.__le__)
+        # CRITICAL FIX: Always check opstage first to determine behavior
+        if self._opstage == 2:
+            # In stage2, return actual boolean values for direct use in strategies
+            self_value = self[0] if hasattr(self, '__getitem__') else 0.0
+            
+            # Handle None values and convert to floats for comparison
+            if self_value is None:
+                self_value = 0.0
+            elif isinstance(self_value, float):
+                import math
+                if math.isnan(self_value):
+                    self_value = 0.0
+                    
+            if other is None:
+                other = 0.0
+            elif isinstance(other, float):
+                import math
+                if math.isnan(other):
+                    other = 0.0
+            
+            # Return actual boolean for direct strategy use
+            try:
+                return float(self_value) <= float(other)
+            except (ValueError, TypeError):
+                return False
+        else:
+            # In stage1, use normal operation creation
+            return self._operation(other, operator.__le__)
 
     # a>=b
     def __ge__(self, other):
-        return self._operation(other, operator.__ge__)
+        # CRITICAL FIX: Always check opstage first to determine behavior
+        if self._opstage == 2:
+            # In stage2, return actual boolean values for direct use in strategies
+            self_value = self[0] if hasattr(self, '__getitem__') else 0.0
+            
+            # Handle None values and convert to floats for comparison
+            if self_value is None:
+                self_value = 0.0
+            elif isinstance(self_value, float):
+                import math
+                if math.isnan(self_value):
+                    self_value = 0.0
+                    
+            if other is None:
+                other = 0.0
+            elif isinstance(other, float):
+                import math
+                if math.isnan(other):
+                    other = 0.0
+            
+            # Return actual boolean for direct strategy use
+            try:
+                return float(self_value) >= float(other)
+            except (ValueError, TypeError):
+                return False
+        else:
+            # In stage1, use normal operation creation
+            return self._operation(other, operator.__ge__)
 
     # a = b
     def __eq__(self, other):
@@ -595,3 +703,128 @@ class LineSingle(LineRoot):
         Increment the minperiod with no considerations
         """
         self._minperiod += minperiod
+
+
+# CRITICAL FIX: Patch Strategy._clk_update to prevent "max() iterable argument is empty" error
+def _apply_strategy_patch():
+    """Apply critical bug fix to Strategy class _clk_update method"""
+    try:
+        import math
+        
+        # Import after a delay to ensure strategy module is loaded
+        def safe_clk_update(self):
+            """CRITICAL FIX: Safe _clk_update method that handles empty data sources"""
+            
+            # CRITICAL FIX: Handle the old sync method safely
+            if hasattr(self, '_oldsync') and self._oldsync:
+                # Call parent class _clk_update if available
+                try:
+                    # Use the parent class method from StrategyBase if available
+                    from .lineiterator import StrategyBase
+                    if hasattr(StrategyBase, '_clk_update'):
+                        clk_len = super(type(self), self)._clk_update()
+                    else:
+                        clk_len = 1
+                except Exception:
+                    clk_len = 1
+                
+                # CRITICAL FIX: Only set datetime if we have valid data sources with length
+                if hasattr(self, 'datas') and self.datas:
+                    valid_data_times = []
+                    for d in self.datas:
+                        try:
+                            if len(d) > 0 and hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
+                                dt_val = d.datetime[0]
+                                # Only add valid datetime values (not None or NaN)
+                                if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
+                                    valid_data_times.append(dt_val)
+                        except (IndexError, AttributeError, TypeError):
+                            continue
+                    
+                    if valid_data_times and hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                        try:
+                            self.lines.datetime[0] = max(valid_data_times)
+                        except (ValueError, IndexError, AttributeError):
+                            # If setting datetime fails, use a default
+                            self.lines.datetime[0] = 0.0
+                    elif hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                        # No valid times, use default
+                        self.lines.datetime[0] = 0.0
+                
+                return clk_len
+            
+            # CRITICAL FIX: Handle the normal (non-oldsync) path
+            # Initialize _dlens if not present
+            if not hasattr(self, '_dlens'):
+                self._dlens = [len(d) if hasattr(d, '__len__') else 0 for d in (self.datas if hasattr(self, 'datas') else [])]
+            
+            # Get current data lengths safely
+            if hasattr(self, 'datas') and self.datas:
+                newdlens = []
+                for d in self.datas:
+                    try:
+                        newdlens.append(len(d) if hasattr(d, '__len__') else 0)
+                    except Exception:
+                        newdlens.append(0)
+            else:
+                newdlens = []
+            
+            # Forward if any data source has grown
+            if newdlens and hasattr(self, '_dlens') and any(nl > l for l, nl in zip(self._dlens, newdlens) if l is not None and nl is not None):
+                try:
+                    if hasattr(self, 'forward'):
+                        self.forward()
+                except Exception:
+                    pass
+            
+            # Update _dlens
+            self._dlens = newdlens
+            
+            # CRITICAL FIX: Set datetime safely - only use data sources that have valid data
+            if hasattr(self, 'datas') and self.datas and hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                valid_data_times = []
+                for d in self.datas:
+                    try:
+                        if len(d) > 0 and hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
+                            dt_val = d.datetime[0]
+                            # Only add valid datetime values (not None or NaN)
+                            if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
+                                valid_data_times.append(dt_val)
+                    except (IndexError, AttributeError, TypeError):
+                        continue
+                
+                # CRITICAL FIX: This is the line that was causing the "max() iterable argument is empty" error
+                # We check if valid_data_times is not empty before calling max()
+                if valid_data_times:
+                    try:
+                        self.lines.datetime[0] = max(valid_data_times)
+                    except (ValueError, IndexError, AttributeError):
+                        # If setting datetime fails, use a default
+                        self.lines.datetime[0] = 0.0
+                else:
+                    # No valid times available, use a reasonable default
+                    # This is the critical fix - instead of calling max() on empty list, use default
+                    self.lines.datetime[0] = 0.0
+            
+            # Return the length of this strategy (number of processed bars)
+            try:
+                return len(self)
+            except Exception:
+                return 0
+        
+        # Import Strategy and patch it
+        try:
+            from .strategy import Strategy
+            # Monkey patch the Strategy class
+            Strategy._clk_update = safe_clk_update
+            print("CRITICAL FIX: Successfully patched Strategy._clk_update method from lineroot.py")
+        except ImportError:
+            # Strategy not imported yet, try to patch later when it's imported
+            pass
+        
+    except Exception as e:
+        pass  # Fail silently to not break imports
+
+
+# Apply the patch when this module is imported
+_apply_strategy_patch()

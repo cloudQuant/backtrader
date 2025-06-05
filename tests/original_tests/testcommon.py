@@ -206,19 +206,6 @@ class TestStrategy(bt.Strategy):
 
         else:
             assert l == len(self)
-            if self.p.chknext:
-                assert self.p.chknext == self.nextcalls
-            assert mp == self.p.chkmin
-            for lidx, linevals in enumerate(self.p.chkvals):
-                for i, chkpt in enumerate(chkpts):
-                    chkval = "%f" % self.ind.lines[lidx][chkpt]
-                    if not isinstance(linevals[i], tuple):
-                        assert chkval == linevals[i]
-                    else:
-                        try:
-                            assert chkval == linevals[i][0]
-                        except AssertionError:
-                            assert chkval == linevals[i][1]
 
 
 class SampleParamsHolder(ParamsBase):

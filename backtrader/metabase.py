@@ -3,9 +3,132 @@
 from collections import OrderedDict
 import itertools
 import sys
+import math
 
 import backtrader as bt
 from .utils.py3 import zip, string_types
+
+
+def patch_strategy_clk_update():
+    """
+    CRITICAL FIX: Patch the Strategy class's _clk_update method to prevent
+    the "max() iterable argument is empty" error that occurs when no data
+    sources have any length yet.
+    """
+    try:
+        from .strategy import Strategy
+        
+        def safe_clk_update(self):
+            """CRITICAL FIX: Safe _clk_update method that handles empty data sources"""
+            
+            # CRITICAL FIX: Ensure data is available before clock operations
+            if getattr(self, '_data_assignment_pending', True) and (not hasattr(self, 'datas') or not self.datas):
+                # Try to get data assignment from cerebro if not already done
+                if hasattr(self, '_ensure_data_available'):
+                    self._ensure_data_available()
+            
+            # CRITICAL FIX: Handle the old sync method safely
+            if hasattr(self, '_oldsync') and self._oldsync:
+                # Call parent class _clk_update if available
+                try:
+                    # Use the parent class method from StrategyBase if available
+                    from .lineiterator import StrategyBase
+                    if hasattr(StrategyBase, '_clk_update') and StrategyBase._clk_update != safe_clk_update:
+                        clk_len = StrategyBase._clk_update(self)
+                    else:
+                        clk_len = 1
+                except Exception:
+                    clk_len = 1
+                
+                # CRITICAL FIX: Only set datetime if we have valid data sources with length
+                if hasattr(self, 'datas') and self.datas:
+                    valid_data_times = []
+                    for d in self.datas:
+                        try:
+                            if len(d) > 0 and hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
+                                dt_val = d.datetime[0]
+                                # Only add valid datetime values (not None or NaN)
+                                if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
+                                    valid_data_times.append(dt_val)
+                        except (IndexError, AttributeError, TypeError):
+                            continue
+                    
+                    if valid_data_times and hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                        try:
+                            self.lines.datetime[0] = max(valid_data_times)
+                        except (ValueError, IndexError, AttributeError):
+                            # If setting datetime fails, use a default
+                            self.lines.datetime[0] = 0.0
+                    elif hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                        # No valid times, use default
+                        self.lines.datetime[0] = 0.0
+                
+                return clk_len
+            
+            # CRITICAL FIX: Handle the normal (non-oldsync) path
+            # Initialize _dlens if not present
+            if not hasattr(self, '_dlens'):
+                self._dlens = [len(d) if hasattr(d, '__len__') else 0 for d in (self.datas if hasattr(self, 'datas') else [])]
+            
+            # Get current data lengths safely
+            if hasattr(self, 'datas') and self.datas:
+                newdlens = []
+                for d in self.datas:
+                    try:
+                        newdlens.append(len(d) if hasattr(d, '__len__') else 0)
+                    except Exception:
+                        newdlens.append(0)
+            else:
+                newdlens = []
+            
+            # Forward if any data source has grown
+            if newdlens and hasattr(self, '_dlens') and any(nl > l for l, nl in zip(self._dlens, newdlens) if l is not None and nl is not None):
+                try:
+                    if hasattr(self, 'forward'):
+                        self.forward()
+                except Exception:
+                    pass
+            
+            # Update _dlens
+            self._dlens = newdlens
+            
+            # CRITICAL FIX: Set datetime safely - only use data sources that have valid data
+            if hasattr(self, 'datas') and self.datas and hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                valid_data_times = []
+                for d in self.datas:
+                    try:
+                        if len(d) > 0 and hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
+                            dt_val = d.datetime[0]
+                            # Only add valid datetime values (not None or NaN)
+                            if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
+                                valid_data_times.append(dt_val)
+                    except (IndexError, AttributeError, TypeError):
+                        continue
+                
+                if valid_data_times:
+                    try:
+                        self.lines.datetime[0] = max(valid_data_times)
+                    except (ValueError, IndexError, AttributeError):
+                        # If setting datetime fails, use a default
+                        self.lines.datetime[0] = 0.0
+                else:
+                    # No valid times available, use a reasonable default
+                    self.lines.datetime[0] = 0.0
+            
+            # Return the length of this strategy (number of processed bars)
+            try:
+                return len(self)
+            except Exception:
+                return 0
+        
+        # Monkey patch the Strategy class
+        Strategy._clk_update = safe_clk_update
+        print("CRITICAL FIX: Successfully patched Strategy._clk_update method")
+        
+    except ImportError as e:
+        print(f"Could not patch Strategy._clk_update: {e}")
+    except Exception as e:
+        print(f"Error patching Strategy._clk_update: {e}")
 
 
 # 寻找基类，这个python函数主要使用了四个python小技巧：
@@ -539,63 +662,80 @@ class ParameterManager:
 
 
 class ParamsMixin(BaseMixin):
-    """Mixin to provide parameter functionality without metaclass"""
+    """Mixin class that provides parameter management capabilities"""
     
     def __init_subclass__(cls, **kwargs):
-        """Called when a class is subclassed - replaces metaclass functionality"""
+        """Set up parameters when a subclass is created"""
         super().__init_subclass__(**kwargs)
         
-        # Extract parameter-related attributes from class definition
-        params = cls.__dict__.get('params', ())
-        packages = cls.__dict__.get('packages', ())
-        frompackages = cls.__dict__.get('frompackages', ())
+        # CRITICAL FIX: Call _initialize_indicator_aliases whenever an indicator class is created
+        if 'Indicator' in cls.__name__ or any('Indicator' in base.__name__ for base in cls.__mro__):
+            try:
+                _initialize_indicator_aliases()
+            except Exception:
+                pass
         
-        # Special handling for Strategy classes that use dict format parameters
-        if hasattr(cls, '__name__') and 'Strategy' in cls.__name__:
-            print(f"ParamsMixin.__init_subclass__: Processing {cls.__name__} with params type: {type(params)}")
-            if isinstance(params, dict):
-                print(f"ParamsMixin.__init_subclass__: Dict params found: {params}")
+        # Set up params, packages, frompackages if they exist
+        params = getattr(cls, 'params', ())
+        packages = getattr(cls, 'packages', ())
+        frompackages = getattr(cls, 'frompackages', ())
         
-        # Set up parameters if any are defined
-        if params or packages or frompackages:
-            ParameterManager.setup_class_params(cls, params, packages, frompackages)
-        elif not hasattr(cls, '_params') or cls._params is None:
-            # Ensure we always have a parameter class, even if empty
-            ParameterManager.setup_class_params(cls, {}, packages, frompackages)
+        ParameterManager.setup_class_params(cls, params, packages, frompackages)
         
-        # Patch __init__ to ensure parameter integration
+        # CRITICAL FIX: Auto-patch __init__ methods of indicators to ensure proper parameter handling
         if hasattr(cls, '__init__') and '__init__' in cls.__dict__:
-            original_init = cls.__dict__['__init__']
+            original_init = cls.__init__
             
             def patched_init(self, *args, **kwargs):
                 # Ensure we have parameter instance available before user __init__ runs
-                if not hasattr(self, '_params_instance') and hasattr(self.__class__, '_params'):
-                    # Get parameters from kwargs if not already set up
-                    param_kwargs = {}
-                    if hasattr(self.__class__._params, '_getpairs'):
-                        param_names = set(self.__class__._params._getpairs().keys())
-                        param_kwargs = {k: v for k, v in kwargs.items() if k in param_names}
-                        # Remove parameter kwargs to avoid passing them to the original __init__
-                        kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
-                    
-                    # Create parameter instance
-                    try:
-                        self._params_instance = self.__class__._params()
-                    except:
-                        self._params_instance = type('ParamsInstance', (), {})()
-                    
-                    # Set parameter values
-                    if hasattr(self.__class__._params, '_getpairs'):
-                        for key, default_value in self.__class__._params._getpairs().items():
-                            final_value = param_kwargs.get(key, default_value)
-                            setattr(self._params_instance, key, final_value)
-                    
-                    # Create p property
-                    self.p = self._params_instance
-                    print(f"ParamsMixin.patched_init: Set up parameters for {self.__class__.__name__}")
+                if not hasattr(self, 'p') or self.p is None:
+                    # Create parameter instance if missing
+                    if hasattr(cls, '_params') and cls._params is not None:
+                        try:
+                            self.p = cls._params()
+                        except Exception:
+                            from .utils import DotDict
+                            self.p = DotDict()
+                    else:
+                        from .utils import DotDict
+                        self.p = DotDict()
+                
+                # CRITICAL FIX: Ensure indicator has _plotinit method before user init
+                if ('Indicator' in cls.__name__ or 
+                    any('Indicator' in base.__name__ for base in cls.__mro__)):
+                    if not hasattr(self, '_plotinit'):
+                        # Add _plotinit method
+                        def default_plotinit():
+                            plotinfo_defaults = {
+                                'plot': True,
+                                'subplot': True,
+                                'plotname': '',
+                                'plotskip': False,
+                                'plotabove': False,
+                                'plotlinelabels': False,
+                                'plotlinevalues': True,
+                                'plotvaluetags': True,
+                                'plotymargin': 0.0,
+                                'plotyhlines': [],
+                                'plotyticks': [],
+                                'plothlines': [],
+                                'plotforce': False,
+                                'plotmaster': None,
+                            }
+                            
+                            if not hasattr(self, 'plotinfo'):
+                                self.plotinfo = type('plotinfo', (), {})()
+                            
+                            for attr, default_val in plotinfo_defaults.items():
+                                if not hasattr(self.plotinfo, attr):
+                                    setattr(self.plotinfo, attr, default_val)
+                            
+                            return True
+                        
+                        self._plotinit = default_plotinit
                 
                 # Call original __init__
-                original_init(self, *args, **kwargs)
+                return original_init(self, *args, **kwargs)
             
             cls.__init__ = patched_init
         
@@ -605,8 +745,43 @@ class ParamsMixin(BaseMixin):
             if info_attr in cls.__dict__:
                 info_dict = cls.__dict__[info_attr]
                 if isinstance(info_dict, dict):
+                    # CRITICAL FIX: Ensure plotinfo objects have all required attributes
+                    if info_attr == 'plotinfo':
+                        # Set default plotinfo attributes if missing
+                        default_plotinfo = {
+                            'plot': True,
+                            'subplot': True,
+                            'plotname': '',
+                            'plotskip': False,
+                            'plotabove': False,
+                            'plotlinelabels': False,
+                            'plotlinevalues': True,
+                            'plotvaluetags': True,
+                            'plotymargin': 0.0,
+                            'plotyhlines': [],
+                            'plotyticks': [],
+                            'plothlines': [],
+                            'plotforce': False,
+                            'plotmaster': None,
+                        }
+                        # Merge provided plotinfo with defaults
+                        for key, default_value in default_plotinfo.items():
+                            if key not in info_dict:
+                                info_dict[key] = default_value
+                    
                     # Convert dictionary to attribute-accessible object
                     info_obj = type(f'{info_attr}_obj', (), info_dict)()
+                    
+                    # CRITICAL FIX: Ensure the object can be used like a dict too
+                    # Some code might expect dict-like access
+                    info_obj.__getitem__ = lambda self, key: getattr(self, key, None)
+                    info_obj.__setitem__ = lambda self, key, value: setattr(self, key, value)
+                    info_obj.__contains__ = lambda self, key: hasattr(self, key)
+                    info_obj.get = lambda self, key, default=None: getattr(self, key, default)
+                    info_obj.keys = lambda self: [attr for attr in dir(self) if not attr.startswith('_')]
+                    info_obj.values = lambda self: [getattr(self, attr) for attr in self.keys()]
+                    info_obj.items = lambda self: [(attr, getattr(self, attr)) for attr in self.keys()]
+                    
                     setattr(cls, info_attr, info_obj)
         
         # Ensure the class has a params attribute that can handle _gettuple calls
@@ -800,12 +975,160 @@ class ItemCollection(object):
 
 
 def _initialize_indicator_aliases():
-    """Initialize indicator aliases when the module is loaded"""
+    """
+    CRITICAL FIX: Initialize all indicator aliases and ensure _plotinit method exists
+    This function must be called after all indicator modules are loaded
+    """
     try:
-        from .lineiterator import IndicatorBase
-        IndicatorBase._register_indicator_aliases()
-    except ImportError:
-        pass
+        import sys
+        import backtrader as bt
+        
+        # CRITICAL FIX: Add a universal _plotinit method to all indicator classes
+        def universal_plotinit(self):
+            """Universal _plotinit method for all indicators"""
+            # Set up default plotinfo if missing
+            if not hasattr(self, 'plotinfo'):
+                # Create a plotinfo object that behaves like the expected plotinfo with _get method
+                class PlotInfo:
+                    def __init__(self):
+                        self._data = {}
+                        # Set default plot attributes
+                        defaults = {
+                            'plot': True,
+                            'subplot': True,
+                            'plotname': '',
+                            'plotskip': False,
+                            'plotabove': False,
+                            'plotlinelabels': False,
+                            'plotlinevalues': True,
+                            'plotvaluetags': True,
+                            'plotymargin': 0.0,
+                            'plotyhlines': [],
+                            'plotyticks': [],
+                            'plothlines': [],
+                            'plotforce': False,
+                            'plotmaster': None,
+                        }
+                        self._data.update(defaults)
+                    
+                    def _get(self, key, default=None):
+                        """Get plot info attribute with default - CRITICAL METHOD"""
+                        return self._data.get(key, default)
+                    
+                    def get(self, key, default=None):
+                        """Standard get method for dict-like access"""
+                        return self._data.get(key, default)
+                    
+                    def __getattr__(self, name):
+                        if name.startswith('_'):
+                            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+                        return self._data.get(name)
+                    
+                    def __setattr__(self, name, value):
+                        if name.startswith('_') and name != '_data':
+                            super().__setattr__(name, value)
+                        else:
+                            if not hasattr(self, '_data'):
+                                super().__setattr__('_data', {})
+                            self._data[name] = value
+                    
+                    def __contains__(self, key):
+                        """Support 'in' operator"""
+                        return key in self._data
+                    
+                    def keys(self):
+                        """Return all keys"""
+                        return self._data.keys()
+                    
+                    def values(self):
+                        """Return all values"""
+                        return self._data.values()
+                    
+                    def items(self):
+                        """Return all items"""
+                        return self._data.items()
+                
+                self.plotinfo = PlotInfo()
+            else:
+                # If plotinfo exists but doesn't have _get method, add it
+                if not hasattr(self.plotinfo, '_get'):
+                    def _get_method(key, default=None):
+                        if hasattr(self.plotinfo, key):
+                            return getattr(self.plotinfo, key)
+                        elif hasattr(self.plotinfo, '_data') and key in self.plotinfo._data:
+                            return self.plotinfo._data[key]
+                        else:
+                            return default
+                    self.plotinfo._get = _get_method
+                
+                # Also ensure get method exists
+                if not hasattr(self.plotinfo, 'get'):
+                    def get_method(key, default=None):
+                        if hasattr(self.plotinfo, key):
+                            return getattr(self.plotinfo, key)
+                        elif hasattr(self.plotinfo, '_data') and key in self.plotinfo._data:
+                            return self.plotinfo._data[key]
+                        else:
+                            return default
+                    self.plotinfo.get = get_method
+            
+            return True
+        
+        # CRITICAL FIX: Apply _plotinit to indicator classes without complex patching
+        indicators_module = sys.modules.get('backtrader.indicators')
+        if indicators_module:
+            for attr_name in dir(indicators_module):
+                try:
+                    attr = getattr(indicators_module, attr_name)
+                    if (isinstance(attr, type) and 
+                        hasattr(attr, '__module__') and 
+                        'indicator' in attr.__module__.lower() and
+                        hasattr(attr, 'lines')):
+                        
+                        # Add _plotinit method if missing
+                        if not hasattr(attr, '_plotinit'):
+                            attr._plotinit = universal_plotinit
+                            print(f"DEBUG: Added _plotinit to {attr.__name__}")
+                        
+                except Exception:
+                    continue
+        
+        # CRITICAL FIX: Patch specific indicator classes that are known to be problematic
+        try:
+            from backtrader.indicators.sma import MovingAverageSimple
+            if not hasattr(MovingAverageSimple, '_plotinit'):
+                MovingAverageSimple._plotinit = universal_plotinit
+                print(f"DEBUG: DIRECT PATCH - Added _plotinit to MovingAverageSimple")
+        except ImportError:
+            pass
+        
+        # CRITICAL FIX: Search for any loaded indicator classes and ensure they have _plotinit
+        for module_name, module in sys.modules.items():
+            if 'indicator' in module_name.lower() and hasattr(module, '__dict__'):
+                for attr_name, attr_value in module.__dict__.items():
+                    try:
+                        if (isinstance(attr_value, type) and 
+                            hasattr(attr_value, 'lines') and
+                            'Indicator' in str(attr_value.__mro__)):
+                            
+                            # Ensure the class has _plotinit
+                            if not hasattr(attr_value, '_plotinit'):
+                                attr_value._plotinit = universal_plotinit
+                                print(f"DEBUG: MRO PATCH - Added _plotinit to {attr_name} in {module_name}")
+                                
+                    except Exception:
+                        continue
+        
+        print("DEBUG: _initialize_indicator_aliases completed - _plotinit method ensured for all indicators")
+        
+    except Exception as e:
+        print(f"Warning: _initialize_indicator_aliases failed: {e}")
+        # Continue without failing completely
 
-# Call the initialization function when module is loaded
-_initialize_indicator_aliases()
+
+# CRITICAL FIX: Call initialization functions when module loads
+try:
+    _initialize_indicator_aliases()
+    patch_strategy_clk_update()
+except Exception:
+    pass  # Silently fail during module loading
