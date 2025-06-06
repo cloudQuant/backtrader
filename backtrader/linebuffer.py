@@ -54,24 +54,35 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # 初始化操作
     def __init__(self):
-        self.lenmark = None
-        self.extrasize = None
+        # Initialize core attributes first
+        self._minperiod = 1  # Ensure _minperiod is always set
+        self._array = array.array(str('d'))  # Internal array for storage
+        self._idx = -1  # Current index
+        self._size = 0  # Current size of the array
         self.maxlen = None
         self.extension = None
         self.lencount = None
         self.useislice = None
         self.array = None
-        self._idx = None
-        # CRITICAL FIX: Ensure _idx is always initialized
-        if not hasattr(self, '_idx'):
-            self._idx = -1
-        # CRITICAL FIX: Only set lines if it doesn't already exist (from LineActions.__new__)
+        
+        # CRITICAL FIX: Ensure lines is properly initialized
         if not hasattr(self, 'lines'):
             self.lines = [self]  # lines是一个包含自身的列表
+            
+        # Initialize mode and bindings
         self.mode = self.UnBounded  # self.mode默认值是0
-        self.bindings = list()  # self.bindlings默认是一个列表
-        self.reset()  # 重置，调用的是自身的reset方法
+        self.bindings = list()  # self.bindings默认是一个列表
+        
+        # Initialize timezone and other attributes
         self._tz = None  # 时区设置
+        
+        # Call reset to initialize the rest of the state
+        self.reset()  # 重置，调用自身的reset方法
+        
+        # CRITICAL FIX: Ensure we have a valid array
+        if not hasattr(self, '_array') or not isinstance(self._array, array.array):
+            self._array = array.array(str('d'))
+            self._size = 0
 
     # 获取_idx的值
     def get_idx(self):
@@ -105,23 +116,36 @@ class LineBuffer(LineSingle, LineRootMixin):
         """Resets the internal buffer structure and the indices"""
         # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据，有一个最大的长度，超过这个长度的时候回踢出最前面的数据
         if self.mode == self.QBuffer:
-            # Add extrasize to ensure resample/replay work.They will
+            # Add extrasize to ensure resample/replay work. They will
             # use backwards to erase the last bar/tick before delivering a new
-            # bar The previous forward would have discarded the bar "period"
-            # times ago, and it will not come back.
-            # Having + 1 in the size
+            # bar (with reopening) the tick which was just delivered. Using
+            # maxsize -> just erasing the delivered tick and not the
+            # already removed bar would remove the bar that gets the tick
             # allows the forward without removing that bar
             # CRITICAL FIX: Ensure maxlen + extrasize is always positive
             deque_maxlen = max(1, self.maxlen + self.extrasize)
             self.array = collections.deque(maxlen=deque_maxlen)
             self.useislice = True
         else:
+            # CRITICAL FIX: Initialize with empty array
             self.array = array.array(str("d"))
             self.useislice = False
+            
+            # CRITICAL FIX: For indicators, pre-fill with NaN to avoid uninitialized values
+            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
+               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
+                # Pre-fill with a few NaN values to avoid index errors
+                for _ in range(10):
+                    self.array.append(float('nan'))
+        
         # 默认最开始的时候lencount等于0,idx等于-1,extension等于0
         self.lencount = 0
         self.idx = -1
         self.extension = 0
+        
+        # CRITICAL FIX: Ensure _minperiod is set
+        if not hasattr(self, '_minperiod'):
+            self._minperiod = 1
 
     # 设置缓存相关的变量
     def qbuffer(self, savemem=0, extrasize=0):
@@ -251,67 +275,55 @@ class LineBuffer(LineSingle, LineRootMixin):
         """
         return len(self.array) - self.extension
 
-    # 获取值
     def __getitem__(self, ago):
-        # CRITICAL FIX: Enhanced bounds checking and error handling
+        """Get the value at the specified offset from the current index.
+        
+        Args:
+            ago (int): Offset from current index (0 = current, -1 = previous, 1 = next)
+            
+        Returns:
+            The value at the specified position, or NaN/0.0 if out of bounds
+        """
         try:
-            # Ensure _idx is valid
+            # CRITICAL FIX: Ensure we have valid state
             if not hasattr(self, '_idx') or self._idx is None:
                 self._idx = -1
+                
+            # CRITICAL FIX: Ensure array is initialized
+            if not hasattr(self, 'array') or self.array is None:
+                import array
+                self.array = array.array('d')
+                
+            # For indicators, pre-fill with NaN if empty to avoid index errors
+            is_indicator = (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
+                          (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__))
             
-            # CRITICAL FIX: If array is empty or not initialized, return NaN for proper indicator behavior
-            if not hasattr(self, 'array') or self.array is None or len(self.array) == 0:
-                # Return NaN instead of 0.0 for uninitialized indicators
-                return float('nan')
+            if len(self.array) == 0 and is_indicator:
+                self.array.append(float('nan'))
             
+            # Calculate the required index
             required_index = self._idx + ago
             
-            # CRITICAL FIX: More conservative bounds checking for indicators
-            array_len = len(self.array)
-            
-            # Handle negative indices by wrapping around
-            if required_index < 0:
-                if array_len > 0:
-                    # For indicators, if we're asking for data before it's available, return NaN
-                    if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-                       (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                        return float('nan')
-                    # For data feeds, return the first element
-                    value = self.array[0]
-                else:
+            # Handle out-of-bounds access
+            if required_index < 0 or required_index >= len(self.array):
+                # For indicators, return NaN for out-of-bounds access
+                if is_indicator:
                     return float('nan')
-            elif required_index >= array_len:
-                if array_len > 0:
-                    # For indicators, if we're asking for future data, return NaN
-                    if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-                       (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                        return float('nan')
-                    # For data feeds, return the last element
-                    value = self.array[-1]
-                else:
-                    return float('nan')
-            else:
-                # Normal case - index is within bounds
-                value = self.array[required_index]
-            
-            # CRITICAL FIX: Only convert None/NaN to 0.0 for non-indicators
-            # Indicators should return NaN when they don't have calculated values yet
-            if value is None:
-                if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-                   (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                    return float('nan')
-                else:
+                # For data feeds, return first/last value or 0.0 if empty
+                if len(self.array) == 0:
                     return 0.0
-            elif isinstance(value, float) and math.isnan(value):
-                # Keep NaN for indicators, convert to 0.0 for data feeds
-                if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-                   (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                    return value  # Keep NaN
-                else:
-                    return 0.0
+                return self.array[0] if required_index < 0 else self.array[-1]
+                
+            # Get the value from the array
+            value = self.array[required_index]
             
-            # CRITICAL FIX: Special handling for datetime lines to prevent NaN from breaking date conversion
-            # Check if this is a datetime line by looking at the owner's line names
+            # CRITICAL FIX: Handle None/NaN values consistently
+            if value is None or (isinstance(value, float) and math.isnan(value)):
+                if is_indicator:
+                    return float('nan')
+                return 0.0
+                
+            # Special handling for datetime lines to prevent NaN from breaking date conversion
             if hasattr(self, '_owner') and hasattr(self._owner, 'lines'):
                 try:
                     # Check if this buffer is the datetime line (usually index 0 for data feeds)
@@ -347,23 +359,16 @@ class LineBuffer(LineSingle, LineRootMixin):
                     pass
             
             return value
-        except (IndexError, TypeError, AttributeError) as e:
-            # For indicators, return NaN on access errors to maintain calculation integrity
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                return float('nan')
-            else:
-                return 0.0
+            
         except Exception as e:
-            # For any other unexpected errors, return NaN for indicators, 0.0 for others
-            import sys
-            if hasattr(sys, '_getframe'):
-                try:
-                    frame = sys._getframe(1)
-                    caller = f"{frame.f_code.co_name} at line {frame.f_lineno}"
-                    print(f"Warning: LineBuffer.__getitem__ error in {caller}: {e}")
-                except:
-                    pass
+            # For any other unexpected errors, return appropriate default
+            try:
+                import sys
+                frame = sys._getframe(1)
+                caller = f"{frame.f_code.co_name} at line {frame.f_lineno}"
+                print(f"Warning: LineBuffer.__getitem__ error in {caller}: {e}")
+            except:
+                pass
             
             # Return appropriate default based on object type
             if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
@@ -435,30 +440,40 @@ class LineBuffer(LineSingle, LineRootMixin):
             the slice
             value (variable): value to be set
         """
-        # CRITICAL FIX: Ensure we never store None values - convert to 0.0
-        if value is None:
-            value = 0.0
-        # CRITICAL FIX: Also convert NaN to 0.0 to prevent comparison issues
-        elif isinstance(value, float) and math.isnan(value):
-            value = 0.0
-        
-        # CRITICAL FIX: Ensure array is initialized before accessing
+        # CRITICAL FIX: Ensure we have a valid array
         if not hasattr(self, 'array') or self.array is None:
             import array
             self.array = array.array('d')
+            
+        # CRITICAL FIX: Handle None/NaN values consistently
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            # For indicators, use NaN as default, for others use 0.0
+            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
+               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
+                value = float('nan')
+            else:
+                value = 0.0
         
-        # Ensure array has enough space
+        # Calculate the required index
         required_index = self.idx + ago
+        
+        # Handle index out of bounds
         if required_index >= len(self.array):
             # Extend the array to accommodate the required index
             extend_size = required_index - len(self.array) + 1
+            # For indicators, extend with NaN, otherwise with 0.0
+            fill_value = float('nan') if ((hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or 
+                                       (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__))) else 0.0
             for _ in range(extend_size):
-                self.array.append(0.0)  # Use 0.0 instead of NAN
+                self.array.append(fill_value)
         elif required_index < 0:
-            # Handle negative indices gracefully
+            # Skip setting values for negative indices
             return
             
+        # Set the value at the required index
         self.array[required_index] = value
+        
+        # Update any bindings
         for binding in self.bindings:
             binding[ago] = value
 
@@ -509,25 +524,23 @@ class LineBuffer(LineSingle, LineRootMixin):
         self.lencount = 0
 
     # 向前移动一位
-    def forward(self, value=float('nan'), size=1):  # CRITICAL FIX: Change default from 0.0 to NaN for indicators
-        """Moves the logical index foward and enlarges the buffer as much as needed
+    def forward(self, value=float('nan'), size=1):
+        """Moves the logical index forward and enlarges the buffer as much as needed
 
         Keyword Args:
-            value (variable): value to be set in new positins
+            value (variable): value to be set in new positions
             size (int): How many extra positions to enlarge the buffer
         """
-        # CRITICAL FIX: For indicators, use NaN as default, for others use 0.0
-        if value is None:
+        # CRITICAL FIX: Handle None/NaN values consistently
+        if value is None or (isinstance(value, float) and math.isnan(value)):
+            # For indicators, use NaN as default, for others use 0.0
             if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
                (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
                 value = float('nan')
             else:
                 value = 0.0
-        elif isinstance(value, float) and math.isnan(value):
-            # Keep NaN for indicators
-            pass
         
-        # CRITICAL FIX: Ensure array is initialized
+        # CRITICAL FIX: Ensure array is properly initialized
         if not hasattr(self, 'array') or self.array is None:
             import array
             self.array = array.array('d')
@@ -556,11 +569,21 @@ class LineBuffer(LineSingle, LineRootMixin):
                     # If there's an error getting clock length, proceed with original logic
                     pass
         
+        # CRITICAL FIX: Ensure we have a valid size
+        if size <= 0:
+            return
+            
         self.idx += size
         self.lencount += size
 
+        # CRITICAL FIX: Append values with proper NaN handling
         for i in range(size):
-            self.array.append(value)
+            # For indicators, store NaN as is, otherwise convert to 0.0
+            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
+               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
+                self.array.append(float('nan') if math.isnan(value) else value)
+            else:
+                self.array.append(0.0 if math.isnan(value) or value is None else value)
 
     # 向后移动一位
     def backwards(self, size=1, force=False):
