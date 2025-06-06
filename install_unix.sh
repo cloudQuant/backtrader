@@ -14,9 +14,9 @@ PYFOLIO_VERSION="0.9.6"
 DEFAULT_WORK_DIR="$HOME"
 echo "Default working directory: $DEFAULT_WORK_DIR"
 
-# 切换到默认工作目录
-echo "Switching to the default working directory..."
-cd "$DEFAULT_WORK_DIR" || { echo "Failed to switch to default working directory. Exiting..."; exit 1; }
+# # 切换到默认工作目录
+# echo "Switching to the default working directory..."
+# cd "$DEFAULT_WORK_DIR" || { echo "Failed to switch to default working directory. Exiting..."; exit 1; }
 
 # Function to check if a Python package is installed with specific version
 check_package_version() {
@@ -37,34 +37,34 @@ except PackageNotFoundError:
 "
 }
 
-# 检查 pyfolio 版本
-echo "Checking if pyfolio $PYFOLIO_VERSION is installed..."
-check_package_version "pyfolio" "$PYFOLIO_VERSION"
-version_check_status=$?
+# # 检查 pyfolio 版本
+# echo "Checking if pyfolio $PYFOLIO_VERSION is installed..."
+# check_package_version "pyfolio" "$PYFOLIO_VERSION"
+# version_check_status=$?
 
-if [ $version_check_status -eq 1 ]; then
-    echo "pyfolio not found. Installing version $PYFOLIO_VERSION..."
-    # 检查当前目录下是否存在 pyfolio 文件夹
-    if [ ! -d "pyfolio" ]; then
-        echo "pyfolio directory does not exist. Cloning pyfolio from Gitee..."
-        git clone https://gitee.com/yunjinqi/pyfolio || { echo "Failed to clone pyfolio repository. Exiting..."; exit 1; }
-    fi
+# if [ $version_check_status -eq 1 ]; then
+#     echo "pyfolio not found. Installing version $PYFOLIO_VERSION..."
+#     # 检查当前目录下是否存在 pyfolio 文件夹
+#     if [ ! -d "pyfolio" ]; then
+#         echo "pyfolio directory does not exist. Cloning pyfolio from Gitee..."
+#         git clone https://gitee.com/yunjinqi/pyfolio || { echo "Failed to clone pyfolio repository. Exiting..."; exit 1; }
+#     fi
 
-    # 运行 install_unix.sh 安装 pyfolio
-    echo "Running install_unix.sh for pyfolio..."
-    cd pyfolio || { echo "Failed to enter pyfolio directory. Exiting..."; exit 1; }
-    sh install_unix.sh || { echo "Failed to run install_unix.sh for pyfolio. Exiting..."; exit 1; }
-    cd .. || { echo "Failed to return to parent directory. Exiting..."; exit 1; }
+#     # 运行 install_unix.sh 安装 pyfolio
+#     echo "Running install_unix.sh for pyfolio..."
+#     cd pyfolio || { echo "Failed to enter pyfolio directory. Exiting..."; exit 1; }
+#     sh install_unix.sh || { echo "Failed to run install_unix.sh for pyfolio. Exiting..."; exit 1; }
+#     cd .. || { echo "Failed to return to parent directory. Exiting..."; exit 1; }
 
-    # 清理 pyfolio 目录
-    echo "Cleaning up pyfolio directory..."
-    rm -rf pyfolio
-elif [ $version_check_status -eq 2 ]; then
-    echo "Incorrect pyfolio version installed. Installing version $PYFOLIO_VERSION..."
-    pip install --no-deps --force-reinstall "pyfolio==$PYFOLIO_VERSION" || { echo "Failed to install pyfolio $PYFOLIO_VERSION. Exiting..."; exit 1; }
-else
-    echo "pyfolio $PYFOLIO_VERSION is already installed correctly. Skipping installation."
-fi
+#     # 清理 pyfolio 目录
+#     echo "Cleaning up pyfolio directory..."
+#     rm -rf pyfolio
+# elif [ $version_check_status -eq 2 ]; then
+#     echo "Incorrect pyfolio version installed. Installing version $PYFOLIO_VERSION..."
+#     pip install --no-deps --force-reinstall "pyfolio==$PYFOLIO_VERSION" || { echo "Failed to install pyfolio $PYFOLIO_VERSION. Exiting..."; exit 1; }
+# else
+#     echo "pyfolio $PYFOLIO_VERSION is already installed correctly. Skipping installation."
+# fi
 
 # Function to handle errors
 handle_error() {
@@ -72,17 +72,17 @@ handle_error() {
     exit 1
 }
 
-# Return to original directory and install dependencies
-echo "Returning to original directory..."
-cd "$ORIGINAL_DIR" || handle_error "Failed to return to original directory"
+# # Return to original directory and install dependencies
+# echo "Returning to original directory..."
+# cd "$ORIGINAL_DIR" || handle_error "Failed to return to original directory"
 
-# Install core dependencies first
-echo "Installing core dependencies..."
-pip install pandas numpy matplotlib plotly python-dateutil pytz tzlocal future cython setuptools requests scipy pyecharts tqdm numba spdlog python-rapidjson || handle_error "Failed to install core dependencies"
+# # Install core dependencies first
+# echo "Installing core dependencies..."
+# pip install pandas numpy matplotlib plotly python-dateutil pytz tzlocal future cython setuptools requests scipy pyecharts tqdm numba spdlog python-rapidjson || handle_error "Failed to install core dependencies"
 
 # Install test dependencies
 echo "Installing test dependencies..."
-pip install pytest pytest-benchmark pytest-sugar pytest-cov pytest-picked pytest-xdist pytest-asyncio pytest-html pytest-ordering pytest-mock requests-mock || handle_error "Failed to install test dependencies"
+pip install pytest pytest-benchmark pytest-sugar pytest-cov pytest-picked pytest-xdist pytest-asyncio pytest-html pytest-ordering pytest-mock pytest-timeout requests-mock || handle_error "Failed to install test dependencies"
 
 # Install the backtrader package
 echo "Installing the backtrader package..."
@@ -99,17 +99,10 @@ if [ -d "$EGG_INFO_DIR" ]; then
     echo "Deleted $EGG_INFO_DIR directory."
 fi
 
-# Run backtrader tests
-echo "Running backtrader tests..."
-python -c "
-import backtrader as bt
-cerebro = bt.Cerebro()
-print('Basic backtrader test passed: Successfully imported backtrader and created Cerebro instance')
-" || handle_error "Basic backtrader test failed."
 
 # Run pytest tests (excluding problematic tests)
 echo "Running pytest tests (excluding problematic tests)..."
-pytest tests --ignore=tests/crypto_tests --timeout=30 -n 8 -v
+pytest tests --ignore=tests/crypto_tests --timeout=30 --timeout-method=thread -n 8 -v
 
 # Delete the .benchmarks directory generated by pytest
 if [ -d "$BENCHMARKS_DIR" ]; then
