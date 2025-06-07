@@ -111,6 +111,95 @@ if getattr(self, '_data_assignment_pending', True) and (not hasattr(self, 'datas
 
 3. **文档完善**: 为关键方法添加更详细的文档字符串，明确说明参数类型和可能的异常情况。
 
+### 5. 无限递归和缺少递归保护问题
+
+**文件路径**: `/Users/yunjinqi/Documents/backtrader/backtrader/lineiterator.py`  
+**问题描述**: `LineIterator.__len__`方法中的递归保护机制存在缺陷，在检查`_len_recursion_guard`属性之前没有确保该属性已被初始化，可能导致AttributeError。
+
+**问题代码**:
+```python
+# 问题: 在检查_len_recursion_guard是否存在前就使用它
+if hasattr(self, '_len_recursion_guard'):
+    return 0
+
+self._len_recursion_guard = True
+```
+
+**修复方案**:
+```python
+try:
+    # 使用异常处理块来保护属性访问和赋值操作
+    recursion_guard = getattr(self, '_len_recursion_guard', False)
+    if recursion_guard:
+        # 已经在计算长度中，返回安全的默认值
+        return 0
+    
+    # 设置递归保护 - 使用setattr而不是直接赋值，更安全
+    setattr(self, '_len_recursion_guard', True)
+except Exception:
+    pass
+```
+
+### 6. LineSeries.__setattr__中的无限递归问题
+
+**文件路径**: `/Users/yunjinqi/Documents/backtrader/backtrader/lineseries.py`  
+**问题描述**: 在`LineSeries.__setattr__`方法中使用`in`运算符检查对象是否在列表中时，会触发对象的`__eq__`方法，导致无限递归。
+
+**问题代码**:
+```python
+# 问题: 使用'in'操作符导致递归
+if value not in self._lineiterators[ltype]:
+    self._lineiterators[ltype].append(value)
+```
+
+**修复方案**:
+使用对象ID比较而非'in'操作符检查列表成员：
+```python
+# 关键修复：不使用'in'操作符，而是通过ID比较来检查是否已存在
+found = False
+for item in self._lineiterators[ltype]:
+    if id(item) == id(value):
+        found = True
+        break
+        
+if not found:
+    self._lineiterators[ltype].append(value)
+```
+
+### 7. 指标对象缺少_idx属性
+
+**文件路径**: `/Users/yunjinqi/Documents/backtrader/backtrader/lineiterator.py`  
+**问题描述**: 某些指标对象（如CrossOver、TrueStrengthIndicator等）在创建后缺少`_idx`属性，导致在访问该属性时抛出AttributeError。
+
+**修复方案**:
+在`LineIterator.__init__`方法中添加安全初始化：
+```python
+# 确保所有行迭代器对象都有_idx属性
+if not hasattr(self, '_idx'):
+    self._idx = -1  # 与LineBuffer.__init__中的初始值保持一致
+```
+
+### 8. 绘图维度不匹配问题
+
+**文件路径**: `/Users/yunjinqi/Documents/backtrader/backtrader/plot/plot.py`  
+**问题描述**: 当尝试绘制空数组或维度不匹配的数组时，会导致错误：`ValueError: x and y must have same first dimension, but have shapes (255,) and (0,)`
+
+**问题代码**:
+```python
+# 问题：无检查直接尝试绘制可能为空的数组
+plottedline = pltmethod(xdata, lplotarray, **plotkwargs)
+```
+
+**修复方案**:
+添加空数组检查：
+```python
+# 检查数组是否为空，避免维度不匹配错误
+if not lplotarray or len(lplotarray) == 0:
+    # 如果数据为空，跳过绘图
+    plottedline = None
+    return  # 强制跳出此次线条绘制
+```
+
 ## 结论
 
-Backtrader项目存在几个关键区域的bug，主要与数据处理、数组边界检查和属性访问安全性有关。大多数问题已经通过添加安全检查和错误处理来修复，但代码库中仍可能存在其他类似问题。建议对类似模式的代码进行全面审查，特别是在处理可能为空的集合或对象属性时。
+Backtrader项目存在几个关键区域的bug，主要与数据处理、数组边界检查、属性访问安全性、递归保护和维度匹配有关。通过添加安全检查、避免递归问题和改进错误处理，大多数问题已经得到修复，但代码库中仍可能存在其他类似问题。建议对类似模式的代码进行全面审查，特别是在处理循环引用、递归调用、空集合或对象属性访问时。

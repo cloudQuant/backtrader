@@ -397,6 +397,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # Call parent initialization with NO arguments since data processing was done above
         super(LineIterator, self).__init__()
         
+        # CRITICAL FIX: 确保所有行迭代器对象都有_idx属性
+        # 这解决了'CrossOver'、'TrueStrengthIndicator'等对象没有_idx属性的问题
+        if not hasattr(self, '_idx'):
+            self._idx = -1  # 与LineBuffer.__init__中的初始值保持一致
+        
         # For non-indicators, call dopreinit to set up clock and other attributes
         if not is_indicator:
             # Call dopreinit to set up clock and other attributes
@@ -954,12 +959,19 @@ class LineIterator(LineIteratorMixin, LineSeries):
         """Return the length of the lineiterator's lines with recursion protection"""
         
         # CRITICAL FIX: Prevent infinite recursion with a recursion guard
-        if hasattr(self, '_len_recursion_guard'):
-            # We're already calculating length, return a safe default
-            return 0
-        
-        # Set recursion guard
-        self._len_recursion_guard = True
+        # 先设置保护标志，再进行检查，避免递归错误
+        try:
+            # 使用异常处理块来保护属性访问和赋值操作
+            recursion_guard = getattr(self, '_len_recursion_guard', False)
+            if recursion_guard:
+                # We're already calculating length, return a safe default
+                return 0
+            
+            # Set recursion guard - 使用setattr而不是直接赋值，更安全
+            setattr(self, '_len_recursion_guard', True)
+        except Exception:
+            # 如果获取或设置属性失败，继续执行
+            pass
         
         try:
             # CRITICAL FIX: For TestStrategy, ensure chkmin is set before returning length
@@ -1086,9 +1098,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
             # Fallback for any edge cases
             return 0
         finally:
-            # Always remove recursion guard
-            if hasattr(self, '_len_recursion_guard'):
-                delattr(self, '_len_recursion_guard')
+            # Remove recursion guard - 使用更安全的方式删除属性
+            try:
+                if hasattr(self, '_len_recursion_guard'):
+                    delattr(self, '_len_recursion_guard')
+            except Exception:
+                # 即使删除失败也不抛出异常
+                pass
 
     def advance(self, size=1):
         self.lines.advance(size)

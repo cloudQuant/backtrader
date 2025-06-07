@@ -1837,6 +1837,9 @@ class Cerebro(ParameterizedBase):
                         dt0 = min(
                             (d for i, d in enumerate(dts) if d is not None and i not in rsonly)
                         )
+                    # todo dt0 < 1,是错误的，进行修改
+                    if dt0 < 1:
+                        return 
                     # 获取主数据，及时间
                     dmaster = datas[dts.index(dt0)]  # and timemaster
                     self._dtmaster = dmaster.num2date(dt0)

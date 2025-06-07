@@ -814,7 +814,14 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 if safe_hasattr(self, '_lineiterators') and safe_hasattr(value, '_ltype'):
                     try:
                         ltype = getattr(value, '_ltype', 0)
-                        if value not in self._lineiterators[ltype]:
+                        # 关键修复：不使用 'in' 操作符，而是通过ID比较来检查是否已存在
+                        found = False
+                        for item in self._lineiterators[ltype]:
+                            if id(item) == id(value):
+                                found = True
+                                break
+                                
+                        if not found:
                             self._lineiterators[ltype].append(value)
                     except Exception:
                         pass

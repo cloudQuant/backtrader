@@ -1077,8 +1077,9 @@ class Plot_OldSync(ParameterizedBase):
             # Global and generic for indicator
             if self.pinf.sch.linevalues and ind.plotinfo.plotlinevalues:
                 plotlinevalue = lineplotinfo._get("_plotvalue", True)
-                if plotlinevalue and not math.isnan(lplot[-1]):
-                    label += " %.2f" % lplot[-1]
+                if len(lplot) > 0:
+                    if plotlinevalue and not math.isnan(lplot[-1]):
+                        label += " %.2f" % lplot[-1]
 
             plotkwargs = dict()
             linekwargs = lineplotinfo._getkwargs(skip_=True)
@@ -1097,6 +1098,14 @@ class Plot_OldSync(ParameterizedBase):
             pltmethod = getattr(ax, lineplotinfo._get("_method", "plot"))
 
             xdata, lplotarray = self.pinf.xdata, lplot
+            
+            # CRITICAL FIX: 检查数组是否为空，避免维度不匹配错误
+            # 修复维度不匹配错误：ValueError: x and y must have same first dimension
+            if not lplotarray or len(lplotarray) == 0:
+                # 如果数据为空，跳过绘图
+                plottedline = None
+                return  # 强制跳出此次线条绘制
+                
             if lineplotinfo._get("_skipnan", False):
                 # Get the full array and a mask to skipnan
                 lplotarray = np.array(lplot)
@@ -1105,6 +1114,11 @@ class Plot_OldSync(ParameterizedBase):
                 # Get both the axis and the data masked
                 lplotarray = lplotarray[lplotmask]
                 xdata = np.array(xdata)[lplotmask]
+                
+                # 再次检查数组是否为空
+                if len(lplotarray) == 0 or len(xdata) == 0 or len(lplotarray) != len(xdata):
+                    plottedline = None
+                    return  # 跳过绘图
 
             plottedline = pltmethod(xdata, lplotarray, **plotkwargs)
             try:

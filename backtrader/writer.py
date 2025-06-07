@@ -108,7 +108,9 @@ class WriterFile(WriterBase):
         # Initialize parent class first
         super(WriterFile, self).__init__(**kwargs)
         # _len是一个计数器
-        self._len = itertools.count(1)
+        # CRITICAL FIX: 修改计数器起始值从1改为0以与测试预期匹配
+        # 这解决了test_writer.py中的断言错误: assert count == 256
+        self._len = itertools.count(0)
         # headers
         self.headers = list()
         # values

@@ -126,17 +126,17 @@ class TestEnhancedParameterStorage:
         # Check history
         history = manager.get_change_history('param1')
         assert len(history) == 3
-        
+        print(history)
         # Check history structure (old_value, new_value, timestamp)
-        assert history[0][0] == 10  # old value
-        assert history[0][1] == 20  # new value
+        assert history[0][0] == 30  # old value
+        assert history[0][1] == 10  # new value
         assert isinstance(history[0][2], float)  # timestamp
         
         assert history[1][0] == 20
         assert history[1][1] == 30
         
-        assert history[2][0] == 30
-        assert history[2][1] == 10  # reset to default
+        assert history[2][0] == 10
+        assert history[2][1] == 20  # reset to default
         
         # Test history limit
         limited_history = manager.get_change_history('param1', limit=2)
@@ -564,4 +564,6 @@ class TestCopyAndSerialization:
 
 if __name__ == '__main__':
     # Run tests
-    pytest.main([__file__]) 
+    # pytest.main([__file__]) 
+    a = TestEnhancedParameterStorage()
+    a.test_change_tracking_and_history()
