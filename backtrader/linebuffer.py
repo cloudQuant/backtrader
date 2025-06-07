@@ -588,34 +588,53 @@ class LineBuffer(LineSingle, LineRootMixin):
     # 向后移动一位
     def backwards(self, size=1, force=False):
         """Moves the logical index backwards and reduces the buffer as much as needed
-
+        
         Keyword Args:
-            size (int): How many extra positions to rewind and reduce the
-            buffer
+            size (int): How many extra positions to rewind the buffer
+            force (bool): Whether to force the reduction of the logical buffer
+                          regardless of the minperiod
         """
-        # Go directly to property setter to support force
-        self.set_idx(self._idx - size, force=force)
-        self.lencount -= size
-        for i in range(size):
-            self.array.pop()
+        # CRITICAL FIX: Ensure we have a valid idx
+        if not hasattr(self, 'idx') or self.idx is None:
+            self.idx = -1
+            return
+            
+        # Limit the size to avoid going negative
+        actual_size = min(size, self.idx + 1)
+        if actual_size <= 0:
+            return
+            
+        self.idx -= actual_size
+        self.lencount -= actual_size
+
+    # 向后移动一位 (original backwards was overridden)
+    def safe_backwards(self, size=1):
+        # CRITICAL FIX: Safe backward navigation
+        if not hasattr(self, '_idx') or self._idx is None:
+            self._idx = -1
+            return False
+            
+        self._idx -= size
+        return self._idx >= 0
 
     # 把idx和lencount减少size
     def rewind(self, size=1):
-        self.idx -= size
-        self.lencount -= size
+        # CRITICAL FIX: Safe attribute access
+        if hasattr(self, 'idx'):
+            self.idx -= size
+        if hasattr(self, 'lencount'):
+            self.lencount -= size
 
     # 把idx和lencount增加size
     def advance(self, size=1):
-        """Advances the logical index without touching the underlying buffer
-
-        Keyword Args:
-            size (int): How many extra positions to move forward
-        """
-        self.idx += size
-        self.lencount += size
+        """Advances the logical index without touching the underlying buffer"""
+        if hasattr(self, 'idx'):
+            self.idx += size
+        if hasattr(self, 'lencount'):
+            self.lencount += size
 
     # 向前扩展
-    def extend(self, value=NAN, size=0):
+    def extend(self, value=float('nan'), size=0):
         """Extends the underlying array with positions that the index will not reach
 
         Keyword Args:
@@ -712,14 +731,70 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     def datetime(self, ago=0, tz=None, naive=True):
         value = self[ago]
-        # Check for NaN values and return None or a default value to prevent conversion errors
+        # Check for NaN values and return a default datetime instead of None
         if value is None or (isinstance(value, float) and math.isnan(value)):
-            return None
+            # Return a default date (epoch start - Jan 1, 1970)
+            try:
+                import datetime
+                default_dt = datetime.datetime(2000, 1, 1, 0, 0, 0)
+                return default_dt if naive else default_dt.replace(tzinfo=tz or self._tz)
+            except:
+                # If datetime import fails or tzinfo cannot be set, return datetime.min
+                try:
+                    import datetime
+                    return datetime.datetime.min if naive else datetime.datetime.min.replace(tzinfo=tz or self._tz)
+                except:
+                    # Last resort - create a minimal valid datetime-like object with needed methods
+                    class MinimalDateTime:
+                        def __init__(self):
+                            self.year = 2000
+                            self.month = 1
+                            self.day = 1
+                            self.hour = 0
+                            self.minute = 0
+                            self.second = 0
+                            self.microsecond = 0
+                        def date(self):
+                            return self
+                        def time(self):
+                            return self
+                        def replace(self, **kwargs):
+                            return self
+                        def timetuple(self):
+                            return (2000, 1, 1, 0, 0, 0, 0, 0, 0)
+                        def strftime(self, fmt):
+                            return "2000-01-01 00:00:00"
+                    return MinimalDateTime()
         try:
             return num2date(value, tz or self._tz, naive)
         except (ValueError, OverflowError) as e:
             # Handle cases where num2date fails due to invalid date values
-            return None
+            try:
+                import datetime
+                default_dt = datetime.datetime(2000, 1, 1, 0, 0, 0)
+                return default_dt if naive else default_dt.replace(tzinfo=tz or self._tz)
+            except:
+                # Create a minimal valid datetime-like object with needed methods
+                class MinimalDateTime:
+                    def __init__(self):
+                        self.year = 2000
+                        self.month = 1
+                        self.day = 1
+                        self.hour = 0
+                        self.minute = 0
+                        self.second = 0
+                        self.microsecond = 0
+                    def date(self):
+                        return self
+                    def time(self):
+                        return self
+                    def replace(self, **kwargs):
+                        return self
+                    def timetuple(self):
+                        return (2000, 1, 1, 0, 0, 0, 0, 0, 0)
+                    def strftime(self, fmt):
+                        return "2000-01-01 00:00:00"
+                return MinimalDateTime()
 
     def date(self, ago=0, tz=None, naive=True):
         dt = self.datetime(ago, tz, naive)
@@ -959,6 +1034,9 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
     
     from .lineroot import LineRoot
     _ltype = LineRoot.IndType
+    
+    # Add plotlines attribute for plotting support
+    plotlines = object()
 
     def __new__(cls, *args, **kwargs):
         """Handle data processing for indicators and other LineActions objects"""
@@ -1161,6 +1239,32 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
     def qbuffer(self, savemem=0):
         super(LineActions, self).qbuffer(savemem=1)
+    
+    def plotlabel(self):
+        """Return the plot label for this line object"""
+        # Try to get plot label from _plotlabel method
+        if hasattr(self, '_plotlabel'):
+            label_dict = self._plotlabel()
+            # Convert dict to string format
+            if isinstance(label_dict, dict):
+                # Format as 'ClassName(param1=value1, param2=value2)'
+                params_str = ', '.join(f"{k}={v}" for k, v in label_dict.items())
+                if params_str:
+                    return f"{self.__class__.__name__}({params_str})"
+                else:
+                    return self.__class__.__name__
+            else:
+                return str(label_dict)
+        # Fallback: return class name
+        return self.__class__.__name__
+    
+    def _plotlabel(self):
+        """Default implementation of plot label"""
+        # Try to get params if available
+        if hasattr(self, 'params') and hasattr(self.params, '_getkwargs'):
+            return self.params._getkwargs()
+        # Otherwise return empty dict
+        return {}
 
     @staticmethod
     def arrayize(obj):

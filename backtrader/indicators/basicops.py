@@ -41,10 +41,10 @@ class OperationN(PeriodN):
     """
 
     def next(self):
-        self.line[0] = self.func(self.data.get(size=self.p.period))
+        self.lines[0][0] = self.func(self.data.get(size=self.p.period))
 
     def once(self, start, end):
-        dst = self.line.array
+        dst = self.lines[0].array
         src = self.data.array
         period = self.p.period
         func = self.func
@@ -331,13 +331,13 @@ class Accum(Indicator):
     # initial look-back value is needed
 
     def nextstart(self):
-        self.line[0] = self.p.seed + self.data[0]
+        self.lines[0][0] = self.p.seed + self.data[0]
 
     def next(self):
-        self.line[0] = self.line[-1] + self.data[0]
+        self.lines[0][0] = self.lines[0][-1] + self.data[0]
 
     def oncestart(self, start, end):
-        dst = self.line.array
+        dst = self.lines[0].array
         src = self.data.array
         prev = self.p.seed
 
@@ -345,7 +345,7 @@ class Accum(Indicator):
             dst[i] = prev = prev + src[i]
 
     def once(self, start, end):
-        dst = self.line.array
+        dst = self.lines[0].array
         src = self.data.array
         prev = dst[start - 1]
 
@@ -372,19 +372,13 @@ class Average(PeriodN):
     lines = ("av",)
 
     def next(self):
-        # CRITICAL DEBUG: Add debugging to see what's happening
-        try:
-            data_values = self.data.get(size=self.p.period)
-            avg_value = math.fsum(data_values) / self.p.period
-            self.line[0] = avg_value
-            print(f"Average.next(): period={self.p.period}, data={data_values}, avg={avg_value}")
-        except Exception as e:
-            print(f"Average.next() ERROR: {e}")
-            self.line[0] = 0.0
+        data_values = self.data.get(size=self.p.period)
+        avg_value = math.fsum(data_values) / self.p.period
+        self.lines[0][0] = avg_value
 
     def once(self, start, end):
         src = self.data.array
-        dst = self.line.array
+        dst = self.lines[0].array
         period = self.p.period
 
         for i in range(start, end):
@@ -423,7 +417,7 @@ class ExponentialSmoothing(Average):
         super(ExponentialSmoothing, self).next()
 
     def next(self):
-        self.line[0] = self.line[-1] * self.alpha1 + self.data[0] * self.alpha
+        self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
 
     def oncestart(self, start, end):
         # Fetch the seed value from the base class calculation
@@ -431,7 +425,7 @@ class ExponentialSmoothing(Average):
 
     def once(self, start, end):
         darray = self.data.array
-        larray = self.line.array
+        larray = self.lines[0].array
         alpha = self.alpha
         alpha1 = self.alpha1
 
@@ -507,10 +501,10 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
         # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
         if hasattr(self.alpha, '__getitem__'):
             # alpha is a LineBuffer - use array access
-            self.line[0] = self.line[-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
+            self.lines[0][0] = self.lines[0][-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
         else:
             # alpha is a float - use regular arithmetic (fall back to parent behavior)
-            self.line[0] = self.line[-1] * self.alpha1 + self.data[0] * self.alpha
+            self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
 
     def once(self, start, end):
         # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
@@ -567,7 +561,7 @@ class WeightedAverage(PeriodN):
     def next(self):
         data = self.data.get(size=self.p.period)
         dataweighted = map(operator.mul, data, self.p.weights)
-        self.line[0] = self.p.coef * math.fsum(dataweighted)
+        self.lines[0][0] = self.p.coef * math.fsum(dataweighted)
 
     def once(self, start, end):
         darray = self.data.array

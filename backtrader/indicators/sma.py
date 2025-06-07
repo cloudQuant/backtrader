@@ -27,7 +27,11 @@ class MovingAverageSimple(MovingAverageBase):
         print(f"SMA.__init__: Starting for {self.__class__.__name__}")
         print(f"SMA.__init__: MRO = {[cls.__name__ for cls in self.__class__.__mro__]}")
         
-        self.lines[0] = Average(self.data, period=self.p.period)
+        # Create the Average indicator
+        self.avg = Average(self.data, period=self.p.period)
+        
+        # CRITICAL FIX: Use addbinding to connect the Average output to our SMA line
+        self.avg.lines[0].addbinding(self.lines[0])
 
         print(f"SMA.__init__: About to call super()")
         super(MovingAverageSimple, self).__init__()

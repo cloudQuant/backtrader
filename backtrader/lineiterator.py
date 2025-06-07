@@ -672,23 +672,27 @@ class LineIterator(LineIteratorMixin, LineSeries):
             if hasattr(self, '_ensure_data_available'):
                 self._ensure_data_available()
         
+        # If no datas after attempting to get them, return 0
+        if not hasattr(self, 'datas') or not self.datas:
+            return 0
+        
         # CRITICAL FIX: Handle the old sync method safely
         if hasattr(self, '_oldsync') and self._oldsync:
             # Call parent class _clk_update if available
-            if hasattr(super(StrategyBase, self), '_clk_update'):
-                try:
-                    clk_len = super(StrategyBase, self)._clk_update()
-                except Exception:
-                    clk_len = 1
-            else:
-                clk_len = 1
+            clk_len = 1
+            try:
+                if hasattr(super(), '_clk_update'):
+                    clk_len = super()._clk_update()
+            except Exception:
+                pass
             
             # CRITICAL FIX: Only set datetime if we have valid data sources with length
             if hasattr(self, 'datas') and self.datas:
                 valid_data_times = []
                 for d in self.datas:
                     try:
-                        if len(d) > 0 and hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
+                        if hasattr(d, '__len__') and len(d) > 0 and \
+                           hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
                             dt_val = d.datetime[0]
                             # Only add valid datetime values (not None or NaN)
                             if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
@@ -696,15 +700,16 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     except (IndexError, AttributeError, TypeError):
                         continue
                 
-                if valid_data_times and hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
-                    try:
-                        self.lines.datetime[0] = max(valid_data_times)
-                    except (ValueError, IndexError, AttributeError):
-                        # If setting datetime fails, use a default
+                if hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
+                    if valid_data_times:
+                        try:
+                            self.lines.datetime[0] = max(valid_data_times)
+                        except (ValueError, IndexError, AttributeError):
+                            # If setting datetime fails, use a default
+                            self.lines.datetime[0] = 0.0
+                    else:
+                        # No valid times, use default
                         self.lines.datetime[0] = 0.0
-                elif hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
-                    # No valid times, use default
-                    self.lines.datetime[0] = 0.0
             
             return clk_len
         
@@ -713,34 +718,34 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if not hasattr(self, '_dlens'):
             self._dlens = [len(d) if hasattr(d, '__len__') else 0 for d in (self.datas if hasattr(self, 'datas') else [])]
         
-        # Get current data lengths
+        # Get current data lengths safely
+        newdlens = []
         if hasattr(self, 'datas') and self.datas:
-            newdlens = []
             for d in self.datas:
                 try:
                     newdlens.append(len(d) if hasattr(d, '__len__') else 0)
                 except Exception:
                     newdlens.append(0)
-        else:
-            newdlens = []
         
         # Forward if any data source has grown
-        if newdlens and hasattr(self, '_dlens') and any(nl > l for l, nl in zip(self._dlens, newdlens) if l is not None and nl is not None):
+        if newdlens and hasattr(self, '_dlens'):
             try:
-                if hasattr(self, 'forward'):
-                    self.forward()
+                if any(nl > l for l, nl in zip(self._dlens, newdlens) if l is not None and nl is not None):
+                    if hasattr(self, 'forward'):
+                        self.forward()
             except Exception:
                 pass
         
         # Update _dlens
-        self._dlens = newdlens
+        self._dlens = newdlens if newdlens else self._dlens
         
         # CRITICAL FIX: Set datetime safely - only use data sources that have valid data
         if hasattr(self, 'datas') and self.datas and hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
             valid_data_times = []
             for d in self.datas:
                 try:
-                    if len(d) > 0 and hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
+                    if hasattr(d, '__len__') and len(d) > 0 and \
+                       hasattr(d, 'datetime') and hasattr(d.datetime, '__getitem__'):
                         dt_val = d.datetime[0]
                         # Only add valid datetime values (not None or NaN)
                         if dt_val is not None and not (isinstance(dt_val, float) and math.isnan(dt_val)):
@@ -748,6 +753,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 except (IndexError, AttributeError, TypeError):
                     continue
             
+            # CRITICAL FIX: Only call max() if we have data
             if valid_data_times:
                 try:
                     self.lines.datetime[0] = max(valid_data_times)
@@ -755,12 +761,16 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     # If setting datetime fails, use a default
                     self.lines.datetime[0] = 0.0
             else:
-                # No valid times available, use a reasonable default
+                # This is the fix - instead of calling max() on empty list, use default
                 self.lines.datetime[0] = 0.0
         
         # Return the length of this strategy (number of processed bars)
         try:
-            return len(self)
+            if hasattr(self, '_clock') and self._clock is not None:
+                return len(self._clock)
+            elif self.datas and len(self.datas) > 0:
+                return len(self.datas[0])
+            return 0
         except Exception:
             return 0
 
