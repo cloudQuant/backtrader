@@ -16,15 +16,19 @@ class YahooFinanceCSVData(feed.CSVDataBase):
     """
     Parses pre-downloaded Yahoo CSV Data Feeds (or locally generated if they
     comply to the Yahoo format)
-    # 处理预下载的雅虎csv格式的数据或者说本地产生的符合雅虎格式的数据
+
     Specific parameters:
-    # 特殊的参数：
-      - ``dataname``: The filename to parse or a file-like object
-        # 数据名称，准备处理的数据的地址，或者一个文件对象
-      - ``reverse`` (default: ``False``)
-        # 数据日期是否是反转的，假设本地存储的文件在下载过程中已经进行过反转
-        It is assumed that locally stored files have already been reversed
-        during the download process
+
+      - ``dataname``
+
+        The filename to parse or a file-like object
+
+      - ``reverse``
+
+        It is assumed that locally stored files have the newest lines at the
+        bottom
+
+        If this is not the case, pass *reverse* = ``True``
 
       - ``adjclose`` (default: ``True``)
         # 是否使用分红或者送股调整后的价格，并且根据这个价格调整所有的数据

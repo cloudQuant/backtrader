@@ -401,6 +401,16 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # 这解决了'CrossOver'、'TrueStrengthIndicator'等对象没有_idx属性的问题
         if not hasattr(self, '_idx'):
             self._idx = -1  # 与LineBuffer.__init__中的初始值保持一致
+            
+        # CRITICAL FIX: 确保所有行迭代器对象都有_clock属性
+        # 这解决了'CrossOver'对象没有_clock属性的问题
+        if not hasattr(self, '_clock'):
+            # 如果存在数据源，将第一个数据作为时钟
+            if hasattr(self, 'datas') and self.datas:
+                self._clock = self.datas[0]
+            # 如果没有数据源，_clock设为None
+            else:
+                self._clock = None
         
         # For non-indicators, call dopreinit to set up clock and other attributes
         if not is_indicator:

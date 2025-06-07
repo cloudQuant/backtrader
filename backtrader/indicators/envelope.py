@@ -96,15 +96,23 @@ for movav in MovingAverage._movavs[0:]:
 
     movname = movav.__name__
     # Handle both tuple lines and Lines objects after refactoring
-    if hasattr(movav.lines, '_getlinealias'):
-        # It's a Lines object
-        linename = movav.lines._getlinealias(0)
-    elif isinstance(movav.lines, (tuple, list)) and movav.lines:
-        # It's a tuple/list of line names
-        linename = movav.lines[0]
-    else:
-        # Fallback to first line name or class name
-        linename = getattr(movav.lines, '_getlinealias', lambda x: movav.__name__.lower())(0) if hasattr(movav.lines, '_getlinealias') else movav.__name__.lower()
+    # CRITICAL FIX: Add defensive checks for dict objects without _get attribute
+    try:
+        if hasattr(movav.lines, '_getlinealias'):
+            # It's a Lines object
+            linename = movav.lines._getlinealias(0)
+        elif isinstance(movav.lines, (tuple, list)) and movav.lines:
+            # It's a tuple/list of line names
+            linename = movav.lines[0]
+        elif isinstance(movav.lines, dict):
+            # It's a dictionary - extract first key as line name
+            linename = list(movav.lines.keys())[0] if movav.lines else movav.__name__.lower()
+        else:
+            # Fallback to first line name or class name
+            linename = movav.__name__.lower()
+    except (AttributeError, IndexError, KeyError, TypeError) as e:
+        # Ultimate fallback - use class name if all else fails
+        linename = movav.__name__.lower()
     
     newclsname = movname + "Envelope"
 

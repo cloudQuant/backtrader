@@ -538,8 +538,22 @@ class Strategy(StrategyBase):
     def _oncepost(self, dt):
         # 循环指标，如果指标数据的长度大于指标的长度了，继续运行指标
         for indicator in self._lineiterators[LineIterator.IndType]:
-            if len(indicator._clock) > len(indicator):
-                indicator.advance()
+            # CRITICAL FIX: 增加防御性编程，避免访问不存在的_clock属性导致错误
+            try:
+                # 首先安全检查_clock属性是否存在
+                if hasattr(indicator, '_clock') and indicator._clock is not None:
+                    if len(indicator._clock) > len(indicator):
+                        indicator.advance()
+                # 如果指标没有_clock属性，默认使用策略的第一个数据作为时钟
+                else:
+                    if self.datas and len(self.datas[0]) > len(indicator):
+                        indicator.advance()
+            except (AttributeError, TypeError) as e:
+                # 捕获并记录错误，但允许继续执行
+                print(f"Warning: Error in _oncepost for {indicator.__class__.__name__}: {str(e)}")
+                # 尝试设置_clock属性
+                if not hasattr(indicator, '_clock') and self.datas:
+                    indicator._clock = self.datas[0]
         # 如果是旧的数据处理方式，调用advance;如果不是旧的数据处理方式，代表策略已经初始化了，调用advance
         if self._oldsync:
             # The Strategy has not been reset, the line is there

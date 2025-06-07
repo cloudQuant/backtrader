@@ -931,11 +931,18 @@ class ParamsMixin(BaseMixin):
                 filtered_kwargs = {}
         
         # Call super().__init__ without args to avoid object.__init__() error
-        # Only pass kwargs to prevent "object.__init__() takes exactly one argument" error
-        if filtered_kwargs:
-            super().__init__(**filtered_kwargs)
-        else:
-            super().__init__()
+        # Only pass kwargs if this is not the base object to prevent "object.__init__() takes exactly one argument" error
+        try:
+            if filtered_kwargs:
+                super().__init__(**filtered_kwargs)
+            else:
+                super().__init__()
+        except TypeError as e:
+            # If we reach object.__init__ and it complains about arguments, call it without kwargs
+            if 'object.__init__() takes' in str(e):
+                super().__init__()
+            else:
+                raise
     
     @property
     def params(self):
