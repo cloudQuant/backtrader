@@ -96,7 +96,6 @@ for movav in MovingAverage._movavs[0:]:
 
     movname = movav.__name__
     # Handle both tuple lines and Lines objects after refactoring
-    # CRITICAL FIX: Add defensive checks for dict objects without _get attribute
     try:
         if hasattr(movav.lines, '_getlinealias'):
             # It's a Lines object
@@ -106,11 +105,23 @@ for movav in MovingAverage._movavs[0:]:
             linename = movav.lines[0]
         elif isinstance(movav.lines, dict):
             # It's a dictionary - extract first key as line name
-            linename = list(movav.lines.keys())[0] if movav.lines else movav.__name__.lower()
+            if movav.lines:
+                try:
+                    # Handle the case when trying to access _get on dict object
+                    if hasattr(movav.lines, '_get'):
+                        linename = movav.lines._get(0)
+                    else:
+                        # Use first key in the dictionary
+                        linename = next(iter(movav.lines))
+                except Exception:
+                    # Fallback to the lower case name of the class
+                    linename = movav.__name__.lower()
+            else:
+                linename = movav.__name__.lower()
         else:
             # Fallback to first line name or class name
             linename = movav.__name__.lower()
-    except (AttributeError, IndexError, KeyError, TypeError) as e:
+    except (AttributeError, IndexError, KeyError, TypeError):
         # Ultimate fallback - use class name if all else fails
         linename = movav.__name__.lower()
     

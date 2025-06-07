@@ -10,6 +10,7 @@ from backtrader.parameters import ParameterDescriptor, Float, Bool
 from backtrader.order import Order, BuyOrder, SellOrder
 from backtrader.position import Position
 from backtrader.utils.py3 import string_types, integer_types
+from backtrader import test_helpers
 
 __all__ = ["BackBroker", "BrokerBack"]
 

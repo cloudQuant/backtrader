@@ -397,18 +397,26 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # Call parent initialization with NO arguments since data processing was done above
         super(LineIterator, self).__init__()
         
-        # CRITICAL FIX: 确保所有行迭代器对象都有_idx属性
-        # 这解决了'CrossOver'、'TrueStrengthIndicator'等对象没有_idx属性的问题
+        # CRITICAL FIX: Ensure all LineIterator objects have _idx attribute
+        # This fixes the issue with 'CrossOver', 'TrueStrengthIndicator' etc. objects missing _idx attribute
         if not hasattr(self, '_idx'):
-            self._idx = -1  # 与LineBuffer.__init__中的初始值保持一致
+            self._idx = -1  # Match initial value in LineBuffer.__init__
             
-        # CRITICAL FIX: 确保所有行迭代器对象都有_clock属性
-        # 这解决了'CrossOver'对象没有_clock属性的问题
+        # CRITICAL FIX: Ensure all LineIterator objects have _clock attribute
+        # This fixes the issue with 'CrossOver' objects missing _clock attribute
         if not hasattr(self, '_clock'):
-            # 如果存在数据源，将第一个数据作为时钟
+            # If data sources exist, use the first data as clock
             if hasattr(self, 'datas') and self.datas:
                 self._clock = self.datas[0]
-            # 如果没有数据源，_clock设为None
+            # If no owner, try to get clock from any line objects
+            elif hasattr(self, 'lines') and self.lines:
+                for line in self.lines:
+                    if hasattr(line, '_clock') and line._clock is not None:
+                        self._clock = line._clock
+                        break
+                else:  # No clock found in lines
+                    self._clock = None
+            # If no data source, set _clock to None
             else:
                 self._clock = None
         
