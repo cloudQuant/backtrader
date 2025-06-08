@@ -1294,6 +1294,7 @@ class IndicatorBase(DataAccessor):
                                     obj._next()
                         except Exception as e2:
 #                             print(f"DEBUG: _next fallback also failed for {obj.__class__.__name__}: {e2}")  # Removed for performance
+                            pass
             
             # Process own lines if this is a composite indicator
             super()._once(start, end)

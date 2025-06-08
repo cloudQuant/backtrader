@@ -1,6 +1,6 @@
-from collections import deque
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+from collections import deque
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -93,7 +93,12 @@ class RunStrategy(bt.Strategy):
             return float('nan')
         
         # Calculate average of last 'period' prices
-        return sum(self.price_history[-period:]) / period
+        # Convert deque to list to use slicing, or sum the last 'period' items
+        if len(self.price_history) >= period:
+            recent_prices = list(self.price_history)[-period:]
+            return sum(recent_prices) / period
+        else:
+            return float('nan')
 
     def check_crossover(self, current_price, current_sma, prev_price, prev_sma):
         """Check if there's a crossover between price and SMA - simplified logic"""
