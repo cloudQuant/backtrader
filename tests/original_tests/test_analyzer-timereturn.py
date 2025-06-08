@@ -1,3 +1,4 @@
+from collections import deque
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
@@ -82,7 +83,7 @@ class RunStrategy(bt.Strategy):
         # Instead of using the problematic indicator system, calculate SMA manually
         
         # Store prices for manual SMA calculation
-        self.price_history = []
+        self.price_history = deque(maxlen=1000)  # More efficient rolling window
         self.sma_values = []
         self.prev_crossover = None
 

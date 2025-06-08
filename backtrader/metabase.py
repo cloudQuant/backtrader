@@ -280,7 +280,7 @@ class AutoInfoClass(object):
         """
         # collect the 3 set of infos
         # info = OrderedDict(info)
-        # print(name,info,otherbases)
+#         # print(name,info,otherbases)  # Removed for performance
         baseinfo = (
             cls._getpairs().copy()
         )  # 浅拷贝，保证有序字典一级目录下不改变,暂时没有明白为什么要copy

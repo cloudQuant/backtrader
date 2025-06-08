@@ -1286,26 +1286,26 @@ class IndicatorBase(DataAccessor):
                         if hasattr(obj, '_once') and callable(obj._once):
                             obj._once(start, end)
                     except Exception as e:
-                        print(f"DEBUG: _once failed for {obj.__class__.__name__}: {e}")
+#                         print(f"DEBUG: _once failed for {obj.__class__.__name__}: {e}")  # Removed for performance
                         # Fall back to _next processing if _once fails
                         try:
                             for i in range(start, end):
                                 if hasattr(obj, '_next') and callable(obj._next):
                                     obj._next()
                         except Exception as e2:
-                            print(f"DEBUG: _next fallback also failed for {obj.__class__.__name__}: {e2}")
+#                             print(f"DEBUG: _next fallback also failed for {obj.__class__.__name__}: {e2}")  # Removed for performance
             
             # Process own lines if this is a composite indicator
             super()._once(start, end)
             
         except Exception as e:
-            print(f"DEBUG: IndicatorBase._once failed for {self.__class__.__name__}: {e}")
+#             print(f"DEBUG: IndicatorBase._once failed for {self.__class__.__name__}: {e}")  # Removed for performance
             # Fallback to next processing
             try:
                 for i in range(start, end):
                     self._next()
             except Exception as e2:
-                print(f"DEBUG: IndicatorBase._next fallback failed: {e2}")
+#                 print(f"DEBUG: IndicatorBase._next fallback failed: {e2}")  # Removed for performance
                 pass
 
     @staticmethod
