@@ -745,11 +745,11 @@ def _apply_strategy_patch():
                         try:
                             self.lines.datetime[0] = max(valid_data_times)
                         except (ValueError, IndexError, AttributeError):
-                            # If setting datetime fails, use a default
-                            self.lines.datetime[0] = 0.0
+                            # If setting datetime fails, use a default valid ordinal (1 = Jan 1, Year 1)
+                            self.lines.datetime[0] = 1.0
                     elif hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
-                        # No valid times, use default
-                        self.lines.datetime[0] = 0.0
+                        # No valid times, use default valid ordinal (1 = Jan 1, Year 1)
+                        self.lines.datetime[0] = 1.0
                 
                 return clk_len
             
@@ -799,12 +799,12 @@ def _apply_strategy_patch():
                     try:
                         self.lines.datetime[0] = max(valid_data_times)
                     except (ValueError, IndexError, AttributeError):
-                        # If setting datetime fails, use a default
-                        self.lines.datetime[0] = 0.0
+                        # If setting datetime fails, use a default valid ordinal (1 = Jan 1, Year 1)
+                        self.lines.datetime[0] = 1.0
                 else:
-                    # No valid times available, use a reasonable default
+                    # No valid times available, use a reasonable default valid ordinal
                     # This is the critical fix - instead of calling max() on empty list, use default
-                    self.lines.datetime[0] = 0.0
+                    self.lines.datetime[0] = 1.0
             
             # Return the length of this strategy (number of processed bars)
             try:

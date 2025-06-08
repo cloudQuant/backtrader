@@ -5,6 +5,24 @@ import sys
 from . import Indicator, MovingAverage
 
 
+# CRITICAL FIX: Define PlotLineAttr class before using it
+class PlotLineAttr:
+    def __init__(self, **kwargs):
+        for k, v in kwargs.items():
+            setattr(self, k, v)
+    
+    def _get(self, key, default=None):
+        """CRITICAL: _get method expected by plotting system"""
+        return getattr(self, key, default)
+    
+    def get(self, key, default=None):
+        """Standard get method for compatibility"""
+        return getattr(self, key, default)
+        
+    def __contains__(self, key):
+        return hasattr(self, key)
+
+
 # 装饰其他指标，给其他指标值设定了一个百分比的上下限
 class EnvelopeMixIn(object):
     """
@@ -30,10 +48,57 @@ class EnvelopeMixIn(object):
         "bot",
     )
     params = (("perc", 2.5),)
-    plotlines = dict(
-        top=dict(_samecolor=True),
-        bot=dict(_samecolor=True),
-    )
+    
+    # CRITICAL FIX: Convert plotlines from dict to object with _get method for plotting compatibility
+    class PlotLinesObj:
+        def __init__(self):
+            self.top = PlotLineAttr(_samecolor=True)
+            self.bot = PlotLineAttr(_samecolor=True)
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            return getattr(self, key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            return getattr(self, key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key)
+    
+    plotlines = PlotLinesObj()
+    
+    # CRITICAL FIX: Add complete plotinfo object with all required attributes
+    class PlotInfoObj:
+        def __init__(self):
+            self.subplot = False
+            self.plot = True
+            self.plotname = ''
+            self.plotskip = False
+            self.plotabove = False
+            self.plotlinelabels = False
+            self.plotlinevalues = True
+            self.plotvaluetags = True
+            self.plotymargin = 0.0
+            self.plotyhlines = []
+            self.plotyticks = []
+            self.plothlines = []
+            self.plotforce = False
+            self.plotmaster = None
+            self.legendloc = None  # CRITICAL: Add the missing legendloc attribute
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            return getattr(self, key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            return getattr(self, key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key)
+    
+    plotinfo = PlotInfoObj()
 
     def __init__(self):
         # Mix-in and directly from object -> does not necessarily need super
@@ -50,11 +115,56 @@ class EnvelopeMixIn(object):
 class _EnvelopeBase(Indicator):
     lines = ("src",)
 
-    # plot the envelope lines along the passed source
-    plotinfo = dict(subplot=False)
+    # CRITICAL FIX: Add complete plotinfo object with all required attributes
+    class PlotInfoObjBase:
+        def __init__(self):
+            self.subplot = False
+            self.plot = True
+            self.plotname = ''
+            self.plotskip = False
+            self.plotabove = False
+            self.plotlinelabels = False
+            self.plotlinevalues = True
+            self.plotvaluetags = True
+            self.plotymargin = 0.0
+            self.plotyhlines = []
+            self.plotyticks = []
+            self.plothlines = []
+            self.plotforce = False
+            self.plotmaster = None
+            self.legendloc = None  # CRITICAL: Add the missing legendloc attribute
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            return getattr(self, key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            return getattr(self, key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key)
+    
+    plotinfo = PlotInfoObjBase()
 
     # Do not replot the data line
-    plotlines = dict(src=dict(_plotskip=True))
+    # CRITICAL FIX: Convert plotlines from dict to object with _get method for plotting compatibility
+    class PlotLinesObjBase:
+        def __init__(self):
+            self.src = PlotLineAttr(_plotskip=True)
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            return getattr(self, key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            return getattr(self, key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key)
+    
+    plotlines = PlotLinesObjBase()
 
     def __init__(self):
         self.lines.src = self.data
@@ -143,3 +253,5 @@ for movav in MovingAverage._movavs[0:]:
     newcls = type(str(newclsname), (movav, EnvelopeMixIn), newclsdct)
     module = sys.modules[EnvelopeMixIn.__module__]
     setattr(module, newclsname, newcls)
+
+

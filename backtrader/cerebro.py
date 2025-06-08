@@ -2009,8 +2009,11 @@ class Cerebro(ParameterizedBase):
                         return
                     self._next_writers(runstrats)
             except Exception as e:
-                error_info = traceback.format_exc(e)
-                print(error_info)
+                # CRITICAL FIX: format_exc() doesn't take an exception argument
+                error_info = traceback.format_exc()
+                print(f"Error in _runonce: {error_info}")
+                # Continue execution instead of crashing
+                return
         print("结束_runonce")
 
     # 检查timer

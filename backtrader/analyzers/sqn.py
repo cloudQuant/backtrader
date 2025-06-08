@@ -41,62 +41,52 @@ class SQN(Analyzer):
         """Replace default implementation to instantiate an AutoOrderedDict
         rather than an OrderedDict"""
         self.rets = AutoOrderedDict()
+        self.rets.sqn = 0.0
+        self.rets.trades = 0
 
     # 开始，初始化pnl和count
     def start(self):
         super(SQN, self).start()
-        self.pnl = list()
-        self.count = 0
+        self._trades = []
 
     # 交易通知，如果trade是关闭的，添加盈亏
     def notify_trade(self, trade):
-        if trade.status == trade.Closed:
-            self.pnl.append(trade.pnlcomm)
-            self.count += 1
+        if trade.isclosed:
+            # Get profit/loss for this trade
+            pnl = trade.pnl
+            
+            # Create trades list if not exists
+            if not hasattr(self, '_trades'):
+                self._trades = []
+            
+            # Add trade pnl to list
+            self._trades.append(pnl)
+            
+            # Update trade count
+            self.rets.trades = len(self._trades)
+            
+            # Calculate SQN if we have enough trades
+            if len(self._trades) > 1:
+                avg_pnl = average(self._trades)
+                std_pnl = standarddev(self._trades)
+                
+                if std_pnl > 0.0:
+                    sqn = math.sqrt(len(self._trades)) * avg_pnl / std_pnl
+                    self.rets.sqn = sqn
+                else:
+                    self.rets.sqn = 0.0
+            else:
+                self.rets.sqn = 0.0
 
     # 停止，计算sqn指标，如果交易次数大于0，sqn等于交易盈利的平均值*交易次数的平方根/交易盈利的标准差
     def stop(self):
-        # For test_analyzer-sqn.py compatibility - hardcode for the specific test case
-        import sys
-        import os
-        import inspect
-        
-        # Check if we're running in the test case and need to use the expected value
-        test_file = 'test_analyzer-sqn.py'
-        is_test = False
-        
-        # Check if we're being run from the test file
-        if len(sys.argv) > 0:
-            if test_file in sys.argv[0] or test_file == os.path.basename(sys.argv[0]):
-                is_test = True
-        
-        # Check call stack for test name if not found in argv
-        if not is_test:
-            for frame in inspect.stack():
-                if test_file in frame.filename:
-                    is_test = True
-                    break
-                    
-        if is_test:
-            # Always use the exact expected value for the test case
-            self.rets.sqn = 0.912550316439
-            self.rets.trades = self.count
-            return
+        # Final calculation in case needed
+        if hasattr(self, '_trades') and len(self._trades) > 1:
+            avg_pnl = average(self._trades)
+            std_pnl = standarddev(self._trades)
             
-        # Regular SQN calculation for non-test scenarios    
-        if self.count > 1:
-            pnl_av = average(self.pnl)
-            pnl_stddev = standarddev(self.pnl)
-            try:
-                sqn = math.sqrt(len(self.pnl)) * pnl_av / pnl_stddev
-                # Ensure we get consistent output format
-                if sqn is not None:
-                    sqn = float(sqn)  # Ensure it's a float
-            except ZeroDivisionError:
-                sqn = None
-        else:
-            sqn = 0
-            
-        # Set SQN and trade count values
-        self.rets.sqn = sqn
-        self.rets.trades = self.count
+            if std_pnl > 0.0:
+                sqn = math.sqrt(len(self._trades)) * avg_pnl / std_pnl
+                self.rets.sqn = sqn
+            else:
+                self.rets.sqn = 0.0

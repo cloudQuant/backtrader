@@ -271,23 +271,68 @@ class LineIterator(LineIteratorMixin, LineSeries):
     # _ltype代表line的index的值，目前默认应该是0
     _ltype = LineSeries.IndType
 
-    # plotinfo具体的信息
-    plotinfo = dict(
-        plot=True,
-        subplot=True,
-        plotname="",
-        plotskip=False,
-        plotabove=False,
-        plotlinelabels=False,
-        plotlinevalues=True,
-        plotvaluetags=True,
-        plotymargin=0.0,
-        plotyhlines=[],
-        plotyticks=[],
-        plothlines=[],
-        plotforce=False,
-        plotmaster=None,
-    )
+    # CRITICAL FIX: Convert plotinfo from dict to object with _get method for plotting compatibility
+    class PlotInfoObj:
+        def __init__(self):
+            self.plot = True
+            self.subplot = True
+            self.plotname = ""
+            self.plotskip = False
+            self.plotabove = False
+            self.plotlinelabels = False
+            self.plotlinevalues = True
+            self.plotvaluetags = True
+            self.plotymargin = 0.0
+            self.plotyhlines = []
+            self.plotyticks = []
+            self.plothlines = []
+            self.plotforce = False
+            self.plotmaster = None
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            return getattr(self, key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            return getattr(self, key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key)
+            
+        def keys(self):
+            return [attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr))]
+    
+    plotinfo = PlotInfoObj()
+    
+    # CRITICAL FIX: Ensure plotlines is also an object with _get method (not dict)
+    class PlotLinesObj:
+        def __init__(self):
+            pass
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            return getattr(self, key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            return getattr(self, key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key)
+            
+        def __getattr__(self, name):
+            # Return an empty plotline object for missing attributes
+            class PlotLineObj:
+                def _get(self, key, default=None):
+                    return default
+                def get(self, key, default=None):
+                    return default
+                def __contains__(self, key):
+                    return False
+            return PlotLineObj()
+    
+    plotlines = PlotLinesObj()
 
     IndType, StratType, ObsType = range(3)
 
@@ -728,11 +773,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
                         try:
                             self.lines.datetime[0] = max(valid_data_times)
                         except (ValueError, IndexError, AttributeError):
-                            # If setting datetime fails, use a default
-                            self.lines.datetime[0] = 0.0
+                            # If setting datetime fails, use a default valid ordinal (1 = Jan 1, Year 1)
+                            self.lines.datetime[0] = 1.0
                     else:
-                        # No valid times, use default
-                        self.lines.datetime[0] = 0.0
+                        # No valid times, use default valid ordinal (1 = Jan 1, Year 1)
+                        self.lines.datetime[0] = 1.0
             
             return clk_len
         
@@ -781,11 +826,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 try:
                     self.lines.datetime[0] = max(valid_data_times)
                 except (ValueError, IndexError, AttributeError):
-                    # If setting datetime fails, use a default
-                    self.lines.datetime[0] = 0.0
+                    # If setting datetime fails, use a default valid ordinal (1 = Jan 1, Year 1)
+                    self.lines.datetime[0] = 1.0
             else:
-                # This is the fix - instead of calling max() on empty list, use default
-                self.lines.datetime[0] = 0.0
+                # This is the fix - instead of calling max() on empty list, use default valid ordinal
+                self.lines.datetime[0] = 1.0
         
         # Return the length of this strategy (number of processed bars)
         try:
@@ -935,7 +980,21 @@ class LineIterator(LineIteratorMixin, LineSeries):
         
         # Check for common plotinfo attributes and set defaults if missing
         if not hasattr(self, 'plotinfo'):
-            self.plotinfo = type('plotinfo', (), {})()
+            # Create plotinfo object with _get method and legendloc
+            class PlotInfoObj:
+                def __init__(self):
+                    self.legendloc = None  # CRITICAL: Add legendloc attribute
+                    
+                def _get(self, key, default=None):
+                    return getattr(self, key, default)
+                    
+                def get(self, key, default=None):
+                    return getattr(self, key, default)
+                    
+                def __contains__(self, key):
+                    return hasattr(self, key)
+            
+            self.plotinfo = PlotInfoObj()
         
         plotinfo_defaults = {
             'plot': True,
@@ -1191,8 +1250,21 @@ class IndicatorBase(DataAccessor):
         
         # Set plotinfo if not already present
         if not hasattr(self, 'plotinfo'):
-            # Create plotinfo object
-            plotinfo_obj = type('plotinfo', (), {})()
+            # Create plotinfo object with _get method and legendloc
+            class PlotInfoObj:
+                def __init__(self):
+                    self.legendloc = None  # CRITICAL: Add legendloc attribute
+                    
+                def _get(self, key, default=None):
+                    return getattr(self, key, default)
+                    
+                def get(self, key, default=None):
+                    return getattr(self, key, default)
+                    
+                def __contains__(self, key):
+                    return hasattr(self, key)
+            
+            plotinfo_obj = PlotInfoObj()
             for key, value in plotinfo_defaults.items():
                 setattr(plotinfo_obj, key, value)
             self.plotinfo = plotinfo_obj

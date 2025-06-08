@@ -341,40 +341,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                     return float('nan')
                 return 0.0
                 
-            # Special handling for datetime lines to prevent NaN from breaking date conversion
-            if hasattr(self, '_owner') and hasattr(self._owner, 'lines'):
-                try:
-                    # Check if this buffer is the datetime line (usually index 0 for data feeds)
-                    if hasattr(self._owner.lines, '_getlines'):
-                        lines = self._owner.lines._getlines()
-                        if lines and len(lines) > 0:
-                            # Check if this is the first line (datetime) by checking if it's at index 0
-                            if hasattr(self._owner.lines, 'lines') and len(self._owner.lines.lines) > 0:
-                                if self is self._owner.lines.lines[0]:
-                                    # This is likely the datetime line
-                                    if isinstance(value, float) and (math.isnan(value) or value == 0.0):
-                                        # Return a valid default date instead of NaN or 0
-                                        # Use a default date of 2000-01-01 00:00:00 as float representation
-                                        try:
-                                            import datetime
-                                            # Try to import date2num from the correct module
-                                            try:
-                                                from .utils import date2num
-                                            except ImportError:
-                                                try:
-                                                    from backtrader.utils import date2num
-                                                except ImportError:
-                                                    # Fallback: return a known good timestamp value
-                                                    return 730485.0  # 2000-01-01 as matplotlib date number
-                                            
-                                            default_date = datetime.datetime(2000, 1, 1)
-                                            return date2num(default_date)
-                                        except:
-                                            # Final fallback: return a known good timestamp value
-                                            return 730485.0  # 2000-01-01 as matplotlib date number
-                except:
-                    # If any check fails, just return the original value
-                    pass
+
             
             return value
             
@@ -463,14 +430,25 @@ class LineBuffer(LineSingle, LineRootMixin):
             import array
             self.array = array.array('d')
             
+        # CRITICAL FIX: Special handling for datetime lines - NEVER allow 0.0 for datetime!
+        is_datetime_line = (hasattr(self, '_name') and 'datetime' in str(self._name).lower()) or \
+                          (hasattr(self, '__class__') and 'datetime' in str(self.__class__.__name__).lower())
+        
         # CRITICAL FIX: Handle None/NaN values consistently
         if value is None or (isinstance(value, float) and math.isnan(value)):
+            # For datetime lines, use 1.0 (valid ordinal) instead of 0.0
+            if is_datetime_line:
+                value = 1.0
             # For indicators, use NaN as default, for others use 0.0
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
+            elif (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
                (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
                 value = float('nan')
             else:
                 value = 0.0
+        # CRITICAL FIX: If setting 0.0 on a datetime line, convert to 1.0
+        elif is_datetime_line and value == 0.0:
+            value = 1.0
+            print(f"WARNING: Prevented setting datetime line to 0.0, using 1.0 instead")
         
         # Calculate the required index
         required_index = self.idx + ago
@@ -479,9 +457,16 @@ class LineBuffer(LineSingle, LineRootMixin):
         if required_index >= len(self.array):
             # Extend the array to accommodate the required index
             extend_size = required_index - len(self.array) + 1
-            # For indicators, extend with NaN, otherwise with 0.0
-            fill_value = float('nan') if ((hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or 
-                                       (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__))) else 0.0
+            
+            # Determine fill value based on line type
+            if is_datetime_line:
+                fill_value = 1.0  # Safe datetime ordinal
+            elif (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
+                 (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
+                fill_value = float('nan')  # For indicators
+            else:
+                fill_value = 0.0  # For others
+                
             for _ in range(extend_size):
                 self.array.append(fill_value)
         elif required_index < 0:
@@ -491,9 +476,17 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Set the value at the required index
         self.array[required_index] = value
         
-        # Update any bindings
+        # Update any bindings with same datetime protection
         for binding in self.bindings:
-            binding[ago] = value
+            # Check if binding is also a datetime line
+            binding_is_datetime = (hasattr(binding, '_name') and 'datetime' in str(binding._name).lower()) or \
+                                 (hasattr(binding, '__class__') and 'datetime' in str(binding.__class__.__name__).lower())
+            
+            binding_value = value
+            if binding_is_datetime and binding_value == 0.0:
+                binding_value = 1.0
+                
+            binding[ago] = binding_value
 
     # 给array设置具体的值
     def set(self, value, ago=0):
@@ -504,12 +497,20 @@ class LineBuffer(LineSingle, LineRootMixin):
             ago (int): Point of the array to which size will be added to return
             the slice
         """
-        # CRITICAL FIX: Ensure we never store None values - convert to 0.0
+        # CRITICAL FIX: Special handling for datetime lines - NEVER allow 0.0 for datetime!
+        is_datetime_line = (hasattr(self, '_name') and 'datetime' in str(self._name).lower()) or \
+                          (hasattr(self, '__class__') and 'datetime' in str(self.__class__.__name__).lower())
+        
+        # CRITICAL FIX: Ensure we never store None values - convert appropriately
         if value is None:
-            value = 0.0
-        # CRITICAL FIX: Also convert NaN to 0.0 to prevent comparison issues
+            value = 1.0 if is_datetime_line else 0.0
+        # CRITICAL FIX: Also convert NaN appropriately
         elif isinstance(value, float) and math.isnan(value):
-            value = 0.0
+            value = 1.0 if is_datetime_line else 0.0
+        # CRITICAL FIX: If setting 0.0 on a datetime line, convert to 1.0
+        elif is_datetime_line and value == 0.0:
+            value = 1.0
+            print(f"WARNING: Prevented setting datetime line to 0.0 via set(), using 1.0 instead")
         
         # CRITICAL FIX: Ensure array is initialized before accessing
         if not hasattr(self, 'array') or self.array is None:
@@ -521,15 +522,25 @@ class LineBuffer(LineSingle, LineRootMixin):
         if required_index >= len(self.array):
             # Extend the array to accommodate the required index
             extend_size = required_index - len(self.array) + 1
+            # Use appropriate fill value based on line type
+            fill_value = 1.0 if is_datetime_line else 0.0
             for _ in range(extend_size):
-                self.array.append(0.0)  # Use 0.0 instead of NAN
+                self.array.append(fill_value)
         elif required_index < 0:
             # Handle negative indices gracefully
             return
             
         self.array[required_index] = value
         for binding in self.bindings:
-            binding[ago] = value
+            # Apply same datetime protection to bindings
+            binding_is_datetime = (hasattr(binding, '_name') and 'datetime' in str(binding._name).lower()) or \
+                                 (hasattr(binding, '__class__') and 'datetime' in str(binding.__class__.__name__).lower())
+            
+            binding_value = value
+            if binding_is_datetime and binding_value == 0.0:
+                binding_value = 1.0
+                
+            binding[ago] = binding_value
 
     # 返回到最开始
     def home(self):

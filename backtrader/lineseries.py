@@ -591,11 +591,57 @@ class LineSeriesMixin:
 
 
 class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
-    plotinfo = dict(
-        plot=True,
-        plotmaster=None,
-        legendloc=None,
-    )
+    # CRITICAL FIX: Convert plotinfo from dict to object with _get method for plotting compatibility
+    class PlotInfoObj:
+        def __init__(self):
+            self.plot = True
+            self.plotmaster = None
+            self.legendloc = None
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            return getattr(self, key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            return getattr(self, key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key)
+            
+        def keys(self):
+            return [attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr))]
+    
+    plotinfo = PlotInfoObj()
+    
+    # CRITICAL FIX: Ensure plotlines is also an object with _get method (not dict)
+    class PlotLinesObj:
+        def __init__(self):
+            pass
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            return getattr(self, key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            return getattr(self, key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key)
+            
+        def __getattr__(self, name):
+            # Return an empty plotline object for missing attributes
+            class PlotLineObj:
+                def _get(self, key, default=None):
+                    return default
+                def get(self, key, default=None):
+                    return default
+                def __contains__(self, key):
+                    return False
+            return PlotLineObj()
+    
+    plotlines = PlotLinesObj()
 
     csv = True
 
@@ -666,7 +712,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                     # If not found, create a minimal data replacement
                     class MinimalData:
                         def __init__(self):
-                            self.array = [0.0] * 1000  # Pre-filled array to prevent index errors
+                            # CRITICAL FIX: Use valid ordinal instead of 0.0 for datetime arrays
+                            self.array = [1.0] * 1000  # Pre-filled array to prevent index errors
                             self._idx = 0
                             self._owner = None
                             self.datas = []
@@ -1197,9 +1244,9 @@ def _patch_strategy_clk_update():
                         try:
                             self.lines.datetime[0] = max(valid_data_times)
                         except (ValueError, IndexError, AttributeError):
-                            self.lines.datetime[0] = 0.0
+                            self.lines.datetime[0] = 1.0
                     else:
-                        self.lines.datetime[0] = 0.0
+                        self.lines.datetime[0] = 1.0
                 
                 return clk_len
             
@@ -1238,10 +1285,10 @@ def _patch_strategy_clk_update():
                     try:
                         self.lines.datetime[0] = max(valid_data_times)
                     except (ValueError, IndexError, AttributeError):
-                        self.lines.datetime[0] = 0.0
+                        self.lines.datetime[0] = 1.0
                 else:
-                    # This is the fix - instead of calling max() on empty list, use default
-                    self.lines.datetime[0] = 0.0
+                    # This is the fix - instead of calling max() on empty list, use default valid ordinal
+                    self.lines.datetime[0] = 1.0
             
             return len(self)
         

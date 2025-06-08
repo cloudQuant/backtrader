@@ -76,137 +76,100 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
     # 开始
     def __init__(self, *args, **kwargs):
-        # 调用父类的__init__方法以支持timeframe和compression参数
         super(TimeReturn, self).__init__(*args, **kwargs)
         
-        self._value = None
-        self._lastvalue = None
         self._value_start = None
+        self._value_end = None
         self._fundmode = None
 
     def start(self):
         super(TimeReturn, self).start()
+        
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-        # 开始价值
-        self._value_start = 0.0
-        # 结束价值
-        self._lastvalue = None
-        # 如果参数data是None的时候
+
+        # Initialize starting value
         if self.p.data is None:
-            # keep the initial portfolio value if not tracing data
             if not self._fundmode:
-                self._lastvalue = self.strategy.broker.getvalue()
+                self._value_start = self.strategy.broker.getvalue()
             else:
-                self._lastvalue = self.strategy.broker.fundvalue
+                self._value_start = self.strategy.broker.fundvalue
+        else:
+            # Track specific data
+            if len(self.p.data) > 0:
+                if self.p.firstopen:
+                    self._value_start = self.p.data.open[0]
+                else:
+                    self._value_start = self.p.data[0]
+            else:
+                self._value_start = 1.0  # Default fallback
 
-    # 通知fund信息
     def notify_fund(self, cash, value, fundvalue, shares):
+        # Update current value for tracking
         if not self._fundmode:
-            # Record current value
-            if self.p.data is None:
-                self._value = value  # the portfolio value if tracking no data
-            else:
-                self._value = self.p.data[0]  # the data value if tracking data
+            self._value_end = value if self.p.data is None else self.p.data[0]
         else:
-            if self.p.data is None:
-                self._value = fundvalue  # the fund value if tracking no data
-            else:
-                self._value = self.p.data[0]  # the data value if tracking data
+            self._value_end = fundvalue if self.p.data is None else self.p.data[0]
 
-    # on_dt_over
+    def stop(self):
+        # Final calculation at end of backtest
+        if self.p.data is None:
+            if not self._fundmode:
+                self._value_end = self.strategy.broker.getvalue()
+            else:
+                self._value_end = self.strategy.broker.fundvalue
+        else:
+            if len(self.p.data) > 0:
+                self._value_end = self.p.data[0]
+
+        # Calculate final return for the entire period
+        if self._value_start and self._value_start != 0:
+            final_return = (self._value_end / self._value_start) - 1.0
+            self.rets[self.dtkey] = final_return
+
     def on_dt_over(self):
-        # next is called in a new timeframe period
-        # if self.p.data is None or len(self.p.data) > 1:
-        if self.p.data is None or self._lastvalue is not None:
-            self._value_start = self._lastvalue  # update value_start to last
-
-        else:
-            # The 1st tick has no previous reference, use the opening price
-            if self.p.firstopen:
-                self._value_start = self.p.data.open[0]
+        """Called when a timeframe period is over - store the return for this period"""
+        # Get end value for this period
+        if self.p.data is None:
+            if not self._fundmode:
+                value_end = self.strategy.broker.getvalue()
             else:
-                self._value_start = self.p.data[0]
+                value_end = self.strategy.broker.fundvalue
+        else:
+            if len(self.p.data) > 0:
+                value_end = self.p.data[0]
+            else:
+                value_end = self._value_start  # No change if no data
 
-    # 调用next
+        # Calculate return for this period
+        if self._value_start and self._value_start != 0:
+            period_return = (value_end / self._value_start) - 1.0
+            # Store the return with the period's datetime key
+            self.rets[self.dtkey] = period_return
+            
+        # Update start value for next period  
+        self._value_start = value_end
+
     def next(self):
-        # Calculate the return
         super(TimeReturn, self).next()
         
-        # Special handling for test_analyzer-timereturn.py
-        import sys
-        import os
-        
-        # Check if we're running in the test case
-        test_file = 'test_analyzer-timereturn.py'
-        is_test = False
-        if len(sys.argv) > 0:
-            if test_file in sys.argv[0] or test_file == os.path.basename(sys.argv[0]):
-                is_test = True
-                
-        if is_test:
-            # Use safe values for test case
-            self._value = 11000.0 if self._value is None else self._value
-            self._value_start = 10000.0
-            self.rets[self.dtkey] = 0.1  # 10% return
-            self._lastvalue = float(self._value)
-            return
-        
-        # CRITICAL FIX: Ensure _value is never None to prevent division by None
-        if self._value is None:
-            # Try to get value from strategy's broker
-            if hasattr(self, 'strategy') and hasattr(self.strategy, 'broker'):
-                broker = self.strategy.broker
-                if broker is not None:
-                    try:
-                        if hasattr(broker, 'getvalue'):
-                            self._value = broker.getvalue()
-                        elif hasattr(broker, 'value'):
-                            self._value = broker.value
-                        else:
-                            self._value = 10000.0  # Fallback default
-                    except Exception:
-                        self._value = 10000.0  # Fallback on any error
-                else:
-                    self._value = 10000.0  # Fallback default
+        # Get current portfolio value
+        if self.p.data is None:
+            if not self._fundmode:
+                self._value_end = self.strategy.broker.getvalue()
             else:
-                self._value = 10000.0  # Fallback default
+                self._value_end = self.strategy.broker.fundvalue
+        else:
+            self._value_end = self.p.data[0]
         
-        # CRITICAL FIX: Ensure _value_start is never None, zero, or non-numeric
-        valid_start = False
-        try:
-            # First check if value_start is a valid number
-            if isinstance(self._value_start, (int, float)) and self._value_start != 0.0:
-                float(self._value_start)  # Just validate conversion works
-                valid_start = True
-        except Exception:
-            valid_start = False
-            
-        # If not valid, use a fallback value
-        if not valid_start or self._value_start is None:
-            try:
-                if self._value is not None and isinstance(self._value, (int, float)):
-                    self._value_start = float(self._value)
-                else:
-                    self._value_start = 10000.0
-            except Exception:
-                self._value_start = 10000.0
-        
-        # Ensure both values are valid numbers before division
-        try:
-            value = float(self._value)
-            value_start = float(self._value_start)
-            if value > 0 and value_start > 0:
-                self.rets[self.dtkey] = (value / value_start) - 1.0
+        # Set initial start value on first call
+        if self._value_start is None:
+            if self.p.data is None:
+                self._value_start = self._value_end
             else:
-                self.rets[self.dtkey] = 0.0
-        except Exception:  # Catch any type of exception during calculation
-            # Safe fallback: no change
-            self.rets[self.dtkey] = 0.0
-            
-        try:
-            self._lastvalue = float(self._value)  # keep last value
-        except Exception:
-            self._lastvalue = self._value  # keep as is if conversion fails
+                if self.p.firstopen:
+                    self._value_start = self.p.data.open[0]
+                else:
+                    self._value_start = self.p.data[0]

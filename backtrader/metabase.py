@@ -57,11 +57,11 @@ def patch_strategy_clk_update():
                         try:
                             self.lines.datetime[0] = max(valid_data_times)
                         except (ValueError, IndexError, AttributeError):
-                            # If setting datetime fails, use a default
-                            self.lines.datetime[0] = 0.0
+                            # If setting datetime fails, use a default valid ordinal (1 = Jan 1, Year 1)
+                            self.lines.datetime[0] = 1.0
                     elif hasattr(self, 'lines') and hasattr(self.lines, 'datetime'):
-                        # No valid times, use default
-                        self.lines.datetime[0] = 0.0
+                        # No valid times, use default valid ordinal (1 = Jan 1, Year 1)
+                        self.lines.datetime[0] = 1.0
                 
                 return clk_len
             
@@ -109,12 +109,12 @@ def patch_strategy_clk_update():
                     try:
                         self.lines.datetime[0] = max(valid_data_times)
                     except (ValueError, IndexError, AttributeError):
-                        # If setting datetime fails, use a default
-                        self.lines.datetime[0] = 0.0
+                        # If setting datetime fails, use a default valid ordinal (1 = Jan 1, Year 1)
+                        self.lines.datetime[0] = 1.0
                 else:
-                    # CRITICAL FIX: This was the main bug - calling max() on empty list
-                    # Instead use a reasonable default datetime value
-                    self.lines.datetime[0] = 0.0
+                    # CRITICAL FIX: Use valid ordinal instead of 0.0
+                    # 1.0 corresponds to January 1, year 1 in the proleptic Gregorian calendar
+                    self.lines.datetime[0] = 1.0
             
             # Return the length of this strategy (number of processed bars)
             try:
@@ -725,7 +725,21 @@ class ParamsMixin(BaseMixin):
                             }
                             
                             if not hasattr(self, 'plotinfo'):
-                                self.plotinfo = type('plotinfo', (), {})()
+                                # Create plotinfo object with _get method and legendloc
+                                class PlotInfoObj:
+                                    def __init__(self):
+                                        self.legendloc = None  # CRITICAL: Add legendloc attribute
+                                        
+                                    def _get(self, key, default=None):
+                                        return getattr(self, key, default)
+                                        
+                                    def get(self, key, default=None):
+                                        return getattr(self, key, default)
+                                        
+                                    def __contains__(self, key):
+                                        return hasattr(self, key)
+                                
+                                self.plotinfo = PlotInfoObj()
                             
                             for attr, default_val in plotinfo_defaults.items():
                                 if not hasattr(self.plotinfo, attr):
@@ -1020,6 +1034,75 @@ class ItemCollection(object):
         return getattr(self, name)
 
 
+def _convert_plotlines_dict_to_object(cls):
+    """Convert plotlines from dict to object with _get method"""
+    if not hasattr(cls, 'plotlines') or not isinstance(cls.plotlines, dict):
+        return
+    
+    plotlines_dict = cls.plotlines
+    
+    class PlotLinesObj:
+        def __init__(self, data_dict):
+            self._data = data_dict.copy()
+            # Set attributes for direct access
+            for key, value in data_dict.items():
+                if isinstance(value, dict):
+                    # Convert nested dicts to objects too
+                    nested_obj = PlotLineAttrObj(value)
+                    setattr(self, key, nested_obj)
+                else:
+                    setattr(self, key, value)
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            if hasattr(self, key):
+                return getattr(self, key)
+            return self._data.get(key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            if hasattr(self, key):
+                return getattr(self, key)
+            return self._data.get(key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key) or key in self._data
+            
+        def __getattr__(self, name):
+            if name.startswith('_'):
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+            # Return empty plot line object for missing attributes
+            # Check if this might be a numeric index lookup first
+            if name.isdigit() or name.startswith('_') and name[1:].isdigit():
+                return PlotLineAttrObj({})
+            return PlotLineAttrObj({})
+    
+    class PlotLineAttrObj:
+        def __init__(self, data_dict):
+            self._data = data_dict.copy()
+            # Set attributes for direct access
+            for key, value in data_dict.items():
+                setattr(self, key, value)
+        
+        def _get(self, key, default=None):
+            """CRITICAL: _get method expected by plotting system"""
+            if hasattr(self, key):
+                return getattr(self, key)
+            return self._data.get(key, default)
+        
+        def get(self, key, default=None):
+            """Standard get method for compatibility"""
+            if hasattr(self, key):
+                return getattr(self, key)
+            return self._data.get(key, default)
+            
+        def __contains__(self, key):
+            return hasattr(self, key) or key in self._data
+    
+    # Replace the dict with the object
+    cls.plotlines = PlotLinesObj(plotlines_dict)
+
+
 def _initialize_indicator_aliases():
     """
     CRITICAL FIX: Initialize all indicator aliases and ensure _plotinit method exists
@@ -1162,6 +1245,11 @@ def _initialize_indicator_aliases():
                             attr._plotinit = universal_plotinit
                             print(f"DEBUG: Added _plotinit to {attr.__name__}")
                         
+                        # CRITICAL FIX: Convert plotlines dict to object with _get method
+                        if hasattr(attr, 'plotlines') and isinstance(attr.plotlines, dict):
+                            _convert_plotlines_dict_to_object(attr)
+                            print(f"DEBUG: Converted plotlines to object for {attr.__name__}")
+                        
                 except Exception:
                     continue
         
@@ -1187,6 +1275,18 @@ def _initialize_indicator_aliases():
                             if not hasattr(attr_value, '_plotinit'):
                                 attr_value._plotinit = universal_plotinit
                                 print(f"DEBUG: MRO PATCH - Added _plotinit to {attr_name} in {module_name}")
+                            
+                            # CRITICAL FIX: Convert plotlines dict to object with _get method
+                            if hasattr(attr_value, 'plotlines') and isinstance(attr_value.plotlines, dict):
+                                _convert_plotlines_dict_to_object(attr_value)
+                                print(f"DEBUG: MRO PATCH - Converted plotlines to object for {attr_name} in {module_name}")
+                        
+                        # CRITICAL FIX: Also handle Mixin classes that have plotlines
+                        elif (isinstance(attr_value, type) and 
+                              hasattr(attr_value, 'plotlines') and 
+                              isinstance(attr_value.plotlines, dict)):
+                            _convert_plotlines_dict_to_object(attr_value)
+                            print(f"DEBUG: MIXIN PATCH - Converted plotlines to object for {attr_name} in {module_name}")
                                 
                     except Exception:
                         continue

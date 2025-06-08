@@ -88,7 +88,7 @@ class Analyzer(ParameterizedBase):
 
     def __init__(self, *args, **kwargs):
         """
-        Initialize Analyzer with functionality previously in MetaAnalyzer
+        Initialize Analyzer with basic functionality
         """
         # Initialize parent first
         super(Analyzer, self).__init__(*args, **kwargs)
@@ -129,116 +129,6 @@ class Analyzer(ParameterizedBase):
                     if linealias:
                         setattr(self, "data%d_%s" % (d, linealias), line)
                     setattr(self, "data%d_%d" % (d, l), line)
-        
-        # CRITICAL FIX: Enhanced analyzer setup for proper broker value tracking and trade notifications
-        # This ensures SQN and TimeReturn analyzers get proper data to calculate their values
-        
-        # Set up value tracking attributes
-        if not hasattr(self, '_value'):
-            self._value = None
-        if not hasattr(self, '_value_start'):
-            self._value_start = None
-        
-        # Enhanced notify_fund method for value tracking  
-        original_notify_fund = getattr(self, 'notify_fund', None)
-        def enhanced_notify_fund(cash, value, fundvalue=None, shares=None):
-            """Enhanced notify_fund implementation for comprehensive value tracking"""
-            # Store portfolio values
-            self._cash = float(cash) if cash is not None else None
-            self._value = float(value) if value is not None else None
-            self._fundvalue = float(fundvalue) if fundvalue is not None else fundvalue
-            self._shares = float(shares) if shares is not None else shares
-            
-            # For TimeReturn analyzer, calculate returns based on portfolio value changes
-            if 'TimeReturn' in self.__class__.__name__:
-                if not hasattr(self, '_value_start') or self._value_start is None:
-                    self._value_start = self._value
-                    if hasattr(self, 'rets'):
-                        self.rets['rtot'] = 0.0
-                elif self._value is not None and self._value_start is not None and self._value_start != 0:
-                    # Calculate return percentage
-                    ret_value = (self._value / self._value_start) - 1.0
-                    if hasattr(self, 'rets'):
-                        self.rets['rtot'] = ret_value
-                else:
-                    if hasattr(self, 'rets'):
-                        self.rets['rtot'] = 0.0
-            
-            # Call original notify_fund if it exists
-            if original_notify_fund:
-                try:
-                    original_notify_fund(cash, value, fundvalue, shares)
-                except TypeError:
-                    # Handle different method signatures
-                    try:
-                        original_notify_fund(cash, value)
-                    except:
-                        pass
-        
-        self.notify_fund = enhanced_notify_fund
-        
-        # Enhanced notify_trade method for trade tracking (especially for SQN)
-        original_notify_trade = getattr(self, 'notify_trade', None)
-        def enhanced_notify_trade(trade):
-            """Enhanced notify_trade implementation for comprehensive trade tracking"""
-            # For SQN analyzer, collect trade data for SQN calculation
-            if 'SQN' in self.__class__.__name__:
-                if trade.isclosed:
-                    # Initialize trade returns list if needed
-                    if not hasattr(self, '_trade_returns'):
-                        self._trade_returns = []
-                    
-                    # Store trade PnL for SQN calculation
-                    if hasattr(trade, 'pnlcomm') and trade.pnlcomm is not None:
-                        self._trade_returns.append(float(trade.pnlcomm))
-                    elif hasattr(trade, 'pnl') and trade.pnl is not None:
-                        self._trade_returns.append(float(trade.pnl))
-            
-            # Call original notify_trade if it exists
-            if original_notify_trade:
-                original_notify_trade(trade)
-        
-        self.notify_trade = enhanced_notify_trade
-        
-        # Enhanced stop method for final calculations
-        original_stop = getattr(self, 'stop', None)
-        def enhanced_stop():
-            """Enhanced stop method for finalizing analyzer calculations"""
-            # Final calculation for TimeReturn
-            if 'TimeReturn' in self.__class__.__name__:
-                if (hasattr(self, '_value') and hasattr(self, '_value_start') and 
-                    self._value is not None and self._value_start is not None and self._value_start != 0):
-                    final_return = (self._value / self._value_start) - 1.0
-                    if hasattr(self, 'rets'):
-                        self.rets['rtot'] = final_return
-                else:
-                    if hasattr(self, 'rets'):
-                        self.rets['rtot'] = 0.0
-            
-            # Final calculation for SQN
-            elif 'SQN' in self.__class__.__name__:
-                if hasattr(self, '_trade_returns') and len(self._trade_returns) > 1:
-                    import math
-                    try:
-                        n = len(self._trade_returns)
-                        mean_return = sum(self._trade_returns) / n
-                        variance = sum((x - mean_return) ** 2 for x in self._trade_returns) / (n - 1)
-                        std_dev = math.sqrt(variance) if variance > 0 else 0.001
-                        sqn_value = math.sqrt(n) * (mean_return / std_dev) if std_dev > 0 else 0.0
-                        if hasattr(self, 'rets'):
-                            self.rets['sqn'] = sqn_value
-                    except (ValueError, ZeroDivisionError, TypeError):
-                        if hasattr(self, 'rets'):
-                            self.rets['sqn'] = 0.0
-                else:
-                    if hasattr(self, 'rets'):
-                        self.rets['sqn'] = 0.0
-            
-            # Call original stop if it exists
-            if original_stop:
-                original_stop()
-        
-        self.stop = enhanced_stop
         
         # 调用create_analysis方法
         self.create_analysis()
@@ -501,10 +391,17 @@ class TimeFrameAnalyzerBase(Analyzer):
         
         # Convert float timestamp to datetime if necessary
         if isinstance(dt, float):
+            # CRITICAL FIX: Prevent ValueError for ordinal < 1
+            dt_int = int(dt)
+            if dt_int < 1:
+                # Use Jan 1, year 1 as minimum valid date
+                dt_int = 1
+                dt = 1.0
+            
             # Convert from ordinal to datetime
-            point = datetime.datetime.fromordinal(int(dt))
+            point = datetime.datetime.fromordinal(dt_int)
             # Handle fractional part for intraday
-            fractional = dt - int(dt)
+            fractional = dt - dt_int
             if fractional > 0:
                 seconds = fractional * 86400  # 24 * 60 * 60
                 point = point.replace(hour=int(seconds // 3600),
@@ -548,10 +445,17 @@ class TimeFrameAnalyzerBase(Analyzer):
         # Calculate intraday position
         # 确保dt是datetime对象
         if isinstance(dt, float):
+            # CRITICAL FIX: Prevent ValueError for ordinal < 1
+            dt_int = int(dt)
+            if dt_int < 1:
+                # Use Jan 1, year 1 as minimum valid date
+                dt_int = 1
+                dt = 1.0
+                
             # Convert from ordinal to datetime
-            point = datetime.datetime.fromordinal(int(dt))
+            point = datetime.datetime.fromordinal(dt_int)
             # Handle fractional part for intraday
-            fractional = dt - int(dt)
+            fractional = dt - dt_int
             if fractional > 0:
                 seconds = fractional * 86400  # 24 * 60 * 60
                 point = point.replace(hour=int(seconds // 3600),
