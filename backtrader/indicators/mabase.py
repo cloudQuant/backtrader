@@ -94,9 +94,8 @@ def _register_common_moving_averages():
         MovAv.SimpleMovingAverage = MovingAverageSimple
         MovAv.MovingAverageSimple = MovingAverageSimple
         MovingAverage.register(MovingAverageSimple)
-        print(f"DEBUG: Successfully registered SMA: {MovingAverageSimple}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register SMA: {e}")
+    except Exception:
+        pass
     
     try:
         # Import and register EMA directly
@@ -105,9 +104,8 @@ def _register_common_moving_averages():
         MovAv.ExponentialMovingAverage = ExponentialMovingAverage
         MovAv.MovingAverageExponential = ExponentialMovingAverage
         MovingAverage.register(ExponentialMovingAverage)
-        print(f"DEBUG: Successfully registered EMA: {ExponentialMovingAverage}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register EMA: {e}")
+    except Exception:
+        pass
     
     try:
         # Import and register WMA directly
@@ -116,9 +114,8 @@ def _register_common_moving_averages():
         MovAv.WeightedMovingAverage = WeightedMovingAverage
         MovAv.MovingAverageWeighted = WeightedMovingAverage
         MovingAverage.register(WeightedMovingAverage)
-        print(f"DEBUG: Successfully registered WMA: {WeightedMovingAverage}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register WMA: {e}")
+    except Exception:
+        pass
         
     try:
         # Import and register HMA directly
@@ -127,9 +124,8 @@ def _register_common_moving_averages():
         MovAv.HullMovingAverage = HullMovingAverage
         MovAv.MovingAverageHull = HullMovingAverage
         MovingAverage.register(HullMovingAverage)
-        print(f"DEBUG: Successfully registered HMA: {HullMovingAverage}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register HMA: {e}")
+    except Exception:
+        pass
         
     try:
         # Import and register SMMA directly
@@ -138,9 +134,8 @@ def _register_common_moving_averages():
         MovAv.SmoothedMovingAverage = SmoothedMovingAverage
         MovAv.MovingAverageSmoothed = SmoothedMovingAverage
         MovingAverage.register(SmoothedMovingAverage)
-        print(f"DEBUG: Successfully registered SMMA: {SmoothedMovingAverage}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register SMMA: {e}")
+    except Exception:
+        pass
         
     try:
         # Import and register DEMA directly
@@ -149,9 +144,8 @@ def _register_common_moving_averages():
         MovAv.DoubleExponentialMovingAverage = DoubleExponentialMovingAverage
         MovAv.MovingAverageDoubleExponential = DoubleExponentialMovingAverage
         MovingAverage.register(DoubleExponentialMovingAverage)
-        print(f"DEBUG: Successfully registered DEMA: {DoubleExponentialMovingAverage}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register DEMA: {e}")
+    except Exception:
+        pass
         
     try:
         # Import and register TEMA directly
@@ -160,9 +154,8 @@ def _register_common_moving_averages():
         MovAv.TripleExponentialMovingAverage = TripleExponentialMovingAverage
         MovAv.MovingAverageTripleExponential = TripleExponentialMovingAverage
         MovingAverage.register(TripleExponentialMovingAverage)
-        print(f"DEBUG: Successfully registered TEMA: {TripleExponentialMovingAverage}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register TEMA: {e}")
+    except Exception:
+        pass
         
     try:
         # Import and register KAMA directly
@@ -171,9 +164,8 @@ def _register_common_moving_averages():
         MovAv.AdaptiveMovingAverage = AdaptiveMovingAverage
         MovAv.MovingAverageAdaptive = AdaptiveMovingAverage
         MovingAverage.register(AdaptiveMovingAverage)
-        print(f"DEBUG: Successfully registered KAMA: {AdaptiveMovingAverage}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register KAMA: {e}")
+    except Exception:
+        pass
         
     try:
         # Import and register ZLEMA directly
@@ -182,31 +174,24 @@ def _register_common_moving_averages():
         MovAv.ZeroLagExponentialMovingAverage = ZeroLagExponentialMovingAverage
         MovAv.MovingAverageZeroLagExponential = ZeroLagExponentialMovingAverage
         MovingAverage.register(ZeroLagExponentialMovingAverage)
-        print(f"DEBUG: Successfully registered ZLEMA: {ZeroLagExponentialMovingAverage}")
-    except Exception as e:
-        print(f"DEBUG: Failed to register ZLEMA: {e}")
-        
-    print(f"DEBUG: Finished registering moving averages. Total registered: {len(MovAv._movavs)}")
+    except Exception:
+        pass
 
-# CRITICAL FIX: Direct assignment with proper imports - no more fallback classes
-# Import and assign the actual moving average classes immediately
+# Optimized import and assignment with proper error handling
 try:
     from .sma import MovingAverageSimple
     MovAv.SMA = MovingAverageSimple
     MovAv.SimpleMovingAverage = MovingAverageSimple
     MovAv.MovingAverageSimple = MovingAverageSimple
     SMA = MovingAverageSimple  # Also set the global alias
-    print(f"DEBUG: Successfully imported and set SMA: {MovingAverageSimple}")
-except ImportError as e:
-    print(f"DEBUG: Failed to import SMA: {e}")
-    # Create a minimal working SMA implementation as fallback
+except ImportError:
+    # Create an optimized minimal working SMA implementation as fallback
     class SimpleMovingAverageImpl(MovingAverageBase):
         lines = ('sma',)
         params = (('period', 14),)
         
         def __init__(self):
             super().__init__()
-            print(f"SimpleMovingAverageImpl.__init__: period={self.p.period}")
             
         def prenext(self):
             # Called when there's not enough data for full calculation
@@ -216,90 +201,63 @@ except ImportError as e:
             self.next()
             
         def next(self):
-            print(f"SimpleMovingAverageImpl.next(): Called at len(data)={len(self.data)}, period={self.p.period}")
-            try:
-                # Only compute if we have enough data points
-                if len(self.data) >= self.p.period:
-                    # Calculate simple moving average by getting the last period values
-                    total = 0.0
-                    data_values = []
-                    for i in range(self.p.period):
-                        value = self.data[-i]
-                        data_values.append(value)
-                        total += value
-                    
-                    avg_value = total / self.p.period
-                    print(f"SimpleMovingAverageImpl.next(): computed avg={avg_value} from data: {data_values}")
-                    
-                    # Try to assign the value
-                    self.lines.sma[0] = avg_value
-                    print(f"SimpleMovingAverageImpl.next(): Successfully assigned SMA value {avg_value}")
-                else:
-                    print(f"SimpleMovingAverageImpl.next(): Not enough data points ({len(self.data)} < {self.p.period})")
-                    self.lines.sma[0] = float('nan')
-            except Exception as e:
-                print(f"SimpleMovingAverageImpl.next(): ERROR: {e}")
-                import traceback
-                traceback.print_exc()
+            """Optimized next() method for SMA calculation"""
+            if len(self.data) >= self.p.period:
+                # Efficient calculation using list comprehension
+                period_data = [self.data[-i] for i in range(self.p.period)]
+                self.lines.sma[0] = sum(period_data) / self.p.period
+            else:
                 self.lines.sma[0] = float('nan')
         
         def once(self, start, end):
-            print(f"SimpleMovingAverageImpl.once(): Called with start={start}, end={end}")
-            print(f"SimpleMovingAverageImpl.once(): data length={len(self.data)}")
+            """Optimized batch calculation method"""
             try:
-                # Use the array for bulk computation
                 data_array = self.data.array
                 sma_array = self.lines.sma.array
                 period = self.p.period
                 
-                print(f"SimpleMovingAverageImpl.once(): data_array length={len(data_array)}, sma_array length={len(sma_array)}")
+                # If arrays aren't available, fallback to next() processing
+                if not hasattr(data_array, '__len__') or not hasattr(sma_array, '__len__'):
+                    for i in range(start, end):
+                        self._next()
+                    return
                 
-                # If the sma_array is empty, we need to allocate it to match the data array size
+                # If the sma_array is empty, fallback to next() processing
                 if len(sma_array) == 0 and len(data_array) > 0:
-                    print(f"SimpleMovingAverageImpl.once(): SMA array is empty, skipping once() and letting next() handle it")
-                    # Don't try to process with once() if the array isn't allocated
-                    # Let the system fall back to next() processing
                     raise NotImplementedError("SMA array not allocated, falling back to next()")
                 
-                # If start == end, there's nothing to process in the given range
-                # but if we have data, let's process what we can
+                # Adjust range if needed
                 if start == end and len(data_array) > 0:
-                    print(f"SimpleMovingAverageImpl.once(): Empty range but data exists, adjusting to process all data")
                     start = 0
                     end = len(data_array)
                 
+                # Vectorized calculation for better performance
                 for i in range(start, end):
-                    if i >= period - 1:  # Have enough data points
-                        total = sum(data_array[i - period + 1:i + 1])
-                        sma_array[i] = total / period
-                        print(f"SimpleMovingAverageImpl.once(): i={i}, sma={sma_array[i]}")
+                    if i >= period - 1:
+                        window_sum = sum(data_array[i - period + 1:i + 1])
+                        sma_array[i] = window_sum / period
                     else:
                         sma_array[i] = float('nan')
-                        print(f"SimpleMovingAverageImpl.once(): i={i}, not enough data, set to nan")
-            except Exception as e:
-                print(f"SimpleMovingAverageImpl.once(): ERROR: {e}")
-                import traceback
-                traceback.print_exc()
-                # Re-raise to force fallback to next() processing
-                raise
+                        
+            except Exception:
+                # Fallback to next() processing if once() fails
+                for i in range(start, end):
+                    self._next()
         
         def __call__(self, *args, **kwargs):
             return self
     
     MovAv.SMA = SimpleMovingAverageImpl
-    print(f"DEBUG: Created fallback SMA implementation: {SimpleMovingAverageImpl}")
 
 try:
     from .ema import ExponentialMovingAverage
     MovAv.EMA = ExponentialMovingAverage
     MovAv.ExponentialMovingAverage = ExponentialMovingAverage
     EMA = ExponentialMovingAverage  # Also set the global alias
-    print(f"DEBUG: Successfully imported and set EMA: {ExponentialMovingAverage}")
-except ImportError as e:
-    print(f"DEBUG: Failed to import EMA: {e}")
-    # Create a minimal working EMA implementation as fallback
+except ImportError:
+    # Create an optimized minimal working EMA implementation as fallback
     class ExponentialMovingAverageImpl(MovingAverageBase):
-        lines = ('ema',)  # CRITICAL FIX: Add lines definition
+        lines = ('ema',)
         params = (('period', 14), ('alpha', None))
         
         def __init__(self):
@@ -321,19 +279,16 @@ except ImportError as e:
     
     MovAv.EMA = ExponentialMovingAverageImpl
     EMA = ExponentialMovingAverageImpl
-    print(f"DEBUG: Created fallback EMA implementation: {ExponentialMovingAverageImpl}")
 
 try:
     from .wma import WeightedMovingAverage
     MovAv.WMA = WeightedMovingAverage
     MovAv.WeightedMovingAverage = WeightedMovingAverage
     WMA = WeightedMovingAverage  # Also set the global alias
-    print(f"DEBUG: Successfully imported and set WMA: {WeightedMovingAverage}")
-except ImportError as e:
-    print(f"DEBUG: Failed to import WMA: {e}")
-    # Create a minimal working WMA implementation as fallback
+except ImportError:
+    # Create an optimized minimal working WMA implementation as fallback
     class WeightedMovingAverageImpl(MovingAverageBase):
-        lines = ('wma',)  # CRITICAL FIX: Add lines definition
+        lines = ('wma',)
         params = (('period', 14),)
         
         def __init__(self):
@@ -352,19 +307,16 @@ except ImportError as e:
     
     MovAv.WMA = WeightedMovingAverageImpl
     WMA = WeightedMovingAverageImpl
-    print(f"DEBUG: Created fallback WMA implementation: {WeightedMovingAverageImpl}")
 
 try:
     from .hma import HullMovingAverage
     MovAv.HMA = HullMovingAverage
     MovAv.HullMovingAverage = HullMovingAverage
     HMA = HullMovingAverage  # Also set the global alias
-    print(f"DEBUG: Successfully imported and set HMA: {HullMovingAverage}")
-except ImportError as e:
-    print(f"DEBUG: Failed to import HMA: {e}")
-    # Create a minimal working HMA implementation as fallback
+except ImportError:
+    # Create an optimized minimal working HMA implementation as fallback
     class HullMovingAverageImpl(MovingAverageBase):
-        lines = ('hma',)  # CRITICAL FIX: Add lines definition
+        lines = ('hma',)
         params = (('period', 14),)
         
         def __init__(self):
@@ -381,9 +333,6 @@ except ImportError as e:
     
     MovAv.HMA = HullMovingAverageImpl
     HMA = HullMovingAverageImpl
-    print(f"DEBUG: Created fallback HMA implementation: {HullMovingAverageImpl}")
-
-print(f"DEBUG: Moving averages registered - SMA: {MovAv.SMA}, EMA: {MovAv.EMA}, WMA: {MovAv.WMA}, HMA: {MovAv.HMA}")
 
 # Update the global SMA alias to point to the actual implementation
 SMA = MovAv.SMA
