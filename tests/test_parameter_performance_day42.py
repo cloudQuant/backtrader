@@ -474,29 +474,36 @@ class TestParameterSystemOptimizations:
         
         obj = CacheTestClass()
         
-        # First access (may involve setup)
+        # Warm up the cache by doing some initial accesses
+        for _ in range(100):
+            obj.get_param("cached_param")
+        
+        # First access measurement (with warmed cache)
         first_result = PerformanceTester.time_operation(
             "first_access",
             lambda: obj.get_param("cached_param"),
-            iterations=1000
+            iterations=5000
         )
         
-        # Subsequent accesses (should be cached)
+        # Subsequent accesses (should benefit from optimized path)
         cached_result = PerformanceTester.time_operation(
             "cached_access",
             lambda: obj.get_param("cached_param"),
             iterations=10000
         )
         
-        # Cached access should be faster or at least not significantly slower
-        # Allow for some variation but ensure no major performance regression
+        # Cached access should not be significantly slower
+        # Allow for reasonable variation in measurement but ensure no major regression
         performance_ratio = cached_result.avg_time / first_result.avg_time
-        assert performance_ratio < 5, f"Caching may not be effective: {performance_ratio:.2f}x"
+        assert performance_ratio < 3.0, f"Caching performance degraded significantly: {performance_ratio:.2f}x"
+        
+        # Test that we can access at a reasonable speed
+        assert cached_result.ops_per_second > 50000, f"Cached access too slow: {cached_result.ops_per_second:.1f} ops/sec"
         
         print("\n=== Caching Effectiveness ===")
-        print(f"First access: {first_result.avg_time*1000:.3f}ms/op")
-        print(f"Cached access: {cached_result.avg_time*1000:.3f}ms/op")
-        print(f"Ratio: {performance_ratio:.2f}x")
+        print(f"First access: {first_result.avg_time*1000:.3f}ms/op, {first_result.ops_per_second:.1f} ops/sec")
+        print(f"Cached access: {cached_result.avg_time*1000:.3f}ms/op, {cached_result.ops_per_second:.1f} ops/sec")
+        print(f"Performance ratio: {performance_ratio:.2f}x")
     
     def test_bulk_operations_performance(self):
         """Test performance of bulk parameter operations."""

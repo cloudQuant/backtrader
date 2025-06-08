@@ -271,7 +271,7 @@ class ParameterManager:
 
     def get(self, name: str, default: Any = None) -> Any:
         """
-        Get parameter value with lazy evaluation support.
+        Get parameter value with optimized caching and lazy evaluation support.
         
         Args:
             name: Parameter name
@@ -280,26 +280,36 @@ class ParameterManager:
         Returns:
             Parameter value
         """
-        # Check if we have a custom value
+        # Fast path: Check if we have a custom value (most common case)
         if name in self._values:
             return self._values[name]
+        
+        # Fast path: Check if we have a cached descriptor default
+        if name in self._value_cache:
+            return self._value_cache[name]
         
         # Check lazy defaults
         if name in self._lazy_defaults:
             if name not in self._cache_valid:
                 try:
-                    self._value_cache[name] = self._lazy_defaults[name]()
+                    computed_value = self._lazy_defaults[name]()
+                    self._value_cache[name] = computed_value
                     self._cache_valid.add(name)
+                    return computed_value
                 except Exception as e:
                     # If lazy evaluation fails, use descriptor default
                     if name in self._descriptors:
-                        return self._descriptors[name].default
+                        default_val = self._descriptors[name].default
+                        self._value_cache[name] = default_val
+                        return default_val
                     return default
             return self._value_cache[name]
         
-        # Use descriptor default
+        # Cache descriptor default for faster subsequent access
         if name in self._descriptors:
-            return self._descriptors[name].default
+            default_val = self._descriptors[name].default
+            self._value_cache[name] = default_val
+            return default_val
         
         # Use provided default
         return default
