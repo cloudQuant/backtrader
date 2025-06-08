@@ -201,16 +201,87 @@ except ImportError as e:
     print(f"DEBUG: Failed to import SMA: {e}")
     # Create a minimal working SMA implementation as fallback
     class SimpleMovingAverageImpl(MovingAverageBase):
-        lines = ('sma',)  # CRITICAL FIX: Add lines definition
+        lines = ('sma',)
         params = (('period', 14),)
         
         def __init__(self):
             super().__init__()
-            self.sma = self.lines[0]
+            print(f"SimpleMovingAverageImpl.__init__: period={self.p.period}")
+            
+        def prenext(self):
+            # Called when there's not enough data for full calculation
+            if len(self.data) < self.p.period:
+                self.lines.sma[0] = float('nan')
+                return
+            self.next()
             
         def next(self):
-            if len(self.data) >= self.p.period:
-                self.sma[0] = sum(self.data.get(ago=-i) for i in range(self.p.period)) / self.p.period
+            print(f"SimpleMovingAverageImpl.next(): Called at len(data)={len(self.data)}, period={self.p.period}")
+            try:
+                # Only compute if we have enough data points
+                if len(self.data) >= self.p.period:
+                    # Calculate simple moving average by getting the last period values
+                    total = 0.0
+                    data_values = []
+                    for i in range(self.p.period):
+                        value = self.data[-i]
+                        data_values.append(value)
+                        total += value
+                    
+                    avg_value = total / self.p.period
+                    print(f"SimpleMovingAverageImpl.next(): computed avg={avg_value} from data: {data_values}")
+                    
+                    # Try to assign the value
+                    self.lines.sma[0] = avg_value
+                    print(f"SimpleMovingAverageImpl.next(): Successfully assigned SMA value {avg_value}")
+                else:
+                    print(f"SimpleMovingAverageImpl.next(): Not enough data points ({len(self.data)} < {self.p.period})")
+                    self.lines.sma[0] = float('nan')
+            except Exception as e:
+                print(f"SimpleMovingAverageImpl.next(): ERROR: {e}")
+                import traceback
+                traceback.print_exc()
+                self.lines.sma[0] = float('nan')
+        
+        def once(self, start, end):
+            print(f"SimpleMovingAverageImpl.once(): Called with start={start}, end={end}")
+            print(f"SimpleMovingAverageImpl.once(): data length={len(self.data)}")
+            try:
+                # Use the array for bulk computation
+                data_array = self.data.array
+                sma_array = self.lines.sma.array
+                period = self.p.period
+                
+                print(f"SimpleMovingAverageImpl.once(): data_array length={len(data_array)}, sma_array length={len(sma_array)}")
+                
+                # If the sma_array is empty, we need to allocate it to match the data array size
+                if len(sma_array) == 0 and len(data_array) > 0:
+                    print(f"SimpleMovingAverageImpl.once(): SMA array is empty, skipping once() and letting next() handle it")
+                    # Don't try to process with once() if the array isn't allocated
+                    # Let the system fall back to next() processing
+                    raise NotImplementedError("SMA array not allocated, falling back to next()")
+                
+                # If start == end, there's nothing to process in the given range
+                # but if we have data, let's process what we can
+                if start == end and len(data_array) > 0:
+                    print(f"SimpleMovingAverageImpl.once(): Empty range but data exists, adjusting to process all data")
+                    start = 0
+                    end = len(data_array)
+                
+                for i in range(start, end):
+                    if i >= period - 1:  # Have enough data points
+                        total = sum(data_array[i - period + 1:i + 1])
+                        sma_array[i] = total / period
+                        print(f"SimpleMovingAverageImpl.once(): i={i}, sma={sma_array[i]}")
+                    else:
+                        sma_array[i] = float('nan')
+                        print(f"SimpleMovingAverageImpl.once(): i={i}, not enough data, set to nan")
+            except Exception as e:
+                print(f"SimpleMovingAverageImpl.once(): ERROR: {e}")
+                import traceback
+                traceback.print_exc()
+                # Re-raise to force fallback to next() processing
+                raise
         
         def __call__(self, *args, **kwargs):
             return self
