@@ -169,7 +169,7 @@ class RunStrategy(bt.Strategy):
             return self._running_sum / period
         else:
             # Calculate average of last 'period' prices (fallback)
-            recent_prices = list(self.price_history)[-period:]
+            recent_prices = [self.price_history[i] for i in range(max(0, len(self.price_history)-period), len(self.price_history))]
             self._running_sum = sum(recent_prices)
             self._sma_ready = len(self.price_history) >= period
             return self._running_sum / len(recent_prices)

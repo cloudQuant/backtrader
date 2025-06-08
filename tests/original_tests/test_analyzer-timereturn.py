@@ -95,7 +95,7 @@ class RunStrategy(bt.Strategy):
         # Calculate average of last 'period' prices
         # Convert deque to list to use slicing, or sum the last 'period' items
         if len(self.price_history) >= period:
-            recent_prices = list(self.price_history)[-period:]
+            recent_prices = [self.price_history[i] for i in range(max(0, len(self.price_history)-period), len(self.price_history))]
             return sum(recent_prices) / period
         else:
             return float('nan')
