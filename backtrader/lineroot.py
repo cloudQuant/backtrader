@@ -817,7 +817,7 @@ def _apply_strategy_patch():
             from .strategy import Strategy
             # Monkey patch the Strategy class
             Strategy._clk_update = safe_clk_update
-            print("CRITICAL FIX: Successfully patched Strategy._clk_update method from lineroot.py")
+            pass
         except ImportError:
             # Strategy not imported yet, try to patch later when it's imported
             pass

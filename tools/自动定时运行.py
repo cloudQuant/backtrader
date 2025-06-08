@@ -5,15 +5,12 @@ import datetime
 # 配置参数
 TARGET_POSITION = (100, 200)  # 替换为你的目标坐标 (x, y)
 INPUT_TEXT = """
-You are a ​​seasoned Python expert​ with decades of experience, ​​specializing in resolving critical bugs​​ and optimizing project codebases.Please carefully review the backtrader project's source code, then complete the following tasks as specified:
-1. Execute this script to install backtrader and verify failed test cases via D:\source_code\backtrader\install_win.bat, then proceed with resolving the remaining defects and bugs.
-2. The bugs were caused by refactoring the following five files: metabase.py, lineroot.py, linebuffer.py, lineseries.py, lineiterator.py
-3. Only modify these five files
-4. Do not introduce any new metaprogramming or metaclasses
-5. Do not modify any other files
-6. Do not modify test cases
-7. Ensure ./install_win.bat can successfully install and pass all tests
-8 . Add a timeout=30 to each command execution to prevent infinite loops.
+You are a Python expert with 50 years of experience. Your task is as follows:
+
+Run install_unix.sh.
+If the test cases pass with a 100% success rate, commit the current code to Git, and then optimize the code to improve the overall performance of the project.
+If the test cases do not pass 100%, continue fixing bugs in the source code until all test cases pass.
+When fixing bugs, do not modify the expected results or logic of the test cases, and do not use new metaclasses or metaprogramming techniques.
 """
 INTERVAL_MINUTES = 10  # 执行间隔（分钟）
 MAX_ATTEMPTS = 1000  # 最大执行次数（防止无限循环）

@@ -1297,17 +1297,15 @@ def _patch_strategy_clk_update():
             from .strategy import Strategy
             original_clk_update = Strategy._clk_update
             Strategy._clk_update = safe_clk_update
-            print("CRITICAL FIX: Successfully patched Strategy._clk_update from lineseries.py")
+            pass
             return True
         except ImportError:
             # Strategy module not loaded yet
             return False
-        except Exception as e:
-            print(f"CRITICAL FIX: Error patching Strategy._clk_update: {e}")
+        except Exception:
             return False
             
-    except Exception as e:
-        print(f"CRITICAL FIX: Error in _patch_strategy_clk_update: {e}")
+    except Exception:
         return False
 
 

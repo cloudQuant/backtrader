@@ -124,7 +124,6 @@ def patch_strategy_clk_update():
         
         # Monkey patch the Strategy class
         Strategy._clk_update = safe_clk_update
-        print("CRITICAL FIX: Successfully patched Strategy._clk_update method")
         
     except ImportError as e:
         print(f"Could not patch Strategy._clk_update: {e}")
@@ -1243,12 +1242,12 @@ def _initialize_indicator_aliases():
                         # Add _plotinit method if missing
                         if not hasattr(attr, '_plotinit'):
                             attr._plotinit = universal_plotinit
-                            print(f"DEBUG: Added _plotinit to {attr.__name__}")
+                            pass
                         
                         # CRITICAL FIX: Convert plotlines dict to object with _get method
                         if hasattr(attr, 'plotlines') and isinstance(attr.plotlines, dict):
                             _convert_plotlines_dict_to_object(attr)
-                            print(f"DEBUG: Converted plotlines to object for {attr.__name__}")
+                            pass
                         
                 except Exception:
                     continue
@@ -1258,7 +1257,7 @@ def _initialize_indicator_aliases():
             from .indicators.sma import MovingAverageSimple
             if not hasattr(MovingAverageSimple, '_plotinit'):
                 MovingAverageSimple._plotinit = universal_plotinit
-                print(f"DEBUG: DIRECT PATCH - Added _plotinit to MovingAverageSimple")
+                pass
         except ImportError:
             pass
         
@@ -1274,24 +1273,24 @@ def _initialize_indicator_aliases():
                             # Ensure the class has _plotinit
                             if not hasattr(attr_value, '_plotinit'):
                                 attr_value._plotinit = universal_plotinit
-                                print(f"DEBUG: MRO PATCH - Added _plotinit to {attr_name} in {module_name}")
+                                pass
                             
                             # CRITICAL FIX: Convert plotlines dict to object with _get method
                             if hasattr(attr_value, 'plotlines') and isinstance(attr_value.plotlines, dict):
                                 _convert_plotlines_dict_to_object(attr_value)
-                                print(f"DEBUG: MRO PATCH - Converted plotlines to object for {attr_name} in {module_name}")
+                                pass
                         
                         # CRITICAL FIX: Also handle Mixin classes that have plotlines
                         elif (isinstance(attr_value, type) and 
                               hasattr(attr_value, 'plotlines') and 
                               isinstance(attr_value.plotlines, dict)):
                             _convert_plotlines_dict_to_object(attr_value)
-                            print(f"DEBUG: MIXIN PATCH - Converted plotlines to object for {attr_name} in {module_name}")
+                            pass
                                 
                     except Exception:
                         continue
         
-        print("DEBUG: _initialize_indicator_aliases completed - _plotinit method ensured for all indicators")
+        pass
         
     except Exception as e:
         print(f"Warning: _initialize_indicator_aliases failed: {e}")

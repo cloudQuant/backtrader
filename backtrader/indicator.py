@@ -82,7 +82,7 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
             # Use the LineSeries mechanism to create the lines class
             from .lineseries import Lines
             cls.lines = Lines._derive('lines', lines, extralines, ())
-            print(f"Indicator.__init_subclass__: Created lines class for {cls.__name__} with lines: {lines}")
+            pass
         
         # Patch __init__ methods of indicator subclasses to handle arguments
         if '__init__' in cls.__dict__:  # Only patch if this class defines its own __init__

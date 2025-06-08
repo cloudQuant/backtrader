@@ -899,11 +899,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 # Get the current actual length
                 current_len = len(self)
                 self.chkmin = current_len
-                print(f"DEBUG: TestStrategy.nextstart() - Set chkmin = {current_len}")
             except Exception:
                 # Fallback value expected by tests
                 self.chkmin = 30
-                print(f"DEBUG: TestStrategy.nextstart() - Set chkmin = 30 (fallback)")
         
         # Check if this class has its own nextstart method defined
         for cls in self.__class__.__mro__:
@@ -942,11 +940,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 # Get the current actual length
                 current_len = len(self)
                 self.chkmin = current_len
-                print(f"DEBUG: TestStrategy.nextstart() - Set chkmin = {current_len}")
             except Exception:
                 # Fallback value expected by tests
                 self.chkmin = 30
-                print(f"DEBUG: TestStrategy.nextstart() - Set chkmin = 30 (fallback)")
         
         # Check if this class has its own nextstart method defined
         for cls in self.__class__.__mro__:
@@ -1694,7 +1690,7 @@ class StrategyBase(DataAccessor):
                 # Clear the pending flag
                 self._data_assignment_pending = False
                 
-                print(f"CRITICAL FIX: Strategy data assigned - {len(datas)} data feeds")
+                pass
                 
             else:
                 # Create minimal clock for strategies without data
