@@ -260,7 +260,7 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
 
 
 # 指标画出多条line的类，下面这两个类，在整个项目中并没有使用到
-class MtLinePlotterIndicator(Indicator.__class__):
+class LinePlotterIndicatorBase(Indicator.__class__):
     def donew(cls, *args, **kwargs):
         # line的名字
         lname = kwargs.pop("name")
@@ -278,7 +278,7 @@ class MtLinePlotterIndicator(Indicator.__class__):
 
         # Create the object and set the params in place
         # 创建具体的类并设置参数
-        _obj, args, kwargs = super(MtLinePlotterIndicator, cls).donew(*args, **kwargs)
+        _obj, args, kwargs = super(LinePlotterIndicatorBase, cls).donew(*args, **kwargs)
         # 设置_obj的owner属性值
         _obj.owner = _obj.data.owner._clock
         # 增加另一条linebuffer
@@ -288,5 +288,5 @@ class MtLinePlotterIndicator(Indicator.__class__):
 
 
 # LinePlotterIndicator类，同样没有用到
-class LinePlotterIndicator(Indicator, metaclass=MtLinePlotterIndicator):
+class LinePlotterIndicator(Indicator, LinePlotterIndicatorBase):
     pass

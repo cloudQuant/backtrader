@@ -42,5 +42,5 @@ def test_run(main=False):
     test = RunFrompackages()
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     test_run(main=True)

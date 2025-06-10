@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import backtrader as bt
-from . import MovAv, AwesomeOscillator
-
+from .awesomeoscillator import AwesomeOscillator
+from .sma import SMA
 
 __all__ = ["AccelerationDecelerationOscillator", "AccDeOsc"]
 
@@ -28,7 +28,7 @@ class AccelerationDecelerationOscillator(bt.Indicator):
 
     params = (
         ("period", 5),
-        ("movav", MovAv.SMA),
+        ("movav", SMA),
     )
 
     plotlines = dict(accde=dict(_method="bar", alpha=0.50, width=1.0))

@@ -35,3 +35,6 @@ class WeightedMovingAverage(MovingAverageBase):
         self.lines[0] = AverageWeighted(self.data, period=self.p.period, coef=coef, weights=weights)
 
         super(WeightedMovingAverage, self).__init__()
+
+
+WMA = WeightedMovingAverage

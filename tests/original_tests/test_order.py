@@ -18,6 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+from __future__ import (absolute_import, division, print_function,
+                        unicode_literals)
+
 import backtrader as bt
 from backtrader import Order, Position
 
@@ -37,11 +40,10 @@ class FakeCommInfo(object):
 
 
 class FakeData(object):
-    """
+    '''
     Minimal interface to avoid errors when trade tries to get information from
     the data during the test
-    """
-
+    '''
     def __len__(self):
         return 0
 
@@ -69,21 +71,12 @@ def _execute(position, order, size, price, partial):
     pnl = comminfo.profitandloss(-closed, pprice_orig, price)
     margin = comminfo.getvaluesize(size, price)
 
-    order.execute(
-        order.data.datetime[0],
-        size,
-        price,
-        closed,
-        closedvalue,
-        closedcomm,
-        opened,
-        openedvalue,
-        openedcomm,
-        margin,
-        pnl,
-        psize,
-        pprice,
-    )  # pnl
+    order.execute(order.data.datetime[0],
+                  size, price,
+                  closed, closedvalue, closedcomm,
+                  opened, openedvalue, openedcomm,
+                  margin, pnl,
+                  psize, pprice)  # pnl
 
     if partial:
         order.partial()
@@ -94,9 +87,10 @@ def _execute(position, order, size, price, partial):
 def test_run(main=False):
     position = Position()
     comminfo = FakeCommInfo()
-    order = bt.BuyOrder(
-        data=FakeData(), size=100, price=1.0, exectype=bt.Order.Market, simulated=True
-    )
+    order = bt.BuyOrder(data=FakeData(),
+                        size=100, price=1.0,
+                        exectype=bt.Order.Market,
+                        simulated=True)
     order.addcomminfo(comminfo)
 
     ### Test that partially updating order will maintain correct iterpending sequence
@@ -127,6 +121,5 @@ def test_run(main=False):
     assert pending[1].size == 40
     assert pending[1].price == 1.3
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     test_run(main=True)

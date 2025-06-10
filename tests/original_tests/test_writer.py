@@ -32,6 +32,8 @@ class RunStrategy(bt.Strategy):
 
     def __init__(self):
         btind.SMA()
+    def next(self):
+        _ = bt.num2date(self.data.datetime[0])
 
 
 def test_run(main=False):
@@ -61,7 +63,7 @@ def test_run(main=False):
 
             # 允许输出256或257行，以容错不同环境下的差异
             print(f'DEBUG - Actual count: {count}, Expected: 256')
-            assert count in [256, 257]  # 允许256行（正常情况）或257行（某些特殊情况）
+            assert count == 256  # 允许256行（正常情况）或257行（某些特殊情况）
 
 
 if __name__ == "__main__":

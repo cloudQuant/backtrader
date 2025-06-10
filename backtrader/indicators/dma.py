@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from . import MovingAverageBase, MovAv, ZeroLagIndicator
-
+from .ema import EMA
+from .hma import HMA
 
 # Dickson均线
 class DicksonMovingAverage(MovingAverageBase):
@@ -38,8 +39,8 @@ class DicksonMovingAverage(MovingAverageBase):
     params = (
         ("gainlimit", 50),
         ("hperiod", 7),
-        ("_movav", MovAv.EMA),
-        ("_hma", MovAv.HMA),
+        ("_movav", EMA),
+        ("_hma", HMA),
     )
 
     def _plotlabel(self):

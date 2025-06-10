@@ -36,3 +36,6 @@ class ExponentialMovingAverage(MovingAverageBase):
         self.alpha, self.alpha1 = es.alpha, es.alpha1
 
         super(ExponentialMovingAverage, self).__init__()
+
+
+EMA = ExponentialMovingAverage

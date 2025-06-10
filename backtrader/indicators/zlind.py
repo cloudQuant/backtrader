@@ -5,7 +5,7 @@ from backtrader.utils.py3 import MAXINT
 
 
 from . import MovingAverageBase, MovAv
-
+from .ema import EMA
 
 # 零滞后均线
 class ZeroLagIndicator(MovingAverageBase):
@@ -43,7 +43,7 @@ class ZeroLagIndicator(MovingAverageBase):
     lines = ("ec",)
     params = (
         ("gainlimit", 50),
-        ("_movav", MovAv.EMA),
+        ("_movav", EMA),
     )
 
     def _plotlabel(self):
@@ -52,7 +52,7 @@ class ZeroLagIndicator(MovingAverageBase):
         return plabels
 
     def __init__(self):
-        self.ema = MovAv.EMA(period=self.p.period)
+        self.ema = self.p._movav(period=self.p.period)
         self.limits = [-self.p.gainlimit, self.p.gainlimit + 1]
 
         # To make mixins work - super at the end for cooperative inheritance

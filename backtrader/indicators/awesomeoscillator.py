@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import backtrader as bt
 from . import MovAv
-
+from .sma import SMA
 
 __all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
 
@@ -33,7 +33,7 @@ class AwesomeOscillator(bt.Indicator):
     params = (
         ("fast", 5),
         ("slow", 34),
-        ("movav", MovAv.SMA),
+        ("movav", SMA),
     )
     # 画图的参数
     plotlines = dict(ao=dict(_method="bar", alpha=0.50, width=1.0))

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, MovingAverageBase, MovAv
-
+from .ema import EMA
 
 # 双指数平均值
 class DoubleExponentialMovingAverage(MovingAverageBase):
@@ -25,7 +25,7 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
     )
 
     lines = ("dema",)
-    params = (("_movav", MovAv.EMA),)
+    params = (("_movav", EMA),)
 
     def __init__(self):
         ema = self.p._movav(self.data, period=self.p.period)
@@ -60,7 +60,7 @@ class TripleExponentialMovingAverage(MovingAverageBase):
     )
 
     lines = ("tema",)
-    params = (("_movav", MovAv.EMA),)
+    params = (("_movav", EMA),)
 
     def __init__(self):
         ema1 = self.p._movav(self.data, period=self.p.period)

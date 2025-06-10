@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import backtrader as bt
 from . import MovAv
-
+from .sma import SMA
 
 __all__ = ["HaDelta", "haD"]
 
@@ -32,7 +32,7 @@ class HaDelta(bt.Indicator):
 
     params = (
         ("period", 3),
-        ("movav", MovAv.SMA),
+        ("movav", SMA),
         ("autoheikin", True),
     )
 

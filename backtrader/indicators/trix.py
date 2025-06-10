@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, MovAv
-
+from .ema import EMA
 
 # 三重指数移动平均斜率
 class Trix(Indicator):
@@ -30,7 +30,7 @@ class Trix(Indicator):
     params = (
         ("period", 15),
         ("_rocperiod", 1),
-        ("_movav", MovAv.EMA),
+        ("_movav", EMA),
     )
 
     plotinfo = dict(plothlines=[0.0])

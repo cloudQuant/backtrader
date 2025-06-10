@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from . import MovingAverageBase, MovAv
+from . import MovingAverageBase
+from .wma import WMA
 
 
 # Inherits from MovingAverageBase to auto-register as MovingAverage type
@@ -36,7 +37,7 @@ class HullMovingAverage(MovingAverageBase):
     lines = ("hma",)
 
     # param 'period' is inherited from MovingAverageBase
-    params = (("_movav", MovAv.WMA),)
+    params = (("_movav", WMA),)
 
     def __init__(self):
         wma = self.p._movav(self.data, period=self.params.period)
@@ -47,3 +48,6 @@ class HullMovingAverage(MovingAverageBase):
 
         # Done after calc to ensure coop inheritance and composition work
         super(HullMovingAverage, self).__init__()
+
+
+HMA = HullMovingAverage
