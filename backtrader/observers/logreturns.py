@@ -1,0 +1,86 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; py-indent-offset:4 -*-
+
+import backtrader as bt
+
+
+__all__ = ["LogReturns", "LogReturns2"]
+
+
+# 获取对数收益率
+class LogReturns(bt.Observer):
+    """This observer stores the *log returns* of the strategy or a
+
+    Params:
+
+      - ``timeframe`` (default: ``None``)
+        If ``None`` then the complete return over the entire backtested period
+        will be reported
+
+        Pass ``TimeFrame.NoTimeFrame`` to consider the entire dataset with no
+        time constraints
+
+      - ``compression`` (default: ``None``)
+
+        Only used for sub-day timeframes to, for example, work on an hourly
+        timeframe by specifying "TimeFrame.Minutes" and 60 as compression
+
+      - ``fund`` (default: ``None``)
+
+        If `None`, the actual mode of the broker (fundmode - True/False) will
+        be autodetected to decide if the returns are based on the total net
+        asset value or on the fund value. See ``set_fundmode`` in the broker
+        documentation
+
+        Set it to ``True`` or ``False`` for a specific behavior
+
+    Remember that at any moment of a `run` the current values can be checked
+    by looking at the *lines* by name at index ``0``.
+
+    """
+
+    _stclock = True
+
+    lines = ("logret1",)
+    plotinfo = dict(plot=True, subplot=True)
+
+    params = (
+        ("timeframe", None),
+        ("compression", None),
+        ("fund", None),
+    )
+
+    # 画图的标签
+    def _plotlabel(self):
+        return [
+            bt.TimeFrame.getname(self.p.timeframe, self.p.compression),
+            str(self.p.compression or 1),
+        ]
+
+    # 初始化的时候通过LogReturnsRolling计算对数收益率
+    def __init__(self):
+        self.logret1 = self._owner._addanalyzer_slave(
+            bt.analyzers.LogReturnsRolling, data=self.data0, **self.p._getkwargs()
+        )
+
+    # 给logret1赋值
+    def next(self):
+        self.lines.logret1[0] = self.logret1.rets[self.logret1.dtkey]
+
+
+# 显示第二个品种的对数收益率
+class LogReturns2(LogReturns):
+    """Extends the observer LogReturns to show two instruments"""
+
+    lines = ("logret2",)
+
+    def __init__(self):
+        super(LogReturns2, self).__init__()
+
+        self.logret2 = self._owner._addanalyzer_slave(
+            bt.analyzers.LogReturnsRolling, data=self.data1, **self.p._getkwargs()
+        )
+
+    def next(self):
+        super(LogReturns2, self).next()
+        self.lines.logret2[0] = self.logret2.rets[self.logret2.dtkey]

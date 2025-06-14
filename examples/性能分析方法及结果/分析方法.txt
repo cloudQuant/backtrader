@@ -1,0 +1,4 @@
+方法1：pyinstrument -r html test_backtrader_xx.py
+运行这行命令，会在暂时目录中生成一个效率分析的html，可以打开看各个函数耗费的时间以及相互关系
+方法2：py-spy record -o profile.svg --format speedscope  -- python test_backtrader_ts.py
+运行这个，可以在当前文件夹生成一个profile.svg文件，可以在https://www.speedscope.app/打开查看具体的函数消耗的时间

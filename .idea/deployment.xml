@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PublishConfigData" autoUpload="On explicit save action" serverName="ubuntu@43.159.39.216:22 password" remoteFilesAllowedToDisappearOnAutoupload="false">
+    <serverData>
+      <paths name="ubuntu@43.159.39.216:22 password">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ubuntu/backtrader" local="$PROJECT_DIR$" web="/" />
+            <mapping local="" />
+            <mapping deploy="/home/ubuntu/bt_api_py" local="$PROJECT_DIR$/../bt_api_py" />
+          </mappings>
+        </serverdata>
+      </paths>
+      <paths name="ubuntu@43.159.39.216:22 password (2)">
+        <serverdata>
+          <mappings>
+            <mapping deploy="/home/ubuntu" local="$PROJECT_DIR$" />
+          </mappings>
+        </serverdata>
+      </paths>
+    </serverData>
+    <option name="myAutoUpload" value="ON_EXPLICIT_SAVE" />
+  </component>
+</project>
