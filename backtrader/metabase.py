@@ -542,13 +542,12 @@ class ParameterManager:
                     if name == '_movav' and value is None:
                         # Try to import and return SMA as default
                         try:
-                            from .indicators.mabase import MovAv
-                            return MovAv.SMA
+                            from .indicators.sma import MovingAverageSimple
+                            return MovingAverageSimple
                         except ImportError:
-                            # If import fails, return a simple fallback
                             try:
-                                from .indicators.sma import MovingAverageSimple
-                                return MovingAverageSimple
+                                from .indicators.mabase import MovAv
+                                return getattr(MovAv, 'SMA', None)
                             except ImportError:
                                 # Final fallback - return None
                                 return None
@@ -573,10 +572,24 @@ class ParameterManager:
                         # Special handling for movav aliases
                         if canonical_name == '_movav' and value is None:
                             try:
-                                from .indicators.mabase import MovAv
-                                return MovAv.SMA
+                                from .indicators.sma import MovingAverageSimple
+                                return MovingAverageSimple
                             except ImportError:
-                                return None
+                                try:
+                                    from .indicators.mabase import MovAv
+                                    # Force registration if SMA doesn't exist
+                                    if not hasattr(MovAv, 'SMA'):
+                                        try:
+                                            from .indicators.sma import MovingAverageSimple
+                                            # Manually register SMA if auto-registration failed
+                                            setattr(MovAv, 'SMA', MovingAverageSimple)
+                                            setattr(MovAv, 'SimpleMovingAverage', MovingAverageSimple)
+                                            setattr(MovAv, 'MovingAverageSimple', MovingAverageSimple)
+                                        except ImportError:
+                                            pass
+                                    return getattr(MovAv, 'SMA', None)
+                                except ImportError:
+                                    return None
                         return value
                 
                 # For period specifically, always return a sensible default
@@ -585,9 +598,24 @@ class ParameterManager:
                 if name in ('_movav', 'movav', 'ma', 'moving_average'):
                     try:
                         from .indicators.mabase import MovAv
-                        return MovAv.SMA
-                    except ImportError:
-                        return None
+                        # Force registration if SMA doesn't exist
+                        if not hasattr(MovAv, 'SMA'):
+                            try:
+                                from .indicators.sma import MovingAverageSimple
+                                # Manually register SMA if auto-registration failed
+                                setattr(MovAv, 'SMA', MovingAverageSimple)
+                                setattr(MovAv, 'SimpleMovingAverage', MovingAverageSimple)
+                                setattr(MovAv, 'MovingAverageSimple', MovingAverageSimple)
+                            except ImportError:
+                                pass
+                        return getattr(MovAv, 'SMA', None)
+                    except (ImportError, AttributeError):
+                        # Fallback: try direct import
+                        try:
+                            from .indicators.sma import MovingAverageSimple
+                            return MovingAverageSimple
+                        except ImportError:
+                            return None
                 if name in ('lookback', 'look_back', 'lag'):
                     return 1
                 if name in ('upperband', 'upper_band', 'upper', 'high_band'):

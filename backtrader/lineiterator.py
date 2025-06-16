@@ -1617,6 +1617,7 @@ class StrategyBase(DataAccessor):
                     class SafeSMAIndicator:
                         def __init__(self):
                             self._current_value = 0.0
+                            self.lines = [self]  # Add lines attribute for compatibility
                             
                         def __getitem__(self, key):
                             return 0.0
@@ -1634,6 +1635,10 @@ class StrategyBase(DataAccessor):
                             
                         def __call__(self, ago=0):
                             return 0.0
+                            
+                        def size(self):
+                            """Return the number of lines in this indicator"""
+                            return 1  # SafeSMAIndicator has 1 line
                     
                     safe_sma = SafeSMAIndicator()
                     safe_sma._owner = self
