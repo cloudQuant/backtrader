@@ -1,0 +1,2286 @@
+{
+  "analysis_time": "2025-06-20T13:01:33.164711",
+  "summary": {
+    "total_files_analyzed": 195,
+    "total_metaclass_usages": 115,
+    "total_dynamic_creations": 8,
+    "total_migration_plans": 15,
+    "high_priority_migrations": 10,
+    "complex_migrations": 56
+  },
+  "metaclass_breakdown": {
+    "MetaLineSeries": 9,
+    "special_method___new__": 11,
+    "MetaLineActions": 3,
+    "MetaBase": 1,
+    "MetaParams": 4,
+    "MetaLineIterator": 5,
+    "special_method___init_subclass__": 2,
+    "MetaIndicator": 44,
+    "MetaAnalyzer": 7,
+    "MetaStrategy": 2,
+    "MetaAbstractDataBase": 7,
+    "MetaLineRoot": 3,
+    "MetaBroker": 6,
+    "MetaSingleton": 1,
+    "MetaObserver": 10
+  },
+  "dynamic_creation_breakdown": {
+    "type_call": 7,
+    "factory_pattern": 1
+  },
+  "migration_plans": [
+    {
+      "target_class": "MetaLineSeries",
+      "current_pattern": "Metaclass-based: MetaLineSeries",
+      "target_pattern": "LineDescriptor + buffer management",
+      "estimated_effort": 405,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "实现LineDescriptor",
+        "创建LineBuffer系统",
+        "替换lines访问逻辑",
+        "验证数据访问",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [
+        "LineDescriptor系统完成",
+        "LineBuffer性能验证通过"
+      ],
+      "risk_factors": [
+        "包含9个复杂使用点",
+        "性能敏感，需要仔细验证",
+        "涉及核心数据访问逻辑"
+      ]
+    },
+    {
+      "target_class": "special_method___new__",
+      "current_pattern": "Metaclass-based: special_method___new__",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 242,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析special_method___new__的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": [
+        "大量使用点(11个)，影响面广"
+      ]
+    },
+    {
+      "target_class": "MetaLineActions",
+      "current_pattern": "Metaclass-based: MetaLineActions",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 18,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaLineActions的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": []
+    },
+    {
+      "target_class": "MetaBase",
+      "current_pattern": "Metaclass-based: MetaBase",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 5,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaBase的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": [
+        "包含1个复杂使用点"
+      ]
+    },
+    {
+      "target_class": "MetaParams",
+      "current_pattern": "Metaclass-based: MetaParams",
+      "target_pattern": "ParameterDescriptor + configuration system",
+      "estimated_effort": 48,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "实现ParameterDescriptor",
+        "创建参数管理器",
+        "替换参数访问逻辑",
+        "验证参数继承",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [
+        "ParameterDescriptor系统完成",
+        "参数继承机制测试通过"
+      ],
+      "risk_factors": []
+    },
+    {
+      "target_class": "MetaLineIterator",
+      "current_pattern": "Metaclass-based: MetaLineIterator",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 50,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaLineIterator的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": []
+    },
+    {
+      "target_class": "special_method___init_subclass__",
+      "current_pattern": "Metaclass-based: special_method___init_subclass__",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 8,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析special_method___init_subclass__的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": []
+    },
+    {
+      "target_class": "MetaIndicator",
+      "current_pattern": "Metaclass-based: MetaIndicator",
+      "target_pattern": "Composition-based indicator system",
+      "estimated_effort": 9680,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaIndicator的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": [
+        "大量使用点(44个)，影响面广",
+        "包含44个复杂使用点",
+        "影响所有指标计算",
+        "可能影响第三方扩展"
+      ]
+    },
+    {
+      "target_class": "MetaAnalyzer",
+      "current_pattern": "Metaclass-based: MetaAnalyzer",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 147,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaAnalyzer的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": []
+    },
+    {
+      "target_class": "MetaStrategy",
+      "current_pattern": "Metaclass-based: MetaStrategy",
+      "target_pattern": "Dependency injection pattern",
+      "estimated_effort": 20,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaStrategy的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": [
+        "包含2个复杂使用点",
+        "影响策略执行流程",
+        "向后兼容性要求高"
+      ]
+    },
+    {
+      "target_class": "MetaAbstractDataBase",
+      "current_pattern": "Metaclass-based: MetaAbstractDataBase",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 98,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaAbstractDataBase的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": []
+    },
+    {
+      "target_class": "MetaLineRoot",
+      "current_pattern": "Metaclass-based: MetaLineRoot",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 18,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaLineRoot的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": []
+    },
+    {
+      "target_class": "MetaBroker",
+      "current_pattern": "Metaclass-based: MetaBroker",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 108,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaBroker的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": []
+    },
+    {
+      "target_class": "MetaSingleton",
+      "current_pattern": "Metaclass-based: MetaSingleton",
+      "target_pattern": "SingletonMixin + normal inheritance",
+      "estimated_effort": 2,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "实现SingletonMixin基类",
+        "替换metaclass=MetaSingleton",
+        "验证单例行为",
+        "测试线程安全性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [
+        "SingletonMixin基类实现完成"
+      ],
+      "risk_factors": []
+    },
+    {
+      "target_class": "MetaObserver",
+      "current_pattern": "Metaclass-based: MetaObserver",
+      "target_pattern": "Standard class inheritance",
+      "estimated_effort": 300,
+      "migration_steps": [
+        "创建备份分支",
+        "编写现有功能的测试用例",
+        "分析现有实现的所有功能",
+        "分析MetaObserver的具体功能",
+        "设计替代方案",
+        "逐步迁移",
+        "验证功能完整性",
+        "运行回归测试",
+        "性能测试对比",
+        "代码审查",
+        "文档更新"
+      ],
+      "prerequisites": [],
+      "risk_factors": []
+    }
+  ],
+  "priority_matrix": {
+    "MetaLineSeries_DataSeries": {
+      "metaclass_name": "MetaLineSeries",
+      "class_name": "DataSeries",
+      "file_path": "backtrader/dataseries.py",
+      "priority": 3,
+      "complexity": "complex",
+      "migration_strategy": "Replace with LineDescriptor",
+      "usage_type": "inheritance_inferred"
+    },
+    "special_method___new___Observer": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "Observer",
+      "file_path": "backtrader/observer.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaLineActions_LineActions": {
+      "metaclass_name": "MetaLineActions",
+      "class_name": "LineActions",
+      "file_path": "backtrader/linebuffer.py",
+      "priority": 3,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "explicit"
+    },
+    "MetaBase_MetaParams": {
+      "metaclass_name": "MetaBase",
+      "class_name": "MetaParams",
+      "file_path": "backtrader/metabase.py",
+      "priority": 1,
+      "complexity": "complex",
+      "migration_strategy": "Remove and simplify class creation",
+      "usage_type": "inheritance_regex"
+    },
+    "MetaParams_ParamsBase": {
+      "metaclass_name": "MetaParams",
+      "class_name": "ParamsBase",
+      "file_path": "backtrader/metabase.py",
+      "priority": 1,
+      "complexity": "medium",
+      "migration_strategy": "Replace with ParameterDescriptor",
+      "usage_type": "inheritance_regex"
+    },
+    "MetaLineSeries_MetaLineIterator": {
+      "metaclass_name": "MetaLineSeries",
+      "class_name": "MetaLineIterator",
+      "file_path": "backtrader/lineiterator.py",
+      "priority": 2,
+      "complexity": "complex",
+      "migration_strategy": "Replace with LineDescriptor",
+      "usage_type": "inheritance"
+    },
+    "MetaLineIterator_LineIterator": {
+      "metaclass_name": "MetaLineIterator",
+      "class_name": "LineIterator",
+      "file_path": "backtrader/lineiterator.py",
+      "priority": 3,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "explicit"
+    },
+    "MetaLineSeries_LineIterator": {
+      "metaclass_name": "MetaLineSeries",
+      "class_name": "LineIterator",
+      "file_path": "backtrader/lineiterator.py",
+      "priority": 3,
+      "complexity": "complex",
+      "migration_strategy": "Replace with LineDescriptor",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaLineIterator_DataAccessor": {
+      "metaclass_name": "MetaLineIterator",
+      "class_name": "DataAccessor",
+      "file_path": "backtrader/lineiterator.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaLineIterator_MultiCoupler": {
+      "metaclass_name": "MetaLineIterator",
+      "class_name": "MultiCoupler",
+      "file_path": "backtrader/lineiterator.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "special_method___init_subclass___Indicator": {
+      "metaclass_name": "special_method___init_subclass__",
+      "class_name": "Indicator",
+      "file_path": "backtrader/indicator.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaIndicator_LinePlotterIndicator": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "LinePlotterIndicator",
+      "file_path": "backtrader/indicator.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "special_method___new___Analyzer": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "Analyzer",
+      "file_path": "backtrader/analyzer.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaAnalyzer_TimeFrameAnalyzerBase": {
+      "metaclass_name": "MetaAnalyzer",
+      "class_name": "TimeFrameAnalyzerBase",
+      "file_path": "backtrader/analyzer.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "special_method___new___Strategy": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "Strategy",
+      "file_path": "backtrader/strategy.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaStrategy_SignalStrategy": {
+      "metaclass_name": "MetaStrategy",
+      "class_name": "SignalStrategy",
+      "file_path": "backtrader/strategy.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Use dependency injection pattern",
+      "usage_type": "inheritance_inferred"
+    },
+    "special_method___new___SignalStrategy": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "SignalStrategy",
+      "file_path": "backtrader/strategy.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaStrategy_BtApiStrategy": {
+      "metaclass_name": "MetaStrategy",
+      "class_name": "BtApiStrategy",
+      "file_path": "backtrader/strategy.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Use dependency injection pattern",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAbstractDataBase_CSVDataBase": {
+      "metaclass_name": "MetaAbstractDataBase",
+      "class_name": "CSVDataBase",
+      "file_path": "backtrader/feed.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaLineSeries_LineSeries": {
+      "metaclass_name": "MetaLineSeries",
+      "class_name": "LineSeries",
+      "file_path": "backtrader/lineseries.py",
+      "priority": 3,
+      "complexity": "complex",
+      "migration_strategy": "Replace with LineDescriptor",
+      "usage_type": "inheritance_inferred"
+    },
+    "special_method___new___MetaLineSeries": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "MetaLineSeries",
+      "file_path": "backtrader/lineseries.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaLineSeries_LineSeriesStub": {
+      "metaclass_name": "MetaLineSeries",
+      "class_name": "LineSeriesStub",
+      "file_path": "backtrader/lineseries.py",
+      "priority": 3,
+      "complexity": "complex",
+      "migration_strategy": "Replace with LineDescriptor",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaParams_MetaLineRoot": {
+      "metaclass_name": "MetaParams",
+      "class_name": "MetaLineRoot",
+      "file_path": "backtrader/lineroot.py",
+      "priority": 1,
+      "complexity": "medium",
+      "migration_strategy": "Replace with ParameterDescriptor",
+      "usage_type": "inheritance_regex"
+    },
+    "MetaLineRoot_LineRoot": {
+      "metaclass_name": "MetaLineRoot",
+      "class_name": "LineRoot",
+      "file_path": "backtrader/lineroot.py",
+      "priority": 3,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "explicit"
+    },
+    "MetaParams_Renko": {
+      "metaclass_name": "MetaParams",
+      "class_name": "Renko",
+      "file_path": "backtrader/filters/renko.py",
+      "priority": 3,
+      "complexity": "medium",
+      "migration_strategy": "Replace with ParameterDescriptor",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaBroker_CCXTBroker": {
+      "metaclass_name": "MetaBroker",
+      "class_name": "CCXTBroker",
+      "file_path": "backtrader/brokers/ccxtbroker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Implement broker registry pattern",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaBroker_CTPBroker": {
+      "metaclass_name": "MetaBroker",
+      "class_name": "CTPBroker",
+      "file_path": "backtrader/brokers/ctpbroker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Implement broker registry pattern",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaBroker_OandaBroker": {
+      "metaclass_name": "MetaBroker",
+      "class_name": "OandaBroker",
+      "file_path": "backtrader/brokers/oandabroker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Implement broker registry pattern",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaBroker_VCBroker": {
+      "metaclass_name": "MetaBroker",
+      "class_name": "VCBroker",
+      "file_path": "backtrader/brokers/vcbroker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Implement broker registry pattern",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaBroker_IBBroker": {
+      "metaclass_name": "MetaBroker",
+      "class_name": "IBBroker",
+      "file_path": "backtrader/brokers/ibbroker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Implement broker registry pattern",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaBroker_CryptoBroker": {
+      "metaclass_name": "MetaBroker",
+      "class_name": "CryptoBroker",
+      "file_path": "backtrader/brokers/cryptobroker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Implement broker registry pattern",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAnalyzer_SQN": {
+      "metaclass_name": "MetaAnalyzer",
+      "class_name": "SQN",
+      "file_path": "backtrader/analyzers/sqn.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAnalyzer_TradeAnalyzer": {
+      "metaclass_name": "MetaAnalyzer",
+      "class_name": "TradeAnalyzer",
+      "file_path": "backtrader/analyzers/tradeanalyzer.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAnalyzer_TotalValue": {
+      "metaclass_name": "MetaAnalyzer",
+      "class_name": "TotalValue",
+      "file_path": "backtrader/analyzers/total_value.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAnalyzer_SharpeRatio": {
+      "metaclass_name": "MetaAnalyzer",
+      "class_name": "SharpeRatio",
+      "file_path": "backtrader/analyzers/sharpe.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAnalyzer_AnnualReturn": {
+      "metaclass_name": "MetaAnalyzer",
+      "class_name": "AnnualReturn",
+      "file_path": "backtrader/analyzers/annualreturn.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAnalyzer_MyAnnualReturn": {
+      "metaclass_name": "MetaAnalyzer",
+      "class_name": "MyAnnualReturn",
+      "file_path": "backtrader/analyzers/annualreturn.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "special_method___new___OptimizedSingletonMixin": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "OptimizedSingletonMixin",
+      "file_path": "backtrader/mixins/optimized_singleton.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "special_method___new___WeakReferenceSingletonMixin": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "WeakReferenceSingletonMixin",
+      "file_path": "backtrader/mixins/optimized_singleton.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "special_method___new___SingletonMixin": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "SingletonMixin",
+      "file_path": "backtrader/mixins/singleton.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "special_method___new___ParameterizedSingletonMixin": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "ParameterizedSingletonMixin",
+      "file_path": "backtrader/mixins/singleton.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaIndicator_UpMove": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "UpMove",
+      "file_path": "backtrader/indicators/directionalmove.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_DownMove": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "DownMove",
+      "file_path": "backtrader/indicators/directionalmove.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator__DirectionalIndicator": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "_DirectionalIndicator",
+      "file_path": "backtrader/indicators/directionalmove.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_MovingAverageBase": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "MovingAverageBase",
+      "file_path": "backtrader/indicators/mabase.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "special_method___init_subclass___MovingAverageBase": {
+      "metaclass_name": "special_method___init_subclass__",
+      "class_name": "MovingAverageBase",
+      "file_path": "backtrader/indicators/mabase.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaIndicator__PriceOscBase": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "_PriceOscBase",
+      "file_path": "backtrader/indicators/priceoscillator.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_MACD": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "MACD",
+      "file_path": "backtrader/indicators/macd.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_PeriodN": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "PeriodN",
+      "file_path": "backtrader/indicators/basicops.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_Accum": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "Accum",
+      "file_path": "backtrader/indicators/basicops.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator__StochasticBase": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "_StochasticBase",
+      "file_path": "backtrader/indicators/stochastic.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_TrueHigh": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "TrueHigh",
+      "file_path": "backtrader/indicators/atr.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_TrueLow": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "TrueLow",
+      "file_path": "backtrader/indicators/atr.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_TrueRange": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "TrueRange",
+      "file_path": "backtrader/indicators/atr.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_AverageTrueRange": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "AverageTrueRange",
+      "file_path": "backtrader/indicators/atr.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_OscillatorMixIn": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "OscillatorMixIn",
+      "file_path": "backtrader/indicators/oscillator.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_Oscillator": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "Oscillator",
+      "file_path": "backtrader/indicators/oscillator.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_PrettyGoodOscillator": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "PrettyGoodOscillator",
+      "file_path": "backtrader/indicators/prettygoodoscillator.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_PercentChange": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "PercentChange",
+      "file_path": "backtrader/indicators/percentchange.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_CommodityChannelIndex": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "CommodityChannelIndex",
+      "file_path": "backtrader/indicators/cci.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_StandardDeviation": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "StandardDeviation",
+      "file_path": "backtrader/indicators/deviation.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_MeanDeviation": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "MeanDeviation",
+      "file_path": "backtrader/indicators/deviation.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_WilliamsR": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "WilliamsR",
+      "file_path": "backtrader/indicators/williams.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_WilliamsAD": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "WilliamsAD",
+      "file_path": "backtrader/indicators/williams.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_DV2": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "DV2",
+      "file_path": "backtrader/indicators/dv2.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_NonZeroDifference": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "NonZeroDifference",
+      "file_path": "backtrader/indicators/crossover.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator__CrossBase": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "_CrossBase",
+      "file_path": "backtrader/indicators/crossover.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_CrossOver": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "CrossOver",
+      "file_path": "backtrader/indicators/crossover.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_PivotPoint": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "PivotPoint",
+      "file_path": "backtrader/indicators/pivotpoint.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_FibonacciPivotPoint": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "FibonacciPivotPoint",
+      "file_path": "backtrader/indicators/pivotpoint.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_DemarkPivotPoint": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "DemarkPivotPoint",
+      "file_path": "backtrader/indicators/pivotpoint.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_UpDay": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "UpDay",
+      "file_path": "backtrader/indicators/rsi.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_DownDay": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "DownDay",
+      "file_path": "backtrader/indicators/rsi.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_UpDayBool": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "UpDayBool",
+      "file_path": "backtrader/indicators/rsi.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_DownDayBool": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "DownDayBool",
+      "file_path": "backtrader/indicators/rsi.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_RelativeStrengthIndex": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "RelativeStrengthIndex",
+      "file_path": "backtrader/indicators/rsi.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_Trix": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "Trix",
+      "file_path": "backtrader/indicators/trix.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator__AroonBase": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "_AroonBase",
+      "file_path": "backtrader/indicators/aroon.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_BollingerBands": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "BollingerBands",
+      "file_path": "backtrader/indicators/bollinger.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_Momentum": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "Momentum",
+      "file_path": "backtrader/indicators/momentum.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_MomentumOscillator": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "MomentumOscillator",
+      "file_path": "backtrader/indicators/momentum.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_RateOfChange": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "RateOfChange",
+      "file_path": "backtrader/indicators/momentum.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_RateOfChange100": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "RateOfChange100",
+      "file_path": "backtrader/indicators/momentum.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator_DetrendedPriceOscillator": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "DetrendedPriceOscillator",
+      "file_path": "backtrader/indicators/dpo.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaIndicator__EnvelopeBase": {
+      "metaclass_name": "MetaIndicator",
+      "class_name": "_EnvelopeBase",
+      "file_path": "backtrader/indicators/envelope.py",
+      "priority": 4,
+      "complexity": "complex",
+      "migration_strategy": "Refactor to composition-based approach",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaSingleton_CryptoStore": {
+      "metaclass_name": "MetaSingleton",
+      "class_name": "CryptoStore",
+      "file_path": "backtrader/stores/cryptostore.py",
+      "priority": 2,
+      "complexity": "simple",
+      "migration_strategy": "Replace with SingletonMixin",
+      "usage_type": "inheritance_regex"
+    },
+    "special_method___new___metaclass": {
+      "metaclass_name": "special_method___new__",
+      "class_name": "metaclass",
+      "file_path": "backtrader/utils/py3.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "special_method"
+    },
+    "MetaAbstractDataBase_CryptoFeed": {
+      "metaclass_name": "MetaAbstractDataBase",
+      "class_name": "CryptoFeed",
+      "file_path": "backtrader/feeds/cryptofeed.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAbstractDataBase_CTPData": {
+      "metaclass_name": "MetaAbstractDataBase",
+      "class_name": "CTPData",
+      "file_path": "backtrader/feeds/ctpdata.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAbstractDataBase_IBData": {
+      "metaclass_name": "MetaAbstractDataBase",
+      "class_name": "IBData",
+      "file_path": "backtrader/feeds/ibdata.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAbstractDataBase_CCXTFeed": {
+      "metaclass_name": "MetaAbstractDataBase",
+      "class_name": "CCXTFeed",
+      "file_path": "backtrader/feeds/ccxtfeed.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAbstractDataBase_VCData": {
+      "metaclass_name": "MetaAbstractDataBase",
+      "class_name": "VCData",
+      "file_path": "backtrader/feeds/vcdata.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaAbstractDataBase_OandaData": {
+      "metaclass_name": "MetaAbstractDataBase",
+      "class_name": "OandaData",
+      "file_path": "backtrader/feeds/oanda.py",
+      "priority": 5,
+      "complexity": "simple",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_TimeReturn": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "TimeReturn",
+      "file_path": "backtrader/observers/timereturn.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_DrawDown": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "DrawDown",
+      "file_path": "backtrader/observers/drawdown.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_DrawDownLength": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "DrawDownLength",
+      "file_path": "backtrader/observers/drawdown.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_DrawDownOld": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "DrawDownOld",
+      "file_path": "backtrader/observers/drawdown.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_Cash": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "Cash",
+      "file_path": "backtrader/observers/broker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_Value": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "Value",
+      "file_path": "backtrader/observers/broker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_Broker": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "Broker",
+      "file_path": "backtrader/observers/broker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_FundValue": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "FundValue",
+      "file_path": "backtrader/observers/broker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_FundShares": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "FundShares",
+      "file_path": "backtrader/observers/broker.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    },
+    "MetaObserver_BuySell": {
+      "metaclass_name": "MetaObserver",
+      "class_name": "BuySell",
+      "file_path": "backtrader/observers/buysell.py",
+      "priority": 5,
+      "complexity": "medium",
+      "migration_strategy": "Manual refactoring required",
+      "usage_type": "inheritance_inferred"
+    }
+  },
+  "file_analysis": {
+    "backtrader/dataseries.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/observer.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/functions.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/linebuffer.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/compile_cython_numba_files.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/flt.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/comminfo.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/version.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/signal.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/mathsupport.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/cerebro.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/lineiterator.py": {
+      "metaclass_count": 5,
+      "dynamic_creation_count": 1,
+      "complexity_score": 12.0
+    },
+    "backtrader/trade.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/sizer.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicator.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 4.0
+    },
+    "backtrader/resamplerfilter.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzer.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/order.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/strategy.py": {
+      "metaclass_count": 4,
+      "dynamic_creation_count": 0,
+      "complexity_score": 8.0
+    },
+    "backtrader/feed.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/tradingcal.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/position.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/fillers.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/writer.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/errors.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/lineseries.py": {
+      "metaclass_count": 5,
+      "dynamic_creation_count": 3,
+      "complexity_score": 20.0
+    },
+    "backtrader/broker.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/talib.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 1,
+      "complexity_score": 3.0
+    },
+    "backtrader/lineroot.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/filters/heikinashi.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/filters/session.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/filters/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/filters/daysteps.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/filters/renko.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/filters/bsplitter.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/filters/datafilter.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/filters/calendardays.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/filters/datafiller.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/commissions/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/commissions/dc_commission.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/brokers/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/brokers/ccxtbroker.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/brokers/ctpbroker.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/brokers/oandabroker.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/brokers/vcbroker.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/brokers/ibbroker.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/brokers/cryptobroker.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/analyzers/calmar.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/periodstats.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/sqn.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/analyzers/tradeanalyzer.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/analyzers/logreturnsrolling.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/total_value.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/analyzers/transactions.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/positions.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/returns.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/timereturn.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/vwr.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/pyfolio.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/drawdown.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/sharpe.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/analyzers/leverage.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/sharpe_ratio_stats.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/analyzers/annualreturn.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 4.0
+    },
+    "backtrader/plot/plot.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/plot/finance.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/plot/formatters.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/plot/multicursor.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/plot/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/plot/locator.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/plot/utils.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/plot/scheme.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/mixins/optimized_singleton.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/mixins/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/mixins/singleton.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/sizers/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/sizers/fixedsize.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/sizers/percents_sizer.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/directionalmove.py": {
+      "metaclass_count": 3,
+      "dynamic_creation_count": 0,
+      "complexity_score": 9.0
+    },
+    "backtrader/indicators/rmi.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/zlind.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/awesomeoscillator.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/zlema.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/heikinashi.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/percentrank.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/mabase.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 4.0
+    },
+    "backtrader/indicators/wma.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/vortex.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/accdecoscillator.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/priceoscillator.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/ultimateoscillator.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/psar.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/macd.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/basicops.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 6.0
+    },
+    "backtrader/indicators/myind.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/ema.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/ols.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/stochastic.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/atr.py": {
+      "metaclass_count": 4,
+      "dynamic_creation_count": 0,
+      "complexity_score": 12.0
+    },
+    "backtrader/indicators/oscillator.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 1,
+      "complexity_score": 9.0
+    },
+    "backtrader/indicators/prettygoodoscillator.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/dma.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/percentchange.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/hadelta.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/cci.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/hma.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/deviation.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 6.0
+    },
+    "backtrader/indicators/dema.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/williams.py": {
+      "metaclass_count": 2,
+      "dynamic_creation_count": 0,
+      "complexity_score": 6.0
+    },
+    "backtrader/indicators/dv2.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/tsi.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/ichimoku.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/kama.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/sma.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/crossover.py": {
+      "metaclass_count": 3,
+      "dynamic_creation_count": 0,
+      "complexity_score": 9.0
+    },
+    "backtrader/indicators/pivotpoint.py": {
+      "metaclass_count": 3,
+      "dynamic_creation_count": 0,
+      "complexity_score": 9.0
+    },
+    "backtrader/indicators/rsi.py": {
+      "metaclass_count": 5,
+      "dynamic_creation_count": 0,
+      "complexity_score": 15.0
+    },
+    "backtrader/indicators/trix.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/lrsi.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/hurst.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/aroon.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/bollinger.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/momentum.py": {
+      "metaclass_count": 4,
+      "dynamic_creation_count": 0,
+      "complexity_score": 12.0
+    },
+    "backtrader/indicators/dpo.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 3.0
+    },
+    "backtrader/indicators/smma.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/envelope.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 1,
+      "complexity_score": 6.0
+    },
+    "backtrader/indicators/kst.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/contrib/vortex.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/indicators/contrib/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/signals/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/stores/oandastore.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/stores/cryptostore.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/stores/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/stores/vchartfile.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/stores/ibstore.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/stores/ctpstore.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 1,
+      "complexity_score": 2.0
+    },
+    "backtrader/utils/fractal.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/py3.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/utils/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/flushfile.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/dateintern.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/cython_config.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/date.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/ordereddefaultdict.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/log_message.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/cs_cal_value/setup.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/my_corr/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/my_corr/setup.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/cs_long_short_signals/cal_by_numba.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/cs_long_short_signals/setup.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/ts_cal_value/cal_by_numba.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/ts_cal_value/setup.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/cal_performance_indicators/cal_by_numba.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/cal_performance_indicators/setup.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/utils/cal_performance_indicators/test_time_consume.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/vectors/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/vectors/ts.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/vectors/cs.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/vectors/cal_functions.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/cryptofeed.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/feeds/sierrachart.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/ctpdata.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/feeds/rollover.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/pandafeed.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/quandl.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/yahoo.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/influxfeed.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/ibdata.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/feeds/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/ccxtfeed.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/feeds/csvgeneric.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/vchartfile.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/vcdata.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/feeds/btcsv.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/mt4csv.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/blaze.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/oanda.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 1.0
+    },
+    "backtrader/feeds/vchartcsv.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/chainer.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/feeds/vchart.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/btrun/btrun.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/btrun/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/observers/benchmark.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/observers/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/observers/timereturn.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "backtrader/observers/drawdown.py": {
+      "metaclass_count": 3,
+      "dynamic_creation_count": 0,
+      "complexity_score": 6.0
+    },
+    "backtrader/observers/broker.py": {
+      "metaclass_count": 5,
+      "dynamic_creation_count": 0,
+      "complexity_score": 10.0
+    },
+    "backtrader/observers/logreturns.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "backtrader/observers/buysell.py": {
+      "metaclass_count": 1,
+      "dynamic_creation_count": 0,
+      "complexity_score": 2.0
+    },
+    "studies/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "studies/contrib/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    },
+    "examples/__init__.py": {
+      "metaclass_count": 0,
+      "dynamic_creation_count": 0,
+      "complexity_score": 0.0
+    }
+  },
+  "recommendations": [
+    "元类使用较多，建议分阶段进行迁移",
+    "优先处理10个高优先级迁移项",
+    "仔细规划56个复杂迁移项",
+    "发现动态类创建，需要特殊处理"
+  ]
+}
