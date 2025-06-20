@@ -326,6 +326,171 @@ class LineRoot(metaclass=MetaLineRoot):
     __hash__ = object.__hash__
 
 
+# Modern replacement for LineRoot without metaclass
+try:
+    from .metabase import ModernParamsBase
+    
+    class ModernLineRoot(ModernParamsBase):
+        """
+        Modern replacement for LineRoot using ParameterizedBase.
+        
+        This class provides the same functionality as LineRoot but uses
+        the modern descriptor-based parameter system instead of metaclasses.
+        """
+        
+        # Class attributes (same as LineRoot)
+        _OwnerCls = None
+        _minperiod = 1
+        _opstage = 1
+        
+        IndType, StratType, ObsType = range(3)
+        
+        def __init__(self, **kwargs):
+            # Extract owner skip parameter
+            ownerskip = kwargs.pop("_ownerskip", None)
+            
+            # Initialize parameter system
+            super().__init__(**kwargs)
+            
+            # Find and set owner (replaces MetaLineRoot.donew functionality)
+            self._owner = metabase.findowner(
+                self, 
+                self._OwnerCls or ModernLineMultiple, 
+                skip=ownerskip
+            )
+        
+        # All the same methods as LineRoot
+        def _stage1(self):
+            self._opstage = 1
+        
+        def _stage2(self):
+            self._opstage = 2
+        
+        def _operation(self, other, operation, r=False, intify=False):
+            if self._opstage == 1:
+                return self._operation_stage1(other, operation, r=r, intify=intify)
+            return self._operation_stage2(other, operation, r=r)
+        
+        def _operationown(self, operation):
+            if self._opstage == 1:
+                return self._operationown_stage1(operation)
+            return self._operationown_stage2(operation)
+        
+        def qbuffer(self, savemem=0):
+            """Change the lines to implement a minimum size qbuffer scheme"""
+            raise NotImplementedError
+        
+        def minbuffer(self, size):
+            """Receive notification of how large the buffer must at least be"""
+            raise NotImplementedError
+        
+        def setminperiod(self, minperiod):
+            """Direct minperiod manipulation."""
+            self._minperiod = max(minperiod, self._minperiod)
+        
+        # Include all operator overloads from original LineRoot
+        def __add__(self, other):
+            return self._operation(other, operator.__add__)
+        
+        def __radd__(self, other):
+            return self._roperation(other, operator.__add__)
+        
+        def __sub__(self, other):
+            return self._operation(other, operator.__sub__)
+        
+        def __rsub__(self, other):
+            return self._roperation(other, operator.__sub__)
+        
+        def __mul__(self, other):
+            return self._operation(other, operator.__mul__)
+        
+        def __rmul__(self, other):
+            return self._roperation(other, operator.__mul__)
+        
+        def __div__(self, other):
+            return self._operation(other, operator.__div__)
+        
+        def __rdiv__(self, other):
+            return self._roperation(other, operator.__div__)
+        
+        def __floordiv__(self, other):
+            return self._operation(other, operator.__floordiv__)
+        
+        def __rfloordiv__(self, other):
+            return self._roperation(other, operator.__floordiv__)
+        
+        def __truediv__(self, other):
+            return self._operation(other, operator.__truediv__)
+        
+        def __rtruediv__(self, other):
+            return self._roperation(other, operator.__truediv__)
+        
+        def __pow__(self, other):
+            return self._operation(other, operator.__pow__)
+        
+        def __rpow__(self, other):
+            return self._roperation(other, operator.__pow__)
+        
+        def __abs__(self):
+            return self._operationown(operator.__abs__)
+        
+        def __neg__(self):
+            return self._operationown(operator.__neg__)
+        
+        def __lt__(self, other):
+            return self._operation(other, operator.__lt__)
+        
+        def __gt__(self, other):
+            return self._operation(other, operator.__gt__)
+        
+        def __le__(self, other):
+            return self._operation(other, operator.__le__)
+        
+        def __ge__(self, other):
+            return self._operation(other, operator.__ge__)
+        
+        def __eq__(self, other):
+            return self._operation(other, operator.__eq__)
+        
+        def __ne__(self, other):
+            return self._operation(other, operator.__ne__)
+        
+        def __nonzero__(self):
+            return self._operationown(bool)
+        
+        __bool__ = __nonzero__
+        __hash__ = object.__hash__
+
+    class ModernLineMultiple(ModernLineRoot):
+        """Modern replacement for LineMultiple without metaclass."""
+        
+        def reset(self):
+            self._stage1()
+            self.lines.reset()
+        
+        def _stage1(self):
+            super()._stage1()
+            for line in self.lines:
+                line._stage1()
+        
+        def _stage2(self):
+            super()._stage2()
+            for line in self.lines:
+                line._stage2()
+        
+        def addminperiod(self, minperiod):
+            """The passed minperiod is fed to the lines"""
+            for line in self.lines:
+                line.addminperiod(minperiod)
+
+except ImportError:
+    # Fallback if parameters module is not available
+    class ModernLineRoot:
+        pass
+    class ModernLineMultiple:
+        pass
+
+
 class LineMultiple(LineRoot):
     """
     Base class for LineXXX instances that hold more than one line

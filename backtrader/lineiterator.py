@@ -138,6 +138,144 @@ class MetaLineIterator(MetaLineSeries):
         return _obj, args, kwargs
 
 
+# Modern replacement for LineIterator without metaclass
+try:
+    from .lineroot import ModernLineRoot
+    
+    class ModernLineIterator(LineSeries):
+        """
+        Modern replacement for LineIterator using regular class mechanics.
+        
+        This class provides the same functionality as LineIterator but uses
+        modern Python patterns instead of metaclasses.
+        """
+        
+        _nextforce = False
+        _mindatas = 1  
+        _ltype = LineSeries.IndType
+        
+        def __init__(self, *args, **kwargs):
+            # Process data arguments (equivalent to MetaLineIterator.donew)
+            self._process_data_args(*args, **kwargs)
+            
+            # Initialize parent
+            super().__init__(**kwargs)
+            
+            # Post-initialization setup
+            self._post_init_setup()
+        
+        def _process_data_args(self, *args, **kwargs):
+            """Process data arguments - equivalent to MetaLineIterator.donew"""
+            mindatas = self._mindatas
+            lastarg = 0
+            datas = []
+            
+            # Process args to extract data sources
+            for arg in args:
+                if isinstance(arg, LineRoot):
+                    datas.append(LineSeriesMaker(arg))
+                elif not mindatas:
+                    break
+                else:
+                    try:
+                        datas.append(LineSeriesMaker(LineNum(arg)))
+                    except:
+                        break
+                mindatas = max(0, mindatas - 1)
+                lastarg += 1
+            
+            # Initialize _lineiterators
+            self._lineiterators = collections.defaultdict(list)
+            self.datas = datas
+            
+            # If no datas have been passed to an indicator, use owner's datas
+            if not self.datas and hasattr(self, '_owner') and self._owner is not None:
+                try:
+                    class_name = self.__class__.__name__
+                    is_indicator_or_observer = ('Indicator' in class_name or 'Observer' in class_name or
+                                              hasattr(self, '_mindatas'))
+                    if is_indicator_or_observer:
+                        self.datas = self._owner.datas[0:self._mindatas]
+                except (AttributeError, IndexError):
+                    pass
+            
+            # Create ddatas dictionary
+            self.ddatas = {x: None for x in self.datas}
+            
+            # Set data aliases
+            if self.datas:
+                self.data = data = self.datas[0]
+                # Set line aliases for first data
+                for l, line in enumerate(data.lines):
+                    linealias = data._getlinealias(l)
+                    if linealias:
+                        setattr(self, "data_%s" % linealias, line)
+                    setattr(self, "data_%d" % l, line)
+                
+                # Set aliases for all datas
+                for d, data in enumerate(self.datas):
+                    setattr(self, "data%d" % d, data)
+                    for l, line in enumerate(data.lines):
+                        linealias = data._getlinealias(l)
+                        if linealias:
+                            setattr(self, "data%d_%s" % (d, linealias), line)
+                        setattr(self, "data%d_%d" % (d, l), line)
+            
+            # Set dnames
+            self.dnames = DotDict([(d._name, d) for d in self.datas if getattr(d, "_name", "")])
+        
+        def _pre_init_setup(self):
+            """Pre-initialization setup - equivalent to MetaLineIterator.dopreinit"""
+            # if no datas were found, use the _owner (to have a clock)
+            if not self.datas and hasattr(self, '_owner') and self._owner is not None:
+                self.datas = [self._owner]
+            elif not self.datas:
+                self.datas = []
+            
+            # 1st data source is our ticking clock
+            if self.datas and self.datas[0] is not None:
+                self._clock = self.datas[0]
+            elif hasattr(self, '_owner') and self._owner is not None:
+                self._clock = self._owner
+            else:
+                self._clock = None
+            
+            # Calculate minimum period from datas
+            if self.datas:
+                data_minperiods = [getattr(x, '_minperiod', 1) for x in self.datas if x is not None]
+                self._minperiod = max(data_minperiods + [getattr(self, '_minperiod', 1)])
+            else:
+                self._minperiod = getattr(self, '_minperiod', 1)
+            
+            # Add minperiod to lines
+            if hasattr(self, 'lines'):
+                for line in self.lines:
+                    if hasattr(line, 'addminperiod'):
+                        line.addminperiod(self._minperiod)
+        
+        def _post_init_setup(self):
+            """Post-initialization setup - equivalent to MetaLineIterator.dopostinit"""
+            # Calculate minperiod from lines
+            if hasattr(self, 'lines'):
+                line_minperiods = [getattr(x, '_minperiod', 1) for x in self.lines]
+                if line_minperiods:
+                    self._minperiod = max(line_minperiods)
+            
+            # Recalculate period
+            if hasattr(self, '_periodrecalc'):
+                self._periodrecalc()
+            
+            # Register self as indicator to owner
+            if hasattr(self, '_owner') and self._owner is not None:
+                if hasattr(self._owner, 'addindicator'):
+                    self._owner.addindicator(self)
+
+except ImportError:
+    # Fallback if imports are not available
+    class ModernLineIterator:
+        pass
+
+
 class LineIterator(LineSeries, metaclass=MetaLineIterator):
     # _nextforce默认是False
     _nextforce = False  # force cerebro to run in next mode (runonce=False)

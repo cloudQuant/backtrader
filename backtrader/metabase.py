@@ -394,6 +394,199 @@ class ParamsBase(metaclass=MetaParams):
     pass  # stub to allow easy subclassing without metaclasses
 
 
+# Modern replacement for ParamsBase without metaclass
+try:
+    from .parameters import ParameterizedBase
+    
+    class ModernParamsBase(ParameterizedBase):
+        """
+        Modern replacement for ParamsBase using ParameterizedBase.
+        
+        This class provides the same functionality as ParamsBase but uses
+        the modern descriptor-based parameter system instead of metaclasses.
+        """
+        
+        def __init__(self, **kwargs):
+            # Initialize the parameter system
+            super().__init__(**kwargs)
+            
+            # Maintain backward compatibility with packages/frompackages
+            self._handle_packages()
+        
+        def _handle_packages(self):
+            """Handle package imports for backward compatibility."""
+            # Get packages and frompackages from class definition
+            packages = getattr(self.__class__, 'packages', ())
+            frompackages = getattr(self.__class__, 'frompackages', ())
+            
+            import sys
+            from .utils.py3 import string_types
+            
+            clsmod = sys.modules[self.__class__.__module__]
+            
+            # Import specified packages
+            for p in packages:
+                if isinstance(p, (tuple, list)):
+                    p, palias = p
+                else:
+                    palias = p
+                
+                pmod = __import__(p)
+                plevels = p.split(".")
+                
+                if p == palias and len(plevels) > 1:
+                    setattr(clsmod, pmod.__name__, pmod)
+                else:
+                    for plevel in plevels[1:]:
+                        pmod = getattr(pmod, plevel)
+                    setattr(clsmod, palias, pmod)
+            
+            # Import from specified packages
+            for p, frompackage in frompackages:
+                if isinstance(frompackage, string_types):
+                    frompackage = (frompackage,)
+                
+                for fp in frompackage:
+                    if isinstance(fp, (tuple, list)):
+                        fp, falias = fp
+                    else:
+                        fp, falias = fp, fp
+                    
+                    pmod = __import__(p, fromlist=[str(fp)])
+                    pattr = getattr(pmod, fp)
+                    setattr(clsmod, falias, pattr)
+                    for basecls in self.__class__.__bases__:
+                        setattr(sys.modules[basecls.__module__], falias, pattr)
+
+except ImportError:
+    # Fallback if parameters module is not available
+    class ModernParamsBase:
+        pass
+
+
+# Modern lifecycle management to replace MetaBase functionality
+class LifecycleManager:
+    """
+    Modern replacement for MetaBase lifecycle methods.
+    
+    This class provides the same lifecycle management as MetaBase but without
+    using metaclasses. It uses regular methods and __new__/__init__ patterns.
+    """
+    
+    @classmethod
+    def create_instance(cls, target_class, *args, **kwargs):
+        """
+        Create instance with full lifecycle management.
+        
+        This replaces the MetaBase.__call__ method functionality.
+        """
+        # Stage 1: doprenew equivalent
+        target_class, args, kwargs = cls.doprenew(target_class, *args, **kwargs)
+        
+        # Stage 2: donew equivalent  
+        obj, args, kwargs = cls.donew(target_class, *args, **kwargs)
+        
+        # Stage 3: dopreinit equivalent
+        obj, args, kwargs = cls.dopreinit(target_class, obj, *args, **kwargs)
+        
+        # Stage 4: doinit equivalent
+        obj, args, kwargs = cls.doinit(target_class, obj, *args, **kwargs)
+        
+        # Stage 5: dopostinit equivalent
+        obj, args, kwargs = cls.dopostinit(target_class, obj, *args, **kwargs)
+        
+        return obj
+    
+    @staticmethod
+    def doprenew(cls, *args, **kwargs):
+        """Pre-creation processing - equivalent to MetaBase.doprenew"""
+        return cls, args, kwargs
+    
+    @staticmethod
+    def donew(cls, *args, **kwargs):
+        """Object creation - equivalent to MetaBase.donew"""
+        # Use object.__new__ to avoid recursion
+        obj = object.__new__(cls)
+        return obj, args, kwargs
+    
+    @staticmethod
+    def dopreinit(cls, obj, *args, **kwargs):
+        """Pre-initialization - equivalent to MetaBase.dopreinit"""
+        return obj, args, kwargs
+    
+    @staticmethod
+    def doinit(cls, obj, *args, **kwargs):
+        """Initialization - equivalent to MetaBase.doinit"""
+        obj.__init__(*args, **kwargs)
+        return obj, args, kwargs
+    
+    @staticmethod
+    def dopostinit(cls, obj, *args, **kwargs):
+        """Post-initialization - equivalent to MetaBase.dopostinit"""
+        return obj, args, kwargs
+
+
+class LifecycleMixin:
+    """
+    Mixin class that provides lifecycle method hooks for classes.
+    
+    This allows classes to have the same lifecycle functionality as MetaBase
+    without using metaclasses.
+    """
+    
+    def __new__(cls, *args, **kwargs):
+        """Custom __new__ with lifecycle management"""
+        if hasattr(cls, '_use_lifecycle') and cls._use_lifecycle:
+            return LifecycleManager.create_instance(cls, *args, **kwargs)
+        else:
+            # Standard object creation
+            return super().__new__(cls)
+    
+    @classmethod
+    def enable_lifecycle_management(cls):
+        """Enable lifecycle management for this class"""
+        cls._use_lifecycle = True
+    
+    @classmethod
+    def disable_lifecycle_management(cls):
+        """Disable lifecycle management for this class"""
+        cls._use_lifecycle = False
+    
+    # Override these methods in subclasses to customize lifecycle
+    @classmethod
+    def doprenew(cls, *args, **kwargs):
+        """Override in subclasses for pre-creation processing"""
+        return cls, args, kwargs
+    
+    @classmethod 
+    def dopreinit(cls, obj, *args, **kwargs):
+        """Override in subclasses for pre-initialization processing"""
+        return obj, args, kwargs
+    
+    def dopostinit(self, *args, **kwargs):
+        """Override in subclasses for post-initialization processing"""
+        pass
+
+
+class ModernMetaBase(ModernParamsBase, LifecycleMixin):
+    """
+    Modern replacement for MetaBase functionality.
+    
+    This class combines the modern parameter system with lifecycle management
+    to provide the same functionality as the original MetaBase metaclass.
+    """
+    
+    def __init__(self, **kwargs):
+        # Enable lifecycle management by default
+        self.__class__.enable_lifecycle_management()
+        
+        # Initialize parameter system
+        super().__init__(**kwargs)
+        
+        # Call post-initialization hook
+        self.dopostinit(**kwargs)
+
+
 # 设置了一个新的类，这个类可以通过index或者name直接获取相应的值
 class ItemCollection(object):
     """
