@@ -141,8 +141,9 @@ class MetaLineIterator(MetaLineSeries):
 # Modern replacement for LineIterator without metaclass
 try:
     from .lineroot import ModernLineRoot
+    from .lineseries import ModernLineSeries
     
-    class ModernLineIterator(LineSeries):
+    class ModernLineIterator(ModernLineSeries):
         """
         Modern replacement for LineIterator using regular class mechanics.
         

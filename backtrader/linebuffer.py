@@ -633,6 +633,109 @@ class PseudoArray(object):
         return self
 
 
+# Registry class to replace MetaLineActions functionality
+class LineActionsRegistry:
+    """Registry to manage LineActions caching and provide metaclass functionality"""
+    _acache = dict()
+    _acacheuse = False
+
+    @classmethod
+    def cleancache(cls):
+        """Clear the cache"""
+        cls._acache = dict()
+
+    @classmethod
+    def usecache(cls, onoff):
+        """Enable or disable caching"""
+        cls._acacheuse = onoff
+
+    @classmethod
+    def get_cached_or_create(cls, lineactions_cls, *args, **kwargs):
+        """Get cached instance or create new one"""
+        if not cls._acacheuse:
+            return lineactions_cls._create_instance(*args, **kwargs)
+
+        # Implement cache to avoid duplicating lines actions
+        ckey = (lineactions_cls, tuple(args), tuple(kwargs.items()))  # tuples hashable
+        try:
+            return cls._acache[ckey]
+        except TypeError:  # something is not hashable
+            return lineactions_cls._create_instance(*args, **kwargs)
+        except KeyError:
+            pass  # hashable but not in the cache
+
+        _obj = lineactions_cls._create_instance(*args, **kwargs)
+        return cls._acache.setdefault(ckey, _obj)
+
+
+class ModernLineActions(LineBuffer):
+    """
+    Modern replacement for LineActions that removes metaclass dependency.
+    
+    Base class derived from LineBuffer intended to define the minimum interface 
+    to make it compatible with a LineIterator by providing operational _next and 
+    _once interfaces.
+    """
+    _ltype = LineBuffer.IndType
+
+    def __new__(cls, *args, **kwargs):
+        """Create instance using caching mechanism"""
+        return LineActionsRegistry.get_cached_or_create(cls, *args, **kwargs)
+
+    @classmethod
+    def _create_instance(cls, *args, **kwargs):
+        """Create instance with functionality from MetaLineActions"""
+        # Create the instance
+        _obj = super(ModernLineActions, cls).__new__(cls)
+        
+        # Initialize the instance with MetaLineActions.dopreinit functionality
+        _obj._clock = getattr(_obj, '_owner', None)  # default setting
+
+        # If args[0] is LineRoot subclass, set _clock to args[0]
+        if args and hasattr(args[0], '_minperiod'):  # Duck typing for LineRoot
+            _obj._clock = args[0]
+
+        # Keep a reference to the datas for buffer adjustment purposes
+        _obj._datas = [x for x in args if hasattr(x, '_minperiod')]  # Duck typing for LineRoot
+
+        # Calculate minperiod from arguments
+        _minperiods = []
+        for x in args:
+            if hasattr(x, '_minperiod'):
+                if hasattr(x, 'lines'):  # LineMultiple case
+                    if hasattr(x.lines, '__getitem__') and len(x.lines) > 0:
+                        _minperiods.append(x.lines[0]._minperiod)
+                    else:
+                        _minperiods.append(x._minperiod)
+                else:  # LineSingle case
+                    _minperiods.append(x._minperiod)
+
+        _minperiod = max(_minperiods or [1])
+        
+        # Initialize the object with standard __init__
+        _obj.__init__(*args, **kwargs)
+        
+        # Update minperiod if needed
+        if hasattr(_obj, 'updateminperiod'):
+            _obj.updateminperiod(_minperiod)
+
+        # Register with owner (MetaLineActions.dopostinit functionality)
+        if hasattr(_obj, '_owner') and hasattr(_obj._owner, 'addindicator'):
+            _obj._owner.addindicator(_obj)
+
+        return _obj
+
+    @classmethod
+    def cleancache(cls):
+        """Clear the cache"""
+        LineActionsRegistry.cleancache()
+
+    @classmethod
+    def usecache(cls, onoff):
+        """Enable or disable caching"""
+        LineActionsRegistry.usecache(onoff)
+
+
 class LineActions(LineBuffer, metaclass=MetaLineActions):
     """
     Base class derived from LineBuffer intented to define the
