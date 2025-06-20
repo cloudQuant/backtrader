@@ -1,26 +1,5 @@
-#!/usr/bin389/env python
+#!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import collections
 import copy
 import datetime
@@ -28,8 +7,7 @@ import inspect
 import itertools
 import operator
 
-from .utils.py3 import (filter, keys, integer_types, iteritems, itervalues,
-                        map, MAXINT, string_types, with_metaclass)
+from .utils.py3 import filter, keys, integer_types, iteritems, itervalues, map, MAXINT, string_types
 
 import backtrader as bt
 from .lineiterator import LineIterator, StrategyBase
@@ -38,95 +16,87 @@ from .lineseries import LineSeriesStub
 from .metabase import ItemCollection, findowner
 from .trade import Trade
 from .utils import OrderedDict, AutoOrderedDict, AutoDictList
+from backtrader.utils.log_message import SpdLogManager
 
-# 策略元类，用于策略创建的时候进行一些处理
-class MetaStrategy(StrategyBase.__class__):
-    _indcol = dict()
-    # 支持notify_order和notify_trade的原生方法
-    def __new__(meta, name, bases, dct):
-        # Hack to support original method name for notify_order
-        if 'notify' in dct:
-            # rename 'notify' to 'notify_order'
-            dct['notify_order'] = dct.pop('notify')
-        if 'notify_operation' in dct:
-            # rename 'notify' to 'notify_order'
-            dct['notify_trade'] = dct.pop('notify_operation')
-
-        return super(MetaStrategy, meta).__new__(meta, name, bases, dct)
-    # 注册次级类
-    def __init__(cls, name, bases, dct):
-        '''
-        Class has already been created ... register subclasses
-        '''
-        # Initialize the class
-        super(MetaStrategy, cls).__init__(name, bases, dct)
-
-        if not cls.aliased and \
-           name != 'Strategy' and not name.startswith('_'):
-            cls._indcol[name] = cls
-    # 注册环境和id
-    def donew(cls, *args, **kwargs):
-        _obj, args, kwargs = super(MetaStrategy, cls).donew(*args, **kwargs)
-
-        # Find the owner and store it
-        # findowner用于发现_obj的父类，但是属于bt.Cerebro的实例
-        _obj.env = _obj.cerebro = cerebro = findowner(_obj, bt.Cerebro)
-        _obj._id = cerebro._next_stid()
-
-        return _obj, args, kwargs
-    # 初始化broker,_sizer,_orders,_orderspending,_trades,_tradespending,stats,analyzers,_alnames,writers
-    # _slave_analyzers,_tradehistoryon
-    def dopreinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = \
-            super(MetaStrategy, cls).dopreinit(_obj, *args, **kwargs)
-        _obj.broker = _obj.env.broker
-        _obj._sizer = bt.sizers.FixedSize()
-        _obj._orders = list()
-        _obj._orderspending = list()
-        _obj._trades = collections.defaultdict(AutoDictList)
-        _obj._tradespending = list()
-
-        _obj.stats = _obj.observers = ItemCollection()
-        _obj.analyzers = ItemCollection()
-        _obj._alnames = collections.defaultdict(itertools.count)
-        _obj.writers = list()
-
-        _obj._slave_analyzers = list()
-
-        _obj._tradehistoryon = False
-
-        return _obj, args, kwargs
-    # 给_sizer设置策略和broker
-    def dopostinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = \
-            super(MetaStrategy, cls).dopostinit(_obj, *args, **kwargs)
-
-        _obj._sizer.set(_obj, _obj.broker)
-
-        return _obj, args, kwargs
 
 # Strategy类，用户编写策略的时候可以继承这个类
-class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
-    '''
+class Strategy(StrategyBase):
+    """
     Base class to be subclassed for user defined strategies.
-    '''
+    """
+    
+    # Class-level storage for strategies
+    _indcol = dict()
+
+    def __new__(cls, *args, **kwargs):
+        """Override __new__ to handle method renaming that was done in MetaStrategy"""
+        # Handle method renaming like the old MetaStrategy.__new__ did
+        if hasattr(cls, 'notify') and not hasattr(cls, 'notify_order'):
+            cls.notify_order = cls.notify
+            delattr(cls, 'notify')
+        if hasattr(cls, 'notify_operation') and not hasattr(cls, 'notify_trade'):
+            cls.notify_trade = cls.notify_operation
+            delattr(cls, 'notify_operation')
+            
+        # Create the instance
+        instance = super(Strategy, cls).__new__(cls)
+        
+        # Register subclasses (from MetaStrategy.__init__)
+        if not getattr(cls, 'aliased', False) and cls.__name__ != "Strategy" and not cls.__name__.startswith("_"):
+            cls._indcol[cls.__name__] = cls
+            
+        # Initialize critical attributes early (from MetaStrategy.donew and dopreinit)
+        # These need to be available before __init__ completes since methods might be called
+        instance.env = instance.cerebro = cerebro = findowner(instance, bt.Cerebro)
+        instance._id = cerebro._next_stid()
+        instance.broker = instance.env.broker
+        instance._sizer = bt.sizers.FixedSize()
+        
+        instance.stats = instance.observers = ItemCollection()
+        instance.analyzers = ItemCollection()
+        instance._alnames = collections.defaultdict(itertools.count)
+        instance.writers = list()
+        instance._slave_analyzers = list()
+        instance._tradehistoryon = False
+        instance._orders = list()
+        instance._orderspending = list()
+        instance._trades = collections.defaultdict(AutoDictList)
+        instance._tradespending = list()
+            
+        return instance
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the strategy with functionality from MetaStrategy methods"""
+        # Critical attributes already initialized in __new__
+        # self.env = self.cerebro = cerebro = findowner(self, bt.Cerebro)  # Already done in __new__
+        # self._id = cerebro._next_stid()  # Already done in __new__
+        # self.broker = self.env.broker  # Already done in __new__
+        # self._sizer = bt.sizers.FixedSize()  # Already done in __new__
+        
+        # Handle the functionality that was in MetaStrategy.dopostinit
+        self._sizer.set(self, self.broker)
+        
+        # Call parent initialization
+        super(Strategy, self).__init__(*args, **kwargs)
+
     # line类型是策略类型
     _ltype = LineIterator.StratType
     # csv默认是True
     csv = True
     # 旧的更新时间的方法，默认是False
-    _oldsync = False  # update clock using old methodology : data 0
+    _oldsync = False  # update the clock using old methodology: data 0
 
     # keep the latest delivered data date in the line
     # 保存最新的数据的日期
-    lines = ('datetime',)
+    lines = ("datetime",)
+
     # 缓存数据
     def qbuffer(self, savemem=0, replaying=False):
-        '''Enable the memory saving schemes. Possible values for ``savemem``:
+        """Enable the memory saving schemes. Possible values for ``savemem``:
 
-          0: No savings. Each lines object keeps in memory all values
+          0: No savings. Each line object keeps in memory all values
 
-          1: All lines objects save memory, using the strictly minimum needed
+          1: All lines objects save memory, using the strict minimum needed
 
         Negative values are meant to be used when plotting is required:
 
@@ -140,10 +110,10 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 如果savemem等于1的话，执行保存所需要的最小的数据量，节省内存
         # 如果savemen等于-1的话，那么策略和观察者里面的指标需要保存所有的数据，但是指标里面声明的line会节省内存
         # 如果savemen等于-2的话，除了等于-1里面的，还要加上plotinfo.plot设置成False的也会节省内存
-        '''
+        """
         # 如果savemem小于0
         if savemem < 0:
-            # Get any attribute which labels itself as Indicator
+            # Get any attribute that labels itself as Indicator
             # 循环所有的指标
             for ind in self._lineiterators[self.IndType]:
                 # 判断这个ind是否是单个line
@@ -169,6 +139,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 其实应该还有一个等于0的时候，不操作，作者忽略了，写上去吧，逻辑上更严谨
         else:
             pass
+
     # 获取并设置策略运行需要的数据的最小周期
     def _periodset(self):
         # 数据的id
@@ -177,14 +148,14 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         _dminperiods = collections.defaultdict(list)
         # 循环所有的指标
         for lineiter in self._lineiterators[LineIterator.IndType]:
-            # if multiple datas are used and multiple timeframes the larger
+            # if multiple datas are used and multiple timeframes, the larger
             # timeframe may place larger time constraints in calling next.
             # 获取指标的_clock属性
-            clk = getattr(lineiter, '_clock', None)
+            clk = getattr(lineiter, "_clock", None)
             # 如果属性值是None的话
             if clk is None:
                 # 获取指标父类的_clock属性值，如果还是None的话，循环下个指标
-                clk = getattr(lineiter._owner, '_clock', None)
+                clk = getattr(lineiter._owner, "_clock", None)
                 if clk is None:
                     continue
             # 如果clk不是None的话
@@ -195,10 +166,10 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
                 # See if the current clock has higher level clocks
                 # 看下当前的clk是否具有进一步的_clock属性
-                clk2 = getattr(clk, '_clock', None)
+                clk2 = getattr(clk, "_clock", None)
                 # 如果clk2是None的话，获取clk父类的_clock属性值，如果这个属性值也是None的话，中断while
                 if clk2 is None:
-                    clk2 = getattr(clk._owner, '_clock', None)
+                    clk2 = getattr(clk._owner, "_clock", None)
                 if clk2 is None:
                     break  # if no clock found, bail out
                 # 如果clk2不是None的话，就让clk等于clk2
@@ -219,11 +190,11 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 循环所有的数据
         for data in self.datas:
 
-            # Do not only consider the data as clock but also its lines which
+            # Do not only consider the data as clock but also its lines, which
             # may have been individually passed as clock references and
             # discovered as clocks above
 
-            # Initialize with data min period if any
+            # Initialize with a data min period if any
             # 数据产生指标的line的时候需要的最小周期
             dlminperiods = _dminperiods[data]
             # 循环数据的每条line,如果line在_dminperiods中，dlminperiods需要增加一定的值
@@ -241,20 +212,19 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
         # Set the minperiod
         # 指标的最小周期
-        minperiods = \
-            [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
+        minperiods = [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
         # 把指标的最小周期和数据的最小周期的最大值作为策略运行需要的最小周期
         self._minperiod = max(minperiods or [self._minperiod])
 
     # 增加writer
     def _addwriter(self, writer):
-        '''
-        Unlike the other _addxxx functions this one receives an instance
+        """
+        Unlike the other _addxxx functions, this one receives an instance
         because the writer works at cerebro level and is only passed to the
         strategy to simplify the logic
         # 不像其他的_addxxx的函数，这个函数直接接收的是一个实例，是在cerebro中工作的，为了简化逻辑
         # 直接传送给了策略
-        '''
+        """
         self.writers.append(writer)
 
     # 增加指标
@@ -263,13 +233,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 增加analyzer,主要给observers使用，这些analyzer并不是用户添加的，和用户添加的analyzer保持分离
     def _addanalyzer_slave(self, ancls, *anargs, **ankwargs):
-        '''Like _addanalyzer but meant for observers (or other entities) which
+        """Like _addanalyzer but meant for observers (or other entities) which
         rely on the output of an analyzer for the data. These analyzers have
         not been added by the user and are kept separate from the main
         analyzers
 
         Returns the created analyzer
-        '''
+        """
         analyzer = ancls(*anargs, **ankwargs)
         self._slave_analyzers.append(analyzer)
         return analyzer
@@ -280,15 +250,15 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 增加analyzer
     def _addanalyzer(self, ancls, *anargs, **ankwargs):
-        anname = ankwargs.pop('_name', '') or ancls.__name__.lower()
+        anname = ankwargs.pop("_name", "") or ancls.__name__.lower()
         nsuffix = next(self._alnames[anname])
-        anname += str(nsuffix or '')  # 0 (first instance) gets no suffix
+        anname += str(nsuffix or "")  # 0 (first instance) gets no suffix
         analyzer = ancls(*anargs, **ankwargs)
         self.analyzers.append(analyzer, anname)
 
     # 增加observer
     def _addobserver(self, multi, obscls, *obsargs, **obskwargs):
-        obsname = obskwargs.pop('obsname', '')
+        obsname = obskwargs.pop("obsname", "")
         if not obsname:
             obsname = obscls.__name__.lower()
 
@@ -304,6 +274,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         for data in self.datas:
             obs = obscls(data, *obsargs, **obskwargs)
             l.append(obs)
+
     # 检查最小周期是否满足，返回的是最小周期减去每个数据长度的最大值
     def _getminperstatus(self):
         # check the min period status connected to datas
@@ -344,10 +315,10 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
                 indicator.advance()
         # 如果是旧的数据处理方式，调用advance;如果不是旧的数据处理方式，代表策略已经初始化了，调用advance
         if self._oldsync:
-            # Strategy has not been reset, the line is there
+            # The Strategy has not been reset, the line is there
             self.advance()
         else:
-            # strategy has been reset to beginning. advance step by step
+            # the strategy has been reset to beginning. advance step by step
             self.forward()
         # 设置时间
         self.lines.datetime[0] = dt
@@ -369,6 +340,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         self._next_observers(minperstatus, once=True)
         # 清除
         self.clear()
+
     # 更新数据
     def _clk_update(self):
         # 如果是旧的数据管理方法
@@ -376,8 +348,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             # 调用策略的_clk_uddate()方法
             clk_len = super(Strategy, self)._clk_update()
             # 设置时间
-            self.lines.datetime[0] = max(d.datetime[0]
-                                         for d in self.datas if len(d))
+            self.lines.datetime[0] = max(d.datetime[0] for d in self.datas if len(d))
             # 返回数据长度
             return clk_len
         # 当前最新的数据长度
@@ -386,8 +357,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         if any(nl > l for l, nl in zip(self._dlens, newdlens)):
             self.forward()
         # 设置时间，当前数据中的最大的时间
-        self.lines.datetime[0] = max(d.datetime[0]
-                                     for d in self.datas if len(d))
+        self.lines.datetime[0] = max(d.datetime[0] for d in self.datas if len(d))
         # 旧的数据长度等于新的数据长度
         self._dlens = newdlens
 
@@ -445,6 +415,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             # 如果不是once的话，调用_next方法
             else:
                 observer._next()
+
     # 把最小周期状态传递到analyzer中
     def _next_analyzers(self, minperstatus, once=False):
         for analyzer in self.analyzers:
@@ -486,7 +457,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 开始方法，可以在策略实例中重写
     def start(self):
-        '''Called right before the backtesting is about to be started.'''
+        """Called right before the backtesting is about to be started."""
         pass
 
     # 获取writer的列名称
@@ -494,8 +465,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # indicator和observer是否保存到csv
         self.indobscsv = [self]
         # 对indiicator和observer进行过滤，如果它的属性csv值是True的话，代表准备进行保存
-        indobs = itertools.chain(
-            self.getindicators_lines(), self.getobservers())
+        indobs = itertools.chain(self.getindicators_lines(), self.getobservers())
         self.indobscsv.extend(filter(lambda x: x.csv, indobs))
         # 把headers初始化空列表
         headers = list()
@@ -507,7 +477,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             name = iocsv.plotinfo.plotname or iocsv.__class__.__name__
             # 把名称，长度，和line或者line的名称添加到headers中
             headers.append(name)
-            headers.append('len')
+            headers.append("len")
             headers.extend(iocsv.getlinealiases())
         # 返回headers
         return headers
@@ -525,7 +495,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             if lio:
                 values.extend(map(lambda l: l[0], iocsv.lines.itersize()))
             else:
-                values.extend([''] * iocsv.lines.size())
+                values.extend([""] * iocsv.lines.size())
 
         return values
 
@@ -534,12 +504,9 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 初始化writer info为一个自动有序字典
         wrinfo = AutoOrderedDict()
         # 设置参数
-        wrinfo['Params'] = self.p._getkwargs()
+        wrinfo["Params"] = self.p._getkwargs()
 
-        sections = [
-            ['Indicators', self.getindicators_lines()],
-            ['Observers', self.getobservers()]
-        ]
+        sections = [["Indicators", self.getindicators_lines()], ["Observers", self.getobservers()]]
         # 循环indicator和observer
         for sectname, sectitems in sections:
             # 设置具体的值
@@ -555,7 +522,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         ainfo.Value.Begin = self.broker.startingcash
         ainfo.Value.End = self.broker.getvalue()
 
-        # no slave analyzers for writer
+        # no slave analyzers for a writer
         for aname, analyzer in self.analyzers.getitems():
             ainfo[aname].Params = analyzer.p._getkwargs() or None
             ainfo[aname].Analysis = analyzer.get_analysis()
@@ -576,7 +543,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 策略结束
     def stop(self):
-        '''Called right before the backtesting is about to be stopped'''
+        """Called right before the backtesting is about to be stopped"""
         pass
 
     # 设置是否保存历史交易数据
@@ -611,8 +578,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 获取交易数据，如果能从_trades中获取交易数据，就使用最后一个作为trade，如果不能，就创建一个trade，保存到datatrades中
         datatrades = self._trades[tradedata][order.tradeid]
         if not datatrades:
-            trade = Trade(data=tradedata, tradeid=order.tradeid,
-                          historyon=self._tradehistoryon)
+            trade = Trade(data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon)
             datatrades.append(trade)
         else:
             trade = datatrades[-1]
@@ -624,13 +590,15 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             # 如果执行信息是closed的
             if exbit.closed:
                 # 更新trade
-                trade.update(order,
-                             exbit.closed,
-                             exbit.price,
-                             exbit.closedvalue,
-                             exbit.closedcomm,
-                             exbit.pnl,
-                             comminfo=order.comminfo)
+                trade.update(
+                    order,
+                    exbit.closed,
+                    exbit.price,
+                    exbit.closedvalue,
+                    exbit.closedcomm,
+                    exbit.pnl,
+                    comminfo=order.comminfo,
+                )
                 # 如果trade是isclosed
                 if trade.isclosed:
                     # 把trade进行复制，并添加到_tradespending
@@ -644,17 +612,20 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             if exbit.opened:
                 # 如果trade是关闭的，初始化一个trade，并保存到datatrades中
                 if trade.isclosed:
-                    trade = Trade(data=tradedata, tradeid=order.tradeid,
-                                  historyon=self._tradehistoryon)
+                    trade = Trade(
+                        data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon
+                    )
                     datatrades.append(trade)
                 # 更新trade
-                trade.update(order,
-                             exbit.opened,
-                             exbit.price,
-                             exbit.openedvalue,
-                             exbit.openedcomm,
-                             exbit.pnl,
-                             comminfo=order.comminfo)
+                trade.update(
+                    order,
+                    exbit.opened,
+                    exbit.price,
+                    exbit.openedvalue,
+                    exbit.openedcomm,
+                    exbit.pnl,
+                    comminfo=order.comminfo,
+                )
 
                 # This extra check covers the case in which different tradeid
                 # orders have put the position down to 0 and the next order
@@ -698,18 +669,16 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             if order.exectype != order.Historical or order.histnotify:
                 self.notify_order(order)
             # 对于analyzer和observer中的analyzer，通知order
-            for analyzer in itertools.chain(self.analyzers,
-                                            self._slave_analyzers):
+            for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
                 analyzer._notify_order(order)
         # 循环待处理的trade，进行通知，并对于analyzer和observer中的analyzer进行通知
         for trade in proctrades:
             self.notify_trade(trade)
-            for analyzer in itertools.chain(self.analyzers,
-                                            self._slave_analyzers):
+            for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
                 analyzer._notify_trade(trade)
         # 如果qorders是空的话，通知结束
         if qorders:
-            return  # cash is notified on a regular basis
+            return  # cash is notified regularly
         # 如果qordes不是空的话，获取cash,value,fundvalue,fundshares
         cash = self.broker.getcash()
         value = self.broker.getvalue()
@@ -724,18 +693,26 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             analyzer._notify_fund(cash, value, fundvalue, fundshares)
 
     # 增加计时器
-    def add_timer(self, when,
-                  offset=datetime.timedelta(), repeat=datetime.timedelta(),
-                  weekdays=[], weekcarry=False,
-                  monthdays=[], monthcarry=True,
-                  allow=None,
-                  tzdata=None, cheat=False,
-                  *args, **kwargs):
+    def add_timer(
+        self,
+        when,
+        offset=datetime.timedelta(),
+        repeat=datetime.timedelta(),
+        weekdays=[],
+        weekcarry=False,
+        monthdays=[],
+        monthcarry=True,
+        allow=None,
+        tzdata=None,
+        cheat=False,
+        *args,
+        **kwargs,
+    ):
         """
         **Note**: can be called during ``__init__`` or ``start``
 
         Schedules a timer to invoke either a specified callback or the
-        ``notify_timer`` of one or more strategies.
+        `notify_timer` of one or more strategies.
         # 注意：可以在__init__或者start中调用，设置一个具体的计时器用于唤醒一个特定的回调或者一个或者多个策略的notify_timer
         Arguments:
 
@@ -750,18 +727,18 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
          - ``offset`` which must be a ``datetime.timedelta`` instance
 
            Used to offset the value ``when``. It has a meaningful use in
-           combination with ``SESSION_START`` and ``SESSION_END``, to indicated
+           combination with ``SESSION_START`` and ``SESSION_END``, to indicate
            things like a timer being called ``15 minutes`` after the session
-           start.
+            starts.
            # 时间补偿，必须是一个时间差的实例，用于对when进行时间补偿，比如想要在开盘15分钟的时候这样
            # 的计时器，就可以结合SESSION_START和SESSION_END进行设置
 
           - ``repeat`` which must be a ``datetime.timedelta`` instance
 
-            Indicates if after a 1st call, further calls will be scheduled
-            within the same session at the scheduled ``repeat`` delta
+            Indicates if after a first call, further calls will be scheduled
+            within the same session at the scheduled `repeat` delta
 
-            Once the timer goes over the end of the session it is reset to the
+            Once the timer goes over the end of the session, it is reset to the
             original value for ``when``
             # 重复，必须是一个时间差的实例；这个参数用于设置在第一次调用计时器之后，在同一个session中
             # 将会按照设置时间差不断重复；一旦session结束了之后，会重新从when开始
@@ -782,7 +759,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             # 如果设置成True了，如果weekdays因为节假日的原因导致没有，将会在下一个交易日激活
 
           - ``monthdays``: a **sorted** iterable with integers indicating on
-            which days of the month a timer has to be executed. For example
+            which days of the month a timer has to be executed. For example,
             always on day *15* of the month
 
             If not specified, the timer will be active on all days
@@ -799,13 +776,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           - ``allow`` (default: ``None``). A callback which receives a
             `datetime.date`` instance and returns ``True`` if the date is
             allowed for timers or else returns ``False``
-            # 一个接收时间格式的回调在这个时间是计时器允许的时候返回True,在计时器不允许的时候，返回False
+            # 一个接收时间格式的回调在这个时间是计时器允许的时候返回True, 在计时器不允许的时候，返回False
 
           - ``tzdata`` which can be either ``None`` (default), a ``pytz``
             instance or a ``data feed`` instance.
 
             ``None``: ``when`` is interpreted at face value (which translates
-            to handling it as if it where UTC even if it's not)
+            to handling it as if it is UTC even if it's not)
 
             ``pytz`` instance: ``when`` will be interpreted as being specified
             in the local time specified by the timezone instance.
@@ -815,7 +792,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             the data feed instance.
 
             **Note**: If ``when`` is either ``SESSION_START`` or
-              ``SESSION_END`` and ``tzdata`` is ``None``, the 1st *data feed*
+              ``SESSION_END`` and ``tzdata`` is ``None``, the first *data feed*
               in the system (aka ``self.data0``) will be used as the reference
               to find out the session times.
 
@@ -828,7 +805,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
           - ``cheat`` (default ``False``) if ``True`` the timer will be called
             before the broker has a chance to evaluate the orders. This opens
-            the chance to issue orders based on opening price for example right
+            the chance to issue orders based on opening price, for example, right
             before the session starts
             #
 
@@ -841,20 +818,31 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           - The created timer
 
         """
-        return  self.cerebro._add_timer(owner=self, when=when, offset=offset, repeat=repeat,
-                                        weekdays=weekdays, weekcarry=weekcarry,
-                                        monthdays=monthdays, monthcarry=monthcarry,
-                                        allow=allow,tzdata=tzdata, strats=False, cheat=cheat,
-                                        *args, **kwargs)
+        return self.cerebro._add_timer(
+            owner=self,
+            when=when,
+            offset=offset,
+            repeat=repeat,
+            weekdays=weekdays,
+            weekcarry=weekcarry,
+            monthdays=monthdays,
+            monthcarry=monthcarry,
+            allow=allow,
+            tzdata=tzdata,
+            strats=False,
+            cheat=cheat,
+            *args,
+            **kwargs,
+        )
 
     # 通知定时器
     def notify_timer(self, timer, when, *args, **kwargs):
         """
-        Receives a timer notification where ``timer`` is the timer which was
+        Receives a timer notification where ``timer`` is the timer that was
         returned by ``add_timer``, and ``when`` is the calling time. ``args``
         and ``kwargs`` are any additional arguments passed to ``add_timer``
 
-        The actual ``when`` time can be later, but the system may have not be
+        The actual `when` time can be later, but the system may have not been
         able to call the timer before. This value is the timer value and no the
         system time.
         # 收到一个定时器的通知，这个定时器是通过add_timer添加的，并且在when的时候发出，args和kwargs是添加到add_timer的其他参数
@@ -864,68 +852,78 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 通知现金价值
     def notify_cashvalue(self, cash, value):
-        '''
+        """
         Receives the current fund value, value status of the strategy's broker
-        '''
+        """
         pass
 
     # 通知fund
     def notify_fund(self, cash, value, fundvalue, shares):
-        '''
+        """
         Receives the current cash, value, fundvalue and fund shares
-        '''
+        """
         pass
 
     # 通知order
     def notify_order(self, order):
-        '''
+        """
         Receives an order whenever there has been a change in one
-        '''
+        """
         pass
 
     # 通知trade
     def notify_trade(self, trade):
-        '''
+        """
         Receives a trade whenever there has been a change in one
-        '''
+        """
         pass
 
     # 通知store
     def notify_store(self, msg, *args, **kwargs):
-        '''Receives a notification from a store provider'''
+        """Receives a notification from a store provider"""
         pass
 
     # 通知数据
     def notify_data(self, data, status, *args, **kwargs):
-        '''Receives a notification from data'''
+        """Receives a notification from data"""
         pass
 
     # 获取存在的数据名称
     def getdatanames(self):
-        '''
+        """
         Returns a list of the existing data names
-        '''
+        """
         return keys(self.env.datasbyname)
 
     # 根据名称获取数据
     def getdatabyname(self, name):
-        '''
-        Returns a given data by name using the environment (cerebro)
-        '''
+        """
+        Returns given data by name using the environment (cerebro)
+        """
         return self.env.datasbyname[name]
 
     # 取消订单
     def cancel(self, order):
-        '''Cancels the order in the broker'''
+        """Cancels the order in the broker"""
         self.broker.cancel(order)
 
     # 买入下单
-    def buy(self, data=None,
-            size=None, price=None, plimit=None,
-            exectype=None, valid=None, tradeid=0, oco=None,
-            trailamount=None, trailpercent=None,
-            parent=None, transmit=True,
-            **kwargs):
+    def buy(
+        self,
+        data=None,
+        size=None,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        parent=None,
+        transmit=True,
+        **kwargs,
+    ):
         """
           Create a buy (long) order and send it to the broker
 
@@ -1119,46 +1117,77 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         data = data if data is not None else self.datas[0]
         # 如果size不是None的时候，size等于size,否则就通过getsizing获取size
         size = size if size is not None else self.getsizing(data, isbuy=True)
+        self.log(f"strategy begin to buy, {data.name}, {size}")
         # 如果size不同于0
         if size:
+            print("broker = ", type(self.broker), self.broker)
             return self.broker.buy(
-                self, data,
-                size=abs(size), price=price, plimit=plimit,
-                exectype=exectype, valid=valid, tradeid=tradeid, oco=oco,
-                trailamount=trailamount, trailpercent=trailpercent,
-                parent=parent, transmit=transmit,
-                **kwargs)
+                self,
+                data,
+                size=abs(size),
+                price=price,
+                plimit=plimit,
+                exectype=exectype,
+                valid=valid,
+                tradeid=tradeid,
+                oco=oco,
+                trailamount=trailamount,
+                trailpercent=trailpercent,
+                parent=parent,
+                transmit=transmit,
+                **kwargs,
+            )
 
         return None
 
     # 卖出订单，和买入订单比较类似
-    def sell(self, data=None,
-             size=None, price=None, plimit=None,
-             exectype=None, valid=None, tradeid=0, oco=None,
-             trailamount=None, trailpercent=None,
-             parent=None, transmit=True,
-             **kwargs):
-        '''
-        To create a selll (short) order and send it to the broker
+    def sell(
+        self,
+        data=None,
+        size=None,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        parent=None,
+        transmit=True,
+        **kwargs,
+    ):
+        """
+        To create a sell (short) order and send it to the broker
 
         See the documentation for ``buy`` for an explanation of the parameters
 
         Returns: the submitted order
-        '''
+        """
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
 
         data = data if data is not None else self.datas[0]
         size = size if size is not None else self.getsizing(data, isbuy=False)
-
+        self.log(f"strategy begin to sell, {data.name}, {size}")
         if size:
+            print("broker = ", type(self.broker), self.broker)
             return self.broker.sell(
-                self, data,
-                size=abs(size), price=price, plimit=plimit,
-                exectype=exectype, valid=valid, tradeid=tradeid, oco=oco,
-                trailamount=trailamount, trailpercent=trailpercent,
-                parent=parent, transmit=transmit,
-                **kwargs)
+                self,
+                data,
+                size=abs(size),
+                price=price,
+                plimit=plimit,
+                exectype=exectype,
+                valid=valid,
+                tradeid=tradeid,
+                oco=oco,
+                trailamount=trailamount,
+                trailpercent=trailpercent,
+                parent=parent,
+                transmit=transmit,
+                **kwargs,
+            )
 
         return None
 
@@ -1195,13 +1224,27 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         return None
 
     # 买入一篮子订单
-    def buy_bracket(self, data=None, size=None, price=None, plimit=None,
-                    exectype=bt.Order.Limit, valid=None, tradeid=0,
-                    trailamount=None, trailpercent=None, oargs={},
-                    stopprice=None, stopexec=bt.Order.Stop, stopargs={},
-                    limitprice=None, limitexec=bt.Order.Limit, limitargs={},
-                    **kwargs):
-        '''
+    def buy_bracket(
+        self,
+        data=None,
+        size=None,
+        price=None,
+        plimit=None,
+        exectype=bt.Order.Limit,
+        valid=None,
+        tradeid=0,
+        trailamount=None,
+        trailpercent=None,
+        oargs={},
+        stopprice=None,
+        stopexec=bt.Order.Stop,
+        stopargs={},
+        limitprice=None,
+        limitexec=bt.Order.Limit,
+        limitargs={},
+        **kwargs,
+    ):
+        """
         Create a bracket order group (low side - buy order - high side). The
         default behavior is as follows:
 
@@ -1230,7 +1273,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             If ``None`` the ``sizer`` instance retrieved via ``getsizer`` will
             be used to determine the size.
 
-            **Note**: The same size is applied to all 3 orders of the bracket
+            **Note**: The same size is applied to all three orders of the bracket
 
           - ``price`` (default: ``None``)
 
@@ -1292,7 +1335,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
             Possible values: (see the documentation for the method ``buy``
 
-            **Note**: this ``kwargs`` will be applied to the 3 orders of a
+            **Note**: this ``kwargs`` will be applied to the three orders of a
             bracket. See below for specific keyword arguments for the low and
             high side orders
 
@@ -1349,31 +1392,39 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           - If high/low orders have been suppressed the return value will still
             contain 3 orders, but those suppressed will have a value of
             ``None``
-        '''
+        """
         # 参数字典
-        kargs = dict(size=size,
-                     data=data, price=price, plimit=plimit, exectype=exectype,
-                     valid=valid, tradeid=tradeid,
-                     trailamount=trailamount, trailpercent=trailpercent)
+        kargs = dict(
+            size=size,
+            data=data,
+            price=price,
+            plimit=plimit,
+            exectype=exectype,
+            valid=valid,
+            tradeid=tradeid,
+            trailamount=trailamount,
+            trailpercent=trailpercent,
+        )
         # 更新主订单的参数
         kargs.update(oargs)
         # 更新关键字参数
         kargs.update(kwargs)
         # 如果limitexec和stopexec，两个都是None的话
-        kargs['transmit'] = limitexec is None and stopexec is None
+        kargs["transmit"] = limitexec is None and stopexec is None
         # 买入订单
         o = self.buy(**kargs)
 
         # 止损
         if stopexec is not None:
             # low side / stop
-            kargs = dict(data=data, price=stopprice, exectype=stopexec,
-                         valid=valid, tradeid=tradeid)
+            kargs = dict(
+                data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid
+            )
             kargs.update(stopargs)
             kargs.update(kwargs)
-            kargs['parent'] = o
-            kargs['transmit'] = limitexec is None
-            kargs['size'] = o.size
+            kargs["parent"] = o
+            kargs["transmit"] = limitexec is None
+            kargs["size"] = o.size
             ostop = self.sell(**kargs)
         else:
             ostop = None
@@ -1381,13 +1432,14 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 止盈
         if limitexec is not None:
             # high side / limit
-            kargs = dict(data=data, price=limitprice, exectype=limitexec,
-                         valid=valid, tradeid=tradeid)
+            kargs = dict(
+                data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid
+            )
             kargs.update(limitargs)
             kargs.update(kwargs)
-            kargs['parent'] = o
-            kargs['transmit'] = True
-            kargs['size'] = o.size
+            kargs["parent"] = o
+            kargs["transmit"] = True
+            kargs["size"] = o.size
             olimit = self.sell(**kargs)
         else:
             olimit = None
@@ -1395,15 +1447,27 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         return [o, ostop, olimit]
 
     # 卖出一篮子订单，和买入一篮子订单相似
-    def sell_bracket(self, data=None,
-                     size=None, price=None, plimit=None,
-                     exectype=bt.Order.Limit, valid=None, tradeid=0,
-                     trailamount=None, trailpercent=None,
-                     oargs={},
-                     stopprice=None, stopexec=bt.Order.Stop, stopargs={},
-                     limitprice=None, limitexec=bt.Order.Limit, limitargs={},
-                     **kwargs):
-        '''
+    def sell_bracket(
+        self,
+        data=None,
+        size=None,
+        price=None,
+        plimit=None,
+        exectype=bt.Order.Limit,
+        valid=None,
+        tradeid=0,
+        trailamount=None,
+        trailpercent=None,
+        oargs={},
+        stopprice=None,
+        stopexec=bt.Order.Stop,
+        stopargs={},
+        limitprice=None,
+        limitexec=bt.Order.Limit,
+        limitargs={},
+        **kwargs,
+    ):
+        """
         Create a bracket order group (low side - buy order - high side). The
         default behavior is as follows:
 
@@ -1423,44 +1487,53 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
         Returns:
 
-          - A list containing the 3 orders [order, stop side, limit side]
+          - A list containing the three orders [order, stop side, limit side]
 
           - If high/low orders have been suppressed the return value will still
-            contain 3 orders, but those suppressed will have a value of
+            contain three orders, but those suppressed will have a value of
             ``None``
-        '''
+        """
 
-        kargs = dict(size=size,
-                     data=data, price=price, plimit=plimit, exectype=exectype,
-                     valid=valid, tradeid=tradeid,
-                     trailamount=trailamount, trailpercent=trailpercent)
+        kargs = dict(
+            size=size,
+            data=data,
+            price=price,
+            plimit=plimit,
+            exectype=exectype,
+            valid=valid,
+            tradeid=tradeid,
+            trailamount=trailamount,
+            trailpercent=trailpercent,
+        )
         kargs.update(oargs)
         kargs.update(kwargs)
-        kargs['transmit'] = limitexec is None and stopexec is None
+        kargs["transmit"] = limitexec is None and stopexec is None
         o = self.sell(**kargs)
 
         if stopexec is not None:
             # high side / stop
-            kargs = dict(data=data, price=stopprice, exectype=stopexec,
-                         valid=valid, tradeid=tradeid)
+            kargs = dict(
+                data=data, price=stopprice, exectype=stopexec, valid=valid, tradeid=tradeid
+            )
             kargs.update(stopargs)
             kargs.update(kwargs)
-            kargs['parent'] = o
-            kargs['transmit'] = limitexec is None  # transmit if last
-            kargs['size'] = o.size
+            kargs["parent"] = o
+            kargs["transmit"] = limitexec is None  # transmit if last
+            kargs["size"] = o.size
             ostop = self.buy(**kargs)
         else:
             ostop = None
 
         if limitexec is not None:
             # low side / limit
-            kargs = dict(data=data, price=limitprice, exectype=limitexec,
-                         valid=valid, tradeid=tradeid)
+            kargs = dict(
+                data=data, price=limitprice, exectype=limitexec, valid=valid, tradeid=tradeid
+            )
             kargs.update(limitargs)
             kargs.update(kwargs)
-            kargs['parent'] = o
-            kargs['transmit'] = True
-            kargs['size'] = o.size
+            kargs["parent"] = o
+            kargs["transmit"] = True
+            kargs["size"] = o.size
             olimit = self.buy(**kargs)
         else:
             olimit = None
@@ -1512,14 +1585,14 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 目标金额订单，跟目标大小订单比较类似
     def order_target_value(self, data=None, target=0.0, price=None, **kwargs):
-        '''
+        """
         Place an order to rebalance a position to have final value of
         ``target``
 
         The current ``value`` is taken into account as the start point to
         achieve ``target``
 
-          - If no ``target`` then close postion on data
+          - If no ``target`` then close position on data
           - If ``target`` > ``value`` then buy on data
           - If ``target`` < ``value`` then sell on data
 
@@ -1530,7 +1603,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           or
 
           - ``None`` if no order has been issued
-        '''
+        """
         # 获取数据
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
@@ -1565,7 +1638,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 目标百分比订单，会下一个订单再平衡当前的仓位，以确保仓位价值占现在账户价值的target百分比
     def order_target_percent(self, data=None, target=0.0, **kwargs):
-        '''
+        """
         Place an order to rebalance a position to have final value of
         ``target`` percentage of current portfolio ``value``
 
@@ -1601,7 +1674,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           or
 
           - ``None`` if no order has been issued (``target == position.size``)
-        '''
+        """
         # 获取数据
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
@@ -1615,13 +1688,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 获取数据的持仓，如果数据是None的话，将会获取第一个数据的持仓，如果broker是None的话，使用默认的broker
     def getposition(self, data=None, broker=None):
-        '''
+        """
         Returns the current position for a given data in a given broker.
 
         If both are None, the main data and the default broker will be used
 
         A property ``position`` is also available
-        '''
+        """
         data = data if data is not None else self.datas[0]
         broker = broker or self.broker
         return broker.getposition(data)
@@ -1632,42 +1705,44 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # 根据数据的名字来获取持仓大小，如果数据是None的话，默认获取第一个数据的持仓，如果不是None,获取具体的数据
     # 如果broker不是None，使用参数传递的broker，否则使用默认的broker
     def getpositionbyname(self, name=None, broker=None):
-        '''
+        """
         Returns the current position for a given name in a given broker.
 
         If both are None, the main data and the default broker will be used
 
         A property ``positionbyname`` is also available
-        '''
+        """
         data = self.datas[0] if not name else self.getdatabyname(name)
         broker = broker or self.broker
         return broker.getposition(data)
+
     # 设置了positionbyname属性，可以通过这个根据名字获取属性
     positionbyname = property(getpositionbyname)
 
     # 获取某个broker的持仓
     def getpositions(self, broker=None):
-        '''
+        """
         Returns the current by data positions directly from the broker
 
         If the given ``broker`` is None, the default broker will be used
 
         A property ``positions`` is also available
-        '''
+        """
         broker = broker or self.broker
         return broker.positions
+
     # 可以通过positions属性来获取broker的持仓
     positions = property(getpositions)
 
     # 返回broker中的以持仓的名字为key,position为value形成的字典
     def getpositionsbyname(self, broker=None):
-        '''
+        """
         Returns the current by name positions directly from the broker
 
         If the given ``broker`` is None, the default broker will be used
 
         A property ``positionsbyname`` is also available
-        '''
+        """
         broker = broker or self.broker
         positions = broker.positions
 
@@ -1689,94 +1764,40 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 设置sizer
     def setsizer(self, sizer):
-        '''
+        """
         Replace the default (fixed stake) sizer
-        '''
+        """
         self._sizer = sizer
         sizer.set(self, self.broker)
         return sizer
 
     # 获取sizer
     def getsizer(self):
-        '''
-        Returns the sizer which is in used if automatic statke calculation is
+        """
+        Returns the sizer which is in used if automatic stake calculation is
         used
 
-        Also available as ``sizer``
-        '''
+        Also, available as ``sizer``
+        """
         return self._sizer
 
     sizer = property(getsizer, setsizer)
 
     # 根据sizer获取要下单的大小
     def getsizing(self, data=None, isbuy=True):
-        '''
-        Return the stake calculated by the sizer instance for the current
-        situation
-        '''
-        data = data if data is not None else self.datas[0]
-        return self._sizer.getsizing(data, isbuy=isbuy)
+        """
+        Returns the sizer which is in used if automatic stake calculation is
+        used
+        """
+        # Ensure sizer has broker reference
+        if hasattr(self._sizer, 'broker') and self._sizer.broker is None:
+            self._sizer.set(self, self.broker)
+        return self._sizer.getsizing(data, isbuy)
 
-
-# 信号策略元类，
-class MetaSigStrategy(Strategy.__class__):
-
-    def __new__(meta, name, bases, dct):
-        # map user defined next to custom to be able to call own method before
-        # 如果有next，就使用_next_custom替代
-        if 'next' in dct:
-            dct['_next_custom'] = dct.pop('next')
-
-        cls = super(MetaSigStrategy, meta).__new__(meta, name, bases, dct)
-
-        # after class creation remap _next_catch to be next
-        # 信号策略类的next等于_next_catch
-        cls.next = cls._next_catch
-        return cls
-
-    def dopreinit(cls, _obj, *args, **kwargs):
-
-        _obj, args, kwargs = \
-            super(MetaSigStrategy, cls).dopreinit(_obj, *args, **kwargs)
-        # 初始化_signals为一个默认字典
-        _obj._signals = collections.defaultdict(list)
-        # 设置下单的数据
-        _data = _obj.p._data
-        if _data is None:
-            _obj._dtarget = _obj.data0
-        elif isinstance(_data, integer_types):
-            _obj._dtarget = _obj.datas[_data]
-        elif isinstance(_data, string_types):
-            _obj._dtarget = _obj.getdatabyname(_data)
-        elif isinstance(_data, bt.LineRoot):
-            _obj._dtarget = _data
-        else:
-            _obj._dtarget = _obj.data0
-
-        return _obj, args, kwargs
-
-    def dopostinit(cls, _obj, *args, **kwargs):
-        _obj, args, kwargs = \
-            super(MetaSigStrategy, cls).dopostinit(_obj, *args, **kwargs)
-        # 把信号数据保存到signals中
-        for sigtype, sigcls, sigargs, sigkwargs in _obj.p.signals:
-            _obj._signals[sigtype].append(sigcls(*sigargs, **sigkwargs))
-
-        # Record types of signals
-        # 根据_signals中的信号，保存不同类型的对象到具体的属性中
-        _obj._longshort = bool(_obj._signals[bt.SIGNAL_LONGSHORT])
-
-        _obj._long = bool(_obj._signals[bt.SIGNAL_LONG])
-        _obj._short = bool(_obj._signals[bt.SIGNAL_SHORT])
-
-        _obj._longexit = bool(_obj._signals[bt.SIGNAL_LONGEXIT])
-        _obj._shortexit = bool(_obj._signals[bt.SIGNAL_SHORTEXIT])
-
-        return _obj, args, kwargs
 
 # 信号策略类，使用信号可以自动操作的策略的子类
-class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
-    '''This subclass of ``Strategy`` is meant to to auto-operate using
+class SignalStrategy(Strategy):
+    """This subclass of ``Strategy`` is meant to to auto-operate using
     **signals**.
 
     *Signals* are usually indicators and the expected output values:
@@ -1785,7 +1806,7 @@ class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
 
       - ``< 0`` is a ``short`` indication
 
-    There are 5 types of *Signals*, broken in 2 groups.
+    There are five types of *Signals*, broken in two groups.
 
     # 信号通常是指标并且具有下面的输出值：大于0代表一个多头意向，小于0代表一个空头意向，下面具有5种类型的信号，分成2组
 
@@ -1878,21 +1899,74 @@ class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
         # str，将会使用getdatabyname获取data
         # data实例，直接使用
 
-    '''
+    """
+
     # 参数
     params = (
-        ('signals', []),
-        ('_accumulate', False),
-        ('_concurrent', False),
-        ('_data', None),
+        ("signals", []),
+        ("_accumulate", False),
+        ("_concurrent", False),
+        ("_data", None),
     )
+
+    def __new__(cls, *args, **kwargs):
+        """Override __new__ to handle next method remapping that was done in MetaSigStrategy"""
+        # Handle next method remapping like the old MetaSigStrategy.__new__ did
+        if hasattr(cls, 'next') and not hasattr(cls, '_next_custom'):
+            cls._next_custom = cls.next
+            
+        # Create the instance
+        instance = super(SignalStrategy, cls).__new__(cls, *args, **kwargs)
+        
+        # Set the next method to _next_catch (from MetaSigStrategy)
+        instance.next = instance._next_catch
+        
+        return instance
+
+    def __init__(self, *args, **kwargs):
+        """Initialize the signal strategy with functionality from MetaSigStrategy methods"""
+        # Handle the functionality that was in MetaSigStrategy.dopreinit
+        self._signals = collections.defaultdict(list)
+        
+        # Set the data target (from MetaSigStrategy.dopreinit)
+        _data = getattr(self.p, '_data', None)
+        if _data is None:
+            self._dtarget = self.data0
+        elif isinstance(_data, integer_types):
+            self._dtarget = self.datas[_data]
+        elif isinstance(_data, string_types):
+            self._dtarget = self.getdatabyname(_data)
+        elif isinstance(_data, bt.LineRoot):
+            self._dtarget = _data
+        else:
+            self._dtarget = self.data0
+            
+        # Call parent initialization
+        super(SignalStrategy, self).__init__(*args, **kwargs)
+        
+        # Handle the functionality that was in MetaSigStrategy.dopostinit
+        # Add signals from params
+        for sigtype, sigcls, sigargs, sigkwargs in self.p.signals:
+            self._signals[sigtype].append(sigcls(*sigargs, **sigkwargs))
+
+        # Record types of signals
+        self._longshort = bool(self._signals[bt.SIGNAL_LONGSHORT])
+
+        self._long = bool(self._signals[bt.SIGNAL_LONG])
+        self._short = bool(self._signals[bt.SIGNAL_SHORT])
+
+        self._longexit = bool(self._signals[bt.SIGNAL_LONGEXIT])
+        self._shortexit = bool(self._signals[bt.SIGNAL_SHORTEXIT])
+
     # 开始
     def _start(self):
         self._sentinel = None  # sentinel for order concurrency
         super(SignalStrategy, self)._start()
+
     # 增加信号
     def signal_add(self, sigtype, signal):
         self._signals[sigtype].append(signal)
+
     # 通知
     def _notify(self, qorders=[], qtrades=[]):
         # Nullify the sentinel if done
@@ -1908,7 +1982,7 @@ class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
     # 匹配信号
     def _next_catch(self):
         self._next_signal()
-        if hasattr(self, '_next_custom'):
+        if hasattr(self, "_next_custom"):
             self._next_custom()
 
     # 下一个信号
@@ -2010,3 +2084,28 @@ class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
             if ls_short or s_enter:
                 if self.p._accumulate:
                     self._sentinel = self.sell(self._dtarget)
+
+
+class BtApiStrategy(Strategy):
+    def __init__(self):
+        self.logger = self.init_logger(self.p.get("log_file_name", None))
+
+    def init_logger(self, log_file_name=None):
+        if log_file_name is None:
+            logger = SpdLogManager(
+                file_name=self.__class__.__name__ + ".log", logger_name="strategy", print_info=True
+            ).create_logger()
+        else:
+            logger = SpdLogManager(
+                file_name=log_file_name, logger_name="strategy", print_info=True
+            ).create_logger()
+        return logger
+
+    def log(self, txt):
+        self.logger.info(txt)
+
+    def _addnotification(self, data, quicknotify=True):
+        if data.data_type == "order":
+            self.notify_order(data)
+        if data.data_type == "trade":
+            self.notify_trade(data)

@@ -1,23 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 from backtrader import Analyzer
 from backtrader.utils import AutoOrderedDict, AutoDict
 from backtrader.utils.py3 import MAXINT
@@ -55,12 +37,13 @@ class TradeAnalyzer(Analyzer):
       The analyzer uses an autodict for the fields, which means that if no
       trades are executed, no statistics will be generated.
 
-      In that case there will be a single field/subfield in the dictionary
+      In that case, there will be a single field/subfield in the dictionary
       returned by ``get_analysis``, namely:
 
-        - dictname['total']['total'] which will have a value of 0 (the field is
+        - Dictname['total']['total'] which will have a value of 0 (the field is
           also reachable with dot notation dictname.total.total
     """
+
     rets = None
 
     # 创建分析
@@ -101,7 +84,7 @@ class TradeAnalyzer(Analyzer):
 
             # Streak
             # 计算连续盈利和亏损次数
-            for wlname in ['won', 'lost']:
+            for wlname in ["won", "lost"]:
                 # 当前盈亏状况
                 wl = res[wlname]
                 # 当前连续盈利或者亏损次数
@@ -110,8 +93,7 @@ class TradeAnalyzer(Analyzer):
                 # 获取最大连续盈利或者亏损的次数
                 ls = trades.streak[wlname].longest or 0
                 # 重新计算
-                trades.streak[wlname].longest = \
-                    max(ls, trades.streak[wlname].current)
+                trades.streak[wlname].longest = max(ls, trades.streak[wlname].current)
             # 交易的盈亏
             trpnl = trades.pnl
             # 交易总盈亏
@@ -125,7 +107,7 @@ class TradeAnalyzer(Analyzer):
 
             # Won/Lost statistics
             # 盈亏统计
-            for wlname in ['won', 'lost']:
+            for wlname in ["won", "lost"]:
                 # 当前盈亏
                 wl = res[wlname]
                 # 历史盈亏
@@ -140,16 +122,16 @@ class TradeAnalyzer(Analyzer):
                 trwlpnl.average = trwlpnl.total / (trwl.total or 1.0)
                 # 最大盈利或者最小的亏损(亏得最多的一笔)
                 wm = trwlpnl.max or 0.0
-                func = max if wlname == 'won' else min
+                func = max if wlname == "won" else min
                 trwlpnl.max = func(wm, pnlcomm)
 
             # Long/Short statistics
             # 多空的统计
-            for tname in ['long', 'short']:
+            for tname in ["long", "short"]:
                 # 多和空
                 trls = trades[tname]
                 # 当前交易的多和空
-                ls = res['t' + tname]
+                ls = res["t" + tname]
                 # 计算多和空的次数
                 trls.total += ls  # long.total / short.total
                 # 计算多和空的总的pnl
@@ -157,18 +139,17 @@ class TradeAnalyzer(Analyzer):
                 # 计算多和空的平均盈利
                 trls.pnl.average = trls.pnl.total / (trls.total or 1.0)
                 # 分析多、空的盈亏状况
-                for wlname in ['won', 'lost']:
+                for wlname in ["won", "lost"]:
                     wl = res[wlname]
                     pnlcomm = trade.pnlcomm * wl * ls
 
                     trls[wlname] += wl * ls  # long.won / short.won
 
                     trls.pnl[wlname].total += pnlcomm
-                    trls.pnl[wlname].average = \
-                        trls.pnl[wlname].total / (trls[wlname] or 1.0)
+                    trls.pnl[wlname].average = trls.pnl[wlname].total / (trls[wlname] or 1.0)
 
                     wm = trls.pnl[wlname].max or 0.0
-                    func = max if wlname == 'won' else min
+                    func = max if wlname == "won" else min
                     trls.pnl[wlname].max = func(wm, pnlcomm)
 
             # Length
@@ -185,7 +166,7 @@ class TradeAnalyzer(Analyzer):
 
             # Length Won/Lost
             # 盈亏交易占的bar的个数，和上面类似，只是分了盈利和亏损
-            for wlname in ['won', 'lost']:
+            for wlname in ["won", "lost"]:
                 trwl = trades.len[wlname]
                 wl = res[wlname]
 
@@ -200,9 +181,9 @@ class TradeAnalyzer(Analyzer):
 
             # Length Long/Short
             # 区分多和空的长度
-            for lsname in ['long', 'short']:
+            for lsname in ["long", "short"]:
                 trls = trades.len[lsname]  # trades.len.long
-                ls = res['t' + lsname]  # tlong/tshort
+                ls = res["t" + lsname]  # tlong/tshort
 
                 barlen = trade.barlen * ls
 
@@ -216,7 +197,7 @@ class TradeAnalyzer(Analyzer):
                 m = trls.min or MAXINT
                 trls.min = min(m, barlen or m)
                 # 区分多和空下盈利和亏损的长度
-                for wlname in ['won', 'lost']:
+                for wlname in ["won", "lost"]:
                     wl = res[wlname]  # won/lost
 
                     barlen2 = trade.barlen * ls * wl
@@ -224,8 +205,7 @@ class TradeAnalyzer(Analyzer):
                     trls_wl = trls[wlname]  # trades.len.long.won
                     trls_wl.total += barlen2  # trades.len.long.won.total
 
-                    trls_wl.average = \
-                        trls_wl.total / (trades[lsname][wlname] or 1.0)
+                    trls_wl.average = trls_wl.total / (trades[lsname][wlname] or 1.0)
 
                     # max/min
                     m = trls_wl.max or 0

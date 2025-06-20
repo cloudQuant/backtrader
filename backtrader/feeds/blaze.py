@@ -1,25 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 from backtrader import date2num
 import backtrader.feed as feed
@@ -28,7 +8,7 @@ import backtrader.feed as feed
 # 这个类是backtrader对接Blaze数据的类
 # blaze介绍可以看这个：https://blaze.readthedocs.io/en/latest/index.html
 class BlazeData(feed.DataBase):
-    '''
+    """
     Support for `Blaze <blaze.pydata.org>`_ ``Data`` objects.
 
     Only numeric indices to columns are supported.
@@ -40,26 +20,28 @@ class BlazeData(feed.DataBase):
       - A negative value in any of the parameters for the Data lines
         indicates it's not present in the DataFrame
         it is
-    '''
+    """
+
     # 参数
     params = (
         # datetime must be present
-        ('datetime', 0),
+        ("datetime", 0),
         # pass -1 for any of the following to indicate absence
-        ('open', 1),
-        ('high', 2),
-        ('low', 3),
-        ('close', 4),
-        ('volume', 5),
-        ('openinterest', 6),
+        ("open", 1),
+        ("high", 2),
+        ("low", 3),
+        ("close", 4),
+        ("volume", 5),
+        ("openinterest", 6),
     )
 
     # 列名称
-    datafields = [
-        'datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest'
-    ]
+    datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
     # 开始，直接把数据文件使用iter迭代，接下来_load的时候每次读取一行
+    def __init__(self):
+        self._rows = None
+
     def start(self):
         super(BlazeData, self).start()
 

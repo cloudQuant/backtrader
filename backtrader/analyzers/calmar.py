@@ -1,29 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 import backtrader as bt
 import math
 import collections
 from . import TimeDrawDown
 
-__all__ = ['Calmar']
+__all__ = ["Calmar"]
 
 
 # 计算calmar比例，总体上来看，这个calmar计算的并不算是太成功，或者说analyzer,observer等系列指标，使用效率并不是很高，
@@ -34,7 +16,7 @@ class Calmar(bt.TimeFrameAnalyzerBase):
     Params:
 
       - ``timeframe`` (default: ``None``)
-        If ``None`` the ``timeframe`` of the 1st data in the system will be
+        If ``None`` the ``timeframe`` of the first data in the system will be
         used
 
         Pass ``TimeFrame.NoTimeFrame`` to consider the entire dataset with no
@@ -42,16 +24,16 @@ class Calmar(bt.TimeFrameAnalyzerBase):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If compression is None, then the compression of the first data in the system will be
         used
       - *None*
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If ``None``, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -71,27 +53,36 @@ class Calmar(bt.TimeFrameAnalyzerBase):
     Attributes:
       - ``calmar`` the latest calculated calmar ratio
     """
+
     # 使用到的模块
-    packages = ('collections', 'math',)
+    packages = (
+        "collections",
+        "math",
+    )
     # 参数
     params = (
-        ('timeframe', bt.TimeFrame.Months),  # default in calmar
-        ('period', 36),
-        ('fund', None),
+        ("timeframe", bt.TimeFrame.Months),  # default in calmar
+        ("period", 36),
+        ("fund", None),
     )
 
     # 计算最大回撤
-    def __init__(self):
-        self._maxdd = TimeDrawDown(timeframe=self.p.timeframe,
-                                   compression=self.p.compression)
+    def __init__(self, *args, **kwargs):
+        # 调用父类的__init__方法以支持timeframe和compression参数
+        super(Calmar, self).__init__(*args, **kwargs)
+        
+        self.calmar = None
+        self._fundmode = None
+        self._values = None
+        self._mdd = None
+        self._maxdd = TimeDrawDown(timeframe=self.p.timeframe, compression=self.p.compression)
 
     # 开始
     def start(self):
         # 最大回撤率
-        self._mdd = float('-inf')
+        self._mdd = float("-inf")
         # 双向队列，保存period个值，默认是36个
-        self._values = collections.deque([float('Nan')] * self.p.period,
-                                         maxlen=self.p.period)
+        self._values = collections.deque([float("Nan")] * self.p.period, maxlen=self.p.period)
         # fundmode
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
@@ -114,7 +105,7 @@ class Calmar(bt.TimeFrameAnalyzerBase):
         # 默认情况下计算得到平均每个月的收益率
         rann = math.log(self._values[-1] / self._values[0]) / len(self._values)
         # 计算calmar指标
-        self.calmar = calmar = rann / (self._mdd or float('Inf'))
+        self.calmar = calmar = rann / (self._mdd or float("Inf"))
         # 保存结果
         self.rets[self.dtkey] = calmar
 

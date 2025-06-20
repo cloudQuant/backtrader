@@ -1,42 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import backtrader as bt
 from . import Highest, Lowest
 
+
 # 日本云图指标
 class Ichimoku(bt.Indicator):
-    '''
+    """
     Developed and published in his book in 1969 by journalist Goichi Hosoda
 
     Formula:
-      - tenkan_sen = (Highest(High, tenkan) + Lowest(Low, tenkan)) / 2.0
-      - kijun_sen = (Highest(High, kijun) + Lowest(Low, kijun)) / 2.0
+      - tenkan_sen = (Highest (High, tenkan) + Lowest (Low, tenkan)) / 2.0
+      - kijun_sen = (Highest (High, kijun) + Lowest (Low, kijun)) / 2.0
 
       The next 2 are pushed 26 bars into the future
 
       - senkou_span_a = (tenkan_sen + kijun_sen) / 2.0
-      - senkou_span_b = ((Highest(High, senkou) + Lowest(Low, senkou)) / 2.0
+      - senkou_span_b = ((Highest (High, senkou) + Lowest (Low, senkou)) / 2.0
 
       This is pushed 26 bars into the past
 
@@ -47,21 +27,26 @@ class Ichimoku(bt.Indicator):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:ichimoku_cloud
 
-    '''
-    lines = ('tenkan_sen', 'kijun_sen',
-             'senkou_span_a', 'senkou_span_b', 'chikou_span',)
+    """
+
+    lines = (
+        "tenkan_sen",
+        "kijun_sen",
+        "senkou_span_a",
+        "senkou_span_b",
+        "chikou_span",
+    )
     params = (
-        ('tenkan', 9),
-        ('kijun', 26),
-        ('senkou', 52),
-        ('senkou_lead', 26),  # forward push
-        ('chikou', 26),  # backwards push
+        ("tenkan", 9),
+        ("kijun", 26),
+        ("senkou", 52),
+        ("senkou_lead", 26),  # forward push
+        ("chikou", 26),  # backwards push
     )
 
     plotinfo = dict(subplot=False)
     plotlines = dict(
-        senkou_span_a=dict(_fill_gt=('senkou_span_b', 'g'),
-                           _fill_lt=('senkou_span_b', 'r')),
+        senkou_span_a=dict(_fill_gt=("senkou_span_b", "g"), _fill_lt=("senkou_span_b", "r")),
     )
 
     def __init__(self):

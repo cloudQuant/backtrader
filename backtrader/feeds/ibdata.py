@@ -1,49 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import datetime
-
 import backtrader as bt
 from backtrader.feed import DataBase
 from backtrader import TimeFrame, date2num, num2date
-from backtrader.utils.py3 import (integer_types, queue, string_types,
-                                  with_metaclass)
+from backtrader.utils.py3 import (
+    integer_types,
+    queue,
+    string_types,
+)
 from backtrader.metabase import MetaParams
 from backtrader.stores import ibstore
 
 
-class MetaIBData(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
-        # Initialize the class
-        super(MetaIBData, cls).__init__(name, bases, dct)
-
-        # Register with the store
-        ibstore.IBStore.DataCls = cls
-
-
-class IBData(with_metaclass(MetaIBData, DataBase)):
-    '''Interactive Brokers Data Feed.
+class IBData(DataBase):
+    """Interactive Brokers Data Feed.
     # 获取数据的时候，支持的dataname格式
     Supports the following contract specifications in parameter ``dataname``:
 
@@ -56,7 +27,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
           - TICKER-CFD-EXCHANGE  # CFD
           - TICKER-CDF-EXCHANGE-CURRENCY  # Stock
 
-          - TICKER-IND-EXCHANGE  # Index
+          - TICKER-IND-EXCHANGE # Index
           - TICKER-IND-EXCHANGE-CURRENCY  # Index
 
           - TICKER-YYYYMM-EXCHANGE  # Future
@@ -89,7 +60,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
         Default value to apply as *exchange* if not provided in the
         ``dataname`` specification
-        # 如果没有在名字中指定的话，默认的交易所是“SMART”
+        # 如果没有在名字中指定的话，默认的交易所是"SMART"
 
       - ``currency`` (default: ``''``)
 
@@ -121,7 +92,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
           - 'TRADES' for any other
 
         Use 'ASK' for the Ask quote of cash assets
-        
+
         Check the IB API docs if another value is wished
 
         # what这个参数决定具体下载哪些数据，可能会根据不同的资产类型有所变化
@@ -218,21 +189,22 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
         which uses the default values (``STK`` and ``SMART``) and overrides
         the currency to be ``USD``
 
-    '''
+    """
+
     params = (
-        ('sectype', 'STK'),  # usual industry value
-        ('exchange', 'SMART'),  # usual industry value
-        ('currency', ''),
-        ('rtbar', False),  # use RealTime 5 seconds bars
-        ('historical', False),  # only historical download
-        ('what', None),  # historical - what to show
-        ('useRTH', False),  # historical - download only Regular Trading Hours
-        ('qcheck', 0.5),  # timeout in seconds (float) to check for events
-        ('backfill_start', True),  # do backfilling at the start
-        ('backfill', True),  # do backfilling when reconnecting
-        ('backfill_from', None),  # additional data source to do backfill from
-        ('latethrough', False),  # let late samples through
-        ('tradename', None),  # use a different asset as order target
+        ("sectype", "STK"),  # usual industry value
+        ("exchange", "SMART"),  # usual industry value
+        ("currency", ""),
+        ("rtbar", False),  # use RealTime 5 seconds bars
+        ("historical", False),  # only historical download
+        ("what", None),  # historical - what to show
+        ("useRTH", False),  # historical - download only Regular Trading Hours
+        ("qcheck", 0.5),  # timeout in seconds (float) to check for events
+        ("backfill_start", True),  # do backfill at the start
+        ("backfill", True),  # do backfill when reconnecting
+        ("backfill_from", None),  # additional data source to do backfill from
+        ("latethrough", False),  # let late samples through
+        ("tradename", None),  # use a different asset as order target
     )
 
     _store = ibstore.IBStore
@@ -271,8 +243,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
         tzs = self.p.tz if tzstr else self.contractdetails.m_timeZoneId
 
-        if tzs == 'CST':  # reported by TWS, not compatible with pytz. patch it
-            tzs = 'CST6CDT'
+        if tzs == "CST":  # reported by TWS, not compatible with pytz. patch it
+            tzs = "CST6CDT"
 
         try:
             tz = pytz.timezone(tzs)
@@ -284,41 +256,56 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 是否是实时数据
     def islive(self):
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return not self.p.historical
 
     # 初始化
     def __init__(self, **kwargs):
+        super(IBData, self).__init__(**kwargs)
+        # 处理原来元类的注册功能
+        ibstore.IBStore.DataCls = self.__class__
+        
+        self.tradecontractdetails = None
+        self.tradecontract = None
+        self.contractdetails = None
+        self.contract = None
+        self._storedmsg = None
+        self._subcription_valid = None
+        self._statelivereconn = None
+        self._state = None
+        self._usertvol = None
+        self.qhist = None
+        self.qlive = None
         self.ib = self._store(**kwargs)
         self.precontract = self.parsecontract(self.p.dataname)
         self.pretradecontract = self.parsecontract(self.p.tradename)
 
     # 设置环境，接收到cerebro，并且把它传递到它所属的store
     def setenvironment(self, env):
-        '''Receives an environment (cerebro) and passes it over to the store it
-        belongs to'''
+        """Receives an environment (cerebro) and passes it over to the store it
+        belongs to"""
         super(IBData, self).setenvironment(env)
         env.addstore(self.ib)
 
     # 根据具体的数据名称生成合同
     def parsecontract(self, dataname):
-        '''Parses dataname generates a default contract'''
+        """Parses dataname generates a default contract"""
         # Set defaults for optional tokens in the ticker string
         if dataname is None:
             return None
 
         exch = self.p.exchange
         curr = self.p.currency
-        expiry = ''
+        expiry = ""
         strike = 0.0
-        right = ''
-        mult = ''
+        right = ""
+        mult = ""
 
         # split the ticker string
-        tokens = iter(dataname.split('-'))
+        tokens = iter(dataname.split("-"))
 
-        # Symbol and security type are compulsory
+        # Symbol and security type is compulsory
         symbol = next(tokens)
         try:
             sectype = next(tokens)
@@ -330,19 +317,19 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
             expiry = sectype  # save the expiration ate
 
             if len(sectype) == 6:  # YYYYMM
-                sectype = 'FUT'
+                sectype = "FUT"
             else:  # Assume OPTIONS - YYYYMMDD
-                sectype = 'OPT'
+                sectype = "OPT"
 
-        if sectype == 'CASH':  # need to address currency for Forex
-            symbol, curr = symbol.split('.')
+        if sectype == "CASH":  # need to address currency for Forex
+            symbol, curr = symbol.split(".")
 
         # See if the optional tokens were provided
         try:
-            exch = next(tokens)  # on exception it will be the default
-            curr = next(tokens)  # on exception it will be the default
+            exch = next(tokens)  # on exception, it will be the default
+            curr = next(tokens)  # on exception, it will be the default
 
-            if sectype == 'FUT':
+            if sectype == "FUT":
                 if not expiry:
                     expiry = next(tokens)
                 mult = next(tokens)
@@ -350,16 +337,16 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
                 # Try to see if this is FOP - Futures on OPTIONS
                 right = next(tokens)
                 # if still here this is a FOP and not a FUT
-                sectype = 'FOP'
-                strike, mult = float(mult), ''  # assign to strike and void
+                sectype = "FOP"
+                strike, mult = float(mult), ""  # assign to strike and void
 
                 mult = next(tokens)  # try again to see if there is any
 
-            elif sectype == 'OPT':
+            elif sectype == "OPT":
                 if not expiry:
                     expiry = next(tokens)
                 strike = float(next(tokens))  # on exception - default
-                right = next(tokens)  # on exception it will be the default
+                right = next(tokens)  # on exception, it will be the default
 
                 mult = next(tokens)  # ?? no harm in any case
 
@@ -368,15 +355,22 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
         # Make the initial contract
         precon = self.ib.makecontract(
-            symbol=symbol, sectype=sectype, exch=exch, curr=curr,
-            expiry=expiry, strike=strike, right=right, mult=mult)
+            symbol=symbol,
+            sectype=sectype,
+            exch=exch,
+            curr=curr,
+            expiry=expiry,
+            strike=strike,
+            right=right,
+            mult=mult,
+        )
 
         return precon
 
     # 开始连接到IB ，获取真实的合约并且返回详细的合约信息
     def start(self):
-        '''Starts the IB connecction and gets the real contract and
-        contractdetails if it exists'''
+        """Starts the IB connecction and gets the real contract and
+        contractdetails if it exists"""
         super(IBData, self).start()
         # Kickstart store and get queue to wait on
         self.qlive = self.ib.start(data=self)
@@ -401,7 +395,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
             self._state = self._ST_START  # initial state for _load
         self._statelivereconn = False  # if reconnecting in live state
         self._subcription_valid = False  # subscription state
-        self._storedmsg = dict()  # keep pending live message (under None)
+        self._storedmsg = dict()  # keep pending a live message (under None)
 
         if not self.ib.connected():
             return
@@ -441,13 +435,13 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 准备结束
     def stop(self):
-        '''Stops and tells the store to stop'''
+        """Stops and tells the store to stop"""
         super(IBData, self).stop()
         self.ib.stop()
 
     # 请求数据
     def reqdata(self):
-        '''request real-time data. checks cash vs non-cash) and param useRT'''
+        """request real-time data. checks cash vs. non-cash and param useRT"""
         if self.contract is None or self._subcription_valid:
             return
 
@@ -461,7 +455,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 取消数据
     def canceldata(self):
-        '''Cancels Market Data subscription, checking asset type and rtbar'''
+        """Cancels Market Data subscription, checking asset type and rtbar"""
         if self.contract is None:
             return
 
@@ -482,29 +476,32 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
         while True:
             if self._state == self._ST_LIVE:
                 try:
-                    msg = (self._storedmsg.pop(None, None) or
-                           self.qlive.get(timeout=self._qcheck))
+                    msg = self._storedmsg.pop(None, None) or self.qlive.get(timeout=self._qcheck)
                 except queue.Empty:
                     if True:
                         return None
 
-                # Code invalidated until further checking is done
+                    # Code invalidated until further checking is done
                     if not self._statelivereconn:
                         return None  # indicate timeout situation
 
                     # Awaiting data and nothing came in - fake it up until now
-                    dtend = self.num2date(date2num(datetime.datetime.utcnow()))
+                    dtend = self.num2date(date2num(datetime.datetime.now(UTC)))
                     dtbegin = None
                     if len(self) > 1:
                         dtbegin = self.num2date(self.datetime[-1])
 
                     self.qhist = self.ib.reqHistoricalDataEx(
                         contract=self.contract,
-                        enddate=dtend, begindate=dtbegin,
+                        enddate=dtend,
+                        begindate=dtbegin,
                         timeframe=self._timeframe,
                         compression=self._compression,
-                        what=self.p.what, useRTH=self.p.useRTH, tz=self._tz,
-                        sessionend=self.p.sessionend)
+                        what=self.p.what,
+                        useRTH=self.p.useRTH,
+                        tz=self._tz,
+                        sessionend=self.p.sessionend,
+                    )
 
                     if self._laststatus != self.DELAYED:
                         self.put_notification(self.DELAYED)
@@ -559,7 +556,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
                 elif isinstance(msg, integer_types):
                     # Unexpected notification for historical data skip it
-                    # May be a "not connected not yet processed"
+                    # May be a "not connected, not yet processed"
                     self.put_notification(self.UNKNOWN, msg)
                     continue
 
@@ -591,19 +588,25 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
                     # len == 1 ... forwarded for the 1st time
                     # get begin date in utc-like format like msg.datetime
                     dtbegin = num2date(self.datetime[-1])
-                elif self.fromdate > float('-inf'):
+                elif self.fromdate > float("-inf"):
                     dtbegin = num2date(self.fromdate)
-                else:  # 1st bar and no begin set
+                else:  # 1st bar and no beginning set
                     # passing None to fetch max possible in 1 request
                     dtbegin = None
 
                 dtend = msg.datetime if self._usertvol else msg.time
 
                 self.qhist = self.ib.reqHistoricalDataEx(
-                    contract=self.contract, enddate=dtend, begindate=dtbegin,
-                    timeframe=self._timeframe, compression=self._compression,
-                    what=self.p.what, useRTH=self.p.useRTH, tz=self._tz,
-                    sessionend=self.p.sessionend)
+                    contract=self.contract,
+                    enddate=dtend,
+                    begindate=dtbegin,
+                    timeframe=self._timeframe,
+                    compression=self._compression,
+                    what=self.p.what,
+                    useRTH=self.p.useRTH,
+                    tz=self._tz,
+                    sessionend=self.p.sessionend,
+                )
 
                 self._state = self._ST_HISTORBACK
                 self._statelivereconn = False  # no longer in live
@@ -612,7 +615,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
             elif self._state == self._ST_HISTORBACK:
                 msg = self.qhist.get()
                 if msg is None:  # Conn broken during historical/backfilling
-                    # Situation not managed. Simply bail out
+                    # The Situation isn't managed. Bail out
                     self._subcription_valid = False
                     self.put_notification(self.DISCONNECTED)
                     return False  # error management cancelled the queue
@@ -629,7 +632,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
                 elif isinstance(msg, integer_types):
                     # Unexpected notification for historical data skip it
-                    # May be a "not connected not yet processed"
+                    # May be a "not connected, not yet processed"
                     self.put_notification(self.UNKNOWN, msg)
                     continue
 
@@ -667,23 +670,30 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
             elif self._state == self._ST_START:
                 if not self._st_start():
                     return False
+
     #
     def _st_start(self):
         if self.p.historical:
             self.put_notification(self.DELAYED)
             dtend = None
-            if self.todate < float('inf'):
+            if self.todate < float("inf"):
                 dtend = num2date(self.todate)
 
             dtbegin = None
-            if self.fromdate > float('-inf'):
+            if self.fromdate > float("-inf"):
                 dtbegin = num2date(self.fromdate)
 
             self.qhist = self.ib.reqHistoricalDataEx(
-                contract=self.contract, enddate=dtend, begindate=dtbegin,
-                timeframe=self._timeframe, compression=self._compression,
-                what=self.p.what, useRTH=self.p.useRTH, tz=self._tz,
-                sessionend=self.p.sessionend)
+                contract=self.contract,
+                enddate=dtend,
+                begindate=dtbegin,
+                timeframe=self._timeframe,
+                compression=self._compression,
+                what=self.p.what,
+                useRTH=self.p.useRTH,
+                tz=self._tz,
+                sessionend=self.p.sessionend,
+            )
 
             self._state = self._ST_HISTORBACK
             return True  # continue before
@@ -703,7 +713,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 把K线数据保存到line里面
     def _load_rtbar(self, rtbar, hist=False):
-        # A complete 5 second bar made of real-time ticks is delivered and
+        # A complete 5-second bar made of real-time ticks is delivered and
         # contains open/high/low/close/volume prices
         # The historical data has the same data but with 'date' instead of
         # 'time' for datetime
@@ -725,7 +735,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
     # 把tick数据保存到line里面
     def _load_rtvolume(self, rtvol):
         # A single tick is delivered and is therefore used for the entire set
-        # of prices. Ideally the
+        # of prices.
+        # Ideally that
         # contains open/high/low/close/volume prices
         # Datetime transformation
         dt = date2num(rtvol.datetime)

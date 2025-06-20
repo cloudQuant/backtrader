@@ -1,33 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from . import Indicator, CmpEx
+
 
 # 一些价格中枢的算法
 class PivotPoint(Indicator):
-    '''
+    """
     Defines a level of significance by taking into account the average of price
-    bar components of the past period of a larger timeframe. For example when
+    bar components of the past period of a larger timeframe.
+    For example, when
     operating with days, the values are taking from the already "past" month
     fixed prices.
 
@@ -39,20 +20,22 @@ class PivotPoint(Indicator):
 
     In the ``__init__`` method of the strategy:
 
-      pivotindicator = btind.PivotPoiont(self.data1)  # the resampled data
+      pivotindicator = btind.PivotPoiont(self.data1) # the resampled data
 
-    The indicator will try to automatically plo to the non-resampled data. To
-    disable this behavior use the following during construction:
+    The indicator will try to automatically plo to the non-resampled data.
+    To
+    disable this behavior, use the following during construction:
 
       - _autoplot=False
 
     Note:
 
       The example shows *days* and *months*, but any combination of timeframes
-      can be used. See the literature for recommended combinations
+      can be used.
+      See the literature for recommended combinations
 
     Formula:
-      - pivot = (h + l + c) / 3  # variants duplicate close or add open
+      - pivot = (h + l + c) / 3 # variants duplicate close or add open
       - support1 = 2.0 * pivot - high
       - support2 = pivot - (high - low)
       - resistance1 = 2.0 * pivot - low
@@ -61,20 +44,27 @@ class PivotPoint(Indicator):
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:pivot_points
       - https://en.wikipedia.org/wiki/Pivot_point_(technical_analysis)
-    '''
-    lines = ('p', 's1', 's2', 'r1', 'r2',)
+    """
+
+    lines = (
+        "p",
+        "s1",
+        "s2",
+        "r1",
+        "r2",
+    )
     plotinfo = dict(subplot=False)
 
     params = (
-        ('open', False),  # add opening price to the pivot point
-        ('close', False),  # use close twice in the calcs
-        ('_autoplot', True),  # attempt to plot on real target data
+        ("open", False),  # add opening price to the pivot point
+        ("close", False),  # use close twice in the calcs
+        ("_autoplot", True),  # attempt to plot on real target data
     )
 
     def _plotinit(self):
         # Try to plot to the actual timeframe master
         if self.p._autoplot:
-            if hasattr(self.data, 'data'):
+            if hasattr(self.data, "data"):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
@@ -100,13 +90,14 @@ class PivotPoint(Indicator):
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
-            self()  # Coupler to follow real object
+            self()  # Coupler to follow a real object
 
 
 class FibonacciPivotPoint(Indicator):
-    '''
+    """
     Defines a level of significance by taking into account the average of price
-    bar components of the past period of a larger timeframe. For example when
+    bar components of the past period of a larger timeframe.
+    For example, when
     operating with days, the values are taking from the already "past" month
     fixed prices.
 
@@ -120,17 +111,19 @@ class FibonacciPivotPoint(Indicator):
 
     In the ``__init__`` method of the strategy:
 
-      pivotindicator = btind.FibonacciPivotPoiont(self.data1)  # the resampled data
+      pivotindicator = btind.FibonacciPivotPoiont(self.data1) # the resampled data
 
-    The indicator will try to automatically plo to the non-resampled data. To
-    disable this behavior use the following during construction:
+    The indicator will try to automatically plo to the non-resampled data.
+    To
+    disable this behavior, use the following during construction:
 
       - _autoplot=False
 
     Note:
 
       The example shows *days* and *months*, but any combination of timeframes
-      can be used. See the literature for recommended combinations
+      can be used.
+      See the literature for recommended combinations
 
     Formula:
       - pivot = (h + l + c) / 3  # variants duplicate close or add open
@@ -143,22 +136,23 @@ class FibonacciPivotPoint(Indicator):
 
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:pivot_points
-    '''
-    lines = ('p', 's1', 's2', 's3', 'r1', 'r2', 'r3')
+    """
+
+    lines = ("p", "s1", "s2", "s3", "r1", "r2", "r3")
     plotinfo = dict(subplot=False)
     params = (
-        ('open', False),  # add opening price to the pivot point
-        ('close', False),  # use close twice in the calcs
-        ('_autoplot', True),  # attempt to plot on real target data
-        ('level1', 0.382),
-        ('level2', 0.618),
-        ('level3', 1.0),
+        ("open", False),  # add opening price to the pivot point
+        ("close", False),  # use close twice in the calcs
+        ("_autoplot", True),  # attempt to plot on real target data
+        ("level1", 0.382),
+        ("level2", 0.618),
+        ("level3", 1.0),
     )
 
     def _plotinit(self):
         # Try to plot to the actual timeframe master
         if self.p._autoplot:
-            if hasattr(self.data, 'data'):
+            if hasattr(self.data, "data"):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
@@ -186,13 +180,14 @@ class FibonacciPivotPoint(Indicator):
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
-            self()  # Coupler to follow real object
+            self()  # Coupler to follow a real object
 
 
 class DemarkPivotPoint(Indicator):
-    '''
+    """
     Defines a level of significance by taking into account the average of price
-    bar components of the past period of a larger timeframe. For example when
+    bar components of the past period of a larger timeframe.
+    For example, when
     operating with days, the values are taking from the already "past" month
     fixed prices.
 
@@ -204,48 +199,55 @@ class DemarkPivotPoint(Indicator):
 
     In the ``__init__`` method of the strategy:
 
-      pivotindicator = btind.DemarkPivotPoiont(self.data1)  # the resampled data
+      pivotindicator = btind.DemarkPivotPoiont(self.data1) # the resampled data
 
-    The indicator will try to automatically plo to the non-resampled data. To
-    disable this behavior use the following during construction:
+    The indicator will try to automatically plo to the non-resampled data.
+    To
+    disable this behavior, use the following during construction:
 
       - _autoplot=False
 
     Note:
 
       The example shows *days* and *months*, but any combination of timeframes
-      can be used. See the literature for recommended combinations
+      can be used.
+      See the literature for recommended combinations
 
     Formula:
       - if close < open x = high + (2 x low) + close
 
-      - if close > open x = (2 x high) + low + close
+      - If close > open x = (2 x high) + low + close
 
-      - if Close == open x = high + low + (2 x close)
+      - If Close == open x = high + low + (2 x close)
 
-      - p = x / 4
+      - P = x / 4
 
-      - support1 = x / 2 - high
+      - Support1 = x / 2 - high
       - resistance1 = x / 2 - low
 
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:pivot_points
-    '''
-    lines = ('p', 's1', 'r1',)
+    """
+
+    lines = (
+        "p",
+        "s1",
+        "r1",
+    )
     plotinfo = dict(subplot=False)
     params = (
-        ('open', False),  # add opening price to the pivot point
-        ('close', False),  # use close twice in the calcs
-        ('_autoplot', True),  # attempt to plot on real target data
-        ('level1', 0.382),
-        ('level2', 0.618),
-        ('level3', 1.0),
+        ("open", False),  # add opening price to the pivot point
+        ("close", False),  # use close twice in the calcs
+        ("_autoplot", True),  # attempt to plot on real target data
+        ("level1", 0.382),
+        ("level2", 0.618),
+        ("level3", 1.0),
     )
 
     def _plotinit(self):
         # Try to plot to the actual timeframe master
         if self.p._autoplot:
-            if hasattr(self.data, 'data'):
+            if hasattr(self.data, "data"):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
@@ -263,4 +265,4 @@ class DemarkPivotPoint(Indicator):
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
-            self()  # Coupler to follow real object
+            self()  # Coupler to follow a real object

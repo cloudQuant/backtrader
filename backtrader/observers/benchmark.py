@@ -1,32 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import backtrader as bt
 from . import TimeReturn
 
+
 # 基准
 class Benchmark(TimeReturn):
-    '''This observer stores the *returns* of the strategy and the *return* of a
+    """This observer stores the *returns* of the strategy and the *return* of a
     reference asset which is one of the datas passed to the system.
 
     Params:
@@ -37,14 +18,14 @@ class Benchmark(TimeReturn):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
       - ``data`` (default: ``None``)
 
         Reference asset to track to allow for comparison.
 
-        .. note:: this data must have been added to a ``cerebro`` instance with
+        :note:: this data must have been added to a ``cerebro`` instance with
                   ``addata``, ``resampledata`` or ``replaydata``.
 
 
@@ -67,34 +48,36 @@ class Benchmark(TimeReturn):
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
 
         Set it to ``True`` or ``False`` for a specific behavior
 
-    Remember that at any moment of a ``run`` the current values can be checked
+    Remember that at any moment of a `run` the current values can be checked
     by looking at the *lines* by name at index ``0``.
 
-    '''
+    """
+
     _stclock = True
 
-    lines = ('benchmark',)
-    plotlines = dict(benchmark=dict(_name='Benchmark'))
+    lines = ("benchmark",)
+    plotlines = dict(benchmark=dict(_name="Benchmark"))
 
     params = (
-        ('data', None),
-        ('_doprenext', False),
-        # Set to false to ensure the asset is measured at 0% in the 1st tick
-        ('firstopen', False),
-        ('fund', None)
+        ("data", None),
+        ("_doprenext", False),
+        # Set to False, to ensure the asset is measured at 0% in the 1st tick
+        ("firstopen", False),
+        ("fund", None),
     )
 
     def _plotlabel(self):
         labels = super(Benchmark, self)._plotlabel()
         labels.append(self.p.data._name)
         return labels
+
     # 初始化，如果没有设置data,用第一个data
     def __init__(self):
         if self.p.data is None:  # use the 1st data in the system if none given
@@ -103,7 +86,7 @@ class Benchmark(TimeReturn):
         super(Benchmark, self).__init__()  # treturn including data parameter
         # Create a time return object without the data
         kwargs = self.p._getkwargs()
-        kwargs.update(data=None)  # to create a return for the stratey
+        kwargs.update(data=None)  # to create a return for the strategy
         # 获取收益率
         t = self._owner._addanalyzer_slave(bt.analyzers.TimeReturn, **kwargs)
 
@@ -113,8 +96,8 @@ class Benchmark(TimeReturn):
     # 设置benchmark的值
     def next(self):
         super(Benchmark, self).next()
-        self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey,
-                                                       float('NaN'))
+        self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey, float("NaN"))
+
     # prenext
     def prenext(self):
         if self.p._doprenext:

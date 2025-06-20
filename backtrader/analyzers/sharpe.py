@@ -1,23 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 import math
 from backtrader.utils.py3 import itervalues
 from backtrader import Analyzer, TimeFrame
@@ -28,7 +10,7 @@ from backtrader.analyzers import TimeReturn, AnnualReturn
 class SharpeRatio(Analyzer):
     # 相对来说，backtrader计算夏普率的方式其实蛮复杂的，考虑了很多的参数
     """This analyzer calculates the SharpeRatio of a strategy using a risk-free
-    asset which is simply an interest rate
+    asset, which is simply an interest rate
 
     See also:
 
@@ -36,23 +18,23 @@ class SharpeRatio(Analyzer):
 
     Params:
 
-      - ``timeframe``: (default: ``TimeFrame.Years``)  # 交易周期
+      - ``timeframe``: (default: ``TimeFrame.Years``) # 交易周期
 
-      - ``compression`` (default: ``1``)               # 具体的交易周期
+      - ``compression`` (default: ``1``) # 具体的交易周期
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-      - ``riskfreerate`` (default: 0.01 -> 1%)  # 计算夏普率使用的无风险收益率
+      - ``riskfreerate`` (default: 0.01 -> 1%) # 计算夏普率使用的无风险收益率
 
         Expressed in annual terms (see ``convertrate`` below)
 
-      - ``convertrate`` (default: ``True``)     # 是否把无风险收益率从年转化成月、周、日，不支持转化成日内
+      - ``convertrate`` (default: ``True``) # 是否把无风险收益率从年转化成月、周、日，不支持转化成日内
 
         Convert the ``riskfreerate`` from annual to monthly, weekly or daily
         rate. Sub-day conversions are not supported
 
-      - ``factor`` (default: ``None``)          # factor如果没有指定，将会按照指定的日期去转化，1年等于12个月等于52周等于252个交易日
+      - ``factor`` (default: ``None``) # factor如果没有指定，将会按照指定的日期去转化，1年等于12个月等于52周等于252个交易日
 
         If ``None``, the conversion factor for the risk-free rate from *annual*
         to the chosen timeframe will be chosen from a predefined table
@@ -61,16 +43,16 @@ class SharpeRatio(Analyzer):
 
         Else the specified value will be used
 
-      - ``annualize`` (default: ``False``)      # 如果参数设置成True的话，将会转化成年化的收益率
+      - ``annualize`` (default: ``False``) # 如果参数设置成True的话，将会转化成年化的收益率
 
-        If ``convertrate`` is ``True``, the *SharpeRatio* will be delivered in
+        If ``convertrate`` is `True`, the *SharpeRatio* will be delivered in
         the ``timeframe`` of choice.
 
-        In most occasions the SharpeRatio is delivered in annualized form.
+        On most occasions, the SharpeRatio is delivered in annualized form.
         Convert the ``riskfreerate`` from annual to monthly, weekly or daily
         rate. Sub-day conversions are not supported
 
-      - ``stddev_sample`` (default: ``False``)  # 计算标准差的时候是否减去1
+      - ``stddev_sample`` (default: ``False``) # 计算标准差的时候是否减去1
 
         If this is set to ``True`` the *standard deviation* will be calculated
         decreasing the denominator in the mean by ``1``. This is used when
@@ -78,7 +60,7 @@ class SharpeRatio(Analyzer):
         samples are used for the calculation. This is known as the *Bessels'
         correction*
 
-      - ``daysfactor`` (default: ``None``)   # 旧的代码遗留
+      - ``daysfactor`` (default: ``None``) # 旧的代码遗留
 
         Old naming for ``factor``. If set to anything else than ``None`` and
         the ``timeframe`` is ``TimeFrame.Days`` it will be assumed this is old
@@ -87,11 +69,11 @@ class SharpeRatio(Analyzer):
       - ``legacyannual`` (default: ``False``) # 仅仅作用于年，使用年化收益率的分析器
 
         Use the ``AnnualReturn`` return analyzer, which as the name implies
-        only works on years
+        only works for years
 
-      - ``fund`` (default: ``None``)   # 是净资产模式还是fund模式，默认情况下，将会自己判断
+      - ``fund`` (default: ``None``) # 是净资产模式还是fund模式，默认情况下，将会自己判断
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -100,25 +82,24 @@ class SharpeRatio(Analyzer):
 
     Methods:
 
-      - get_analysis
+      - Get_analysis
 
         Returns a dictionary with key "sharperatio" holding the ratio
 
     """
     # 默认的参数
     params = (
-        ('timeframe', TimeFrame.Years),
-        ('compression', 1),
-        ('riskfreerate', 0.01),
-        ('factor', None),
-        ('convertrate', True),
-        ('annualize', False),
-        ('stddev_sample', False),
-
+        ("timeframe", TimeFrame.Years),
+        ("compression", 1),
+        ("riskfreerate", 0.01),
+        ("factor", None),
+        ("convertrate", True),
+        ("annualize", False),
+        ("stddev_sample", False),
         # old behavior
-        ('daysfactor', None),
-        ('legacyannual', False),
-        ('fund', None),
+        ("daysfactor", None),
+        ("legacyannual", False),
+        ("fund", None),
     )
     # 默认的日期转化
     RATEFACTORS = {
@@ -134,9 +115,8 @@ class SharpeRatio(Analyzer):
             self.anret = AnnualReturn()
         else:
             self.timereturn = TimeReturn(
-                timeframe=self.p.timeframe,
-                compression=self.p.compression,
-                fund=self.p.fund)
+                timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
+            )
 
     def stop(self):
         super(SharpeRatio, self).stop()
@@ -160,8 +140,7 @@ class SharpeRatio(Analyzer):
 
             # Hack to identify old code
             # 获取具体的factor日期，如果是日周期并且daysfactor不是None的话，另factor = daysfactor
-            if self.p.timeframe == TimeFrame.Days and \
-               self.p.daysfactor is not None:
+            if self.p.timeframe == TimeFrame.Days and self.p.daysfactor is not None:
 
                 factor = self.p.daysfactor
             # 否则，如果factor这个参数不是None的话，就等于factor这个参数的值，否则根据交易周期从定义的factors里面找
@@ -177,7 +156,7 @@ class SharpeRatio(Analyzer):
                 # A factor was found
 
                 if self.p.convertrate:
-                    # Standard: downgrade annual returns to timeframe factor
+                    # Standard: downgrade annual returns to a timeframe factor
                     rate = pow(1.0 + rate, 1.0 / factor) - 1.0
                 else:
                     # Else upgrade returns to yearly returns
@@ -200,8 +179,7 @@ class SharpeRatio(Analyzer):
                     # 计算得到夏普率
                     ratio = ret_free_avg / retdev
                     # 如果factor不是None,并且把年无风险收益率转化成日了，并且需要计算年化的夏普率
-                    if factor is not None and \
-                       self.p.convertrate and self.p.annualize:
+                    if factor is not None and self.p.convertrate and self.p.annualize:
                         # 把夏普率从日转化成年
                         ratio = math.sqrt(factor) * ratio
                 except (ValueError, TypeError, ZeroDivisionError):
@@ -212,19 +190,18 @@ class SharpeRatio(Analyzer):
             # todo 这里面self.ratio并没有用到，赋值直接用ratio就好了，还能提高运行速度
             # self.ratio = ratio
         # 保存夏普率
-        self.rets['sharperatio'] = ratio
+        self.rets["sharperatio"] = ratio
 
 
 class SharpeRatioA(SharpeRatio):
     """Extension of the SharpeRatio which returns the Sharpe Ratio directly in
     annualized form
 
-    The following param has been changed from ``SharpeRatio``
+    The following param has been changed from `SharpeRatio`
 
       - ``annualize`` (default: ``True``)
 
     """
+
     # 计算年化的夏普率
-    params = (
-        ('annualize', True),
-    )
+    params = (("annualize", True),)

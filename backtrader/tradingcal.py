@@ -1,46 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-
 from datetime import datetime, timedelta, time
 
-from .metabase import MetaParams
-from backtrader.utils.py3 import string_types, with_metaclass
+from .parameters import ParameterizedBase
+from backtrader.utils.py3 import string_types
 from backtrader.utils import UTC
 
 # from tradingcal import * 可以import到的所有的类
-__all__ = ['TradingCalendarBase', 'TradingCalendar', 'PandasMarketCalendar']
+__all__ = ["TradingCalendarBase", "TradingCalendar", "PandasMarketCalendar"]
 
-# Imprecission in the full time conversion to float would wrap over to next day
-# if microseconds is 999999 as defined in time.max
+# Imprecision in the full time conversion to float would wrap over to next day
+# if microseconds are 999,999 as defined in time.max
 # 每天的最大时间
 _time_max = time(hour=23, minute=59, second=59, microsecond=999990)
 
 # 一周七天的常量,周一是0，周日是6
 MONDAY, TUESDAY, WEDNESDAY, THURSDAY, FRIDAY, SATURDAY, SUNDAY = range(7)
 # 判断是周几，没有日期是0，周一是1，周日是7
-(ISONODAY, ISOMONDAY, ISOTUESDAY, ISOWEDNESDAY, ISOTHURSDAY, ISOFRIDAY,
- ISOSATURDAY, ISOSUNDAY) = range(8)
+(ISONODAY, ISOMONDAY, ISOTUESDAY, ISOWEDNESDAY, ISOTHURSDAY, ISOFRIDAY, ISOSATURDAY, ISOSUNDAY) = (
+    range(8)
+)
 # 周末是周六和周日
 WEEKEND = [SATURDAY, SUNDAY]
 # 是否是周末
@@ -48,76 +27,80 @@ ISOWEEKEND = [ISOSATURDAY, ISOSUNDAY]
 # 一天的时间差
 ONEDAY = timedelta(days=1)
 
-# 交易日历基类，定义了具体的方法
-class TradingCalendarBase(with_metaclass(MetaParams, object)):
+
+# 交易日历基类，定义了具体的方法 - 重构为不使用元类
+class TradingCalendarBase(ParameterizedBase):
     # 返回day之后的下一个交易日和日历组成
     def _nextday(self, day):
-        '''
+        """
         Returns the next trading day (datetime/date instance) after ``day``
         (datetime/date instance) and the isocalendar components
 
-        The return value is a tuple with 2 components: (nextday, (y, w, d))
-        '''
+        The return value is a tuple with two parts: (nextday, (y, w, d))
+        """
         raise NotImplementedError
 
     # 返回一天的开盘和收盘时间
     def schedule(self, day):
-        '''
+        """
         Returns a tuple with the opening and closing times (``datetime.time``)
         for the given ``date`` (``datetime/date`` instance)
-        '''
+        """
         raise NotImplementedError
 
     # 返回day之后的下一个交易日
     def nextday(self, day):
-        '''
+        """
         Returns the next trading day (datetime/date instance) after ``day``
         (datetime/date instance)
-        '''
+        """
         return self._nextday(day)[0]  # 1st ret elem is next day
 
     # 返回day之后下一个交易日所在的周数
     def nextday_week(self, day):
-        '''
+        """
         Returns the iso week number of the next trading day, given a ``day``
         (datetime/date) instance
-        '''
+        """
         self._nextday(day)[1][1]  # 2 elem is isocal / 0 - y, 1 - wk, 2 - day
 
     # 计算当前day是否是这周的最后一天
     def last_weekday(self, day):
-        '''
+        """
         Returns ``True`` if the given ``day`` (datetime/date) instance is the
         last trading day of this week
-        '''
-        # Next day must be greater than day. If the week changes is enough for
+        """
+        # Next day must be greater than day.
+        # If the week changes are enough for
         # a week change even if the number is smaller (year change)
         return day.isocalendar()[1] != self._nextday(day)[1][1]
 
     # 判断当天day是否是这个月的最后一天
     def last_monthday(self, day):
-        '''
+        """
         Returns ``True`` if the given ``day`` (datetime/date) instance is the
         last trading day of this month
-        '''
-        # Next day must be greater than day. If the week changes is enough for
+        """
+        # Next day must be greater than day.
+        # If the week changes are enough for
         # a week change even if the number is smaller (year change)
         return day.month != self._nextday(day)[0].month
 
     # 判断当天day是否是这一年的最后一天
     def last_yearday(self, day):
-        '''
+        """
         Returns ``True`` if the given ``day`` (datetime/date) instance is the
         last trading day of this month
-        '''
-        # Next day must be greater than day. If the week changes is enough for
+        """
+        # Next day must be greater than day.
+        # If the week changes are enough for
         # a week change even if the number is smaller (year change)
         return day.year != self._nextday(day)[0].year
 
 
-# 交易日历类
+# 交易日历类 - 重构为不使用元类
 class TradingCalendar(TradingCalendarBase):
-    '''
+    """
     Wrapper of ``pandas_market_calendars`` for a trading calendar. The package
     ``pandas_market_calendar`` must be installed
     # 在这个类里面，目前来看，似乎没有必须要安装pandas_market_calendar
@@ -143,9 +126,9 @@ class TradingCalendar(TradingCalendarBase):
       - ``earlydays`` (default ``[]``)
 
         List of tuples determining the date and opening/closing times of days
-        which do not conform to the regular trading hours where each tuple has
-        (``datetime.datetime``, ``datetime.time``, ``datetime.time`` )
-        # earlydays,交易时间不符合常规交易日开始和结束时间的交易日
+        which do not conform to the regular trading hours when each tuple has
+        (``datetime.datetime``, ``datetime.time``, ``datetime.time``)
+        # earlydays, 交易时间不符合常规交易日开始和结束时间的交易日
 
       - ``offdays`` (default ``ISOWEEKEND``)
 
@@ -153,31 +136,32 @@ class TradingCalendar(TradingCalendarBase):
         market doesn't trade. This is usually Saturday and Sunday and hence the
         default
 
-        # offdays,周一到周日中不交易的日期，通常是周六和周日
+        # offdays, 周一到周日中不交易的日期，通常是周六和周日
 
-    '''
+    """
 
     # 参数
     params = (
-        ('open', time.min),
-        ('close', _time_max),
-        ('holidays', []),  # list of non trading days (date)
-        ('earlydays', []),  # list of tuples (date, opentime, closetime)
-        ('offdays', ISOWEEKEND),  # list of non trading (isoweekdays)
+        ("open", time.min),
+        ("close", _time_max),
+        ("holidays", []),  # list of non-trading days (date)
+        ("earlydays", []),  # list of tuples (date, opentime, closetime)
+        ("offdays", ISOWEEKEND),  # list of non-trading (isoweekdays)
     )
 
     # 初始化，根据earlydays，获取这些日期，为了加快搜索的速度
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super(TradingCalendar, self).__init__(**kwargs)
         self._earlydays = [x[0] for x in self.p.earlydays]  # speed up searches
 
     # 获取下一个交易日
     def _nextday(self, day):
-        '''
+        """
         Returns the next trading day (datetime/date instance) after ``day``
         (datetime/date instance) and the isocalendar components
 
-        The return value is a tuple with 2 components: (nextday, (y, w, d))
-        '''
+        The return value is a tuple with two parts: (nextday, (y, w, d))
+        """
         # while循环
         while True:
             # 下一个交易日
@@ -192,18 +176,18 @@ class TradingCalendar(TradingCalendarBase):
 
     # 获取day的开盘和收盘时间
     def schedule(self, day, tz=None):
-        '''
+        """
         Returns the opening and closing times for the given ``day``. If the
-        method is called, the assumption is that ``day`` is an actual trading
+        method is called, the assumption is that `day` is an actual trading
         day
 
         The return value is a tuple with 2 components: opentime, closetime
-        '''
+        """
         # while循环
         while True:
             # 获取day的日期
             dt = day.date()
-            # 尝试获取交易日是否在earlydays里面，如果在，根据这个得到具体的开盘和收盘时间
+            # 尝试获取交易日是否在earlydays里面，如果在，根据这个得到具体地开盘和收盘时间
             # 如果不在，开盘默认是当前最小的时间，收盘默认是当天最大的时间
             try:
                 i = self._earlydays.index(dt)
@@ -231,7 +215,7 @@ class TradingCalendar(TradingCalendarBase):
 
 
 class PandasMarketCalendar(TradingCalendarBase):
-    '''
+    """
     Wrapper of ``pandas_market_calendars`` for a trading calendar. The package
     ``pandas_market_calendar`` must be installed
     # 必须要安装pandas_market_calendar
@@ -241,10 +225,10 @@ class PandasMarketCalendar(TradingCalendarBase):
 
         The param ``calendar`` accepts the following:
 
-        - string: the name of one of the calendars supported, for example
+        - string: the name of one of the calendars supported, for example,
           `NYSE`. The wrapper will attempt to get a calendar instance
 
-        - calendar instance: as returned by ``get_calendar('NYSE')``
+        - Calendar instance: as returned by ``get_calendar('NYSE')``
 
         # calendar信息，可以是字符串，也可以是calendar的实例
 
@@ -260,33 +244,38 @@ class PandasMarketCalendar(TradingCalendarBase):
 
       - http://pandas-market-calendars.readthedocs.io/
 
-    '''
+    """
+
     # 参数
     params = (
-        ('calendar', None),  # A pandas_market_calendars instance or exch name
-        ('cachesize', 365),  # Number of days to cache in advance
+        ("calendar", None),  # A pandas_market_calendars instance or exch name
+        ("cachesize", 365),  # Number of days to cache in advance
     )
+
     # 初始化
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super(PandasMarketCalendar, self).__init__(**kwargs)
         self._calendar = self.p.calendar
         # 如果self._calendar是字符串，使用get_calendar转换成calendar实例
         if isinstance(self._calendar, string_types):  # use passed mkt name
             import pandas_market_calendars as mcal
+
             self._calendar = mcal.get_calendar(self._calendar)
         # 创建self.dcache，self.dcache，self.csize
         import pandas as pd  # guaranteed because of pandas_market_calendars
+
         self.dcache = pd.DatetimeIndex([0.0])
         self.idcache = pd.DataFrame(index=pd.DatetimeIndex([0.0]))
         self.csize = timedelta(days=self.p.cachesize)
 
     # 获取下一个交易日
     def _nextday(self, day):
-        '''
+        """
         Returns the next trading day (datetime/date instance) after ``day``
         (datetime/date instance) and the isocalendar components
 
-        The return value is a tuple with 2 components: (nextday, (y, w, d))
-        '''
+        The return value is a tuple with two parts: (nextday, (y, w, d))
+        """
         day += ONEDAY
         while True:
             # 获取day所在的index
@@ -300,15 +289,15 @@ class PandasMarketCalendar(TradingCalendarBase):
             d = self.dcache[i].to_pydatetime()
             return d, d.isocalendar()
 
-    # 获取具体的开盘和收盘时间
+    # 获取具体地开盘和收盘时间
     def schedule(self, day, tz=None):
-        '''
+        """
         Returns the opening and closing times for the given ``day``. If the
-        method is called, the assumption is that ``day`` is an actual trading
+        method is called, the assumption is that `day` is an actual trading
         day
 
         The return value is a tuple with 2 components: opentime, closetime
-        '''
+        """
         while True:
             # 获取交易日所在的index,然后判断是否需要更新日历数据
             i = self.idcache.index.searchsorted(day.date())

@@ -1,65 +1,77 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from datetime import date, datetime, timedelta
 
-from datetime import datetime, timedelta
-
-from backtrader import TimeFrame
-from backtrader.utils.py3 import with_metaclass
-from .. import metabase
+from ..parameters import ParameterizedBase, ParameterDescriptor, Float
+from .. import TimeFrame
 
 
-class SessionFiller(with_metaclass(metabase.MetaParams, object)):
-    '''
-    Bar Filler for a Data Source inside the declared session start/end times.
+class SessionFiller(ParameterizedBase):
+    """
+    Bar Filler to add missing bars over gaps in a session.
 
-    The fill bars are constructed using the declared Data Source ``timeframe``
-    and ``compression`` (used to calculate the intervening missing times)
+    This class has been refactored from MetaParams to the new ParameterizedBase
+    system for Day 36-38 of the metaprogramming removal project.
 
-    Params:
+    How to use it:
+
+      - Instantiate the class (1 instance per filter needed)
+
+      - ``addfilter`` it to the data with ``data.addfilter(filter_instance)``
+
+    Bar ``fill`` logic:
+
+      - The ``fill_price`` will be used to fill ``open``, ``high``, ``low`` and
+        ``close``
+
+        If ``None`` then the ``close`` price of the last (previous) bar will be
+        used.
+
+      - Volume will be set to ``fill_vol``
+
+      - ``openinterest`` will be set to ``fill_oi``
+
+    Parameters:
 
       - fill_price (def: None):
 
-        If None is passed, the closing price of the previous bar will be
-        used. To end up with a bar which for example takes time but it is not
-        displayed in a plot ... use float('Nan')
+        Price to be used to fill missing bars. If None will be used the closing
+        price of the previous bar
 
       - fill_vol (def: float('NaN')):
 
         Value to use to fill the missing volume
 
-      - fill_oi (def: float('NaN')):
+      - Fill_oi (def: float('NaN')):
 
         Value to use to fill the missing Open Interest
 
-      - skip_first_fill (def: True):
+      - Skip_first_fill (def: True):
 
         Upon seeing the 1st valid bar do not fill from the sessionstart up to
         that bar
-    '''
-    params = (('fill_price', None),
-              ('fill_vol', float('NaN')),
-              ('fill_oi', float('NaN')),
-              ('skip_first_fill', True))
+    """
+
+    # 使用新的参数描述符系统定义参数
+    fill_price = ParameterDescriptor(
+        default=None,
+        doc="Price to be used to fill missing bars. If None will be used the closing price of the previous bar"
+    )
+    fill_vol = ParameterDescriptor(
+        default=float("NaN"),
+        type_=float,
+        doc="Value to use to fill the missing volume"
+    )
+    fill_oi = ParameterDescriptor(
+        default=float("NaN"),
+        type_=float,
+        doc="Value to use to fill the missing Open Interest"
+    )
+    skip_first_fill = ParameterDescriptor(
+        default=True,
+        type_=bool,
+        doc="Upon seeing the 1st valid bar do not fill from the sessionstart up to that bar"
+    )
 
     MAXDATE = datetime.max
 
@@ -70,7 +82,8 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
         TimeFrame.MicroSeconds: timedelta(microseconds=1),
     }
 
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
+        super(SessionFiller, self).__init__(**kwargs)
         # Calculate and save timedelta for timeframe
         self._tdframe = self._tdeltas[data._timeframe]
         self._tdunit = self._tdeltas[data._timeframe] * data._compression
@@ -79,7 +92,7 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
         self.sessend = self.MAXDATE  # maxdate is the control for session bar
 
     def __call__(self, data):
-        '''
+        """
         Params:
           - data: the data source to filter/process
 
@@ -91,17 +104,18 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
 
           - If new bar is over session end (never true for 1st bar)
 
-            Fill up to session end. Reset sessionend to MAXDATE & fall through
+            Fill up to the session end.
+            Reset sessionend to MAXDATE & fall through
 
-          - If session end is flagged as MAXDATE
+          - If the session end is flagged as MAXDATE
 
             Recalculate session limits and check whether the bar is within them
 
-            if so, fill up and record the last seen tim
+            If so, fill up and record the last seen tim
 
           - Else ... the incoming bar is in the session, fill up to it
-        '''
-        # Get time of current (from data source) bar
+        """
+        # Get time of current (from a data source) bar
         ret = False
 
         dtime_cur = data.datetime.datetime()
@@ -109,42 +123,39 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
         if dtime_cur > self.sessend:
             # bar over session end - fill up and invalidate
             # Do not put current bar in stack to let it be evaluated below
-            # Fill up to endsession + smallest unit of timeframe
-            ret = self._fillbars(data, self.dtime_prev,
-                                 self.sessend + self._tdframe,
-                                 tostack=False)
+            # Fill up to endsession + the smallest unit of timeframe
+            ret = self._fillbars(data, self.dtime_prev, self.sessend + self._tdframe, tostack=False)
             self.sessend = self.MAXDATE
 
         # Fall through from previous check ... the bar which is over the
         # session could already be in a new session and within the limits
         if self.sessend == self.MAXDATE:
-            # No bar seen yet or one went over previous session limit
+            # No bar seen yet or one went over the previous session limit
             ddate = dtime_cur.date()
             sessstart = datetime.combine(ddate, data.p.sessionstart)
             self.sessend = sessend = datetime.combine(ddate, data.p.sessionend)
 
             if sessstart <= dtime_cur <= sessend:
                 # 1st bar from session in the session - fill from session start
-                if self.seenbar or not self.p.skip_first_fill:
-                    ret = self._fillbars(data,
-                                         sessstart - self._tdunit, dtime_cur)
+                if self.seenbar or not self.get_param('skip_first_fill'):
+                    ret = self._fillbars(data, sessstart - self._tdunit, dtime_cur)
 
             self.seenbar = True
             self.dtime_prev = dtime_cur
 
         else:
-            # Seen a previous bar and this is in the session - fill up to it
+            # Seen a previous bar, and this is in the session - fill up to it
             ret = self._fillbars(data, self.dtime_prev, dtime_cur)
             self.dtime_prev = dtime_cur
 
         return ret
 
     def _fillbars(self, data, time_start, time_end, tostack=True):
-        '''
+        """
         Fills one by one bars as needed from time_start to time_end
 
         Invalidates the control dtime_prev if requested
-        '''
+        """
         # Control flag - bars added to the stack
         dirty = 0
 
@@ -159,36 +170,39 @@ class SessionFiller(with_metaclass(metabase.MetaParams, object)):
         return bool(dirty) or not tostack
 
     def _fillbar(self, data, dtime):
-        # Prepare an array of the needed size
-        bar = [float('Nan')] * data.size()
+        # Prepare an array of the necessary size
+        bar = [float("Nan")] * data.size()
 
         # Fill datetime
         bar[data.DateTime] = data.date2num(dtime)
 
         # Fill the prices
-        price = self.p.fill_price or data.close[-1]
+        price = self.get_param('fill_price') or data.close[-1]
         for pricetype in [data.Open, data.High, data.Low, data.Close]:
             bar[pricetype] = price
 
         # Fill volume and open interest
-        bar[data.Volume] = self.p.fill_vol
-        bar[data.OpenInterest] = self.p.fill_oi
+        bar[data.Volume] = self.get_param('fill_vol')
+        bar[data.OpenInterest] = self.get_param('fill_oi')
 
         # Fill extra lines the data feed may have defined beyond DateTime
         for i in range(data.DateTime + 1, data.size()):
             bar[i] = data.lines[i][0]
 
-        # Add tot he stack of bars to save
+        # Add to the stack of bars to save
         data._add2stack(bar)
 
         return True
 
 
-class SessionFilterSimple(with_metaclass(metabase.MetaParams, object)):
-    '''
+class SessionFilterSimple(ParameterizedBase):
+    """
     This class can be applied to a data source as a filter and will filter out
-    intraday bars which fall outside of the regular session times (ie: pre/post
+    intraday bars which fall outside the regular session times (ie: pre/post
     market data)
+
+    This class has been refactored from MetaParams to the new ParameterizedBase
+    system for Day 36-38 of the metaprogramming removal project.
 
     This is a "simple" filter and must NOT manage the stack of the data (passed
     during init and __call__)
@@ -197,48 +211,52 @@ class SessionFilterSimple(with_metaclass(metabase.MetaParams, object)):
 
     Bar Management will be done by the SimpleFilterWrapper class made which is
     added durint the DataBase.addfilter_simple call
-    '''
-    def __init__(self, data):
-        pass
+    """
+
+    def __init__(self, data, **kwargs):
+        super(SessionFilterSimple, self).__init__(**kwargs)
 
     def __call__(self, data):
-        '''
+        """
         Return Values:
 
           - False: nothing to filter
           - True: filter current bar (because it's not in the session times)
-        '''
+        """
         # Both ends of the comparison are in the session
-        return not (
-            data.p.sessionstart <= data.datetime.time(0) <= data.p.sessionend)
+        return not (data.p.sessionstart <= data.datetime.time(0) <= data.p.sessionend)
 
 
-class SessionFilter(with_metaclass(metabase.MetaParams, object)):
-    '''
+class SessionFilter(ParameterizedBase):
+    """
     This class can be applied to a data source as a filter and will filter out
-    intraday bars which fall outside of the regular session times (ie: pre/post
+    intraday bars which fall outside the regular session times (ie: pre/post
     market data)
+
+    This class has been refactored from MetaParams to the new ParameterizedBase
+    system for Day 36-38 of the metaprogramming removal project.
 
     This is a "non-simple" filter and must manage the stack of the data (passed
     during init and __call__)
 
     It needs no "last" method because it has nothing to deliver
-    '''
-    def __init__(self, data):
-        pass
+    """
+
+    def __init__(self, data, **kwargs):
+        super(SessionFilter, self).__init__(**kwargs)
 
     def __call__(self, data):
-        '''
+        """
         Return Values:
 
           - False: data stream was not touched
-          - True: data stream was manipulated (bar outside of session times and
+          - True: data stream was manipulated (bar outside session times and
           - removed)
-        '''
+        """
         if data.p.sessionstart <= data.datetime.time(0) <= data.p.sessionend:
             # Both ends of the comparison are in the session
             return False  # say the stream is untouched
 
-        # bar outside of the regular session times
+        # bar outside the regular session times
         data.backwards()  # remove bar from data stack
-        return True  # signal the data was manipulated
+        return True  # the signal the data was manipulated

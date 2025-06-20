@@ -1,26 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import functools
 import math
 
@@ -34,6 +13,7 @@ class List(list):
     def __contains__(self, other):
         return any(x.__hash__() == other.__hash__() for x in self)
 
+
 # 创建一个类，把其中的元素进行序列化
 class Logic(LineActions):
     def __init__(self, *args):
@@ -43,16 +23,17 @@ class Logic(LineActions):
 
 # 避免两个line想除的时候有值是0，如果分母是0,除以得到的值是0
 class DivByZero(Logic):
-    '''This operation is a Lines object and fills it values by executing a
+    """This operation is a Lines object and fills it values by executing a
     division on the numerator / denominator arguments and avoiding a division
     by zero exception by checking the denominator
 
     Params:
       - a: numerator (numeric or iterable object ... mostly a Lines object)
       - b: denominator (numeric or iterable object ... mostly a Lines object)
-      - zero (def: 0.0): value to apply if division by zero would be raised
+      - zero (def: 0.0): value to apply if division by zero is raised
 
-    '''
+    """
+
     def __init__(self, a, b, zero=0.0):
         super(DivByZero, self).__init__(a, b)
         self.a = a
@@ -77,7 +58,7 @@ class DivByZero(Logic):
 
 # 考虑分母分子都可能是0的两个line的想除操作
 class DivZeroByZero(Logic):
-    '''This operation is a Lines object and fills it values by executing a
+    """This operation is a Lines object and fills it values by executing a
     division on the numerator / denominator arguments and avoiding a division
     by zero exception or an indetermination by checking the
     denominator/numerator pair
@@ -87,8 +68,9 @@ class DivZeroByZero(Logic):
       - b: denominator (numeric or iterable object ... mostly a Lines object)
       - single (def: +inf): value to apply if division is x / 0
       - dual (def: 0.0): value to apply if division is 0 / 0
-    '''
-    def __init__(self, a, b, single=float('inf'), dual=0.0):
+    """
+
+    def __init__(self, a, b, single=float("inf"), dual=0.0):
         super(DivZeroByZero, self).__init__(a, b)
         self.a = a
         self.b = b
@@ -119,6 +101,7 @@ class DivZeroByZero(Logic):
             else:
                 dst[i] = a / b
 
+
 # 对比a和b,a和b很可能是line
 class Cmp(Logic):
     def __init__(self, a, b):
@@ -138,6 +121,7 @@ class Cmp(Logic):
         for i in range(start, end):
             dst[i] = cmp(srca[i], srcb[i])
 
+
 # 对比两个line,a和b，a<b的时候，返回r1相应的值，a=b的时候，返回r2相应的值，a>b的时候，返回r3相应的值
 # todo 在backtrader量化交流群中有一个朋友指出了这个问题
 class CmpEx(Logic):
@@ -151,9 +135,9 @@ class CmpEx(Logic):
 
     def next(self):
         # self[0] = cmp(self.a[0], self.b[0])
-        if self.a[0]<self.b[0]:
+        if self.a[0] < self.b[0]:
             self[0] = self.r1[0]
-        elif self.a[0]>self.b[0]:
+        elif self.a[0] > self.b[0]:
             self[0] = self.r3[0]
         else:
             self[0] = self.r2[0]
@@ -178,6 +162,7 @@ class CmpEx(Logic):
             else:
                 dst[i] = r2[i]
 
+
 # if判断，对于cond满足的时候，返回a相应的值，不满足的时候，返回b相应的值
 class If(Logic):
     def __init__(self, cond, a, b):
@@ -199,6 +184,7 @@ class If(Logic):
         for i in range(start, end):
             dst[i] = srca[i] if cond[i] else srcb[i]
 
+
 # 一个逻辑应用到多个元素上
 class MultiLogic(Logic):
     def next(self):
@@ -218,11 +204,13 @@ class MultiLogic(Logic):
 class MultiLogicReduce(MultiLogic):
     def __init__(self, *args, **kwargs):
         super(MultiLogicReduce, self).__init__(*args)
-        if 'initializer' not in kwargs:
+        if "initializer" not in kwargs:
             self.flogic = functools.partial(functools.reduce, self.flogic)
         else:
-            self.flogic = functools.partial(functools.reduce, self.flogic,
-                                            initializer=kwargs['initializer'])
+            self.flogic = functools.partial(
+                functools.reduce, self.flogic, initializer=kwargs["initializer"]
+            )
+
 
 # 继承类，对flogic进行处理
 class Reduce(MultiLogicReduce):
@@ -234,37 +222,46 @@ class Reduce(MultiLogicReduce):
 # The _xxxlogic functions are defined at module scope to make them
 # pickable and therefore compatible with multiprocessing
 
+
 # 判断x和y是不是都是True
 def _andlogic(x, y):
     return bool(x and y)
+
 
 # 判断是否是所有的元素都是True的
 class And(MultiLogicReduce):
     flogic = staticmethod(_andlogic)
 
+
 # 判断x或者y中有没有一个是真的
 def _orlogic(x, y):
     return bool(x or y)
+
 
 # 判断序列中是否有一个是真的
 class Or(MultiLogicReduce):
     flogic = staticmethod(_orlogic)
 
+
 # 求最大值
 class Max(MultiLogic):
     flogic = max
+
 
 # 求最小值
 class Min(MultiLogic):
     flogic = min
 
+
 # 求和
 class Sum(MultiLogic):
     flogic = math.fsum
 
+
 # 是否有一个
 class Any(MultiLogic):
     flogic = any
+
 
 # 是否所有的
 class All(MultiLogic):

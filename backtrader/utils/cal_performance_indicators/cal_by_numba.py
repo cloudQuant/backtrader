@@ -1,10 +1,11 @@
 # from numba import njit
 from numba.pycc import CC
 import numpy as np
-cc = CC('calculation_by_numba')
+
+cc = CC("calculation_by_numba")
 
 
-@cc.export('cal_sharpe_ratio', 'f8(f8[:])')
+@cc.export("cal_sharpe_ratio", "f8(f8[:])")
 def cal_sharpe_ratio(arr):
     # 计算夏普率，如果是日线数据，直接进行，如果不是日线数据，需要获取每日最后一个bar的数据用于计算每日收益率，然后计算夏普率
     # 对于期货的分钟数据而言，并不是按照15：00收盘算，可能会影响一点点夏普率等指标的计算，但是影响不大。
@@ -19,13 +20,13 @@ def cal_sharpe_ratio(arr):
     for x in new_array:
         v_sum += (x - v_mean) ** 2
     variance = v_sum / (arr_len - 2)
-    std_dev = variance ** 0.5
+    std_dev = variance**0.5
     # std = 1.0
     # print(v_mean,std_dev)
-    return v_mean * 252 ** 0.5 / std_dev
+    return v_mean * 252**0.5 / std_dev
 
 
-@cc.export('cal_average_rate', 'f8(f8[:])')
+@cc.export("cal_average_rate", "f8(f8[:])")
 def cal_average_rate(arr):
     # 计算复利年化收益率
     arr_len = len(arr)
@@ -36,7 +37,7 @@ def cal_average_rate(arr):
     return (1 + total_rate) ** (252 / arr_len) - 1
 
 
-@cc.export('cal_max_drawdown', 'f8(f8[:])')
+@cc.export("cal_max_drawdown", "f8(f8[:])")
 def cal_max_drawdown(arr):
     # 计算最大回撤，直接传递净值
     arr_len = len(arr)

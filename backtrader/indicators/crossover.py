@@ -1,42 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from . import Indicator, And
 
 
 # 非0差分，记录最近一个不是0的差
 class NonZeroDifference(Indicator):
-    '''
+    """
     Keeps track of the difference between two data inputs skipping, memorizing
-    the last non zero value if the current difference is zero
+    the last non-zero value if the current difference is zero
 
     Formula:
       - diff = data - data1
       - nzd = diff if diff else diff(-1)
-    '''
+    """
+
     _mindatas = 2  # requires two (2) data sources
-    alias = ('NZD',)
-    lines = ('nzd',)
+    alias = ("NZD",)
+    lines = ("nzd",)
 
     def nextstart(self):
         self.l.nzd[0] = self.data0[0] - self.data1[0]  # seed value
@@ -46,8 +26,7 @@ class NonZeroDifference(Indicator):
         self.l.nzd[0] = d if d else self.l.nzd[-1]
 
     def oncestart(self, start, end):
-        self.line.array[start] = (
-            self.data0.array[start] - self.data1.array[start])
+        self.line.array[start] = self.data0.array[start] - self.data1.array[start]
 
     def once(self, start, end):
         d0array = self.data0.array
@@ -59,11 +38,12 @@ class NonZeroDifference(Indicator):
             d = d0array[i] - d1array[i]
             larray[i] = prev = d if d else prev
 
+
 # 交叉基础类
 class _CrossBase(Indicator):
     _mindatas = 2
 
-    lines = ('cross',)
+    lines = ("cross",)
 
     plotinfo = dict(plotymargin=0.05, plotyhlines=[0.0, 1.0])
 
@@ -79,9 +59,10 @@ class _CrossBase(Indicator):
 
         self.lines.cross = And(before, after)
 
+
 # 分析是否金叉
 class CrossUp(_CrossBase):
-    '''
+    """
     This indicator gives a signal if the 1st provided data crosses over the 2nd
     indicator upwards
 
@@ -91,12 +72,14 @@ class CrossUp(_CrossBase):
     Formula:
       - diff = data - data1
       - upcross =  last_non_zero_diff < 0 and data0(0) > data1(0)
-    '''
+    """
+
     _crossup = True
+
 
 # 分析是否死叉
 class CrossDown(_CrossBase):
-    '''
+    """
     This indicator gives a signal if the 1st provided data crosses over the 2nd
     indicator upwards
 
@@ -106,12 +89,14 @@ class CrossDown(_CrossBase):
     Formula:
       - diff = data - data1
       - downcross = last_non_zero_diff > 0 and data0(0) < data1(0)
-    '''
+    """
+
     _crossup = False
+
 
 # 分析是否交叉
 class CrossOver(Indicator):
-    '''
+    """
     This indicator gives a signal if the provided datas (2) cross up or down.
 
       - 1.0 if the 1st data crosses the 2nd data upwards
@@ -125,10 +110,11 @@ class CrossOver(Indicator):
       - upcross =  last_non_zero_diff < 0 and data0(0) > data1(0)
       - downcross = last_non_zero_diff > 0 and data0(0) < data1(0)
       - crossover = upcross - downcross
-    '''
+    """
+
     _mindatas = 2
 
-    lines = ('crossover',)
+    lines = ("crossover",)
 
     plotinfo = dict(plotymargin=0.05, plotyhlines=[-1.0, 1.0])
 

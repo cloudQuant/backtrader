@@ -1,55 +1,67 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import collections
 
-from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import with_metaclass
+# Remove MetaParams import since we'll eliminate metaclass usage
+# from backtrader.metabase import MetaParams
 
 
-class MetaSingleton(MetaParams):
-    '''Metaclass to make a metaclassed class a singleton'''
-    def __init__(cls, name, bases, dct):
-        super(MetaSingleton, cls).__init__(name, bases, dct)
-        cls._singleton = None
-
-    def __call__(cls, *args, **kwargs):
-        if cls._singleton is None:
-            cls._singleton = (
-                super(MetaSingleton, cls).__call__(*args, **kwargs))
-
+# Simple singleton implementation without metaclass
+class SingletonMixin(object):
+    """Mixin class to make a class a singleton without using metaclasses"""
+    
+    def __new__(cls, *args, **kwargs):
+        if not hasattr(cls, '_singleton'):
+            cls._singleton = super(SingletonMixin, cls).__new__(cls)
+            cls._singleton._initialized = False
         return cls._singleton
+    
+    def __init__(self, *args, **kwargs):
+        if self._initialized:
+            return
+        self._initialized = True
+        # Call the original __init__ if it exists
+        super(SingletonMixin, self).__init__(*args, **kwargs)
 
-# 创建一个store类
-class Store(with_metaclass(MetaSingleton, object)):
-    '''Base class for all Stores'''
+
+# Store parameter management
+class StoreParams(object):
+    """Simple parameter management for Store classes"""
+    
+    def __init__(self):
+        # Initialize parameters from the class-level params tuple
+        self.p = type('Params', (), {})()
+        params = getattr(self.__class__, 'params', ())
+        
+        # Set default values from params tuple
+        for param in params:
+            if isinstance(param, tuple) and len(param) >= 2:
+                name, default_value = param[0], param[1]
+                setattr(self.p, name, default_value)
+            elif isinstance(param, str):
+                setattr(self.p, param, None)
+
+
+# Store基类
+class Store(SingletonMixin, StoreParams):
+    """Base class for all Stores"""
+
     # 开始，默认是False
     _started = False
     # 参数
     params = ()
+
     # 获取数据
+    def __init__(self):
+        super(Store, self).__init__()
+        self.broker = None
+        self._env = None
+        self._cerebro = None
+        self.datas = None
+        self.notifs = None
+
     def getdata(self, *args, **kwargs):
-        '''Returns ``DataCls`` with args, kwargs'''
+        """Returns ``DataCls`` with args, kwargs"""
         data = self.DataCls(*args, **kwargs)
         data._store = self
         return data
@@ -57,7 +69,7 @@ class Store(with_metaclass(MetaSingleton, object)):
     # 获取broker
     @classmethod
     def getbroker(cls, *args, **kwargs):
-        '''Returns broker with *args, **kwargs from registered ``BrokerCls``'''
+        """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
         broker = cls.BrokerCls(*args, **kwargs)
         broker._store = cls
         return broker
@@ -79,7 +91,7 @@ class Store(with_metaclass(MetaSingleton, object)):
             self.datas.append(data)
             # 如果self.broker不是None的话
             if self.broker is not None:
-                if hasattr(self.broker, 'data_started'):
+                if hasattr(self.broker, "data_started"):
                     self.broker.data_started(data)
         # 如果broker不是None的话
         elif broker is not None:
@@ -95,6 +107,6 @@ class Store(with_metaclass(MetaSingleton, object)):
 
     # 获取通知的信息
     def get_notifications(self):
-        '''Return the pending "store" notifications'''
+        """Return the pending "store" notifications"""
         self.notifs.append(None)  # put a mark / threads could still append
         return [x for x in iter(self.notifs.popleft, None)]

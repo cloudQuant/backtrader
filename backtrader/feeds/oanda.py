@@ -1,48 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-from datetime import datetime, timedelta
-
+from datetime import datetime, timedelta, UTC
 from backtrader.feed import DataBase
 from backtrader import TimeFrame, date2num, num2date
-from backtrader.utils.py3 import (integer_types, queue, string_types,
-                                  with_metaclass)
+from backtrader.utils.py3 import (
+    integer_types,
+    queue,
+    string_types,
+)
 from backtrader.metabase import MetaParams
 from backtrader.stores import oandastore
 
 
-class MetaOandaData(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
-        # Initialize the class
-        super(MetaOandaData, cls).__init__(name, bases, dct)
-
-        # Register with the store
-        oandastore.OandaStore.DataCls = cls
-
 # 处理oanda数据，忽略这篇源代码s
-class OandaData(with_metaclass(MetaOandaData, DataBase)):
-    '''Oanda Data Feed.
+class OandaData(DataBase):
+    """Oanda Data Feed.
 
     Params:
 
@@ -53,7 +25,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
 
       - ``historical`` (default: ``False``)
 
-        If set to ``True`` the data feed will stop after doing the first
+        If set to `True`, the data feed will stop after doing the first
         download of data.
 
         The standard data feed parameters ``fromdate`` and ``todate`` will be
@@ -103,7 +75,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
 
       - ``reconnections`` (default: ``-1``)
 
-        Number of times to attempt reconnections: ``-1`` means forever
+        Number of times to attempt reconnections: `-1` means forever
 
       - ``reconntimeout`` (default: ``5.0``)
 
@@ -111,7 +83,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
 
     This data feed supports only this mapping of ``timeframe`` and
     ``compression``, which comply with the definitions in the OANDA API
-    Developer's Guid::
+    Developer's Guid:
 
         (TimeFrame.Seconds, 5): 'S5',
         (TimeFrame.Seconds, 10): 'S10',
@@ -136,19 +108,20 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         (TimeFrame.Months, 1): 'M',
 
     Any other combination will be rejected
-    '''
+    """
+
     params = (
-        ('qcheck', 0.5),
-        ('historical', False),  # do backfilling at the start
-        ('backfill_start', True),  # do backfilling at the start
-        ('backfill', True),  # do backfilling when reconnecting
-        ('backfill_from', None),  # additional data source to do backfill from
-        ('bidask', True),
-        ('useask', False),
-        ('includeFirst', True),
-        ('reconnect', True),
-        ('reconnections', -1),  # forever
-        ('reconntimeout', 5.0),
+        ("qcheck", 0.5),
+        ("historical", False),  # do backfill at the start
+        ("backfill_start", True),  # do backfill at the start
+        ("backfill", True),  # do backfill when reconnecting
+        ("backfill_from", None),  # additional data source to do backfill from
+        ("bidask", True),
+        ("useask", False),
+        ("includeFirst", True),
+        ("reconnect", True),
+        ("reconnections", -1),  # forever
+        ("reconntimeout", 5.0),
     )
 
     _store = oandastore.OandaStore
@@ -163,28 +136,38 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return self._TOFFSET
 
     def islive(self):
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return True
 
     def __init__(self, **kwargs):
+        super(OandaData, self).__init__(**kwargs)
+        # 处理原来元类的注册功能
+        oandastore.OandaStore.DataCls = self.__class__
+        
+        self._state = None
+        self._reconns = None
+        self.contractdetails = None
+        self.qlive = None
+        self._storedmsg = None
+        self._statelivereconn = None
         self.o = self._store(**kwargs)
-        self._candleFormat = 'bidask' if self.p.bidask else 'midpoint'
+        self._candleFormat = "bidask" if self.p.bidask else "midpoint"
 
     def setenvironment(self, env):
-        '''Receives an environment (cerebro) and passes it over to the store it
-        belongs to'''
+        """Receives an environment (cerebro) and passes it over to the store it
+        belongs to"""
         super(OandaData, self).setenvironment(env)
         env.addstore(self.o)
 
     def start(self):
-        '''Starts the Oanda connecction and gets the real contract and
-        contractdetails if it exists'''
+        """Starts the Oanda connecction and gets the real contract and
+        contractdetails if it exists"""
         super(OandaData, self).start()
 
         # Create attributes as soon as possible
         self._statelivereconn = False  # if reconnecting in live state
-        self._storedmsg = dict()  # keep pending live message (under None)
+        self._storedmsg = dict()  # keep pending a live message (under None)
         self.qlive = queue.Queue()
         self._state = self._ST_OVER
 
@@ -218,18 +201,22 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         if self.p.historical:
             self.put_notification(self.DELAYED)
             dtend = None
-            if self.todate < float('inf'):
+            if self.todate < float("inf"):
                 dtend = num2date(self.todate)
 
             dtbegin = None
-            if self.fromdate > float('-inf'):
+            if self.fromdate > float("-inf"):
                 dtbegin = num2date(self.fromdate)
 
             self.qhist = self.o.candles(
-                self.p.dataname, dtbegin, dtend,
-                self._timeframe, self._compression,
+                self.p.dataname,
+                dtbegin,
+                dtend,
+                self._timeframe,
+                self._compression,
                 candleFormat=self._candleFormat,
-                includeFirst=self.p.includeFirst)
+                includeFirst=self.p.includeFirst,
+            )
 
             self._state = self._ST_HISTORBACK
             return True
@@ -250,7 +237,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return True  # no return before - implicit continue
 
     def stop(self):
-        '''Stops and tells the store to stop'''
+        """Stops and tells the store to stop"""
         super(OandaData, self).stop()
         self.o.stop()
 
@@ -264,8 +251,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         while True:
             if self._state == self._ST_LIVE:
                 try:
-                    msg = (self._storedmsg.pop(None, None) or
-                           self.qlive.get(timeout=self._qcheck))
+                    msg = self._storedmsg.pop(None, None) or self.qlive.get(timeout=self._qcheck)
                 except queue.Empty:
                     return None  # indicate timeout situation
 
@@ -282,9 +268,9 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
                     self._st_start(instart=False, tmout=self.p.reconntimeout)
                     continue
 
-                if 'code' in msg:
+                if "code" in msg:
                     self.put_notification(self.CONNBROKEN)
-                    code = msg['code']
+                    code = msg["code"]
                     if code not in [599, 598, 596]:
                         self.put_notification(self.DISCONNECTED)
                         self._state = self._ST_OVER
@@ -327,19 +313,23 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
                 if len(self) > 1:
                     # len == 1 ... forwarded for the 1st time
                     dtbegin = self.datetime.datetime(-1)
-                elif self.fromdate > float('-inf'):
+                elif self.fromdate > float("-inf"):
                     dtbegin = num2date(self.fromdate)
-                else:  # 1st bar and no begin set
+                else:  # 1st bar and no beginning set
                     # passing None to fetch max possible in 1 request
                     dtbegin = None
 
-                dtend = datetime.utcfromtimestamp(int(msg['time']) / 10 ** 6)
+                dtend = datetime.fromtimestamp(int(msg["time"]) / 10**6, UTC)
 
                 self.qhist = self.o.candles(
-                    self.p.dataname, dtbegin, dtend,
-                    self._timeframe, self._compression,
+                    self.p.dataname,
+                    dtbegin,
+                    dtend,
+                    self._timeframe,
+                    self._compression,
                     candleFormat=self._candleFormat,
-                    includeFirst=self.p.includeFirst)
+                    includeFirst=self.p.includeFirst,
+                )
 
                 self._state = self._ST_HISTORBACK
                 self._statelivereconn = False  # no longer in live
@@ -348,12 +338,12 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
             elif self._state == self._ST_HISTORBACK:
                 msg = self.qhist.get()
                 if msg is None:  # Conn broken during historical/backfilling
-                    # Situation not managed. Simply bail out
+                    # The Situation isn't managed. Bail out
                     self.put_notification(self.DISCONNECTED)
                     self._state = self._ST_OVER
                     return False  # error management cancelled the queue
 
-                elif 'code' in msg:  # Error
+                elif "code" in msg:  # Error
                     self.put_notification(self.NOTSUBSCRIBED)
                     self.put_notification(self.DISCONNECTED)
                     self._state = self._ST_OVER
@@ -396,7 +386,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
                     return False
 
     def _load_tick(self, msg):
-        dtobj = datetime.utcfromtimestamp(int(msg['time']) / 10 ** 6)
+        dtobj = datetime.fromtimestamp(int(msg["time"]) / 10**6, UTC)
         dt = date2num(dtobj)
         if dt <= self.lines.datetime[-1]:
             return False  # time already seen
@@ -407,7 +397,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         self.lines.openinterest[0] = 0.0
 
         # Put the prices into the bar
-        tick = float(msg['ask']) if self.p.useask else float(msg['bid'])
+        tick = float(msg["ask"]) if self.p.useask else float(msg["bid"])
         self.lines.open[0] = tick
         self.lines.high[0] = tick
         self.lines.low[0] = tick
@@ -418,32 +408,32 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return True
 
     def _load_history(self, msg):
-        dtobj = datetime.utcfromtimestamp(int(msg['time']) / 10 ** 6)
+        dtobj = datetime.fromtimestamp(int(msg["time"]) / 10**6, UTC)
         dt = date2num(dtobj)
         if dt <= self.lines.datetime[-1]:
             return False  # time already seen
 
         # Common fields
         self.lines.datetime[0] = dt
-        self.lines.volume[0] = float(msg['volume'])
+        self.lines.volume[0] = float(msg["volume"])
         self.lines.openinterest[0] = 0.0
 
         # Put the prices into the bar
         if self.p.bidask:
             if not self.p.useask:
-                self.lines.open[0] = float(msg['openBid'])
-                self.lines.high[0] = float(msg['highBid'])
-                self.lines.low[0] = float(msg['lowBid'])
-                self.lines.close[0] = float(msg['closeBid'])
+                self.lines.open[0] = float(msg["openBid"])
+                self.lines.high[0] = float(msg["highBid"])
+                self.lines.low[0] = float(msg["lowBid"])
+                self.lines.close[0] = float(msg["closeBid"])
             else:
-                self.lines.open[0] = float(msg['openAsk'])
-                self.lines.high[0] = float(msg['highAsk'])
-                self.lines.low[0] = float(msg['lowAsk'])
-                self.lines.close[0] = float(msg['closeAsk'])
+                self.lines.open[0] = float(msg["openAsk"])
+                self.lines.high[0] = float(msg["highAsk"])
+                self.lines.low[0] = float(msg["lowAsk"])
+                self.lines.close[0] = float(msg["closeAsk"])
         else:
-            self.lines.open[0] = float(msg['openMid'])
-            self.lines.high[0] = float(msg['highMid'])
-            self.lines.low[0] = float(msg['lowMid'])
-            self.lines.close[0] = float(msg['closeMid'])
+            self.lines.open[0] = float(msg["openMid"])
+            self.lines.high[0] = float(msg["highMid"])
+            self.lines.low[0] = float(msg["lowMid"])
+            self.lines.close[0] = float(msg["closeMid"])
 
         return True

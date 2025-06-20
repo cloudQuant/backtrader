@@ -1,27 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-from datetime import datetime
+from datetime import datetime, UTC
 import itertools
 
 from .. import feed, TimeFrame
@@ -30,7 +9,7 @@ from ..utils.py3 import integer_types, string_types
 
 
 class GenericCSVData(feed.CSVDataBase):
-    '''Parses a CSV file according to the order and field presence defined by the
+    """Parses a CSV file according to the order and field presence defined by the
     parameters
 
     Specific parameters (or specific meaning):
@@ -41,7 +20,7 @@ class GenericCSVData(feed.CSVDataBase):
 
         A value of -1 indicates absence of that field in the CSV source
 
-      - If ``time`` is present (parameter time >=0) the source contains
+      - If ``time`` is present (parameter time >=0), the source contains
         separated fields for date and time, which will be combined
 
       - ``nullvalue``
@@ -54,38 +33,41 @@ class GenericCSVData(feed.CSVDataBase):
 
         If a numeric value is specified, it will be interpreted as follows
 
-          - ``1``: The value is a Unix timestamp of type ``int`` representing
+          - ``1``: The value is a Unix timestamp of a type ``int`` representing
             the number of seconds since Jan 1st, 1970
 
-          - ``2``: The value is a Unix timestamp of type ``float``
+          - ``2``: The value is a Unix timestamp of a type ``float``
 
         If a **callable** is passed
 
-          - it will accept a string and return a `datetime.datetime` python
+          - It will accept a string and return a `datetime.datetime` python
             instance
 
       - ``tmformat``: Format used to parse the time CSV field if "present"
         (the default for the "time" CSV field is not to be present)
 
-    '''
+    """
 
     # csv data的一些常用的参数
     params = (
-        ('nullvalue', float('NaN')),
-        ('dtformat', '%Y-%m-%d %H:%M:%S'),
-        ('tmformat', '%H:%M:%S'),
-
-        ('datetime', 0),
-        ('time', -1),
-        ('open', 1),
-        ('high', 2),
-        ('low', 3),
-        ('close', 4),
-        ('volume', 5),
-        ('openinterest', 6),
+        ("nullvalue", float("NaN")),
+        ("dtformat", "%Y-%m-%d %H:%M:%S"),
+        ("tmformat", "%H:%M:%S"),
+        ("datetime", 0),
+        ("time", -1),
+        ("open", 1),
+        ("high", 2),
+        ("low", 3),
+        ("close", 4),
+        ("volume", 5),
+        ("openinterest", 6),
     )
 
     # 开始，根据传入的日期参数确定转换的方法
+    def __init__(self):
+        self._dtconvert = None
+        self._dtstr = None
+
     def start(self):
         super(GenericCSVData, self).start()
         # 如果是字符串类型，就把self._dtstr设置成True,否则就是默认的False
@@ -96,9 +78,11 @@ class GenericCSVData(feed.CSVDataBase):
         elif isinstance(self.p.dtformat, integer_types):
             idt = int(self.p.dtformat)
             if idt == 1:
-                self._dtconvert = lambda x: datetime.utcfromtimestamp(int(x))
+                # self._dtconvert = lambda x: datetime.utcfromtimestamp(int(x))
+                self._dtconvert = lambda x: datetime.fromtimestamp(int(x), UTC)
             elif idt == 2:
-                self._dtconvert = lambda x: datetime.utcfromtimestamp(float(x))
+                # self._dtconvert = lambda x: datetime.utcfromtimestamp(float(x))
+                self._dtconvert = lambda x: datetime.fromtimestamp(float(x), UTC)
         # 如果dtformat是可以调用的，转换方法就是它本身
         else:  # assume callable
             self._dtconvert = self.p.dtformat
@@ -115,8 +99,8 @@ class GenericCSVData(feed.CSVDataBase):
             # 如果有time这个列，就把日期和时间结合到一起
             if self.p.time >= 0:
                 # add time value and format if it's in a separate field
-                dtfield += 'T' + linetokens[self.p.time]
-                dtformat += 'T' + self.p.tmformat
+                dtfield += "T" + linetokens[self.p.time]
+                dtformat += "T" + self.p.tmformat
             # 然后把字符串时间转化为datetime格式的时间
             dt = datetime.strptime(dtfield, dtformat)
         # 如果不是字符串，就调用start的时候设置好的时间转化函数_dtconvert
@@ -138,7 +122,7 @@ class GenericCSVData(feed.CSVDataBase):
             # 如果结合sessionend的日期转化成的数字大于日期转化后的数字，用前面的数字作为时间
             if dteosnum > dtnum:
                 self.lines.datetime[0] = dteosnum
-            # 如果不大于的话，如果self._tzinput是真的，那么就直接把dt转化成时间，如果不是真的，就使用原先的dtnum                                   
+            # 如果不大于的话，如果self._tzinput是真的，那么就直接把dt转化成时间，如果不是真的，就使用原先的dtnum
             else:
                 # Avoid reconversion if already converted dtin == dt
                 self.l.datetime[0] = date2num(dt) if self._tzinput else dtnum
@@ -148,7 +132,7 @@ class GenericCSVData(feed.CSVDataBase):
 
         # The rest of the fields can be done with the same procedure
         # 剩下的其他的数据可以按照同样的方法去操作，循环不是datetime的列
-        for linefield in (x for x in self.getlinealiases() if x != 'datetime'):
+        for linefield in (x for x in self.getlinealiases() if x != "datetime"):
             # Get the index created from the passed params
             # 获取这个列名称的index
             csvidx = getattr(self.params, linefield)
@@ -161,7 +145,7 @@ class GenericCSVData(feed.CSVDataBase):
                 # get it from the token
                 csvfield = linetokens[csvidx]
             # 如果获取到的数据是空的字符串，把数据设置成NAN
-            if csvfield == '':
+            if csvfield == "":
                 # if empty ... assign the "nullvalue"
                 csvfield = self.p.nullvalue
             # 获取这个列对应的line，然后设置value,没有太明白为什么使用两个float转化一个值，暂且认为是低效的，修改下

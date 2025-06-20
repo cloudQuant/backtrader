@@ -271,7 +271,7 @@ class ParameterManager:
 
     def get(self, name: str, default: Any = None) -> Any:
         """
-        Get parameter value with optimized caching and lazy evaluation support.
+        Get parameter value with lazy evaluation support.
         
         Args:
             name: Parameter name
@@ -280,36 +280,26 @@ class ParameterManager:
         Returns:
             Parameter value
         """
-        # Fast path: Check if we have a custom value (most common case)
+        # Check if we have a custom value
         if name in self._values:
             return self._values[name]
-        
-        # Fast path: Check if we have a cached descriptor default
-        if name in self._value_cache:
-            return self._value_cache[name]
         
         # Check lazy defaults
         if name in self._lazy_defaults:
             if name not in self._cache_valid:
                 try:
-                    computed_value = self._lazy_defaults[name]()
-                    self._value_cache[name] = computed_value
+                    self._value_cache[name] = self._lazy_defaults[name]()
                     self._cache_valid.add(name)
-                    return computed_value
                 except Exception as e:
                     # If lazy evaluation fails, use descriptor default
                     if name in self._descriptors:
-                        default_val = self._descriptors[name].default
-                        self._value_cache[name] = default_val
-                        return default_val
+                        return self._descriptors[name].default
                     return default
             return self._value_cache[name]
         
-        # Cache descriptor default for faster subsequent access
+        # Use descriptor default
         if name in self._descriptors:
-            default_val = self._descriptors[name].default
-            self._value_cache[name] = default_val
-            return default_val
+            return self._descriptors[name].default
         
         # Use provided default
         return default
@@ -840,8 +830,8 @@ class ParameterManager:
         
         history = self._change_history.get(name, [])
         
-        # Sort by timestamp (newest first)
-        sorted_history = sorted(history, key=lambda x: x['timestamp'], reverse=True)
+        # Sort by timestamp (oldest first)
+        sorted_history = sorted(history, key=lambda x: x['timestamp'])
         
         if limit is not None:
             sorted_history = sorted_history[:limit]
@@ -1053,67 +1043,7 @@ class ParameterAccessor:
         return f"ParameterAccessor({dict(items)})"
 
 
-class MetaParamsCompatibilityMixin:
-    """
-    Mixin class that provides MetaParams-style compatibility for ParameterizedBase.
-    
-    This mixin ensures that classes using the new parameter system can still
-    work with code expecting the old MetaParams interface.
-    """
-    
-    @classmethod
-    def _getitems(cls):
-        """MetaParams compatibility: get parameter items as tuple pairs"""
-        try:
-            descriptors = cls._compute_parameter_descriptors()
-            return [(name, desc.default) for name, desc in descriptors.items()]
-        except (AttributeError, TypeError):
-            return []
-    
-    @classmethod
-    def _gettuple(cls):
-        """MetaParams compatibility: get parameter items as tuple"""
-        return tuple(cls._getitems())
-    
-    @classmethod
-    def _getkeys(cls):
-        """MetaParams compatibility: get parameter names"""
-        return [item[0] for item in cls._getitems()]
-    
-    @classmethod
-    def _getdefaults(cls):
-        """MetaParams compatibility: get parameter default values"""
-        return [item[1] for item in cls._getitems()]
-    
-    @classmethod
-    def _getpairs(cls):
-        """MetaParams compatibility: get parameter pairs as OrderedDict"""
-        return OrderedDict(cls._getitems())
-    
-    @classmethod
-    def _getkwargsdefault(cls):
-        """MetaParams compatibility: get default parameters as dict"""
-        return dict(cls._getitems())
-    
-    def _getkwargs(self, skip_=False):
-        """MetaParams compatibility: get current parameter values"""
-        if hasattr(self, '_param_manager'):
-            kwargs = {}
-            for name, value in self._param_manager.items():
-                if skip_ and name.startswith('_'):
-                    continue
-                kwargs[name] = value
-            return kwargs
-        return {}
-    
-    def _getvalues(self):
-        """MetaParams compatibility: get current parameter values as list"""
-        if hasattr(self, '_param_manager'):
-            return list(self._param_manager.values())
-        return []
-
-
-class ParameterizedBase(MetaParamsCompatibilityMixin):
+class ParameterizedBase:
     """
     Enhanced base class for objects with parameters - without metaclass.
     
@@ -1135,10 +1065,6 @@ class ParameterizedBase(MetaParamsCompatibilityMixin):
         # This prevents child class definitions from affecting parent classes
         cls._parameter_descriptors = None  # Mark as not computed
         cls._parameter_descriptors_computed = False
-        
-        # Create a class-level params attribute for MetaParams compatibility
-        # This ensures that code like DataBase.params._gettuple() works
-        cls.params = cls  # Point to self so params.method() works
         
         # Check for MetaParams compatibility
         cls._has_metaparams_heritage = any(

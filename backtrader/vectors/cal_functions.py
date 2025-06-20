@@ -51,7 +51,7 @@ def get_symbol(contract_name):
     返回的数据是：大写字母
     输入的数据是具体的合约，如：A0501.XDCE，返回A
     """
-    return ''.join([i for i in contract_name.split('.')[0] if i.isalpha()]).upper()
+    return "".join([i for i in contract_name.split(".")[0] if i.isalpha()]).upper()
 
 
 # 计算持有多头的时候最小的factor值
@@ -113,6 +113,7 @@ def convert_datas_to_array(datas):
     closes_arr = pd.concat(close_list, join="outer", axis=1).fillna(method="ffill").to_numpy()
 
     return opens_arr, closes_arr
+
 
 # def get_sharpe(data):
 #         # 计算夏普率，如果是日线数据，直接进行，如果不是日线数据，需要获取每日最后一个bar的数据用于计算每日收益率，然后计算夏普率

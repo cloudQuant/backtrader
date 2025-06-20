@@ -54,7 +54,8 @@
 # motion event takes place
 #
 # The original MultiCursos uses the ylimit of the las passed axis, to calculate
-# the mid point of the axis. which creates a huge distorsion if all axis don't
+# the mid-point of the axis.
+# which creates a huge distorsion if all axises don't
 # have the same y dimensions
 #
 # The modified version uses the y limits of each axis to calculate the initial
@@ -62,27 +63,28 @@
 
 from ..utils.py3 import zip
 
+
 class Widget(object):
     """
     Abstract base class for GUI neutral widgets
     """
+
     drawon = True
     eventson = True
     _active = True
 
     def set_active(self, active):
-        """Set whether the widget is active.
-        """
+        """Set whether the widget is active."""
         self._active = active
 
     def get_active(self):
-        """Get whether the widget is active.
-        """
+        """Get whether the widget is active."""
         return self._active
 
     # set_active is overriden by SelectorWidgets.
-    active = property(get_active, lambda self, active: self.set_active(active),
-                      doc="Is the widget active?")
+    active = property(
+        get_active, lambda self, active: self.set_active(active), doc="Is the widget active?"
+    )
 
     def ignore(self, event):
         """Return True if event should be ignored.
@@ -97,7 +99,7 @@ class MultiCursor(Widget):
     Provide a vertical (default) and/or horizontal line cursor shared between
     multiple axes.
 
-    For the cursor to remain responsive you much keep a reference to
+    For the cursor to remain responsive, you much keep a reference to
     it.
 
     Example usage::
@@ -105,7 +107,7 @@ class MultiCursor(Widget):
         from matplotlib.widgets import MultiCursor
         from pylab import figure, show, np
 
-        t = np.arange(0.0, 2.0, 0.01)
+        T = np.arange(0.0, 2.0, 0.01)
         s1 = np.sin(2*np.pi*t)
         s2 = np.sin(4*np.pi*t)
         fig = figure()
@@ -113,20 +115,31 @@ class MultiCursor(Widget):
         ax1.plot(t, s1)
 
 
-        ax2 = fig.add_subplot(212, sharex=ax1)
+        Ax2 = fig.add_subplot(212, sharex=ax1)
         ax2.plot(t, s2)
 
-        multi = MultiCursor(fig.canvas, (ax1, ax2), color='r', lw=1,
+        Multi = MultiCursor(fig.canvas, (ax1, ax2), color='r', lw=1,
                             horizOn=False, vertOn=True)
         show()
 
     """
-    def __init__(self, canvas, axes, useblit=True,
-                 horizOn=False, vertOn=True,
-                 horizMulti=False, vertMulti=True,
-                 horizShared=True, vertShared=False,
-                 **lineprops):
 
+    def __init__(
+        self,
+        canvas,
+        axes,
+        useblit=True,
+        horizOn=False,
+        vertOn=True,
+        horizMulti=False,
+        vertMulti=True,
+        horizShared=True,
+        vertShared=False,
+        **lineprops,
+    ):
+
+        self._ciddraw = None
+        self._cidmotion = None
         self.canvas = canvas
         self.axes = axes
         self.horizOn = horizOn
@@ -140,7 +153,7 @@ class MultiCursor(Widget):
         self.needclear = False
 
         if self.useblit:
-            lineprops['animated'] = True
+            lineprops["animated"] = True
 
         self.vlines = []
         if vertOn:
@@ -172,9 +185,8 @@ class MultiCursor(Widget):
 
     def connect(self):
         """connect events"""
-        self._cidmotion = self.canvas.mpl_connect('motion_notify_event',
-                                                  self.onmove)
-        self._ciddraw = self.canvas.mpl_connect('draw_event', self.clear)
+        self._cidmotion = self.canvas.mpl_connect("motion_notify_event", self.onmove)
+        self._ciddraw = self.canvas.mpl_connect("draw_event", self.clear)
 
     def disconnect(self):
         """disconnect events"""
@@ -186,8 +198,7 @@ class MultiCursor(Widget):
         if self.ignore(event):
             return
         if self.useblit:
-            self.background = (
-                self.canvas.copy_from_bbox(self.canvas.figure.bbox))
+            self.background = self.canvas.copy_from_bbox(self.canvas.figure.bbox)
         for line in self.vlines + self.hlines:
             line.set_visible(False)
 
@@ -237,6 +248,7 @@ class MultiCursor(Widget):
         else:
             self.canvas.draw_idle()
 
+
 class MultiCursor2(Widget):
     """
     Provide a vertical (default) and/or horizontal line cursor shared between
@@ -258,9 +270,11 @@ class MultiCursor2(Widget):
                             horizOn=False, vertOn=True)
         show()
     """
-    def __init__(self, canvas, axes, useblit=True, horizOn=False, vertOn=True,
-                 **lineprops):
 
+    def __init__(self, canvas, axes, useblit=True, horizOn=False, vertOn=True, **lineprops):
+
+        self._ciddraw = None
+        self._cidmotion = None
         self.canvas = canvas
         self.axes = axes
         self.horizOn = horizOn
@@ -275,11 +289,10 @@ class MultiCursor2(Widget):
         self.needclear = False
 
         if self.useblit:
-            lineprops['animated'] = True
+            lineprops["animated"] = True
 
         if vertOn:
-            self.vlines = [ax.axvline(xmid, visible=False, **lineprops)
-                           for ax in axes]
+            self.vlines = [ax.axvline(xmid, visible=False, **lineprops) for ax in axes]
         else:
             self.vlines = []
 
@@ -297,9 +310,8 @@ class MultiCursor2(Widget):
 
     def connect(self):
         """connect events"""
-        self._cidmotion = self.canvas.mpl_connect('motion_notify_event',
-                                                  self.onmove)
-        self._ciddraw = self.canvas.mpl_connect('draw_event', self.clear)
+        self._cidmotion = self.canvas.mpl_connect("motion_notify_event", self.onmove)
+        self._ciddraw = self.canvas.mpl_connect("draw_event", self.clear)
 
     def disconnect(self):
         """disconnect events"""
@@ -311,8 +323,7 @@ class MultiCursor2(Widget):
         if self.ignore(event):
             return
         if self.useblit:
-            self.background = (
-                self.canvas.copy_from_bbox(self.canvas.figure.bbox))
+            self.background = self.canvas.copy_from_bbox(self.canvas.figure.bbox)
         for line in self.vlines + self.hlines:
             line.set_visible(False)
 

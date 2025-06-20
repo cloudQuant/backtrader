@@ -2,10 +2,10 @@
 from numba.pycc import CC
 import numpy as np
 
-cc = CC('calculation_by_numba')
+cc = CC("calculation_by_numba")
 
 
-@cc.export('cal_long_short_signals', 'f8[:,:](f8[:,:], f8, int64)')
+@cc.export("cal_long_short_signals", "f8[:,:](f8[:,:], f8, int64)")
 def cal_long_short_signals(factors_arr, percent, hold_days):
     signals = np.zeros(factors_arr.shape)
     data_length = factors_arr.shape[0]

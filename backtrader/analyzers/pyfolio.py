@@ -1,23 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 # import collections
 import backtrader as bt
 from backtrader.utils.py3 import iteritems
@@ -75,16 +57,13 @@ class PyFolio(bt.Analyzer):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     """
+
     # 参数
-    params = (
-        ('timeframe', bt.TimeFrame.Days),
-        ('compression', 1)
-    )
+    params = (("timeframe", bt.TimeFrame.Days), ("compression", 1))
 
     # 初始化
     def __init__(self):
-        dtfcomp = dict(timeframe=self.p.timeframe,
-                       compression=self.p.compression)
+        dtfcomp = dict(timeframe=self.p.timeframe, compression=self.p.compression)
 
         self._returns = TimeReturn(**dtfcomp)
         self._positions = PositionsValue(headers=True, cash=True)
@@ -94,10 +73,10 @@ class PyFolio(bt.Analyzer):
     # 停止的时候，获取几个分析结果
     def stop(self):
         super(PyFolio, self).stop()
-        self.rets['returns'] = self._returns.get_analysis()
-        self.rets['positions'] = self._positions.get_analysis()
-        self.rets['transactions'] = self._transactions.get_analysis()
-        self.rets['gross_lev'] = self._gross_lev.get_analysis()
+        self.rets["returns"] = self._returns.get_analysis()
+        self.rets["positions"] = self._positions.get_analysis()
+        self.rets["transactions"] = self._transactions.get_analysis()
+        self.rets["gross_lev"] = self._gross_lev.get_analysis()
 
     # 对上面四个analyzer的结果进行调整，以便得到pyfolio需要的输入的信息
     def get_pf_items(self):
@@ -116,28 +95,29 @@ class PyFolio(bt.Analyzer):
         # keep import local to avoid disturbing installations with no pandas
         # Returns
         # 处理returns
-        cols = ['index', 'return']
-        returns = pd.DataFrame.from_records(iteritems(self.rets['returns']),
-                                            index=cols[0], columns=cols)
+        cols = ["index", "return"]
+        returns = pd.DataFrame.from_records(
+            iteritems(self.rets["returns"]), index=cols[0], columns=cols
+        )
         returns.index = pd.to_datetime(returns.index)
-        returns.index = returns.index.tz_localize('UTC')
-        rets = returns['return']
+        returns.index = returns.index.tz_localize("UTC")
+        rets = returns["return"]
         #
         # Positions
         # 处理position
-        pss = self.rets['positions']
+        pss = self.rets["positions"]
         # ps = [[k] + v[-2:] for k, v in iteritems(pss)]
         ps = [[k] + v for k, v in iteritems(pss)]
         cols = ps.pop(0)  # headers are in the first entry
         positions = pd.DataFrame.from_records(ps[1:], columns=cols)
-        positions.index = pd.to_datetime(positions['Datetime'])
-        del positions['Datetime']
-        positions.index = positions.index.tz_localize('UTC')
+        positions.index = pd.to_datetime(positions["Datetime"])
+        del positions["Datetime"]
+        positions.index = positions.index.tz_localize("UTC")
 
         #
         # Transactions
         # 处理transcations
-        txss = self.rets['transactions']
+        txss = self.rets["transactions"]
         txs = list()
         # The transactions have a common key (date) and can potentially happend
         # for several assets. The dictionary has a single key and a list of
@@ -150,17 +130,18 @@ class PyFolio(bt.Analyzer):
         cols = txs.pop(0)  # headers are in the first entry
         transactions = pd.DataFrame.from_records(txs, index=cols[0], columns=cols)
         transactions.index = pd.to_datetime(transactions.index)
-        transactions.index = transactions.index.tz_localize('UTC')
+        transactions.index = transactions.index.tz_localize("UTC")
 
         # Gross Leverage
         # 处理leverage
-        cols = ['index', 'gross_lev']
-        gross_lev = pd.DataFrame.from_records(iteritems(self.rets['gross_lev']),
-                                              index=cols[0], columns=cols)
+        cols = ["index", "gross_lev"]
+        gross_lev = pd.DataFrame.from_records(
+            iteritems(self.rets["gross_lev"]), index=cols[0], columns=cols
+        )
 
         gross_lev.index = pd.to_datetime(gross_lev.index)
-        gross_lev.index = gross_lev.index.tz_localize('UTC')
-        glev = gross_lev['gross_lev']
+        gross_lev.index = gross_lev.index.tz_localize("UTC")
+        glev = gross_lev["gross_lev"]
 
         # Return all together
         # 返回所有的结果

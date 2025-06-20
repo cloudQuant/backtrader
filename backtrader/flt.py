@@ -1,45 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+from .parameters import ParameterizedBase
 
 
-from .metabase import MetaParams
-from .utils.py3 import with_metaclass
+__all__ = ["Filter"]
 
 
-__all__ = ['Filter']
-
-# Filter元类
-class MetaFilter(MetaParams):
-    pass
-
-
-# filter类
-class Filter(with_metaclass(MetaParams, object)):
+# Filter类 - 重构为使用新的参数系统
+class Filter(ParameterizedBase):
+    """
+    Base class for data filters in backtrader.
+    
+    This class has been refactored from MetaParams to the new ParameterizedBase
+    system for Day 36-38 of the metaprogramming removal project.
+    """
 
     _firsttime = True
 
-    def __init__(self, data):
-        pass
+    def __init__(self, data_, **kwargs):
+        # 调用父类初始化
+        super(Filter, self).__init__(**kwargs)
 
     def __call__(self, data):
         # 如果是第一次，就调用nextstart,然后把_firsttime设置成False

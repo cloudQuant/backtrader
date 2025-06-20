@@ -1,32 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from . import PeriodN
 
 
-__all__ = ['ParabolicSAR', 'PSAR']
+__all__ = ["ParabolicSAR", "PSAR"]
 
 # 这个用于计算SAR指标
+
 
 class _SarStatus(object):
     sar = None
@@ -36,42 +16,45 @@ class _SarStatus(object):
 
     def __str__(self):
         txt = []
-        txt.append('sar: {}'.format(self.sar))
-        txt.append('tr: {}'.format(self.tr))
-        txt.append('af: {}'.format(self.af))
-        txt.append('ep: {}'.format(self.ep))
-        return '\n'.join(txt)
+        txt.append("sar: {}".format(self.sar))
+        txt.append("tr: {}".format(self.tr))
+        txt.append("af: {}".format(self.af))
+        txt.append("ep: {}".format(self.ep))
+        return "\n".join(txt)
 
 
 class ParabolicSAR(PeriodN):
-    '''
+    """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"* for the RSI
 
-    SAR stands for *Stop and Reverse* and the indicator was meant as a signal
+    SAR stands for *Stop and Reverse*, and the indicator was meant as a signal
     for entry (and reverse)
 
-    How to select the 1st signal is left unspecified in the book and the
+    How to select the first signal is left unspecified in the book and the
     increase/decrease of bars
 
     See:
       - https://en.wikipedia.org/wiki/Parabolic_SAR
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:parabolic_sar
-    '''
-    alias = ('PSAR',)
-    lines = ('psar',)
+    """
+
+    alias = ("PSAR",)
+    lines = ("psar",)
     params = (
-        ('period', 2),  # when to start showing values
-        ('af', 0.02),
-        ('afmax', 0.20),
+        ("period", 2),  # when to start showing values
+        ("af", 0.02),
+        ("afmax", 0.20),
     )
 
     plotinfo = dict(subplot=False)
     plotlines = dict(
-        psar=dict(
-            marker='.', markersize=4.0, color='black', fillstyle='full', ls=''
-        ),
+        psar=dict(marker=".", markersize=4.0, color="black", fillstyle="full", ls=""),
     )
+
+    def __init__(self):
+        super().__init__()
+        self._status = None
 
     def prenext(self):
         if len(self) == 1:
@@ -83,7 +66,7 @@ class ParabolicSAR(PeriodN):
         else:
             self.next()  # regular calc
 
-        self.lines.psar[0] = float('NaN')  # no return yet still prenext
+        self.lines.psar[0] = float("NaN")  # no return yet still prenext
 
     def nextstart(self):
         if self._status:  # some states have been calculated
@@ -171,3 +154,6 @@ class ParabolicSAR(PeriodN):
         newstatus.sar = sar
         newstatus.ep = ep
         newstatus.af = af
+
+
+PSAR = ParabolicSAR

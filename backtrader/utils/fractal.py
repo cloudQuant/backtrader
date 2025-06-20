@@ -1,52 +1,36 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-# (based on backtrader from Daniel Rodriguez)
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 
 import backtrader as bt
 
 
-__all__ = ['Fractal']
+__all__ = ["Fractal"]
 
 
 class Fractal(bt.ind.PeriodN):
-    '''
+    """
     References:
         [Ref 1] http://www.investopedia.com/articles/trading/06/fractals.asp
 
-    '''
-    lines = ('fractal_bearish', 'fractal_bullish')
+    """
+
+    lines = ("fractal_bearish", "fractal_bullish")
 
     plotinfo = dict(subplot=False, plotlinelabels=False, plot=True)
 
     plotlines = dict(
-        fractal_bearish=dict(marker='^', markersize=4.0, color='lightblue',
-                             fillstyle='full', ls=''),
-        fractal_bullish=dict(marker='v', markersize=4.0, color='lightblue',
-                             fillstyle='full', ls='')
+        fractal_bearish=dict(
+            marker="^", markersize=4.0, color="lightblue", fillstyle="full", ls=""
+        ),
+        fractal_bullish=dict(
+            marker="v", markersize=4.0, color="lightblue", fillstyle="full", ls=""
+        ),
     )
     params = (
-        ('period', 5),
-        ('bardist', 0.015),  # distance to max/min in absolute perc
-        ('shift_to_potential_fractal', 2),
+        ("period", 5),
+        ("bardist", 0.015),  # distance to max/min in absolute perc
+        ("shift_to_potential_fractal", 2),
     )
 
     def next(self):

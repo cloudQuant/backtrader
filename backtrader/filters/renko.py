@@ -1,35 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-
 from . import Filter
 
 
-__all__ = ['Renko']
+__all__ = ["Renko"]
 
 
 class Renko(Filter):
-    '''Modify the data stream to draw Renko bars (or bricks)
+    """Modify the data stream to draw Renko bars (or bricks)
 
     Params:
 
@@ -44,9 +22,9 @@ class Renko(Filter):
 
       - ``dynamic`` (default: *False*) If *True* and using *autosize*, the size
         of the bricks will be recalculated when moving to a new brick. This
-        will of course eliminate the perfect alignment of Renko bricks.
+         will, of course, eliminate the perfect alignment of Renko bricks.
 
-      - ``align`` (default: *1.0*) Factor use to align the price boundaries of
+      - ``align`` (default: *1.0*) Factor used to align the price boundaries of
         the bricks. If the price is for example *3563.25* and *align* is
         *10.0*, the resulting aligned price will be *3560*. The calculation:
 
@@ -54,23 +32,29 @@ class Renko(Filter):
           - round it and remove the decimals -> 356
           - 356 * 10.0 -> 3560
 
-      - ``roundstart`` (default: *True*)  If *True*, round the initial start
+      - ``roundstart`` (default: *True*) If *True*, round the initial start
         value to int. Else keep the original value, which should aid when
         backtesting penny stocks
 
     See:
       - http://stockcharts.com/school/doku.php?id=chart_school:chart_analysis:renko
 
-    '''
+    """
 
     params = (
-        ('hilo', False),
-        ('size', None),
-        ('autosize', 20.0),
-        ('dynamic', False),
-        ('align', 1.0),
-        ('roundstart', True),
+        ("hilo", False),
+        ("size", None),
+        ("autosize", 20.0),
+        ("dynamic", False),
+        ("align", 1.0),
+        ("roundstart", True),
     )
+
+    def __init__(self, data):
+        super().__init__(data)
+        self._bot = None
+        self._top = None
+        self._size = None
 
     def nextstart(self, data):
         o = data.open[0]

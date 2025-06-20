@@ -1,31 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-# From: http://stackoverflow.com/questions/4126348/how-do-i-rewrite-this-function-to-implement-ordereddict/4127426#4127426
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 from collections import OrderedDict
 
 from .py3 import iteritems
+
 
 # 这是一个没有使用到的类，创建的意图应该是保持添加进orderedDict类中保持DefaultDict的特征
 # 在整个backtrader中没有找到这个类的使用，大家忽略就好，甚至可以删除，不会影响使用。
@@ -38,16 +17,18 @@ class OrderedDefaultdict(OrderedDict):
         # 如果传入了*args，如果args[0]不满足是None或者可调用，将会报错，如果满足了，默认将是atgs[0],剩下的参数将是args[1:]
         else:
             if not (args[0] is None or callable(args[0])):
-                raise TypeError('first argument must be callable or None')
+                raise TypeError("first argument must be callable or None")
             self.default_factory = args[0]
             args = args[1:]
         super(OrderedDefaultdict, self).__init__(*args, **kwargs)
+
     # 当key值不存在的时候，如果self.default_factory是None的话，将会返回key error;如果不是None的话，将会返回self.default_factory()
     def __missing__(self, key):
         if self.default_factory is None:
             raise KeyError(key)
         self[key] = default = self.default_factory()
         return default
+
     # 可选方法，用于支持pickle
     def __reduce__(self):  # optional, for pickle support
         args = (self.default_factory,) if self.default_factory else ()

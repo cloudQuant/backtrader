@@ -11,8 +11,18 @@ warnings.filterwarnings("ignore")
 # 创建一个时间序列的类，用于快速计算具体策略的收益情况
 class AlphaTs(object):
     # 传入具体的数据和函数进行初始化
-    def __init__(self, datetime_arr, open_arr, high_arr, low_arr, close_arr, volume_arr,
-                 params, signal_arr=None, engine="python"):
+    def __init__(
+        self,
+        datetime_arr,
+        open_arr,
+        high_arr,
+        low_arr,
+        close_arr,
+        volume_arr,
+        params,
+        signal_arr=None,
+        engine="python",
+    ):
         # datas是字典格式，key是品种的名字，value是df格式，index是datetime,包含open,high,low,close,volume,openinterest
         # params是测试的时候使用的参数
         self.datetime_arr = datetime_arr
@@ -50,28 +60,65 @@ class AlphaTs(object):
             self.signal_arr = self.cal_signal()
         # 如果传入的signal_arr不是None的话，就计算具体的value
         if self.engine == "python":
-            value_arr = self._cal_value(self.open_arr, self.high_arr, self.low_arr, self.close_arr, self.volume_arr,
-                                        self.signal_arr, commission=commission, init_value=init_value, percent=percent)
+            value_arr = self._cal_value(
+                self.open_arr,
+                self.high_arr,
+                self.low_arr,
+                self.close_arr,
+                self.volume_arr,
+                self.signal_arr,
+                commission=commission,
+                init_value=init_value,
+                percent=percent,
+            )
             return value_arr
         if self.engine == "numba":
             try:
                 from backtrader.utils.ts_cal_value.calculation_by_numba import cal_value_by_numba
             except ImportError:
                 assert 0, "No calculation_by_numba compiled"
-            value_arr = cal_value_by_numba(self.open_arr, self.high_arr, self.low_arr, self.close_arr, self.volume_arr,
-                                           self.signal_arr, commission, init_value, percent)
+            value_arr = cal_value_by_numba(
+                self.open_arr,
+                self.high_arr,
+                self.low_arr,
+                self.close_arr,
+                self.volume_arr,
+                self.signal_arr,
+                commission,
+                init_value,
+                percent,
+            )
             return value_arr
         if self.engine == "cython":
             try:
                 from backtrader.utils.ts_cal_value.calculation_by_cython import cal_value_by_cython
             except ImportError:
                 assert 0, "No calculation_by_cython compiled"
-            value_arr = cal_value_by_cython(self.open_arr, self.high_arr, self.low_arr, self.close_arr, self.volume_arr,
-                                            self.signal_arr, commission, init_value, percent)
+            value_arr = cal_value_by_cython(
+                self.open_arr,
+                self.high_arr,
+                self.low_arr,
+                self.close_arr,
+                self.volume_arr,
+                self.signal_arr,
+                commission,
+                init_value,
+                percent,
+            )
             return value_arr
 
-    def _cal_value(self, open_arr, high_arr, low_arr, close_arr, volume_arr,
-                   signal_arr, commission, init_value, percent=1.0):
+    def _cal_value(
+        self,
+        open_arr,
+        high_arr,
+        low_arr,
+        close_arr,
+        volume_arr,
+        signal_arr,
+        commission,
+        init_value,
+        percent=1.0,
+    ):
         # 循环计算具体的持仓，盈亏，value的情况
         # 初始化持仓，可用资金，持仓盈亏，价值
         symbol_open_price_arr = np.zeros(signal_arr.shape)
@@ -112,7 +159,9 @@ class AlphaTs(object):
                     # 保存开仓价格
                     symbol_open_price_arr[i] = open_price
                     # 价值变化
-                    value_change = (close_arr[i] - open_price) / open_price * pre_signal * open_value * percent
+                    value_change = (
+                        (close_arr[i] - open_price) / open_price * pre_signal * open_value * percent
+                    )
                     # 当前的价格
                     value_arr[i] = open_value + value_change - now_commission
                     # print("-----------------------------")
@@ -131,9 +180,17 @@ class AlphaTs(object):
                 if pre_signal != 0 and now_signal == 0:
                     open_price = symbol_open_price_arr[i - 1]
                     open_value = symbol_open_value_arr[i - 1]
-                    value_change = (open_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+                    value_change = (
+                        (open_arr[i + 1] - open_price)
+                        / open_price
+                        * pre_signal
+                        * open_value
+                        * percent
+                    )
                     value_arr[i] = open_value + value_change - now_commission
-                    now_commission = open_arr[i + 1] / open_price * open_value * percent * commission
+                    now_commission = (
+                        open_arr[i + 1] / open_price * open_value * percent * commission
+                    )
                     value_arr[i] = value_arr[i] - now_commission
                     symbol_open_price_arr[i] = 0
                     symbol_open_value_arr[i] = 0
@@ -165,7 +222,13 @@ class AlphaTs(object):
                     # 平旧仓位
                     open_price = symbol_open_price_arr[i - 1]
                     open_value = symbol_open_value_arr[i - 1]
-                    value_change = (open_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+                    value_change = (
+                        (open_arr[i + 1] - open_price)
+                        / open_price
+                        * pre_signal
+                        * open_value
+                        * percent
+                    )
                     value_arr[i] = value_arr[i - 1] + value_change - now_commission
                     # 新开仓
                     open_value = value_arr[i]
@@ -192,7 +255,9 @@ class AlphaTs(object):
                 open_price = symbol_open_price_arr[i]
                 open_value = symbol_open_value_arr[i]
                 symbol_open_price_arr[i + 1] = open_price
-                value_change = (close_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+                value_change = (
+                    (close_arr[i + 1] - open_price) / open_price * pre_signal * open_value * percent
+                )
                 value_arr[i + 1] = open_value + value_change
                 symbol_open_value_arr[i + 1] = open_value
                 # print("-----------------------------")
@@ -209,8 +274,8 @@ class AlphaTs(object):
 
     def run(self):
         value_arr = self.cal_value()
-        value_df = pd.DataFrame(value_arr, index=self.datetime_arr, columns=['total_value'])
+        value_df = pd.DataFrame(value_arr, index=self.datetime_arr, columns=["total_value"])
         # print(value_df)
-        sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(value_df['total_value'])
+        sharpe_ratio, average_rate, max_drawdown = get_rate_sharpe_drawdown(value_df["total_value"])
         # print(f"sharpe_ratio:{sharpe_ratio}, average_rate:{average_rate}, max_drawdown:{max_drawdown}")
         return value_df

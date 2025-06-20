@@ -1,34 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from backtrader.utils.py3 import filter, string_types, integer_types
-
 from backtrader import date2num
 import backtrader.feed as feed
 
+
 # backtrader通过pandas加载数据
 class PandasDirectData(feed.DataBase):
-    '''
+    """
     Uses a Pandas DataFrame as the feed source, iterating directly over the
     tuples returned by "itertuples".
 
@@ -42,22 +21,25 @@ class PandasDirectData(feed.DataBase):
       - A negative value in any of the parameters for the Data lines
         indicates it's not present in the DataFrame
         it is
-    '''
+    """
+
     # 参数
     params = (
-        ('datetime', 0),
-        ('open', 1),
-        ('high', 2),
-        ('low', 3),
-        ('close', 4),
-        ('volume', 5),
-        ('openinterest', 6),
+        ("datetime", 0),
+        ("open", 1),
+        ("high", 2),
+        ("low", 3),
+        ("close", 4),
+        ("volume", 5),
+        ("openinterest", 6),
     )
     # 列名
-    datafields = [
-        'datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest'
-    ]
+    datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
+
     # 开始，把dataframe数据转化成可以迭代的元组，每一行一个元组
+    def __init__(self):
+        self._rows = None
+
     def start(self):
         super(PandasDirectData, self).start()
 
@@ -74,14 +56,14 @@ class PandasDirectData(feed.DataBase):
         # Set the standard datafields - except for datetime
         # 对于除了datetime之外的列，把数据根据列名添加到line中
         for datafield in self.getlinealiases():
-            if datafield == 'datetime':
+            if datafield == "datetime":
                 continue
 
             # get the column index
             colidx = getattr(self.params, datafield)
 
             if colidx < 0:
-                # column not present -- skip
+                # column is not present -- skip
                 continue
 
             # get the line to be set
@@ -92,7 +74,7 @@ class PandasDirectData(feed.DataBase):
 
         # datetime
         # 对于datetime，获取datetime所在列的index,然后获取时间
-        colidx = getattr(self.params, 'datetime')
+        colidx = getattr(self.params, "datetime")
         tstamp = row[colidx]
 
         # convert to float via datetime and store it
@@ -102,7 +84,7 @@ class PandasDirectData(feed.DataBase):
 
         # get the line to be set
         # 获取datetime的line，然后保存这个数字
-        line = getattr(self.lines, 'datetime')
+        line = getattr(self.lines, "datetime")
         line[0] = dtnum
 
         # Done ... return
@@ -110,7 +92,7 @@ class PandasDirectData(feed.DataBase):
 
 
 class PandasData(feed.DataBase):
-    '''
+    """
     Uses a Pandas DataFrame as the feed source, using indices into column
     names (which can be "numeric")
 
@@ -119,7 +101,7 @@ class PandasData(feed.DataBase):
 
     Params:
 
-      - ``nocase`` (default *True*) case insensitive match of column names
+      - ``nocase`` (default *True*) case-insensitive match of column names
 
     Note:
 
@@ -136,34 +118,31 @@ class PandasData(feed.DataBase):
         - None: column not present
         - -1: autodetect
         - >= 0 or string: specific colum identifier
-    '''
+    """
+
     # 参数及其含义
     params = (
-        ('nocase', True),
-
+        ("nocase", True),
         # Possible values for datetime (must always be present)
-        #  None : datetime is the "index" in the Pandas Dataframe
-        #  -1 : autodetect position or case-wise equal name
-        #  >= 0 : numeric index to the colum in the pandas dataframe
-        #  string : column name (as index) in the pandas dataframe
-        ('datetime', None),
-
-        # Possible values below:
+        #  None: datetime is the "index" in the Pandas Dataframe
+        #  -1: autodetect position or case-wise equal name
+        #  >= 0: numeric index to the colum in the pandas dataframe
+        #  string: column name (as index) in the pandas dataframe
+        ("datetime", None),
+        # The possible values below:
         #  None : column not present
-        #  -1 : autodetect position or case-wise equal name
-        #  >= 0 : numeric index to the colum in the pandas dataframe
-        #  string : column name (as index) in the pandas dataframe
-        ('open', -1),
-        ('high', -1),
-        ('low', -1),
-        ('close', -1),
-        ('volume', -1),
-        ('openinterest', -1),
+        #  -1: autodetect position or case-wise equal name
+        #  >= 0: numeric index to the colum in the pandas dataframe
+        #  string: column name (as index) in the pandas dataframe
+        ("open", -1),
+        ("high", -1),
+        ("low", -1),
+        ("close", -1),
+        ("volume", -1),
+        ("openinterest", -1),
     )
     # 数据的列名
-    datafields = [
-        'datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest'
-    ]
+    datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
     # 类初始化
     def __init__(self):
@@ -171,6 +150,7 @@ class PandasData(feed.DataBase):
 
         # these "colnames" can be strings or numeric types
         # 列的名字，列表格式
+        self._idx = None
         colnames = list(self.p.dataname.columns.values)
         # 如果datetime在index中
         if self.p.datetime is None:
@@ -212,11 +192,12 @@ class PandasData(feed.DataBase):
                     # autodetection requested and not found
                     self._colmapping[datafield] = None
                     continue
-                
+
             # 如果datafield用户自己进行了定义，那么就直接使用用户定义的
             else:
                 # all other cases -- used given index
                 self._colmapping[datafield] = defmapping
+
     # 开始处理数据
     def start(self):
         super(PandasData, self).start()
@@ -237,7 +218,7 @@ class PandasData(feed.DataBase):
             if v is None:
                 continue  # special marker for datetime
             # 如果列名是字符串的话，如果大小写不敏感，就先转化成小写，如果不敏感，忽略，然后根据列名得到列所在的index
-            
+
             if isinstance(v, string_types):
                 # 这下面的一些代码似乎有些无效，感觉可以忽略，直接使用self._colmapping[k] = colnames.index(v)替代就好了
                 try:
@@ -266,7 +247,7 @@ class PandasData(feed.DataBase):
         # 循环datafield
         for datafield in self.getlinealiases():
             # 如果是时间，继续上面的循环
-            if datafield == 'datetime':
+            if datafield == "datetime":
                 continue
 
             colindex = self._colmapping[datafield]
@@ -283,7 +264,7 @@ class PandasData(feed.DataBase):
             line[0] = self.p.dataname.iloc[self._idx, colindex]
 
         # datetime conversion
-        coldtime = self._colmapping['datetime']
+        coldtime = self._colmapping["datetime"]
         # 如果datetime所在的列是None的话，直接通过index获取时间，如果不是None的话，通过iloc获取时间数据
         if coldtime is None:
             # standard index in the datetime

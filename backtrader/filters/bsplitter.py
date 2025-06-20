@@ -1,33 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import datetime
-
 import backtrader as bt
+from backtrader.parameters import ParameterizedBase
 
 
-class DaySplitter_Close(bt.with_metaclass(bt.MetaParams, object)):
-    '''
+class DaySplitterClose(ParameterizedBase):
+    """
     Splits a daily bar in two parts simulating 2 ticks which will be used to
     replay the data:
 
@@ -38,30 +18,30 @@ class DaySplitter_Close(bt.with_metaclass(bt.MetaParams, object)):
 
         The session opening time is used for this tick
 
-      and
+      And
 
       - Second tick: ``CCCC``
 
-        The ``Close`` price will be used for the four components of the price
+        The `Close` price will be used for the four components of the price
 
         The session closing time is used for this tick
 
     The volume will be split amongst the 2 ticks using the parameters:
 
-      - ``closevol`` (default: ``0.5``) The value indicate which percentage, in
+      - ``closevol`` (default: ``0.5``) The value indicates which percentage, in
         absolute terms from 0.0 to 1.0, has to be assigned to the *closing*
         tick. The rest will be assigned to the ``OHLX`` tick.
 
     **This filter is meant to be used together with** ``cerebro.replaydata``
 
-    '''
-    params = (
-        ('closevol', 0.5),  # 0 -> 1 amount of volume to keep for close
-    )
+    """
+
+    params = (("closevol", 0.5),)  # 0 -> 1 amount of volume to keep for close
 
     # replaying = True
 
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
+        super(DaySplitterClose, self).__init__(**kwargs)
         self.lastdt = None
 
     def __call__(self, data):

@@ -1,59 +1,37 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from backtrader.comminfo import CommInfoBase
-from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import with_metaclass
+from backtrader.parameters import ParameterizedBase, ParameterDescriptor
+
 
 # from . import fillers as fillers
 # from . import fillers as filler
 
 
-# broker元类，使得get_cash与getcash,get_value与getvalue方法相同
-class MetaBroker(MetaParams):
-    def __init__(cls, name, bases, dct):
-        # Class has already been created ... fill missing methods if needed be
-        # Initialize the class
-        super(MetaBroker, cls).__init__(name, bases, dct)
-        translations = {
-            'get_cash': 'getcash',
-            'get_value': 'getvalue',
-        }
-
-        for attr, trans in translations.items():
-            if not hasattr(cls, attr):
-                setattr(cls, name, getattr(cls, trans))
+# 创建一个mixin来处理别名，而不使用元类
+class BrokerAliasMixin(object):
+    """Mixin to provide method aliases without using metaclasses"""
+    
+    def __init__(self, *args, **kwargs):
+        super(BrokerAliasMixin, self).__init__(*args, **kwargs)
+        # Create aliases if they don't exist
+        if not hasattr(self, 'get_cash'):
+            self.get_cash = self.getcash
+        if not hasattr(self, 'get_value'):
+            self.get_value = self.getvalue
 
 
-# broker基类
-class BrokerBase(with_metaclass(MetaBroker, object)):
-    # 参数
-    params = (
-        ('commission', CommInfoBase(percabs=True)),
+# broker基类 - 使用新的参数系统
+class BrokerBase(BrokerAliasMixin, ParameterizedBase):
+    # 使用新的参数描述符
+    commission = ParameterDescriptor(
+        default=CommInfoBase(percabs=True),
+        doc="Default commission scheme for all assets"
     )
 
     # 初始化
-    def __init__(self):
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.comminfo = dict()
         self.init()
 
@@ -61,7 +39,7 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
     def init(self):
         # called from init and from start
         if None not in self.comminfo:
-            self.comminfo = dict({None: self.p.commission})
+            self.comminfo = dict({None: self.get_param('commission')})
 
     # 开始
     def start(self):
@@ -87,32 +65,46 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
         # if data._name in self.comminfo:
         #     return self.comminfo[data._name]
         # todo 避免访问被保护的属性._name,在加载数据的时候，已经增加了.name属性，用.name替代_name,避免pycharm弹出警告信息
-        if data.name in self.comminfo:
+        if hasattr(data, 'name') and data.name in self.comminfo:
             return self.comminfo[data.name]
 
         return self.comminfo[None]
 
     # 设置佣金
-    def setcommission(self,
-                      commission=0.0, margin=None, mult=1.0,
-                      commtype=None, percabs=True, stocklike=False,
-                      interest=0.0, interest_long=False, leverage=1.0,
-                      automargin=False,
-                      name=None):
-
+    def setcommission(
+        self,
+        commission=0.0,
+        margin=None,
+        mult=1.0,
+        commtype=None,
+        percabs=True,
+        stocklike=False,
+        interest=0.0,
+        interest_long=False,
+        leverage=1.0,
+        automargin=False,
+        name=None,
+    ):
         """This method sets a `` CommissionInfo`` object for assets managed in
         the broker with the parameters. Consult the reference for
         ``CommInfoBase``
 
-        If name is ``None``, this will be the default for assets for which no
+        If name is `None`, this will be the default for assets for which no
         other ``CommissionInfo`` scheme can be found
         """
 
-        comm = CommInfoBase(commission=commission, margin=margin, mult=mult,
-                            commtype=commtype, stocklike=stocklike,
-                            percabs=percabs,
-                            interest=interest, interest_long=interest_long,
-                            leverage=leverage, automargin=automargin)
+        comm = CommInfoBase(
+            commission=commission,
+            margin=margin,
+            mult=mult,
+            commtype=commtype,
+            stocklike=stocklike,
+            percabs=percabs,
+            interest=interest,
+            interest_long=interest_long,
+            leverage=leverage,
+            automargin=automargin,
+        )
         self.comminfo[name] = comm
 
     # 增加佣金信息
@@ -145,7 +137,7 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
     def set_fundmode(self, fundmode, fundstartval=None):
         """Set the actual fundmode (True or False)
 
-        If the argument fundstartval is not ``None``, it will use
+        If the argument fundstartval is not `None`, it will use
         """
         pass  # do nothing, not all brokers can support this
 
@@ -169,23 +161,46 @@ class BrokerBase(with_metaclass(MetaBroker, object)):
         raise NotImplementedError
 
     # 买入下单
-    def buy(self, owner, data, size, price=None, plimit=None,
-            exectype=None, valid=None, tradeid=0, oco=None,
-            trailamount=None, trailpercent=None,
-            **kwargs):
+    def buy(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        **kwargs,
+    ):
 
         raise NotImplementedError
 
     # 卖出下单
-    def sell(self, owner, data, size, price=None, plimit=None,
-             exectype=None, valid=None, tradeid=0, oco=None,
-             trailamount=None, trailpercent=None,
-             **kwargs):
+    def sell(
+        self,
+        owner,
+        data,
+        size,
+        price=None,
+        plimit=None,
+        exectype=None,
+        valid=None,
+        tradeid=0,
+        oco=None,
+        trailamount=None,
+        trailpercent=None,
+        **kwargs,
+    ):
 
         raise NotImplementedError
 
     # 下一个bar
     def next(self):
         pass
+
 
 # __all__ = ['BrokerBase', 'fillers', 'filler']

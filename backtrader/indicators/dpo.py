@@ -1,32 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-# Python 2/3 compatibility imports
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 from . import Indicator, MovAv
+
 
 # 去除趋势后的价格波动
 class DetrendedPriceOscillator(Indicator):
-    '''
+    """
     Defined by Joe DiNapoli in his book *"Trading with DiNapoli levels"*
 
     It measures the price variations against a Moving Average (the trend)
@@ -38,16 +17,17 @@ class DetrendedPriceOscillator(Indicator):
 
     See:
       - http://en.wikipedia.org/wiki/Detrended_price_oscillator
-    '''
+    """
+
     # Named alias for invocation
-    alias = ('DPO',)
+    alias = ("DPO",)
 
     # Named output lines
-    lines = ('dpo',)
+    lines = ("dpo",)
 
     # Accepted parameters (and defaults) -
     # MovAvg also parameter to allow experimentation
-    params = (('period', 20), ('movav', MovAv.Simple))
+    params = (("period", 20), ("movav", MovAv.Simple))
 
     # Emphasize central 0.0 line in plot
     plotinfo = dict(plothlines=[0.0])
@@ -55,7 +35,7 @@ class DetrendedPriceOscillator(Indicator):
     # Indicator information after the name (in brackets)
     def _plotlabel(self):
         plabels = [self.p.period]
-        plabels += [self.p.movav] * self.p.notdefault('movav')
+        plabels += [self.p.movav] * self.p.notdefault("movav")
         return plabels
 
     def __init__(self):

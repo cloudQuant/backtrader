@@ -1,58 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-
 from datetime import datetime, timedelta, tzinfo
-
 import backtrader as bt
 from backtrader import TimeFrame, date2num, num2date
 from backtrader.feed import DataBase
 from backtrader.metabase import MetaParams
-from backtrader.utils.py3 import (integer_types, queue, string_types,
-                                  with_metaclass)
+from backtrader.utils.py3 import (
+    integer_types,
+    queue,
+    string_types,
+)
 
 from backtrader.stores import vcstore
 
 
-
-class MetaVCData(DataBase.__class__):
-    def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
-        # Initialize the class
-        super(MetaVCData, cls).__init__(name, bases, dct)
-
-        # Register with the store
-        vcstore.VCStore.DataCls = cls
-
-# vc数据
-class VCData(with_metaclass(MetaVCData, DataBase)):
-    '''VisualChart Data Feed.
+class VCData(DataBase):
+    """VisualChart Data Feed.
 
     Params:
 
       - ``qcheck`` (default: ``0.5``)
         Default timeout for waking up to let a resampler/replayer that the
-        current bar can be check for due delivery
+        current bar can be checked for due delivery
 
         The value is only used if a resampling/replaying filter has been
         inserted in the data
@@ -61,23 +30,23 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         If no ``todate`` parameter is supplied (defined in the base class),
         this will force a historical only download if set to ``True``
 
-        If ``todate`` is supplied the same effect is achieved
+        If ``todate`` is supplied, the same effect is achieved
 
       - ``milliseconds`` (default: ``True``)
         The bars constructed by *Visual Chart* have this aspect:
         HH:MM:59.999000
 
-        If this parameter is ``True`` a millisecond will be added to this time
+        If this parameter is `True`, a millisecond will be added to this time
         to make it look like: HH::MM + 1:00.000000
 
       - ``tradename`` (default: ``None``)
         Continous futures cannot be traded but are ideal for data tracking. If
-        this parameter is supplied it will be the name of the current future
+        this parameter is supplied, it will be the name of the current future
         which will be the trading asset. Example:
 
         - 001ES -> ES-Mini continuous supplied as ``dataname``
 
-        - ESU16 -> ES-Mini 2016-09. If this is supplied in ``tradename`` it
+        - ESU16 -> ES-Mini 2016-09. If this is supplied in `tradename` it
           will be the trading asset.
 
       - ``usetimezones`` (default: ``True``)
@@ -86,20 +55,62 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         for representation)
 
         Some markets are special (``096``) and need special internal coverage
-        and timezone support to display in the user expected market time.
+        and timezone support to display in the user's expected market time.
 
         If this parameter is set to ``True`` importing ``pytz`` will be
         attempted to use timezones (default)
 
         Disabling it will remove timezone usage (may help if the load is
         excesive)
-    '''
+
+      - ``what`` (default: ``None``)
+
+        If ``None`` the default for different assets types will be used for
+        historical data requests:
+
+          - 'BID' for CASH assets
+          - 'TRADES' for any other
+
+        Check the VisualChart API docs if another value is wished
+
+      - ``backfill_start`` (default: ``True``)
+
+        Perform backfilling at the start. The maximum possible historical data
+        will be fetched in a single request.
+
+      - ``backfill`` (default: ``True``)
+
+        Perform backfilling after a disconnection/reconnection cycle. The gap
+        duration will be used to download the smallest possible amount of data
+
+      - ``backfill_from`` (default: ``None``)
+
+        An additional data source can be passed to do an initial layer of
+        backfilling. Once the data source is depleted and if requested,
+        backfilling from VisualChart will take place. This is ideally meant to backfill
+        from already stored sources like a file on disk, but not limited to.
+
+      - ``latethrough`` (default: ``False``)
+
+        If the data source is resampled/replayed, some ticks may come in too
+        late for the already delivered resampled/replayed bar. If this is
+        ``True`` those ticks will bet let through in any case.
+
+        Check the Resampler documentation to see who to take those ticks into
+        account.
+    """
+
     params = (
-        ('qcheck', 0.5),  # timeout in seconds (float) to check for events
-        ('historical', False),  # usual industry value
-        ('millisecond', True),  # fix missing millisecond in time
-        ('tradename', None),  # name of the real asset to trade on
-        ('usetimezones', True),  # use pytz timezones if found
+        ("qcheck", 0.5),  # timeout in seconds (float) to check for events
+        ("historical", False),  # usual industry value
+        ("millisecond", True),  # fix missing millisecond in time
+        ("tradename", None),  # name of the real asset to trade on
+        ("usetimezones", True),  # use pytz timezones if found
+        ("what", None),  # historical - what to show
+        ("backfill_start", True),  # do backfill at the start
+        ("backfill", True),  # do backfill when reconnecting
+        ("backfill_from", None),  # additional data source to do backfill from
+        ("latethrough", False),  # let late samples through
     )
 
     # Holds the calculated offset to the timestamps of the VC Server
@@ -119,45 +130,101 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
 
     # Timezones for the different exchanges
     _TZS = {
-        'Europe/London': ('011', '024', '027', '036', '049', '092', '114',
-                          # These are the global markets
-                          '033', '034', '035', '043', '054', '096', '300',),
-
-        'Europe/Berlin': ('005', '006', '008', '012', '013', '014', '015',
-                          '017', '019', '025', '029', '030', '037', '038',
-                          '052', '053', '060', '061', '072', '073', '074',
-                          '075', '080', '093', '094', '097', '111', '112',
-                          '113',),
-
-        'Asia/Tokyo': ('031',),
-        'Australia/Melbourne': ('032',),
-        'America/Argentina/Buenos_Aires': ('044',),
-        'America/Sao_Paulo': ('045',),
-        'America/Mexico_City': ('046',),
-        'America/Santiago': ('047',),
-
-        'US/Eastern': ('003', '004', '009', '010', '028', '040', '041', '055',
-                       '090', '095', '099',),
-        'US/Central': ('001', '002', '020', '021', '022', '023', '056',),
+        "Europe/London": (
+            "011",
+            "024",
+            "027",
+            "036",
+            "049",
+            "092",
+            "114",
+            # These are the global markets
+            "033",
+            "034",
+            "035",
+            "043",
+            "054",
+            "096",
+            "300",
+        ),
+        "Europe/Berlin": (
+            "005",
+            "006",
+            "008",
+            "012",
+            "013",
+            "014",
+            "015",
+            "017",
+            "019",
+            "025",
+            "029",
+            "030",
+            "037",
+            "038",
+            "052",
+            "053",
+            "060",
+            "061",
+            "072",
+            "073",
+            "074",
+            "075",
+            "080",
+            "093",
+            "094",
+            "097",
+            "111",
+            "112",
+            "113",
+        ),
+        "Asia/Tokyo": ("031",),
+        "Australia/Melbourne": ("032",),
+        "America/Argentina/Buenos_Aires": ("044",),
+        "America/Sao_Paulo": ("045",),
+        "America/Mexico_City": ("046",),
+        "America/Santiago": ("047",),
+        "US/Eastern": (
+            "003",
+            "004",
+            "009",
+            "010",
+            "028",
+            "040",
+            "041",
+            "055",
+            "090",
+            "095",
+            "099",
+        ),
+        "US/Central": (
+            "001",
+            "002",
+            "020",
+            "021",
+            "022",
+            "023",
+            "056",
+        ),
     }
 
     # The global assets may have a different output timezoe
     _TZOUT = {
-        '096.FTSE': 'Europe/London',
-        '096.FTEU3': 'Europe/London',
-        '096.MIB30': 'Europe/Berlin',
-        '096.SSMI': 'Europe/Berlin',
-        '096.HSI': 'Asia/Hong_Kong',
-        '096.BVSP': 'America/Sao_Paulo',
-        '096.MERVAL': 'America/Argentina/Buenos_Aires',
-        '096.DJI': 'US/Eastern',
-        '096.IXIC': 'US/Eastern',
-        '096.NDX': 'US/Eastern',
+        "096.FTSE": "Europe/London",
+        "096.FTEU3": "Europe/London",
+        "096.MIB30": "Europe/Berlin",
+        "096.SSMI": "Europe/Berlin",
+        "096.HSI": "Asia/Hong_Kong",
+        "096.BVSP": "America/Sao_Paulo",
+        "096.MERVAL": "America/Argentina/Buenos_Aires",
+        "096.DJI": "US/Eastern",
+        "096.IXIC": "US/Eastern",
+        "096.NDX": "US/Eastern",
     }
 
     # These global markets deliver data in local time dst adjuste unlike those
     # from above and need a readjustment
-    _EXTRA_TIMEOFFSET = ('096',)
+    _EXTRA_TIMEOFFSET = ("096",)
 
     _TIMEFRAME_BACKFILL = {
         TimeFrame.Ticks: timedelta(days=1),
@@ -165,24 +232,24 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         TimeFrame.Seconds: timedelta(days=1),
         TimeFrame.Minutes: timedelta(days=2),
         TimeFrame.Days: timedelta(days=365),
-        TimeFrame.Weeks: timedelta(days=365*2),
-        TimeFrame.Months: timedelta(days=365*5),
-        TimeFrame.Years: timedelta(days=365*20),
+        TimeFrame.Weeks: timedelta(days=365 * 2),
+        TimeFrame.Months: timedelta(days=365 * 5),
+        TimeFrame.Years: timedelta(days=365 * 20),
     }
 
     def _timeoffset(self):
-        '''Returns the calculated time offset local equipment -> data server'''
+        """Returns the calculated time offset local equipment -> data server"""
         return self._TOFFSET
 
     def _gettzinput(self):
-        '''Returns the timezone to consider for the input data'''
+        """Returns the timezone to consider for the input data"""
         return self._gettz(tzin=True)
 
     def _gettz(self, tzin=False):
-        '''Returns the default output timezone for the data
+        """Returns the default output timezone for the data
 
         This defaults to be the timezone in which the market is traded
-        '''
+        """
         # If no object has been provided by the user and a timezone can be
         # found via contractdtails, then try to get it from pytz, which may or
         # may not be available.
@@ -240,11 +307,26 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         return tz
 
     def islive(self):
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return True
 
     def __init__(self, **kwargs):
+        super(VCData, self).__init__(**kwargs)
+        # 处理原来元类的注册功能
+        vcstore.VCStore.DataCls = self.__class__
+        self._state = None
+        self.q = None
+        self._mktoffdiff = None
+        self._mktoff1 = None
+        self._mktoffset = None
+        self._syminfo = None
+        self._ticking = None
+        self._tf = None
+        self.qrt = None
+        self._newticks = None
+        self.idx = None
+        self._pingtmout = None
         self.store = vcstore.VCStore(**kwargs)
 
         # Correct a copy past directly from VisualChart
@@ -253,7 +335,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             dataname = dataname[0:2] + dataname[4:]
             self.p.dataname = dataname
 
-        self._dataname = '010' + self.p.dataname
+        self._dataname = "010" + self.p.dataname
         self._mktcode = self.p.dataname[0:3]
 
         self._tradename = tradename = self.p.tradename or self._dataname
@@ -263,14 +345,14 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             self._tradename = tradename
 
     def setenvironment(self, env):
-        '''Receives an environment (cerebro) and passes it over to the store it
-        belongs to'''
+        """Receives an environment (cerebro) and passes it over to the store it
+        belongs to"""
         super(VCData, self).setenvironment(env)
         env.addstore(self.store)
 
     def start(self):
-        '''Starts the VC connecction and gets the real contract and
-        contractdetails if it exists'''
+        """Starts the VC connecction and gets the real contract and
+        contractdetails if it exists"""
         super(VCData, self).start()
 
         self._state = self._ST_START  # mini finite state machine
@@ -311,8 +393,11 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             self._tf, self._comp = self.p.timeframe, self.p.compression
         else:
             # Else (even if resampling) pass the final timeframe which may
-            # been modified by a resampling filter
-            self._tf, self._comp = self._timeframe, self._compression,
+            # be modified by a resampling filter
+            self._tf, self._comp = (
+                self._timeframe,
+                self._compression,
+            )
 
         self._ticking = self.store._ticking(self._tf)
         self._syminfo = syminfo = self.store._symboldata(self._dataname)
@@ -339,8 +424,8 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         self._mktoff1 = self._mktoffset
         if self._mktcode in self._EXTRA_TIMEOFFSET:
             # These codes live theoretically in
-            # (UTC+00:00) Dublin, Edinburgh, Lisbon, London which is
-            # 'Europe/London'
+            # (UTC+00:00) Dublin, Edinburgh, Lisbon, London, which is
+            # 'Europe/London,'
             # But all experiments show the times to be displaced 1 hour to
             # the west and hence the extra 3600 seconds
             self._mktoffset -= timedelta(seconds=3600)
@@ -354,14 +439,17 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             self.q = self.store._directdata(
                 self,
                 self._dataname,
-                self._tf, self._comp,
-                self.p.fromdate, self.p.todate,
-                self.p.historical)
+                self._tf,
+                self._comp,
+                self.p.fromdate,
+                self.p.todate,
+                self.p.historical,
+            )
 
             self._state = self._ST_FEEDING
 
     def stop(self):
-        '''Stops and tells the store to stop'''
+        """Stops and tells the store to stop"""
         super(VCData, self).stop()
         if self.q:
             self.store._canceldirectdata(self.q)
@@ -436,11 +524,11 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
     # DS Events
     #
     def _getpingtmout(self):
-        '''Returns the actual ping timeout for PumpEvents to wake up and call
+        """Returns the actual ping timeout for PumpEvents to wake up and call
         ping, which will check if the not yet delivered bar can be
-        delivered. The bar may be stalled because vc awaits a new tick and
+        delivered. The bar may be stalled because vc awaits a new tick, and
         during low negotiation hour this can take several seconds after the
-        actual expected delivery time'''
+        actual expected delivery time"""
         if self._ticking:
             return -1  # no timeout
 
@@ -479,7 +567,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             else:
                 self._pingtmout = self.PING_TIMEOUT  # no bar left, long pause
                 self.q.put(bar)  # push bar and update index
-                ssize += 1  # pushed last one out
+                ssize += 1  # pushed the last one out
 
         # Write down the last processed bar
         self.idx = max(1, ssize)
@@ -513,8 +601,9 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
     #
     # RTEvents
     #
-    # Can be used on a per data basis to check the connection status
+    # Can be used on a per-data basis to check the connection status
     if False:
+
         def OnInternalEvent(self, p1, p2, p3):
             if p1 != 1:  # Apparently "Connection Event"
                 return
@@ -534,14 +623,14 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         # 1. If tick.Field == Field_Description is returned, it can be checked
         # if the requested symbol has been found or not (tick.Date == 0 -> not
         # found). tick.Text has 'Not Found', but this is more likely to change
-        # Once Field_Description has been seen, the 2nd stage takes place
+        # Once Field_Description has been seen; the 2nd stage takes place
         #
         # 2. When a tick.Field == Field_Time is seen and tick.TickIndex == 0,
         # the 1st tick of a second is seen and the tick.Date value can be used
         # to calculate a time offset to the feed server. This is later used to
         # check if a bar is due delivery or not
         #
-        # After this the reception of ticks is cancelled
+        # After this the reception of ticks is canceled
 
         aticks = ArrayTicks[0]
         # self.debug_ticks(aticks)
@@ -564,13 +653,12 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
 
             if tick.TickIndex == 0 and self._mktoff1 is not None:
                 # Adjust the tick time using the mktoffset (with the 096 excep)
-                dttick = (self.NULLDATE + timedelta(days=tick.Date) +
-                          self._mktoff1)
+                dttick = self.NULLDATE + timedelta(days=tick.Date) + self._mktoff1
 
                 self._TOFFSET = datetime.now() - dttick
                 if self._mktcode in self._EXTRA_TIMEOFFSET:
                     # These codes live theoretically in (UTC+00:00) Dublin,
-                    # Edinburgh, Lisbon, London which is 'Europe/London'
+                    # Edinburgh, Lisbon, London, which is 'Europe/London,'
                     # But all experiments show the times to be displaced 1
                     # hour to the west and hence the extra 3600 seconds
                     self._TOFFSET -= timedelta(seconds=3600)
@@ -579,18 +667,18 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
                 self._vcrt.CancelSymbolFeed(self._dataname, False)
 
     def debug_ticks(self, ticks):
-        print('*' * 50, 'DEBUG OnNewTicks')
+        print("*" * 50, "DEBUG OnNewTicks")
         for tick in ticks:
-            print('-' * 40)
-            print('tick.SymbolCode', tick.SymbolCode.encode('ascii', 'ignore'))
+            print("-" * 40)
+            print("tick.SymbolCode", tick.SymbolCode.encode("ascii", "ignore"))
             fname = self.store.vcrtfields.get(tick.Field, tick.Field)
-            print('  tick.Field   : {} ({})'.format(fname, tick.Field))
-            print('  tick.FieldEx :', tick.FieldEx)
+            print("  tick.Field   : {} ({})".format(fname, tick.Field))
+            print("  tick.FieldEx :", tick.FieldEx)
             tdate = tick.Date
             if tdate:
                 tdate = self.NULLDATE + timedelta(days=tick.Date)
-            print('  tick.Date    :', tdate)
+            print("  tick.Date    :", tdate)
 
-            print('  tick.Index   :', tick.TickIndex)
-            print('  tick.Value   :', tick.Value)
-            print('  tick.Text    :', tick.Text.encode('ascii', 'ignore'))
+            print("  tick.Index   :", tick.TickIndex)
+            print("  tick.Value   :", tick.Value)
+            print("  tick.Text    :", tick.Text.encode("ascii", "ignore"))

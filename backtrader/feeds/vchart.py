@@ -1,26 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import datetime
 import struct
 import os.path
@@ -29,60 +8,68 @@ from .. import feed
 from .. import TimeFrame
 from ..utils import date2num
 
+
 # 处理 vc chart的二进制数据，支持天或者日内数据格式
 class VChartData(feed.DataBase):
-    '''
+    """
     Support for `Visual Chart <www.visualchart.com>`_ binary on-disk files for
     both daily and intradaily formats.
 
     Note:
 
-      - ``dataname``: to file or open file-like object
+      - ``dataname``: to file or open file-like an object
 
         If a file-like object is passed, the ``timeframe`` parameter will be
         used to determine which is the actual timeframe.
 
         Else the file extension (``.fd`` for daily and ``.min`` for intraday)
         will be used.
-    '''
+    """
+
+    def __init__(self):
+        self.barfmt = None
+        self.f = None
+        self.barsize = None
+        self.dtsize = None
+        self.ext = None
 
     def start(self):
         super(VChartData, self).start()
 
-        # Not yet known if a extension is needed
-        self.ext = ''
+        # Not yet known if an extension is needed
+        self.ext = ""
 
-        if not hasattr(self.p.dataname, 'read'):
+        if not hasattr(self.p.dataname, "read"):
             # assume is a string because it has no write method
 
-            if self.p.dataname.endswith('.fd'):
+            if self.p.dataname.endswith(".fd"):
                 self.p.timeframe = TimeFrame.Days
-            elif self.p.dataname.endswith('.min'):
+            elif self.p.dataname.endswith(".min"):
                 self.p.timeframe = TimeFrame.Minutes
             else:
                 # Neither fd nor min ... just the code, assign extension
                 if self.p.timeframe == TimeFrame.Days:
-                    self.ext = '.fd'
+                    self.ext = ".fd"
                 else:
-                    self.ext = '.min'
+                    self.ext = ".min"
 
         if self.p.timeframe >= TimeFrame.Days:
             self.barsize = 28
             self.dtsize = 1
-            self.barfmt = 'IffffII'
+            self.barfmt = "IffffII"
         else:
             self.dtsize = 2
             self.barsize = 32
-            self.barfmt = 'IIffffII'
+            self.barfmt = "IIffffII"
 
         self.f = None
-        if hasattr(self.p.dataname, 'read'):
+        if hasattr(self.p.dataname, "read"):
             # A file has been passed in (ex: from a GUI)
             self.f = self.p.dataname
         else:
             dataname = self.p.dataname + self.ext
             # Let an exception propagate
-            self.f = open(dataname, 'rb')
+            self.f = open(dataname, "rb")
 
     def stop(self):
         if self.f is not None:
@@ -114,7 +101,7 @@ class VChartData(feed.DataBase):
 
         self.lines.datetime[0] = date2num(dt)
 
-        o, h, l, c, v, oi = bdata[self.dtsize:]
+        o, h, l, c, v, oi = bdata[self.dtsize :]
         self.lines.open[0] = o
         self.lines.high[0] = h
         self.lines.low[0] = l
@@ -128,18 +115,17 @@ class VChartData(feed.DataBase):
 class VChartFeed(feed.FeedBase):
     DataCls = VChartData
 
-    params = (('basepath', ''),) + DataCls.params._gettuple()
+    params = (("basepath", ""),) + DataCls.params._gettuple()
 
     def _getdata(self, dataname, **kwargs):
         maincode = dataname[0:2]
         subcode = dataname[2:6]
 
-        datapath = os.path.join(self.p.basepath,
-                                'RealServer', 'Data',
-                                maincode, subcode,  # 01 00XX
-                                dataname)
+        datapath = os.path.join(
+            self.p.basepath, "RealServer", "Data", maincode, subcode, dataname  # 01 00XX
+        )
 
         newkwargs = self.p._getkwargs()
         newkwargs.update(kwargs)
-        kwargs['dataname'] = datapath
+        kwargs["dataname"] = datapath
         return self.DataCls(**kwargs)

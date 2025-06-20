@@ -1,26 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import sys
 
 from . import Indicator, MovingAverage
@@ -28,29 +7,36 @@ from . import Indicator, MovingAverage
 
 # 装饰其他指标，给其他指标值设定了一个百分比的上下限
 class EnvelopeMixIn(object):
-    '''
+    """
     MixIn class to create a subclass with another indicator. The main line of
     that indicator will be surrounded by an upper and lower band separated a
-    given "percentage“ from the input main line
+    given "percentage" from the input main line
 
     The usage is:
 
       - Class XXXEnvelope(XXX, EnvelopeMixIn)
 
     Formula:
-      - 'line' (inherited from XXX))
+      - 'line' (inherited from XXX)
       - top = 'line' * (1 + perc)
       - bot = 'line' * (1 - perc)
 
     See also:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_average_envelopes
-    '''
-    lines = ('top', 'bot',)
-    params = (('perc', 2.5),)
-    plotlines = dict(top=dict(_samecolor=True), bot=dict(_samecolor=True),)
+    """
+
+    lines = (
+        "top",
+        "bot",
+    )
+    params = (("perc", 2.5),)
+    plotlines = dict(
+        top=dict(_samecolor=True),
+        bot=dict(_samecolor=True),
+    )
 
     def __init__(self):
-        # Mix-in & directly from object -> does not necessarily need super
+        # Mix-in and directly from object -> does not necessarily need super
         # super(EnvelopeMixIn, self).__init__()
         perc = self.p.perc / 100.0
 
@@ -59,9 +45,10 @@ class EnvelopeMixIn(object):
 
         super(EnvelopeMixIn, self).__init__()
 
+
 # 基础类
 class _EnvelopeBase(Indicator):
-    lines = ('src',)
+    lines = ("src",)
 
     # plot the envelope lines along the passed source
     plotinfo = dict(subplot=False)
@@ -75,8 +62,8 @@ class _EnvelopeBase(Indicator):
 
 
 class Envelope(_EnvelopeBase, EnvelopeMixIn):
-    '''
-    It creates envelopes bands separated from the source data by a given
+    """
+    It creates envelope bands separated from the source data by a given
     percentage
 
     Formula:
@@ -86,13 +73,13 @@ class Envelope(_EnvelopeBase, EnvelopeMixIn):
 
     See also:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_average_envelopes
-    '''
+    """
 
 
 # Automatic creation of Moving Average Envelope classes
 
-for movav in MovingAverage._movavs[1:]:
-    _newclsdoc = '''
+for movav in MovingAverage._movavs[0:]:
+    _newclsdoc = """
     %s and envelope bands separated "perc" from it
 
     Formula:
@@ -102,26 +89,28 @@ for movav in MovingAverage._movavs[1:]:
 
     See also:
       - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:moving_average_envelopes
-    '''
+    """
     # Skip aliases - they will be created automatically
-    if getattr(movav, 'aliased', ''):
+    if getattr(movav, "aliased", ""):
         continue
 
     movname = movav.__name__
     linename = movav.lines._getlinealias(0)
-    newclsname = movname + 'Envelope'
+    newclsname = movname + "Envelope"
 
     newaliases = []
-    for alias in getattr(movav, 'alias', []):
-        for suffix in ['Envelope']:
+    for alias in getattr(movav, "alias", []):
+        for suffix in ["Envelope"]:
             newaliases.append(alias + suffix)
 
     newclsdoc = _newclsdoc % (movname, linename, movname, linename, linename)
 
-    newclsdct = {'__doc__': newclsdoc,
-                 '__module__': EnvelopeMixIn.__module__,
-                 '_notregister': True,
-                 'alias': newaliases}
+    newclsdct = {
+        "__doc__": newclsdoc,
+        "__module__": EnvelopeMixIn.__module__,
+        "_notregister": True,
+        "alias": newaliases,
+    }
     newcls = type(str(newclsname), (movav, EnvelopeMixIn), newclsdct)
     module = sys.modules[EnvelopeMixIn.__module__]
     setattr(module, newclsname, newcls)

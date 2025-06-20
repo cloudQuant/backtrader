@@ -1,4 +1,5 @@
 """用于测试backtrader在时间序列上运行的效率"""
+
 import pandas as pd
 import numpy as np
 import backtrader as bt
@@ -13,7 +14,7 @@ class SmaStrategy(bt.Strategy):
 
     def log(self, txt, dt=None):
         dt = dt or bt.num2date(self.datas[0].datetime[0])
-        print('%s, %s' % (dt.isoformat(), txt))
+        print("%s, %s" % (dt.isoformat(), txt))
 
     def __init__(self):
         # 一般用于计算指标或者预先加载数据，定义变量使用
@@ -27,7 +28,8 @@ class SmaStrategy(bt.Strategy):
         size = self.getposition(self.datas[0]).size
         value = self.broker.get_value()
         self.log(
-            f"short_ma:{self.short_ma[0]},long_ma:{self.long_ma[0]},size={size},当前bar收盘之后的账户价值为:{value}")
+            f"short_ma:{self.short_ma[0]},long_ma:{self.long_ma[0]},size={size},当前bar收盘之后的账户价值为:{value}"
+        )
         # 做多
         if size == 0 and self.short_ma[0] > self.long_ma[0]:
             # 开仓,计算一倍杠杆下可以交易的手数
@@ -57,23 +59,32 @@ class SmaStrategy(bt.Strategy):
         # Attention: broker could reject order if not enougth cash
         if order.status == order.Completed:
             if order.isbuy():
-                self.log("buy result : buy_price : {} , buy_cost : {} , commission : {}".format(
-                    order.executed.price, order.executed.value, order.executed.comm))
+                self.log(
+                    "buy result : buy_price : {} , buy_cost : {} , commission : {}".format(
+                        order.executed.price, order.executed.value, order.executed.comm
+                    )
+                )
 
             else:  # Sell
-                self.log("sell result : sell_price : {} , sell_cost : {} , commission : {}".format(
-                    order.executed.price, order.executed.value, order.executed.comm))
+                self.log(
+                    "sell result : sell_price : {} , sell_cost : {} , commission : {}".format(
+                        order.executed.price, order.executed.value, order.executed.comm
+                    )
+                )
 
     def notify_trade(self, trade):
         # 一个trade结束的时候输出信息
         if trade.isclosed:
-            self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
-                trade.getdataname(), trade.pnl, trade.pnlcomm))
+            self.log(
+                "closed symbol is : {} , total_profit : {} , net_profit : {}".format(
+                    trade.getdataname(), trade.pnl, trade.pnlcomm
+                )
+            )
             # self.trade_list.append([self.datas[0].datetime.date(0),trade.getdataname(),trade.pnl,trade.pnlcomm])
 
         if trade.isopen:
-            self.log('open symbol is : {} , price : {} '.format(
-                trade.getdataname(), trade.price))
+            self.log("open symbol is : {} , price : {} ".format(trade.getdataname(), trade.price))
+
     #
     # def stop(self):
     #     # 策略停止的时候输出信息
@@ -90,8 +101,13 @@ def run_strategy(n_rows=1000):
     # 准备数据
     # 使用numpy生成n_rows行数据,为了尽可能避免出现负数，把data+3
     np.random.seed(1)
-    data = pd.DataFrame({i: np.random.randn(n_rows) for i in ['open', 'high', 'low', 'close', 'volume', "total_value"]})
-    data.index = pd.date_range('1/1/2012', periods=len(data), freq='5min')
+    data = pd.DataFrame(
+        {
+            i: np.random.randn(n_rows)
+            for i in ["open", "high", "low", "close", "volume", "total_value"]
+        }
+    )
+    data.index = pd.date_range("1/1/2012", periods=len(data), freq="5min")
     data = data + 3
     feed = bt.feeds.PandasDirectData(dataname=data)
     # 添加合约数据
@@ -99,13 +115,13 @@ def run_strategy(n_rows=1000):
     # 设置合约属性
     # comm = ComminfoFuturesPercent(commission=0.0, margin=0.10, mult=10)
     # cerebro.broker.addcommissioninfo(comm, name="test")
-    cerebro.addanalyzer(bt.analyzers.TotalValue, _name='_TotalValue')
+    cerebro.addanalyzer(bt.analyzers.TotalValue, _name="_TotalValue")
     cerebro.addanalyzer(bt.analyzers.PyFolio)
     # 运行回测
     results = cerebro.run()
     # cerebro.plot()
-    pyfoliozer = results[0].analyzers.getbyname('pyfolio')
-    total_value = results[0].analyzers.getbyname('_TotalValue').get_analysis()
+    pyfoliozer = results[0].analyzers.getbyname("pyfolio")
+    total_value = results[0].analyzers.getbyname("_TotalValue").get_analysis()
     total_value = pd.DataFrame([total_value]).T
     returns, positions, transactions, gross_lev = pyfoliozer.get_pf_items()
     # print(total_value)

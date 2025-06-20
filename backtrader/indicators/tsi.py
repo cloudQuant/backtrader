@@ -1,39 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
-
 import backtrader as bt
 from . import EMA
 
+
 # 真正强度指标
 class TrueStrengthIndicator(bt.Indicator):
-    '''
+    """
     The True Strength Indicators was first introduced in Stocks & Commodities
     Magazine by its author William Blau. It measures momentum with a double
     exponential (default) of the prices.
 
     It shows divergence if the extremes keep on growign but closing prices
-    do not in the same manner (distance to the extremes grow)
+    do not in the same manner (distance to the extremes grows)
 
     Formula:
       - price_change = close - close(pchange periods ago)
@@ -48,19 +27,20 @@ class TrueStrengthIndicator(bt.Indicator):
 
     Params
 
-      - ``period1``: the period for the 1st smoothing
-      - ``period2``: the period for the 2nd smoothing
+      - ``period1``: the period for the first smoothing
+      - ``period2``: the period for the second smoothing
       - ``pchange``: the lookback period for the price change
       - ``_movav``: the moving average to apply for the smoothing
-    '''
-    alias = ('TSI',)
+    """
+
+    alias = ("TSI",)
     params = (
-        ('period1', 25),
-        ('period2', 13),
-        ('pchange', 1),
-        ('_movav', EMA),
+        ("period1", 25),
+        ("period2", 13),
+        ("pchange", 1),
+        ("_movav", EMA),
     )
-    lines = ('tsi',)
+    lines = ("tsi",)
 
     def __init__(self):
         pc = self.data - self.data(-self.p.pchange)

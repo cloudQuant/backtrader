@@ -1,23 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 import backtrader as bt
 
 
@@ -29,21 +11,21 @@ class PositionsValue(bt.Analyzer):
     Params:
 
       - timeframe (default: ``None``)
-        If ``None`` then the timeframe of the 1st data of the system will be
+        If ``None`` then the timeframe of the first data of the system will be
         used
 
       - compression (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If `None`, then the compression of the first data in the system will be
         used
 
       - headers (default: ``False``)
 
         Add an initial key to the dictionary holding the results with the names
-        of the datas 'Datetime' as key
+        of the data 'Datetime' as a key
 
       - cash (default: ``False``)
 
@@ -57,20 +39,23 @@ class PositionsValue(bt.Analyzer):
         Returns a dictionary with returns as values and the datetime points for
         each return as keys
     """
+
     # 参数
     params = (
-        ('headers', False),
-        ('cash', False),
+        ("headers", False),
+        ("cash", False),
     )
 
     # 开始
+    def __init__(self):
+        self._usedate = None
+
     def start(self):
         # 如果headers参数是True,每个data的命字作为header
         if self.p.headers:
-            headers = [d._name or 'Data%d' % i
-                       for i, d in enumerate(self.datas)]
+            headers = [d._name or "Data%d" % i for i, d in enumerate(self.datas)]
             # 如果cash是True的话，也会保存cash
-            self.rets['Datetime'] = headers + ['cash'] * self.p.cash
+            self.rets["Datetime"] = headers + ["cash"] * self.p.cash
         # 时间周期
         tf = min(d._timeframe for d in self.datas)
         # 如果时间周期大于等于日，usedate参数设置成True

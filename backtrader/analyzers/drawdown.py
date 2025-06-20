@@ -1,27 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 import backtrader as bt
 from backtrader.utils import AutoOrderedDict
 
-__all__ = ['DrawDown', 'TimeDrawDown']
+__all__ = ["DrawDown", "TimeDrawDown"]
 
 
 # 分析回撤的情况
@@ -34,7 +16,7 @@ class DrawDown(bt.Analyzer):
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If ``None``, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -57,9 +39,7 @@ class DrawDown(bt.Analyzer):
         - ``max.len`` - max drawdown length
     """
 
-    params = (
-        ('fund', None),
-    )
+    params = (("fund", None),)
 
     # 开始，获取fundmode
     def start(self):
@@ -73,7 +53,7 @@ class DrawDown(bt.Analyzer):
 
     # 创建需要分析的指标值
     def create_analysis(self):
-        self.rets = AutoOrderedDict()  # dict with . notation
+        self.rets = AutoOrderedDict()  # dict with. notation
 
         self.rets.len = 0
         self.rets.drawdown = 0.0
@@ -83,7 +63,7 @@ class DrawDown(bt.Analyzer):
         self.rets.max.drawdown = 0.0
         self.rets.max.moneydown = 0.0
 
-        self._maxvalue = float('-inf')  # any value will outdo it
+        self._maxvalue = float("-inf")  # any value will outdo it
 
     # 停止
     def stop(self):
@@ -128,16 +108,16 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
 
       - ``compression`` (default: ``None``)
 
-        Only used for sub-day timeframes to for example work on an hourly
+        Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-        If ``None`` then the compression of the 1st data of the system will be
+        If None, then the compression of the 1st data of the system will be
         used
       - *None*
 
       - ``fund`` (default: ``None``)
 
-        If ``None`` the actual mode of the broker (fundmode - True/False) will
+        If ``None``, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
         asset value or on the fund value. See ``set_fundmode`` in the broker
         documentation
@@ -161,9 +141,18 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
         - ``maxddlen``
     """
 
-    params = (
-        ('fund', None),
-    )
+    params = (("fund", None),)
+
+    def __init__(self, *args, **kwargs):
+        # 调用父类的__init__方法以支持timeframe和compression参数
+        super(TimeDrawDown, self).__init__(*args, **kwargs)
+        
+        self.ddlen = None
+        self.peak = None
+        self.maxddlen = None
+        self.maxdd = None
+        self.dd = None
+        self._fundmode = None
 
     def start(self):
         super(TimeDrawDown, self).start()
@@ -176,7 +165,7 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
         self.dd = 0.0
         self.maxdd = 0.0
         self.maxddlen = 0
-        self.peak = float('-inf')
+        self.peak = float("-inf")
         self.ddlen = 0
 
     # 统计最大回撤以及最大回撤的长度
@@ -201,5 +190,5 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
 
     # 停止的时候，把最大回撤和最大回撤长度添加到字典中
     def stop(self):
-        self.rets['maxdrawdown'] = self.maxdd
-        self.rets['maxdrawdownperiod'] = self.maxddlen
+        self.rets["maxdrawdown"] = self.maxdd
+        self.rets["maxdrawdownperiod"] = self.maxddlen
