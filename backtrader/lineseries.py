@@ -653,6 +653,362 @@ class MetaLineSeries(LineMultiple.__class__):
         return _obj, args, kwargs
 
 
+# Modern replacement for LineSeries without metaclass
+try:
+    from .lineroot import ModernLineMultiple
+    from .metabase import ModernParamsBase
+    
+    class ModernLineSeries(ModernLineMultiple):
+        """
+        Modern replacement for LineSeries using descriptor-based parameters.
+        
+        This class provides the same functionality as LineSeries but uses
+        modern Python patterns instead of metaclasses.
+        """
+        
+        # Default plotinfo
+        plotinfo = dict(
+            plot=True,
+            plotmaster=None,
+            legendloc=None,
+        )
+        
+        def __init_subclass__(cls, **kwargs):
+            """Handle subclass initialization without metaclass."""
+            super().__init_subclass__(**kwargs)
+            
+            # Handle lines, plotinfo, plotlines class creation
+            cls._setup_lines_and_plotting()
+        
+        @classmethod 
+        def _setup_lines_and_plotting(cls):
+            """Set up lines and plotting information for the class."""
+            # Get lines definition
+            lines_def = getattr(cls, 'lines', ())
+            extralines = getattr(cls, 'extralines', 0)
+            linesoverride = getattr(cls, 'linesoverride', False)
+            
+            # Get line aliases
+            linealias_def = getattr(cls, 'linealias', {})
+            
+            # Get plotting definitions
+            plotinfo_def = getattr(cls, 'plotinfo', {})
+            plotlines_def = getattr(cls, 'plotlines', {})
+            
+            # Process aliases
+            aliases = getattr(cls, 'alias', ())
+            
+            # Set up lines class if needed
+            if lines_def or extralines:
+                cls._setup_lines_class(lines_def, extralines, linesoverride, linealias_def)
+            
+            # Set up plotting classes
+            cls._setup_plotting_classes(plotinfo_def, plotlines_def)
+            
+            # Create aliases
+            cls._setup_aliases(aliases)
+        
+        @classmethod
+        def _setup_lines_class(cls, lines_def, extralines, linesoverride, linealias_def):
+            """Set up the lines class for this LineSeries."""
+            # Get existing lines class - handle both class and tuple cases
+            base_lines_attr = getattr(cls, 'lines', Lines)
+            if isinstance(base_lines_attr, (tuple, list)):
+                # If lines is defined as a tuple, use the base Lines class
+                base_lines = Lines
+            elif hasattr(base_lines_attr, '_derive'):
+                # If it's already a proper Lines class
+                base_lines = base_lines_attr
+            else:
+                # Default to Lines class
+                base_lines = Lines
+            
+            # Get lines from base classes
+            morebaseslines = []
+            for base in cls.__bases__:
+                if hasattr(base, 'lines'):
+                    base_lines_attr = base.lines
+                    if hasattr(base_lines_attr, '_getlines'):
+                        morebaseslines.append(base_lines_attr)
+            
+            # Create line aliases class
+            lalias = AutoInfoClass
+            oblalias = []
+            for base in cls.__bases__:
+                if hasattr(base, 'linealias'):
+                    oblalias.append(base.linealias)
+            
+            # Ensure linealias_def is a dict
+            if not isinstance(linealias_def, dict):
+                linealias_def = {}
+            
+            if linealias_def or oblalias:
+                try:
+                    cls.linealias = lalias._derive(f"la_{cls.__name__}", linealias_def, oblalias)
+                except (AttributeError, TypeError):
+                    # If _derive fails, use the base class
+                    cls.linealias = lalias
+            else:
+                cls.linealias = lalias
+            
+            # Create lines class
+            cls.lines = base_lines._derive(
+                cls.__name__, 
+                lines_def, 
+                extralines, 
+                morebaseslines, 
+                linesoverride, 
+                lalias=cls.linealias
+            )
+        
+        @classmethod
+        def _setup_plotting_classes(cls, plotinfo_def, plotlines_def):
+            """Set up plotting classes."""
+            # Convert class-type plotinfo_def to dict first
+            if isinstance(plotinfo_def, type):
+                plotinfo_attributes = {}
+                for attr_name in dir(plotinfo_def):
+                    if not attr_name.startswith('_'):
+                        attr_value = getattr(plotinfo_def, attr_name)
+                        if not callable(attr_value):
+                            plotinfo_attributes[attr_name] = attr_value
+                plotinfo_def = plotinfo_attributes
+            
+            # Convert class-type plotlines_def to dict first  
+            if isinstance(plotlines_def, type):
+                plotlines_attributes = {}
+                for attr_name in dir(plotlines_def):
+                    if not attr_name.startswith('_'):
+                        attr_value = getattr(plotlines_def, attr_name)
+                        if not callable(attr_value):
+                            plotlines_attributes[attr_name] = attr_value
+                plotlines_def = plotlines_attributes
+            
+            # Get base plotting classes - handle dict, class, and AutoInfoClass types
+            base_plotinfo_attr = getattr(cls, 'plotinfo', AutoInfoClass)
+            base_plotlines_attr = getattr(cls, 'plotlines', AutoInfoClass)
+            
+            # Handle different plotinfo types
+            if isinstance(base_plotinfo_attr, dict):
+                # plotinfo defined as dict - merge with current definition
+                merged_plotinfo = {**base_plotinfo_attr, **plotinfo_def}
+                plotinfo_def = merged_plotinfo
+                base_plotinfo = AutoInfoClass
+            elif isinstance(base_plotinfo_attr, type) and not hasattr(base_plotinfo_attr, '_derive'):
+                # plotinfo defined as class but not AutoInfoClass - extract attributes
+                class_attributes = {}
+                for attr_name in dir(base_plotinfo_attr):
+                    if not attr_name.startswith('_'):
+                        attr_value = getattr(base_plotinfo_attr, attr_name)
+                        if not callable(attr_value):
+                            class_attributes[attr_name] = attr_value
+                
+                
+                # Merge class attributes with current definition
+                merged_plotinfo = {**class_attributes, **plotinfo_def}
+                plotinfo_def = merged_plotinfo
+                base_plotinfo = AutoInfoClass
+            else:
+                # plotinfo is AutoInfoClass or similar - can use _derive
+                base_plotinfo = base_plotinfo_attr
+            
+            # Handle different plotlines types
+            if isinstance(base_plotlines_attr, dict):
+                # plotlines defined as dict - merge with current definition
+                merged_plotlines = {**base_plotlines_attr, **plotlines_def}
+                plotlines_def = merged_plotlines
+                base_plotlines = AutoInfoClass
+            elif isinstance(base_plotlines_attr, type) and not hasattr(base_plotlines_attr, '_derive'):
+                # plotlines defined as class but not AutoInfoClass - extract attributes
+                class_attributes = {}
+                for attr_name in dir(base_plotlines_attr):
+                    if not attr_name.startswith('_'):
+                        attr_value = getattr(base_plotlines_attr, attr_name)
+                        if not callable(attr_value):
+                            class_attributes[attr_name] = attr_value
+                # Merge class attributes with current definition
+                merged_plotlines = {**class_attributes, **plotlines_def}
+                plotlines_def = merged_plotlines
+                base_plotlines = AutoInfoClass
+            else:
+                # plotlines is AutoInfoClass or similar - can use _derive
+                base_plotlines = base_plotlines_attr
+            
+            # Get plotting from base classes
+            morebasesplotinfo = []
+            morebasesplotlines = []
+            for base in cls.__bases__:
+                if hasattr(base, 'plotinfo'):
+                    base_pi = base.plotinfo
+                    # Handle different types from base classes
+                    if isinstance(base_pi, dict) and isinstance(plotinfo_def, dict):
+                        # Merge dict into plotinfo_def
+                        plotinfo_def = {**base_pi, **plotinfo_def}
+                    elif hasattr(base_pi, '_derive'):
+                        morebasesplotinfo.append(base_pi)
+                    # Skip non-dict, non-AutoInfoClass types
+                
+                if hasattr(base, 'plotlines'):
+                    base_pl = base.plotlines
+                    if isinstance(base_pl, dict) and isinstance(plotlines_def, dict):
+                        # Merge dict into plotlines_def
+                        plotlines_def = {**base_pl, **plotlines_def}
+                    elif hasattr(base_pl, '_derive'):
+                        morebasesplotlines.append(base_pl)
+                    # Skip non-dict, non-AutoInfoClass types
+            
+            # Create plotinfo class only if we have something to derive
+            if plotinfo_def or morebasesplotinfo:
+                try:
+                    cls.plotinfo = base_plotinfo._derive(
+                        f"pi_{cls.__name__}", plotinfo_def, morebasesplotinfo
+                    )
+                except (AttributeError, TypeError):
+                    # If _derive fails, just keep the original or use a simple class
+                    if isinstance(base_plotinfo_attr, dict):
+                        cls.plotinfo = base_plotinfo_attr
+                    else:
+                        cls.plotinfo = base_plotinfo
+            
+            # Add default plotlines for new lines
+            lines_def = getattr(cls, 'lines', ())
+            if lines_def and isinstance(lines_def, (tuple, list)):
+                for line in lines_def:
+                    line_name = line[0] if isinstance(line, (tuple, list)) else line
+                    plotlines_def.setdefault(line_name, {})
+            
+            # Create plotlines class only if we have something to derive
+            if plotlines_def or morebasesplotlines:
+                try:
+                    cls.plotlines = base_plotlines._derive(
+                        f"pl_{cls.__name__}", plotlines_def, morebasesplotlines, recurse=True
+                    )
+                except (AttributeError, TypeError):
+                    # If _derive fails, just keep the original or use a simple class
+                    if isinstance(base_plotlines_attr, dict):
+                        cls.plotlines = base_plotlines_attr
+                    else:
+                        cls.plotlines = base_plotlines
+        
+        @classmethod
+        def _setup_aliases(cls, aliases):
+            """Set up class aliases."""
+            import sys
+            for alias in aliases:
+                newdct = {
+                    "__doc__": cls.__doc__, 
+                    "__module__": cls.__module__, 
+                    "aliased": cls.__name__
+                }
+                
+                if not isinstance(alias, str):
+                    # tuple or list: 1st is name, 2nd is plotname
+                    aliasplotname = alias[1]
+                    alias = alias[0]
+                    newdct["plotinfo"] = dict(plotname=aliasplotname)
+                
+                # Create alias class
+                newcls = type(str(alias), (cls,), newdct)
+                clsmodule = sys.modules[cls.__module__]
+                setattr(clsmodule, alias, newcls)
+        
+        def __init__(self, *args, **kwargs):
+            """Initialize LineSeries with lines and plotting setup."""
+            # Process plotinfo kwargs
+            plotinfo_kwargs = {}
+            if hasattr(self.__class__, 'plotinfo'):
+                for pname, pdef in self.__class__.plotinfo._getitems():
+                    if pname in kwargs:
+                        plotinfo_kwargs[pname] = kwargs.pop(pname)
+            
+            # Initialize parent
+            super().__init__(*args, **kwargs)
+            
+            # Set up instance-specific components
+            self._setup_instance_components(plotinfo_kwargs)
+        
+        def _setup_instance_components(self, plotinfo_kwargs):
+            """Set up instance-specific lines and plotting components."""
+            # Create plotinfo instance
+            if hasattr(self.__class__, 'plotinfo'):
+                self.plotinfo = self.__class__.plotinfo()
+                for pname, pdef in self.__class__.plotinfo._getitems():
+                    setattr(self.plotinfo, pname, plotinfo_kwargs.get(pname, pdef))
+            
+            # Create lines instance
+            if hasattr(self.__class__, 'lines'):
+                self.lines = self.__class__.lines()
+            
+            # Create plotlines instance
+            if hasattr(self.__class__, 'plotlines'):
+                self.plotlines = self.__class__.plotlines()
+            
+            # Set up line aliases
+            self._setup_line_aliases()
+        
+        def _setup_line_aliases(self):
+            """Set up line aliases for convenient access."""
+            if hasattr(self, 'lines'):
+                # Standard aliases
+                self.l = self.lines
+                if self.lines.fullsize():
+                    self.line = self.lines[0]
+                
+                # Numbered aliases
+                for l, line in enumerate(self.lines):
+                    setattr(self, f"line_{l}", self._getlinealias(l))
+                    setattr(self, f"line_{l}", line)
+                    setattr(self, f"line{l}", line)
+        
+        def _getlinealias(self, i):
+            """Get line alias for line index i."""
+            if hasattr(self.__class__, 'lines'):
+                lines_def = self.__class__.lines._getlines()
+                if i < len(lines_def):
+                    line_def = lines_def[i]
+                    if isinstance(line_def, (tuple, list)):
+                        return line_def[0]
+                    return line_def
+            return f"line_{i}"
+        
+        # Include all the same methods as original LineSeries
+        def plotlabel(self):
+            """Generate plot label."""
+            label = self.plotinfo.plotname or self.__class__.__name__
+            sublabels = self._plotlabel()
+            if sublabels:
+                for i, sublabel in enumerate(sublabels):
+                    if hasattr(sublabel, "plotinfo"):
+                        try:
+                            s = sublabel.plotinfo.plotname
+                        except:
+                            s = ""
+                        sublabels[i] = s or sublabel.__name__
+                label += " (%s)" % ", ".join(map(str, sublabels))
+            return label
+        
+        def _plotlabel(self):
+            """Get parameter values for plot label."""
+            return self.params._getvalues()
+        
+        def _getline(self, line, minusall=False):
+            """Get line by name or index."""
+            if isinstance(line, str):
+                lineobj = getattr(self.lines, line)
+            else:
+                if line == -1:
+                    if minusall:
+                        return None
+                    line = 0
+                lineobj = self.lines[line]
+            return lineobj
+
+except ImportError:
+    # Fallback if imports not available
+    class ModernLineSeries:
+        pass
+
+
 class LineSeries(LineMultiple, metaclass=MetaLineSeries):
     # 创建一个LineSeries类
 
