@@ -680,6 +680,11 @@ try:
             # Handle lines, plotinfo, plotlines class creation
             cls._setup_lines_and_plotting()
         
+        def __init__(self, *args, **kwargs):
+            """Initialize ModernLineSeries with parameter support."""
+            # Initialize parent with parameter handling
+            super().__init__(**kwargs)
+        
         @classmethod 
         def _setup_lines_and_plotting(cls):
             """Set up lines and plotting information for the class."""

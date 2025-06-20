@@ -376,6 +376,81 @@ try:
                 return self._operationown_stage1(operation)
             return self._operationown_stage2(operation)
         
+        def _roperation(self, other, operation, intify=False):
+            """
+            Reverse operation - relies on self._operation and passes "r" True
+            to define a reverse operation
+            """
+            return self._operation(other, operation, r=True, intify=intify)
+        
+        def _operation_stage1(self, other, operation, r=False, intify=False):
+            """
+            Two operands operations in stage 1.
+            This is a basic implementation - subclasses should override for specific behavior.
+            """
+            # Import here to avoid circular imports
+            from .linebuffer import LineBuffer, LineActions
+            from .lineseries import LineSeriesMaker
+            
+            # Handle different types of operands
+            if hasattr(other, '__iter__') and not isinstance(other, (str, bytes)):
+                # Handle iterable but not string
+                try:
+                    other = LineSeriesMaker(other)
+                except:
+                    pass
+            
+            # Create a LineActions operation
+            if hasattr(LineActions, '__new__'):
+                try:
+                    if r:  # reverse operation
+                        return LineActions.__new__(LineActions, other, self, operation)
+                    else:
+                        return LineActions.__new__(LineActions, self, other, operation)
+                except:
+                    # Fallback for simple operations
+                    pass
+            
+            # Fallback to simple operation if LineActions not available
+            if r:
+                return operation(other, self)
+            else:
+                return operation(self, other)
+        
+        def _operation_stage2(self, other, operation, r=False):
+            """
+            Two operands operations in stage 2.
+            This is a basic implementation - subclasses should override for specific behavior.
+            """
+            from .lineroot import LineRoot
+            
+            if isinstance(other, LineRoot):
+                other = other[0] if hasattr(other, '__getitem__') else other
+            
+            if r:  # reverse operation
+                return operation(other, self[0] if hasattr(self, '__getitem__') else self)
+            else:
+                return operation(self[0] if hasattr(self, '__getitem__') else self, other)
+        
+        def _operationown_stage1(self, operation):
+            """
+            Operation with single operand which is "self" in stage 1
+            """
+            # Import here to avoid circular imports
+            from .lineseries import LineSeriesMaker
+            
+            try:
+                return LineSeriesMaker(self, operation, _ownerskip=self)
+            except:
+                # Fallback
+                return operation(self)
+        
+        def _operationown_stage2(self, operation):
+            """
+            Operation with single operand which is "self" in stage 2
+            """
+            return operation(self[0] if hasattr(self, '__getitem__') else self)
+        
         def qbuffer(self, savemem=0):
             """Change the lines to implement a minimum size qbuffer scheme"""
             raise NotImplementedError
