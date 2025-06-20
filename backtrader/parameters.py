@@ -1053,7 +1053,67 @@ class ParameterAccessor:
         return f"ParameterAccessor({dict(items)})"
 
 
-class ParameterizedBase:
+class MetaParamsCompatibilityMixin:
+    """
+    Mixin class that provides MetaParams-style compatibility for ParameterizedBase.
+    
+    This mixin ensures that classes using the new parameter system can still
+    work with code expecting the old MetaParams interface.
+    """
+    
+    @classmethod
+    def _getitems(cls):
+        """MetaParams compatibility: get parameter items as tuple pairs"""
+        try:
+            descriptors = cls._compute_parameter_descriptors()
+            return [(name, desc.default) for name, desc in descriptors.items()]
+        except (AttributeError, TypeError):
+            return []
+    
+    @classmethod
+    def _gettuple(cls):
+        """MetaParams compatibility: get parameter items as tuple"""
+        return tuple(cls._getitems())
+    
+    @classmethod
+    def _getkeys(cls):
+        """MetaParams compatibility: get parameter names"""
+        return [item[0] for item in cls._getitems()]
+    
+    @classmethod
+    def _getdefaults(cls):
+        """MetaParams compatibility: get parameter default values"""
+        return [item[1] for item in cls._getitems()]
+    
+    @classmethod
+    def _getpairs(cls):
+        """MetaParams compatibility: get parameter pairs as OrderedDict"""
+        return OrderedDict(cls._getitems())
+    
+    @classmethod
+    def _getkwargsdefault(cls):
+        """MetaParams compatibility: get default parameters as dict"""
+        return dict(cls._getitems())
+    
+    def _getkwargs(self, skip_=False):
+        """MetaParams compatibility: get current parameter values"""
+        if hasattr(self, '_param_manager'):
+            kwargs = {}
+            for name, value in self._param_manager.items():
+                if skip_ and name.startswith('_'):
+                    continue
+                kwargs[name] = value
+            return kwargs
+        return {}
+    
+    def _getvalues(self):
+        """MetaParams compatibility: get current parameter values as list"""
+        if hasattr(self, '_param_manager'):
+            return list(self._param_manager.values())
+        return []
+
+
+class ParameterizedBase(MetaParamsCompatibilityMixin):
     """
     Enhanced base class for objects with parameters - without metaclass.
     
@@ -1075,6 +1135,10 @@ class ParameterizedBase:
         # This prevents child class definitions from affecting parent classes
         cls._parameter_descriptors = None  # Mark as not computed
         cls._parameter_descriptors_computed = False
+        
+        # Create a class-level params attribute for MetaParams compatibility
+        # This ensures that code like DataBase.params._gettuple() works
+        cls.params = cls  # Point to self so params.method() works
         
         # Check for MetaParams compatibility
         cls._has_metaparams_heritage = any(
