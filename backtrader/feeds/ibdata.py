@@ -493,7 +493,11 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
                         return None  # indicate timeout situation
 
                     # Awaiting data and nothing came in - fake it up until now
-                    dtend = self.num2date(date2num(datetime.datetime.utcnow()))
+                    # Use timezone-aware datetime for Python 3.12+ compatibility
+                    try:
+                        dtend = self.num2date(date2num(datetime.datetime.now(datetime.timezone.utc)))
+                    except AttributeError:
+                        dtend = self.num2date(date2num(datetime.datetime.utcnow()))
                     dtbegin = None
                     if len(self) > 1:
                         dtbegin = self.num2date(self.datetime[-1])

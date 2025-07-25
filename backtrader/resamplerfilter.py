@@ -22,7 +22,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 
-from datetime import datetime, date, timedelta
+from datetime import datetime, date, timedelta, timezone
 
 from .dataseries import TimeFrame, _Bar
 from .utils.py3 import with_metaclass
@@ -58,7 +58,11 @@ class DTFaker(object):
         # 如果forcedata是None的话
         if forcedata is None:
             # 获取现在的utc时间，并且加上数据的时间补偿
-            _dtime = datetime.utcnow() + data._timeoffset()
+            # Use timezone-aware datetime for Python 3.12+ compatibility
+            try:
+                _dtime = datetime.now(timezone.utc) + data._timeoffset()
+            except AttributeError:
+                _dtime = datetime.utcnow() + data._timeoffset()
             # 把计算得到的utc时间转化成数字
             self._dt = dt = date2num(_dtime)  # utc-like time
             # 把数字时间转化成本地的时间格式的时间

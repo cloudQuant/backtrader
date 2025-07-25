@@ -1,6 +1,6 @@
 matplotlib
 pandas
-numpy==1.26.4
+numpy
 plotly
 python-dateutil
 pytz

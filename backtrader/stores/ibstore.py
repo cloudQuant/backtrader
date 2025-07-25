@@ -23,7 +23,7 @@ from __future__ import (absolute_import, division, print_function,
 
 import collections
 from copy import copy
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 import inspect
 import itertools
 import random
@@ -46,7 +46,11 @@ def _ts2dt(tstamp=None):
     # 把timestamp转换成时间对象，如果没有指定时间戳的话，就返回当前的utc时间
     # 如果时间戳不是None，空值，False的时候，对时间戳进行处理，然后返回时间对象
     if not tstamp:
-        return datetime.utcnow()
+        # Use timezone-aware datetime for Python 3.12+ compatibility
+        try:
+            return datetime.now(timezone.utc)
+        except AttributeError:
+            return datetime.utcnow()
     # todo backtrader自带代码，1000出错了，改写成1，这样计算得到的utc时间比北京时间晚8个小时
     # 如果使用1000的话，得到的时间是1970年的
     # sec, msec = divmod(long(tstamp), 1000)
@@ -1218,7 +1222,13 @@ class IBStore(with_metaclass(MetaSingleton, object)):
                 else:
                     dteosutc = dteos
 
-                if dteosutc <= datetime.utcnow():
+                # Use timezone-aware datetime for Python 3.12+ compatibility
+                try:
+                    utc_now = datetime.now(timezone.utc).replace(tzinfo=None)
+                except AttributeError:
+                    utc_now = datetime.utcnow()
+                    
+                if dteosutc <= utc_now:
                     dt = dteosutc
 
                 msg.date = dt

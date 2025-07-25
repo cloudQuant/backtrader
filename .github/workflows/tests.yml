@@ -1,0 +1,263 @@
+name: Tests
+
+on:
+  push:
+    branches: [ master, main, develop ]
+  pull_request:
+    branches: [ master, main, develop ]
+  workflow_dispatch:
+
+jobs:
+  test:
+    name: Test - ${{ matrix.os }} - Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
+        exclude:
+          # Exclude Python 3.13 on Windows if it's not available yet
+          - os: windows-latest
+            python-version: '3.13'
+        
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+        
+    - name: Display system info
+      shell: bash
+      run: |
+        echo "OS: ${{ matrix.os }}"
+        echo "Python: ${{ matrix.python-version }}"
+        python --version
+        pip --version
+        
+    - name: Upgrade pip
+      run: |
+        python -m pip install --upgrade pip setuptools wheel
+        
+    - name: Install dependencies
+      shell: bash
+      run: |
+        # Install all dependencies from requirements.txt
+        pip install -r requirements.txt
+        
+        # Show installed packages
+        pip list
+        
+    - name: Install package
+      run: |
+        pip install -e .
+        
+    - name: Verify installation
+      shell: python
+      run: |
+        import backtrader as bt
+        import numpy as np
+        import pandas as pd
+        print(f'Backtrader {bt.__version__} installed successfully')
+        
+        # Test basic functionality
+        cerebro = bt.Cerebro()
+        print('Cerebro instance created successfully')
+        
+        # Test data creation
+        dates = pd.date_range('2020-01-01', periods=5, freq='D')
+        data_df = pd.DataFrame({
+            'open': [100, 101, 102, 103, 104],
+            'high': [102, 103, 104, 105, 106],
+            'low': [99, 100, 101, 102, 103],
+            'close': [101, 102, 103, 104, 105],
+            'volume': [1000, 1100, 1200, 1300, 1400]
+        }, index=dates)
+        print('Test data created successfully')
+        
+    - name: Run tests
+      shell: bash
+      run: |
+        python -m pytest tests/ -v --tb=short -n 4 || python -m pytest tests/ -v --tb=short --no-header
+      env:
+        PYTHONDONTWRITEBYTECODE: 1
+        PYTHONUNBUFFERED: 1
+        
+    - name: Upload test results on failure
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-failure-${{ matrix.os }}-py${{ matrix.python-version }}
+        path: |
+          *.log
+          .pytest_cache/
+          test_results/
+        retention-days: 7
+
+  test-minimal:
+    name: Minimal Test
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install core dependencies
+      run: |
+        python -m pip install --upgrade pip
+        # Install core dependencies
+        pip install matplotlib pandas numpy plotly python-dateutil pytz
+        pip install pytest pytest-xdist pytest-cov pytest-sugar pytest-benchmark
+        
+    - name: Install package
+      run: |
+        pip install -e .
+        
+    - name: Run import test
+      run: |
+        python -c "import backtrader; print('Import successful')"
+        
+    - name: Run basic functionality test
+      run: |
+        python -c "
+        import numpy as np
+        import pandas as pd
+        import backtrader as bt
+        from datetime import datetime
+        
+        # Create a simple strategy
+        class TestStrategy(bt.Strategy):
+            def __init__(self):
+                self.sma = bt.indicators.SimpleMovingAverage(self.data, period=20)
+        
+        # Create cerebro instance
+        cerebro = bt.Cerebro()
+        
+        # Create sample data
+        dates = pd.date_range('2020-01-01', periods=100, freq='D')
+        data_df = pd.DataFrame({
+            'open': 100 + np.random.randn(100).cumsum(),
+            'high': 102 + np.random.randn(100).cumsum(),
+            'low': 98 + np.random.randn(100).cumsum(),
+            'close': 100 + np.random.randn(100).cumsum(),
+            'volume': 1000 + np.random.randint(0, 100, 100)
+        }, index=dates)
+        
+        # Ensure proper OHLC relationship
+        data_df['high'] = data_df[['open', 'high', 'close']].max(axis=1)
+        data_df['low'] = data_df[['open', 'low', 'close']].min(axis=1)
+        
+        # Create PandasData feed
+        data = bt.feeds.PandasData(dataname=data_df)
+        
+        # Add data and strategy
+        cerebro.adddata(data)
+        cerebro.addstrategy(TestStrategy)
+        
+        # Run backtest
+        print('Running backtest...')
+        results = cerebro.run()
+        print('Backtest completed successfully')
+        print(f'Final portfolio value: {cerebro.broker.getvalue():.2f}')
+        "
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    needs: test-minimal
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -e .
+        
+    - name: Run tests with coverage
+      run: |
+        python -m pytest tests/ --cov=backtrader --cov-report=xml --cov-report=term
+      continue-on-error: true
+        
+    - name: Upload coverage
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.xml
+        fail_ci_if_error: false
+      continue-on-error: true
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install flake8
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8
+        
+    - name: Run flake8
+      run: |
+        # Check for syntax errors
+        flake8 backtrader --count --select=E9,F63,F7,F82 --show-source --statistics
+        # Full lint with lenient settings
+        flake8 backtrader --count --exit-zero --max-complexity=20 --max-line-length=120 --statistics --ignore=E501,W503,E203
+      continue-on-error: true
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install build tools
+      run: |
+        python -m pip install --upgrade pip
+        pip install build wheel setuptools twine
+        
+    - name: Build package
+      run: |
+        python -m build
+        
+    - name: Check package
+      run: |
+        twine check dist/*
+        ls -la dist/
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: dist
+        path: dist/
+        retention-days: 30
