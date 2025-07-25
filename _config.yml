@@ -1,0 +1,6 @@
+# GitHub Pages Configuration
+theme: jekyll-theme-cayman
+title: Backtrader
+description: High-performance quantitative trading framework
+show_downloads: true
+google_analytics:
