@@ -11,6 +11,8 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    # Only run if SYNC_GITHUB_TOKEN secret is set
+    if: ${{ secrets.SYNC_GITHUB_TOKEN != '' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

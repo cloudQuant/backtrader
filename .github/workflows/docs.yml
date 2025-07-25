@@ -37,7 +37,17 @@ jobs:
         pip install sphinx sphinx-rtd-theme sphinx-autodoc-typehints nbsphinx
         pip install -e .
         
+    - name: Check if docs exist
+      id: check_docs
+      run: |
+        if [ -d "docs" ] && [ -f "docs/conf.py" ] || [ -f "docs/source/conf.py" ]; then
+          echo "docs_exist=true" >> $GITHUB_OUTPUT
+        else
+          echo "docs_exist=false" >> $GITHUB_OUTPUT
+        fi
+        
     - name: Build documentation
+      if: steps.check_docs.outputs.docs_exist == 'true'
       run: |
         # Create docs directory if it doesn't exist
         mkdir -p docs/_build
@@ -48,11 +58,18 @@ jobs:
         # Build HTML documentation
         cd docs && make html || echo "Documentation build completed with warnings"
         
+    - name: Create simple documentation
+      if: steps.check_docs.outputs.docs_exist == 'false'
+      run: |
+        mkdir -p public
+        cp README.md public/
+        echo "<html><head><meta http-equiv='refresh' content='0; url=https://github.com/cloudQuant/backtrader#readme'></head></html>" > public/index.html
+        
     - name: Upload documentation artifacts
       uses: actions/upload-artifact@v4
       with:
         name: documentation
-        path: docs/_build/html/
+        path: ${{ steps.check_docs.outputs.docs_exist == 'true' && 'docs/_build/html/' || 'public/' }}
         retention-days: 30
 
   deploy-docs:

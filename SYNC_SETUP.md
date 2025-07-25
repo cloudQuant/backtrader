@@ -14,16 +14,17 @@ This guide explains how to set up automatic synchronization between Gitee and Gi
    - Select scopes: `repo` (full control of private repositories)
    - Copy the generated token
 
-2. Add the token to your Gitee repository secrets / 将令牌添加到 Gitee 仓库密钥
-   - Go to your Gitee repository settings
-   - Navigate to CI/CD → Secret Variables
+2. Add the token to your repository secrets / 将令牌添加到仓库密钥
+   - **For GitHub Actions**: Go to Settings → Secrets and variables → Actions
    - Add a new secret named `SYNC_GITHUB_TOKEN` with your GitHub token
+   - Note: The sync workflow will only run if this secret is set
 
 ### How it works / 工作原理
 
 The `.github/workflows/sync.yml` workflow will automatically:
 - Trigger on pushes to master, main, or dev branches
 - Push all changes to https://github.com/cloudQuant/backtrader.git
+- Only run if `SYNC_GITHUB_TOKEN` secret is configured
 
 ## Method 2: Manual Sync Scripts / 方法2：手动同步脚本
 
