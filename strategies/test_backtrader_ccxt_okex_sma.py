@@ -3,7 +3,7 @@ from backtrader.feeds.ccxtfeed import *
 from backtrader.brokers.ccxtbroker import *
 from backtrader import Order
 import backtrader as bt
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 
 
@@ -124,7 +124,11 @@ cerebro.setbroker(broker)
 
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
-hist_start_date = datetime.utcnow() - timedelta(minutes=100)
+# Use timezone-aware datetime for Python 3.12+ compatibility
+try:
+    hist_start_date = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=100)
+except AttributeError:
+    hist_start_date = datetime.utcnow() - timedelta(minutes=100)
 for symbol in ["BTC/USDT", 'LPT/USDT', 'EOS/USDT']:
     # for symbol in ["BTC/USDT"]:
     data = store.getdata(dataname=symbol, name=symbol,

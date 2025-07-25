@@ -1,0 +1,160 @@
+[build-system]
+requires = ["setuptools>=64", "wheel", "numpy>=1.19.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "backtrader"
+version = "0.1.0"
+description = "Enhanced backtrader library with Cython optimizations"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "cloudQuant", email = "yunjinqi@qq.com"},
+]
+maintainers = [
+    {name = "cloudQuant", email = "yunjinqi@qq.com"},
+]
+keywords = [
+    "trading",
+    "backtesting",
+    "finance",
+    "quantitative",
+    "investment",
+    "cryptocurrency",
+    "algorithmic-trading",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Topic :: Office/Business :: Financial :: Investment",
+]
+
+dependencies = [
+    "matplotlib",
+    "pandas",
+    "numpy",
+    "plotly",
+    "python-dateutil",
+    "pytz",
+    "future",
+    "cython",
+    "setuptools",
+    "requests",
+    "scipy",
+    "pyecharts",
+    "tqdm",
+    "numba",
+    "spdlog",
+    "python-rapidjson",
+]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=6.0",
+    "pytest-xdist",
+    "pytest-cov",
+    "pytest-sugar",
+    "pytest-benchmark",
+    "pytest-picked",
+]
+dev = [
+    "pytest>=6.0",
+    "pytest-xdist",
+    "pytest-cov",
+    "pytest-sugar",
+    "pytest-benchmark",
+    "pytest-picked",
+    "flake8",
+    "black",
+    "isort",
+    "mypy",
+    "pre-commit",
+]
+docs = [
+    "sphinx",
+    "sphinx-rtd-theme",
+    "sphinx-autodoc-typehints",
+    "nbsphinx",
+]
+
+[project.urls]
+Homepage = "https://gitee.com/yunjinqi/backtrader"
+Documentation = "https://www.backtrader.com/"
+Repository = "https://gitee.com/yunjinqi/backtrader.git"
+Issues = "https://gitee.com/yunjinqi/backtrader/issues"
+Changelog = "https://gitee.com/yunjinqi/backtrader/blob/master/CHANGELOG.md"
+
+[tool.setuptools]
+packages = ["backtrader"]
+include-package-data = true
+
+[tool.setuptools.package-data]
+backtrader = ["**/*.pyx", "**/*.pxd", "**/*.hpp", "**/*.cpp"]
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = "-ra -q --strict-markers"
+testpaths = ["tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+
+[tool.coverage.run]
+source = ["backtrader"]
+omit = [
+    "*/tests/*",
+    "*/test_*.py",
+    "*/__init__.py",
+    "*/setup.py",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
+
+[tool.isort]
+profile = "black"
+line_length = 120
+skip_gitignore = true
+
+[tool.black]
+line-length = 120
+target-version = ['py38', 'py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.git
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true

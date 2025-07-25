@@ -1,0 +1,93 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version number (e.g., 1.0.0)'
+        required: true
+        type: string
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install build wheel setuptools
+        
+    - name: Determine version
+      id: version
+      run: |
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          VERSION="${{ github.event.inputs.version }}"
+        else
+          VERSION=${GITHUB_REF#refs/tags/v}
+        fi
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+        echo "Version: $VERSION"
+        
+    - name: Build package
+      run: |
+        python -m build
+        
+    - name: Generate changelog
+      id: changelog
+      run: |
+        echo "# Changelog for v${{ steps.version.outputs.version }}" > CHANGELOG_RELEASE.md
+        echo "" >> CHANGELOG_RELEASE.md
+        
+        # Get commits since last tag
+        LAST_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+        if [ -z "$LAST_TAG" ]; then
+          echo "## All Changes" >> CHANGELOG_RELEASE.md
+          git log --pretty=format:"- %s (%h)" >> CHANGELOG_RELEASE.md
+        else
+          echo "## Changes since $LAST_TAG" >> CHANGELOG_RELEASE.md
+          git log $LAST_TAG..HEAD --pretty=format:"- %s (%h)" >> CHANGELOG_RELEASE.md
+        fi
+        
+        echo "" >> CHANGELOG_RELEASE.md
+        echo "## Installation" >> CHANGELOG_RELEASE.md
+        echo '```bash' >> CHANGELOG_RELEASE.md
+        echo "pip install backtrader==${{ steps.version.outputs.version }}" >> CHANGELOG_RELEASE.md
+        echo '```' >> CHANGELOG_RELEASE.md
+        
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: v${{ steps.version.outputs.version }}
+        name: Release v${{ steps.version.outputs.version }}
+        body_path: CHANGELOG_RELEASE.md
+        draft: false
+        prerelease: false
+        files: |
+          dist/*.whl
+          dist/*.tar.gz
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Upload release artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: release-artifacts-${{ steps.version.outputs.version }}
+        path: dist/
+        retention-days: 90

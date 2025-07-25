@@ -22,7 +22,7 @@ from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import collections
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import time as _time
 import json
 import threading
@@ -477,7 +477,11 @@ class OandaStore(with_metaclass(MetaSingleton, object)):
             okwargs['price'] = order.created.price
             if order.valid is None:
                 # 1 year and datetime.max fail ... 1 month works
-                valid = datetime.utcnow() + timedelta(days=30)
+                # Use timezone-aware datetime for Python 3.12+ compatibility
+                try:
+                    valid = datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=30)
+                except AttributeError:
+                    valid = datetime.utcnow() + timedelta(days=30)
             else:
                 valid = order.data.num2date(order.valid)
                 # To timestamp with seconds precision

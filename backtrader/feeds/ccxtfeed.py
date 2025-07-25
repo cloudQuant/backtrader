@@ -21,7 +21,7 @@
 ###############################################################################
 import time
 from collections import deque
-from datetime import datetime
+from datetime import datetime, timezone
 
 import backtrader as bt
 from backtrader.feed import DataBase
@@ -82,7 +82,11 @@ class CCXTFeed(with_metaclass(MetaCCXTFeed, DataBase)):
         self.store = self._store(**kwargs)
         self._data = queue.Queue()  # data queue for price data
         self._last_id = ''  # last processed trade id for ohlcv
-        self._last_ts = self.utc_to_ts(datetime.utcnow())  # last processed timestamp for ohlcv
+        # Use timezone-aware datetime for Python 3.12+ compatibility
+        try:
+            self._last_ts = self.utc_to_ts(datetime.now(timezone.utc))
+        except AttributeError:
+            self._last_ts = self.utc_to_ts(datetime.utcnow())  # last processed timestamp for ohlcv
         self._last_update_bar_time = 0
 
     def utc_to_ts(self, dt):

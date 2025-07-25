@@ -1747,9 +1747,19 @@ class Cerebro(with_metaclass(MetaParams, object)):
             # from the qcheck value
             # 记录开始的时间，并且通知feed从qcheck中减去qlapse的时间
             drets = []
-            qstart = datetime.datetime.utcnow()
+            # Use timezone-aware datetime for Python 3.12+ compatibility
+            try:
+                qstart = datetime.datetime.now(datetime.timezone.utc)
+            except AttributeError:
+                # Fallback for older Python versions
+                qstart = datetime.datetime.utcnow()
+            
             for d in datas:
-                qlapse = datetime.datetime.utcnow() - qstart
+                try:
+                    qlapse = datetime.datetime.now(datetime.timezone.utc) - qstart
+                except AttributeError:
+                    # Fallback for older Python versions
+                    qlapse = datetime.datetime.utcnow() - qstart
                 d.do_qcheck(newqcheck, qlapse.total_seconds())
                 drets.append(d.next(ticks=False))
             # 遍历drets,如果d0ret是False,并且存在dret是None的话，d0ret是None
