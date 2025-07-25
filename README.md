@@ -5,7 +5,6 @@
 [![CI Tests](https://github.com/cloudQuant/backtrader/actions/workflows/tests.yml/badge.svg?branch=master)](https://github.com/cloudQuant/backtrader/actions/workflows/tests.yml)
 [![Python](https://img.shields.io/badge/python-3.8%20%7C%203.9%20%7C%203.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-blue)](https://www.python.org/)
 [![License](https://img.shields.io/badge/license-GPL%203.0-green)](LICENSE)
-[![PyPI](https://img.shields.io/badge/pypi-v1.9.76.123-orange)](https://pypi.org/project/backtrader/)
 
 [![Code style: flake8](https://img.shields.io/badge/code%20style-flake8-black)](https://flake8.pycqa.org/)
 [![GitHub stars](https://img.shields.io/github/stars/cloudQuant/backtrader?style=social)](https://github.com/cloudQuant/backtrader/stargazers)
