@@ -1,0 +1,104 @@
+# This workflow is disabled because GitHub Pages is not needed for this project
+# The documentation is available in the README.md file
+# To enable: rename this file to docs.yml and configure GitHub Pages in repository settings
+
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Create documentation directory
+        run: |
+          mkdir -p ./public
+          
+          # Copy README as the main page
+          cp README.md ./public/
+          
+          # Create a simple HTML index that renders the README
+          cat > ./public/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>Backtrader - High-performance quantitative trading framework</title>
+              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/5.5.0/github-markdown-min.css">
+              <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+              <style>
+                  body {
+                      box-sizing: border-box;
+                      min-width: 200px;
+                      max-width: 980px;
+                      margin: 0 auto;
+                      padding: 45px;
+                  }
+                  .markdown-body {
+                      box-sizing: border-box;
+                      min-width: 200px;
+                      max-width: 980px;
+                      margin: 0 auto;
+                  }
+                  @media (max-width: 767px) {
+                      body {
+                          padding: 15px;
+                      }
+                  }
+              </style>
+          </head>
+          <body>
+              <article class="markdown-body" id="content">
+                  Loading...
+              </article>
+              <script>
+                  fetch('README.md')
+                      .then(response => response.text())
+                      .then(text => {
+                          document.getElementById('content').innerHTML = marked.parse(text);
+                      })
+                      .catch(error => {
+                          document.getElementById('content').innerHTML = '<h1>Backtrader</h1><p>Visit <a href="https://github.com/cloudQuant/backtrader">GitHub repository</a> for more information.</p>';
+                      });
+              </script>
+          </body>
+          </html>
+          EOF
+          
+          # Copy other documentation files if they exist
+          [ -f "CLAUDE.md" ] && cp CLAUDE.md ./public/
+          [ -f "SYNC_SETUP.md" ] && cp SYNC_SETUP.md ./public/
+          [ -f "LICENSE" ] && cp LICENSE ./public/
+          
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+        with:
+          enablement: true
+        
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './public'
+          
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

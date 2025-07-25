@@ -28,9 +28,7 @@ A high-performance quantitative research tool built on backtrader, focused on me
 ### Core Features
 
 - 🚀 **Performance Optimization**: Core computation modules optimized with Cython and Numba for significantly faster backtesting
-- 📊 **Vectorized Backtesting**: Support for Time Series (TS) and Cross-Sectional (CS) vectorized backtesting frameworks
 - 🪙 **Cryptocurrency Support**:
-  - CCXT integration supporting 100+ cryptocurrency exchanges
   - Funding rate backtesting for crypto perpetual contracts
   - Real-time data streaming and historical data backtesting
 - 🏦 **Multi-Market Support**:
@@ -178,49 +176,6 @@ cerebro.plot()
 
 ### Advanced Usage
 
-#### Cryptocurrency Trading Example
-
-```python
-from datetime import datetime, timedelta
-import backtrader as bt
-from backtrader.feeds import CCXT
-
-# Use CCXT data source
-cerebro = bt.Cerebro()
-
-# Configure exchange
-config = {'apiKey': 'YOUR_KEY', 'secret': 'YOUR_SECRET'}
-store = bt.stores.CCXTStore(exchange='binance', config=config)
-
-# Get data
-hist_start_date = datetime.utcnow() - timedelta(days=30)
-data = store.getdata(
-    dataname='BTC/USDT',
-    timeframe=bt.TimeFrame.Minutes,
-    fromdate=hist_start_date,
-    compression=60  # 60-minute bars
-)
-
-cerebro.adddata(data)
-```
-
-#### Vectorized Backtesting Example
-
-```python
-# Time series vectorized strategy
-from backtrader.vectors import TimeSeriesStrategy
-
-class MyTSStrategy(TimeSeriesStrategy):
-    def compute_signal(self, data):
-        # Use numpy for vectorized calculations
-        sma_20 = data['close'].rolling(20).mean()
-        sma_50 = data['close'].rolling(50).mean()
-        
-        # Generate signals
-        signal = (sma_20 > sma_50).astype(int)
-        return signal
-```
-
 ### Documentation & Resources
 
 - 📚 [Official Documentation](https://www.backtrader.com/)
@@ -289,9 +244,7 @@ This project is open source under the GNU General Public License v3.0. See the [
 ### 核心特性
 
 - 🚀 **性能优化**：使用Cython和Numba对核心计算模块进行优化，大幅提升回测速度
-- 📊 **向量化回测**：支持时间序列(TS)和横截面(CS)向量化回测框架
 - 🪙 **加密货币支持**：
-  - 集成CCXT，支持100+加密货币交易所
   - 支持资金费率回测（数字货币永续合约）
   - 实时数据流和历史数据回测
 - 🏦 **多市场支持**：
@@ -439,48 +392,6 @@ cerebro.plot()
 
 ### 进阶使用
 
-#### 加密货币交易示例
-
-```python
-from datetime import datetime, timedelta
-import backtrader as bt
-from backtrader.feeds import CCXT
-
-# 使用CCXT数据源
-cerebro = bt.Cerebro()
-
-# 配置交易所
-config = {'apiKey': 'YOUR_KEY', 'secret': 'YOUR_SECRET'}
-store = bt.stores.CCXTStore(exchange='binance', config=config)
-
-# 获取数据
-hist_start_date = datetime.utcnow() - timedelta(days=30)
-data = store.getdata(
-    dataname='BTC/USDT',
-    timeframe=bt.TimeFrame.Minutes,
-    fromdate=hist_start_date,
-    compression=60  # 60分钟K线
-)
-
-cerebro.adddata(data)
-```
-
-#### 向量化回测示例
-
-```python
-# 时间序列向量化策略
-from backtrader.vectors import TimeSeriesStrategy
-
-class MyTSStrategy(TimeSeriesStrategy):
-    def compute_signal(self, data):
-        # 使用numpy进行向量化计算
-        sma_20 = data['close'].rolling(20).mean()
-        sma_50 = data['close'].rolling(50).mean()
-        
-        # 生成信号
-        signal = (sma_20 > sma_50).astype(int)
-        return signal
-```
 
 ### 文档与资源
 
