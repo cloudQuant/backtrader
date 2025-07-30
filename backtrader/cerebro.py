@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -28,7 +11,7 @@ import multiprocessing
 try:  # For new Python versions
     collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
 except AttributeError:  # For old Python versions
-    collectionsAbc = collections  # Используем collections.Iterable
+    collectionsAbc = collections  # collections.Iterable
 import backtrader as bt
 from .utils.py3 import (map, range, zip, with_metaclass, string_types,
                         integer_types)
@@ -77,12 +60,12 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
         If no data has reported itself as *live* (via the data's ``islive``
         method but the end user still want to run in ``live`` mode, this
-        parameter can be set to true
+        parameter can be set to true)
 
         This will simultaneously deactivate ``preload`` and ``runonce``. It
         will have no effect on memory saving schemes.
 
-        # 默认情况是False，意味着，如果我们没有给数据传入"islive"这个方法，默认的就是回测了。
+        # 默认情况是False，意味着，如果我们没有给数据传入 "islive"这个方法，默认的就是回测了。
         # 如果把live设置成True了，那么，默认就会不使用preload 和 runonce,这样，一般回测速度就会变慢。
 
       - ``maxcpus`` (default: None -> all available cores)
@@ -200,7 +183,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
         reused.
 
         Corner cases may happen in which this drives a line object off its
-        minimum period and breaks things and it is therefore disabled.
+        minimum period and breaks things, and it is therefore disabled.
          # 缓存，如果设置成True了，在指标计算的过程中，如果上面已经计算过了，形成了一个line，
         # 下面要用到指标是同样名字的,就不再计算，而是使用上面缓存中的指标
 
@@ -215,7 +198,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
       - ``tradehistory`` (default: ``False``)
 
         If set to ``True``, it will activate update event logging in each trade
-        for all strategies. This can also be accomplished on a per strategy
+        for all strategies. This can also be accomplished on a per-strategy
         basis with the strategy method ``set_tradehistory``
          # 如果tradehistory设置成了True，这将会激活这样一个功能，在所有策略中，每次交易的信息将会被log
         # 这个也可以在每个策略层面上，使用set_tradehistory来实现。
@@ -224,7 +207,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
         If ``True`` and optimizing (and the system can ``preload`` and use
         ``runonce``, data preloading will be done only once in the main process
-        to save time and resources.
+        to save time and resources.)
 
         The tests show an approximate ``20%`` speed-up moving from a sample
         execution in ``83`` seconds to ``66``
@@ -235,14 +218,14 @@ class Cerebro(with_metaclass(MetaParams, object)):
       - ``optreturn`` (default: ``True``)
 
         If ``True`` the optimization results will not be full ``Strategy``
-        objects (and all *datas*, *indicators*, *observers* ...) but and object
+        objects (and all *datas*, *indicators*, *observers* ...) but object
         with the following attributes (same as in ``Strategy``):
 
           - ``params`` (or ``p``) the strategy had for the execution
           - ``analyzers`` the strategy has executed
 
         In most occassions, only the *analyzers* and with which *params* are
-        the things needed to evaluate a the performance of a strategy. If
+        the things needed to evaluate the performance of a strategy. If
         detailed analysis of the generated values for (for example)
         *indicators* is needed, turn this off
 
@@ -709,7 +692,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 增加新的store
     def addstore(self, store):
-        # Adds an ``Store`` instance to the if not already present
+        # Adds an ``Store`` instance to the cerebro if not already present
         if store not in self.stores:
             self.stores.append(store)
 
@@ -736,7 +719,7 @@ class Cerebro(with_metaclass(MetaParams, object)):
 
     # 添加指标
     def addindicator(self, indcls, *args, **kwargs):
-        # Adds an ``Indicator`` class to the mix. Instantiation will be done at ``run`` time in the passed strategies
+        # Adds an ``Indicator`` class to the mix. Instantiation will be done at ``run`` time in the past strategies
         self.indicators.append((indcls, args, kwargs))
 
     # 添加analyzer

@@ -1,33 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
-'''
 
-.. module:: lineroot
+"""
+
+.module:: lineroot
 
 Defines LineSeries and Descriptors inside of it for classes that hold multiple
 lines at once.
 
-.. moduleauthor:: Daniel Rodriguez
+.moduleauthor:: Daniel Rodriguez
 
-'''
+"""
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -42,7 +25,7 @@ from . import metabase
 
 
 class LineAlias(object):
-    ''' Descriptor class that store a line reference and returns that line
+    """ Descriptor class that store a line reference and returns that line
     from the owner
 
     Keyword Args:
@@ -50,10 +33,10 @@ class LineAlias(object):
         owner's *lines* buffer
 
     As a convenience the __set__ method of the descriptor is used not set
-    the *line* reference because this is a constant along the live of the
+    the *line* reference because this is a constant along the lives of the
     descriptor instance, but rather to set the value of the *line* at the
     instant '0' (the current one)
-    '''
+    """
     # Descriptor就是一类实现了__get__(), __set__(), __delete__()方法的对象
     # 这个类的是通过初始化一个"line",这个line是一个整数，在请求的时候会返回obj.lines[line]
     # __set__用于设置line在0处的值
@@ -68,11 +51,11 @@ class LineAlias(object):
         return obj.lines[self.line]
 
     def __set__(self, obj, value):
-        '''
+        """
         A line cannot be "set" once it has been created. But the values
         inside the line can be "set". This is achieved by adding a binding
         to the line inside "value"
-        '''
+        """
         # 如果值是多条line的数据结构，就取第一条line
         if isinstance(value, LineMultiple):
             value = value.lines[0]
@@ -90,7 +73,7 @@ class LineAlias(object):
 
 
 class Lines(object):
-    '''
+    """
     Defines an "array" of lines which also has most of the interface of
     a LineBuffer class (forward, rewind, advance...).
 
@@ -98,7 +81,7 @@ class Lines(object):
 
     The class can autosubclass itself (_derive) to hold new lines keeping them
     in the defined order.
-    '''
+    """
     # Lines用于定义lines的array，并且拥有LineBuffer的大多数接口方法
     # 这些接口方法被传递到self保存的lines上
     # 这个类可以通过_derive自动子类话，用于按照预先定义的次序保存新的lines
@@ -115,7 +98,7 @@ class Lines(object):
     @classmethod
     def _derive(cls, name, lines, extralines, otherbases, linesoverride=False,
                 lalias=None):
-        '''
+        """
         Creates a subclass of this class with the lines of this class as
         initial input for the subclass. It will include num "extralines" and
         lines present in "otherbases"
@@ -125,7 +108,7 @@ class Lines(object):
         "linesoverride": if True the lines of all bases will be discarded and
         the baseclass will be the topmost class "Lines". This is intended to
         create a new hierarchy
-        '''
+        """
         # 创建这个class的子类，这个子类将会包含这个class的lines,extralines, otherbases的lines
         # name将会用于最终类的名字的后缀
         # linesoverride：如果这个参数是真的，所有bases的lines将会被丢弃，并且baseclass将会成为最高等级的Lines类
@@ -196,7 +179,7 @@ class Lines(object):
         for line,linealias in enumerate(lines2add, start=l2start):
             # line是一个整数，linealias如果不是字符串，那么和可能是元组或者列表，第一个就是它的名字
             if not isinstance(linealias, string_types):
-                # a tuple or list was passed, 1st is name
+                # a tuple or list was passed, 1st is named
                 linealias = linealias[0]
             # 创建一个LineAlias的类
             desc = LineAlias(line)  # keep a reference below，LineAlias这个类只有用在了这里面和下面里面
@@ -213,7 +196,7 @@ class Lines(object):
             l2alias = lalias._getkwargsdefault() # 个人增加的，替换前面的生成语句
             for line, linealias in enumerate(newcls._getlines()):
                 if not isinstance(linealias, string_types):
-                    # a tuple or list was passed, 1st is name
+                    # a tuple or list was passed, 1st is named
                     linealias = linealias[0]
 
                 # 给newcls设置alias属性，属性值为desc
@@ -231,9 +214,9 @@ class Lines(object):
 
     @classmethod
     def _getlinealias(cls, i):
-        '''
+        """
         Return the alias for a line given the index
-        '''
+        """
         # 类方法，根据具体的index i 返回line的名字
         lines = cls._getlines()
         if i >= len(lines):
@@ -252,10 +235,10 @@ class Lines(object):
         return iter(self.lines[0:self.size()])
 
     def __init__(self, initlines=None):
-        '''
+        """
         Create the lines recording during "_derive" or else use the
         provided "initlines"
-        '''
+        """
         # 初始化lines,设定lines是一个列表
         self.lines = list()
         for line, linealias in enumerate(self._getlines()):
@@ -272,9 +255,9 @@ class Lines(object):
                 self.lines.append(initlines[i])
 
     def __len__(self):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 返回一条line的长度
         return len(self.lines[0])
 
@@ -291,92 +274,92 @@ class Lines(object):
         return self._getlinesextra()
 
     def __getitem__(self, line):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 根据整数line作为yindex获取具体的line对象
         return self.lines[line]
 
     def get(self, ago=0, size=1, line=0):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 根据整数line作为index获取某条line，然后获取包含ago在内的之前的size个数量的数据
         return self.lines[line].get(ago, size=size)
 
     def __setitem__(self, line, value):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 给self设置属性，self._getlinealias(line)返回的是line的名字，value是设置的值
         setattr(self, self._getlinealias(line), value)
 
     def forward(self, value=NAN, size=1):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 把每个line都向前size
         for line in self.lines:
             line.forward(value, size=size)
 
     def backwards(self, size=1, force=False):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 把每个line都向后size
         for line in self.lines:
             line.backwards(size, force=force)
 
     def rewind(self, size=1):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 把line的idx和lencount减少size
         for line in self.lines:
             line.rewind(size)
 
     def extend(self, value=NAN, size=0):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 把line.array向前扩展size个值
         for line in self.lines:
             line.extend(value, size)
 
     def reset(self):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 重置line
         for line in self.lines:
             line.reset()
 
     def home(self):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 返回到最开始
         for line in self.lines:
             line.home()
 
     def advance(self, size=1):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 把line的idx和lencount增加size
         for line in self.lines:
             line.advance(size)
 
     def buflen(self, line=0):
-        '''
+        """
         Proxy line operation
-        '''
+        """
         # 返回line缓存的数据的长度
         return self.lines[line].buflen()
 
 
 class MetaLineSeries(LineMultiple.__class__):
-    '''
+    """
     Dirty job manager for a LineSeries
 
       - During __new__ (class creation), it reads "lines", "plotinfo",
@@ -394,14 +377,14 @@ class MetaLineSeries(LineMultiple.__class__):
         Remember that this Metaclass has a MetaParams (from metabase)
         as root class and therefore "params" defined for the class have been
         removed from kwargs at an earlier state
-    '''
+    """
 
     def __new__(meta, name, bases, dct):
-        '''
+        """
         Intercept class creation, identifiy lines/plotinfo/plotlines class
         attributes and create corresponding classes for them which take over
         the class attributes
-        '''
+        """
 
         # Get the aliases - don't leave it there for subclasses
         aliases = dct.setdefault('alias', ())
@@ -477,11 +460,11 @@ class MetaLineSeries(LineMultiple.__class__):
         return cls
 
     def donew(cls, *args, **kwargs):
-        '''
+        """
         Intercept instance creation, take over lines/plotinfo/plotlines
         class attributes by creating corresponding instance variables and add
         aliases for "lines" and the "lines" held within it
-        '''
+        """
         # _obj.plotinfo shadows the plotinfo (class) definition in the class
         plotinfo = cls.plotinfo()
 
@@ -514,7 +497,7 @@ class MetaLineSeries(LineMultiple.__class__):
         # Parameter values have now been set before __init__
         return _obj, args, kwargs
 class MetaLineSeries(LineMultiple.__class__):
-    '''
+    """
     Dirty job manager for a LineSeries
 
       - During __new__ (class creation), it reads "lines", "plotinfo",
@@ -532,17 +515,17 @@ class MetaLineSeries(LineMultiple.__class__):
         Remember that this Metaclass has a MetaParams (from metabase)
         as root class and therefore "params" defined for the class have been
         removed from kwargs at an earlier state
-    '''
+    """
     # 这个类是给LineSeries做一些预处理工作，主要是获取plotinfo、lines、plotlines等相关的属性
     # 然后创建一个_obj并给它增加相应的属性并赋值
     
 
     def __new__(meta, name, bases, dct):
-        '''
+        """
         Intercept class creation, identifiy lines/plotinfo/plotlines class
         attributes and create corresponding classes for them which take over
         the class attributes
-        '''
+        """
 
         # Get the aliases - don't leave it there for subclasses
         # 给dct增加一个alias,aliased的key，并设定默认值是(),"",其中aliases的值是一个空的列表，aliased的值是空的字符串。字典的具体用法
@@ -633,11 +616,11 @@ class MetaLineSeries(LineMultiple.__class__):
         return cls
 
     def donew(cls, *args, **kwargs):
-        '''
+        """
         Intercept instance creation, take over lines/plotinfo/plotlines
         class attributes by creating corresponding instance variables and add
         aliases for "lines" and the "lines" held within it
-        '''
+        """
         # 创建一个_obj,保存lines,plotinfo,plotlines相关的属性，并给lines增加别名
         
         # _obj.plotinfo shadows the plotinfo (class) definition in the class
@@ -769,8 +752,8 @@ class LineSeries(with_metaclass(MetaLineSeries, LineMultiple)):
         return lineobj
 
     def __call__(self, ago=None, line=-1):
-        '''Returns either a delayed verison of itself in the form of a
-        LineDelay object or a timeframe adapting version with regards to a ago
+        """Returns either a delayed version of itself in the form of a
+        LineDelay object or a timeframe adapting version in regard to an ago
 
         Param: ago (default: None)
 
@@ -792,7 +775,7 @@ class LineSeries(with_metaclass(MetaLineSeries, LineMultiple)):
           form
 
           The referenced line (index or name) will be LineDelayed
-        '''
+        """
         from .lineiterator import LinesCoupler  # avoid circular import
         # 如果ago是None或者是LineRoot的子类的话
         if ago is None or isinstance(ago, LineRoot):
@@ -807,7 +790,7 @@ class LineSeries(with_metaclass(MetaLineSeries, LineMultiple)):
         # 如果ago不是None，并且不是LineRoot的子类，默认ago是int值，返回一个LineDelay对象
         return LineDelay(self._getline(line), ago, _ownerskip=self)
 
-    # The operations below have to be overriden to make sure subclasses can
+    # The operations below have to be overridden to make sure subclasses can
     # reach them using "super" which will not call __getattr__ and
     # LineSeriesStub (see below) already uses super
     
@@ -835,9 +818,9 @@ class LineSeries(with_metaclass(MetaLineSeries, LineMultiple)):
 
 
 class LineSeriesStub(LineSeries):
-    '''Simulates a LineMultiple object based on LineSeries from a single line
+    """Simulates a LineMultiple object based on LineSeries from a single line
 
-    The index management operations are overriden to take into account if the
+    The index management operations are overridden to take into account if the
     line is a slave, ie:
 
       - The line reference is a line from many in a LineMultiple object
@@ -850,7 +833,7 @@ class LineSeriesStub(LineSeries):
       - Once under when the LineMultiple object is advanced (because it
         advances all lines it is holding
       - Again as part of the regular management of the object holding it
-    '''
+    """
     # 根据一条line模拟一个多条line的对象
 
     extralines = 1

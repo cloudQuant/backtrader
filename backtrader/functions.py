@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -43,7 +26,7 @@ class Logic(LineActions):
 
 # 避免两个line想除的时候有值是0，如果分母是0,除以得到的值是0
 class DivByZero(Logic):
-    '''This operation is a Lines object and fills it values by executing a
+    """This operation is a Lines object and fills it values by executing a
     division on the numerator / denominator arguments and avoiding a division
     by zero exception by checking the denominator
 
@@ -52,7 +35,7 @@ class DivByZero(Logic):
       - b: denominator (numeric or iterable object ... mostly a Lines object)
       - zero (def: 0.0): value to apply if division by zero would be raised
 
-    '''
+    """
     def __init__(self, a, b, zero=0.0):
         super(DivByZero, self).__init__(a, b)
         self.a = a
@@ -77,7 +60,7 @@ class DivByZero(Logic):
 
 # 考虑分母分子都可能是0的两个line的想除操作
 class DivZeroByZero(Logic):
-    '''This operation is a Lines object and fills it values by executing a
+    """This operation is a Lines object and fills it values by executing a
     division on the numerator / denominator arguments and avoiding a division
     by zero exception or an indetermination by checking the
     denominator/numerator pair
@@ -87,7 +70,7 @@ class DivZeroByZero(Logic):
       - b: denominator (numeric or iterable object ... mostly a Lines object)
       - single (def: +inf): value to apply if division is x / 0
       - dual (def: 0.0): value to apply if division is 0 / 0
-    '''
+    """
     def __init__(self, a, b, single=float('inf'), dual=0.0):
         super(DivZeroByZero, self).__init__(a, b)
         self.a = a

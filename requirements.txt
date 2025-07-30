@@ -22,3 +22,7 @@ pytest-cov
 pytest-picked
 pytest-xdist
 dash
+# Note: empyrical must be installed from GitHub/Gitee, not PyPI
+# pip install git+https://github.com/cloudQuant/empyrical.git
+# or
+# pip install git+https://gitee.com/yunjinqi/empyrical.git

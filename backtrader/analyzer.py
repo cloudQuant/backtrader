@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -34,9 +17,9 @@ from backtrader.utils.py3 import MAXINT, with_metaclass
 # analyzer元类
 class MetaAnalyzer(bt.MetaParams):
     def donew(cls, *args, **kwargs):
-        '''
+        """
         Intercept the strategy parameter
-        '''
+        """
         # Create the object and set the params in place
         _obj, args, kwargs = super(MetaAnalyzer, cls).donew(*args, **kwargs)
 
@@ -100,7 +83,7 @@ class MetaAnalyzer(bt.MetaParams):
 
 # Analyzer类
 class Analyzer(with_metaclass(MetaAnalyzer, object)):
-    '''Analyzer base class. All analyzers are subclass of this one
+    """Analyzer base class. All analyzers are subclass of this one
 
     An Analyzer instance operates in the frame of a strategy and provides an
     analysis for that strategy.
@@ -115,7 +98,7 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
         # 访问到strategy实例
 
       - ``self.datas[x]`` giving access to the array of data feeds present in
-        the the system, which could also be accessed via the strategy reference
+        the system, which could also be accessed via the strategy reference
 
       - ``self.data``, giving access to ``self.datas[0]``
 
@@ -156,13 +139,13 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
     # 下面的不是line对象，但是方法和操作设计方法和strategy是类似的。最重要的事情是重写get_analysis,
     # 以返回一个字典形式的对象以保存分析的结果
 
-    '''
+    """
     # 保存结果到csv中
     csv = True
     # 获取analyzer的长度的时候，其实是计算的策略的长度
     def __len__(self):
-        '''Support for invoking ``len`` on analyzers by actually returning the
-        current length of the strategy the analyzer operates on'''
+        """Support for invoking ``len`` on analyzers by actually returning the
+        current length of the strategy the analyzer operates on"""
         return len(self.strategy)
 
     # 添加一个child到self._children
@@ -232,70 +215,70 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
 
     # 通知cash 和 value
     def notify_cashvalue(self, cash, value):
-        '''Receives the cash/value notification before each next cycle'''
+        """Receives the cash/value notification before each next cycle"""
         pass
 
     # 通知 fund
     def notify_fund(self, cash, value, fundvalue, shares):
-        '''Receives the current cash, value, fundvalue and fund shares'''
+        """Receives the current cash, value, fundvalue and fund shares"""
         pass
 
     # 通知order
     def notify_order(self, order):
-        '''Receives order notifications before each next cycle'''
+        """Receives order notifications before each next cycle"""
         pass
 
     # 通知 trade
     def notify_trade(self, trade):
-        '''Receives trade notifications before each next cycle'''
+        """Receives trade notifications before each next cycle"""
         pass
 
     # next
     def next(self):
-        '''Invoked for each next invocation of the strategy, once the minum
-        preiod of the strategy has been reached'''
+        """Invoked for each next invocation of the strategy, once the minum
+        period of the strategy has been reached"""
         pass
 
     # prenext
     def prenext(self):
-        '''Invoked for each prenext invocation of the strategy, until the minimum
+        """Invoked for each prenext invocation of the strategy, until the minimum
         period of the strategy has been reached
 
         The default behavior for an analyzer is to invoke ``next``
-        '''
+        """
         self.next()
 
     # nextstart
     def nextstart(self):
-        '''Invoked exactly once for the nextstart invocation of the strategy,
+        """Invoked exactly once for the nextstart invocation of the strategy,
         when the minimum period has been first reached
-        '''
+        """
         self.next()
 
     # start
     def start(self):
-        '''Invoked to indicate the start of operations, giving the analyzer
-        time to setup up needed things'''
+        """Invoked to indicate the start of operations, giving the analyzer
+        time to set up needed things"""
         pass
 
     # stop
     def stop(self):
-        '''Invoked to indicate the end of operations, giving the analyzer
-        time to shut down needed things'''
+        """Invoked to indicate the end of operations, giving the analyzer
+        time to shut down needed things"""
         pass
 
     # create_analysis 会创建一个有序字典
     def create_analysis(self):
-        '''Meant to be overriden by subclasses. Gives a chance to create the
+        """Meant to be overridden by subclasses. Gives a chance to create the
         structures that hold the analysis.
 
         The default behaviour is to create a ``OrderedDict`` named ``rets``
-        '''
+        """
         self.rets = OrderedDict()
 
     # 获取分析结果，会返回self.rets
     def get_analysis(self):
-        '''Returns a *dict-like* object with the results of the analysis
+        """Returns a *dict-like* object with the results of the analysis
 
         The keys and format of analysis results in the dictionary is
         implementation dependent.
@@ -306,15 +289,15 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
         The default implementation returns the default OrderedDict ``rets``
         created by the default ``create_analysis`` method
 
-        '''
+        """
         return self.rets
 
     # print数据，通过writerfile打印相应的数据到标准输出
     def print(self, *args, **kwargs):
-        '''Prints the results returned by ``get_analysis`` via a standard
+        """Prints the results returned by ``get_analysis`` via a standard
         ``Writerfile`` object, which defaults to writing things to standard
         output
-        '''
+        """
         # 创建一个writer
         writer = bt.WriterFile(*args, **kwargs)
         # writer开始
@@ -329,9 +312,9 @@ class Analyzer(with_metaclass(MetaAnalyzer, object)):
         writer.stop()
     # 使用pprint打印相关的信息
     def pprint(self, *args, **kwargs):
-        '''Prints the results returned by ``get_analysis`` using the pretty
+        """Prints the results returned by ``get_analysis`` using the pretty
         print Python module (*pprint*)
-        '''
+        """
         pp.pprint(self.get_analysis(), *args, **kwargs)
 
 

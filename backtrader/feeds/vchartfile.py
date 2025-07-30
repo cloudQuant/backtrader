@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -31,7 +14,7 @@ from backtrader import date2num  # avoid dict lookups
 
 class MetaVChartFile(bt.DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaVChartFile, cls).__init__(name, bases, dct)
 
@@ -41,7 +24,7 @@ class MetaVChartFile(bt.DataBase.__class__):
 
 
 class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
-    '''
+    """
     Support for `Visual Chart <www.visualchart.com>`_ binary on-disk files for
     both daily and intradaily formats.
 
@@ -49,7 +32,7 @@ class VChartFile(bt.with_metaclass(MetaVChartFile, bt.DataBase)):
 
       - ``dataname``: Market code displayed by Visual Chart. Example: 015ES for
         EuroStoxx 50 continuous future
-    '''
+    """
 
     def start(self):
         super(VChartFile, self).start()

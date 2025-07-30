@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -28,7 +11,7 @@ from backtrader import AbstractDataBase, TimeFrame
 
 
 class DataFiller(AbstractDataBase):
-    '''This class will fill gaps in the source data using the following
+    """This class will fill gaps in the source data using the following
     information bits from the underlying data source
 
       - timeframe and compression to dimension the output bars
@@ -39,18 +22,18 @@ class DataFiller(AbstractDataBase):
     timeframe is minutes, the output will be filled with bars for minutes
     10:32 and 10:33 using the closing price of the last bar (10:31)
 
-    Bars can be missinga amongst other things because
+    Bars can be missing amongst other things because
 
     Params:
       - ``fill_price`` (def: None): if None (or evaluates to False),the
-        closing price will be used, else the passed value (which can be
+        closing price will be used, else the passed value which can be
         for example 'NaN' to have a missing bar in terms of evaluation but
         present in terms of time
 
-      - ``fill_vol`` (def: NaN): used to fill the volume of missing bars
+      - ``fill_vol`` (def: NaN): used to fill the volume with missing bars
 
-      - ``fill_oi`` (def: NaN): used to fill the openinterest of missing bars
-    '''
+      - ``fill_oi`` (def: NaN): used to fill the openinterest with missing bars
+    """
 
     params = (
         ('fill_price', None),

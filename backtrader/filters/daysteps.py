@@ -1,29 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 
 class BarReplayer_Open(object):
-    '''
+    """
     This filters splits a bar in two parts:
 
       - ``Open``: the opening price of the bar will be used to deliver an
@@ -35,7 +18,7 @@ class BarReplayer_Open(object):
         ``volume``/``openinterest``
 
     The split simulates a replay without the need to use the *replay* filter.
-    '''
+    """
     def __init__(self, data):
         self.pendingbar = None
         data.resampling = 1
@@ -53,7 +36,7 @@ class BarReplayer_Open(object):
         for field_idx in [data.High, data.Low, data.Close]:
             openbar[field_idx] = o
 
-        # Nullify Volume/OpenInteres at the open
+        # Nullify Volume/OpenInterest at the open
         openbar[data.Volume] = 0.0
         openbar[data.OpenInterest] = 0.0
 
@@ -68,9 +51,9 @@ class BarReplayer_Open(object):
         return ret  # the length of the stream was not changed
 
     def last(self, data):
-        '''Called when the data is no longer producing bars
+        """Called when the data is no longer producing bars
         Can be called multiple times. It has the chance to (for example)
-        produce extra bars'''
+        produce extra bars"""
         if self.pendingbar is not None:
             data.backwards()  # remove delivered open bar
             data._add2stack(self.pendingbar)  # add remaining

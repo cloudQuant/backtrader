@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -298,13 +281,13 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
 
     # 获取时间的点数
     def _gettmpoint(self, tm):
-        '''
+        """
             Returns the point of time intraday for a given time according to the
         timeframe
 
           - Ex 1: 00:05:00 in minutes -> point = 5
           - Ex 2: 00:05:20 in seconds -> point = 5 * 60 + 20 = 320
-        '''
+        """
         # 分钟点数
         point = tm.hour * 60 + tm.minute
         # 剩余点数
@@ -372,13 +355,13 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
 
     # 检查是否在数据还没有向前移动的情况下提交当前存储的bar
     def check(self, data, _forcedata=None):
-        '''Called to check if the current stored bar has to be delivered in
+        """Called to check if the current stored bar has to be delivered in
         spite of the data not having moved forward. If no ticks from a live
         feed come in, a 5 second resampled bar could be delivered 20 seconds
         later. When this method is called the wall clock (incl data time
         offset) is called to check if the time has gone so far as to have to
         deliver the already stored data
-        '''
+        """
         if not self.bar.isopen():
             return
 
@@ -435,10 +418,10 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
             bound, brest = divmod(point, self.p.compression)
 
             # if no extra and decomp bound is point
-            # 如果divmod计算的结果余数为0，返回两个Trye
-            return (brest == 0 and point == (bound * self.p.compression), True)
+            # 如果divmod计算的结果余数为0，返回两个
+            return brest == 0 and point == (bound * self.p.compression), True
 
-        # Code overriden by eoscheck
+        # Code overridden by eoscheck
         # 这段不会运行
         if False and self.p.sessionend:
             # Days scenario - get datetime to compare in output timezone
@@ -508,14 +491,14 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
 
     # 调整bar的时间
     def _adjusttime(self, greater=False, forcedata=None):
-        '''
+        """
         Adjusts the time of calculated bar (from underlying data source) by
         using the timeframe to the appropriate boundary, with compression taken
         into account
 
         Depending on param ``rightedge`` uses the starting boundary or the
         ending one
-        '''
+        """
 
         dtnum = self._calcadjtime(greater=greater)
         if greater and dtnum <= self.bar.datetime:
@@ -527,7 +510,7 @@ class _BaseResampler(with_metaclass(metabase.MetaParams, object)):
 
 # 把小周期的数据抽样形成大周期的数据
 class Resampler(_BaseResampler):
-    '''This class resamples data of a given timeframe to a larger timeframe.
+    """This class resamples data of a given timeframe to a larger timeframe.
 
     Params
 
@@ -546,7 +529,7 @@ class Resampler(_BaseResampler):
         seconds" the time of the bar will be adjusted for example to hh:mm:05
         even if the last seen timestamp was hh:mm:04.33
 
-        .. note::
+        .note::
 
            Time will only be adjusted if "bar2edge" is True. It wouldn't make
            sense to adjust the time if the bar has not been aligned to a
@@ -559,13 +542,13 @@ class Resampler(_BaseResampler):
 
         If False and compressing to 5 seconds the time of a resampled bar for
         seconds between hh:mm:00 and hh:mm:04 will be hh:mm:00 (the starting
-        boundary
+        boundary)
 
         If True the used boundary for the time will be hh:mm:05 (the ending
         boundary)
         # 是否使用右边的时间边界，比如时间边界是hh:mm:00：hh:mm:05，如果设置成True的话，将会使用hh:mm:05
         # 设置成False,将会使用hh:mm:00
-    '''
+    """
     # 参数
     params = (
         ('bar2edge', True),
@@ -577,12 +560,12 @@ class Resampler(_BaseResampler):
 
     # 在数据不再产生bar的时候调用，可以被调用多次，有机会在必须传递bar的时候产生额外的bar
     def last(self, data):
-        '''Called when the data is no longer producing bars
+        """Called when the data is no longer producing bars
 
         Can be called multiple times. It has the chance to (for example)
         produce extra bars which may still be accumulated and have to be
         delivered
-        '''
+        """
         if self.bar.isopen():
             if self.doadjusttime:
                 self._adjusttime()
@@ -595,7 +578,7 @@ class Resampler(_BaseResampler):
 
     # 调用resampler的时候使用
     def __call__(self, data, fromcheck=False, forcedata=None):
-        '''Called for each set of values produced by the data source'''
+        """Called for each set of values produced by the data source"""
         consumed = False
         onedge = False
         docheckover = True
@@ -663,7 +646,7 @@ class Resampler(_BaseResampler):
 
 # replayer类
 class Replayer(_BaseResampler):
-    '''This class replays data of a given timeframe to a larger timeframe.
+    """This class replays data of a given timeframe to a larger timeframe.
 
     It simulates the action of the market by slowly building up (for ex.) a
     daily bar from tick/seconds/minutes data
@@ -686,13 +669,13 @@ class Replayer(_BaseResampler):
         seconds" the time of the bar will be adjusted for example to hh:mm:05
         even if the last seen timestamp was hh:mm:04.33
 
-        .. note::
+        .note::
 
            Time will only be adjusted if "bar2edge" is True. It wouldn't make
            sense to adjust the time if the bar has not been aligned to a
            boundary
 
-        .. note:: if this parameter is True an extra tick with the *adjusted*
+        .note:: if this parameter is True an extra tick with the *adjusted*
                   time will be introduced at the end of the *replayed* bar
 
       - rightedge (default: True)
@@ -701,11 +684,11 @@ class Replayer(_BaseResampler):
 
         If False and compressing to 5 seconds the time of a resampled bar for
         seconds between hh:mm:00 and hh:mm:04 will be hh:mm:00 (the starting
-        boundary
+        boundary)
 
         If True the used boundary for the time will be hh:mm:05 (the ending
         boundary)
-    '''
+    """
     params = (
         ('bar2edge', True),
         ('adjbartime', False),

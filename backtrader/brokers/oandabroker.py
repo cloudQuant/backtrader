@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -44,21 +27,21 @@ class OandaCommInfo(CommInfoBase):
         return abs(size) * price
 
     def getoperationcost(self, size, price):
-        '''Returns the needed amount of cash an operation would cost'''
+        """Returns the needed amount of cash an operation would cost"""
         # Same reasoning as above
         return abs(size) * price
 
 
 class MetaOandaBroker(BrokerBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaOandaBroker, cls).__init__(name, bases, dct)
         oandastore.OandaStore.BrokerCls = cls
 
 
 class OandaBroker(with_metaclass(MetaOandaBroker, BrokerBase)):
-    '''Broker implementation for Oanda.
+    """Broker implementation for Oanda.
 
     This class maps the orders/positions from Oanda to the
     internal API of ``backtrader``.
@@ -70,7 +53,7 @@ class OandaBroker(with_metaclass(MetaOandaBroker, BrokerBase)):
 
         Set to ``False`` during instantiation to disregard any existing
         position
-    '''
+    """
     params = (
         ('use_positions', True),
         ('commission', OandaCommInfo(mult=1.0, stocklike=False)),

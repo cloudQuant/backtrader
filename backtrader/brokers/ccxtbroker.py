@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015, 2016, 2017 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 
 import collections
 import json
@@ -63,7 +46,7 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
     Added a get_balance function. Manually check the account balance and update brokers
     self.cash and self.value. This helps alleviate rate limit issues.
 
-    Added a new get_wallet_balance method. This will allow manual checking of the any coins
+    Added a new get_wallet_balance method. This will allow manual checking of any coins
         The method will allow setting parameters. Useful for dealing with multiple assets
 
     Modified getcash() and getvalue():
@@ -354,7 +337,7 @@ class CCXTBroker(with_metaclass(MetaCCXTBroker, BrokerBase)):
         See here: https://github.com/ccxt/ccxt/wiki/Manual#implicit-api-methods
 
         - type: String, 'Get', 'Post','Put' or 'Delete'.
-        - endpoint = String containing the endpoint address eg. 'order/{id}/cancel'
+        - endpoint = String containing the endpoint address e.g. 'order/{id}/cancel'
         - Params: Dict: An implicit method takes a dictionary of parameters, sends
           the request to the exchange and returns an exchange-specific JSON
           result from the API as is, unparsed.

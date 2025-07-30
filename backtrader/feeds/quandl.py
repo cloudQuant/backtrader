@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -37,7 +20,7 @@ __all__ = ['QuandlCSV', 'Quandl']
 
 #  处理quandlcsv数据
 class QuandlCSV(feed.CSVDataBase):
-    '''
+    """
     Parses pre-downloaded Quandl CSV Data Feeds (or locally generated if they
     comply to the Quandl format)
 
@@ -63,7 +46,7 @@ class QuandlCSV(feed.CSVDataBase):
       - ``decimals`` (default: ``2``)
 
         Number of decimals to round to
-    '''
+    """
     _online = False  # flag to avoid double reversal
 
     params = (
@@ -129,7 +112,7 @@ class QuandlCSV(feed.CSVDataBase):
 
 
 class Quandl(QuandlCSV):
-    '''
+    """
     Executes a direct download of data from Quandl servers for the given time
     range.
 
@@ -173,7 +156,7 @@ class Quandl(QuandlCSV):
 
         string identifying the dataset to query. Defaults to ``WIKI``
 
-      '''
+      """
 
     _online = True  # flag to avoid double reversal
 
