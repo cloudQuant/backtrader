@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -33,7 +16,7 @@ from backtrader.stores import oandastore
 
 class MetaOandaData(DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaOandaData, cls).__init__(name, bases, dct)
 
@@ -42,7 +25,7 @@ class MetaOandaData(DataBase.__class__):
 
 # 处理oanda数据，忽略这篇源代码s
 class OandaData(with_metaclass(MetaOandaData, DataBase)):
-    '''Oanda Data Feed.
+    """Oanda Data Feed.
 
     Params:
 
@@ -136,7 +119,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         (TimeFrame.Months, 1): 'M',
 
     Any other combination will be rejected
-    '''
+    """
     params = (
         ('qcheck', 0.5),
         ('historical', False),  # do backfilling at the start
@@ -163,8 +146,8 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return self._TOFFSET
 
     def islive(self):
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return True
 
     def __init__(self, **kwargs):
@@ -172,14 +155,14 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         self._candleFormat = 'bidask' if self.p.bidask else 'midpoint'
 
     def setenvironment(self, env):
-        '''Receives an environment (cerebro) and passes it over to the store it
-        belongs to'''
+        """Receives an environment (cerebro) and passes it over to the store it
+        belongs to"""
         super(OandaData, self).setenvironment(env)
         env.addstore(self.o)
 
     def start(self):
-        '''Starts the Oanda connecction and gets the real contract and
-        contractdetails if it exists'''
+        """Starts the Oanda connecction and gets the real contract and
+        contractdetails if it exists"""
         super(OandaData, self).start()
 
         # Create attributes as soon as possible
@@ -250,7 +233,7 @@ class OandaData(with_metaclass(MetaOandaData, DataBase)):
         return True  # no return before - implicit continue
 
     def stop(self):
-        '''Stops and tells the store to stop'''
+        """Stops and tells the store to stop"""
         super(OandaData, self).stop()
         self.o.stop()
 

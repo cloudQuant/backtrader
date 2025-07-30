@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -27,7 +10,7 @@ import backtrader as bt
 
 
 class DaySplitter_Close(bt.with_metaclass(bt.MetaParams, object)):
-    '''
+    """
     Splits a daily bar in two parts simulating 2 ticks which will be used to
     replay the data:
 
@@ -54,7 +37,7 @@ class DaySplitter_Close(bt.with_metaclass(bt.MetaParams, object)):
 
     **This filter is meant to be used together with** ``cerebro.replaydata``
 
-    '''
+    """
     params = (
         ('closevol', 0.5),  # 0 -> 1 amount of volume to keep for close
     )
@@ -84,14 +67,14 @@ class DaySplitter_Close(bt.with_metaclass(bt.MetaParams, object)):
         vol = ohlbar[data.Volume]  # adjust volume
         ohlbar[data.Volume] = vohl = int(vol * (1.0 - self.p.closevol))
 
-        oi = ohlbar[data.OpenInterest]  # adjust open interst
+        oi = ohlbar[data.OpenInterest]  # adjust open interest
         ohlbar[data.OpenInterest] = 0
 
         # Adjust times
         dt = datetime.datetime.combine(datadt, data.p.sessionstart)
         ohlbar[data.DateTime] = data.date2num(dt)
 
-        # Ajust closebar to generate a single tick -> close price
+        # Adjust closebar to generate a single tick -> close price
         closebar[data.Open] = cprice = closebar[data.Close]
         closebar[data.High] = cprice
         closebar[data.Low] = cprice

@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -67,7 +50,7 @@ class IBOrderState(object):
 
 # IB的 order,对于IB中的某些订单，如果backtrader不支持，可以通过关键字参数自己设置
 class IBOrder(OrderBase, ib.ext.Order.Order):
-    '''Subclasses the IBPy order to provide the minimum extra functionality
+    """Subclasses the IBPy order to provide the minimum extra functionality
     needed to be compatible with the internally defined orders
 
     Once ``OrderBase`` has processed the parameters, the __init__ method takes
@@ -89,7 +72,7 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
 
     This would be done almost always from the ``Buy`` and ``Sell`` methods of
     the ``Strategy`` subclass being used in ``Cerebro``
-    '''
+    """
 
     def __str__(self):
         """Get the printout from the base class and add some ib.Order specific
@@ -151,7 +134,7 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
 
         if self.exectype == self.Market:  # is it really needed for Market?
             pass
-        elif self.exectype == self.Close:  # is it ireally needed for Close?
+        elif self.exectype == self.Close:  # is it really needed for Close?
             pass
         elif self.exectype == self.Limit:
             self.m_lmtPrice = self.price
@@ -217,32 +200,32 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
 
 # IB佣金保证金收取方式
 class IBCommInfo(CommInfoBase):
-    '''
+    """
     Commissions are calculated by ib, but the trades calculations in the
     ```Strategy`` rely on the order carrying a CommInfo object attached for the
     calculation of the operation cost and value.
 
-    These are non-critical informations, but removing them from the trade could
-    break existing usage and it is better to provide a CommInfo objet which
-    enables those calculations even if with approvimate values.
+    These are non-critical information, but removing them from the trade could
+    break existing usage, and it is better to provide a CommInfo objet which
+    enables those calculations even if with approximate values.
 
     The margin calculation is not a known in advance information with IB
     (margin impact can be gotten from OrderState objects) and therefore it is
-    left as future exercise to get it'''
+    left as future exercise to get it"""
 
     def getvaluesize(self, size, price):
         # In real life the margin approaches the price
         return abs(size) * price
 
     def getoperationcost(self, size, price):
-        '''Returns the needed amount of cash an operation would cost'''
+        """Returns the needed amount of cash an operation would cost"""
         # Same reasoning as above
         return abs(size) * price
 
 # IBBroker元类
 class MetaIBBroker(BrokerBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaIBBroker, cls).__init__(name, bases, dct)
         ibstore.IBStore.BrokerCls = cls
@@ -250,7 +233,7 @@ class MetaIBBroker(BrokerBase.__class__):
 
 # IBbroker
 class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
-    '''Broker implementation for Interactive Brokers.
+    """Broker implementation for Interactive Brokers.
 
     This class maps the orders/positions from Interactive Brokers to the
     internal API of ``backtrader``.
@@ -275,7 +258,7 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
     # 不再支持tradeid，这是因为盈亏是从IB直接获取的，tradeid的pnl是不准确的
     # 如果在开始之前是有持仓或者订单，策略计算的交易将不会考虑实际情况。为了避免这种情况，这个broker将不得不做一个单独的仓位管理，
     # 允许tradeid具有多个id值(盈亏在本地计算),可以看做是为了实盘broker做的妥协
-    '''
+    """
     params = ()
 
     def __init__(self, **kwargs):
@@ -437,7 +420,7 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
 
     # next,添加一个None，设置了一个通知的边界
     def next(self):
-        self.notifs.put(None)  # mark notificatino boundary
+        self.notifs.put(None)  # mark notification boundary
 
     # Order statuses in msg
     # 信息中的订单状态
@@ -571,7 +554,7 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
     # 推送投资组合更新信息
     def push_portupdate(self):
         # If the IBStore receives a Portfolio update, then this method will be
-        # indicated. If the execution of an order is split in serveral lots,
+        # indicated. If the execution of an order is split in several lots,
         # updatePortfolio messages will be intermixed, which is used as a
         # signal to indicate that the strategy can be notified
         with self._lock_orders:
@@ -613,5 +596,5 @@ class IBBroker(with_metaclass(MetaIBBroker, BrokerBase)):
 
             if msg.orderState.m_status in ['PendingCancel', 'Cancelled',
                                            'Canceled']:
-                # This is most likely due to an expiration]
+                # This is most likely due to an expiration
                 order._willexpire = True

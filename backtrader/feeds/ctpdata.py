@@ -73,7 +73,7 @@ class CTPData(with_metaclass(MetaCTPData, DataBase)):
         #
         CHINA_TZ = pytz.timezone("Asia/Shanghai")
         #
-        symbol = (self.p.dataname).split('.')[0]
+        symbol = self.p.dataname.split('.')[0]
         if self._timeframe == 4:
             futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period=str(self._compression)).tail(self.p.num_init_backfill)
         # 如果是日线级别

@@ -1,33 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
 
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
-
-
 from copy import copy
 
 # Position类，保持和更新持仓的大小和价格，和其他的任何资产没有关系，它仅仅保存大小和价格
 class Position(object):
-    '''
+    """
     Keeps and updates the size and price of a position. The object has no
     relationship to any asset. It only keeps size and price.
 
@@ -39,7 +19,7 @@ class Position(object):
     The Position instances can be tested using len(position) to see if size
     is not null
 
-    '''
+    """
     # 打印position的时候可以显示的信息
     def __str__(self):
         items = list()
@@ -136,7 +116,7 @@ class Position(object):
 
     # 更新size和price
     def update(self, size, price, dt=None):
-        '''
+        """
         Updates the current position and returns the updated size, price and
         units used to open/close a position
         # 更新当前的持仓和返回更新后的大小、价格和需要开仓和平仓的头寸大小
@@ -152,7 +132,7 @@ class Position(object):
 
         Returns:
 
-            A tuple (non-named) contaning
+            A tuple (non-named) containing
                size - new position size
                    Simply the sum of the existing size plus the "size" argument
                price - new position price
@@ -179,14 +159,14 @@ class Position(object):
             # price 代表新的持仓价格，根据持仓的不同，返回不同的价格
             # opened 代表需要新开的仓位
             # closed 代表需要平仓的仓位
-        '''
+        """
         # 更新持仓的时间
         self.datetime = dt  # record datetime update (datetime.datetime)
         # 原始的价格
         self.price_orig = self.price
-        # 旧的持仓大小
+        # 旧地持仓大小
         oldsize = self.size
-        # 新的持仓大小
+        # 新地持仓大小
         self.size += size
         # 如果size是0的话
         if not self.size:

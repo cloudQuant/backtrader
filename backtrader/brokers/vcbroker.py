@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -36,39 +19,39 @@ from backtrader.stores import vcstore
 
 
 class VCCommInfo(CommInfoBase):
-    '''
+    """
     Commissions are calculated by ib, but the trades calculations in the
     ```Strategy`` rely on the order carrying a CommInfo object attached for the
     calculation of the operation cost and value.
 
-    These are non-critical informations, but removing them from the trade could
-    break existing usage and it is better to provide a CommInfo objet which
-    enables those calculations even if with approvimate values.
+    These are non-critical information, but removing them from the trade could
+    break existing usage, and it is better to provide a CommInfo objet which
+    enables those calculations even if with approximate values.
 
     The margin calculation is not a known in advance information with IB
     (margin impact can be gotten from OrderState objects) and therefore it is
-    left as future exercise to get it'''
+    left as future exercise to get it"""
 
     def getvaluesize(self, size, price):
         # In real life the margin approaches the price
         return abs(size) * price
 
     def getoperationcost(self, size, price):
-        '''Returns the needed amount of cash an operation would cost'''
+        """Returns the needed amount of cash an operation would cost"""
         # Same reasoning as above
         return abs(size) * price
 
 
 class MetaVCBroker(BrokerBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaVCBroker, cls).__init__(name, bases, dct)
         vcstore.VCStore.BrokerCls = cls
 
 
 class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
-    '''Broker implementation for VisualChart.
+    """Broker implementation for VisualChart.
 
     This class maps the orders/positions from VisualChart to the
     internal API of ``backtrader``.
@@ -122,7 +105,7 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
         At the moment no heuristic is in place to determine when a cancelled
         order has been cancelled due to expiration. And therefore expired
         orders are reported as cancelled.
-    '''
+    """
     params = (
         ('account', None),
         ('commission', None),
@@ -201,7 +184,7 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
         self.notifs.append(order.clone())
 
     def next(self):
-        self.notifs.append(None)  # mark notificatino boundary
+        self.notifs.append(None)  # mark notification boundary
 
     def getposition(self, data, clone=True):
         with self._lock_pos:
@@ -434,7 +417,7 @@ class VCBroker(with_metaclass(MetaVCBroker, BrokerBase)):
         self.notify(border)
 
     def OnOrderInMarket(self, Order):
-        # Other is in ther market ... therefore "accepted"
+        # Other is in their market ... therefore "accepted"
         with self._lock_orders:
             try:
                 border = self.orderbyid[Order.OrderId]

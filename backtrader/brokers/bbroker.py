@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -132,7 +115,7 @@ class BackBroker(bt.BrokerBase):
               will be ``-1``.
 
               In order to get the bar volume (for example) do: ``volume =
-              order.data.voluume[ago]``
+              order.data.volume[ago]``
 
           The callable must return the *executed size* (a value >= 0)
 
@@ -1069,7 +1052,7 @@ class BackBroker(bt.BrokerBase):
         # pannotated allows to keep track of the closing bar if there is no
         # information which lets us know that the current bar is the closing
         # bar (like matching end of session bar)
-        # The actual matching will be done one bar afterwards but using the
+        # The actual matching will be done one bar afterward but using the
         # information from the actual closing bar
         # 获取当前的时间
         dt0 = order.data.datetime[0]

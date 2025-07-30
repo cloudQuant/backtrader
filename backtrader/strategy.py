@@ -1,23 +1,6 @@
 #!/usr/bin389/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -55,9 +38,9 @@ class MetaStrategy(StrategyBase.__class__):
         return super(MetaStrategy, meta).__new__(meta, name, bases, dct)
     # 注册次级类
     def __init__(cls, name, bases, dct):
-        '''
+        """
         Class has already been created ... register subclasses
-        '''
+        """
         # Initialize the class
         super(MetaStrategy, cls).__init__(name, bases, dct)
 
@@ -107,9 +90,9 @@ class MetaStrategy(StrategyBase.__class__):
 
 # Strategy类，用户编写策略的时候可以继承这个类
 class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
-    '''
+    """
     Base class to be subclassed for user defined strategies.
-    '''
+    """
     # line类型是策略类型
     _ltype = LineIterator.StratType
     # csv默认是True
@@ -122,7 +105,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     lines = ('datetime',)
     # 缓存数据
     def qbuffer(self, savemem=0, replaying=False):
-        '''Enable the memory saving schemes. Possible values for ``savemem``:
+        """Enable the memory saving schemes. Possible values for ``savemem``:
 
           0: No savings. Each lines object keeps in memory all values
 
@@ -140,7 +123,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
         # 如果savemem等于1的话，执行保存所需要的最小的数据量，节省内存
         # 如果savemen等于-1的话，那么策略和观察者里面的指标需要保存所有的数据，但是指标里面声明的line会节省内存
         # 如果savemen等于-2的话，除了等于-1里面的，还要加上plotinfo.plot设置成False的也会节省内存
-        '''
+        """
         # 如果savemem小于0
         if savemem < 0:
             # Get any attribute which labels itself as Indicator
@@ -248,13 +231,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 增加writer
     def _addwriter(self, writer):
-        '''
+        """
         Unlike the other _addxxx functions this one receives an instance
         because the writer works at cerebro level and is only passed to the
         strategy to simplify the logic
         # 不像其他的_addxxx的函数，这个函数直接接收的是一个实例，是在cerebro中工作的，为了简化逻辑
         # 直接传送给了策略
-        '''
+        """
         self.writers.append(writer)
 
     # 增加指标
@@ -263,13 +246,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 增加analyzer,主要给observers使用，这些analyzer并不是用户添加的，和用户添加的analyzer保持分离
     def _addanalyzer_slave(self, ancls, *anargs, **ankwargs):
-        '''Like _addanalyzer but meant for observers (or other entities) which
+        """Like _addanalyzer but meant for observers (or other entities) which
         rely on the output of an analyzer for the data. These analyzers have
         not been added by the user and are kept separate from the main
         analyzers
 
         Returns the created analyzer
-        '''
+        """
         analyzer = ancls(*anargs, **ankwargs)
         self._slave_analyzers.append(analyzer)
         return analyzer
@@ -486,14 +469,14 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 开始方法，可以在策略实例中重写
     def start(self):
-        '''Called right before the backtesting is about to be started.'''
+        """Called right before the backtesting is about to be started."""
         pass
 
     # 获取writer的列名称
     def getwriterheaders(self):
         # indicator和observer是否保存到csv
         self.indobscsv = [self]
-        # 对indiicator和observer进行过滤，如果它的属性csv值是True的话，代表准备进行保存
+        # 对indicator和observer进行过滤，如果它的属性csv值是True的话，代表准备进行保存
         indobs = itertools.chain(
             self.getindicators_lines(), self.getobservers())
         self.indobscsv.extend(filter(lambda x: x.csv, indobs))
@@ -576,7 +559,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 策略结束
     def stop(self):
-        '''Called right before the backtesting is about to be stopped'''
+        """Called right before the backtesting is about to be stopped"""
         pass
 
     # 设置是否保存历史交易数据
@@ -864,59 +847,59 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 通知现金价值
     def notify_cashvalue(self, cash, value):
-        '''
+        """
         Receives the current fund value, value status of the strategy's broker
-        '''
+        """
         pass
 
     # 通知fund
     def notify_fund(self, cash, value, fundvalue, shares):
-        '''
+        """
         Receives the current cash, value, fundvalue and fund shares
-        '''
+        """
         pass
 
     # 通知order
     def notify_order(self, order):
-        '''
+        """
         Receives an order whenever there has been a change in one
-        '''
+        """
         pass
 
     # 通知trade
     def notify_trade(self, trade):
-        '''
+        """
         Receives a trade whenever there has been a change in one
-        '''
+        """
         pass
 
     # 通知store
     def notify_store(self, msg, *args, **kwargs):
-        '''Receives a notification from a store provider'''
+        """Receives a notification from a store provider"""
         pass
 
     # 通知数据
     def notify_data(self, data, status, *args, **kwargs):
-        '''Receives a notification from data'''
+        """Receives a notification from data"""
         pass
 
     # 获取存在的数据名称
     def getdatanames(self):
-        '''
+        """
         Returns a list of the existing data names
-        '''
+        """
         return keys(self.env.datasbyname)
 
     # 根据名称获取数据
     def getdatabyname(self, name):
-        '''
+        """
         Returns a given data by name using the environment (cerebro)
-        '''
+        """
         return self.env.datasbyname[name]
 
     # 取消订单
     def cancel(self, order):
-        '''Cancels the order in the broker'''
+        """Cancels the order in the broker"""
         self.broker.cancel(order)
 
     # 买入下单
@@ -1138,13 +1121,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
              trailamount=None, trailpercent=None,
              parent=None, transmit=True,
              **kwargs):
-        '''
-        To create a selll (short) order and send it to the broker
+        """
+        To create a sell (short) order and send it to the broker
 
         See the documentation for ``buy`` for an explanation of the parameters
 
         Returns: the submitted order
-        '''
+        """
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
 
@@ -1201,7 +1184,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
                     stopprice=None, stopexec=bt.Order.Stop, stopargs={},
                     limitprice=None, limitexec=bt.Order.Limit, limitargs={},
                     **kwargs):
-        '''
+        """
         Create a bracket order group (low side - buy order - high side). The
         default behavior is as follows:
 
@@ -1266,15 +1249,15 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
           - ``exectype`` (default: ``bt.Order.Limit``)
 
-            Possible values: (see the documentation for the method ``buy``
+            Possible values: (see the documentation for the method ``buy``)
 
           - ``valid`` (default: ``None``)
 
-            Possible values: (see the documentation for the method ``buy``
+            Possible values: (see the documentation for the method ``buy``)
 
           - ``tradeid`` (default: ``0``)
 
-            Possible values: (see the documentation for the method ``buy``
+            Possible values: (see the documentation for the method ``buy``)
 
             # 上面参数含义和buy函数比较类似
 
@@ -1290,7 +1273,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
             parameters. ``backtrader`` will pass the *kwargs* down to the
             created order objects
 
-            Possible values: (see the documentation for the method ``buy``
+            Possible values: (see the documentation for the method ``buy``)
 
             **Note**: this ``kwargs`` will be applied to the 3 orders of a
             bracket. See below for specific keyword arguments for the low and
@@ -1349,7 +1332,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           - If high/low orders have been suppressed the return value will still
             contain 3 orders, but those suppressed will have a value of
             ``None``
-        '''
+        """
         # 参数字典
         kargs = dict(size=size,
                      data=data, price=price, plimit=plimit, exectype=exectype,
@@ -1403,7 +1386,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
                      stopprice=None, stopexec=bt.Order.Stop, stopargs={},
                      limitprice=None, limitexec=bt.Order.Limit, limitargs={},
                      **kwargs):
-        '''
+        """
         Create a bracket order group (low side - buy order - high side). The
         default behavior is as follows:
 
@@ -1428,7 +1411,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           - If high/low orders have been suppressed the return value will still
             contain 3 orders, but those suppressed will have a value of
             ``None``
-        '''
+        """
 
         kargs = dict(size=size,
                      data=data, price=price, plimit=plimit, exectype=exectype,
@@ -1512,14 +1495,14 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 目标金额订单，跟目标大小订单比较类似
     def order_target_value(self, data=None, target=0.0, price=None, **kwargs):
-        '''
+        """
         Place an order to rebalance a position to have final value of
         ``target``
 
         The current ``value`` is taken into account as the start point to
         achieve ``target``
 
-          - If no ``target`` then close postion on data
+          - If no ``target`` then close position on data
           - If ``target`` > ``value`` then buy on data
           - If ``target`` < ``value`` then sell on data
 
@@ -1530,7 +1513,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           or
 
           - ``None`` if no order has been issued
-        '''
+        """
         # 获取数据
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
@@ -1565,7 +1548,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 目标百分比订单，会下一个订单再平衡当前的仓位，以确保仓位价值占现在账户价值的target百分比
     def order_target_percent(self, data=None, target=0.0, **kwargs):
-        '''
+        """
         Place an order to rebalance a position to have final value of
         ``target`` percentage of current portfolio ``value``
 
@@ -1601,7 +1584,7 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
           or
 
           - ``None`` if no order has been issued (``target == position.size``)
-        '''
+        """
         # 获取数据
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
@@ -1615,13 +1598,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 获取数据的持仓，如果数据是None的话，将会获取第一个数据的持仓，如果broker是None的话，使用默认的broker
     def getposition(self, data=None, broker=None):
-        '''
+        """
         Returns the current position for a given data in a given broker.
 
         If both are None, the main data and the default broker will be used
 
         A property ``position`` is also available
-        '''
+        """
         data = data if data is not None else self.datas[0]
         broker = broker or self.broker
         return broker.getposition(data)
@@ -1632,13 +1615,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
     # 根据数据的名字来获取持仓大小，如果数据是None的话，默认获取第一个数据的持仓，如果不是None,获取具体的数据
     # 如果broker不是None，使用参数传递的broker，否则使用默认的broker
     def getpositionbyname(self, name=None, broker=None):
-        '''
+        """
         Returns the current position for a given name in a given broker.
 
         If both are None, the main data and the default broker will be used
 
         A property ``positionbyname`` is also available
-        '''
+        """
         data = self.datas[0] if not name else self.getdatabyname(name)
         broker = broker or self.broker
         return broker.getposition(data)
@@ -1647,13 +1630,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 获取某个broker的持仓
     def getpositions(self, broker=None):
-        '''
+        """
         Returns the current by data positions directly from the broker
 
         If the given ``broker`` is None, the default broker will be used
 
         A property ``positions`` is also available
-        '''
+        """
         broker = broker or self.broker
         return broker.positions
     # 可以通过positions属性来获取broker的持仓
@@ -1661,13 +1644,13 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 返回broker中的以持仓的名字为key,position为value形成的字典
     def getpositionsbyname(self, broker=None):
-        '''
+        """
         Returns the current by name positions directly from the broker
 
         If the given ``broker`` is None, the default broker will be used
 
         A property ``positionsbyname`` is also available
-        '''
+        """
         broker = broker or self.broker
         positions = broker.positions
 
@@ -1689,31 +1672,31 @@ class Strategy(with_metaclass(MetaStrategy, StrategyBase)):
 
     # 设置sizer
     def setsizer(self, sizer):
-        '''
+        """
         Replace the default (fixed stake) sizer
-        '''
+        """
         self._sizer = sizer
         sizer.set(self, self.broker)
         return sizer
 
     # 获取sizer
     def getsizer(self):
-        '''
-        Returns the sizer which is in used if automatic statke calculation is
+        """
+        Returns the sizer which is in used if automatic stake calculation is
         used
 
-        Also available as ``sizer``
-        '''
+        Also, available as ``sizer``
+        """
         return self._sizer
 
     sizer = property(getsizer, setsizer)
 
     # 根据sizer获取要下单的大小
     def getsizing(self, data=None, isbuy=True):
-        '''
+        """
         Return the stake calculated by the sizer instance for the current
         situation
-        '''
+        """
         data = data if data is not None else self.datas[0]
         return self._sizer.getsizing(data, isbuy=isbuy)
 
@@ -1776,7 +1759,7 @@ class MetaSigStrategy(Strategy.__class__):
 
 # 信号策略类，使用信号可以自动操作的策略的子类
 class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
-    '''This subclass of ``Strategy`` is meant to to auto-operate using
+    """This subclass of ``Strategy`` is meant to auto-operate using
     **signals**.
 
     *Signals* are usually indicators and the expected output values:
@@ -1878,7 +1861,7 @@ class SignalStrategy(with_metaclass(MetaSigStrategy, Strategy)):
         # str，将会使用getdatabyname获取data
         # data实例，直接使用
 
-    '''
+    """
     # 参数
     params = (
         ('signals', []),

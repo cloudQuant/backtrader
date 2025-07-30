@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -132,7 +115,7 @@ class MetaLineIterator(LineSeries.__class__):
 
         # To automatically set the period Start by scanning the found datas
         # No calculation can take place until all datas have yielded "data"
-        # A data could be an indicator and it could take x bars until
+        # A data could be an indicator, and it could take x bars until
         # something is produced
         # 获取_obj的最小周期
         _obj._minperiod = \
@@ -380,27 +363,27 @@ class LineIterator(with_metaclass(MetaLineIterator, LineSeries)):
         pass
 
     def prenext(self):
-        '''
+        """
         This method will be called before the minimum period of all
         datas/indicators have been meet for the strategy to start executing
-        '''
+        """
         pass
 
     def nextstart(self):
-        '''
+        """
         This method will be called once, exactly when the minimum period for
         all datas/indicators have been meet. The default behavior is to call
         next
-        '''
+        """
 
         # Called once for 1st full calculation - defaults to regular next
         self.next()
 
     def next(self):
-        '''
+        """
         This method will be called for all remaining data points when the
         minimum period for all datas/indicators have been meet.
-        '''
+        """
         pass
 
     def _addnotification(self, *args, **kwargs):
@@ -482,7 +465,7 @@ class MultiCoupler(LineIterator):
     def __init__(self):
         super(MultiCoupler, self).__init__()
         self.dlen = 0
-        self.dsize = self.fullsize()  # shorcut for number of lines
+        self.dsize = self.fullsize()  # shortcut for number of lines
         self.dvals = [float('NaN')] * self.dsize
 
     def next(self):

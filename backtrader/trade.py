@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -30,7 +13,7 @@ from .utils.py3 import range
 
 # 交易历史
 class TradeHistory(AutoOrderedDict):
-    '''Represents the status and update event for each update a Trade has
+    """Represents the status and update event for each update a Trade has
 
     This object is a dictionary which allows '.' notation
     # 这个类保存每个交易的状态和事件更新
@@ -65,11 +48,11 @@ class TradeHistory(AutoOrderedDict):
             # 更新的价格
         - ``commission`` (``float``): price of the update
             # 更新的佣金
-    '''
+    """
     # 初始化
     def __init__(self,
                  status, dt, barlen, size, price, value, pnl, pnlcomm, tz, event=None):
-        '''Initializes the object to the current status of the Trade'''
+        """Initializes the object to the current status of the Trade"""
         super(TradeHistory, self).__init__()
         self.status.status = status
         self.status.dt = dt
@@ -89,7 +72,7 @@ class TradeHistory(AutoOrderedDict):
                                  self.status.tz, self.event, ))
     # 做事件的更新
     def doupdate(self, order, size, price, commission):
-        '''Used to fill the ``update`` part of the history entry'''
+        """Used to fill the ``update`` part of the history entry"""
         self.event.order = order
         self.event.size = size
         self.event.price = price
@@ -99,12 +82,12 @@ class TradeHistory(AutoOrderedDict):
         self._close()
 
     def datetime(self, tz=None, naive=True):
-        '''Returns a datetime for the time the update event happened'''
+        """Returns a datetime for the time the update event happened"""
         return num2date(self.status.dt, tz or self.status.tz, naive)
 
 # Trade类
 class Trade(object):
-    '''Keeps track of the life of an trade: size, price,
+    """Keeps track of the life of an trade: size, price,
     commission (and value?)
 
     An trade starts at 0 can be increased and reduced and can
@@ -171,7 +154,7 @@ class Trade(object):
         The last entry in the history is the Closing Event
         # 用一个列表保存过去每个trade的事件及状态，第一个是开仓事件，最后一个是平仓事件
 
-    '''
+    """
     # trade的计数器
     refbasis = itertools.count(1)
     # trade的状态名字
@@ -221,38 +204,38 @@ class Trade(object):
         self.status = self.Created
     # 返回交易的绝对大小,todo 感觉这个用法稍微有一些奇怪
     def __len__(self):
-        '''Absolute size of the trade'''
+        """Absolute size of the trade"""
         return abs(self.size)
     # 判断交易是否为0,trade的size是0的时候，代表trade是close的，如果不为0，代表trade是开着的
     def __bool__(self):
-        '''Trade size is not 0'''
+        """Trade size is not 0"""
         return self.size != 0
 
     __nonzero__ = __bool__
 
     # 返回数据的名称
     def getdataname(self):
-        '''Shortcut to retrieve the name of the data this trade references'''
+        """Shortcut to retrieve the name of the data this trade references"""
         return self.data._name
     # 返回开仓时间
     def open_datetime(self, tz=None, naive=True):
-        '''Returns a datetime.datetime object with the datetime in which
+        """Returns a datetime.datetime object with the datetime in which
         the trade was opened
-        '''
+        """
         # data中存在这个num2date的方法
         return self.data.num2date(self.dtopen, tz=tz, naive=naive)
 
     # 返回平仓的时间
     def close_datetime(self, tz=None, naive=True):
-        '''Returns a datetime.datetime object with the datetime in which
+        """Returns a datetime.datetime object with the datetime in which
         the trade was closed
-        '''
+        """
         return self.data.num2date(self.dtclose, tz=tz, naive=naive)
 
     # 更新trade的事件
     def update(self, order, size, price, value, commission, pnl,
                comminfo):
-        '''
+        """
         Updates the current trade. The logic does not check if the
         trade is reversed, which is not conceptually supported by the
         object.
@@ -266,7 +249,7 @@ class Trade(object):
         # 更新当前的trade.逻辑上并没有检查trade是否反转，这个是从概念上就不支持
         Args:
             order: the order object which has (completely or partially)
-                generated this updatede
+                generated this updated
             # 导致trade更新的order
             size (int): amount to update the order
                 if size has the same sign as the current trade a
@@ -285,7 +268,7 @@ class Trade(object):
             pnl (float): (unused) generated by the executed part
                          Not used because the trade has an independent pnl
             # 执行部分产生的盈亏，没有是用，因为trade有独立的盈亏
-        '''
+        """
         # 如果更新的size是0的话，直接返回
         if not size:
             return  # empty update, skip all other calculations
@@ -294,7 +277,7 @@ class Trade(object):
         # 佣金不断增加
         self.commission += commission
 
-        # Update size and keep a reference for logic an calculations
+        # Update size and keep a reference for logic calculations
         # 更新trade的大小
         oldsize = self.size
         self.size += size  # size will carry the opposite sign if reducing

@@ -1,0 +1,15 @@
+include README.md
+include LICENSE
+include requirements.txt
+include pyproject.toml
+recursive-include backtrader *.py
+recursive-include backtrader *.pyx
+recursive-include backtrader *.pxd
+recursive-include backtrader *.hpp
+recursive-include backtrader *.cpp
+recursive-include backtrader *.yaml
+recursive-include backtrader *.json
+recursive-include backtrader *.md
+prune strategies
+prune studies
+prune tests

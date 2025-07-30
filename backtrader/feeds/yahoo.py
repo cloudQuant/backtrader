@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -35,7 +18,7 @@ from ..utils import date2num
 
 
 class YahooFinanceCSVData(feed.CSVDataBase):
-    '''
+    """
     Parses pre-downloaded Yahoo CSV Data Feeds (or locally generated if they
     comply to the Yahoo format)
     # 处理预下载的雅虎csv格式的数据或者说本地产生的符合雅虎格式的数据
@@ -77,7 +60,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         close* is now fixed. The parameter is retained, in case the need to
         swap the columns again arose.
 
-    '''
+    """
     # 增加一个line
     lines = ('adjclose',)
 
@@ -166,7 +149,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
             h /= adjfactor
             l /= adjfactor
             c = adjustedclose
-            # If the price goes down, volume must go up and viceversa
+            # If the price goes down, volume must go up and vice versa
             # 如果调整成交量的话，这里逻辑略有问题，但是应该不影响使用，因为可能存在某些股票合并的情况
             # todo 注意逻辑
             if self.p.adjvolume:
@@ -192,11 +175,11 @@ class YahooFinanceCSVData(feed.CSVDataBase):
 
 
 class YahooLegacyCSV(YahooFinanceCSVData):
-    '''
+    """
     This is intended to load files which were downloaded before Yahoo
     discontinued the original service in May-2017
     # 用于load 2017年5月之前下载的数据
-    '''
+    """
     params = (
         ('version', ''),
     )
@@ -209,7 +192,7 @@ class YahooFinanceCSV(feed.CSVFeedBase):
 # todo 有时间测试一下这个类还能不能使用，如果可以用，尝试进行注释
 class YahooFinanceData(YahooFinanceCSVData):
     # 这个是从雅虎上直接爬数据的方法
-    '''
+    """
     Executes a direct download of data from Yahoo servers for the given time
     range.
 
@@ -254,7 +237,7 @@ class YahooFinanceData(YahooFinanceCSVData):
         Number of times (each) to try to get a ``crumb`` cookie and download
         the data
 
-      '''
+      """
 
     params = (
         ('proxies', {}),

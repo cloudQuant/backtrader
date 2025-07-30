@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -43,9 +26,9 @@ class MetaAbstractDataBase(dataseries.OHLCDateTime.__class__):
     _indcol = dict()
 
     def __init__(cls, name, bases, dct):
-        '''
+        """
         Class has already been created ... register subclasses
-        '''
+        """
         # Initialize the class
         # cls已经被创建出来了，进行初始化
         super(MetaAbstractDataBase, cls).__init__(name, bases, dct)
@@ -187,7 +170,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
         # Get the output timezone (if any)
         # 获取具体的时区
         self._tz = self._gettz()
-        # Lines have already been create, set the tz
+        # Lines have already been created, set the tz
         # 给时间设置具体的时区
         self.lines.datetime._settz(self._tz)
 
@@ -234,7 +217,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 返回下个交易日结束的时间格式的时间和数字格式的时间
     def _getnexteos(self):
-        '''Returns the next eos using a trading calendar if available'''
+        """Returns the next eos using a trading calendar if available"""
         if self._clone:
             return self.data._getnexteos()
 
@@ -245,7 +228,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
         dtime = num2date(dt)
         if self._calendar is None:
             nexteos = datetime.datetime.combine(dtime, self.p.sessionend)
-            nextdteos = self.date2num(nexteos)  # locl'ed -> utc-like
+            nextdteos = self.date2num(nexteos)  # locate -> utc-like
             nexteos = num2date(nextdteos)  # utc
             while dtime > nexteos:
                 nexteos += datetime.timedelta(days=1)  # already utc-like
@@ -261,13 +244,13 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 把tzinput进行解析，并返回
     def _gettzinput(self):
-        '''Can be overriden by classes to return a timezone for input'''
+        """Can be overridden by classes to return a timezone for input"""
         return tzparse(self.p.tzinput)
 
     # 把tz进行解析，并返回
     def _gettz(self):
-        '''To be overriden by subclasses which may auto-calculate the
-        timezone'''
+        """To be overridden by subclasses which may auto-calculate the
+        timezone"""
         return tzparse(self.p.tz)
 
     # 把时间转化成数字，如果时区信息不是None的话，先把时间进行本地化，然后再转化
@@ -286,7 +269,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 是否具有实时数据，默认是没有，如果有实时数据，需要重写
     def haslivedata(self):
-        return False  # must be overriden for those that can
+        return False  # must be overridden for those that can
 
     # 实盘数据进行抽样的时候，等待的时间间隔
     def do_qcheck(self, onoff, qlapse):
@@ -299,21 +282,21 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
     # 是否是实时数据，默认是没有，如果有的话，cerebro会不在使用preload和runonce，因为一个实时数据需要
     # 一个个tick或者bar进行获取
     def islive(self):
-        '''If this returns True, ``Cerebro`` will deactivate ``preload`` and
+        """If this returns True, ``Cerebro`` will deactivate ``preload`` and
         ``runonce`` because a live data source must be fetched tick by tick (or
-        bar by bar)'''
+        bar by bar)"""
         return False
 
     # 如果最新的状态不等于当前状态，需要把信息添加到notifs中以便更新最新状态
     def put_notification(self, status, *args, **kwargs):
-        '''Add arguments to notification queue'''
+        """Add arguments to notification queue"""
         if self._laststatus != status:
             self.notifs.append((status, args, kwargs))
             self._laststatus = status
 
     # 获取通知信息，保存到notifs中作为结果返回
     def get_notifications(self):
-        '''Return the pending "store" notifications'''
+        """Return the pending "store" notifications"""
         # The background thread could keep on adding notifications. The None
         # mark allows to identify which is the last notification to deliver
         # 添加一个None，获取到None了，就代表这个队列是空的了，信息已经取完
@@ -360,7 +343,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 设置环境
     def setenvironment(self, env):
-        '''Keep a reference to the environment'''
+        """Keep a reference to the environment"""
         self._env = env
 
     # 获取环境
@@ -386,8 +369,8 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 补偿
     def compensate(self, other):
-        '''Call it to let the broker know that actions on this asset will
-        compensate open positions in another'''
+        """Call it to let the broker know that actions on this asset will
+        compensate open positions in another"""
 
         self._compensate = other
 
@@ -566,7 +549,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
             # A bar has been loaded, adapt the time
             # 如果需要对输入的时间做时区的处理，那么就把数字转化成时间，然后把时间进行本地化，然后把时间转化成数字，更新当前的时间
             if self._tzinput:
-                # Input has been converted at face value but it's not UTC in
+                # Input has been converted at face value, but it's not UTC in
                 # the input stream
                 dtime = num2date(dt)  # get it in a naive datetime
                 # localize it
@@ -618,7 +601,7 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 把bar的数据添加到self._barstack或者self._barstash中
     def _add2stack(self, bar, stash=False):
-        '''Saves given bar (list of values) to the stack for later retrieval'''
+        """Saves given bar (list of values) to the stack for later retrieval"""
         if not stash:
             self._barstack.append(bar)
         else:
@@ -626,10 +609,10 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 获取bar的数据，保存到self._barstack或者self._barstash，并且提供了参数，可以删除bar
     def _save2stack(self, erase=False, force=False, stash=False):
-        '''Saves current bar to the bar stack for later retrieval
+        """Saves current bar to the bar stack for later retrieval
 
         Parameter ``erase`` determines removal from the data stream
-        '''
+        """
         
         bar = [line[0] for line in self.itersize()]
         if not stash:
@@ -642,10 +625,10 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 这个注释有问题，这个函数是用于把bar的数据更新到具体的line上
     def _updatebar(self, bar, forward=False, ago=0):
-        '''Load a value from the stack onto the lines to form the new bar
+        """Load a value from the stack onto the lines to form the new bar
 
         Returns True if values are present, False otherwise
-        '''
+        """
         if forward:
             self.forward()
 
@@ -654,10 +637,10 @@ class AbstractDataBase(with_metaclass(MetaAbstractDataBase,
 
     # 从self._barstack或者self._barstash获取数据，然后保存到line中，如果成功，就返回True，如果不成功，返回False
     def _fromstack(self, forward=False, stash=False):
-        '''Load a value from the stack onto the lines to form the new bar
+        """Load a value from the stack onto the lines to form the new bar
 
         Returns True if values are present, False otherwise
-        '''
+        """
         # 当stash是False的时候，coll等于self._barstack,否则就是self._barstash
         coll = self._barstack if not stash else self._barstash
         # 如果coll是有数据的
@@ -744,7 +727,7 @@ class MetaCSVDataBase(DataBase.__class__):
 
 
 class CSVDataBase(with_metaclass(MetaCSVDataBase, DataBase)):
-    '''
+    """
     Base class for classes implementing CSV DataFeeds
 
     The class takes care of opening the file, reading the lines and
@@ -755,8 +738,8 @@ class CSVDataBase(with_metaclass(MetaCSVDataBase, DataBase)):
       - _loadline(tokens)
 
     The return value of ``_loadline`` (True/False) will be the return value
-    of ``_load`` which has been overriden by this base class
-    '''
+    of ``_load`` which has been overridden by this base class
+    """
     # 数据默认是None
     f = None
     # 设置具体的参数

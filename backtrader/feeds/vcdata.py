@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -37,7 +20,7 @@ from backtrader.stores import vcstore
 
 class MetaVCData(DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaVCData, cls).__init__(name, bases, dct)
 
@@ -46,7 +29,7 @@ class MetaVCData(DataBase.__class__):
 
 # vc数据
 class VCData(with_metaclass(MetaVCData, DataBase)):
-    '''VisualChart Data Feed.
+    """VisualChart Data Feed.
 
     Params:
 
@@ -71,7 +54,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         to make it look like: HH::MM + 1:00.000000
 
       - ``tradename`` (default: ``None``)
-        Continous futures cannot be traded but are ideal for data tracking. If
+        Continuous futures cannot be traded but are ideal for data tracking. If
         this parameter is supplied it will be the name of the current future
         which will be the trading asset. Example:
 
@@ -92,8 +75,8 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         attempted to use timezones (default)
 
         Disabling it will remove timezone usage (may help if the load is
-        excesive)
-    '''
+        excessive)
+    """
     params = (
         ('qcheck', 0.5),  # timeout in seconds (float) to check for events
         ('historical', False),  # usual industry value
@@ -155,7 +138,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         '096.NDX': 'US/Eastern',
     }
 
-    # These global markets deliver data in local time dst adjuste unlike those
+    # These global markets deliver data in local time dst adjust unlike those
     # from above and need a readjustment
     _EXTRA_TIMEOFFSET = ('096',)
 
@@ -171,18 +154,18 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
     }
 
     def _timeoffset(self):
-        '''Returns the calculated time offset local equipment -> data server'''
+        """Returns the calculated time offset local equipment -> data server"""
         return self._TOFFSET
 
     def _gettzinput(self):
-        '''Returns the timezone to consider for the input data'''
+        """Returns the timezone to consider for the input data"""
         return self._gettz(tzin=True)
 
     def _gettz(self, tzin=False):
-        '''Returns the default output timezone for the data
+        """Returns the default output timezone for the data
 
         This defaults to be the timezone in which the market is traded
-        '''
+        """
         # If no object has been provided by the user and a timezone can be
         # found via contractdtails, then try to get it from pytz, which may or
         # may not be available.
@@ -240,8 +223,8 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
         return tz
 
     def islive(self):
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return True
 
     def __init__(self, **kwargs):
@@ -263,14 +246,14 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             self._tradename = tradename
 
     def setenvironment(self, env):
-        '''Receives an environment (cerebro) and passes it over to the store it
-        belongs to'''
+        """Receives an environment (cerebro) and passes it over to the store it
+        belongs to"""
         super(VCData, self).setenvironment(env)
         env.addstore(self.store)
 
     def start(self):
-        '''Starts the VC connecction and gets the real contract and
-        contractdetails if it exists'''
+        """Starts the VC connecction and gets the real contract and
+        contractdetails if it exists"""
         super(VCData, self).start()
 
         self._state = self._ST_START  # mini finite state machine
@@ -361,7 +344,7 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
             self._state = self._ST_FEEDING
 
     def stop(self):
-        '''Stops and tells the store to stop'''
+        """Stops and tells the store to stop"""
         super(VCData, self).stop()
         if self.q:
             self.store._canceldirectdata(self.q)
@@ -436,11 +419,11 @@ class VCData(with_metaclass(MetaVCData, DataBase)):
     # DS Events
     #
     def _getpingtmout(self):
-        '''Returns the actual ping timeout for PumpEvents to wake up and call
+        """Returns the actual ping timeout for PumpEvents to wake up and call
         ping, which will check if the not yet delivered bar can be
         delivered. The bar may be stalled because vc awaits a new tick and
         during low negotiation hour this can take several seconds after the
-        actual expected delivery time'''
+        actual expected delivery time"""
         if self._ticking:
             return -1  # no timeout
 

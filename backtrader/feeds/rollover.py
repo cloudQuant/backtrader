@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -30,12 +13,12 @@ import backtrader as bt
 # rollover元类
 class MetaRollOver(bt.DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaRollOver, cls).__init__(name, bases, dct)
 
     def donew(cls, *args, **kwargs):
-        '''Intercept const. to copy timeframe/compression from 1st data'''
+        """Intercept const. to copy timeframe/compression from 1st data"""
         # Create the object and set the params in place
         _obj, args, kwargs = super(MetaRollOver, cls).donew(*args, **kwargs)
 
@@ -48,7 +31,7 @@ class MetaRollOver(bt.DataBase.__class__):
 
 class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
     # 当条件满足之后，移动到下一个合约上
-    '''Class that rolls over to the next future when a condition is met
+    """Class that rolls over to the next future when a condition is met
 
     Params:
 
@@ -105,7 +88,7 @@ class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
             - ``False``: the expiration cannot take place
         # 在checkdate返回是True的时候，将会调用这个功能，这个必须要是一个可调用对象，checkcondition(d0,d1)
         # 其中d0是当前激活的期货合约，d1是下一个到期的合约，如果是True的话，将会从d0转移到d1上，如果不是，将不会发生转移。
-    '''
+    """
 
     params = (
         # ('rolls', []),  # array of futures to roll over
@@ -115,8 +98,8 @@ class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
 
     def islive(self):
         # 让数据是live形式，将会避免preloading和runonce
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return True
 
     def __init__(self, *args):
@@ -148,8 +131,8 @@ class RollOver(bt.with_metaclass(MetaRollOver, bt.DataBase)):
 
     def _gettz(self):
         # 获取具体的时区
-        '''To be overriden by subclasses which may auto-calculate the
-        timezone'''
+        """To be overridden by subclasses which may auto-calculate the
+        timezone"""
         if self._rolls:
             return self._rolls[0]._gettz()
         return bt.utils.date.Localizer(self.p.tz)

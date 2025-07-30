@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -34,7 +17,7 @@ from backtrader.stores import ibstore
 
 class MetaIBData(DataBase.__class__):
     def __init__(cls, name, bases, dct):
-        '''Class has already been created ... register'''
+        """Class has already been created ... register"""
         # Initialize the class
         super(MetaIBData, cls).__init__(name, bases, dct)
 
@@ -43,7 +26,7 @@ class MetaIBData(DataBase.__class__):
 
 
 class IBData(with_metaclass(MetaIBData, DataBase)):
-    '''Interactive Brokers Data Feed.
+    """Interactive Brokers Data Feed.
     # 获取数据的时候，支持的dataname格式
     Supports the following contract specifications in parameter ``dataname``:
 
@@ -129,7 +112,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
       - ``rtbar`` (default: ``False``)
 
         If ``True`` the ``5 Seconds Realtime bars`` provided by Interactive
-        Brokers will be used as the smalles tick. According to the
+        Brokers will be used as the smallest tick. According to the
         documentation they correspond to real-time values (once collated and
         curated by IB)
 
@@ -218,7 +201,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
         which uses the default values (``STK`` and ``SMART``) and overrides
         the currency to be ``USD``
 
-    '''
+    """
     params = (
         ('sectype', 'STK'),  # usual industry value
         ('exchange', 'SMART'),  # usual industry value
@@ -284,8 +267,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 是否是实时数据
     def islive(self):
-        '''Returns ``True`` to notify ``Cerebro`` that preloading and runonce
-        should be deactivated'''
+        """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
+        should be deactivated"""
         return not self.p.historical
 
     # 初始化
@@ -296,14 +279,14 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 设置环境，接收到cerebro，并且把它传递到它所属的store
     def setenvironment(self, env):
-        '''Receives an environment (cerebro) and passes it over to the store it
-        belongs to'''
+        """Receives an environment (cerebro) and passes it over to the store it
+        belongs to"""
         super(IBData, self).setenvironment(env)
         env.addstore(self.ib)
 
     # 根据具体的数据名称生成合同
     def parsecontract(self, dataname):
-        '''Parses dataname generates a default contract'''
+        """Parses dataname generates a default contract"""
         # Set defaults for optional tokens in the ticker string
         if dataname is None:
             return None
@@ -339,8 +322,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
         # See if the optional tokens were provided
         try:
-            exch = next(tokens)  # on exception it will be the default
-            curr = next(tokens)  # on exception it will be the default
+            exch = next(tokens)  # on exception, it will be the default
+            curr = next(tokens)  # on exception, it will be the default
 
             if sectype == 'FUT':
                 if not expiry:
@@ -359,7 +342,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
                 if not expiry:
                     expiry = next(tokens)
                 strike = float(next(tokens))  # on exception - default
-                right = next(tokens)  # on exception it will be the default
+                right = next(tokens)  # on exception, it will be the default
 
                 mult = next(tokens)  # ?? no harm in any case
 
@@ -375,8 +358,8 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 开始连接到IB ，获取真实的合约并且返回详细的合约信息
     def start(self):
-        '''Starts the IB connecction and gets the real contract and
-        contractdetails if it exists'''
+        """Starts the IB connecction and gets the real contract and
+        contractdetails if it exists"""
         super(IBData, self).start()
         # Kickstart store and get queue to wait on
         self.qlive = self.ib.start(data=self)
@@ -441,13 +424,13 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 准备结束
     def stop(self):
-        '''Stops and tells the store to stop'''
+        """Stops and tells the store to stop"""
         super(IBData, self).stop()
         self.ib.stop()
 
     # 请求数据
     def reqdata(self):
-        '''request real-time data. checks cash vs non-cash) and param useRT'''
+        """request real-time data. checks cash vs non-cash) and param useRT"""
         if self.contract is None or self._subcription_valid:
             return
 
@@ -461,7 +444,7 @@ class IBData(with_metaclass(MetaIBData, DataBase)):
 
     # 取消数据
     def canceldata(self):
-        '''Cancels Market Data subscription, checking asset type and rtbar'''
+        """Cancels Market Data subscription, checking asset type and rtbar"""
         if self.contract is None:
             return
 

@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
@@ -145,13 +128,13 @@ class AutoInfoClass(object):
 
     @classmethod
     def _derive(cls, name, info, otherbases, recurse=False):
-        '''推测各个参数的意义：
+        """推测各个参数的意义：
         cls:代表一个具体的类，很有可能就是AutoInfoClass的一个实例
         info:代表参数（parameter)
         otherBases:其他的bases
         recurse:递归
         举例的应用：_derive(name, newparams, morebasesparams)
-        '''
+        """
         # collect the 3 set of infos
         # info = OrderedDict(info)
         # print(name,info,otherbases)
@@ -413,12 +396,12 @@ class ParamsBase(with_metaclass(MetaParams, object)):
 
 # 设置了一个新的类，这个类可以通过index或者name直接获取相应的值
 class ItemCollection(object):
-    '''
+    """
     Holds a collection of items that can be reached by
 
       - Index
       - Name (if set in the append operation)
-    '''
+    """
     def __init__(self):
         self._items = list()
         self._names = list()

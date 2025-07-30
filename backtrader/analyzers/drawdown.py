@@ -1,23 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-###############################################################################
-#
-# Copyright (C) 2015-2020 Daniel Rodriguez
-#
-# This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
-# (at your option) any later version.
-#
-# This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
-# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-# GNU General Public License for more details.
-#
-# You should have received a copy of the GNU General Public License
-# along with this program.  If not, see <http://www.gnu.org/licenses/>.
-#
-###############################################################################
+
 import backtrader as bt
 from backtrader.utils import AutoOrderedDict
 
@@ -45,7 +28,7 @@ class DrawDown(bt.Analyzer):
 
       - ``get_analysis``
 
-        Returns a dictionary (with . notation support and subdctionaries) with
+        Returns a dictionary (with . notation support and dictionaries) with
         drawdown stats as values, the following keys/attributes are available:
 
         - ``drawdown`` - drawdown value in 0.xx %
@@ -105,7 +88,7 @@ class DrawDown(bt.Analyzer):
         r.moneydown = moneydown = self._maxvalue - self._value
         r.drawdown = drawdown = 100.0 * moneydown / self._maxvalue
 
-        # maxximum drawdown values
+        # maximum drawdown values
         r.max.moneydown = max(r.max.moneydown, moneydown)
         r.max.drawdown = maxdrawdown = max(r.max.drawdown, drawdown)
 
@@ -148,7 +131,7 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
 
       - ``get_analysis``
 
-        Returns a dictionary (with . notation support and subdctionaries) with
+        Returns a dictionary (with . notation support and sub-dictionaries) with
         drawdown stats as values, the following keys/attributes are available:
 
         - ``drawdown`` - drawdown value in 0.xx %
