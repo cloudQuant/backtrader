@@ -29,6 +29,56 @@ python -c "import backtrader; print(backtrader.__file__)"
 
 ### 修复 (Fixed)
 
+#### 🐛 修复 DataTrades Observer 名称类型错误
+
+**问题描述**：
+使用大量数据源（如 958 只可转债）并启用 `stdstats=True` 时，程序在初始化 `DataTrades` observer 时崩溃：
+```
+TypeError: 'int' object is not subscriptable
+File "backtrader/observers/trades.py", line 106
+File "backtrader/lineseries.py", line 183
+```
+
+**根本原因**：
+- `DataTrades` observer 动态创建 lines 时，使用数据源的 `_name` 属性
+- 代码假设 `_name` 总是字符串类型
+- 但实际上 `_name` 可能是整数、空字符串或其他类型
+- 当 `_name` 是整数时，`lineseries._derive()` 方法会尝试 `linealias[0]` 导致 TypeError
+
+**解决方案**：
+- 在生成 `lnames` 时，使用 `str()` 强制转换为字符串
+- 如果 `_name` 为空，使用默认名称 `data{i}`
+- 确保 `lnames` 元组中所有元素都是字符串类型
+
+**修改文件**：
+- `backtrader/observers/trades.py` (第100-102行)
+  ```python
+  # 修复前：
+  lnames = tuple(x._name for x in _obj.datas)
+  
+  # 修复后：
+  lnames = tuple(str(x._name) if x._name else f'data{i}' 
+                for i, x in enumerate(_obj.datas))
+  ```
+- `docs/DATATRADES_FIX.md` - 详细的修复说明
+
+**测试结果**：
+- ✅ 10 个数据源，stdstats=True 通过
+- ✅ 50 个数据源，stdstats=True 通过
+- ✅ 100 个数据源，stdstats=True 通过
+- ✅ 958 只可转债策略可以正常运行
+
+**影响范围**：
+- 修复了使用大量数据源时的崩溃问题
+- 修复了数据源名称为非字符串类型时的错误
+- 完全向后兼容
+- 所有现有代码无需修改
+
+**重要提示**：
+修改代码后需要重新安装：`pip install -U .`
+
+---
+
 #### 🐛 修复 ExtendPandasFeed 列索引错误导致 stdstats 报错
 
 **问题描述**：

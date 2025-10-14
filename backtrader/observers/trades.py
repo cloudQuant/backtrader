@@ -97,7 +97,9 @@ class MetaDataTrades(Observer.__class__):
         # Recreate the lines dynamically
         # 动态的重新创建line的名字
         if _obj.params.usenames:
-            lnames = tuple(x._name for x in _obj.datas)
+            # 确保所有名称都是字符串类型，避免整数等类型导致的TypeError
+            lnames = tuple(str(x._name) if x._name else f'data{i}' 
+                          for i, x in enumerate(_obj.datas))
         else:
             lnames = tuple('data{}'.format(x) for x in range(len(_obj.datas)))
 
