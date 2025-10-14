@@ -6,6 +6,27 @@
 
 ## [未发布] - 2024-10-14
 
+### 重要说明 (Important)
+
+#### ⚠️ 确保使用项目本地版本
+
+**问题**：
+如果您遇到 `TypeError: 'int' object is not subscriptable` 错误，且错误堆栈显示 `D:\anaconda3\Lib\site-packages\backtrader\...`，说明您正在使用**pip安装的旧版本**，而非项目修复后的版本。
+
+**解决方案**：
+```bash
+# 在项目根目录执行（推荐方式）
+pip install -e .
+
+# 验证安装
+python -c "import backtrader; print(backtrader.__file__)"
+# 应该输出：F:\source_code\backtrader\backtrader\__init__.py
+```
+
+**详细说明**：参见 [docs/INSTALLATION_GUIDE.md](INSTALLATION_GUIDE.md)
+
+---
+
 ### 修复 (Fixed)
 
 #### 🐛 修复 ExtendPandasFeed 列索引错误导致 stdstats 报错
