@@ -8,6 +8,51 @@
 
 ### 修复 (Fixed)
 
+#### 🐛 修复 ExtendPandasFeed 列索引错误导致 stdstats 报错
+
+**问题描述**：
+使用扩展的 `PandasData` 数据源时，当启用 `stdstats=True`（Cerebro的默认设置）会导致程序报错：`IndexError: index 9 is out of bounds for axis 0 with size 9`
+
+**影响场景**：
+- 使用 `ExtendPandasFeed` 添加自定义数据字段
+- DataFrame 使用 `set_index('datetime')` 将时间设为索引
+- 启用 stdstats（默认设置）时程序崩溃
+- 用户被迫使用 `stdstats=False` 作为临时解决方案
+
+**根本原因**：
+- DataFrame 调用 `set_index('datetime')` 后，datetime 成为索引，实际数据列只剩 9 列（索引 0-8）
+- 但 `ExtendPandasFeed` 的 params 中 datetime 仍定义为列0，导致后续字段索引全部错位
+- 扩展字段 `convert_premium_rate` 的索引9超出了实际列数范围
+
+**解决方案**：
+- 将 `datetime` 参数设为 `None`（因为它是索引而非数据列）
+- 调整所有列索引从 0 开始重新计数：
+  - open: 0, high: 1, low: 2, close: 3, volume: 4
+  - pure_bond_value: 5, convert_value: 6
+  - pure_bond_premium_rate: 7, convert_premium_rate: 8
+- 添加详细的文档说明 DataFrame 结构
+- 移除强制 `stdstats=False` 的限制
+- `run_test_strategy` 函数增加 `stdstats` 参数（默认 True）
+
+**修改文件**：
+- `strategies/0025_可转债双低策略/原始策略回测.py`
+  - 修复 ExtendPandasFeed 的 params 定义
+  - 添加详细的注释说明
+  - run_test_strategy 增加 stdstats 参数
+- `docs/EXTENDED_FEED_FIX.md` - 详细的修复说明和最佳实践
+
+**测试结果**：
+- ✅ 50 个数据源，stdstats=True/False 均通过
+- ✅ 200 个数据源，stdstats=True/False 均通过
+- ✅ 可转债策略现在可以正常使用 stdstats=True
+
+**影响范围**：
+- 仅影响使用扩展 PandasData 且 DataFrame 使用 set_index 的场景
+- 标准 OHLCV 数据源不受影响
+- 完全向后兼容
+
+---
+
 #### 🔧 修复 indicators 模块 PyCharm 警告问题
 
 **问题描述**：
