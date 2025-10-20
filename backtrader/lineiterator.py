@@ -719,28 +719,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
     bind2line = bind2lines
 
     def _next(self):
-        """Override _next for strategy-specific processing"""
-        # CRITICAL FIX: Ensure we call the parent class _next to handle indicators
-        # Don't override completely - let the hierarchy handle it properly
-        
-        # For non-strategy classes, just do the basic next
-        # For strategy classes, this will be overridden by strategy.py
-        
-        # Update clock
+        """Basic _next implementation for LineIterator"""
+        # Just update clock - Strategy class will override this with full implementation
         self._clk_update()
-        
-        # Call indicators' next
-        for indicator in self._lineiterators.get(LineIterator.IndType, []):
-            indicator._next()
-        
-        # Call prenext or next based on minperiod
-        minperstatus = self._getminperstatus()
-        if minperstatus < 0:
-            self.next()
-        elif minperstatus == 0:
-            self.nextstart()
-        else:
-            self.prenext()
 
     def _clk_update(self):
         """CRITICAL FIX: Override the problematic _clk_update method from strategy.py"""
