@@ -720,16 +720,27 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
     def _next(self):
         """Override _next for strategy-specific processing"""
-        # CRITICAL FIX: Simple strategy next that ensures proper data synchronization
+        # CRITICAL FIX: Ensure we call the parent class _next to handle indicators
+        # Don't override completely - let the hierarchy handle it properly
         
-        # Update the clock first
+        # For non-strategy classes, just do the basic next
+        # For strategy classes, this will be overridden by strategy.py
+        
+        # Update clock
         self._clk_update()
         
-        # Call the user's next() method
-        if hasattr(self, 'next') and callable(self.next):
-            self.next()
+        # Call indicators' next
+        for indicator in self._lineiterators.get(LineIterator.IndType, []):
+            indicator._next()
         
-        # No complex indicator processing - let them handle themselves
+        # Call prenext or next based on minperiod
+        minperstatus = self._getminperstatus()
+        if minperstatus < 0:
+            self.next()
+        elif minperstatus == 0:
+            self.nextstart()
+        else:
+            self.prenext()
 
     def _clk_update(self):
         """CRITICAL FIX: Override the problematic _clk_update method from strategy.py"""
@@ -1646,29 +1657,62 @@ class StrategyBase(DataAccessor):
         """Ensure all indicators are properly set up after strategy initialization"""
         try:
             # Check for indicators that were created during __init__
-            for attr_name in dir(self):
-                if not attr_name.startswith('_'):
-                    attr_value = getattr(self, attr_name)
-                    # Check if this looks like an indicator
-                    if (hasattr(attr_value, 'lines') or 
-                        hasattr(attr_value, '_ltype') or
-                        hasattr(attr_value, '__class__') and 'Indicator' in str(attr_value.__class__.__name__)):
+            # Use object.__getattribute__ to avoid recursion issues
+            try:
+                self_dict = object.__getattribute__(self, '__dict__')
+            except AttributeError:
+                return  # No attributes to check
+            
+            for attr_name, attr_value in self_dict.items():
+                if attr_name.startswith('_'):
+                    continue
+                
+                # 安全地检查是否是indicator（使用try-except而不是hasattr）
+                try:
+                    # 检查是否有_ltype属性
+                    ltype = object.__getattribute__(attr_value, '_ltype')
+                    is_indicator = True
+                except AttributeError:
+                    is_indicator = False
+                
+                if not is_indicator:
+                    # 检查类名是否包含Indicator
+                    try:
+                        cls_name = attr_value.__class__.__name__
+                        is_indicator = 'Indicator' in cls_name or 'Observer' in cls_name
+                    except:
+                        continue
+                
+                if is_indicator:
+                    # 确保indicator有正确的owner和clock设置
+                    try:
+                        owner = object.__getattribute__(attr_value, '_owner')
+                    except AttributeError:
+                        object.__setattr__(attr_value, '_owner', self)
+                    
+                    try:
+                        clock = object.__getattribute__(attr_value, '_clock')
+                    except AttributeError:
+                        # 设置clock
+                        try:
+                            my_clock = object.__getattribute__(self, '_clock')
+                            object.__setattr__(attr_value, '_clock', my_clock)
+                        except AttributeError:
+                            try:
+                                my_data = object.__getattribute__(self, 'data')
+                                object.__setattr__(attr_value, '_clock', my_data)
+                            except:
+                                pass
+                    
+                    # 确保indicator在lineiterators中
+                    try:
+                        ltype = object.__getattribute__(attr_value, '_ltype')
+                        lineiterators = object.__getattribute__(self, '_lineiterators')
+                        if attr_value not in lineiterators[ltype]:
+                            lineiterators[ltype].append(attr_value)
+                    except:
+                        pass
                         
-                        # Ensure the indicator has proper owner and clock setup
-                        if not hasattr(attr_value, '_owner') or attr_value._owner is None:
-                            attr_value._owner = self
-                        
-                        if not hasattr(attr_value, '_clock') or attr_value._clock is None:
-                            if hasattr(self, '_clock') and self._clock is not None:
-                                attr_value._clock = self._clock
-                            elif hasattr(self, 'data') and self.data is not None:
-                                attr_value._clock = self.data
-                                
-                        # Ensure indicator is in our lineiterators
-                        if hasattr(attr_value, '_ltype'):
-                            ltype = getattr(attr_value, '_ltype', 0)
-                            if attr_value not in self._lineiterators[ltype]:
-                                self._lineiterators[ltype].append(attr_value)
         except Exception as e:
             print(f"Warning: _finalize_indicator_setup failed: {e}")
             
