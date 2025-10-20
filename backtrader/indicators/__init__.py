@@ -68,7 +68,15 @@ from .kst import *
 from .ichimoku import *
 
 from .hurst import *
-from .ols import *
+
+# OLS指标依赖statsmodels，可选导入
+try:
+    from .ols import *
+except ImportError as e:
+    # statsmodels未安装或版本不兼容，跳过OLS指标
+    import warnings
+    warnings.warn(f"OLS indicators not available: {e}", ImportWarning)
+
 from .hadelta import *
 
 # 增加一些自定义的指标
