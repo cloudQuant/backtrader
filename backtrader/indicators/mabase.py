@@ -74,108 +74,115 @@ class MovingAverageBase(Indicator):
 
 
 # SMA = MovingAverage
-#
-#
-# # Direct registration of common moving averages to fix import issues
-# # This will be called after all modules are loaded
-# def _register_common_moving_averages():
-#     """Directly register common moving averages"""
-#     # Skip if already registered to avoid duplicate registration
-#     if hasattr(MovAv, '_registered'):
-#         return
-#
-#     # Mark as being registered
-#     MovAv._registered = True
-#
-#     try:
-#         # Import and register SMA directly
-#         from .sma import MovingAverageSimple
-#         MovAv.SMA = MovingAverageSimple
-#         MovAv.SimpleMovingAverage = MovingAverageSimple
-#         MovAv.MovingAverageSimple = MovingAverageSimple
-#         MovingAverage.register(MovingAverageSimple)
-#     except Exception:
-#         pass
-#
-#     try:
-#         # Import and register EMA directly
-#         from .ema import ExponentialMovingAverage
-#         MovAv.EMA = ExponentialMovingAverage
-#         MovAv.ExponentialMovingAverage = ExponentialMovingAverage
-#         MovAv.MovingAverageExponential = ExponentialMovingAverage
-#         MovingAverage.register(ExponentialMovingAverage)
-#     except Exception:
-#         pass
-#
-#     try:
-#         # Import and register WMA directly
-#         from .wma import WeightedMovingAverage
-#         MovAv.WMA = WeightedMovingAverage
-#         MovAv.WeightedMovingAverage = WeightedMovingAverage
-#         MovAv.MovingAverageWeighted = WeightedMovingAverage
-#         MovingAverage.register(WeightedMovingAverage)
-#     except Exception:
-#         pass
-#
-#     try:
-#         # Import and register HMA directly
-#         from .hma import HullMovingAverage
-#         MovAv.HMA = HullMovingAverage
-#         MovAv.HullMovingAverage = HullMovingAverage
-#         MovAv.MovingAverageHull = HullMovingAverage
-#         MovingAverage.register(HullMovingAverage)
-#     except Exception:
-#         pass
-#
-#     try:
-#         # Import and register SMMA directly
-#         from .smma import SmoothedMovingAverage
-#         MovAv.SMMA = SmoothedMovingAverage
-#         MovAv.SmoothedMovingAverage = SmoothedMovingAverage
-#         MovAv.MovingAverageSmoothed = SmoothedMovingAverage
-#         MovingAverage.register(SmoothedMovingAverage)
-#     except Exception:
-#         pass
-#
-#     try:
-#         # Import and register DEMA directly
-#         from .dema import DoubleExponentialMovingAverage
-#         MovAv.DEMA = DoubleExponentialMovingAverage
-#         MovAv.DoubleExponentialMovingAverage = DoubleExponentialMovingAverage
-#         MovAv.MovingAverageDoubleExponential = DoubleExponentialMovingAverage
-#         MovingAverage.register(DoubleExponentialMovingAverage)
-#     except Exception:
-#         pass
-#
-#     try:
-#         # Import and register TEMA directly
-#         from .dema import TripleExponentialMovingAverage
-#         MovAv.TEMA = TripleExponentialMovingAverage
-#         MovAv.TripleExponentialMovingAverage = TripleExponentialMovingAverage
-#         MovAv.MovingAverageTripleExponential = TripleExponentialMovingAverage
-#         MovingAverage.register(TripleExponentialMovingAverage)
-#     except Exception:
-#         pass
-#
-#     try:
-#         # Import and register KAMA directly
-#         from .kama import AdaptiveMovingAverage
-#         MovAv.KAMA = AdaptiveMovingAverage
-#         MovAv.AdaptiveMovingAverage = AdaptiveMovingAverage
-#         MovAv.MovingAverageAdaptive = AdaptiveMovingAverage
-#         MovingAverage.register(AdaptiveMovingAverage)
-#     except Exception:
-#         pass
-#
-#     try:
-#         # Import and register ZLEMA directly
-#         from .zlema import ZeroLagExponentialMovingAverage
-#         MovAv.ZLEMA = ZeroLagExponentialMovingAverage
-#         MovAv.ZeroLagExponentialMovingAverage = ZeroLagExponentialMovingAverage
-#         MovAv.MovingAverageZeroLagExponential = ZeroLagExponentialMovingAverage
-#         MovingAverage.register(ZeroLagExponentialMovingAverage)
-#     except Exception:
-#         pass
+
+
+# Direct registration of common moving averages to fix import issues
+# This will be called after all modules are loaded
+def _register_common_moving_averages():
+    """Directly register common moving averages"""
+    # Skip if already registered to avoid duplicate registration
+    if hasattr(MovAv, '_registered'):
+        return
+    
+    # Mark as being registered
+    MovAv._registered = True
+    
+    try:
+        # Import and register SMA directly
+        from .sma import MovingAverageSimple
+        MovAv.SMA = MovingAverageSimple
+        MovAv.Simple = MovingAverageSimple
+        MovAv.SimpleMovingAverage = MovingAverageSimple
+        MovAv.MovingAverageSimple = MovingAverageSimple
+        MovingAverage.register(MovingAverageSimple)
+    except Exception:
+        pass
+    
+    try:
+        # Import and register EMA directly
+        from .ema import ExponentialMovingAverage
+        MovAv.EMA = ExponentialMovingAverage
+        MovAv.Exponential = ExponentialMovingAverage
+        MovAv.ExponentialMovingAverage = ExponentialMovingAverage
+        MovAv.MovingAverageExponential = ExponentialMovingAverage
+        MovingAverage.register(ExponentialMovingAverage)
+    except Exception:
+        pass
+    
+    try:
+        # Import and register WMA directly
+        from .wma import WeightedMovingAverage
+        MovAv.WMA = WeightedMovingAverage
+        MovAv.Weighted = WeightedMovingAverage
+        MovAv.WeightedMovingAverage = WeightedMovingAverage
+        MovAv.MovingAverageWeighted = WeightedMovingAverage
+        MovingAverage.register(WeightedMovingAverage)
+    except Exception:
+        pass
+    
+    try:
+        # Import and register HMA directly
+        from .hma import HullMovingAverage
+        MovAv.HMA = HullMovingAverage
+        MovAv.Hull = HullMovingAverage
+        MovAv.HullMovingAverage = HullMovingAverage
+        MovAv.MovingAverageHull = HullMovingAverage
+        MovingAverage.register(HullMovingAverage)
+    except Exception:
+        pass
+    
+    try:
+        # Import and register SMMA directly
+        from .smma import SmoothedMovingAverage
+        MovAv.SMMA = SmoothedMovingAverage
+        MovAv.Smoothed = SmoothedMovingAverage
+        MovAv.SmoothedMovingAverage = SmoothedMovingAverage
+        MovAv.MovingAverageSmoothed = SmoothedMovingAverage
+        MovingAverage.register(SmoothedMovingAverage)
+    except Exception:
+        pass
+    
+    try:
+        # Import and register DEMA directly
+        from .dema import DoubleExponentialMovingAverage
+        MovAv.DEMA = DoubleExponentialMovingAverage
+        MovAv.DoubleExponentialMovingAverage = DoubleExponentialMovingAverage
+        MovAv.MovingAverageDoubleExponential = DoubleExponentialMovingAverage
+        MovingAverage.register(DoubleExponentialMovingAverage)
+    except Exception:
+        pass
+    
+    try:
+        # Import and register TEMA directly
+        from .dema import TripleExponentialMovingAverage
+        MovAv.TEMA = TripleExponentialMovingAverage
+        MovAv.TripleExponentialMovingAverage = TripleExponentialMovingAverage
+        MovAv.MovingAverageTripleExponential = TripleExponentialMovingAverage
+        MovingAverage.register(TripleExponentialMovingAverage)
+    except Exception:
+        pass
+    
+    try:
+        # Import and register KAMA directly
+        from .kama import AdaptiveMovingAverage
+        MovAv.KAMA = AdaptiveMovingAverage
+        MovAv.Adaptive = AdaptiveMovingAverage
+        MovAv.AdaptiveMovingAverage = AdaptiveMovingAverage
+        MovAv.MovingAverageAdaptive = AdaptiveMovingAverage
+        MovingAverage.register(AdaptiveMovingAverage)
+    except Exception:
+        pass
+    
+    try:
+        # Import and register ZLEMA directly
+        from .zlema import ZeroLagExponentialMovingAverage
+        MovAv.ZLEMA = ZeroLagExponentialMovingAverage
+        MovAv.ZeroLag = ZeroLagExponentialMovingAverage
+        MovAv.ZeroLagExponentialMovingAverage = ZeroLagExponentialMovingAverage
+        MovAv.MovingAverageZeroLagExponential = ZeroLagExponentialMovingAverage
+        MovingAverage.register(ZeroLagExponentialMovingAverage)
+    except Exception:
+        pass
 #
 # # Optimized import and assignment with proper error handling
 # try:
