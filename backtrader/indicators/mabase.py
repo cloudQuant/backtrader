@@ -51,6 +51,18 @@ class MovingAverage(object):
 
         if clsalias:
             setattr(cls, clsalias, regcls)
+        
+        # CRITICAL FIX: Process the alias attribute if it exists
+        # Many indicators define their own aliases like alias = ("SMA", "SimpleMovingAverage")
+        if hasattr(regcls, 'alias'):
+            aliases = regcls.alias
+            # Support both tuple and single string
+            if isinstance(aliases, str):
+                aliases = (aliases,)
+            # Register each alias
+            for alias_name in aliases:
+                if alias_name and isinstance(alias_name, str):
+                    setattr(cls, alias_name, regcls)
 
 
 # 移动平均的别名
