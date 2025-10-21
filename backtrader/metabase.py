@@ -388,8 +388,9 @@ class AutoInfoClass(object):
         return [getattr(self, x) for x in self._getkeys()]
 
     def __new__(cls, *args, **kwargs):
+        # CRITICAL FIX: object.__new__() only takes cls as argument, not *args, **kwargs
         # 创建一个新的obj
-        obj = super(AutoInfoClass, cls).__new__(cls, *args, **kwargs)
+        obj = super(AutoInfoClass, cls).__new__(cls)
 
         if cls._getrecurse():
             for infoname in obj._getkeys():
@@ -687,12 +688,13 @@ class ParamsMixin(BaseMixin):
             original_init = cls.__init__
             
             def patched_init(self, *args, **kwargs):
-                # Ensure we have parameter instance available before user __init__ runs
+                # CRITICAL FIX: Ensure we have parameter instance available before user __init__ runs
                 if not hasattr(self, 'p') or self.p is None:
                     # Create parameter instance if missing
                     if hasattr(cls, '_params') and cls._params is not None:
                         try:
-                            self.p = cls._params()
+                            # CRITICAL FIX: Pass kwargs to parameter instance to handle custom values like period=5
+                            self.p = cls._params(**kwargs)
                         except Exception:
                             from .utils import DotDict
                             self.p = DotDict()
@@ -1300,6 +1302,8 @@ def _initialize_indicator_aliases():
 # CRITICAL FIX: Call initialization functions when module loads
 try:
     _initialize_indicator_aliases()
-    patch_strategy_clk_update()
+    # DISABLED: patch_strategy_clk_update() causes circular import issues
+    # The _clk_update method should be properly implemented in Strategy class instead
+    # patch_strategy_clk_update()
 except Exception:
     pass  # Silently fail during module loading

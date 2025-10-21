@@ -89,8 +89,32 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
             original_init = cls.__init__
             
             def patched_init(self, *args, **kwargs):
-                """Patched __init__ that sets up data0/data1 before calling original __init__"""
-                print(f"Indicator.patched_init: Starting for {self.__class__.__name__} with {len(args)} args")
+                """Patched __init__ that sets up parameters and data0/data1 before calling original __init__"""
+                # print(f"Indicator.patched_init: Starting for {self.__class__.__name__} with {len(args)} args and kwargs={kwargs}")
+                
+                # CRITICAL FIX: Update parameters with kwargs
+                # If self.p already exists, update it with kwargs; otherwise create it
+                if kwargs:
+                    if hasattr(self, 'p') and self.p is not None:
+                        # Update existing parameter instance with kwargs
+                        for key, value in kwargs.items():
+                            if hasattr(self.p, key):
+                                setattr(self.p, key, value)
+                                # print(f"Indicator.patched_init: Updated self.p.{key} = {value}")
+                    else:
+                        # Create new parameter instance with kwargs
+                        if hasattr(cls, '_params') and cls._params is not None:
+                            try:
+                                # Pass kwargs to parameter instance to handle custom values like period=5
+                                self.p = cls._params(**kwargs)
+                                print(f"Indicator.patched_init: Created params with kwargs, period={getattr(self.p, 'period', 'N/A')}")
+                            except Exception as e:
+                                print(f"Indicator.patched_init: Failed to create params with kwargs: {e}")
+                                from .utils import DotDict
+                                self.p = DotDict(**kwargs) if kwargs else DotDict()
+                        else:
+                            from .utils import DotDict
+                            self.p = DotDict(**kwargs) if kwargs else DotDict()
                 
                 # CRITICAL FIX: Set up data0/data1 BEFORE calling any user __init__ methods
                 # This ensures indicators can access self.data0, self.data1 during initialization
@@ -105,8 +129,9 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                     temp_datas = []
                     for i, arg in enumerate(args):
                         # Check if this is a data-like object
-                        if (hasattr(arg, 'lines') or hasattr(arg, '_name') or 
-                            hasattr(arg, '__class__') and 'Data' in str(arg.__class__.__name__) or
+                        if (hasattr(arg, 'lines') or 
+                            hasattr(arg, '_name') or
+                            hasattr(arg, 'datetime') or
                             hasattr(arg, '__class__') and any('LineSeries' in base.__name__ for base in arg.__class__.__mro__)):
                             temp_datas.append(arg)
                             setattr(self, f"data{i}", arg) 
@@ -115,17 +140,17 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                             # Non-data argument, stop processing
                             break
                     
-                    # Set up datas if we found any
+                    # If we found data objects in args, set them as self.datas and self.data
                     if temp_datas:
                         if not hasattr(self, 'datas') or not self.datas:
                             self.datas = temp_datas
                             self.data = temp_datas[0]
                             print(f"Indicator.patched_init: Set datas from args: {len(temp_datas)} items")
                 
-                # Now call the original __init__ method - try different strategies
+                # Now call the original __init__ method WITHOUT kwargs (they're already in self.p)
                 try:
-                    # First, try calling the original __init__ with no arguments
-                    # This is the most common case for indicators
+                    # Try calling the original __init__ with no arguments
+                    # Parameters are already set in self.p, so the __init__ can access them
                     original_init(self)
                     print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args")
                     return

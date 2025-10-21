@@ -1097,7 +1097,17 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         self.lines.extend(value, size)
 
     def reset(self, value=0.0):
+        print(f"DEBUG LineSeries.reset() called for {self.__class__.__name__}")
         self.lines.reset()
+        # CRITICAL FIX for runonce mode: reset idx to -1 while keeping array data
+        for line in self.lines:
+            print(f"  Resetting line: {line}, has idx: {hasattr(line, 'idx')}")
+            if hasattr(line, 'idx'):
+                old_idx = line.idx
+                line.idx = -1
+                print(f"    Reset idx from {old_idx} to {line.idx}")
+            if hasattr(line, 'lencount'):
+                line.lencount = 0
 
     def home(self):
         self.lines.home()

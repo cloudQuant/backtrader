@@ -49,7 +49,12 @@ class MovingAverageSimple(MovingAverageBase):
         if self._vectorized_enabled and len(self.data) >= period:
             try:
                 # Extract recent prices for vectorized calculation
-                recent_prices = [float(self.data[i]) for i in range(-period, 0)]
+                # Use correct data access pattern: data[-i] for ago indexing
+                recent_prices = []
+                for i in range(period):
+                    # data[0] is current, data[-1] is previous, etc.
+                    recent_prices.append(float(self.data[-i]))
+                
                 if len(recent_prices) == period:
                     # Vectorized mean calculation
                     result = np.mean(recent_prices) if np else sum(recent_prices) / period
@@ -115,50 +120,50 @@ class MovingAverageSimple(MovingAverageBase):
                 self.lines.lines[0][0] = float('nan')
 
     def once(self, start, end):
-        """Phase 2 Optimized batch processing with vectorization"""
-        if not self._vectorized_enabled or end - start < 10:
-            # Use regular processing for small batches
-            super().once(start, end)
-            return
-
-        try:
-            # Phase 2: Vectorized batch processing for large ranges
-            period = getattr(self.p, 'period', 30)
-
-            # Extract all needed prices at once
-            all_prices = []
+        """CRITICAL FIX: Simplified once() that actually works"""
+        period = getattr(self.p, 'period', 30)
+        
+        # Get the line array for direct manipulation
+        # CRITICAL: Don't use 'if array' because empty arrays are False in Python!
+        sma_array = self.lines.sma.array if hasattr(self.lines.sma, 'array') and self.lines.sma.array is not None else None
+        # For SMA, we need the close line of the data
+        if hasattr(self.data, 'lines') and hasattr(self.data.lines, 'close'):
+            data_array = self.data.lines.close.array if hasattr(self.data.lines.close, 'array') and self.data.lines.close.array is not None else None
+        else:
+            data_array = self.data.array if hasattr(self.data, 'array') and self.data.array is not None else None
+        
+        if sma_array is None or data_array is None:
+            # Fallback to iterative processing
             for i in range(start, end):
-                try:
-                    if hasattr(self.data, '__getitem__'):
-                        price = float(self.data[i - len(self.data)])
-                    else:
-                        price = float(self.data[0])  # Fallback
-                    all_prices.append(price)
-                except (IndexError, ValueError, TypeError):
-                    all_prices.append(float('nan'))
-
-            # Vectorized SMA calculation for the entire batch
-            if len(all_prices) >= period:
-                for i in range(len(all_prices)):
-                    if i >= period - 1:
-                        # Calculate SMA for window [i-period+1:i+1]
-                        window_start = max(0, i - period + 1)
-                        window_end = i + 1
-                        window_prices = all_prices[window_start:window_end]
-                        if len(window_prices) == period:
-                            sma_val = sum(window_prices) / period
-                        else:
-                            sma_val = sum(window_prices) / len(window_prices) if window_prices else float('nan')
-
-                        # Set result
-                        result_idx = start + i
-                        if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
-                            if hasattr(self.lines.sma, 'array') and result_idx < len(self.lines.sma.array):
-                                self.lines.sma.array[result_idx] = sma_val
-
-        except Exception:
-            # Fallback to regular processing
-            super().once(start, end)
+                self.advance()
+                self.next()
+            return
+        
+        # CRITICAL FIX: Ensure arrays have enough space
+        # Extend sma_array to accommodate the range we need to process
+        while len(sma_array) < end:
+            sma_array.append(float('nan'))
+        
+        # Process each position in the range
+        for i in range(start, end):
+            if i < period - 1:
+                # Not enough data yet
+                sma_array[i] = float('nan')
+            else:
+                # Calculate SMA for this position
+                total = 0.0
+                valid_count = 0
+                for j in range(i - period + 1, i + 1):
+                    if j >= 0 and j < len(data_array):
+                        val = data_array[j]
+                        if not (isinstance(val, float) and val != val):  # Check for NaN
+                            total += val
+                            valid_count += 1
+                
+                if valid_count > 0:
+                    sma_array[i] = total / valid_count
+                else:
+                    sma_array[i] = float('nan')
 
 
 SMA = MovingAverageSimple

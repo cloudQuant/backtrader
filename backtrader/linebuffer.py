@@ -123,6 +123,10 @@ class LineBuffer(LineSingle, LineRootMixin):
     # 重置
     def reset(self):
         """Resets the internal buffer structure and the indices"""
+        # CRITICAL FIX: Ensure mode attribute exists (it may not for some subclasses)
+        if not hasattr(self, 'mode'):
+            self.mode = self.UnBounded
+        
         # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据，有一个最大的长度，超过这个长度的时候回踢出最前面的数据
         if self.mode == self.QBuffer:
             # Add extrasize to ensure resample/replay work. They will
@@ -136,16 +140,19 @@ class LineBuffer(LineSingle, LineRootMixin):
             self.array = collections.deque(maxlen=deque_maxlen)
             self.useislice = True
         else:
-            # CRITICAL FIX: Initialize with empty array
-            self.array = array.array(str("d"))
-            self.useislice = False
-            
-            # CRITICAL FIX: For indicators, pre-fill with NaN to avoid uninitialized values
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                # Pre-fill with a few NaN values to avoid index errors
-                for _ in range(10):
-                    self.array.append(float('nan'))
+            # CRITICAL FIX: In runonce mode, array may already contain calculated values
+            # Only initialize array if it doesn't exist or is None
+            if not hasattr(self, 'array') or self.array is None:
+                self.array = array.array(str("d"))
+                self.useislice = False
+                
+                # CRITICAL FIX: For indicators, pre-fill with NaN to avoid uninitialized values
+                if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
+                   (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
+                    # Pre-fill with a few NaN values to avoid index errors
+                    for _ in range(10):
+                        self.array.append(float('nan'))
+            # If array already exists (runonce mode), keep it and just reset indices
         
         # 默认最开始的时候lencount等于0,idx等于-1,extension等于0
         self.lencount = 0

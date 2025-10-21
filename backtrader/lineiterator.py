@@ -189,12 +189,20 @@ class LineIteratorMixin:
         else:
             _obj._clock = None
 
-        # Calculate minimum period from datas
+        # CRITICAL FIX: Set _minperiod based on 'period' parameter FIRST
+        # This ensures indicators respect their period parameter before any other calculations
+        if hasattr(_obj, 'p') and hasattr(_obj.p, 'period'):
+            param_period = _obj.p.period
+            _obj._minperiod = max(getattr(_obj, '_minperiod', 1), param_period)
+        elif not hasattr(_obj, '_minperiod'):
+            _obj._minperiod = 1
+        
+        # Calculate minimum period from datas (but don't override period parameter)
         if _obj.datas:
             data_minperiods = [getattr(x, '_minperiod', 1) for x in _obj.datas if x is not None]
             _obj._minperiod = max(data_minperiods + [getattr(_obj, '_minperiod', 1)])
         else:
-            _obj._minperiod = getattr(_obj, '_minperiod', 1)
+            _obj._minperiod = max(getattr(_obj, '_minperiod', 1), 1)
 
         # Add minperiod to lines - with enhanced safety checks
         if hasattr(_obj, 'lines'):
@@ -246,11 +254,19 @@ class LineIteratorMixin:
     @classmethod
     def dopostinit(cls, _obj, *args, **kwargs):
         """Handle post-initialization setup"""
-        # Calculate minperiod from lines
+        # CRITICAL FIX: Set minperiod based on parameter 'period' first
+        # This ensures indicators respect their period parameter
+        if hasattr(_obj, 'p') and hasattr(_obj.p, 'period'):
+            param_period = _obj.p.period
+            # Set _minperiod to at least the period parameter value
+            _obj._minperiod = max(getattr(_obj, '_minperiod', 1), param_period)
+        
+        # Calculate minperiod from lines (but don't let it override period parameter)
         if hasattr(_obj, 'lines'):
             line_minperiods = [getattr(x, '_minperiod', 1) for x in _obj.lines]
             if line_minperiods:
-                _obj._minperiod = max(line_minperiods)
+                # Use max of current _minperiod and line minperiods
+                _obj._minperiod = max(line_minperiods + [getattr(_obj, '_minperiod', 1)])
 
         # Recalculate period
         _obj._periodrecalc()
@@ -341,7 +357,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # Create the instance using the normal Python object creation
         instance = super(LineIterator, cls).__new__(cls)
         
-        # Initialize basic attributes first - DON'T process data here, let donew handle it
+        # Initialize basic attributes first
         instance._lineiterators = collections.defaultdict(list)
         
         # Check if this is a strategy 
@@ -349,9 +365,61 @@ class LineIterator(LineIteratorMixin, LineSeries):
                      'Strategy' in cls.__name__ or \
                      any('Strategy' in base.__name__ for base in cls.__mro__)
         
-        # CRITICAL FIX: Auto-assign owner before processing args to help with data assignment
+        # CRITICAL FIX: Process data arguments IMMEDIATELY in __new__
+        # This ensures strategies and indicators get their datas set up before __init__ runs
+        if is_strategy or hasattr(cls, '_mindatas'):
+            mindatas = getattr(cls, '_mindatas', 1) if not is_strategy else 1
+            datas = []
+            
+            # Process args to extract data sources
+            for arg in args:
+                try:
+                    # Check if arg is a data-like object
+                    is_line_object = (
+                        hasattr(arg, 'lines') or 
+                        hasattr(arg, '_name') or
+                        hasattr(arg, 'datetime') or
+                        (hasattr(arg, '__class__') and 'Data' in str(arg.__class__.__name__))
+                    )
+                    
+                    if is_line_object:
+                        datas.append(arg)
+                    elif not mindatas:
+                        break  # found not data and must not be collected
+                    else:
+                        # Not a data object, stop collecting
+                        break
+                except:
+                    break
+                    
+                if len(datas) >= mindatas and mindatas > 0:
+                    break
+            
+            # Set up datas on the instance
+            instance.datas = datas
+            
+            # Set up primary data reference and data0/data1 aliases
+            if datas:
+                instance.data = datas[0]
+                for d, data in enumerate(datas):
+                    setattr(instance, f"data{d}", data)
+            else:
+                instance.data = None
+            
+            # Create ddatas and dnames
+            instance.ddatas = {x: None for x in datas}
+            from .utils import DotDict
+            try:
+                instance.dnames = DotDict([(d._name, d) for d in datas if d is not None and getattr(d, "_name", "")])
+            except:
+                instance.dnames = DotDict()
+            
+            # Set up clock for strategies
+            if is_strategy and datas:
+                instance._clock = datas[0]
+        
+        # CRITICAL FIX: Auto-assign owner for indicators/observers
         if not is_strategy:
-            import inspect
             from . import metabase
             
             try:
@@ -834,7 +902,31 @@ class LineIterator(LineIteratorMixin, LineSeries):
         except Exception:
             return 0
 
-    def _once(self):
+    def _once(self, start=None, end=None):
+        """Execute once for batch processing.
+        
+        Args:
+            start: Starting index (optional, defaults to 0)
+            end: Ending index (optional, calculated from data length if not provided)
+        """
+        # If start/end are provided, use them (indicator path)
+        if start is not None and end is not None:
+            # Delegate to child indicators if any
+            for lineiterators in self._lineiterators.values():
+                for lineiterator in lineiterators:
+                    try:
+                        lineiterator._once(start, end)
+                    except Exception:
+                        pass
+            
+            # Call own once() method with start/end
+            try:
+                self.once(start, end)
+            except Exception:
+                pass
+            return
+        
+        # Otherwise, calculate start/end (strategy path)
         # CRITICAL FIX: Ensure clock and data are available before operations
         # This is especially important for strategies that might have delayed data assignment
         if hasattr(self, '_clock') and self._clock is not None:
@@ -859,7 +951,37 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # CRITICAL FIX: Properly calculate start and end before using them
         start = 0
-        end = self._clk_update()
+        # Get the actual data length for proper end calculation
+        # Check buflen() first, as it gives the total buffered data after preload
+        if hasattr(self, '_clock') and self._clock is not None:
+            try:
+                # Use buflen() for preloaded data, which gives the full buffer size
+                if hasattr(self._clock, 'buflen'):
+                    end = self._clock.buflen()
+                else:
+                    end = len(self._clock)
+            except:
+                end = 0
+        elif hasattr(self, 'data') and self.data is not None:
+            try:
+                # Use buflen() for preloaded data
+                if hasattr(self.data, 'buflen'):
+                    end = self.data.buflen()
+                else:
+                    end = len(self.data)
+            except:
+                end = 0
+        elif hasattr(self, 'datas') and self.datas:
+            try:
+                # Use buflen() for preloaded data
+                if self.datas[0] is not None and hasattr(self.datas[0], 'buflen'):
+                    end = self.datas[0].buflen()
+                else:
+                    end = len(self.datas[0]) if self.datas[0] is not None else 0
+            except:
+                end = 0
+        else:
+            end = self._clk_update()
 
         for lineiterators in self._lineiterators.values():
             for lineiterator in lineiterators:
@@ -1006,6 +1128,22 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 
         return True
 
+    def reset(self):
+        """CRITICAL FIX: Override reset to also reset indicators in runonce mode"""
+        print(f"DEBUG LineIterator.reset() for {self.__class__.__name__}, has _lineiterators: {hasattr(self, '_lineiterators')}")
+        
+        # Reset own lines first
+        super().reset()
+        
+        # Reset all child indicators (critical for runonce mode)
+        if hasattr(self, '_lineiterators'):
+            for key, lineiterators_list in self._lineiterators.items():
+                print(f"  Processing _lineiterators[{key}], count={len(lineiterators_list)}")
+                for lineiterator in lineiterators_list:
+                    if hasattr(lineiterator, 'reset'):
+                        print(f"    Resetting child: {lineiterator.__class__.__name__}")
+                        lineiterator.reset()
+    
     def qbuffer(self, savemem=0):
         # 缓存相关操作
         if savemem:

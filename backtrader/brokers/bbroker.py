@@ -344,8 +344,9 @@ class BackBroker(bt.BrokerBase):
 
     # 创建实例的时候初始化
     def __init__(self, **kwargs):
-        super(BackBroker, self).__init__(**kwargs)
-        # 用于保存order历史记录
+        # CRITICAL FIX: Initialize these attributes BEFORE calling super().__init__()
+        # because super().__init__() calls self.init() which sets _cash, _value, etc.
+        # If we set them to None after super().__init__(), we overwrite the correct values!
         self._cash_addition = None
         self._ocol = None
         self._fundshares = None
@@ -375,6 +376,10 @@ class BackBroker(bt.BrokerBase):
         # share_value, net asset value
         # 用于保存fund的份额和净资产价值
         self._fhistlast = [float("NaN"), float("NaN")]
+        
+        # CRITICAL: Call super().__init__() AFTER initializing attributes
+        # super().__init__() will call self.init() which will properly set _cash, _value, etc.
+        super(BackBroker, self).__init__(**kwargs)
 
     # 初始化函数
     def init(self):
