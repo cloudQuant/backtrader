@@ -80,6 +80,50 @@ class CrossOver(Indicator):
     plotinfo = dict(plotymargin=0.05, plotyhlines=[-1.0, 1.0])
 
     def __init__(self):
+        # Keep compatibility with existing composition but primary value
+        # is computed explicitly in next/once for correctness/performance
         upcross = CrossUp(self.data0, self.data1)
         downcross = CrossDown(self.data0, self.data1)
         self.lines.crossover = upcross - downcross
+        super(CrossOver, self).__init__()
+
+    def next(self):
+        try:
+            d00 = float(self.data0[0])
+            d10 = float(self.data1[0])
+            d01 = float(self.data0[-1])
+            d11 = float(self.data1[-1])
+        except Exception:
+            self.lines.crossover[0] = 0.0
+            return
+
+        if d00 > d10 and d01 <= d11:
+            self.lines.crossover[0] = 1.0
+        elif d00 < d10 and d01 >= d11:
+            self.lines.crossover[0] = -1.0
+        else:
+            self.lines.crossover[0] = 0.0
+
+    def once(self, start, end):
+        d0 = self.data0.array
+        d1 = self.data1.array
+        out = self.lines.crossover.array
+
+        # Ensure output sized
+        while len(out) < end:
+            out.append(0.0)
+
+        # Start from max(start,1) because we need previous bar
+        i0 = max(start, 1)
+        for i in range(i0, end):
+            d00 = d0[i]
+            d10 = d1[i]
+            d01 = d0[i - 1]
+            d11 = d1[i - 1]
+
+            if d00 > d10 and d01 <= d11:
+                out[i] = 1.0
+            elif d00 < d10 and d01 >= d11:
+                out[i] = -1.0
+            else:
+                out[i] = 0.0

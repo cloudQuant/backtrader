@@ -3,6 +3,7 @@
 import functools
 import math
 import operator
+from collections import deque
 
 from ..utils.py3 import map, range
 
@@ -102,6 +103,29 @@ class Highest(OperationN):
     lines = ("highest",)
     func = max
 
+    def once(self, start, end):
+        dst = self.lines[0].array
+        src = self.data.array
+        period = self.p.period
+
+        i0 = start
+        left = i0 - period + 1
+        dq = deque()
+        for j in range(left, i0 + 1):
+            while dq and src[dq[-1]] <= src[j]:
+                dq.pop()
+            dq.append(j)
+        dst[i0] = src[dq[0]]
+
+        for i in range(i0 + 1, end):
+            left = i - period + 1
+            while dq and dq[0] < left:
+                dq.popleft()
+            while dq and src[dq[-1]] <= src[i]:
+                dq.pop()
+            dq.append(i)
+            dst[i] = src[dq[0]]
+
 
 # 计算过去N个周期的最低价
 class Lowest(OperationN):
@@ -117,6 +141,29 @@ class Lowest(OperationN):
     alias = ("MinN",)
     lines = ("lowest",)
     func = min
+
+    def once(self, start, end):
+        dst = self.lines[0].array
+        src = self.data.array
+        period = self.p.period
+
+        i0 = start
+        left = i0 - period + 1
+        dq = deque()
+        for j in range(left, i0 + 1):
+            while dq and src[dq[-1]] >= src[j]:
+                dq.pop()
+            dq.append(j)
+        dst[i0] = src[dq[0]]
+
+        for i in range(i0 + 1, end):
+            left = i - period + 1
+            while dq and dq[0] < left:
+                dq.popleft()
+            while dq and src[dq[-1]] >= src[i]:
+                dq.pop()
+            dq.append(i)
+            dst[i] = src[dq[0]]
 
 
 # 模仿python的reduce功能
@@ -165,6 +212,22 @@ class SumN(OperationN):
     lines = ("sumn",)
     func = math.fsum
 
+    def once(self, start, end):
+        dst = self.lines[0].array
+        src = self.data.array
+        period = self.p.period
+
+        i0 = start
+        base = i0 - period + 1
+        wsum = 0.0
+        for j in range(base, i0 + 1):
+            wsum += src[j]
+        dst[i0] = wsum
+
+        for i in range(i0 + 1, end):
+            wsum += src[i] - src[i - period]
+            dst[i] = wsum
+
 
 # 如果过去N周期有一个是True，就返回True
 class AnyN(OperationN):
@@ -181,6 +244,22 @@ class AnyN(OperationN):
     lines = ("anyn",)
     func = any
 
+    def once(self, start, end):
+        dst = self.lines[0].array
+        src = self.data.array
+        period = self.p.period
+
+        i0 = start
+        base = i0 - period + 1
+        cnt = 0
+        for j in range(base, i0 + 1):
+            cnt += 1 if bool(src[j]) else 0
+        dst[i0] = 1.0 if cnt > 0 else 0.0
+
+        for i in range(i0 + 1, end):
+            cnt += (1 if bool(src[i]) else 0) - (1 if bool(src[i - period]) else 0)
+            dst[i] = 1.0 if cnt > 0 else 0.0
+
 
 # 如果过去N周期所有的都是True，就返回True
 class AllN(OperationN):
@@ -196,6 +275,22 @@ class AllN(OperationN):
 
     lines = ("alln",)
     func = all
+
+    def once(self, start, end):
+        dst = self.lines[0].array
+        src = self.data.array
+        period = self.p.period
+
+        i0 = start
+        base = i0 - period + 1
+        cnt = 0
+        for j in range(base, i0 + 1):
+            cnt += 1 if bool(src[j]) else 0
+        dst[i0] = 1.0 if cnt == period else 0.0
+
+        for i in range(i0 + 1, end):
+            cnt += (1 if bool(src[i]) else 0) - (1 if bool(src[i - period]) else 0)
+            dst[i] = 1.0 if cnt == period else 0.0
 
 
 # 返回满足条件的最早出现的数据
@@ -381,8 +476,16 @@ class Average(PeriodN):
         dst = self.lines[0].array
         period = self.p.period
 
-        for i in range(start, end):
-            dst[i] = math.fsum(src[i - period + 1 : i + 1]) / period
+        i0 = start
+        base = i0 - period + 1
+        wsum = 0.0
+        for j in range(base, i0 + 1):
+            wsum += src[j]
+        dst[i0] = wsum / period
+
+        for i in range(i0 + 1, end):
+            wsum += src[i] - src[i - period]
+            dst[i] = wsum / period
 
 
 # 计算指数平均值

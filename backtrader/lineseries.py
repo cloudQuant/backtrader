@@ -113,7 +113,17 @@ class LinesManager:
         
         setattr(clsmodule, newclsname, newcls)
 
-        # Set line aliases
+        # CRITICAL FIX: Copy inherited line descriptors from base class
+        # This ensures that parent lines like 'bot', 'top', 'mid' are accessible in subclasses
+        if not linesoverride and hasattr(base_class, '_lines'):
+            for idx, linealias in enumerate(base_class._lines):
+                if not isinstance(linealias, string_types):
+                    linealias = linealias[0]
+                # Always set the descriptor on the new class (don't check hasattr)
+                desc = LineAlias(idx)
+                setattr(newcls, linealias, desc)
+
+        # Set line aliases for new lines
         l2start = len(getattr(base_class, '_lines', ())) if not linesoverride else 0
         
         for line, linealias in enumerate(lines2add, start=l2start):
@@ -844,9 +854,6 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 pass
             
             if is_indicator:
-                print(f"LineSeries.__setattr__: Setting indicator '{name}' = {value.__class__} (value: {value})")
-                print(f"LineSeries.__setattr__: Indicator '{name}' class: {value.__class__.__name__}")
-                
                 # Set the indicator as an attribute
                 object.__setattr__(self, name, value)
                 
@@ -877,7 +884,6 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             
             # CRITICAL FIX: Handle data assignment
             if name.startswith('data') and (safe_hasattr(value, '_name') or safe_hasattr(value, 'lines')):
-                print(f"LineSeries.__setattr__: Detected indicator for '{name}': {value.__class__}")
                 object.__setattr__(self, name, value)
                 return
             
@@ -1097,15 +1103,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         self.lines.extend(value, size)
 
     def reset(self, value=0.0):
-        print(f"DEBUG LineSeries.reset() called for {self.__class__.__name__}")
         self.lines.reset()
         # CRITICAL FIX for runonce mode: reset idx to -1 while keeping array data
         for line in self.lines:
-            print(f"  Resetting line: {line}, has idx: {hasattr(line, 'idx')}")
             if hasattr(line, 'idx'):
-                old_idx = line.idx
                 line.idx = -1
-                print(f"    Reset idx from {old_idx} to {line.idx}")
             if hasattr(line, 'lencount'):
                 line.lencount = 0
 

@@ -402,7 +402,10 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         # CRITICAL FIX: Always check opstage first to determine behavior
         if self._opstage == 2:
             # In stage2, return actual boolean values for direct use in strategies
-            self_value = self[0] if hasattr(self, '__getitem__') else 0.0
+            try:
+                self_value = self.lines[0][0] if hasattr(self, 'lines') else (self[0] if hasattr(self, '__getitem__') else 0.0)
+            except Exception:
+                self_value = 0.0
             
             # Handle None values and convert to floats for comparison
             if self_value is None:
@@ -412,6 +415,12 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 if math.isnan(self_value):
                     self_value = 0.0
                     
+            # Resolve other value if it's a line-like object
+            try:
+                if hasattr(other, 'lines'):
+                    other = other.lines[0][0]
+            except Exception:
+                pass
             if other is None:
                 other = 0.0
             elif isinstance(other, float):
@@ -433,7 +442,10 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         # CRITICAL FIX: Always check opstage first to determine behavior
         if self._opstage == 2:
             # In stage2, return actual boolean values for direct use in strategies
-            self_value = self[0] if hasattr(self, '__getitem__') else 0.0
+            try:
+                self_value = self.lines[0][0] if hasattr(self, 'lines') else (self[0] if hasattr(self, '__getitem__') else 0.0)
+            except Exception:
+                self_value = 0.0
             
             # Handle None values and convert to floats for comparison
             if self_value is None:
@@ -464,7 +476,10 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         # CRITICAL FIX: Always check opstage first to determine behavior
         if self._opstage == 2:
             # In stage2, return actual boolean values for direct use in strategies
-            self_value = self[0] if hasattr(self, '__getitem__') else 0.0
+            try:
+                self_value = self.lines[0][0] if hasattr(self, 'lines') else (self[0] if hasattr(self, '__getitem__') else 0.0)
+            except Exception:
+                self_value = 0.0
             
             # Handle None values and convert to floats for comparison
             if self_value is None:
@@ -495,7 +510,10 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         # CRITICAL FIX: Always check opstage first to determine behavior
         if self._opstage == 2:
             # In stage2, return actual boolean values for direct use in strategies
-            self_value = self[0] if hasattr(self, '__getitem__') else 0.0
+            try:
+                self_value = self.lines[0][0] if hasattr(self, 'lines') else (self[0] if hasattr(self, '__getitem__') else 0.0)
+            except Exception:
+                self_value = 0.0
             
             # Handle None values and convert to floats for comparison
             if self_value is None:

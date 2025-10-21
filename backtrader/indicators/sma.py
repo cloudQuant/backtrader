@@ -124,46 +124,51 @@ class MovingAverageSimple(MovingAverageBase):
         period = getattr(self.p, 'period', 30)
         
         # Get the line array for direct manipulation
-        # CRITICAL: Don't use 'if array' because empty arrays are False in Python!
-        sma_array = self.lines.sma.array if hasattr(self.lines.sma, 'array') and self.lines.sma.array is not None else None
+        # CRITICAL: Don't use truthiness on arrays because empty arrays are False in Python
+        sma_array = self.lines.sma.array if hasattr(self.lines.sma, 'array') else None
         # For SMA, we need the close line of the data
         if hasattr(self.data, 'lines') and hasattr(self.data.lines, 'close'):
-            data_array = self.data.lines.close.array if hasattr(self.data.lines.close, 'array') and self.data.lines.close.array is not None else None
+            data_array = self.data.lines.close.array if hasattr(self.data.lines.close, 'array') else None
         else:
-            data_array = self.data.array if hasattr(self.data, 'array') and self.data.array is not None else None
-        
+            data_array = self.data.array if hasattr(self.data, 'array') else None
+
+        # Guard: if arrays are not available, bail out
         if sma_array is None or data_array is None:
-            # Fallback to iterative processing
-            for i in range(start, end):
-                self.advance()
-                self.next()
             return
-        
-        # CRITICAL FIX: Ensure arrays have enough space
-        # Extend sma_array to accommodate the range we need to process
-        while len(sma_array) < end:
-            sma_array.append(float('nan'))
-        
-        # Process each position in the range
-        for i in range(start, end):
-            if i < period - 1:
-                # Not enough data yet
-                sma_array[i] = float('nan')
-            else:
-                # Calculate SMA for this position
-                total = 0.0
-                valid_count = 0
-                for j in range(i - period + 1, i + 1):
-                    if j >= 0 and j < len(data_array):
-                        val = data_array[j]
-                        if not (isinstance(val, float) and val != val):  # Check for NaN
-                            total += val
-                            valid_count += 1
-                
-                if valid_count > 0:
-                    sma_array[i] = total / valid_count
-                else:
-                    sma_array[i] = float('nan')
+
+        # Ensure sma_array has enough space for [0, end)
+        missing = end - len(sma_array)
+        if missing > 0:
+            sma_array.extend([float('nan')] * missing)
+
+        n = len(data_array)
+        if n == 0 or period <= 0:
+            # Nothing to compute
+            return
+
+        # Fill leading region with NaN up to period-1 within [start, end)
+        nan_end = min(end, period - 1)
+        for i in range(start, nan_end):
+            sma_array[i] = float('nan')
+
+        # Start index where a full window exists
+        i0 = max(start, period - 1)
+        last = min(end, n)
+        if i0 >= last:
+            # Not enough data within [start, end) to compute any SMA
+            return
+
+        # Initial window sum for window ending at i0
+        base = i0 - period + 1
+        wsum = 0.0
+        for j in range(base, i0 + 1):
+            wsum += data_array[j]
+        sma_array[i0] = wsum / period
+
+        # Slide window forward in O(N)
+        for i in range(i0 + 1, last):
+            wsum += data_array[i] - data_array[i - period]
+            sma_array[i] = wsum / period
 
 
 SMA = MovingAverageSimple

@@ -1130,18 +1130,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
     def reset(self):
         """CRITICAL FIX: Override reset to also reset indicators in runonce mode"""
-        print(f"DEBUG LineIterator.reset() for {self.__class__.__name__}, has _lineiterators: {hasattr(self, '_lineiterators')}")
-        
         # Reset own lines first
         super().reset()
         
         # Reset all child indicators (critical for runonce mode)
         if hasattr(self, '_lineiterators'):
             for key, lineiterators_list in self._lineiterators.items():
-                print(f"  Processing _lineiterators[{key}], count={len(lineiterators_list)}")
                 for lineiterator in lineiterators_list:
                     if hasattr(lineiterator, 'reset'):
-                        print(f"    Resetting child: {lineiterator.__class__.__name__}")
                         lineiterator.reset()
     
     def qbuffer(self, savemem=0):

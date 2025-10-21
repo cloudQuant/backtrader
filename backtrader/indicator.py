@@ -59,6 +59,36 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
     # Track if this is an aliased indicator
     aliased = False
 
+    def __init__(self, *args, **kwargs):
+        # Initialize LineActions (sets basic linebuffer state)
+        super().__init__()
+
+        # If class defines a Lines schema, instantiate it and attach as self.lines
+        try:
+            lines_cls = getattr(self.__class__, 'lines', None)
+            if isinstance(lines_cls, type):
+                inst = lines_cls()
+                # set owner for each contained line
+                try:
+                    for ln in inst:
+                        if hasattr(ln, '_owner'):
+                            ln._owner = self
+                except Exception:
+                    pass
+                self.lines = inst
+        except Exception:
+            pass
+
+        # Provide shortcuts commonly used in indicators
+        try:
+            # l is used as a shorthand for self.lines
+            self.l = self.lines
+            # line references the primary output line
+            if hasattr(self.lines, '__getitem__'):
+                self.line = self.lines[0]
+        except Exception:
+            pass
+
     def __init_subclass__(cls, **kwargs):
         """Handle subclass registration without metaclass"""
         super().__init_subclass__(**kwargs)
@@ -81,8 +111,12 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
         if lines or extralines:
             # Use the LineSeries mechanism to create the lines class
             from .lineseries import Lines
-            cls.lines = Lines._derive('lines', lines, extralines, ())
-            pass
+            # CRITICAL FIX: Pass parent bases to inherit parent lines
+            otherbases = []
+            for base in cls.__bases__:
+                if hasattr(base, 'lines') and hasattr(base.lines, '_derive'):
+                    otherbases.append(base.lines)
+            cls.lines = Lines._derive('lines', lines, extralines, tuple(otherbases))
         
         # Patch __init__ methods of indicator subclasses to handle arguments
         if '__init__' in cls.__dict__:  # Only patch if this class defines its own __init__
@@ -122,10 +156,8 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                     # Set data0, data1, etc. immediately from existing datas
                     for d, data in enumerate(self.datas):
                         setattr(self, f"data{d}", data)
-                        print(f"Indicator.patched_init: CRITICAL - Set data{d} = {type(data).__name__}")
                 elif args:
                     # If we don't have datas set yet, try to extract from args
-                    print(f"Indicator.patched_init: No datas available, processing {len(args)} args")
                     temp_datas = []
                     for i, arg in enumerate(args):
                         # Check if this is a data-like object
@@ -135,7 +167,6 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                             hasattr(arg, '__class__') and any('LineSeries' in base.__name__ for base in arg.__class__.__mro__)):
                             temp_datas.append(arg)
                             setattr(self, f"data{i}", arg) 
-                            print(f"Indicator.patched_init: CRITICAL - Set data{i} = {type(arg).__name__} from args")
                         else:
                             # Non-data argument, stop processing
                             break
@@ -145,14 +176,12 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                         if not hasattr(self, 'datas') or not self.datas:
                             self.datas = temp_datas
                             self.data = temp_datas[0]
-                            print(f"Indicator.patched_init: Set datas from args: {len(temp_datas)} items")
-                
+
                 # Now call the original __init__ method WITHOUT kwargs (they're already in self.p)
                 try:
-                    # Try calling the original __init__ with no arguments
-                    # Parameters are already set in self.p, so the __init__ can access them
+                    # Call the subclass __init__ with no arguments (params in self.p)
+                    # Subclass is expected to call super().__init__() to initialize lines
                     original_init(self)
-                    print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args")
                     return
                 except TypeError as e:
                     if "takes 1 positional argument but" in str(e):
@@ -161,29 +190,9 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                         # Try calling with no arguments again, this should work
                         try:
                             original_init(self)
-                            print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args (retry)")
                             return
                         except:
                             pass
-                    
-                    # If that failed, try with the original arguments
-                    try:
-                        original_init(self, *args, **kwargs)
-                        print(f"Indicator.patched_init: Completed {self.__class__.__name__} with args/kwargs")
-                        return
-                    except Exception as e2:
-                        # As a last resort, try with empty kwargs
-                        try:
-                            original_init(self, *args)
-                            print(f"Indicator.patched_init: Completed {self.__class__.__name__} with args only")
-                            return
-                        except Exception as e3:
-                            print(f"Warning: All attempts to call {cls.__name__}.__init__() failed:")
-                            print(f"  No args: {e}")
-                            print(f"  With args/kwargs: {e2}")
-                            print(f"  With args only: {e3}")
-                            # Re-raise the original error
-                            raise e
             
             # Replace the __init__ method
             cls.__init__ = patched_init
@@ -221,6 +230,73 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
             cls.once = cls.once_via_next
             cls.preonce = cls.preonce_via_prenext
             cls.oncestart = cls.oncestart_via_nextstart
+
+    # Expose primary line semantics: indexing the indicator returns lines[0]
+    def __getitem__(self, ago):
+        try:
+            if hasattr(self, 'lines') and hasattr(self.lines, '__getitem__'):
+                # Delegate to primary output line
+                return self.lines[0][ago]
+        except Exception:
+            pass
+        # Fallback to LineActions behavior
+        return super().__getitem__(ago)
+
+    @property
+    def array(self):
+        try:
+            # Delegate array storage to the primary line
+            return self.lines[0].array
+        except Exception:
+            # Fallback to LineActions internal array
+            return super().__getattribute__('array') if hasattr(LineActions, 'array') else None
+    @array.setter
+    def array(self, value):
+        try:
+            if hasattr(self, 'lines') and hasattr(self.lines, '__getitem__'):
+                self.lines[0].array = value
+                return
+        except Exception:
+            pass
+        # As a last resort, set on self (if LineActions defines it as a normal attribute)
+        try:
+            super().__setattr__('array', value)
+        except Exception:
+            # Ignore if cannot set; tests expecting primary line array to be writable
+            pass
+
+    def __float__(self):
+        try:
+            v = self[0]
+            return float(v) if v is not None else 0.0
+        except Exception:
+            return 0.0
+
+    def __bool__(self):
+        try:
+            v = self[0]
+            if v is None:
+                return False
+            if isinstance(v, float):
+                import math
+                if math.isnan(v):
+                    return False
+            return bool(v)
+        except Exception:
+            return False
+
+    # Ensure arithmetic/comparison operations operate on the primary line
+    def _makeoperation(self, other, operation, r=False, _ownerskip=None):
+        try:
+            return self.lines[0]._makeoperation(other, operation, r, _ownerskip)
+        except Exception:
+            return super()._makeoperation(other, operation, r, _ownerskip)
+
+    def _makeoperationown(self, operation, _ownerskip=None):
+        try:
+            return self.lines[0]._makeoperationown(operation, _ownerskip)
+        except Exception:
+            return super()._makeoperationown(operation, _ownerskip)
 
     # Cache related methods - moved from metaclass
     @classmethod

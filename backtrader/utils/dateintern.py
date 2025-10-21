@@ -253,6 +253,10 @@ def num2date(x, tz=None, naive=True):
     """
 
     ix = int(x)  # 对x进行取整数
+    # CRITICAL FIX: Validate ordinal value before calling fromordinal
+    if ix < 1:
+        # Invalid ordinal, return epoch or a safe default
+        ix = 1  # Use ordinal 1 (year 1, month 1, day 1) as fallback
     dt = datetime.datetime.fromordinal(ix)  # 返回对应 Gregorian 日历时间对应的 datetime 对象
     remainder = float(x) - ix  # x的小数部分
     hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)  # 小时

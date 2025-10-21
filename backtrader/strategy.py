@@ -303,7 +303,7 @@ class Strategy(StrategyBase):
         # Clean up the temporary attribute
         if hasattr(self, '_strategy_init_kwargs'):
             delattr(self, '_strategy_init_kwargs')
-        
+
         print(f"Strategy.__init__: Completed initialization with {len(self.datas)} datas and clock: {type(self._clock).__name__}")
 
     # line类型是策略类型
@@ -630,7 +630,8 @@ class Strategy(StrategyBase):
     # _next方法,获取最小数据周期状态，并且添加给analyzer和observer中，然后clear
     def _next(self):
         super(Strategy, self)._next()
-
+        # Note: Indicators are already calculated by LineIterator._next()
+        # No need to call indicator._next() again here
         minperstatus = self._getminperstatus()
         self._next_analyzers(minperstatus)
         self._next_observers(minperstatus)
@@ -688,6 +689,18 @@ class Strategy(StrategyBase):
     def _start(self):
         # 获取并设置需要的最小周期
         self._periodset()
+        
+        # CRITICAL FIX: Switch all indicators to stage2 so comparisons return booleans
+        # This must happen AFTER indicator construction completes
+        try:
+            for indicator in self._lineiterators[LineIterator.IndType]:
+                try:
+                    indicator._stage2()
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        
         # analyzer开始
         for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
             analyzer._start()
