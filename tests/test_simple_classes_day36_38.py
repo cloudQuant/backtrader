@@ -14,9 +14,6 @@ import sys
 import os
 from datetime import datetime, timedelta
 
-# Add the backtrader directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from backtrader.parameters import ParameterDescriptor, ParameterizedBase
 from backtrader.sizer import Sizer
 from backtrader.sizers.fixedsize import FixedSize, FixedReverser, FixedSizeTarget

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
+from .indicator import Indicator
 
 # 创建不同的SIGNAL类型
 (
@@ -40,7 +40,7 @@ SignalTypes = [
 
 
 # 继承指标，创建一个signal指标
-class Signal(bt.Indicator):
+class Signal(Indicator):
     # 信号类型
     SignalTypes = SignalTypes
     # 创建了一个signal的line

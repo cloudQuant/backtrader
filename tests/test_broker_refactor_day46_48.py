@@ -11,9 +11,6 @@ import os
 import datetime
 from unittest.mock import Mock, patch
 
-# Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 # Import broker modules
 from backtrader import broker as bt_broker
 from backtrader.brokers import bbroker

@@ -12,7 +12,6 @@ This test validates that all systems work together correctly:
 
 import sys
 import os
-sys.path.insert(0, os.path.abspath('.'))
 
 import backtrader as bt
 from backtrader.brokers.bbroker import BackBroker

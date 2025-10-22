@@ -1,12 +1,12 @@
-import backtrader as bt
+from ..comminfo import CommInfoBase
 
 
-class ComminfoDC(bt.CommInfoBase):
+class ComminfoDC(CommInfoBase):
     """实现一个数字货币的佣金类"""
 
     params = (
         ("stocklike", False),
-        ("commtype", bt.CommInfoBase.COMM_PERC),
+        ("commtype", CommInfoBase.COMM_PERC),
         ("percabs", True),
         ("interest", 3),
     )

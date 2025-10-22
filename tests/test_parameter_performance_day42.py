@@ -18,9 +18,6 @@ import tracemalloc
 from typing import Any, List, Dict
 from collections import namedtuple
 
-# Add the backtrader directory to the Python path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-
 from backtrader.parameters import (
     ParameterDescriptor, ParameterManager, ParameterizedBase,
     Int, Float, OneOf, String

@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 
-import backtrader as bt
+from ..sizer import Sizer
 from ..parameters import ParameterDescriptor, Float
 
 __all__ = ["PercentSizer", "AllInSizer", "PercentSizerInt", "AllInSizerInt"]
 
 
 # 百分比手数，根据可以利用的现金的百分比下单
-class PercentSizer(bt.Sizer):
+class PercentSizer(Sizer):
     """This sizer return percentages of available cash
 
     This class has been refactored from legacy params tuple to the new 

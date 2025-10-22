@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 import sys
 import os
-sys.path.insert(0, '.')
-sys.path.insert(0, 'tests')
-sys.path.insert(0, 'tests/original_tests')
-
 import testcommon
 import backtrader as bt
 

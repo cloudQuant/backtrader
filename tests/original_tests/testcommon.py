@@ -24,8 +24,8 @@ import os.path
 import sys
 from math import factorial
 
-# append module root directory to sys.path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# No longer need sys.path manipulation with pip install -e .
+# sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import backtrader as bt
 import backtrader.utils.flushfile

@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
+from ..sizer import Sizer
 from ..parameters import ParameterDescriptor, Int
 
 
 # 固定手数类，如果下单的时候没有指定size,将会默认调用一个sizer
-class FixedSize(bt.Sizer):
+class FixedSize(Sizer):
     """
     This sizer simply returns a fixed size for any operation.
     Size can be controlled by the number of tranches that a system
@@ -57,7 +57,7 @@ SizerFix = FixedSize
 
 
 # 如果是开仓，使用stake手，如果是反手，使用两倍的stake手
-class FixedReverser(bt.Sizer):
+class FixedReverser(Sizer):
     """This sizer returns the needes fixed size to reverse an open position or
     the fixed size to open one
 
@@ -87,7 +87,7 @@ class FixedReverser(bt.Sizer):
 
 # 固定目标手数，如果tranches大于1的话，会先把stake分成tranches份，然后计算当前持仓和每份持仓与stake的大小，选择比较小的作为下单的手数
 # 如果tranches不大于1，直接使用stake手数
-class FixedSizeTarget(bt.Sizer):
+class FixedSizeTarget(Sizer):
     """
     This sizer simply returns a fixed target size, useful when coupled
     with Target Orders and specifically ``cerebro.target_order_size()``.
