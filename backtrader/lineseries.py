@@ -203,7 +203,7 @@ class Lines(object):
             # CRITICAL FIX: Limit size to prevent memory exhaustion and infinite loops
             MAX_ITER_SIZE = 10000  # Reasonable maximum for iteration
             if size_val > MAX_ITER_SIZE:
-                print(f"WARNING: itersize() size {size_val} exceeds maximum {MAX_ITER_SIZE}, limiting")
+                # print(f"WARNING: itersize() size {size_val} exceeds maximum {MAX_ITER_SIZE}, limiting")
                 size_val = MAX_ITER_SIZE
             elif size_val < 0:
                 size_val = 0
@@ -296,7 +296,7 @@ class Lines(object):
                 # CRITICAL FIX: Prevent creating absurd numbers of lines
                 if line >= MAX_REASONABLE_LINES:
                     # This is likely an error - return None instead of creating thousands of lines
-                    print(f"WARNING: Attempted to access line {line}, which exceeds reasonable limit. Returning None.")
+                    # print(f"WARNING: Attempted to access line {line}, which exceeds reasonable limit. Returning None.")
                     return None
                 
                 # Create additional lines if needed up to the requested index (with limit)
@@ -844,8 +844,9 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 pass
             
             if is_indicator:
-                print(f"LineSeries.__setattr__: Setting indicator '{name}' = {value.__class__} (value: {value})")
-                print(f"LineSeries.__setattr__: Indicator '{name}' class: {value.__class__.__name__}")
+                # print(f"LineSeries.__setattr__: Setting indicator '{name}' = {value.__class__} (value: {value})")
+                # print(f"LineSeries.__setattr__: Indicator '{name}' class: {value.__class__.__name__}")
+                pass
                 
                 # Set the indicator as an attribute
                 object.__setattr__(self, name, value)
@@ -877,7 +878,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             
             # CRITICAL FIX: Handle data assignment
             if name.startswith('data') and (safe_hasattr(value, '_name') or safe_hasattr(value, 'lines')):
-                print(f"LineSeries.__setattr__: Detected indicator for '{name}': {value.__class__}")
+                # print(f"LineSeries.__setattr__: Detected indicator for '{name}': {value.__class__}")
                 object.__setattr__(self, name, value)
                 return
             

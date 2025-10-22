@@ -101,7 +101,7 @@ class Strategy(StrategyBase):
             
         # Create p property for parameter access
         instance.p = instance._params_instance
-        print(f"Strategy.__new__: Set parameters for {cls.__name__}: chkind={getattr(instance.p, 'chkind', 'NOT_SET')}")
+        # print(f"Strategy.__new__: Set parameters for {cls.__name__}: chkind={getattr(instance.p, 'chkind', 'NOT_SET')}")
         
         # Handle method renaming like the old MetaStrategy.__new__ did
         if hasattr(cls, 'notify') and not hasattr(cls, 'notify_order'):
@@ -147,13 +147,14 @@ class Strategy(StrategyBase):
         # CRITICAL FIX: Ensure datas are properly assigned before any user __init__ is called
         # The strategy should get its data from cerebro/broker but this isn't happening correctly
         if not hasattr(self, 'datas') or not self.datas:
-            print(f"Strategy.__init__: CRITICAL - No datas assigned yet, searching for data sources...")
+            # print(f"Strategy.__init__: CRITICAL - No datas assigned yet, searching for data sources...")
+            pass
             
             # Method 1: Try to get data from cerebro in the object hierarchy
             if hasattr(self, 'cerebro') and self.cerebro is not None:
                 if hasattr(self.cerebro, 'datas') and self.cerebro.datas:
                     self.datas = list(self.cerebro.datas)
-                    print(f"Strategy.__init__: Found {len(self.datas)} datas from cerebro")
+                    # print(f"Strategy.__init__: Found {len(self.datas)} datas from cerebro")
                 elif hasattr(self.cerebro, 'runstrategies') and hasattr(self.cerebro, '_runonce'):
                     # Try to get data from cerebro's data feeds
                     try:
@@ -166,12 +167,13 @@ class Strategy(StrategyBase):
                                         if not hasattr(self, 'datas'):
                                             self.datas = []
                                         self.datas.append(item)
-                                        print(f"Strategy.__init__: Found data: {getattr(item, '_name', 'Unknown')}")
+                                        # print(f"Strategy.__init__: Found data: {getattr(item, '_name', 'Unknown')}")
                                         break
                                 if hasattr(self, 'datas') and self.datas:
                                     break
                     except Exception as e:
-                        print(f"Strategy.__init__: Error searching cerebro: {e}")
+                        # print(f"Strategy.__init__: Error searching cerebro: {e}")
+                        pass
             
             # Method 2: Try to find data from args (this is the main data source)
             if (not hasattr(self, 'datas') or not self.datas) and args:
@@ -180,20 +182,20 @@ class Strategy(StrategyBase):
                     # Check if arg looks like a data feed
                     if hasattr(arg, 'lines') and hasattr(arg, '_name') and hasattr(arg, 'datetime'):
                         potential_datas.append(arg)
-                        print(f"Strategy.__init__: Found data from args: {getattr(arg, '_name', 'Unknown')}")
+                        # print(f"Strategy.__init__: Found data from args: {getattr(arg, '_name', 'Unknown')}")
                     elif hasattr(arg, '__iter__') and not isinstance(arg, str):
                         # arg might be a collection of data feeds
                         try:
                             for item in arg:
                                 if hasattr(item, 'lines') and hasattr(item, '_name') and hasattr(item, 'datetime'):
                                     potential_datas.append(item)
-                                    print(f"Strategy.__init__: Found data from arg collection: {getattr(item, '_name', 'Unknown')}")
+                                    # print(f"Strategy.__init__: Found data from arg collection: {getattr(item, '_name', 'Unknown')}")
                         except Exception:
                             pass
                 
                 if potential_datas:
                     self.datas = potential_datas
-                    print(f"Strategy.__init__: Set {len(self.datas)} datas from args")
+                    # print(f"Strategy.__init__: Set {len(self.datas)} datas from args")
             
             # Method 3: Search through the call stack to find cerebro with data
             if not hasattr(self, 'datas') or not self.datas:
@@ -212,36 +214,37 @@ class Strategy(StrategyBase):
                                 # This looks like cerebro
                                 if hasattr(var_value, 'datas') and var_value.datas:
                                     self.datas = list(var_value.datas)
-                                    print(f"Strategy.__init__: Found {len(self.datas)} datas from call stack cerebro")
+                                    # print(f"Strategy.__init__: Found {len(self.datas)} datas from call stack cerebro")
                                     break
                         
                         if hasattr(self, 'datas') and self.datas:
                             break
                 except Exception as e:
-                    print(f"Strategy.__init__: Error during call stack search: {e}")
+                    # print(f"Strategy.__init__: Error during call stack search: {e}")
+                    pass
                 finally:
                     del frame
             
             # Final fallback: create an empty list to prevent crashes
             if not hasattr(self, 'datas'):
                 self.datas = []
-                print(f"Strategy.__init__: WARNING - No datas found, setting empty list")
+                # print(f"Strategy.__init__: WARNING - No datas found, setting empty list")
         
         # Set up primary data reference and data0/data1 aliases
         if self.datas:
             self.data = self.datas[0]
             for d, data in enumerate(self.datas):
                 setattr(self, f"data{d}", data)
-            print(f"Strategy.__init__: Set primary data and aliases for {len(self.datas)} datas")
+            # print(f"Strategy.__init__: Set primary data and aliases for {len(self.datas)} datas")
         else:
             self.data = None
-            print(f"Strategy.__init__: WARNING - No data available")
+            # print(f"Strategy.__init__: WARNING - No data available")
         
         # Set up clock - this is critical for strategy execution
         if not hasattr(self, '_clock') or self._clock is None:
             if self.datas:
                 self._clock = self.datas[0]
-                print(f"Strategy.__init__: Set clock to first data")
+                # print(f"Strategy.__init__: Set clock to first data")
             else:
                 # Create a minimal clock-like object to prevent crashes
                 class MinimalClock:
@@ -250,7 +253,7 @@ class Strategy(StrategyBase):
                     def __len__(self):
                         return 0
                 self._clock = MinimalClock()
-                print(f"Strategy.__init__: WARNING - Created minimal clock fallback")
+                # print(f"Strategy.__init__: WARNING - Created minimal clock fallback")
         
         # CRITICAL FIX: For TestStrategy, we need to call its __init__ method directly
         # without filtering parameters since TestStrategy.__init__ doesn't take kwargs
@@ -304,7 +307,7 @@ class Strategy(StrategyBase):
         if hasattr(self, '_strategy_init_kwargs'):
             delattr(self, '_strategy_init_kwargs')
         
-        print(f"Strategy.__init__: Completed initialization with {len(self.datas)} datas and clock: {type(self._clock).__name__}")
+        # print(f"Strategy.__init__: Completed initialization with {len(self.datas)} datas and clock: {type(self._clock).__name__}")
 
     # line类型是策略类型
     _ltype = LineIterator.StratType
@@ -550,7 +553,8 @@ class Strategy(StrategyBase):
                         indicator.advance()
             except (AttributeError, TypeError) as e:
                 # 捕获并记录错误，但允许继续执行
-                print(f"Warning: Error in _oncepost for {indicator.__class__.__name__}: {str(e)}")
+                # print(f"Warning: Error in _oncepost for {indicator.__class__.__name__}: {str(e)}")
+                pass
                 # 尝试设置_clock属性
                 if not hasattr(indicator, '_clock') and self.datas:
                     indicator._clock = self.datas[0]
@@ -1374,7 +1378,7 @@ class Strategy(StrategyBase):
         self.log(f"strategy begin to buy, {data.name}, {size}")
         # 如果size不同于0
         if size:
-            print("broker = ", type(self.broker), self.broker)
+            # print("broker = ", type(self.broker), self.broker)
             return self.broker.buy(
                 self,
                 data,
@@ -1425,7 +1429,7 @@ class Strategy(StrategyBase):
         size = size if size is not None else self.getsizing(data, isbuy=False)
         self.log(f"strategy begin to sell, {data.name}, {size}")
         if size:
-            print("broker = ", type(self.broker), self.broker)
+            # print("broker = ", type(self.broker), self.broker)
             return self.broker.sell(
                 self,
                 data,

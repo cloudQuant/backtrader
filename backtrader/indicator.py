@@ -90,7 +90,8 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
             
             def patched_init(self, *args, **kwargs):
                 """Patched __init__ that sets up data0/data1 before calling original __init__"""
-                print(f"Indicator.patched_init: Starting for {self.__class__.__name__} with {len(args)} args")
+                # print(f"Indicator.patched_init: Starting for {self.__class__.__name__} with {len(args)} args")
+                pass
                 
                 # CRITICAL FIX: Set up data0/data1 BEFORE calling any user __init__ methods
                 # This ensures indicators can access self.data0, self.data1 during initialization
@@ -98,10 +99,11 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                     # Set data0, data1, etc. immediately from existing datas
                     for d, data in enumerate(self.datas):
                         setattr(self, f"data{d}", data)
-                        print(f"Indicator.patched_init: CRITICAL - Set data{d} = {type(data).__name__}")
+                        # print(f"Indicator.patched_init: CRITICAL - Set data{d} = {type(data).__name__}")
                 elif args:
                     # If we don't have datas set yet, try to extract from args
-                    print(f"Indicator.patched_init: No datas available, processing {len(args)} args")
+                    # print(f"Indicator.patched_init: No datas available, processing {len(args)} args")
+                    pass
                     temp_datas = []
                     for i, arg in enumerate(args):
                         # Check if this is a data-like object
@@ -110,7 +112,7 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                             hasattr(arg, '__class__') and any('LineSeries' in base.__name__ for base in arg.__class__.__mro__)):
                             temp_datas.append(arg)
                             setattr(self, f"data{i}", arg) 
-                            print(f"Indicator.patched_init: CRITICAL - Set data{i} = {type(arg).__name__} from args")
+                            # print(f"Indicator.patched_init: CRITICAL - Set data{i} = {type(arg).__name__} from args")
                         else:
                             # Non-data argument, stop processing
                             break
@@ -120,14 +122,14 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                         if not hasattr(self, 'datas') or not self.datas:
                             self.datas = temp_datas
                             self.data = temp_datas[0]
-                            print(f"Indicator.patched_init: Set datas from args: {len(temp_datas)} items")
+                            # print(f"Indicator.patched_init: Set datas from args: {len(temp_datas)} items")
                 
                 # Now call the original __init__ method - try different strategies
                 try:
                     # First, try calling the original __init__ with no arguments
                     # This is the most common case for indicators
                     original_init(self)
-                    print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args")
+                    # print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args")
                     return
                 except TypeError as e:
                     if "takes 1 positional argument but" in str(e):
@@ -136,7 +138,7 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                         # Try calling with no arguments again, this should work
                         try:
                             original_init(self)
-                            print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args (retry)")
+                            # print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args (retry)")
                             return
                         except:
                             pass
@@ -144,19 +146,19 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                     # If that failed, try with the original arguments
                     try:
                         original_init(self, *args, **kwargs)
-                        print(f"Indicator.patched_init: Completed {self.__class__.__name__} with args/kwargs")
+                        # print(f"Indicator.patched_init: Completed {self.__class__.__name__} with args/kwargs")
                         return
                     except Exception as e2:
                         # As a last resort, try with empty kwargs
                         try:
                             original_init(self, *args)
-                            print(f"Indicator.patched_init: Completed {self.__class__.__name__} with args only")
+                            # print(f"Indicator.patched_init: Completed {self.__class__.__name__} with args only")
                             return
                         except Exception as e3:
-                            print(f"Warning: All attempts to call {cls.__name__}.__init__() failed:")
-                            print(f"  No args: {e}")
-                            print(f"  With args/kwargs: {e2}")
-                            print(f"  With args only: {e3}")
+                            # print(f"Warning: All attempts to call {cls.__name__}.__init__() failed:")
+                            # print(f"  No args: {e}")
+                            # print(f"  With args/kwargs: {e2}")
+                            # print(f"  With args only: {e3}")
                             # Re-raise the original error
                             raise e
             
