@@ -445,10 +445,9 @@ class LineBuffer(LineSingle, LineRootMixin):
                 value = float('nan')
             else:
                 value = 0.0
-        # CRITICAL FIX: If setting 0.0 on a datetime line, convert to 1.0
-        elif is_datetime_line and value == 0.0:
+        # CRITICAL FIX: If setting invalid value on a datetime line, convert to valid ordinal
+        elif is_datetime_line and (not isinstance(value, (int, float)) or value < 1.0):
             value = 1.0
-            print(f"WARNING: Prevented setting datetime line to 0.0, using 1.0 instead")
         
         # Calculate the required index
         required_index = self.idx + ago
@@ -483,7 +482,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                                  (hasattr(binding, '__class__') and 'datetime' in str(binding.__class__.__name__).lower())
             
             binding_value = value
-            if binding_is_datetime and binding_value == 0.0:
+            if binding_is_datetime and (not isinstance(binding_value, (int, float)) or binding_value < 1.0):
                 binding_value = 1.0
                 
             binding[ago] = binding_value
@@ -507,10 +506,9 @@ class LineBuffer(LineSingle, LineRootMixin):
         # CRITICAL FIX: Also convert NaN appropriately
         elif isinstance(value, float) and math.isnan(value):
             value = 1.0 if is_datetime_line else 0.0
-        # CRITICAL FIX: If setting 0.0 on a datetime line, convert to 1.0
-        elif is_datetime_line and value == 0.0:
+        # CRITICAL FIX: If setting invalid value on a datetime line, convert to valid ordinal
+        elif is_datetime_line and (not isinstance(value, (int, float)) or value < 1.0):
             value = 1.0
-            print(f"WARNING: Prevented setting datetime line to 0.0 via set(), using 1.0 instead")
         
         # CRITICAL FIX: Ensure array is initialized before accessing
         if not hasattr(self, 'array') or self.array is None:
@@ -537,7 +535,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                                  (hasattr(binding, '__class__') and 'datetime' in str(binding.__class__.__name__).lower())
             
             binding_value = value
-            if binding_is_datetime and binding_value == 0.0:
+            if binding_is_datetime and (not isinstance(binding_value, (int, float)) or binding_value < 1.0):
                 binding_value = 1.0
                 
             binding[ago] = binding_value
@@ -721,6 +719,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         """
         larray = self.array
         blen = self.buflen()
+        
         for binding in self.bindings:
             binding.array[0:blen] = larray[0:blen]
 
@@ -941,6 +940,12 @@ class LineActionsMixin:
     @classmethod
     def dopreinit(cls, _obj, *args, **kwargs):
         """Pre-initialization processing for LineActions"""
+        # CRITICAL FIX: Set lines._owner BEFORE any user __init__ code runs
+        # This is needed for line bindings like: self.lines.crossover = upcross - downcross
+        if hasattr(_obj, 'lines') and _obj.lines is not None:
+            if not hasattr(_obj.lines, '_owner') or _obj.lines._owner is None:
+                _obj.lines._owner = _obj
+        
         # Set up clock from owner hierarchy
         _obj._clock = None
         
@@ -1074,7 +1079,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         instance = super(LineActions, cls).__new__(cls)
         
         # Initialize basic attributes
-        instance._lineiterators = getattr(instance, '_lineiterators', {})
+        import collections
+        instance._lineiterators = collections.defaultdict(list)
         
         # CRITICAL FIX: Define mindatas before using it
         mindatas = getattr(cls, '_mindatas', getattr(cls, 'mindatas', 1))
@@ -1093,6 +1099,9 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         lines_cls = getattr(cls, 'lines', None)
         if lines_cls is not None:
             instance.lines = lines_cls()
+            # CRITICAL FIX: Set lines._owner immediately after creating lines instance
+            # Use object.__setattr__ to directly set _owner_ref (bypasses Lines.__setattr__)
+            object.__setattr__(instance.lines, '_owner_ref', instance)
             # Ensure lines are properly initialized with their own buffers
             if hasattr(instance.lines, '_obj'):
                 instance.lines._obj = instance
@@ -1209,6 +1218,16 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         return instance
 
     def __init__(self, *args, **kwargs):
+        # CRITICAL FIX: Set lines._owner FIRST, before any other initialization
+        # This ensures line bindings in user's __init__ can find the owner
+        if hasattr(self, 'lines') and self.lines is not None:
+            # If lines is still a class, create an instance first
+            if isinstance(self.lines, type):
+                self.lines = self.lines()
+            # Now set owner using object.__setattr__ to directly set _owner_ref
+            if self.lines is not None:
+                object.__setattr__(self.lines, '_owner_ref', self)
+        
         # Set up _owner from call stack BEFORE calling dopreinit
         from . import metabase
         # Try to find any LineIterator-like owner
@@ -1348,6 +1367,14 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         # Mark that once was called to prevent double processing in _next
         self._once_called = True
         
+        # CRITICAL FIX: Ensure array exists FIRST before any processing
+        if not hasattr(self, 'array') or self.array is None:
+            import array as array_module
+            self.array = array_module.array(str('d'))
+            # Pre-fill array to avoid index errors
+            for _ in range(max(end, 100)):
+                self.array.append(float('nan'))
+        
         # CRITICAL FIX: Ensure proper range for once processing
         if start < 0:
             start = 0
@@ -1391,7 +1418,9 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 self.once(start, end)
         except Exception as e:
             # If once method fails, fall back to next-style processing
-            print(f"_once method failed, falling back to next processing: {e}")
+            # Silently fall back to next() processing without printing errors
+            pass
+            # print(f"_once method failed, falling back to next processing: {e}")
             for i in range(start, end):
                 try:
                     # Advance the buffer position

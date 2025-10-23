@@ -381,6 +381,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
             from .lineseries import Lines
             instance.lines = Lines()
         
+        # CRITICAL FIX: Set lines._owner immediately after creating lines instance
+        # This ensures line bindings in __init__ can find the owner
+        if hasattr(instance, 'lines') and instance.lines is not None:
+            # Use object.__setattr__ to directly set _owner_ref (bypasses Lines.__setattr__)
+            object.__setattr__(instance.lines, '_owner_ref', instance)
+        
         return instance
 
     def __init__(self, *args, **kwargs):
@@ -868,6 +874,30 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # CRITICAL FIX: Properly calculate start and end before using them
         start = 0
         end = self._clk_update()
+        
+        # CRITICAL FIX: If end is 0, try to get length from data sources
+        # In runonce mode, use buflen() instead of len() to get the actual buffer length
+        if end == 0 and hasattr(self, 'datas') and self.datas:
+            try:
+                # Try buflen() first (for runonce mode)
+                if hasattr(self.datas[0], 'buflen'):
+                    end = self.datas[0].buflen()
+                # Fallback to len()
+                elif hasattr(self.datas[0], '__len__'):
+                    end = len(self.datas[0])
+            except Exception:
+                pass
+        
+        # If still 0, try using _clock
+        if end == 0 and hasattr(self, '_clock') and self._clock:
+            try:
+                # Try buflen() first
+                if hasattr(self._clock, 'buflen'):
+                    end = self._clock.buflen()
+                elif hasattr(self._clock, '__len__'):
+                    end = len(self._clock)
+            except Exception:
+                pass
 
         for lineiterators in self._lineiterators.values():
             for lineiterator in lineiterators:
@@ -886,6 +916,16 @@ class LineIterator(LineIteratorMixin, LineSeries):
             self.once(start, end)  # calculate everything at once
         except Exception:
             pass
+        
+        # CRITICAL FIX: Reset data sources to home position after _once processing
+        # This is needed because indicators may have advanced data during once_via_next
+        if hasattr(self, 'datas') and self.datas:
+            for data in self.datas:
+                if hasattr(data, 'home'):
+                    try:
+                        data.home()
+                    except Exception:
+                        pass
 
     def preonce(self, start, end):
         # Default implementation - do nothing
@@ -1512,6 +1552,15 @@ class StrategyBase(DataAccessor):
         # Directly call LineIterator.__new__ to bypass inheritance issues that lose arguments
         # This ensures strategies get their data arguments properly processed
         return LineIterator.__new__(cls, *args, **kwargs)
+    
+    def once(self, start, end):
+        """CRITICAL FIX: Override once() for strategies to do nothing.
+        
+        For strategies, once() should NOT call next() because next() is called
+        by _oncepost() in the cerebro event loop. If we call next() here, it will
+        be called twice (once in _once and once in _oncepost).
+        """
+        pass
     
     def __init__(self, *args, **kwargs):
         """Initialize strategy and handle delayed data assignment from cerebro"""

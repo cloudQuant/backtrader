@@ -23,19 +23,8 @@ class NonZeroDifference(Indicator):
         d = self.data0[0] - self.data1[0]
         self.l.nzd[0] = d if d else self.l.nzd[-1]
 
-    def oncestart(self, start, end):
-        self.line.array[start] = self.data0.array[start] - self.data1.array[start]
-
-    def once(self, start, end):
-        d0array = self.data0.array
-        d1array = self.data1.array
-        larray = self.line.array
-        
-        prev = larray[start - 1] if start > 0 else 0.0
-        
-        for i in range(start, end):
-            d = d0array[i] - d1array[i]
-            larray[i] = prev = d if d else prev
+    # Don't override once() and oncestart() - let the framework use once_via_next() automatically
+    # The original implementation used self.line.array which doesn't work with our refactored system
 
 
 class _CrossBase(Indicator):

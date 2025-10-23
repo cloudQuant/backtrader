@@ -56,6 +56,23 @@ class LineAlias(object):
         # Hence the need to transform it into a LineDelay object of null delay
         if not isinstance(value, LineActions):
             value = value(0)
+        
+        # CRITICAL FIX: For LinesOperation, ensure it has an owner and is registered
+        if type(value).__name__ == 'LinesOperation':
+            # Get the owner from obj (which is the Lines instance)
+            owner = getattr(obj, '_owner', None)
+            if owner is not None:
+                # Set the LinesOperation's owner if not already set
+                if not hasattr(value, '_owner') or value._owner is None:
+                    value._owner = owner
+                
+                # Add to owner's_lineiterators if not already there
+                if hasattr(owner, '_lineiterators') and hasattr(value, '_ltype'):
+                    from .lineiterator import LineIterator
+                    ltype = getattr(value, '_ltype', LineIterator.IndType)
+                    if value not in owner._lineiterators[ltype]:
+                        owner._lineiterators[ltype].append(value)
+        
         value.addbinding(obj.lines[self.line])
 
 
@@ -230,8 +247,8 @@ class Lines(object):
         Create the lines recording during "_derive" or else use the
         provided "initlines"
         """
-        # CRITICAL FIX: Initialize _owner attribute to support observers
-        self._owner = None
+        # CRITICAL FIX: Don't initialize _owner here - let it be set by LineIterator.__new__
+        # self._owner = None
         
         self.lines = list()
         for line, linealias in enumerate(self._getlines()):
@@ -443,10 +460,23 @@ class Lines(object):
 
     def __getattr__(self, name):
         """Handle missing attributes, especially _owner for observers"""
+        # CRITICAL FIX: First check for class-level descriptors (like LineAlias)
+        # This must be done before any other checks to ensure descriptors work properly
+        if not name.startswith('_'):
+            cls = object.__getattribute__(self, '__class__')
+            if hasattr(cls, name):
+                class_attr = getattr(cls, name)
+                # If it's a descriptor, call its __get__
+                if hasattr(class_attr, '__get__'):
+                    return class_attr.__get__(self, cls)
+        
         # CRITICAL FIX: Handle _owner and other critical attributes first before delegating to lines
         if name == '_owner':
-            # Return None if _owner is not set
-            return None
+            # _owner is stored as _owner_ref to avoid recursion
+            try:
+                return object.__getattribute__(self, '_owner_ref')
+            except AttributeError:
+                return None
         elif name == '_clock':
             # Return the owner's clock if available
             owner = getattr(self, '_owner', None)
@@ -495,8 +525,18 @@ class Lines(object):
         # If attribute is missing, try to delegate to lines
         try:
             lines = object.__getattribute__(self, 'lines')
-            # Check if lines has the attribute or can provide it via __getattr__
-            if hasattr(lines, name):
+            # CRITICAL FIX: Check for class-level descriptors (like LineAlias) first
+            lines_class = lines.__class__
+            if hasattr(lines_class, name):
+                # Get the class attribute (might be a descriptor)
+                class_attr = getattr(lines_class, name)
+                # If it's a descriptor, call its __get__
+                if hasattr(class_attr, '__get__'):
+                    return class_attr.__get__(lines, lines_class)
+                else:
+                    return class_attr
+            # Then check instance attributes
+            elif hasattr(lines, name):
                 return getattr(lines, name)
             elif hasattr(lines, '__getattr__'):
                 try:
@@ -648,6 +688,16 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
     @property
     def array(self):
         return self.lines[0].array
+    
+    @property
+    def line(self):
+        """Return the first line (lines[0]) for single-line indicators"""
+        return self.lines[0]
+    
+    @property
+    def l(self):
+        """Alias for lines - used in indicator next() methods like self.l.sma[0]"""
+        return self.lines
 
     def __getattribute__(self, name):
         """Override to provide attribute access with enhanced error handling"""
@@ -1025,12 +1075,18 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         # defining a __init__ guarantees the existence of im_func to findbases
         # in lineiterator later, because object.__init__ has no im_func
         # (an object has slots)
-        super(LineSeries, self).__init__()
         
-        # Ensure self.lines is an instance if it's currently a class
-        if hasattr(self, 'lines') and isinstance(self.lines, type):
-            # self.lines is a class, create an instance
-            self.lines = self.lines()
+        # CRITICAL FIX: Set lines._owner BEFORE anything else (including super().__init__)
+        # This ensures line bindings in user's __init__ can find the owner
+        if hasattr(self, 'lines'):
+            # If lines is still a class, create an instance first
+            if isinstance(self.lines, type):
+                self.lines = self.lines()
+            # Now set owner
+            if self.lines is not None:
+                object.__setattr__(self.lines, '_owner_ref', self)
+        
+        super(LineSeries, self).__init__()
 
     def plotlabel(self):
         label = self._plotlabel()

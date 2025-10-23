@@ -56,6 +56,19 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
     _ltype = LineIterator.IndType
     # 输出到csv文件被设置成False
     csv = False
+    
+    def __getitem__(self, ago):
+        """CRITICAL FIX: Forward item access to the first line (e.g., sma line)
+        
+        For indicators with named lines like SMA (which has lines.sma), accessing
+        indicator[0] should return the value from the first line, not the indicator's
+        own array.
+        """
+        # Use the first line if available
+        if hasattr(self, 'lines') and hasattr(self.lines, 'lines') and len(self.lines.lines) > 0:
+            return self.lines.lines[0][ago]
+        # Fallback to parent class behavior
+        return super(Indicator, self).__getitem__(ago)
     # Track if this is an aliased indicator
     aliased = False
 
@@ -193,7 +206,16 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
         next_over = getattr(cls, 'next', None) != getattr(Indicator, 'next', None)
         once_over = getattr(cls, 'once', None) != getattr(Indicator, 'once', None)
         
-        if next_over and not once_over:
+        # CRITICAL FIX: Also check if once() is the no-op from LineRoot
+        # If once is inherited from LineRoot (which is just 'pass'), treat it as not overridden
+        # This handles indicators that only set up line bindings without defining next/once
+        from .lineroot import LineRoot
+        if hasattr(LineRoot, 'once') and getattr(cls, 'once', None) == getattr(LineRoot, 'once', None):
+            # LineRoot.once is a no-op, so always use once_via_next
+            cls.once = cls.once_via_next
+            cls.preonce = cls.preonce_via_prenext
+            cls.oncestart = cls.oncestart_via_nextstart
+        elif next_over and not once_over:
             # No -> need pointer movement to once simulation via next
             cls.once = cls.once_via_next
             cls.preonce = cls.preonce_via_prenext
@@ -259,6 +281,30 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
 
             self.advance()
             self.next()
+        
+        # CRITICAL FIX: Execute bindings after once processing
+        # For line bindings like: self.lines.crossover = upcross - downcross
+        # Call oncebinding() on sub-indicators first (they may have bindings too)
+        if hasattr(self, '_lineiterators'):
+            for indicator in self._lineiterators.get(LineIterator.IndType, []):
+                if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                    for line in indicator.lines.lines:
+                        if hasattr(line, 'oncebinding'):
+                            try:
+                                line.oncebinding()
+                            except Exception:
+                                pass
+        
+        # Then call oncebinding() on this indicator's own lines
+        if hasattr(self, 'lines') and hasattr(self.lines, 'lines'):
+            for line in self.lines.lines:
+                if hasattr(line, 'oncebinding'):
+                    try:
+                        line.oncebinding()
+                    except Exception:
+                        pass
+        
+        # Data reset is now handled in LineIterator._once()
 
 
 # 指标画出多条line的类，下面这两个类，在整个项目中并没有使用到
