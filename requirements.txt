@@ -27,6 +27,7 @@ pytest-xdist
 pytest-html
 pytest-ordering
 pytest-mock
+pytest-timeout
 requests-mock
 dash
 ctpbee
