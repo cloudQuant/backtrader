@@ -241,8 +241,8 @@ class LineBuffer(LineSingle, LineRootMixin):
                         return self._clock.lencount
                 
                 # Fallback for indicators without properly linked data sources
-                # No synchronization points found - return safe default
-                return 0
+                # Return own lencount instead of 0
+                return self.lencount
             
             # For non-indicators (strategies, data feeds, etc.), use the processed line length
             if hasattr(self, 'lines') and self.lines:
