@@ -101,14 +101,18 @@ class EnvelopeMixIn(object):
     plotinfo = PlotInfoObj()
 
     def __init__(self):
-        # Mix-in and directly from object -> does not necessarily need super
-        # super(EnvelopeMixIn, self).__init__()
-        perc = self.p.perc / 100.0
+        # CRITICAL FIX: Call super().__init__() first to ensure params and lines are initialized
+        super(EnvelopeMixIn, self).__init__()
+        
+        # Now we can safely use self.p.perc and self.lines[0]
+        # Check if perc parameter exists, use default if not
+        perc_value = getattr(self.p, 'perc', 2.5)
+        if perc_value is None:
+            perc_value = 2.5
+        perc = perc_value / 100.0
 
         self.lines.top = self.lines[0] * (1.0 + perc)
         self.lines.bot = self.lines[0] * (1.0 - perc)
-
-        super(EnvelopeMixIn, self).__init__()
 
 
 # 基础类
