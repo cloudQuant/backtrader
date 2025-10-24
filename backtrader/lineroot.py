@@ -621,6 +621,9 @@ class LineMultiple(LineRoot):
         """
         The passed minperiod is fed to the lines
         """
+        # CRITICAL FIX: Also update self._minperiod
+        self._minperiod = max(self._minperiod, minperiod)
+        
         for line in self.lines:
             line.addminperiod(minperiod)
 

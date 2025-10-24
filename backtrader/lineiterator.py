@@ -338,10 +338,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
     def __new__(cls, *args, **kwargs):
         # This replaces the metaclass functionality
-        # DEBUG
-        if 'Highest' in cls.__name__:
-            print(f"LineIterator.__new__ for {cls.__name__}: kwargs={kwargs}")
-        
         # Create the instance using the normal Python object creation
         instance = super(LineIterator, cls).__new__(cls)
         
@@ -407,10 +403,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
             kwargs = self._init_kwargs
         if hasattr(self, '_init_args') and not args:
             args = self._init_args
-        
-        # DEBUG
-        if 'Highest' in self.__class__.__name__:
-            print(f"LineIterator.__init__ for {self.__class__.__name__}: kwargs={kwargs}")
         
         # CRITICAL FIX: Initialize error tracking before anything else
         self._next_errors = []

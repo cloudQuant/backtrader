@@ -711,32 +711,33 @@ class ParamsMixin(BaseMixin):
                     except Exception:
                         pass
                 
-                # DEBUG
-                if 'PeriodN' in cls.__name__ or 'Highest' in self.__class__.__name__:
-                    print(f"DEBUG patched_init for cls={cls.__name__}, self={self.__class__.__name__}")
-                    print(f"  valid_param_names: {valid_param_names}")
-                    print(f"  kwargs: {kwargs}")
-                    print(f"  param_kwargs will be: {param_kwargs}")
-                
                 # Separate kwargs into param_kwargs and other_kwargs
+                # Also filter out data-related arguments that shouldn't be passed to __init__
+                data_arg_names = {'data', 'data0', 'data1', 'data2', '_clock', '_owner'}
                 for key, value in kwargs.items():
                     if key in valid_param_names:
                         param_kwargs[key] = value
-                    else:
+                    elif key not in data_arg_names:
                         other_kwargs[key] = value
+                    # data_arg_names are silently dropped
                 
-                # Ensure we have parameter instance available before user __init__ runs
+                # CRITICAL FIX: Always update parameter values from param_kwargs
+                # Don't skip if self.p exists - we need to update it with new values
                 if not hasattr(self, 'p') or self.p is None:
                     # Create parameter instance with param_kwargs
                     if hasattr(cls, '_params') and cls._params is not None:
                         try:
                             self.p = cls._params(**param_kwargs)
-                        except Exception:
+                        except Exception as e:
                             from .utils import DotDict
                             self.p = DotDict(param_kwargs)
                     else:
                         from .utils import DotDict
                         self.p = DotDict(param_kwargs)
+                else:
+                    # self.p already exists - update it with param_kwargs
+                    for key, value in param_kwargs.items():
+                        setattr(self.p, key, value)
                 
                 # Also set self.params for backwards compatibility
                 self.params = self.p
@@ -789,8 +790,17 @@ class ParamsMixin(BaseMixin):
                         
                         self._plotinit = default_plotinit
                 
-                # Call original __init__ with other_kwargs (parameter kwargs already processed)
-                return original_init(self, *args, **other_kwargs)
+                # CRITICAL FIX: Filter out data arguments from args before calling original __init__
+                # For indicators, the first few args are data sources which have already been processed
+                filtered_args = []
+                for arg in args:
+                    # Skip data-like objects
+                    if not (hasattr(arg, 'lines') or hasattr(arg, '_name') or 
+                            (hasattr(arg, '__class__') and 'Data' in str(arg.__class__.__name__))):
+                        filtered_args.append(arg)
+                
+                # Call original __init__ with filtered args and other_kwargs (parameter kwargs already processed)
+                return original_init(self, *filtered_args, **other_kwargs)
             
             cls.__init__ = patched_init
         
