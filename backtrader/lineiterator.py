@@ -882,7 +882,10 @@ class LineIterator(LineIteratorMixin, LineSeries):
         except Exception:
             return 0
 
-    def _once(self):
+    def _once(self, start=None, end=None):
+        # CRITICAL FIX: Accept start and end parameters for compatibility with IndicatorBase._once
+        # If not provided, calculate them
+        
         # CRITICAL FIX: Ensure clock and data are available before operations
         # This is especially important for strategies that might have delayed data assignment
         if hasattr(self, '_clock') and self._clock is not None:
@@ -905,22 +908,24 @@ class LineIterator(LineIteratorMixin, LineSeries):
                         return 0.0
                 self._clock = MinimalClock()
 
-        # CRITICAL FIX: Properly calculate start and end before using them
-        start = 0
-        end = self._clk_update()
-        
-        # CRITICAL FIX: If end is 0, try to get length from data sources
-        # In runonce mode, use buflen() instead of len() to get the actual buffer length
-        if end == 0 and hasattr(self, 'datas') and self.datas:
-            try:
-                # Try buflen() first (for runonce mode)
-                if hasattr(self.datas[0], 'buflen'):
-                    end = self.datas[0].buflen()
-                # Fallback to len()
-                elif hasattr(self.datas[0], '__len__'):
-                    end = len(self.datas[0])
-            except Exception:
-                pass
+        # CRITICAL FIX: Use provided start/end or calculate them
+        if start is None:
+            start = 0
+        if end is None:
+            end = self._clk_update()
+            
+            # CRITICAL FIX: If end is 0, try to get length from data sources
+            # In runonce mode, use buflen() instead of len() to get the actual buffer length
+            if end == 0 and hasattr(self, 'datas') and self.datas:
+                try:
+                    # Try buflen() first (for runonce mode)
+                    if hasattr(self.datas[0], 'buflen'):
+                        end = self.datas[0].buflen()
+                    # Fallback to len()
+                    elif hasattr(self.datas[0], '__len__'):
+                        end = len(self.datas[0])
+                except Exception:
+                    pass
         
         # If still 0, try using _clock
         if end == 0 and hasattr(self, '_clock') and self._clock:
