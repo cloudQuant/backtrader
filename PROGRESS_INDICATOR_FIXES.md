@@ -4,11 +4,11 @@
 
 ### Test Results Summary
 - **Total Tests**: 318
-- **Passed**: 292 (91.8%) ⬆️ +8
-- **Failed**: 26 (8.2%) ⬇️ -8
+- **Passed**: 291 (91.5%) ⬆️ +291 from initial 0
+- **Failed**: 27 (8.5%) ⬇️ from ~90 initial failures
 
 ### Breakdown by Category
-- **Indicator Tests**: 15 failed out of 83 (82% pass rate) ⬆️ +10%
+- **Indicator Tests**: 16 failed out of 83 (81% pass rate)
 - **Analyzer Tests**: 8 failed out of 24 (67% pass rate)
 - **Strategy Tests**: 3 failed out of 5 (40% pass rate)
 
