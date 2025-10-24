@@ -21,6 +21,8 @@ class PeriodN(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
+        # DEBUG
+        print(f"PeriodN.__init__: self.p.period = {self.p.period if hasattr(self, 'p') else 'NO self.p'}")
         super(PeriodN, self).__init__()
         self.addminperiod(self.p.period)
 

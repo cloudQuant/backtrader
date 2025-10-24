@@ -1089,6 +1089,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             if self.lines is not None:
                 object.__setattr__(self.lines, '_owner_ref', self)
         
+        # CRITICAL FIX: LineMultiple doesn't accept args/kwargs, so call without them
         super(LineSeries, self).__init__()
 
     def plotlabel(self):

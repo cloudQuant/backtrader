@@ -338,8 +338,17 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
     def __new__(cls, *args, **kwargs):
         # This replaces the metaclass functionality
+        # DEBUG
+        if 'Highest' in cls.__name__:
+            print(f"LineIterator.__new__ for {cls.__name__}: kwargs={kwargs}")
+        
         # Create the instance using the normal Python object creation
         instance = super(LineIterator, cls).__new__(cls)
+        
+        # CRITICAL FIX: Store kwargs in instance so __init__ can access them
+        # This is needed because Python doesn't automatically pass kwargs from __new__ to __init__
+        instance._init_kwargs = kwargs.copy()
+        instance._init_args = args
         
         # Initialize basic attributes first - DON'T process data here, let donew handle it
         instance._lineiterators = collections.defaultdict(list)
@@ -391,6 +400,17 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
     def __init__(self, *args, **kwargs):
         # The arguments have been processed in __new__, so we can call the parent init
+        
+        # CRITICAL FIX: Restore kwargs from __new__ if they were lost
+        # This happens because Python doesn't automatically pass kwargs from __new__ to __init__
+        if hasattr(self, '_init_kwargs') and not kwargs:
+            kwargs = self._init_kwargs
+        if hasattr(self, '_init_args') and not args:
+            args = self._init_args
+        
+        # DEBUG
+        if 'Highest' in self.__class__.__name__:
+            print(f"LineIterator.__init__ for {self.__class__.__name__}: kwargs={kwargs}")
         
         # CRITICAL FIX: Initialize error tracking before anything else
         self._next_errors = []
@@ -445,8 +465,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
             except:
                 self.dnames = {}
         
-        # Call parent initialization with NO arguments since data processing was done above
-        super(LineIterator, self).__init__()
+        # CRITICAL FIX: Pass kwargs to parent for parameter processing
+        # Data processing was done above, but parameters still need to be passed
+        super(LineIterator, self).__init__(*args, **kwargs)
         
         # CRITICAL FIX: Ensure all LineIterator objects have _idx attribute
         # This fixes the issue with 'CrossOver', 'TrueStrengthIndicator' etc. objects missing _idx attribute

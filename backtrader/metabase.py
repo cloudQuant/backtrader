@@ -689,18 +689,57 @@ class ParamsMixin(BaseMixin):
             original_init = cls.__init__
             
             def patched_init(self, *args, **kwargs):
+                # CRITICAL FIX: Restore kwargs from __new__ if they were lost
+                if hasattr(self, '_init_kwargs') and not kwargs:
+                    kwargs = self._init_kwargs
+                if hasattr(self, '_init_args') and not args:
+                    args = self._init_args
+                
+                # CRITICAL FIX: Extract parameter kwargs before creating parameter instance
+                # Separate parameter kwargs from other kwargs
+                param_kwargs = {}
+                other_kwargs = {}
+                
+                # Get list of valid parameter names from class
+                valid_param_names = set()
+                if hasattr(cls, '_params') and cls._params is not None:
+                    try:
+                        if hasattr(cls._params, '_getkeys'):
+                            valid_param_names = set(cls._params._getkeys())
+                        elif hasattr(cls._params, '_getpairs'):
+                            valid_param_names = set(cls._params._getpairs().keys())
+                    except Exception:
+                        pass
+                
+                # DEBUG
+                if 'PeriodN' in cls.__name__ or 'Highest' in self.__class__.__name__:
+                    print(f"DEBUG patched_init for cls={cls.__name__}, self={self.__class__.__name__}")
+                    print(f"  valid_param_names: {valid_param_names}")
+                    print(f"  kwargs: {kwargs}")
+                    print(f"  param_kwargs will be: {param_kwargs}")
+                
+                # Separate kwargs into param_kwargs and other_kwargs
+                for key, value in kwargs.items():
+                    if key in valid_param_names:
+                        param_kwargs[key] = value
+                    else:
+                        other_kwargs[key] = value
+                
                 # Ensure we have parameter instance available before user __init__ runs
                 if not hasattr(self, 'p') or self.p is None:
-                    # Create parameter instance if missing
+                    # Create parameter instance with param_kwargs
                     if hasattr(cls, '_params') and cls._params is not None:
                         try:
-                            self.p = cls._params()
+                            self.p = cls._params(**param_kwargs)
                         except Exception:
                             from .utils import DotDict
-                            self.p = DotDict()
+                            self.p = DotDict(param_kwargs)
                     else:
                         from .utils import DotDict
-                        self.p = DotDict()
+                        self.p = DotDict(param_kwargs)
+                
+                # Also set self.params for backwards compatibility
+                self.params = self.p
                 
                 # CRITICAL FIX: Ensure indicator has _plotinit method before user init
                 if ('Indicator' in cls.__name__ or 
@@ -750,8 +789,8 @@ class ParamsMixin(BaseMixin):
                         
                         self._plotinit = default_plotinit
                 
-                # Call original __init__
-                return original_init(self, *args, **kwargs)
+                # Call original __init__ with other_kwargs (parameter kwargs already processed)
+                return original_init(self, *args, **other_kwargs)
             
             cls.__init__ = patched_init
         
