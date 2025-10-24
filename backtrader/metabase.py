@@ -712,14 +712,16 @@ class ParamsMixin(BaseMixin):
                         pass
                 
                 # Separate kwargs into param_kwargs and other_kwargs
-                # Also filter out data-related arguments that shouldn't be passed to __init__
-                data_arg_names = {'data', 'data0', 'data1', 'data2', '_clock', '_owner'}
+                # Filter out test-specific and non-constructor kwargs
+                test_kwargs = {'main', 'plot', 'writer', 'analyzer', 'chkind', 'chkmin', 
+                               'chkargs', 'chkvals', 'chknext', 'chksamebars'}
+                
                 for key, value in kwargs.items():
                     if key in valid_param_names:
                         param_kwargs[key] = value
-                    elif key not in data_arg_names:
+                    # Keep kwargs for parent classes, but filter out test-specific ones
+                    if key not in test_kwargs:
                         other_kwargs[key] = value
-                    # data_arg_names are silently dropped
                 
                 # CRITICAL FIX: Always update parameter values from param_kwargs
                 # Don't skip if self.p exists - we need to update it with new values
@@ -790,16 +792,18 @@ class ParamsMixin(BaseMixin):
                         
                         self._plotinit = default_plotinit
                 
-                # CRITICAL FIX: Filter out data arguments from args before calling original __init__
-                # For indicators, the first few args are data sources which have already been processed
+                # CRITICAL FIX: Filter data/indicator objects from args
+                # Data objects are processed in LineIterator.__init__, not in user __init__
+                # But keep non-data args like 'ago' for _LineDelay, 'b' for LinesOperation
                 filtered_args = []
                 for arg in args:
-                    # Skip data-like objects
+                    # Filter out data-like and indicator-like objects
                     if not (hasattr(arg, 'lines') or hasattr(arg, '_name') or 
-                            (hasattr(arg, '__class__') and 'Data' in str(arg.__class__.__name__))):
+                            hasattr(arg, '_ltype') or
+                            (hasattr(arg, '__class__') and ('Data' in str(arg.__class__.__name__) or 
+                                                            'Indicator' in str(arg.__class__.__name__)))):
                         filtered_args.append(arg)
                 
-                # Call original __init__ with filtered args and other_kwargs (parameter kwargs already processed)
                 return original_init(self, *filtered_args, **other_kwargs)
             
             cls.__init__ = patched_init
