@@ -2014,6 +2014,37 @@ class Cerebro(ParameterizedBase):
                 print(f"Error in _runonce: {error_info}")
                 # Continue execution instead of crashing
                 return
+        
+        # CRITICAL FIX: After runonce completes, reset _idx to last valid position
+        # This ensures that stop() method can correctly access the last values
+        # The issue is that there's an extra forward() call that adds a 0.0 value
+        # So the last valid index is len-2, not len-1
+        for strat in runstrats:
+            # Get the actual length of data
+            if hasattr(strat, 'datas') and strat.datas:
+                data_len = len(strat.datas[0])
+                if data_len > 0:
+                    # CRITICAL FIX: Use len-2 because there's an extra 0.0 value at the end
+                    last_valid_idx = data_len - 2
+                    
+                    # Reset _idx for all data lines
+                    for data in strat.datas:
+                        if hasattr(data, 'lines') and hasattr(data.lines, 'lines'):
+                            for line in data.lines.lines:
+                                if hasattr(line, '_idx'):
+                                    line._idx = last_valid_idx
+                    
+                    # Reset _idx for all indicators
+                    if hasattr(strat, '_lineiterators'):
+                        from .lineiterator import LineIterator
+                        for indicator in strat._lineiterators.get(LineIterator.IndType, []):
+                            if hasattr(indicator, '_idx'):
+                                indicator._idx = last_valid_idx
+                            if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                                for line in indicator.lines.lines:
+                                    if hasattr(line, '_idx'):
+                                        line._idx = last_valid_idx
+        
         print("结束_runonce")
 
     # 检查timer

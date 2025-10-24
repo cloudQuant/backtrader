@@ -293,14 +293,20 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                 # CRITICAL FIX: Set sub-indicator's _idx as well
                 if hasattr(indicator, '_idx'):
                     indicator._idx = i
-                # CRITICAL FIX: Also set _idx for all lines in the indicator
+                indicator.advance()
+                # CRITICAL FIX: Set _idx for all lines AFTER advance()
+                # This ensures lines have the correct _idx during next()
                 if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
                     for line in indicator.lines.lines:
                         if hasattr(line, '_idx'):
                             line._idx = i
-                indicator.advance()
 
             self.advance()
+            # CRITICAL FIX: Set _idx for own lines AFTER advance()
+            if hasattr(self, 'lines') and hasattr(self.lines, 'lines'):
+                for line in self.lines.lines:
+                    if hasattr(line, '_idx'):
+                        line._idx = i
             self.next()
         
         # CRITICAL FIX: Execute bindings after once processing
