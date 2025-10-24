@@ -563,6 +563,11 @@ class Strategy(StrategyBase):
 
     # _oncepost
     def _oncepost(self, dt):
+        # DEBUG: Track _oncepost calls
+        if not hasattr(self, '_oncepost_count'):
+            self._oncepost_count = 0
+        self._oncepost_count += 1
+        
         # 循环指标，如果指标数据的长度大于指标的长度了，继续运行指标
         for indicator in self._lineiterators[LineIterator.IndType]:
             # CRITICAL FIX: 增加防御性编程，避免访问不存在的_clock属性导致错误
