@@ -40,6 +40,9 @@ class AwesomeOscillator(bt.Indicator):
 
     # 初始化的时候，创建指标
     def __init__(self):
+        # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
+        super(AwesomeOscillator, self).__init__()
+        
         # 最高价和最低价的平均值
         median_price = (self.data.high + self.data.low) / 2.0
         # 计算平均值的fast个周期的平均值
@@ -48,8 +51,6 @@ class AwesomeOscillator(bt.Indicator):
         sma2 = self.p.movav(median_price, period=self.p.slow)
         # 计算两者的差
         self.l.ao = sma1 - sma2
-        # super
-        super(AwesomeOscillator, self).__init__()
 
 
 AwesomeOsc = AO = AwesomeOscillator

@@ -105,8 +105,9 @@ class RateOfChange100(Indicator):
     params = (("period", 12),)
 
     def __init__(self):
-        self.l.roc100 = 100.0 * ROC(self.data, period=self.p.period)
+        # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
         super(RateOfChange100, self).__init__()
+        self.l.roc100 = 100.0 * ROC(self.data, period=self.p.period)
 
 
 ROC = RateOfChange

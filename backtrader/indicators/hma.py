@@ -40,14 +40,14 @@ class HullMovingAverage(MovingAverageBase):
     params = (("_movav", WMA),)
 
     def __init__(self):
-        wma = self.p._movav(self.data, period=self.params.period)
-        wma2 = 2.0 * self.p._movav(self.data, period=self.params.period // 2)
-
-        sqrtperiod = pow(self.params.period, 0.5)
-        self.lines.hma = self.p._movav(wma2 - wma, period=int(sqrtperiod))
-
-        # Done after calc to ensure coop inheritance and composition work
+        # CRITICAL FIX: Call super().__init__() first and use self.p instead of self.params
         super(HullMovingAverage, self).__init__()
+        
+        wma = self.p._movav(self.data, period=self.p.period)
+        wma2 = 2.0 * self.p._movav(self.data, period=self.p.period // 2)
+
+        sqrtperiod = pow(self.p.period, 0.5)
+        self.lines.hma = self.p._movav(wma2 - wma, period=int(sqrtperiod))
 
 
 HMA = HullMovingAverage

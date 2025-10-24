@@ -56,13 +56,15 @@ class KnowSureThing(bt.Indicator):
     plotinfo = dict(plothlines=[0.0])
 
     def __init__(self):
-        rcma1 = self.p._rmovav(ROC100(period=self.p.rp1), period=self.p.rma1)
-        rcma2 = self.p._rmovav(ROC100(period=self.p.rp2), period=self.p.rma2)
-        rcma3 = self.p._rmovav(ROC100(period=self.p.rp3), period=self.p.rma3)
-        rcma4 = self.p._rmovav(ROC100(period=self.p.rp4), period=self.p.rma4)
+        # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
+        super(KnowSureThing, self).__init__()
+        
+        rcma1 = self.p._rmovav(ROC100(self.data, period=self.p.rp1), period=self.p.rma1)
+        rcma2 = self.p._rmovav(ROC100(self.data, period=self.p.rp2), period=self.p.rma2)
+        rcma3 = self.p._rmovav(ROC100(self.data, period=self.p.rp3), period=self.p.rma3)
+        rcma4 = self.p._rmovav(ROC100(self.data, period=self.p.rp4), period=self.p.rma4)
         self.l.kst = sum(
             [rfi * rci for rfi, rci in zip(self.p.rfactors, [rcma1, rcma2, rcma3, rcma4])]
         )
 
         self.l.signal = self.p._smovav(self.l.kst, period=self.p.rsignal)
-        super(KnowSureThing, self).__init__()
