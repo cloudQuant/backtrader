@@ -279,15 +279,25 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
                 self._idx = i
             
             for data in self.datas:
-                # CRITICAL FIX: Also set data's _idx for correct data access
+                # CRITICAL FIX: Set _idx for data AND all its lines
                 if hasattr(data, '_idx'):
                     data._idx = i
+                # CRITICAL FIX: Also set _idx for all lines in the data
+                if hasattr(data, 'lines') and hasattr(data.lines, 'lines'):
+                    for line in data.lines.lines:
+                        if hasattr(line, '_idx'):
+                            line._idx = i
                 data.advance()
 
             for indicator in self._lineiterators[LineIterator.IndType]:
                 # CRITICAL FIX: Set sub-indicator's _idx as well
                 if hasattr(indicator, '_idx'):
                     indicator._idx = i
+                # CRITICAL FIX: Also set _idx for all lines in the indicator
+                if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                    for line in indicator.lines.lines:
+                        if hasattr(line, '_idx'):
+                            line._idx = i
                 indicator.advance()
 
             self.advance()

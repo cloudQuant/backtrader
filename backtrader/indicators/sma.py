@@ -105,21 +105,37 @@ class MovingAverageSimple(MovingAverageBase):
 
             # CRITICAL FIX: In runonce mode, don't rely on _price_window state
             # Instead, calculate from the data array directly using absolute indices
-            if hasattr(self, '_idx') and hasattr(self.data, 'array'):
+            if hasattr(self, '_idx'):
                 # Runonce mode: use absolute indices
-                start_idx = max(0, self._idx - period + 1)
-                end_idx = self._idx + 1
+                # Get the data array - try multiple sources
+                data_array = None
+                if hasattr(self.data, 'lines') and hasattr(self.data.lines, 'close') and hasattr(self.data.lines.close, 'array'):
+                    data_array = self.data.lines.close.array
+                elif hasattr(self.data, 'array'):
+                    data_array = self.data.array
                 
-                if end_idx > start_idx:
-                    prices = []
-                    for i in range(start_idx, end_idx):
-                        if i < len(self.data.array):
-                            prices.append(float(self.data.array[i]))
+                if data_array is not None:
+                    start_idx = max(0, self._idx - period + 1)
+                    end_idx = self._idx + 1
                     
-                    if prices:
-                        return sum(prices) / len(prices)
-                    else:
-                        return float('nan')
+                    # DEBUG
+                    # print(f"      SMA calc: _idx={self._idx}, period={period}, start_idx={start_idx}, end_idx={end_idx}")
+                    
+                    if end_idx > start_idx:
+                        prices = []
+                        for i in range(start_idx, end_idx):
+                            if i < len(data_array):
+                                prices.append(float(data_array[i]))
+                        
+                        # DEBUG
+                        # if len(prices) > 0:
+                        #     print(f"      Prices: {prices[:5]}... (total {len(prices)} prices)")
+                        #     print(f"      SMA result: {sum(prices) / len(prices)}")
+                        
+                        if prices:
+                            return sum(prices) / len(prices)
+                        else:
+                            return float('nan')
             else:
                 # Normal mode: use rolling window optimization
                 if len(self._price_window) == period:
