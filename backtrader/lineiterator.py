@@ -855,10 +855,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
     def _once(self):
         # CRITICAL FIX: Ensure clock and data are available before operations
         # This is especially important for strategies that might have delayed data assignment
-        # CRITICAL FIX: Don't advance strategies here - they are advanced in _oncepost()
-        is_strategy = hasattr(self, '_strat') or 'Strategy' in str(self.__class__.__name__)
-        
-        if not is_strategy and hasattr(self, '_clock') and self._clock is not None:
+        if hasattr(self, '_clock') and self._clock is not None:
             try:
                 clock_len = len(self._clock)
                 self_len = len(self) if hasattr(self, '__len__') else 0
@@ -1121,21 +1118,21 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
             # CRITICAL FIX: Enhanced length calculation for proper synchronization
             
-            # For strategies, the length should match the strategy's own lines
+            # For strategies, the length should match the primary data feed
             if hasattr(self, '_ltype') and getattr(self, '_ltype', None) == LineIterator.StratType:
-                # CRITICAL FIX: Use strategy's own lines, not data's lines
-                # In runonce mode, data's lencount includes both preload and runonce iterations
-                if hasattr(self, 'lines') and hasattr(self.lines, 'lines') and self.lines.lines:
-                    first_line = self.lines.lines[0]
-                    if hasattr(first_line, 'lencount'):
-                        return first_line.lencount
-                    elif hasattr(first_line, 'array') and hasattr(first_line.array, '__len__'):
-                        return len(first_line.array)
-                # Fallback: use primary data feed length
+                # For strategies, use the primary data feed length
                 if hasattr(self, 'datas') and self.datas and len(self.datas) > 0:
                     primary_data = self.datas[0]
                     if hasattr(primary_data, '_len') and isinstance(primary_data._len, int):
                         return primary_data._len
+                    elif hasattr(primary_data, 'lencount'):
+                        return primary_data.lencount
+                    elif hasattr(primary_data, 'lines') and hasattr(primary_data.lines, 'lines') and primary_data.lines.lines:
+                        first_line = primary_data.lines.lines[0]
+                        if hasattr(first_line, 'lencount'):
+                            return first_line.lencount
+                        elif hasattr(first_line, 'array') and hasattr(first_line.array, '__len__'):
+                            return len(first_line.array)
                     # Try using len() on the data directly (but carefully to avoid recursion)
                     try:
                         # If the primary data has a simple numeric length, use it
