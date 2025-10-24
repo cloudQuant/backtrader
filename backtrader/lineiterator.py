@@ -256,12 +256,8 @@ class LineIteratorMixin:
         _obj._periodrecalc()
 
         # Register self as indicator to owner
-        if hasattr(_obj, '_ltype') and getattr(_obj, '_ltype', None) == 0:  # Is indicator
-            print(f"DEBUG dopostinit: {_obj.__class__.__name__}, has _owner: {hasattr(_obj, '_owner')}, _owner: {getattr(_obj, '_owner', None)}")
-        
         if hasattr(_obj, '_owner') and _obj._owner is not None:
             if hasattr(_obj._owner, 'addindicator'):
-                print(f"DEBUG dopostinit: Calling addindicator for {_obj.__class__.__name__}")
                 _obj._owner.addindicator(_obj)
                 
         return _obj, args, kwargs
@@ -1010,15 +1006,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
     
     def _next(self):
         """Default _next implementation for indicators"""
-        # DEBUG
-        if hasattr(self, '__class__') and 'MovingAverageSimple' in self.__class__.__name__ and len(self) <= 5:
-            print(f"LineIterator._next() called for {self.__class__.__name__}, len={len(self)}")
-        
         # CRITICAL FIX: Advance the buffer first
         if hasattr(self, 'forward') and callable(self.forward):
             self.forward()
-            if hasattr(self, '__class__') and 'MovingAverageSimple' in self.__class__.__name__ and len(self) <= 5:
-                print(f"  After forward(): lencount={getattr(self.lines[0], 'lencount', 'N/A')}")
         
         # Get minperiod status
         minperstatus = self._getminperstatus()
@@ -1626,26 +1616,14 @@ class StrategyBase(DataAccessor):
         if hasattr(self, '_lineiterators'):
             indicators = self._lineiterators.get(LineIterator.IndType, [])
             
-            # DEBUG
-            if len(self) <= 5:
-                print(f"StrategyBase._next(): len={len(self)}, {len(indicators)} indicators")
-            
             for indicator in indicators:
                 try:
-                    # DEBUG
-                    if len(self) <= 5:
-                        print(f"  Calling _next() on {indicator.__class__.__name__}")
-                    
                     # Call the indicator's _next() method
                     # The indicator will handle its own buffer advancement
                     if hasattr(indicator, '_next') and callable(indicator._next):
                         indicator._next()
                 except Exception as e:
-                    # DEBUG
-                    if len(self) <= 5:
-                        import traceback
-                        print(f"  Error: {e}")
-                        traceback.print_exc()
+                    # Silently ignore errors in indicator processing
                     pass
         
         # Call the user's next() method
@@ -1700,9 +1678,7 @@ class StrategyBase(DataAccessor):
             # CRITICAL FIX: Wrap the strategy's __init__ to handle indicator creation safely
             try:
                 # Call the strategy's __init__ method
-                print(f"DEBUG: Calling strategy_init")
                 strategy_init(self)
-                print(f"DEBUG: strategy_init completed, calling _finalize_indicator_setup")
                 
                 # CRITICAL FIX: After user __init__, ensure all indicators have proper setup
                 self._finalize_indicator_setup()
@@ -1794,7 +1770,6 @@ class StrategyBase(DataAccessor):
     
     def _finalize_indicator_setup(self):
         """Ensure all indicators are properly set up after strategy initialization"""
-        print(f"DEBUG: _finalize_indicator_setup() called")
         try:
             # Check for indicators that were created during __init__
             for attr_name in dir(self):
@@ -1804,8 +1779,6 @@ class StrategyBase(DataAccessor):
                     if (hasattr(attr_value, 'lines') or 
                         hasattr(attr_value, '_ltype') or
                         hasattr(attr_value, '__class__') and 'Indicator' in str(attr_value.__class__.__name__)):
-                        
-                        print(f"  Found indicator: {attr_name} = {attr_value.__class__.__name__}")
                         
                         # Ensure the indicator has proper owner and clock setup
                         if not hasattr(attr_value, '_owner') or attr_value._owner is None:
@@ -1820,15 +1793,10 @@ class StrategyBase(DataAccessor):
                         # Ensure indicator is in our lineiterators
                         if hasattr(attr_value, '_ltype'):
                             ltype = getattr(attr_value, '_ltype', 0)
-                            print(f"    ltype: {ltype}")
                             if attr_value not in self._lineiterators[ltype]:
                                 self._lineiterators[ltype].append(attr_value)
-                                print(f"    Registered!")
         except Exception as e:
             # Silently ignore - this is just a safety check
-            print(f"DEBUG: _finalize_indicator_setup() error: {e}")
-            import traceback
-            traceback.print_exc()
             pass
             
     def _assign_data_from_cerebro(self, datas):
