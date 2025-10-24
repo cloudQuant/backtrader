@@ -593,6 +593,18 @@ class Strategy(StrategyBase):
         self.lines.datetime[0] = dt
         # 通知
         self._notify()
+        
+        # CRITICAL FIX: Set _idx for all indicator lines before calling next()
+        # This ensures indicators return the correct values when accessed in next()
+        current_idx = len(self) - 1  # Current position (0-indexed)
+        for indicator in self._lineiterators[LineIterator.IndType]:
+            if hasattr(indicator, '_idx'):
+                indicator._idx = current_idx
+            if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                for line in indicator.lines.lines:
+                    if hasattr(line, '_idx'):
+                        line._idx = current_idx
+        
         # 获取当前最小周期状态，如果所有数据都满足了，调用next
         # 如果正好所有数据都满足了，调用nextstart
         # 如果不是所有的数据都满足了，调用prenext
