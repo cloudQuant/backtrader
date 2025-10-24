@@ -41,20 +41,10 @@ class OperationN(PeriodN):
     """
 
     def next(self):
-        # CRITICAL FIX: Directly append to array in next mode
-        # The advance mechanism doesn't work correctly in next mode
+        # CRITICAL FIX: Use proper line assignment instead of direct array manipulation
+        # The line[0] assignment will handle the buffer correctly
         value = self.func(self.data.get(size=self.p.period))
-        
-        # Ensure array exists and extend it
-        if not hasattr(self.lines[0], 'array') or self.lines[0].array is None:
-            import array
-            self.lines[0].array = array.array('d')
-        
-        # Append the value
-        self.lines[0].array.append(value)
-        
-        # Update idx to point to the last element
-        self.lines[0]._idx = len(self.lines[0].array) - 1
+        self.lines[0][0] = value
 
     def once(self, start, end):
         dst = self.lines[0].array
