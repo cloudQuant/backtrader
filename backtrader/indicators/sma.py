@@ -172,6 +172,10 @@ class MovingAverageSimple(MovingAverageBase):
             if (sma_value is None or (isinstance(sma_value, float) and (sma_value != sma_value or sma_value == float('nan')))):
                 # Try one more time with direct manual calculation
                 sma_value = self._calculate_sma_manual(period)
+            
+            # CRITICAL FIX: If still NaN or None, set to 0.0 as a fallback
+            if sma_value is None or (isinstance(sma_value, float) and (sma_value != sma_value or sma_value == float('nan'))):
+                sma_value = 0.0
 
             # Set the SMA line value
             # CRITICAL FIX: In runonce mode, write directly to array using absolute index
@@ -195,12 +199,12 @@ class MovingAverageSimple(MovingAverageBase):
                 else:
                     self.lines.lines[0][0] = sma_value
 
-        except Exception:
+        except Exception as e:
             # Fallback to safe default
             if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
-                self.lines.sma[0] = float('nan')
+                self.lines.sma[0] = 0.0
             elif hasattr(self, 'lines') and len(self.lines.lines) > 0:
-                self.lines.lines[0][0] = float('nan')
+                self.lines.lines[0][0] = 0.0
 
     # Don't override once() - let the framework use once_via_next() automatically
     # This is simpler and more reliable than a custom once() implementation

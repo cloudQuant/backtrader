@@ -106,6 +106,10 @@ class LineBuffer(LineSingle, LineRootMixin):
         # CRITICAL FIX: Ensure _idx exists before accessing it
         if not hasattr(self, '_idx'):
             self._idx = -1
+        
+        # CRITICAL FIX: Ensure mode exists before accessing it
+        if not hasattr(self, 'mode'):
+            self.mode = self.UnBounded
             
         if self.mode == self.QBuffer:
             # CRITICAL FIX: Ensure lenmark attribute exists
@@ -599,6 +603,10 @@ class LineBuffer(LineSingle, LineRootMixin):
         # CRITICAL FIX: Ensure we have a valid size
         if size <= 0:
             return
+        
+        # CRITICAL FIX: Ensure lencount exists
+        if not hasattr(self, 'lencount'):
+            self.lencount = 0
             
         self.idx += size
         self.lencount += size

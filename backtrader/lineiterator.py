@@ -728,19 +728,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
     bind2lines = bindlines
     bind2line = bind2lines
 
-    def _next(self):
-        """Override _next for strategy-specific processing"""
-        # CRITICAL FIX: Simple strategy next that ensures proper data synchronization
-        
-        # Update the clock first
-        self._clk_update()
-        
-        # Call the user's next() method
-        if hasattr(self, 'next') and callable(self.next):
-            self.next()
-        
-        # No complex indicator processing - let them handle themselves
-
     def _clk_update(self):
         """CRITICAL FIX: Override the problematic _clk_update method from strategy.py"""
         
@@ -972,10 +959,29 @@ class LineIterator(LineIteratorMixin, LineSeries):
             except Exception:
                 pass
 
+    def _getminperstatus(self):
+        """Get minimum period status for indicators"""
+        # For indicators, check if we have enough data based on minperiod
+        if not hasattr(self, '_minperiod'):
+            return -1  # No minperiod set, assume ready
+        
+        # Get the length of the indicator (number of bars processed)
+        try:
+            current_len = len(self)
+        except:
+            current_len = 0
+        
+        # Return negative if we have enough data, positive/zero otherwise
+        return self._minperiod - current_len
+    
     def _next(self):
         """Default _next implementation for indicators"""
         # Get minperiod status
         minperstatus = self._getminperstatus()
+        
+        # DEBUG
+        if len(self) <= 10:
+            print(f"Indicator._next(): {self.__class__.__name__}, minperstatus={minperstatus}, len={len(self)}, _minperiod={getattr(self, '_minperiod', 'N/A')}")
         
         # Call appropriate next method based on minperiod status
         if minperstatus < 0:
@@ -1567,6 +1573,43 @@ class StrategyBase(DataAccessor):
         be called twice (once in _once and once in _oncepost).
         """
         pass
+    
+    def _next(self):
+        """Override _next for strategy-specific processing"""
+        # CRITICAL FIX: Simple strategy next that ensures proper data synchronization
+        
+        # Update the clock first
+        self._clk_update()
+        
+        # CRITICAL FIX: Update all indicators before calling user's next() method
+        # This ensures indicators have calculated values when the strategy's next() is called
+        if hasattr(self, '_lineiterators'):
+            indicators = self._lineiterators.get(LineIterator.IndType, [])
+            
+            # DEBUG
+            if len(self) <= 5:
+                print(f"StrategyBase._next(): {len(indicators)} indicators to update")
+            
+            for indicator in indicators:
+                try:
+                    # DEBUG
+                    if len(self) <= 5:
+                        print(f"  Calling indicator._next() for {indicator.__class__.__name__}")
+                    
+                    # Call the indicator's _next() method
+                    # The indicator will handle its own buffer advancement
+                    if hasattr(indicator, '_next') and callable(indicator._next):
+                        indicator._next()
+                except Exception as e:
+                    import traceback
+                    print(f"  Error calling indicator._next(): {e}")
+                    if len(self) <= 2:
+                        traceback.print_exc()
+                    pass
+        
+        # Call the user's next() method
+        if hasattr(self, 'next') and callable(self.next):
+            self.next()
     
     def __init__(self, *args, **kwargs):
         """Initialize strategy and handle delayed data assignment from cerebro"""
