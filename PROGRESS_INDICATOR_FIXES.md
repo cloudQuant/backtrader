@@ -4,12 +4,12 @@
 
 ### Test Results Summary
 - **Total Tests**: 318
-- **Passed**: 284 (89.3%)
-- **Failed**: 34 (10.7%)
+- **Passed**: 292 (91.8%) ⬆️ +8
+- **Failed**: 26 (8.2%) ⬇️ -8
 
 ### Breakdown by Category
-- **Indicator Tests**: 23 failed out of 83 (72% pass rate)
-- **Analyzer Tests**: 8 failed out of 24 (67% pass rate)  
+- **Indicator Tests**: 15 failed out of 83 (82% pass rate) ⬆️ +10%
+- **Analyzer Tests**: 8 failed out of 24 (67% pass rate)
 - **Strategy Tests**: 3 failed out of 5 (40% pass rate)
 
 ## Major Fixes Completed
@@ -62,14 +62,28 @@
 **Files Modified**:
 - `/backtrader/indicator.py` (line 54)
 
+### 5. Envelope Indicators Parameter Initialization ✅
+**Problem**: `TypeError: unsupported operand type(s) for /: 'NoneType' and 'float'` in all envelope indicators.
+
+**Root Cause**: `EnvelopeMixIn.__init__()` used `self.p.perc` before calling `super().__init__()`, which initializes parameters.
+
+**Solution**: 
+- Call `super().__init__()` first in `EnvelopeMixIn`
+- Add fallback to default value (2.5) if `perc` is None
+
+**Files Modified**:
+- `/backtrader/indicators/envelope.py` (lines 103-115)
+
+**Tests Fixed**: All 8 envelope indicator tests now PASS
+
 ## Remaining Issues
 
 ### Indicator Value Calculation Issues
-**Affected Tests**: 23 indicator tests
+**Affected Tests**: 15 indicator tests (down from 23)
 - `test_ind_basicops.py` - Highest/Lowest/basic operations
 - `test_ind_macd.py` - MACD values don't match expected
 - `test_ind_deviation.py` - Deviation calculation issues
-- `test_ind_*envelope.py` - Multiple envelope indicators (TypeError: unsupported operand type(s) for /: 'NoneType' and 'float')
+- `test_ind_dma.py`, `test_ind_hma.py`, `test_ind_kst.py` - Various calculation mismatches
 - Others with value mismatches
 
 **Likely Causes**:
@@ -99,12 +113,7 @@
 
 ## Next Steps
 
-### Priority 1: Fix Envelope Indicators TypeError
-These are failing with `TypeError: unsupported operand type(s) for /: 'NoneType' and 'float'`
-- Investigate why MovingAverage returns None
-- Check if composite indicators are properly initialized
-
-### Priority 2: Fix Strategy Trading Logic
+### Priority 1: Fix Strategy Trading Logic ✅ MOVED TO TOP
 - Debug why crossover signals aren't triggering trades
 - Verify order creation and execution flow
 - Check broker integration
