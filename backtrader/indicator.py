@@ -96,88 +96,18 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
             from .lineseries import Lines
             cls.lines = Lines._derive('lines', lines, extralines, ())
             pass
-        
+
+        # CRITICAL FIX: Do NOT patch __init__ here - it's already patched by metabase.py
+        # The metabase.py patched_init handles both parameters and data0/data1 setup
+        # Patching here would override the metabase.py patching and break parameter handling
+
         # Patch __init__ methods of indicator subclasses to handle arguments
-        if '__init__' in cls.__dict__:  # Only patch if this class defines its own __init__
-            original_init = cls.__init__
-            
-            def patched_init(self, *args, **kwargs):
-                """Patched __init__ that sets up data0/data1 before calling original __init__"""
-                # print(f"Indicator.patched_init: Starting for {self.__class__.__name__} with {len(args)} args")
-                pass
-                
-                # CRITICAL FIX: Set up data0/data1 BEFORE calling any user __init__ methods
-                # This ensures indicators can access self.data0, self.data1 during initialization
-                if hasattr(self, 'datas') and self.datas:
-                    # Set data0, data1, etc. immediately from existing datas
-                    for d, data in enumerate(self.datas):
-                        setattr(self, f"data{d}", data)
-                        # print(f"Indicator.patched_init: CRITICAL - Set data{d} = {type(data).__name__}")
-                elif args:
-                    # If we don't have datas set yet, try to extract from args
-                    # print(f"Indicator.patched_init: No datas available, processing {len(args)} args")
-                    pass
-                    temp_datas = []
-                    for i, arg in enumerate(args):
-                        # Check if this is a data-like object
-                        if (hasattr(arg, 'lines') or hasattr(arg, '_name') or 
-                            hasattr(arg, '__class__') and 'Data' in str(arg.__class__.__name__) or
-                            hasattr(arg, '__class__') and any('LineSeries' in base.__name__ for base in arg.__class__.__mro__)):
-                            temp_datas.append(arg)
-                            setattr(self, f"data{i}", arg) 
-                            # print(f"Indicator.patched_init: CRITICAL - Set data{i} = {type(arg).__name__} from args")
-                        else:
-                            # Non-data argument, stop processing
-                            break
-                    
-                    # Set up datas if we found any
-                    if temp_datas:
-                        if not hasattr(self, 'datas') or not self.datas:
-                            self.datas = temp_datas
-                            self.data = temp_datas[0]
-                            # print(f"Indicator.patched_init: Set datas from args: {len(temp_datas)} items")
-                
-                # Now call the original __init__ method - try different strategies
-                try:
-                    # First, try calling the original __init__ with no arguments
-                    # This is the most common case for indicators
-                    original_init(self)
-                    # print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args")
-                    return
-                except TypeError as e:
-                    if "takes 1 positional argument but" in str(e):
-                        # This is expected - the original __init__ only takes self
-                        # but we received extra arguments from the LineActions creation
-                        # Try calling with no arguments again, this should work
-                        try:
-                            original_init(self)
-                            # print(f"Indicator.patched_init: Completed {self.__class__.__name__} with no args (retry)")
-                            return
-                        except:
-                            pass
-                    
-                    # If that failed, try with the original arguments
-                    try:
-                        original_init(self, *args, **kwargs)
-                        # print(f"Indicator.patched_init: Completed {self.__class__.__name__} with args/kwargs")
-                        return
-                    except Exception as e2:
-                        # As a last resort, try with empty kwargs
-                        try:
-                            original_init(self, *args)
-                            # print(f"Indicator.patched_init: Completed {self.__class__.__name__} with args only")
-                            return
-                        except Exception as e3:
-                            # print(f"Warning: All attempts to call {cls.__name__}.__init__() failed:")
-                            # print(f"  No args: {e}")
-                            # print(f"  With args/kwargs: {e2}")
-                            # print(f"  With args only: {e3}")
-                            # Re-raise the original error
-                            raise e
-            
-            # Replace the __init__ method
-            cls.__init__ = patched_init
-        
+        # DISABLED: This is now handled in metabase.py
+        # if '__init__' in cls.__dict__:
+        #     original_init = cls.__init__
+        #     ...
+        #     cls.__init__ = patched_init
+
         # Register subclasses automatically  
         if not cls.aliased and cls.__name__ != "Indicator" and not cls.__name__.startswith("_"):
             IndicatorRegistry.register(cls.__name__, cls)

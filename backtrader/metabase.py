@@ -689,6 +689,65 @@ class ParamsMixin(BaseMixin):
             original_init = cls.__init__
             
             def patched_init(self, *args, **kwargs):
+                # CRITICAL FIX: For indicators, set up data0/data1 BEFORE anything else
+                # This ensures indicators can access self.data0, self.data1 during initialization
+                if ('Indicator' in self.__class__.__name__ or
+                    any('Indicator' in base.__name__ for base in self.__class__.__mro__)):
+                    if hasattr(self, 'datas') and self.datas:
+                        # Set data0, data1, etc. immediately from existing datas
+                        for d, data in enumerate(self.datas):
+                            setattr(self, f"data{d}", data)
+                    elif args:
+                        # If we don't have datas set yet, try to extract from args
+                        temp_datas = []
+                        for i, arg in enumerate(args):
+                            # Check if this is a data-like object
+                            if (hasattr(arg, 'lines') or hasattr(arg, '_name') or
+                                hasattr(arg, '__class__') and 'Data' in str(arg.__class__.__name__) or
+                                hasattr(arg, '__class__') and any('LineSeries' in base.__name__ for base in arg.__class__.__mro__)):
+                                temp_datas.append(arg)
+                                setattr(self, f"data{i}", arg)
+                            else:
+                                # Non-data argument, stop processing
+                                break
+
+                        # Set up datas if we found any
+                        if temp_datas:
+                            if not hasattr(self, 'datas') or not self.datas:
+                                self.datas = temp_datas
+                                self.data = temp_datas[0]
+                    else:
+                        # CRITICAL FIX: If indicator created with no data, search call stack for data
+                        # This handles cases like AwesomeOscillator() inside AccDecOscillator.__init__
+                        if not hasattr(self, 'datas') or not self.datas:
+                            # Search the call stack for an object with data
+                            import inspect
+                            found_data = False
+
+                            for frame_info in inspect.stack():
+                                frame_locals = frame_info.frame.f_locals
+                                # Look for 'self' in the frame
+                                if 'self' in frame_locals:
+                                    potential_owner = frame_locals['self']
+                                    # Skip if it's the same object
+                                    if potential_owner is self:
+                                        continue
+                                    # Check if this object has datas
+                                    if hasattr(potential_owner, 'datas') and potential_owner.datas:
+                                        self.datas = potential_owner.datas
+                                        self.data = potential_owner.datas[0]
+                                        for d, data in enumerate(potential_owner.datas):
+                                            setattr(self, f"data{d}", data)
+                                        found_data = True
+                                        break
+                                    # Or just data
+                                    elif hasattr(potential_owner, 'data') and potential_owner.data is not None:
+                                        self.datas = [potential_owner.data]
+                                        self.data = potential_owner.data
+                                        self.data0 = potential_owner.data
+                                        found_data = True
+                                        break
+
                 # CRITICAL FIX: Restore kwargs from __new__ if they were lost
                 if hasattr(self, '_init_kwargs') and not kwargs:
                     kwargs = self._init_kwargs
@@ -701,26 +760,29 @@ class ParamsMixin(BaseMixin):
                 other_kwargs = {}
                 
                 # Get list of valid parameter names from class
+                # CRITICAL FIX: Use self.__class__ instead of cls to get the actual runtime class
+                actual_cls = self.__class__
                 valid_param_names = set()
-                if hasattr(cls, '_params') and cls._params is not None:
+                if hasattr(actual_cls, '_params') and actual_cls._params is not None:
                     try:
-                        if hasattr(cls._params, '_getkeys'):
-                            valid_param_names = set(cls._params._getkeys())
-                        elif hasattr(cls._params, '_getpairs'):
-                            valid_param_names = set(cls._params._getpairs().keys())
+                        if hasattr(actual_cls._params, '_getkeys'):
+                            valid_param_names = set(actual_cls._params._getkeys())
+                        elif hasattr(actual_cls._params, '_getpairs'):
+                            valid_param_names = set(actual_cls._params._getpairs().keys())
                     except Exception:
                         pass
                 
                 # Separate kwargs into param_kwargs and other_kwargs
                 # Filter out test-specific and non-constructor kwargs
-                test_kwargs = {'main', 'plot', 'writer', 'analyzer', 'chkind', 'chkmin', 
+                test_kwargs = {'main', 'plot', 'writer', 'analyzer', 'chkind', 'chkmin',
                                'chkargs', 'chkvals', 'chknext', 'chksamebars'}
-                
+
                 for key, value in kwargs.items():
                     if key in valid_param_names:
+                        # This is a parameter - add to param_kwargs but NOT other_kwargs
                         param_kwargs[key] = value
-                    # Keep kwargs for parent classes, but filter out test-specific ones
-                    if key not in test_kwargs:
+                    elif key not in test_kwargs:
+                        # This is not a parameter and not a test kwarg - pass to parent init
                         other_kwargs[key] = value
                 
                 # CRITICAL FIX: Always update parameter values from param_kwargs
@@ -792,19 +854,58 @@ class ParamsMixin(BaseMixin):
                         
                         self._plotinit = default_plotinit
                 
-                # CRITICAL FIX: Filter data/indicator objects from args
-                # Data objects are processed in LineIterator.__init__, not in user __init__
-                # But keep non-data args like 'ago' for _LineDelay, 'b' for LinesOperation
-                filtered_args = []
-                for arg in args:
-                    # Filter out data-like and indicator-like objects
-                    if not (hasattr(arg, 'lines') or hasattr(arg, '_name') or 
-                            hasattr(arg, '_ltype') or
-                            (hasattr(arg, '__class__') and ('Data' in str(arg.__class__.__name__) or 
-                                                            'Indicator' in str(arg.__class__.__name__)))):
-                        filtered_args.append(arg)
-                
-                return original_init(self, *filtered_args, **other_kwargs)
+                # CRITICAL FIX: Try calling original_init with different argument strategies
+                # Some classes (like most indicators) don't accept args
+                # Others (like _LineDelay, LinesOperation) need args
+                # Parameter kwargs are already set via self.p, so don't pass them
+
+                # Check if original_init accepts *args or **kwargs
+                import inspect
+                try:
+                    sig = inspect.signature(original_init)
+                    has_var_positional = any(
+                        p.kind == inspect.Parameter.VAR_POSITIONAL
+                        for p in sig.parameters.values()
+                    )
+                    has_var_keyword = any(
+                        p.kind == inspect.Parameter.VAR_KEYWORD
+                        for p in sig.parameters.values()
+                    )
+                except (ValueError, TypeError):
+                    has_var_positional = False
+                    has_var_keyword = False
+
+                # If __init__ accepts *args or **kwargs, pass everything
+                if has_var_positional or has_var_keyword:
+                    return original_init(self, *args, **other_kwargs)
+
+                # Otherwise, try without args first (most common case)
+                try:
+                    # First, try without args - most common case for indicators/strategies
+                    return original_init(self, **other_kwargs)
+                except TypeError as e:
+                    # Check if the error is about THIS class's __init__, not an internal call
+                    # If the error mentions a different class name, it's from an internal call - re-raise it
+                    error_str = str(e)
+                    class_name = self.__class__.__name__
+
+                    # If error mentions a different class, it's from internal code - re-raise
+                    if ".__init__()" in error_str:
+                        # Extract the class name from error message like "SomeClass.__init__() ..."
+                        import re
+                        match = re.search(r'(\w+)\.__init__\(\)', error_str)
+                        if match and match.group(1) != class_name:
+                            # Error is about a different class (internal call) - re-raise
+                            raise
+
+                    # If that failed, check if it's because THIS class needs positional arguments
+                    if "missing" in error_str and "required positional argument" in error_str:
+                        # This class needs positional args (like _LineDelay, LinesOperation)
+                        # Pass all args - they're needed
+                        return original_init(self, *args, **other_kwargs)
+                    else:
+                        # Different error - re-raise it
+                        raise
             
             cls.__init__ = patched_init
         
