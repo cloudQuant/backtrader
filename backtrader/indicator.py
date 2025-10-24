@@ -50,8 +50,8 @@ class IndicatorRegistry:
         return cls._icache.setdefault(ckey, _obj)
 
 
-# 指标类 - refactored to remove metaclass usage and properly inherit from LineActions
-class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
+# 指标类 - refactored to remove metaclass usage and properly inherit from IndicatorBase
+class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
     # line的类型被设置为指标
     _ltype = LineIterator.IndType
     # 输出到csv文件被设置成False

@@ -976,12 +976,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
     
     def _next(self):
         """Default _next implementation for indicators"""
+        # CRITICAL FIX: Advance the buffer first
+        if hasattr(self, 'forward') and callable(self.forward):
+            self.forward()
+        
         # Get minperiod status
         minperstatus = self._getminperstatus()
-        
-        # DEBUG
-        if len(self) <= 10:
-            print(f"Indicator._next(): {self.__class__.__name__}, minperstatus={minperstatus}, len={len(self)}, _minperiod={getattr(self, '_minperiod', 'N/A')}")
         
         # Call appropriate next method based on minperiod status
         if minperstatus < 0:
@@ -1586,25 +1586,14 @@ class StrategyBase(DataAccessor):
         if hasattr(self, '_lineiterators'):
             indicators = self._lineiterators.get(LineIterator.IndType, [])
             
-            # DEBUG
-            if len(self) <= 5:
-                print(f"StrategyBase._next(): {len(indicators)} indicators to update")
-            
             for indicator in indicators:
                 try:
-                    # DEBUG
-                    if len(self) <= 5:
-                        print(f"  Calling indicator._next() for {indicator.__class__.__name__}")
-                    
                     # Call the indicator's _next() method
                     # The indicator will handle its own buffer advancement
                     if hasattr(indicator, '_next') and callable(indicator._next):
                         indicator._next()
                 except Exception as e:
-                    import traceback
-                    print(f"  Error calling indicator._next(): {e}")
-                    if len(self) <= 2:
-                        traceback.print_exc()
+                    # Silently ignore errors in indicator processing
                     pass
         
         # Call the user's next() method

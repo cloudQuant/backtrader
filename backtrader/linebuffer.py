@@ -1328,7 +1328,8 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
         return obj
 
-    def _next(self):
+    def _next_old(self):
+        """DEPRECATED: This method is no longer used. LineIterator._next() is used instead."""
         # CRITICAL FIX: Prevent double processing if _once was already called
         if hasattr(self, '_once_called') and self._once_called:
             return  # Already processed in once mode, don't process again
