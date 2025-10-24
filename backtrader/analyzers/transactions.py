@@ -43,7 +43,9 @@ class Transactions(bt.Analyzer):
     )
 
     # 开始
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # CRITICAL FIX: Call super().__init__() first to initialize self.p
+        super(Transactions, self).__init__(*args, **kwargs)
         self._idnames = None
         self._positions = None
 

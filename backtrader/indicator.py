@@ -273,10 +273,21 @@ class Indicator(LineActions):  # Changed from IndicatorBase to LineActions
     def once_via_next(self, start, end):
         # Not overridden, next must be there ...
         for i in range(start, end):
+            # CRITICAL FIX: Set _idx for runonce mode before calling next()
+            # This allows indicators to access data at the correct position
+            if hasattr(self, '_idx'):
+                self._idx = i
+            
             for data in self.datas:
+                # CRITICAL FIX: Also set data's _idx for correct data access
+                if hasattr(data, '_idx'):
+                    data._idx = i
                 data.advance()
 
             for indicator in self._lineiterators[LineIterator.IndType]:
+                # CRITICAL FIX: Set sub-indicator's _idx as well
+                if hasattr(indicator, '_idx'):
+                    indicator._idx = i
                 indicator.advance()
 
             self.advance()

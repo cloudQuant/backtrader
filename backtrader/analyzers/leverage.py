@@ -31,7 +31,9 @@ class GrossLeverage(bt.Analyzer):
     params = (("fund", None),)
 
     # 开始
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # CRITICAL FIX: Call super().__init__() first to initialize self.p
+        super(GrossLeverage, self).__init__(*args, **kwargs)
         self._value = None
         self._cash = None
         self._fundmode = None

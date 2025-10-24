@@ -62,7 +62,9 @@ class PyFolio(bt.Analyzer):
     params = (("timeframe", bt.TimeFrame.Days), ("compression", 1))
 
     # 初始化
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # CRITICAL FIX: Call super().__init__() first to initialize self.p
+        super(PyFolio, self).__init__(*args, **kwargs)
         dtfcomp = dict(timeframe=self.p.timeframe, compression=self.p.compression)
 
         self._returns = TimeReturn(**dtfcomp)

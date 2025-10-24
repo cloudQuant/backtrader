@@ -245,15 +245,9 @@ class Strategy(StrategyBase):
             if self.datas:
                 self._clock = self.datas[0]
                 # print(f"Strategy.__init__: Set clock to first data")
-            else:
-                # Create a minimal clock-like object to prevent crashes
-                class MinimalClock:
-                    def buflen(self):
-                        return 1
-                    def __len__(self):
-                        return 0
-                self._clock = MinimalClock()
-                # print(f"Strategy.__init__: WARNING - Created minimal clock fallback")
+            # CRITICAL FIX: Don't create MinimalClock fallback
+            # It causes problems with indicator clock detection in _periodset()
+            # If no datas, leave _clock as None and let it be set later
         
         # CRITICAL FIX: For TestStrategy, we need to call its __init__ method directly
         # without filtering parameters since TestStrategy.__init__ doesn't take kwargs
@@ -282,8 +276,10 @@ class Strategy(StrategyBase):
                 filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
             
             # Call the user's __init__ method directly
+            # CRITICAL FIX: Exclude StrategyBase to prevent infinite recursion
+            from backtrader.lineiterator import StrategyBase
             for cls in self.__class__.__mro__:
-                if cls != Strategy and hasattr(cls, '__init__') and '__init__' in cls.__dict__:
+                if cls not in (Strategy, StrategyBase) and hasattr(cls, '__init__') and '__init__' in cls.__dict__:
                     user_init = cls.__dict__['__init__']
                     try:
                         user_init(self)
@@ -299,9 +295,10 @@ class Strategy(StrategyBase):
         if not hasattr(self, '_dlens'):
             self._dlens = [len(data) for data in self.datas]
         
-        # Call parent initialization without args to avoid object.__init__() error
-        # Call with no kwargs to prevent parameter conflicts
-        super(Strategy, self).__init__()
+        # CRITICAL FIX: DO NOT call super().__init__() here!
+        # StrategyBase.__init__ already calls super().__init__() which eventually
+        # calls Strategy.__init__. Calling super() again would create infinite recursion.
+        # The parent initialization is already done by StrategyBase.
         
         # Clean up the temporary attribute
         if hasattr(self, '_strategy_init_kwargs'):
@@ -319,6 +316,12 @@ class Strategy(StrategyBase):
     # keep the latest delivered data date in the line
     # 保存最新的数据的日期
     lines = ("datetime",)
+    
+    def log(self, txt, dt=None):
+        """Default log method - can be overridden by subclasses"""
+        # Default implementation does nothing
+        # Subclasses like BtApiStrategy override this with actual logging
+        pass
 
     # 缓存数据
     def qbuffer(self, savemem=0, replaying=False):
@@ -382,10 +385,25 @@ class Strategy(StrategyBase):
             # timeframe may place larger time constraints in calling next.
             # 获取指标的_clock属性
             clk = getattr(lineiter, "_clock", None)
+            
+            # CRITICAL FIX: If clock is MinimalClock, use data instead
+            if clk is not None and hasattr(clk, '__class__') and 'MinimalClock' in clk.__class__.__name__:
+                if self.datas:
+                    clk = self.datas[0]
+                    lineiter._clock = clk  # Update indicator's clock
+                else:
+                    clk = None
+            
             # 如果属性值是None的话
             if clk is None:
                 # 获取指标父类的_clock属性值，如果还是None的话，循环下个指标
                 clk = getattr(lineiter._owner, "_clock", None)
+                # CRITICAL FIX: If owner's clock is also MinimalClock, use data
+                if clk is not None and hasattr(clk, '__class__') and 'MinimalClock' in clk.__class__.__name__:
+                    if self.datas:
+                        clk = self.datas[0]
+                    else:
+                        clk = None
                 if clk is None:
                     continue
             # 如果clk不是None的话
@@ -415,6 +433,12 @@ class Strategy(StrategyBase):
                 clk = clk.lines[0]
             # 保存最小周期
             _dminperiods[clk].append(lineiter._minperiod)
+        
+        # DEBUG: Print _dminperiods content
+        # print(f"DEBUG _periodset: _dminperiods = {dict(_dminperiods)}")
+        # for key, val in _dminperiods.items():
+        #     print(f"  {type(key).__name__}: {val}")
+        
         # 最小周期设置成空列表
         self._minperiods = list()
         # 循环所有的数据

@@ -50,8 +50,8 @@ class Renko(Filter):
         ("roundstart", True),
     )
 
-    def __init__(self, data):
-        super().__init__(data)
+    def __init__(self, data, *args, **kwargs):
+        super().__init__(data, *args, **kwargs)
         self._bot = None
         self._top = None
         self._size = None

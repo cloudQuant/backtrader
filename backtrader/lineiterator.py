@@ -268,8 +268,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
     _nextforce = False  # force cerebro to run in next mode (runonce=False)
     # 最小的数据数目是1
     _mindatas = 1
-    # _ltype代表line的index的值，目前默认应该是0
-    _ltype = LineSeries.IndType
+    # _ltype代表line的index的值，默认是None，子类会覆盖
+    _ltype = None
 
     # CRITICAL FIX: Convert plotinfo from dict to object with _get method for plotting compatibility
     class PlotInfoObj:
@@ -660,18 +660,22 @@ class LineIterator(LineIteratorMixin, LineSeries):
         
         # Set up the indicator's clock to match this LineIterator's clock
         if not hasattr(indicator, '_clock') or indicator._clock is None:
-            if hasattr(self, '_clock') and self._clock is not None:
-                indicator._clock = self._clock
-            elif hasattr(self, 'datas') and self.datas:
+            # CRITICAL FIX: For strategy, always use datas[0] as clock, not MinimalClock
+            if hasattr(self, 'datas') and self.datas:
                 indicator._clock = self.datas[0]
+            elif hasattr(self, '_clock') and self._clock is not None:
+                # Check if clock is MinimalClock (fallback), skip it
+                if not (hasattr(self._clock, '__class__') and 'MinimalClock' in self._clock.__class__.__name__):
+                    indicator._clock = self._clock
+                elif hasattr(self, 'data') and self.data is not None:
+                    indicator._clock = self.data
             elif hasattr(self, 'data') and self.data is not None:
                 indicator._clock = self.data
 
-        # CRITICAL FIX: Ensure indicator has proper minperiod calculation
-        # Set the indicator's minperiod based on its parameters if it has them
-        if hasattr(indicator, 'p') and hasattr(indicator.p, 'period'):
-            indicator._minperiod = max(getattr(indicator, '_minperiod', 1), indicator.p.period)
-        elif not hasattr(indicator, '_minperiod') or indicator._minperiod is None:
+        # CRITICAL FIX: Don't set _minperiod here - let the indicator's __init__ handle it
+        # The indicator will call addminperiod() in its __init__ method
+        # Setting it here causes double-counting (e.g., 20 + 20 - 1 = 39)
+        if not hasattr(indicator, '_minperiod') or indicator._minperiod is None:
             indicator._minperiod = 1
 
         # use getattr because line buffers don't have this attribute
@@ -968,22 +972,24 @@ class LineIterator(LineIteratorMixin, LineSeries):
             except Exception:
                 pass
 
+    def _next(self):
+        """Default _next implementation for indicators"""
+        # Get minperiod status
+        minperstatus = self._getminperstatus()
+        
+        # Call appropriate next method based on minperiod status
+        if minperstatus < 0:
+            self.next()
+        elif minperstatus == 0:
+            self.nextstart()
+        else:
+            self.prenext()
+    
     def prenext(self):
         # Default implementation - do nothing
         pass
 
     def nextstart(self):
-        # CRITICAL FIX: Set chkmin properly during nextstart for TestStrategy
-        if hasattr(self, '__class__') and 'TestStrategy' in self.__class__.__name__:
-            # For test strategies, chkmin should be set to the current length when nextstart is called
-            try:
-                # Get the current actual length
-                current_len = len(self)
-                self.chkmin = current_len
-            except Exception:
-                # Fallback value expected by tests
-                self.chkmin = 30
-        
         # Check if this class has its own nextstart method defined
         for cls in self.__class__.__mro__:
             if cls != LineIterator and 'nextstart' in cls.__dict__:
@@ -1719,7 +1725,8 @@ class StrategyBase(DataAccessor):
                             if attr_value not in self._lineiterators[ltype]:
                                 self._lineiterators[ltype].append(attr_value)
         except Exception as e:
-            print(f"Warning: _finalize_indicator_setup failed: {e}")
+            # Silently ignore - this is just a safety check
+            pass
             
     def _assign_data_from_cerebro(self, datas):
         """CRITICAL FIX: Assign data from cerebro to strategy"""

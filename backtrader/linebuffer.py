@@ -967,27 +967,10 @@ class LineActionsMixin:
         if _obj._clock is None and hasattr(_obj, 'datas') and _obj.datas:
             _obj._clock = _obj.datas[0]
         
-        # Calculate minperiod based on LineBuffer instances
-        mindatas = 0
-        minperstatus = MAXINT = 2 ** 31 - 1
-        
-        # Scan class members for LineBuffer instances
-        for membername in dir(_obj):
-            try:
-                member = getattr(_obj, membername)
-                if isinstance(member, (LineBuffer, LineSingle)):
-                    mindatas += 1
-                    if hasattr(member, '_minperiod'):
-                        minperstatus = min(minperstatus, member._minperiod)
-            except:
-                # Skip any attributes that cause issues during inspection
-                continue
-        
-        # Set calculated minperiod
-        if minperstatus != MAXINT:
-            _obj._minperiod = minperstatus
-        else:
-            _obj._minperiod = max(mindatas, 1)
+        # CRITICAL FIX: Initialize minperiod to 1 for indicators
+        # The actual minperiod will be set by addminperiod() calls in __init__
+        # Don't inherit minperiod from lines to avoid double-counting
+        _obj._minperiod = 1
         
         return _obj, args, kwargs
     
@@ -1090,10 +1073,14 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             params_cls = cls._params
             # Create parameter instance for this object
             instance.p = params_cls()
+            # Update with kwargs
+            for key, value in kwargs.items():
+                if hasattr(instance.p, key):
+                    setattr(instance.p, key, value)
         else:
             # Fallback to empty parameter object
             from .utils import DotDict
-            instance.p = DotDict()
+            instance.p = DotDict(**kwargs)
         
         # Create and set up Lines instance
         lines_cls = getattr(cls, 'lines', None)
@@ -1413,28 +1400,14 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             pass
 
         # CRITICAL FIX: Process the main once calculation
+        # Try to call once method if it exists
         try:
-            if hasattr(self, 'once'):
+            if hasattr(self, 'once') and callable(self.once):
                 self.once(start, end)
-        except Exception as e:
-            # If once method fails, fall back to next-style processing
-            # Silently fall back to next() processing without printing errors
+        except Exception:
+            # If once fails or doesn't exist, skip it
+            # The indicator will be calculated via next() calls during strategy execution
             pass
-            # print(f"_once method failed, falling back to next processing: {e}")
-            for i in range(start, end):
-                try:
-                    # Advance the buffer position
-                    if hasattr(self, 'forward'):
-                        self.forward()
-                    # Call next method if available
-                    if hasattr(self, 'next'):
-                        self.next()
-                except Exception:
-                    # If next fails, just advance the position
-                    if hasattr(self, 'array') and len(self.array) <= i:
-                        self.array.append(0.0)
-                    elif hasattr(self, '_idx'):
-                        self._idx = min(self._idx + 1, len(self.array) - 1)
 
         # CRITICAL FIX: Ensure the buffer is properly positioned after once processing
         if hasattr(self, '_idx') and hasattr(self, 'array'):

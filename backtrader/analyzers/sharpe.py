@@ -109,7 +109,9 @@ class SharpeRatio(Analyzer):
         TimeFrame.Years: 1,
     }
 
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # CRITICAL FIX: Call super().__init__() first to initialize self.p
+        super(SharpeRatio, self).__init__(*args, **kwargs)
         # 如果按照年的话，获取年化收益率，否则就获取每日的收益率
         if self.p.legacyannual:
             self.anret = AnnualReturn()

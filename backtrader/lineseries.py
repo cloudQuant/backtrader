@@ -796,11 +796,14 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                         def __init__(self):
                             self.datas = []
                             self.broker = None
-                            self._owner = None
-                            # Add common attributes to prevent AttributeError
+                            self._lineiterators = {}
                             self._clock = None
                             self.data = None
                             self.data0 = None
+                        
+                        def _addanalyzer_slave(self, ancls, *anargs, **ankwargs):
+                            """Minimal implementation for observers"""
+                            return None
                     
                     minimal_owner = MinimalOwner()
                     object.__setattr__(self, '_owner', minimal_owner)

@@ -17,7 +17,11 @@ def average(x, bessel=False):
     Returns:
       A float with the average of the elements of x
     """
-    return math.fsum(x) / (len(x) - bessel)
+    # CRITICAL FIX: Prevent division by zero
+    denominator = len(x) - bessel
+    if denominator == 0:
+        return 0.0
+    return math.fsum(x) / denominator
 
 
 # 用于计算方差，很明显，这种函数直接改成cython或者numpy，会有很大的效率提升。但是这函数属于边缘函数，暂时忽略改进。

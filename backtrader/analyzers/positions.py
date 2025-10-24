@@ -47,7 +47,9 @@ class PositionsValue(bt.Analyzer):
     )
 
     # 开始
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # CRITICAL FIX: Call super().__init__() first to initialize self.p
+        super(PositionsValue, self).__init__(*args, **kwargs)
         self._usedate = None
 
     def start(self):

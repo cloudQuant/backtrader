@@ -41,7 +41,20 @@ class OperationN(PeriodN):
     """
 
     def next(self):
-        self.lines[0][0] = self.func(self.data.get(size=self.p.period))
+        # CRITICAL FIX: Directly append to array in next mode
+        # The advance mechanism doesn't work correctly in next mode
+        value = self.func(self.data.get(size=self.p.period))
+        
+        # Ensure array exists and extend it
+        if not hasattr(self.lines[0], 'array') or self.lines[0].array is None:
+            import array
+            self.lines[0].array = array.array('d')
+        
+        # Append the value
+        self.lines[0].array.append(value)
+        
+        # Update idx to point to the last element
+        self.lines[0]._idx = len(self.lines[0].array) - 1
 
     def once(self, start, end):
         dst = self.lines[0].array
@@ -49,8 +62,24 @@ class OperationN(PeriodN):
         period = self.p.period
         func = self.func
 
+        # Ensure dst array is large enough
+        while len(dst) < end:
+            dst.append(0.0)
+
         for i in range(start, end):
-            dst[i] = func(src[i - period + 1 : i + 1])
+            # Ensure we have enough data for the period
+            if i >= period - 1:
+                slice_data = src[i - period + 1 : i + 1]
+                if len(slice_data) > 0:
+                    dst[i] = func(slice_data)
+                else:
+                    dst[i] = float('nan')
+            else:
+                dst[i] = float('nan')
+        
+        # CRITICAL FIX: Set _idx to the last valid position after once processing
+        if hasattr(self.lines[0], '_idx'):
+            self.lines[0]._idx = end - 1
 
 
 # 设置计算指标的时候的可调用函数

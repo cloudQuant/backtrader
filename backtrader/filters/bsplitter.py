@@ -5,6 +5,8 @@ import datetime
 import backtrader as bt
 from backtrader.parameters import ParameterizedBase
 
+__all__ = ['DaySplitterClose', 'DaySplitter_Close']
+
 
 class DaySplitterClose(ParameterizedBase):
     """
@@ -89,3 +91,7 @@ class DaySplitterClose(ParameterizedBase):
         data._add2stack(closebar, stash=True)
 
         return False  # initial tick can be further processed from stack
+
+
+# Alias for backward compatibility
+DaySplitter_Close = DaySplitterClose

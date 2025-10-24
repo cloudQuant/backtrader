@@ -77,6 +77,13 @@ class MovingAverageBase(Indicator):
     # 默认画到主图上
     plotinfo = dict(subplot=False)
 
+    def __init__(self):
+        """Initialize moving average and set minimum period"""
+        super(MovingAverageBase, self).__init__()
+        # CRITICAL FIX: Set the minimum period based on the period parameter
+        # This ensures the indicator doesn't start calculating until enough data is available
+        self.addminperiod(self.p.period)
+
     def __init_subclass__(cls, **kwargs):
         """Register moving average classes automatically"""
         super().__init_subclass__(**kwargs)

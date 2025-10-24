@@ -132,7 +132,10 @@ class Returns(TimeFrameAnalyzerBase):
 
         # Average return
         # 计算的是平均的收益率,先计算的对数收益率，然后计算的平均的对数收益率
-        self.rets["ravg"] = ravg = rtot / self._tcount
+        if self._tcount > 0:
+            self.rets["ravg"] = ravg = rtot / self._tcount
+        else:
+            self.rets["ravg"] = ravg = 0.0
 
         # Annualized normalized return
         # 计算的是年化的收益率

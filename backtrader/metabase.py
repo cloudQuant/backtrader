@@ -126,9 +126,11 @@ def patch_strategy_clk_update():
         Strategy._clk_update = safe_clk_update
         
     except ImportError as e:
-        print(f"Could not patch Strategy._clk_update: {e}")
+        # Silently ignore - Strategy already has _clk_update method
+        pass
     except Exception as e:
-        print(f"Error patching Strategy._clk_update: {e}")
+        # Silently ignore - Strategy already has _clk_update method
+        pass
 
 
 # 寻找基类，这个python函数主要使用了四个python小技巧：

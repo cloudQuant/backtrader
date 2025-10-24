@@ -64,7 +64,8 @@ class GenericCSVData(feed.CSVDataBase):
     )
 
     # 开始，根据传入的日期参数确定转换的方法
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        super(GenericCSVData, self).__init__(*args, **kwargs)
         self._dtconvert = None
         self._dtstr = None
 
@@ -135,7 +136,7 @@ class GenericCSVData(feed.CSVDataBase):
         for linefield in (x for x in self.getlinealiases() if x != "datetime"):
             # Get the index created from the passed params
             # 获取这个列名称的index
-            csvidx = getattr(self.params, linefield)
+            csvidx = getattr(self.p, linefield)
             # 如果这个列的index是None或者小于0,代表数据是空的，设置成NAN
             if csvidx is None or csvidx < 0:
                 # the field will not be present, assignt the "nullvalue"

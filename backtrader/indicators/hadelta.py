@@ -4,7 +4,7 @@ import backtrader as bt
 from . import MovAv
 from .sma import SMA
 
-__all__ = ["HaDelta", "haD"]
+__all__ = ["HaDelta", "haD", "haDelta"]
 
 
 # HaDelta指标
@@ -46,9 +46,14 @@ class HaDelta(bt.Indicator):
     def __init__(self):
         d = bt.ind.HeikinAshi(self.data) if self.p.autoheikin else self.data
 
-        self.lines.haDelta = hd = d.close - d.open
+        # Use lines.ha_close and lines.ha_open for HeikinAshi, close and open for regular data
+        if self.p.autoheikin:
+            self.lines.haDelta = hd = d.lines.ha_close - d.lines.ha_open
+        else:
+            self.lines.haDelta = hd = d.close - d.open
         self.lines.smoothed = self.p.movav(hd, period=self.p.period)
         super(HaDelta, self).__init__()
 
 
 haD = HaDelta
+haDelta = HaDelta  # Alias for tests

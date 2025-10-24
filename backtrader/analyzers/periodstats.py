@@ -62,7 +62,9 @@ class PeriodStats(bt.Analyzer):
     )
 
     # 初始化，调用TimeReturn
-    def __init__(self):
+    def __init__(self, *args, **kwargs):
+        # CRITICAL FIX: Call super().__init__() first to initialize self.p
+        super(PeriodStats, self).__init__(*args, **kwargs)
         self._tr = TimeReturn(
             timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
         )
