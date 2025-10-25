@@ -43,15 +43,16 @@ class MovingAverageSimple(MovingAverageBase):
         # CRITICAL FIX: Don't use cache in runonce mode as it breaks with index changes
         # Check cache first only if we're not in runonce mode
         cache_key = f"sma_{period}_{len(self.data)}"
-        if not hasattr(self, '_idx') and cache_key in self._result_cache:
+        if not (hasattr(self, '_idx') and self._idx >= 0) and cache_key in self._result_cache:
             return self._result_cache[cache_key]
 
         # Phase 2: Use vectorized calculation when enough data is available
         # CRITICAL FIX: In runonce mode, use manual calculation which handles indices correctly
-        if self._vectorized_enabled and len(self.data) >= period and not hasattr(self, '_idx'):
+        if self._vectorized_enabled and len(self.data) >= period and not (hasattr(self, '_idx') and self._idx >= 0):
             try:
                 # Extract recent prices for vectorized calculation
-                recent_prices = [float(self.data[i]) for i in range(-period, 0)]
+                # Use range(1-period, 1) to get the last 'period' bars including current
+                recent_prices = [float(self.data[i]) for i in range(1 - period, 1)]
                 if len(recent_prices) == period:
                     # Vectorized mean calculation
                     result = np.mean(recent_prices) if np else sum(recent_prices) / period
@@ -75,7 +76,7 @@ class MovingAverageSimple(MovingAverageBase):
             current_price = None
             
             # Method 1: Direct array access with absolute index
-            if hasattr(self.data, 'array') and hasattr(self, '_idx'):
+            if hasattr(self.data, 'array') and hasattr(self, '_idx') and self._idx >= 0:
                 try:
                     if 0 <= self._idx < len(self.data.array):
                         current_price = float(self.data.array[self._idx])
@@ -92,7 +93,7 @@ class MovingAverageSimple(MovingAverageBase):
             # Method 3: Try close line directly
             if current_price is None and hasattr(self.data, 'close'):
                 try:
-                    if hasattr(self.data.close, 'array') and hasattr(self, '_idx'):
+                    if hasattr(self.data.close, 'array') and hasattr(self, '_idx') and self._idx >= 0:
                         if 0 <= self._idx < len(self.data.close.array):
                             current_price = float(self.data.close.array[self._idx])
                     else:
@@ -105,7 +106,7 @@ class MovingAverageSimple(MovingAverageBase):
 
             # CRITICAL FIX: In runonce mode, don't rely on _price_window state
             # Instead, calculate from the data array directly using absolute indices
-            if hasattr(self, '_idx'):
+            if hasattr(self, '_idx') and self._idx >= 0:
                 # Runonce mode: use absolute indices
                 # Get the data array - try multiple sources
                 data_array = None
@@ -157,6 +158,41 @@ class MovingAverageSimple(MovingAverageBase):
         except (IndexError, ValueError, TypeError):
             return float('nan')
 
+    def nextstart(self):
+        """Initialize on first call after minperiod is met"""
+        try:
+            period = self.p.period if hasattr(self, 'p') else 30
+
+            # Initialize _price_window with historical prices
+            # At this point, we have exactly 'period' bars of data
+            # Use range(1-period, 1) to get the last 'period' bars including current
+            for i in range(1 - period, 1):
+                try:
+                    price = float(self.data[i])
+                    self._price_window.append(price)
+                    self._sum += price
+                except (IndexError, TypeError, AttributeError):
+                    pass
+
+            # Calculate first SMA value
+            if len(self._price_window) >= period:
+                sma_value = self._sum / period
+            elif len(self._price_window) > 0:
+                sma_value = sum(self._price_window) / len(self._price_window)
+            else:
+                sma_value = 0.0
+
+            # Set the value
+            if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
+                self.lines.sma[0] = sma_value
+            elif hasattr(self, 'lines') and len(self.lines.lines) > 0:
+                self.lines.lines[0][0] = sma_value
+
+        except Exception:
+            # Fallback to safe default
+            if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
+                self.lines.sma[0] = 0.0
+
     def next(self):
         """Phase 2 Optimized next() method with vectorized calculations"""
         try:
@@ -179,7 +215,7 @@ class MovingAverageSimple(MovingAverageBase):
 
             # Set the SMA line value
             # CRITICAL FIX: In runonce mode, write directly to array using absolute index
-            if hasattr(self, '_idx') and hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
+            if hasattr(self, '_idx') and self._idx >= 0 and hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
                 # Runonce mode: write to absolute position in array
                 if hasattr(self.lines.sma, 'array'):
                     # Ensure array is large enough
@@ -192,7 +228,7 @@ class MovingAverageSimple(MovingAverageBase):
                 self.lines.sma[0] = sma_value
             elif hasattr(self, 'lines') and len(self.lines.lines) > 0:
                 # Fallback to first line
-                if hasattr(self, '_idx') and hasattr(self.lines.lines[0], 'array'):
+                if hasattr(self, '_idx') and self._idx >= 0 and hasattr(self.lines.lines[0], 'array'):
                     while len(self.lines.lines[0].array) <= self._idx:
                         self.lines.lines[0].array.append(float('nan'))
                     self.lines.lines[0].array[self._idx] = sma_value

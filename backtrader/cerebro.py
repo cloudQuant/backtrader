@@ -1970,7 +1970,9 @@ class Cerebro(ParameterizedBase):
                 # 对于每个数据调用advance_peek(),取得最小的一个时间作为第一个
                 dts = [d.advance_peek() for d in datas]
                 dt0 = min(dts)
-                if dt0 == float("inf"):
+                # CRITICAL FIX: Also break if dt0 is invalid (0 or negative)
+                # This prevents processing invalid datetime values
+                if dt0 == float("inf") or dt0 <= 0:
                     break  # no data delivers anything
 
                 # Timemaster if needed be

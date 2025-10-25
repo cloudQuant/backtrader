@@ -589,32 +589,81 @@ class Strategy(StrategyBase):
         else:
             # the strategy has been reset to beginning. advance step by step
             self.forward()
-        # 设置时间
-        self.lines.datetime[0] = dt
+        # CRITICAL FIX: Handle invalid dt (0 or negative) - use last valid datetime
+        # This can happen at the end of runonce when all data is exhausted
+        if dt <= 0:
+            # Use the last valid datetime from the data feed
+            if hasattr(self.datas[0], 'datetime') and hasattr(self.datas[0].datetime, 'array'):
+                dt_array = self.datas[0].datetime.array
+                if len(dt_array) > 0:
+                    dt = dt_array[-1]  # Use last valid datetime
+
+        # Only set datetime if dt is valid (> 0)
+        if dt > 0:
+            self.lines.datetime[0] = dt
         # 通知
         self._notify()
         
-        # CRITICAL FIX: Set _idx for all indicator lines before calling next()
-        # This ensures indicators return the correct values when accessed in next()
+        # CRITICAL FIX: Set _idx for all indicator and data lines before calling next()
+        # This ensures indicators and data feeds return the correct values when accessed in next()
         current_idx = len(self) - 1  # Current position (0-indexed)
+
+        # CRITICAL FIX: If dt is invalid (0 or negative), use last valid index for data lines
+        # to prevent accessing invalid datetime values
+        use_last_valid_idx = dt <= 0
+
+        # Set _idx for data feeds
+        for data in self.datas:
+            # Check if data has array and what its length is
+            data_len = len(data.array) if hasattr(data, 'array') else None
+
+            # If dt is invalid, use last valid index
+            if use_last_valid_idx and data_len and data_len > 0:
+                data._idx = data_len - 1
+            elif data_len and current_idx < data_len:
+                data._idx = current_idx
+            elif data_len and current_idx >= data_len:
+                # Out of bounds - set to last valid index
+                data._idx = data_len - 1
+            elif current_idx >= 0:
+                data._idx = current_idx
+
+            if hasattr(data, 'lines') and hasattr(data.lines, 'lines'):
+                for line in data.lines.lines:
+                    line_len = len(line.array) if hasattr(line, 'array') else None
+                    # Bounds check for each line
+                    if use_last_valid_idx and line_len and line_len > 0:
+                        line._idx = line_len - 1
+                    elif line_len and current_idx < line_len:
+                        line._idx = current_idx
+                    elif line_len and current_idx >= line_len:
+                        # Out of bounds - set to last valid index
+                        line._idx = line_len - 1
+                    elif current_idx >= 0:
+                        line._idx = current_idx
+
+        # Set _idx for indicators
         for indicator in self._lineiterators[LineIterator.IndType]:
-            if hasattr(indicator, '_idx'):
-                indicator._idx = current_idx
+            indicator._idx = current_idx
             if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
                 for line in indicator.lines.lines:
-                    if hasattr(line, '_idx'):
-                        line._idx = current_idx
+                    line._idx = current_idx
         
         # 获取当前最小周期状态，如果所有数据都满足了，调用next
         # 如果正好所有数据都满足了，调用nextstart
         # 如果不是所有的数据都满足了，调用prenext
         minperstatus = self._getminperstatus()
-        if minperstatus < 0:
-            self.next()
-        elif minperstatus == 0:
-            self.nextstart()  # only called for the 1st value
-        else:
-            self.prenext()
+
+        # CRITICAL FIX: Only call next/nextstart/prenext if dt is valid
+        # When dt <= 0, it means data is exhausted and we shouldn't process more
+        if dt > 0:
+            if minperstatus < 0:
+                self.next()
+            elif minperstatus == 0:
+                self.nextstart()  # only called for the 1st value
+            else:
+                self.prenext()
+
         # 对analyzer增加最小周期状态
         self._next_analyzers(minperstatus, once=True)
         # 对observer增加最小周期状态
@@ -669,6 +718,10 @@ class Strategy(StrategyBase):
 
     # _next方法,获取最小数据周期状态，并且添加给analyzer和observer中，然后clear
     def _next(self):
+        # CRITICAL FIX: Call _notify() to deliver order/trade notifications
+        # This was missing in _next() mode, causing notify_order() to never be called
+        self._notify()
+
         super(Strategy, self)._next()
 
         minperstatus = self._getminperstatus()
