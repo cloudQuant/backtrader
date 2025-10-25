@@ -1633,15 +1633,41 @@ class StrategyBase(DataAccessor):
         # Update the clock first
         self._clk_update()
         
-        # PERFORMANCE FIX: Don't manually update indicators here!
-        # In runonce=False mode, cerebro automatically updates indicators before calling strategy._next()
-        # Manually calling indicator._next() here causes indicators to be processed TWICE per bar,
-        # leading to O(N^2) performance degradation.
-        # The cerebro event loop (via _runnext) handles indicator updates automatically.
+        # NOTE: _notify() is called in Strategy._next(), not here
+        # to avoid double notification when Strategy subclasses StrategyBase
         
-        # Call the user's next() method
-        if hasattr(self, 'next') and callable(self.next):
-            self.next()
+        # CRITICAL FIX: Update indicators BEFORE calling user's next()
+        # In runonce=False mode, indicators must be updated manually
+        if hasattr(self, '_lineiterators'):
+            for indicator in self._lineiterators.get(LineIterator.IndType, []):
+                try:
+                    if hasattr(indicator, '_next') and callable(indicator._next):
+                        indicator._next()
+                except Exception:
+                    # Skip indicators that fail to update
+                    pass
+        
+        # Get minperiod status
+        minperstatus = -1
+        if hasattr(self, '_getminperstatus'):
+            minperstatus = self._getminperstatus()
+        
+        # Call appropriate next method based on minperiod status
+        if minperstatus < 0:
+            if hasattr(self, 'next') and callable(self.next):
+                self.next()
+        elif minperstatus == 0:
+            if hasattr(self, 'nextstart') and callable(self.nextstart):
+                self.nextstart()
+        else:
+            if hasattr(self, 'prenext') and callable(self.prenext):
+                self.prenext()
+        
+        # NOTE: _next_analyzers and _next_observers are called in Strategy._next()
+        # to avoid double processing when Strategy subclasses StrategyBase
+        
+        # NOTE: clear() is called in Strategy._next()
+        # to avoid double clearing when Strategy subclasses StrategyBase
     
     def __init__(self, *args, **kwargs):
         """Initialize strategy and handle delayed data assignment from cerebro"""
