@@ -910,7 +910,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # CRITICAL FIX: Use provided start/end or calculate them
         if start is None:
-            start = 0
+            # Use minperiod as the start position to ensure enough data for calculations
+            if hasattr(self, '_minperiod') and self._minperiod is not None:
+                start = self._minperiod - 1
+            else:
+                start = 0
         if end is None:
             end = self._clk_update()
             

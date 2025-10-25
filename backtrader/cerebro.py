@@ -2017,49 +2017,6 @@ class Cerebro(ParameterizedBase):
                 # Continue execution instead of crashing
                 return
         
-        # CRITICAL FIX: After runonce completes, clean up and reset indices
-        # Remove the extra 0.0 value at the end of arrays that was added by an extra forward()
-        for strat in runstrats:
-            if hasattr(strat, 'datas') and strat.datas:
-                for data in strat.datas:
-                    if hasattr(data, 'lines') and hasattr(data.lines, 'lines'):
-                        for line in data.lines.lines:
-                            # Check if the last value is 0.0 and remove it
-                            if hasattr(line, 'array') and len(line.array) > 0:
-                                if line.array[-1] == 0.0 and len(line.array) > 1:
-                                    # Remove the last 0.0 value
-                                    line.array.pop()
-                                    # Adjust lencount
-                                    if hasattr(line, 'lencount'):
-                                        line.lencount -= 1
-                            # Set _idx to the last valid position
-                            if hasattr(line, '_idx') and hasattr(line, 'array'):
-                                line._idx = len(line.array) - 1
-                
-                # Also clean up indicators
-                if hasattr(strat, '_lineiterators'):
-                    from .lineiterator import LineIterator
-                    # Get the expected length from data
-                    expected_len = len(strat.datas[0].lines.lines[0].array) if strat.datas else 0
-                    
-                    for indicator in strat._lineiterators.get(LineIterator.IndType, []):
-                        if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
-                            for line in indicator.lines.lines:
-                                # Check if array is longer than expected and remove extra values
-                                if hasattr(line, 'array') and len(line.array) > expected_len:
-                                    # Remove extra values at the end
-                                    while len(line.array) > expected_len:
-                                        line.array.pop()
-                                        if hasattr(line, 'lencount'):
-                                            line.lencount -= 1
-                                # Set _idx to the last valid position
-                                if hasattr(line, '_idx') and hasattr(line, 'array'):
-                                    line._idx = len(line.array) - 1
-                        # Also set indicator's own _idx
-                        if hasattr(indicator, '_idx') and hasattr(indicator, 'lines') and \
-                           hasattr(indicator.lines, 'lines') and indicator.lines.lines:
-                            indicator._idx = len(indicator.lines.lines[0].array) - 1
-        
         print("结束_runonce")
 
     # 检查timer

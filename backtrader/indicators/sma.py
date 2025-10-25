@@ -214,26 +214,12 @@ class MovingAverageSimple(MovingAverageBase):
                 sma_value = 0.0
 
             # Set the SMA line value
-            # CRITICAL FIX: In runonce mode, write directly to array using absolute index
-            if hasattr(self, '_idx') and self._idx >= 0 and hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
-                # Runonce mode: write to absolute position in array
-                if hasattr(self.lines.sma, 'array'):
-                    # Ensure array is large enough
-                    while len(self.lines.sma.array) <= self._idx:
-                        self.lines.sma.array.append(float('nan'))
-                    self.lines.sma.array[self._idx] = sma_value
-                else:
-                    self.lines.sma[0] = sma_value
-            elif hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
+            # CRITICAL FIX: Always use line assignment to ensure lencount is managed correctly
+            # Using self.lines.sma[0] = value will automatically call forward() and update lencount
+            if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
                 self.lines.sma[0] = sma_value
             elif hasattr(self, 'lines') and len(self.lines.lines) > 0:
-                # Fallback to first line
-                if hasattr(self, '_idx') and self._idx >= 0 and hasattr(self.lines.lines[0], 'array'):
-                    while len(self.lines.lines[0].array) <= self._idx:
-                        self.lines.lines[0].array.append(float('nan'))
-                    self.lines.lines[0].array[self._idx] = sma_value
-                else:
-                    self.lines.lines[0][0] = sma_value
+                self.lines.lines[0][0] = sma_value
 
         except Exception as e:
             # Fallback to safe default

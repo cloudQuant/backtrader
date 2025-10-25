@@ -67,9 +67,11 @@ class OperationN(PeriodN):
             else:
                 dst[i] = float('nan')
         
-        # CRITICAL FIX: Set _idx to the last valid position after once processing
+        # CRITICAL FIX: Set _idx and lencount to the last valid position after once processing
         if hasattr(self.lines[0], '_idx'):
             self.lines[0]._idx = end - 1
+        if hasattr(self.lines[0], 'lencount'):
+            self.lines[0].lencount = end
 
 
 # 设置计算指标的时候的可调用函数

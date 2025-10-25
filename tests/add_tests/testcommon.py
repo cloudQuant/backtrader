@@ -134,8 +134,8 @@ class TestStrategy(bt.Strategy):
         # In runonce mode, oncestart is called instead of nextstart
         # Set chkmin based on the start parameter
         self.chkmin = start
-        if self.p.main:
-            print(f"oncestart called: start={start}, chkmin set to {self.chkmin}")
+        # DEBUG: Always print to see if this is called
+        print(f"oncestart called: start={start}, end={end}, chkmin set to {self.chkmin}")
         super(TestStrategy, self).oncestart(start, end)
 
     def next(self):
@@ -151,12 +151,20 @@ class TestStrategy(bt.Strategy):
 
     def start(self):
         self.nextcalls = 0
-        self.chkmin = 0  # Will be set in nextstart()
+        # CRITICAL FIX: Don't reset chkmin to 0 here
+        # It will be set by nextstart() or oncestart()
+        # Resetting it here causes issues in multi-run scenarios
+        if not hasattr(self, 'chkmin'):
+            self.chkmin = 0
 
     def stop(self):
         l = len(self.ind)
         mp = self.chkmin
         chkpts = [0, -l + mp, (-l + mp) // 2]
+        
+        # DEBUG: Print calculation details
+        if not self.p.main:
+            print(f"  [DEBUG stop()] l={l}, mp={mp}, chkpts={chkpts}")
 
         if self.p.main:
             print('----------------------------------------')
