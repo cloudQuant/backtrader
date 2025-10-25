@@ -111,7 +111,7 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
             self._value = fundvalue if self.p.data is None else self.p.data[0]
 
     # 在一个新的timeframe中调用一次
-    def _on_dt_over(self):
+    def on_dt_over(self):
         # next is called in a new timeframe period
         if self.p.data is None or len(self.p.data) > 1:
             # Not tracking a data feed or data feed has data already

@@ -150,5 +150,5 @@ class Returns(TimeFrameAnalyzerBase):
         # 百分比形式的年化收益率
         self.rets["rnorm100"] = rnorm * 100.0  # human-readable %
 
-    def _on_dt_over(self):
+    def on_dt_over(self):
         self._tcount += 1  # count the subperiod

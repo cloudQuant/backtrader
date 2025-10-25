@@ -160,7 +160,7 @@ class VWR(TimeFrameAnalyzerBase):
         else:
             self._pns[-1] = fundvalue  # annotate last pn for current period
 
-    def _on_dt_over(self):
+    def on_dt_over(self):
         self._pis.append(self._pns[-1])  # the last pn is pi in the next period
         self._pns.append(None)  # placeholder for [-1] operation
 
