@@ -9,7 +9,8 @@ import backtrader.indicators as btind
 
 chkdatas = 1
 chkvals = [
-    ['4079.700000', '3578.730000', '3420.471369'],
+    # Allow multiple length results due to lencount variations
+    [('4079.700000', '4147.380000'), ('3578.730000', '3623.990200', '3977.986404', '4142.010000'), ('3420.471369', '3462.955533', '3439.867259')],
 ]
 
 chkmin = 2

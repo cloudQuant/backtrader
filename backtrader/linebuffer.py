@@ -1423,9 +1423,12 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             # Set the index to the end position
             self._idx = min(end - 1, len(self.array) - 1)
         
-        # CRITICAL FIX: Ensure lencount is updated
-        if hasattr(self, 'lencount'):
-            self.lencount = max(self.lencount, end)
+        # CRITICAL FIX: Ensure lencount is updated to match actual array length
+        # In runonce mode, the array may have more elements than 'end' suggests
+        if hasattr(self, 'lencount') and hasattr(self, 'array') and self.array is not None:
+            # Use the actual array length, not just the 'end' parameter
+            actual_len = len(self.array)
+            self.lencount = max(self.lencount, actual_len)
 
     @classmethod
     def cleancache(cls):
