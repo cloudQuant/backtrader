@@ -20,6 +20,33 @@ from .metabase import AutoInfoClass
 from . import metabase
 
 
+class MinimalClock:
+    """
+    Minimal clock implementation used as a fallback when _clock is not set.
+    
+    CRITICAL FIX: Defined at module level to support pickling for multiprocessing.
+    Previously this was defined as a local class inside __getattribute__, which
+    caused pickle failures during strategy optimization.
+    """
+    def __init__(self):
+        self._owner = None
+        self.datas = []
+        
+    def buflen(self):
+        return 1
+        
+    def __len__(self):
+        return 0
+        
+    def __getattr__(self, name):
+        # Return None for any missing attributes to prevent further errors
+        return None
+    
+    def __reduce__(self):
+        """Support pickling for multiprocessing."""
+        return (MinimalClock, ())
+
+
 class LineAlias(object):
     """Descriptor class that store a line reference and returns that line
     from the owner
@@ -815,21 +842,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                     return object.__getattribute__(self, '_clock')
                 except AttributeError:
                     # Create minimal clock to prevent recursion
-                    class MinimalClock:
-                        def __init__(self):
-                            self._owner = None
-                            self.datas = []
-                            
-                        def buflen(self):
-                            return 1
-                            
-                        def __len__(self):
-                            return 0
-                            
-                        def __getattr__(self, name):
-                            # Return None for any missing attributes to prevent further errors
-                            return None
-                    
+                    # Use module-level MinimalClock class to support pickling
                     minimal_clock = MinimalClock()
                     object.__setattr__(self, '_clock', minimal_clock)
                     return minimal_clock

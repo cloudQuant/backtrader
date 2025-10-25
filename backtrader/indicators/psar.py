@@ -9,10 +9,18 @@ __all__ = ["ParabolicSAR", "PSAR"]
 
 
 class _SarStatus(object):
-    sar = None
-    tr = None
-    af = 0.0
-    ep = 0.0
+    """Internal status holder for ParabolicSAR calculation.
+    
+    CRITICAL FIX: Use __init__ to create instance variables instead of class variables.
+    Class variables are shared across all instances, causing state pollution in parallel tests.
+    """
+    
+    def __init__(self):
+        # Instance variables - each instance gets its own copy
+        self.sar = None
+        self.tr = None
+        self.af = 0.0
+        self.ep = 0.0
 
     def __str__(self):
         txt = []
@@ -63,7 +71,8 @@ class ParabolicSAR(PeriodN):
 
         elif len(self) == 2:
             self.nextstart()  # kickstart calculation
-        else:
+        elif self._status and len(self._status) == 2:
+            # Only call next() if _status is properly initialized
             self.next()  # regular calc
 
         self.lines.psar[0] = float("NaN")  # no return yet still prenext
@@ -103,6 +112,36 @@ class ParabolicSAR(PeriodN):
     def next(self):
         hi = self.data.high[0]
         lo = self.data.low[0]
+
+        # CRITICAL FIX: Ensure _status is properly initialized
+        # In runonce mode, prenext() may not be called, so we need to initialize here
+        if not self._status:
+            # First time initialization
+            if len(self) == 1:
+                self.lines.psar[0] = float("NaN")
+                return
+            elif len(self) == 2:
+                # Initialize status for the first time
+                self._status = [_SarStatus(), _SarStatus()]
+                plenidx = (len(self) - 1) % 2
+                status = self._status[plenidx]
+                status.sar = (self.data.high[0] + self.data.low[0]) / 2.0
+                status.af = self.p.af
+                if self.data.close[0] >= self.data.close[-1]:
+                    status.tr = not True
+                    status.ep = self.data.low[-1]
+                else:
+                    status.tr = not False
+                    status.ep = self.data.high[-1]
+                # Fall through to process normally
+            else:
+                # Should not happen, but be defensive
+                self.lines.psar[0] = float("NaN")
+                return
+        
+        if len(self._status) != 2:
+            self.lines.psar[0] = float("NaN")
+            return
 
         plenidx = (len(self) - 1) % 2  # previous length index (0 or 1)
         status = self._status[plenidx]  # use prev status for calculations
@@ -149,7 +188,7 @@ class ParabolicSAR(PeriodN):
 
         # new status has been calculated, keep it in current length
         # will be used when length moves forward
-        newstatus = self._status[not plenidx]
+        newstatus = self._status[1 - plenidx]  # Toggle between 0 and 1
         newstatus.tr = tr
         newstatus.sar = sar
         newstatus.ep = ep

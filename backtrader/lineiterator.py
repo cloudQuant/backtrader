@@ -1633,20 +1633,11 @@ class StrategyBase(DataAccessor):
         # Update the clock first
         self._clk_update()
         
-        # CRITICAL FIX: Update all indicators before calling user's next() method
-        # This ensures indicators have calculated values when the strategy's next() is called
-        if hasattr(self, '_lineiterators'):
-            indicators = self._lineiterators.get(LineIterator.IndType, [])
-            
-            for indicator in indicators:
-                try:
-                    # Call the indicator's _next() method
-                    # The indicator will handle its own buffer advancement
-                    if hasattr(indicator, '_next') and callable(indicator._next):
-                        indicator._next()
-                except Exception as e:
-                    # Silently ignore errors in indicator processing
-                    pass
+        # PERFORMANCE FIX: Don't manually update indicators here!
+        # In runonce=False mode, cerebro automatically updates indicators before calling strategy._next()
+        # Manually calling indicator._next() here causes indicators to be processed TWICE per bar,
+        # leading to O(N^2) performance degradation.
+        # The cerebro event loop (via _runnext) handles indicator updates automatically.
         
         # Call the user's next() method
         if hasattr(self, 'next') and callable(self.next):

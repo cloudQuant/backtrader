@@ -401,6 +401,33 @@ class AutoInfoClass(object):
         return obj
 
 
+def _reconstruct_param_class(class_name, all_params, instance_values):
+    """
+    Reconstruct a parameter class instance for unpickling.
+    
+    CRITICAL FIX: This function is called during unpickling to recreate
+    parameter class instances created by ParameterManager._derive_params().
+    Required for multiprocessing support in strategy optimization.
+    
+    Args:
+        class_name: Name of the parameter class
+        all_params: Dictionary of default parameter values
+        instance_values: Dictionary of instance-specific values
+        
+    Returns:
+        Reconstructed parameter class instance
+    """
+    # Create the parameter class using the same logic as _derive_params
+    param_class = ParameterManager._derive_params(class_name, all_params, ())
+    
+    # Create an instance with the saved values
+    instance = param_class()
+    for key, value in instance_values.items():
+        setattr(instance, key, value)
+    
+    return instance
+
+
 class ParameterManager:
     """Manager for handling parameter operations without metaclass"""
     
@@ -615,8 +642,25 @@ class ParameterManager:
             def __setattr__(self, name, value):
                 # Allow setting attributes normally
                 super().__setattr__(name, value)
+            
+            def __reduce__(self):
+                """
+                CRITICAL FIX: Support pickling for multiprocessing (optstrategy).
+                
+                This allows the parameter class to be serialized when using
+                multiprocessing for strategy optimization.
+                """
+                # Return a tuple: (callable, args) to reconstruct the object
+                # We return the class and its current state as kwargs
+                return (
+                    _reconstruct_param_class,
+                    (class_name, all_params, {k: getattr(self, k) for k in all_params.keys() if hasattr(self, k)})
+                )
         
         ParamClass.__name__ = class_name
+        ParamClass.__module__ = __name__  # CRITICAL: Set module for pickling
+        ParamClass.__qualname__ = class_name  # Set qualname for Python 3
+        
         return ParamClass
     
     @staticmethod

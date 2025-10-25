@@ -989,7 +989,9 @@ class ParameterAccessor:
 
     def __getattr__(self, name):
         """Get parameter value via attribute access."""
-        return self._param_manager.get(name)
+        # Use object.__getattribute__ to avoid recursion during unpickling
+        param_manager = object.__getattribute__(self, '_param_manager')
+        return param_manager.get(name)
 
     def __setattr__(self, name, value):
         """Set parameter value via attribute access."""
@@ -1472,6 +1474,128 @@ class ParameterizedBase:
             return f"{class_name}(no_parameters)"
 
 
+# CRITICAL FIX: Picklable validator classes for multiprocessing support
+# Local functions returned by Int() and Float() cannot be pickled,
+# causing failures in strategy optimization (optstrategy).
+
+class _IntValidator:
+    """
+    Integer validator that can be pickled for multiprocessing.
+    
+    CRITICAL FIX: Class-based validator instead of closure to support pickling.
+    """
+    def __init__(self, min_val=None, max_val=None):
+        self.min_val = min_val
+        self.max_val = max_val
+    
+    def __call__(self, value):
+        # Only accept actual int values, not floats or other types
+        if not isinstance(value, int) or isinstance(value, bool):
+            return False
+        try:
+            int_val = int(value)
+            if self.min_val is not None and int_val < self.min_val:
+                return False
+            if self.max_val is not None and int_val > self.max_val:
+                return False
+            return True
+        except (ValueError, TypeError):
+            return False
+    
+    def __reduce__(self):
+        """Support pickling for multiprocessing."""
+        return (_IntValidator, (self.min_val, self.max_val))
+
+
+class _FloatValidator:
+    """
+    Float validator that can be pickled for multiprocessing.
+    
+    CRITICAL FIX: Class-based validator instead of closure to support pickling.
+    """
+    def __init__(self, min_val=None, max_val=None):
+        self.min_val = min_val
+        self.max_val = max_val
+    
+    def __call__(self, value):
+        # Only accept actual numeric types, not strings
+        if not isinstance(value, (int, float)):
+            return False
+        try:
+            float_val = float(value)
+            if self.min_val is not None and float_val < self.min_val:
+                return False
+            if self.max_val is not None and float_val > self.max_val:
+                return False
+            return True
+        except (ValueError, TypeError):
+            return False
+    
+    def __reduce__(self):
+        """Support pickling for multiprocessing."""
+        return (_FloatValidator, (self.min_val, self.max_val))
+
+
+class _BoolValidator:
+    """
+    Boolean validator that can be pickled for multiprocessing.
+    
+    CRITICAL FIX: Class-based validator instead of closure to support pickling.
+    """
+    def __call__(self, value):
+        """Boolean validator that accepts various boolean representations."""
+        if isinstance(value, bool):
+            return True
+        if value in (0, 1, 'True', 'False', 'true', 'false', 'TRUE', 'FALSE'):
+            return True
+        return False
+    
+    def __reduce__(self):
+        """Support pickling for multiprocessing."""
+        return (_BoolValidator, ())
+
+
+class _StringValidator:
+    """
+    String validator that can be pickled for multiprocessing.
+    
+    CRITICAL FIX: Class-based validator instead of closure to support pickling.
+    """
+    def __init__(self, min_length=None, max_length=None):
+        self.min_length = min_length
+        self.max_length = max_length
+    
+    def __call__(self, value):
+        if not isinstance(value, string_types):
+            return False
+        if self.min_length is not None and len(value) < self.min_length:
+            return False
+        if self.max_length is not None and len(value) > self.max_length:
+            return False
+        return True
+    
+    def __reduce__(self):
+        """Support pickling for multiprocessing."""
+        return (_StringValidator, (self.min_length, self.max_length))
+
+
+class _OneOfValidator:
+    """
+    OneOf validator that can be pickled for multiprocessing.
+    
+    CRITICAL FIX: Class-based validator instead of closure to support pickling.
+    """
+    def __init__(self, choices):
+        self.choices = choices
+    
+    def __call__(self, value):
+        return value in self.choices
+    
+    def __reduce__(self):
+        """Support pickling for multiprocessing."""
+        return (_OneOfValidator, (self.choices,))
+
+
 # Convenience functions for creating parameter descriptors with validation
 def Int(min_val: Optional[int] = None, max_val: Optional[int] = None) -> Callable[[Any], bool]:
     """
@@ -1484,21 +1608,7 @@ def Int(min_val: Optional[int] = None, max_val: Optional[int] = None) -> Callabl
     Returns:
         Validator function for integer parameters
     """
-    def validator(value):
-        # Only accept actual int values, not floats or other types
-        if not isinstance(value, int) or isinstance(value, bool):
-            return False
-        try:
-            int_val = int(value)
-            if min_val is not None and int_val < min_val:
-                return False
-            if max_val is not None and int_val > max_val:
-                return False
-            return True
-        except (ValueError, TypeError):
-            return False
-    
-    return validator
+    return _IntValidator(min_val, max_val)
 
 
 def Float(min_val: Optional[float] = None, max_val: Optional[float] = None) -> Callable[[Any], bool]:
@@ -1512,21 +1622,7 @@ def Float(min_val: Optional[float] = None, max_val: Optional[float] = None) -> C
     Returns:
         Validator function for float parameters
     """
-    def validator(value):
-        # Only accept actual numeric types, not strings
-        if not isinstance(value, (int, float)):
-            return False
-        try:
-            float_val = float(value)
-            if min_val is not None and float_val < min_val:
-                return False
-            if max_val is not None and float_val > max_val:
-                return False
-            return True
-        except (ValueError, TypeError):
-            return False
-    
-    return validator
+    return _FloatValidator(min_val, max_val)
 
 
 # Convenience functions for creating typed parameter descriptors
@@ -1542,18 +1638,10 @@ def FloatParam(default=None, min_val: Optional[float] = None, max_val: Optional[
 
 def BoolParam(default=None, doc: str = None) -> ParameterDescriptor:
     """Create a boolean parameter descriptor."""
-    def validator(value):
-        """Boolean validator that accepts various boolean representations."""
-        if isinstance(value, bool):
-            return True
-        if value in (0, 1, 'True', 'False', 'true', 'false', 'TRUE', 'FALSE'):
-            return True
-        return False
-    
     return ParameterDescriptor(
         default=default,
         type_=bool,
-        validator=validator,
+        validator=_BoolValidator(),
         doc=doc
     )
 
@@ -1579,16 +1667,7 @@ def String(min_length: Optional[int] = None, max_length: Optional[int] = None) -
     Returns:
         Validator function for string parameters
     """
-    def validator(value):
-        if not isinstance(value, string_types):
-            return False
-        if min_length is not None and len(value) < min_length:
-            return False
-        if max_length is not None and len(value) > max_length:
-            return False
-        return True
-    
-    return validator
+    return _StringValidator(min_length, max_length)
 
 
 def Bool() -> Callable[[Any], bool]:
@@ -1598,10 +1677,7 @@ def Bool() -> Callable[[Any], bool]:
     Returns:
         Validator function for boolean parameters
     """
-    def validator(value):
-        return isinstance(value, bool) or value in (0, 1, 'True', 'False', 'true', 'false')
-    
-    return validator
+    return _BoolValidator()
 
 
 def OneOf(*choices) -> Callable[[Any], bool]:
@@ -1614,10 +1690,7 @@ def OneOf(*choices) -> Callable[[Any], bool]:
     Returns:
         Validator function
     """
-    def validator(value):
-        return value in choices
-    
-    return validator
+    return _OneOfValidator(choices)
 
 
 def create_param_descriptor(name: str, default: Any = None, doc: str = None) -> ParameterDescriptor:
