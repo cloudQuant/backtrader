@@ -56,7 +56,11 @@ class AnnualReturn(Analyzer):
             # 当年份不等的时候，表明当前i是新的一年
             if dt.year > cur_year:
                 if cur_year >= 0:
-                    annual_ret = (value_end / value_start) - 1.0
+                    # CRITICAL FIX: Handle zero value_start to prevent division by zero
+                    if value_start == 0 or value_start is None:
+                        annual_ret = 0.0
+                    else:
+                        annual_ret = (value_end / value_start) - 1.0
                     self.rets.append(annual_ret)
                     self.ret[cur_year] = annual_ret
 
@@ -73,7 +77,11 @@ class AnnualReturn(Analyzer):
         # 如果当前年份还没有结束，收益率还没有计算，在最后即使不满足一年的条件下，也进行计算下
         if cur_year not in self.ret:
             # finish calculating pending data
-            annual_ret = (value_end / value_start) - 1.0
+            # CRITICAL FIX: Handle zero value_start to prevent division by zero
+            if value_start == 0 or value_start is None:
+                annual_ret = 0.0
+            else:
+                annual_ret = (value_end / value_start) - 1.0
             self.rets.append(annual_ret)
             self.ret[cur_year] = annual_ret
 

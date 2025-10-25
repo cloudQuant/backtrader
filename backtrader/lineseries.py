@@ -1025,8 +1025,18 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                                 finally:
                                     if hasattr(line, '_len_recursion_guard'):
                                         delattr(line, '_len_recursion_guard')
+                            elif hasattr(line, 'lencount') and hasattr(line, 'array'):
+                                # CRITICAL FIX: If lencount is invalid (<0 or None), use array length
+                                lc = line.lencount
+                                if lc is None or (isinstance(lc, int) and lc < 0):
+                                    lengths.append(len(line.array) if line.array else 0)
+                                else:
+                                    lengths.append(lc)
                             elif hasattr(line, 'lencount'):
-                                lengths.append(line.lencount)
+                                lc = line.lencount
+                                # Only use lencount if it's valid
+                                if lc is not None and (not isinstance(lc, int) or lc >= 0):
+                                    lengths.append(lc)
                         
                         if lengths:
                             return min(lengths)
