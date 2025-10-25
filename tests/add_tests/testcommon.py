@@ -134,8 +134,6 @@ class TestStrategy(bt.Strategy):
         # In runonce mode, oncestart is called instead of nextstart
         # Set chkmin based on the start parameter
         self.chkmin = start
-        # DEBUG: Always print to see if this is called
-        print(f"oncestart called: start={start}, end={end}, chkmin set to {self.chkmin}")
         super(TestStrategy, self).oncestart(start, end)
 
     def next(self):
@@ -161,10 +159,6 @@ class TestStrategy(bt.Strategy):
         l = len(self.ind)
         mp = self.chkmin
         chkpts = [0, -l + mp, (-l + mp) // 2]
-        
-        # DEBUG: Print calculation details
-        if not self.p.main:
-            print(f"  [DEBUG stop()] l={l}, mp={mp}, chkpts={chkpts}")
 
         if self.p.main:
             print('----------------------------------------')
@@ -229,10 +223,6 @@ class TestStrategy(bt.Strategy):
                     for i, chkpt in enumerate(chkpts):
                         chkval = '%f' % self.ind.lines[lidx][chkpt]
                         if not isinstance(linevals[i], tuple):
-                            if chkval != linevals[i]:
-                                print(f"\nValue mismatch at lidx={lidx}, i={i}, chkpt={chkpt}:")
-                                print(f"  Expected: {linevals[i]}")
-                                print(f"  Got:      {chkval}")
                             assert chkval == linevals[i]
                         else:
                             # Check if actual value matches any of the expected values in the tuple
@@ -241,10 +231,5 @@ class TestStrategy(bt.Strategy):
                                 if chkval == expected_val:
                                     matched = True
                                     break
-                            
-                            if not matched:
-                                print(f"\nTuple mismatch at lidx={lidx}, i={i}, chkpt={chkpt}:")
-                                print(f"  Expected one of: {linevals[i]}")
-                                print(f"  Got:             {chkval}")
-                                assert False, f"Value {chkval} not in expected values {linevals[i]}"
+                            assert matched, f"Value {chkval} not in expected values {linevals[i]}"
 
