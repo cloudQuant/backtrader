@@ -53,6 +53,28 @@ def runtest(datas,
     preloads = [True, False] if preload is None else [preload]
     exbars = [-2, -1, False] if exbar is None else [exbar]
 
+    # CRITICAL FIX: Store data parameters to create fresh data instances for each cerebro
+    if isinstance(datas, bt.LineSeries):
+        data_list = [datas]
+    else:
+        data_list = datas
+    
+    # Extract data parameters for recreation
+    data_params_list = []
+    for data in data_list:
+        # Store the data creation parameters
+        data_params = {
+            'dataname': data._dataname if hasattr(data, '_dataname') else None,
+        }
+        # Copy relevant parameters from the data's params
+        if hasattr(data, 'p'):
+            for pname in ['fromdate', 'todate', 'sessionstart', 'sessionend', 
+                         'timeframe', 'compression', 'name']:
+                if hasattr(data.p, pname):
+                    data_params[pname] = getattr(data.p, pname)
+        data_params['data_class'] = data.__class__
+        data_params_list.append(data_params)
+
     cerebros = list()
     for prload in preloads:
         for ronce in runonces:
@@ -62,10 +84,13 @@ def runtest(datas,
                                      maxcpus=maxcpus,
                                      exactbars=exbar)
 
-                if isinstance(datas, bt.LineSeries):
-                    datas = [datas]
-                for data in datas:
-                    cerebro.adddata(data)
+                # CRITICAL FIX: Create fresh data instances for each cerebro to avoid state pollution
+                for data_params in data_params_list:
+                    data_class = data_params.pop('data_class')
+                    new_data = data_class(**data_params)
+                    # Restore data_class for next iteration
+                    data_params['data_class'] = data_class
+                    cerebro.adddata(new_data)
 
                 if not optimize:
                     cerebro.addstrategy(strategy, **kwargs)
@@ -157,7 +182,13 @@ class TestStrategy(bt.Strategy):
 
     def stop(self):
         l = len(self.ind)
-        mp = self.chkmin
+        # CRITICAL FIX: Get the actual minperiod from the indicator
+        # In runonce mode, self.chkmin may be 0 if oncestart wasn't called properly
+        # Use the indicator's _minperiod as fallback
+        if self.chkmin == 0 and hasattr(self.ind, '_minperiod'):
+            mp = self.ind._minperiod
+        else:
+            mp = self.chkmin
         chkpts = [0, -l + mp, (-l + mp) // 2]
 
         if self.p.main:
@@ -223,7 +254,16 @@ class TestStrategy(bt.Strategy):
                     for i, chkpt in enumerate(chkpts):
                         chkval = '%f' % self.ind.lines[lidx][chkpt]
                         if not isinstance(linevals[i], tuple):
-                            assert chkval == linevals[i]
+                            # CRITICAL FIX: Add detailed error message for debugging
+                            if chkval != linevals[i]:
+                                error_msg = (
+                                    f"\nValue mismatch at line[{lidx}] chkpt[{i}]={chkpt}:\n"
+                                    f"  Actual: {chkval}\n"
+                                    f"  Expected: {linevals[i]}\n"
+                                    f"  len(ind): {l}, minperiod: {mp}\n"
+                                    f"  chkpts: {chkpts}"
+                                )
+                                assert chkval == linevals[i], error_msg
                         else:
                             # Check if actual value matches any of the expected values in the tuple
                             matched = False

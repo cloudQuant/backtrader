@@ -1952,10 +1952,11 @@ class Cerebro(ParameterizedBase):
         Strategies are still invoked on a pseudo-event mode in which `next`
         is called for each data arrival
         """
-        # 遍历策略，调用_once和reset
+        # 遍历策略，调用_once和home
         for strat in runstrats:
             strat._once()
-            strat.reset()  # strat called next by next - reset lines
+            strat.home()  # CRITICAL FIX: home() resets position without clearing data
+                         # reset() would clear the data calculated by _once()
 
         # The default once for strategies does nothing and therefore
         # has not moved forward all datas/indicators/observers that

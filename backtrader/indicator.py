@@ -209,7 +209,10 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
                 self._idx = i
             
             for data in self.datas:
-                # CRITICAL FIX: Set _idx for data AND all its lines
+                # Call advance first
+                data.advance()
+                # CRITICAL FIX: Set _idx for data AND all its lines AFTER advance()
+                # This ensures data.get() uses the correct index during next()
                 if hasattr(data, '_idx'):
                     data._idx = i
                 # CRITICAL FIX: Also set _idx for all lines in the data
@@ -217,7 +220,6 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
                     for line in data.lines.lines:
                         if hasattr(line, '_idx'):
                             line._idx = i
-                data.advance()
 
             for indicator in self._lineiterators[LineIterator.IndType]:
                 # CRITICAL FIX: Set sub-indicator's _idx as well

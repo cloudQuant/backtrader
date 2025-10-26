@@ -964,25 +964,36 @@ class DataClone(AbstractDataBase):
     # 初始化，data等于参数中的dataname的值,_datename等于data的_dataname属性值
     # 然后copy日期、时间、交易间隔、compression的参数
     def __init__(self, *args, **kwargs):
+        # CRITICAL FIX: Initialize these attributes BEFORE calling super().__init__
+        # to ensure they exist when parent class methods access them
         self._dlen = None
         self._preloading = None
         
-        # 先设置基本属性，再调用父类初始化
+        # Get dataname and set it as self.data
         dataname = kwargs.get('dataname')
-        if dataname is not None:
-            self.data = dataname
-            self._dataname = getattr(self.data, '_dataname', None)
+        if dataname is None:
+            raise ValueError("DataClone requires 'dataname' parameter")
+        
+        # CRITICAL FIX: Store data reference using object.__setattr__ to bypass
+        # any custom __setattr__ that might interfere
+        object.__setattr__(self, 'data', dataname)
+        self._dataname = getattr(self.data, '_dataname', None)
 
-            # Copy date/session parameters
-            if hasattr(self.data, 'p'):
-                kwargs.setdefault('fromdate', getattr(self.data.p, 'fromdate', None))
-                kwargs.setdefault('todate', getattr(self.data.p, 'todate', None))
-                kwargs.setdefault('sessionstart', getattr(self.data.p, 'sessionstart', None))
-                kwargs.setdefault('sessionend', getattr(self.data.p, 'sessionend', None))
-                kwargs.setdefault('timeframe', getattr(self.data.p, 'timeframe', None))
-                kwargs.setdefault('compression', getattr(self.data.p, 'compression', None))
+        # Copy date/session parameters from source data
+        if hasattr(self.data, 'p'):
+            kwargs.setdefault('fromdate', getattr(self.data.p, 'fromdate', None))
+            kwargs.setdefault('todate', getattr(self.data.p, 'todate', None))
+            kwargs.setdefault('sessionstart', getattr(self.data.p, 'sessionstart', None))
+            kwargs.setdefault('sessionend', getattr(self.data.p, 'sessionend', None))
+            kwargs.setdefault('timeframe', getattr(self.data.p, 'timeframe', None))
+            kwargs.setdefault('compression', getattr(self.data.p, 'compression', None))
         
         super(DataClone, self).__init__(*args, **kwargs)
+        
+        # CRITICAL FIX: Ensure self.data is still set after parent init
+        # Re-set it to be safe, in case parent class __init__ cleared attributes
+        if not hasattr(self, 'data') or object.__getattribute__(self, 'data') is None:
+            object.__setattr__(self, 'data', dataname)
 
     def _start(self):
         # redefine to copy data bits from guest data
