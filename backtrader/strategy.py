@@ -1416,7 +1416,7 @@ class Strategy(StrategyBase):
         data = data if data is not None else self.datas[0]
         # 如果size不是None的时候，size等于size,否则就通过getsizing获取size
         size = size if size is not None else self.getsizing(data, isbuy=True)
-        self.log(f"strategy begin to buy, {data.name}, {size}")
+        # self.log(f"strategy begin to buy, {data.name}, {size}")
         # 如果size不同于0
         if size:
             # print("broker = ", type(self.broker), self.broker)
@@ -1468,7 +1468,7 @@ class Strategy(StrategyBase):
 
         data = data if data is not None else self.datas[0]
         size = size if size is not None else self.getsizing(data, isbuy=False)
-        self.log(f"strategy begin to sell, {data.name}, {size}")
+        # self.log(f"strategy begin to sell, {data.name}, {size}")
         if size:
             # print("broker = ", type(self.broker), self.broker)
             return self.broker.sell(

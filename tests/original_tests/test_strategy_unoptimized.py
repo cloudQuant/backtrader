@@ -195,4 +195,7 @@ def test_run(main=False):
 
 
 if __name__ == '__main__':
-    test_run(main=True)
+    start_time = time.time()
+    test_run(main=False)
+    end_time = time.time()
+    print(f"Time used: {end_time - start_time} seconds")
