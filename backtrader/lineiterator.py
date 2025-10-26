@@ -140,10 +140,9 @@ class LineIteratorMixin:
         _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, "_name", "")])
         
         # CRITICAL: Set up clock for different object types
-        # Check if this is a strategy
+        # OPTIMIZED: Check if this is a strategy using cached type check
         is_strategy = (hasattr(cls, '_ltype') and getattr(cls, '_ltype', None) == LineIterator.StratType) or \
-                     'Strategy' in cls.__name__ or \
-                     any('Strategy' in base.__name__ for base in cls.__mro__)
+                     metabase.is_class_type(cls, 'Strategy')
         
         if is_strategy:
             # For strategies, the first data feed should be the clock
@@ -301,7 +300,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
             return hasattr(self, key)
             
         def keys(self):
-            return [attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr))]
+            # OPTIMIZED: Use __dict__ instead of dir() for better performance
+            return [attr for attr, val in self.__dict__.items() if not attr.startswith('_') and not callable(val)]
     
     plotinfo = PlotInfoObj()
     
@@ -349,15 +349,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # Initialize basic attributes first - DON'T process data here, let donew handle it
         instance._lineiterators = collections.defaultdict(list)
         
-        # Check if this is a strategy 
+        # OPTIMIZED: Check if this is a strategy using cached type check
         is_strategy = (hasattr(cls, '_ltype') and getattr(cls, '_ltype', None) == LineIterator.StratType) or \
-                     'Strategy' in cls.__name__ or \
-                     any('Strategy' in base.__name__ for base in cls.__mro__)
+                     metabase.is_class_type(cls, 'Strategy')
         
         # CRITICAL FIX: Auto-assign owner before processing args to help with data assignment
         if not is_strategy:
             import inspect
-            from . import metabase
             
             try:
                 # Try to find a Strategy first
@@ -1527,7 +1525,7 @@ class ObserverBase(DataAccessor):
                 
                 # Try multiple approaches to find the strategy
                 
-                # Method 1: Use metabase.findowner with Strategy
+                # OPTIMIZED: Use metabase.findowner with Strategy (no call stack traversal needed)
                 try:
                     import backtrader as bt
                     strategy = metabase.findowner(self, bt.Strategy)
@@ -1536,46 +1534,7 @@ class ObserverBase(DataAccessor):
                 except Exception as e:
                     pass
                 
-                # Method 2: Look in call stack for strategy
-                if self._owner is None:
-                    import inspect
-                    frame = inspect.currentframe()
-                    try:
-                        # Look through the call stack to find a strategy
-                        for level in range(1, 20):  # Search up to 20 levels
-                            try:
-                                frame = frame.f_back
-                                if frame is None:
-                                    break
-                                frame_locals = frame.f_locals
-                                
-                                # Look for 'self' that is a strategy
-                                if 'self' in frame_locals:
-                                    potential_strategy = frame_locals['self']
-                                    # Check for strategy characteristics
-                                    if (hasattr(potential_strategy, 'broker') and 
-                                        hasattr(potential_strategy, '_addobserver') and
-                                        hasattr(potential_strategy, 'datas')):
-                                        self._owner = potential_strategy
-                                        break
-                                
-                                # Also look for other variables that might be the strategy
-                                for var_name, var_value in frame_locals.items():
-                                    if (var_name != 'self' and 
-                                        hasattr(var_value, 'broker') and 
-                                        hasattr(var_value, '_addobserver') and
-                                        hasattr(var_value, 'datas')):
-                                        self._owner = var_value
-                                        break
-                                        
-                                if self._owner:
-                                    break
-                            except (AttributeError, ValueError):
-                                continue
-                    finally:
-                        del frame
-                
-                # Method 3: Set up a flag to be connected later by cerebro
+                # Fallback: Set up a flag to be connected later by cerebro
                 if self._owner is None:
                     self._owner_pending = True
                 else:
@@ -1822,10 +1781,10 @@ class StrategyBase(DataAccessor):
     def _finalize_indicator_setup(self):
         """Ensure all indicators are properly set up after strategy initialization"""
         try:
-            # Check for indicators that were created during __init__
-            for attr_name in dir(self):
+            # OPTIMIZED: Check for indicators that were created during __init__
+            # Use __dict__ instead of dir() for better performance
+            for attr_name, attr_value in self.__dict__.items():
                 if not attr_name.startswith('_'):
-                    attr_value = getattr(self, attr_name)
                     # Check if this looks like an indicator
                     if (hasattr(attr_value, 'lines') or 
                         hasattr(attr_value, '_ltype') or

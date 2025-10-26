@@ -53,6 +53,13 @@ class Observer(ObserverBase):
         self._analyzers.append(analyzer)
 
     def _start(self):
+        # PERFORMANCE FIX: Ensure _owner is set before calling start()
+        # This is a fallback for cases where findowner didn't find the strategy during __init__
+        if not hasattr(self, '_owner') or self._owner is None:
+            # Try to get owner from _parent (set by strategy when adding observer)
+            if hasattr(self, '_parent') and self._parent is not None:
+                self._owner = self._parent
+        
         self.start()
 
     def start(self):

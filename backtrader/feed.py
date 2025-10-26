@@ -733,12 +733,11 @@ class FeedBase(object):
         class Params:
             def _getitems(self):
                 """模拟原来的_getitems方法"""
+                # OPTIMIZED: Use __dict__ instead of dir() for better performance
                 items = []
-                for attr_name in dir(self):
-                    if not attr_name.startswith('_'):
-                        value = getattr(self, attr_name)
-                        if not callable(value):
-                            items.append((attr_name, value))
+                for attr_name, value in self.__dict__.items():
+                    if not attr_name.startswith('_') and not callable(value):
+                        items.append((attr_name, value))
                 return items
         
         params_obj = Params()

@@ -1559,7 +1559,8 @@ class Cerebro(ParameterizedBase):
                 for a in strat.analyzers:
                     a.strategy = None
                     a._parent = None
-                    for attrname in dir(a):
+                    # OPTIMIZED: Use __dict__ instead of dir() for better performance
+                    for attrname in list(a.__dict__.keys()):
                         if attrname.startswith("data"):
                             setattr(a, attrname, None)
 

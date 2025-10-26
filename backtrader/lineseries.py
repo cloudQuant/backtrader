@@ -677,7 +677,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             return hasattr(self, key)
             
         def keys(self):
-            return [attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr))]
+            # OPTIMIZED: Use __dict__ instead of dir() for better performance
+            return [attr for attr, val in self.__dict__.items() if not attr.startswith('_') and not callable(val)]
     
     plotinfo = PlotInfoObj()
     

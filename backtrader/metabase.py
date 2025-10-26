@@ -8,6 +8,31 @@ import math
 import backtrader as bt
 from .utils.py3 import zip, string_types
 
+# PERFORMANCE OPTIMIZATION: Cache for MRO type checks
+# This avoids repeatedly traversing __mro__ for the same classes
+_type_check_cache = {}
+
+def is_class_type(cls, type_name):
+    """
+    OPTIMIZED: Check if a class is of a certain type by checking __mro__.
+    Results are cached for better performance.
+    
+    Args:
+        cls: The class to check
+        type_name: The type name to look for (e.g., 'Strategy', 'Indicator')
+    
+    Returns:
+        bool: True if the class has the type in its MRO
+    """
+    cache_key = (id(cls), type_name)
+    if cache_key in _type_check_cache:
+        return _type_check_cache[cache_key]
+    
+    # Check the class name and all base classes
+    result = type_name in cls.__name__ or any(type_name in base.__name__ for base in cls.__mro__)
+    _type_check_cache[cache_key] = result
+    return result
+
 
 def patch_strategy_clk_update():
     """
@@ -467,10 +492,10 @@ class ParameterManager:
                     base_params = dict(base._params._gettuple())
                     all_params.update(base_params)
                 elif hasattr(base._params, '__dict__'):
-                    # Get attributes from parameter instance
-                    for attr_name in dir(base._params):
-                        if not attr_name.startswith('_') and not callable(getattr(base._params, attr_name)):
-                            all_params[attr_name] = getattr(base._params, attr_name)
+                    # OPTIMIZED: Get attributes from parameter instance using __dict__
+                    for attr_name, attr_value in base._params.__dict__.items():
+                        if not attr_name.startswith('_') and not callable(attr_value):
+                            all_params[attr_name] = attr_value
         
         # Handle current class params - could be tuple, dict, or dict-like
         if isinstance(params, dict):
@@ -494,10 +519,10 @@ class ParameterManager:
             # Dict-like object
             all_params.update(params)
         elif hasattr(params, '__dict__'):
-            # Object with attributes
-            for attr_name in dir(params):
-                if not attr_name.startswith('_') and not callable(getattr(params, attr_name)):
-                    all_params[attr_name] = getattr(params, attr_name)
+            # OPTIMIZED: Object with attributes, using __dict__ for performance
+            for attr_name, attr_value in params.__dict__.items():
+                if not attr_name.startswith('_') and not callable(attr_value):
+                    all_params[attr_name] = attr_value
         elif hasattr(params, '_getpairs'):
             all_params.update(params._getpairs())
         elif hasattr(params, '_gettuple'):
@@ -715,7 +740,8 @@ class ParamsMixin(BaseMixin):
         super().__init_subclass__(**kwargs)
         
         # CRITICAL FIX: Call _initialize_indicator_aliases whenever an indicator class is created
-        if 'Indicator' in cls.__name__ or any('Indicator' in base.__name__ for base in cls.__mro__):
+        # OPTIMIZED: Use cached type check
+        if is_class_type(cls, 'Indicator'):
             try:
                 _initialize_indicator_aliases()
             except Exception:
@@ -852,7 +878,7 @@ class ParamsMixin(BaseMixin):
                 
                 # CRITICAL FIX: Ensure indicator has _plotinit method before user init
                 if ('Indicator' in cls.__name__ or 
-                    any('Indicator' in base.__name__ for base in cls.__mro__)):
+                    is_class_type(cls, 'Indicator')):
                     if not hasattr(self, '_plotinit'):
                         # Add _plotinit method
                         def default_plotinit():
@@ -1017,7 +1043,8 @@ class ParamsMixin(BaseMixin):
                         return default
                     
                     def info_keys(self):
-                        return [attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr))]
+                        # OPTIMIZED: Use __dict__ instead of dir() for better performance
+                        return [attr for attr, val in self.__dict__.items() if not attr.startswith('_') and not callable(val)]
                     
                     def info_values(self):
                         return [getattr(self, attr) for attr in self.keys()]
@@ -1391,7 +1418,8 @@ def _initialize_indicator_aliases():
                     def keys(self):
                         """Return all keys"""
                         keys = set(getattr(self, '_data', {}).keys())
-                        keys.update(attr for attr in dir(self) if not attr.startswith('_') and not callable(getattr(self, attr)))
+                        # OPTIMIZED: Use __dict__ instead of dir() for better performance
+                        keys.update(attr for attr, val in self.__dict__.items() if not attr.startswith('_') and not callable(val))
                         return list(keys)
                     
                     def values(self):

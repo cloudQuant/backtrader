@@ -144,91 +144,24 @@ class Strategy(StrategyBase):
         # Handle the functionality that was in MetaStrategy.dopostinit
         self._sizer.set(self, self.broker)
         
-        # CRITICAL FIX: Ensure datas are properly assigned before any user __init__ is called
-        # The strategy should get its data from cerebro/broker but this isn't happening correctly
+        # OPTIMIZED: Simple and fast data extraction from args
+        # Cerebro passes datas at the beginning of args (cerebro.py:1433)
         if not hasattr(self, 'datas') or not self.datas:
-            # print(f"Strategy.__init__: CRITICAL - No datas assigned yet, searching for data sources...")
-            pass
+            self.datas = []
             
-            # Method 1: Try to get data from cerebro in the object hierarchy
-            if hasattr(self, 'cerebro') and self.cerebro is not None:
+            # Quick method: Extract datas directly from args
+            # Cerebro prepends all datas to args, so we just need to identify them
+            if args:
+                for arg in args:
+                    # Fast check: data feeds have 'lines' and 'datetime' attributes
+                    if hasattr(arg, 'lines') and hasattr(arg, 'datetime'):
+                        self.datas.append(arg)
+                    # No need for nested loops or complex checks
+            
+            # Fallback: Try cerebro.datas directly (fast)
+            if not self.datas and hasattr(self, 'cerebro') and self.cerebro is not None:
                 if hasattr(self.cerebro, 'datas') and self.cerebro.datas:
                     self.datas = list(self.cerebro.datas)
-                    # print(f"Strategy.__init__: Found {len(self.datas)} datas from cerebro")
-                elif hasattr(self.cerebro, 'runstrategies') and hasattr(self.cerebro, '_runonce'):
-                    # Try to get data from cerebro's data feeds
-                    try:
-                        for attr_name in dir(self.cerebro):
-                            attr_val = getattr(self.cerebro, attr_name, None)
-                            if hasattr(attr_val, '__iter__') and not isinstance(attr_val, str):
-                                # Check if it's a data collection
-                                for item in attr_val:
-                                    if hasattr(item, 'lines') and hasattr(item, '_name') and hasattr(item, 'datetime'):
-                                        if not hasattr(self, 'datas'):
-                                            self.datas = []
-                                        self.datas.append(item)
-                                        # print(f"Strategy.__init__: Found data: {getattr(item, '_name', 'Unknown')}")
-                                        break
-                                if hasattr(self, 'datas') and self.datas:
-                                    break
-                    except Exception as e:
-                        # print(f"Strategy.__init__: Error searching cerebro: {e}")
-                        pass
-            
-            # Method 2: Try to find data from args (this is the main data source)
-            if (not hasattr(self, 'datas') or not self.datas) and args:
-                potential_datas = []
-                for arg in args:
-                    # Check if arg looks like a data feed
-                    if hasattr(arg, 'lines') and hasattr(arg, '_name') and hasattr(arg, 'datetime'):
-                        potential_datas.append(arg)
-                        # print(f"Strategy.__init__: Found data from args: {getattr(arg, '_name', 'Unknown')}")
-                    elif hasattr(arg, '__iter__') and not isinstance(arg, str):
-                        # arg might be a collection of data feeds
-                        try:
-                            for item in arg:
-                                if hasattr(item, 'lines') and hasattr(item, '_name') and hasattr(item, 'datetime'):
-                                    potential_datas.append(item)
-                                    # print(f"Strategy.__init__: Found data from arg collection: {getattr(item, '_name', 'Unknown')}")
-                        except Exception:
-                            pass
-                
-                if potential_datas:
-                    self.datas = potential_datas
-                    # print(f"Strategy.__init__: Set {len(self.datas)} datas from args")
-            
-            # Method 3: Search through the call stack to find cerebro with data
-            if not hasattr(self, 'datas') or not self.datas:
-                import inspect
-                frame = inspect.currentframe()
-                try:
-                    while frame:
-                        frame = frame.f_back
-                        if frame is None:
-                            break
-                        frame_locals = frame.f_locals
-                        
-                        # Look for cerebro object with datas
-                        for var_name, var_value in frame_locals.items():
-                            if hasattr(var_value, 'datas') and hasattr(var_value, 'strategies'):
-                                # This looks like cerebro
-                                if hasattr(var_value, 'datas') and var_value.datas:
-                                    self.datas = list(var_value.datas)
-                                    # print(f"Strategy.__init__: Found {len(self.datas)} datas from call stack cerebro")
-                                    break
-                        
-                        if hasattr(self, 'datas') and self.datas:
-                            break
-                except Exception as e:
-                    # print(f"Strategy.__init__: Error during call stack search: {e}")
-                    pass
-                finally:
-                    del frame
-            
-            # Final fallback: create an empty list to prevent crashes
-            if not hasattr(self, 'datas'):
-                self.datas = []
-                # print(f"Strategy.__init__: WARNING - No datas found, setting empty list")
         
         # Set up primary data reference and data0/data1 aliases
         if self.datas:
@@ -508,6 +441,9 @@ class Strategy(StrategyBase):
         nsuffix = next(self._alnames[anname])
         anname += str(nsuffix or "")  # 0 (first instance) gets no suffix
         analyzer = ancls(*anargs, **ankwargs)
+        # PERFORMANCE FIX: Explicitly set analyzer's owner to ensure it has access to strategy
+        analyzer._parent = self
+        analyzer._owner = self
         self.analyzers.append(analyzer, anname)
 
     # 增加observer
@@ -519,6 +455,9 @@ class Strategy(StrategyBase):
         if not multi:
             newargs = list(itertools.chain(self.datas, obsargs))
             obs = obscls(*newargs, **obskwargs)
+            # PERFORMANCE FIX: Explicitly set observer's owner to ensure it has access to strategy
+            obs._parent = self
+            obs._owner = self
             self.stats.append(obs, obsname)
             return
 
@@ -527,6 +466,9 @@ class Strategy(StrategyBase):
 
         for data in self.datas:
             obs = obscls(data, *obsargs, **obskwargs)
+            # PERFORMANCE FIX: Explicitly set observer's owner to ensure it has access to strategy
+            obs._parent = self
+            obs._owner = self
             l.append(obs)
 
     # 检查最小周期是否满足，返回的是最小周期减去每个数据长度的最大值
@@ -604,52 +546,60 @@ class Strategy(StrategyBase):
         # 通知
         self._notify()
         
-        # PERFORMANCE: Optimize _idx setting - cache checks and reduce redundant operations
-        # This method is called frequently during backtesting, so every optimization matters
+        # PERFORMANCE: Optimize _idx setting - only update when changed
+        # This method is called ~42,000 times during tests, so caching is crucial
         current_idx = len(self) - 1  # Current position (0-indexed)
         use_last_valid_idx = dt <= 0
+        
+        # Initialize cache on first run
+        if not hasattr(self, '_last_set_idx'):
+            self._last_set_idx = -1
 
-        # Set _idx for data feeds - optimized version with cached attribute checks
-        if self.datas:
-            for data in self.datas:
-                # Fast path: direct _idx assignment without multiple checks
-                try:
-                    if hasattr(data, 'array'):
-                        data_len = len(data.array)
-                        if use_last_valid_idx and data_len > 0:
-                            data._idx = data_len - 1
-                        elif current_idx < data_len:
-                            data._idx = current_idx
+        # Only update _idx if it has changed (major optimization)
+        if current_idx != self._last_set_idx:
+            self._last_set_idx = current_idx
+            
+            # Set _idx for data feeds - optimized version with cached attribute checks
+            if self.datas:
+                for data in self.datas:
+                    # Fast path: direct _idx assignment without multiple checks
+                    try:
+                        if hasattr(data, 'array'):
+                            data_len = len(data.array)
+                            if use_last_valid_idx and data_len > 0:
+                                data._idx = data_len - 1
+                            elif current_idx < data_len:
+                                data._idx = current_idx
+                            else:
+                                data._idx = max(0, data_len - 1)
                         else:
-                            data._idx = max(0, data_len - 1)
-                    else:
-                        data._idx = max(0, current_idx)
-                    
-                    # Set _idx for data lines if they exist
-                    # Cache the lines attribute to avoid repeated attribute access
-                    if hasattr(data, 'lines'):
-                        data_lines = data.lines
-                        if hasattr(data_lines, 'lines'):
-                            for line in data_lines.lines:
-                                line._idx = current_idx
-                except (AttributeError, TypeError):
-                    # Silently continue if any attribute access fails
-                    pass
+                            data._idx = max(0, current_idx)
+                        
+                        # Set _idx for data lines if they exist
+                        # Cache the lines attribute to avoid repeated attribute access
+                        if hasattr(data, 'lines'):
+                            data_lines = data.lines
+                            if hasattr(data_lines, 'lines'):
+                                for line in data_lines.lines:
+                                    line._idx = current_idx
+                    except (AttributeError, TypeError):
+                        # Silently continue if any attribute access fails
+                        pass
 
-        # Set _idx for indicators - optimized version
-        indicators = self._lineiterators.get(LineIterator.IndType, [])
-        if indicators:
-            for indicator in indicators:
-                indicator._idx = current_idx
-                # Fast path for indicator lines
-                try:
-                    if hasattr(indicator, 'lines'):
-                        ind_lines = indicator.lines
-                        if hasattr(ind_lines, 'lines'):
-                            for line in ind_lines.lines:
-                                line._idx = current_idx
-                except (AttributeError, TypeError):
-                    pass
+            # Set _idx for indicators - optimized version
+            indicators = self._lineiterators.get(LineIterator.IndType, [])
+            if indicators:
+                for indicator in indicators:
+                    indicator._idx = current_idx
+                    # Fast path for indicator lines
+                    try:
+                        if hasattr(indicator, 'lines'):
+                            ind_lines = indicator.lines
+                            if hasattr(ind_lines, 'lines'):
+                                for line in ind_lines.lines:
+                                    line._idx = current_idx
+                    except (AttributeError, TypeError):
+                        pass
         
         # 获取当前最小周期状态，如果所有数据都满足了，调用next
         # 如果正好所有数据都满足了，调用nextstart
