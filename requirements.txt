@@ -21,6 +21,8 @@ pytest-sugar
 pytest-cov
 pytest-picked
 pytest-xdist
+pytest-html
+pytest-timeout
 dash
 # Note: empyrical must be installed from GitHub/Gitee, not PyPI
 # pip install git+https://github.com/cloudQuant/empyrical.git

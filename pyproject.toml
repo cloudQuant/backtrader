@@ -66,6 +66,8 @@ test = [
     "pytest-sugar",
     "pytest-benchmark",
     "pytest-picked",
+    "pytest-html",
+    "pytest-timeout",
 ]
 dev = [
     "pytest>=6.0",
@@ -74,6 +76,8 @@ dev = [
     "pytest-sugar",
     "pytest-benchmark",
     "pytest-picked",
+    "pytest-html",
+    "pytest-timeout",
     "flake8",
     "black",
     "isort",
@@ -103,11 +107,25 @@ backtrader = ["**/*.pyx", "**/*.pxd", "**/*.hpp", "**/*.cpp"]
 
 [tool.pytest.ini_options]
 minversion = "6.0"
-addopts = "-ra -q --strict-markers"
+addopts = [
+    "-ra",                                    # Show summary of all test outcomes
+    "-q",                                      # Quiet mode
+    "--strict-markers",                        # Strict marker checking
+    "--tb=short",                             # Shorter traceback format
+    "--color=yes",                            # Colored output
+    # Uncomment the line below to automatically generate HTML reports
+    # "--html=backtrader_test_report.html",
+    # "--self-contained-html",
+]
 testpaths = ["tests"]
 python_files = "test_*.py"
 python_classes = "Test*"
 python_functions = "test_*"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+    "unit: marks tests as unit tests",
+]
 
 [tool.coverage.run]
 source = ["backtrader"]
