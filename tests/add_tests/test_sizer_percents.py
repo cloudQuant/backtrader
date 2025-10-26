@@ -34,7 +34,8 @@ def test_run(main=False):
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
-            print('PercentSizer test completed')
+            # print('PercentSizer test completed')  # Removed for performance
+            pass
             print(f'Final value: {strat.broker.getvalue()}')
         assert len(strat) > 0
 
@@ -52,7 +53,8 @@ def test_allin(main=False):
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
-            print('AllInSizer test completed')
+            # print('AllInSizer test completed')  # Removed for performance
+            pass
         assert len(strat) > 0
 
 
@@ -69,7 +71,8 @@ def test_percentint(main=False):
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
-            print('PercentSizerInt test completed')
+            # print('PercentSizerInt test completed')  # Removed for performance
+            pass
         assert len(strat) > 0
 
 
@@ -86,7 +89,8 @@ def test_allinint(main=False):
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
-            print('AllInSizerInt test completed')
+            # print('AllInSizerInt test completed')  # Removed for performance
+            pass
         assert len(strat) > 0
 
 

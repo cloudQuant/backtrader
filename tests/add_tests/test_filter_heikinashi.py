@@ -54,7 +54,8 @@ def test_run(main=False):
     # Verify HA data was created (implicitly tested by strategy running successfully)
     
     if main:
-        print('HeikinAshi filter test passed')
+        # print('HeikinAshi filter test passed')  # Removed for performance
+        pass
         print(f'Processed {len(strat)} bars')
 
 

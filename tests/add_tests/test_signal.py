@@ -39,7 +39,8 @@ def test_signal(main=False):
     assert results[0].broker.getvalue() > 0
     
     if main:
-        print('Signal test passed')
+        # print('Signal test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

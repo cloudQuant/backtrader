@@ -45,7 +45,8 @@ def test_observer(main=False):
     assert len(results[0]) > 0
     
     if main:
-        print('Observer base test passed')
+        # print('Observer base test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

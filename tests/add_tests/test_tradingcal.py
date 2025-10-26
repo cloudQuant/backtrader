@@ -48,7 +48,8 @@ def test_tradingcal(main=False):
     assert len(results) > 0
     
     if main:
-        print('TradingCal test passed')
+        # print('TradingCal test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

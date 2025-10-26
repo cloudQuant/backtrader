@@ -44,7 +44,8 @@ def test_talib(main=False):
     assert len(results) > 0
     
     if main:
-        print('Talib test passed (or skipped if talib not installed)')
+        # print('Talib test passed (or skipped if talib not installed)')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

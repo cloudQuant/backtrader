@@ -46,7 +46,8 @@ def test_run(main=False):
     assert len(strat) >= 0  # At least processed some data
     
     if main:
-        print('Renko filter test passed')
+        # print('Renko filter test passed')  # Removed for performance
+        pass
         print(f'Renko bars: {len(strat)}')
 
 

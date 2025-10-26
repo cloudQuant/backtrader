@@ -37,7 +37,8 @@ class TestStrategy1(bt.Strategy):
     def log(self, txt):
         if self.p.printlog:
             dt = self.datas[0].datetime.date(0)
-            print(f'{dt.isoformat()}, {txt}')
+            # print(f'{dt.isoformat()}, {txt}')  # Removed for performance
+            pass
     
     def next(self):
         if self.order:
@@ -68,7 +69,8 @@ def test_strategy_basic(main=False):
     cerebro.broker.setcash(10000.0)
     
     if main:
-        print(f'Starting Portfolio Value: {cerebro.broker.getvalue():.2f}')
+        # print(f'Starting Portfolio Value: {cerebro.broker.getvalue():.2f}')  # Removed for performance
+        pass
     
     results = cerebro.run()
     
@@ -79,7 +81,8 @@ def test_strategy_basic(main=False):
     
     final_value = cerebro.broker.getvalue()
     if main:
-        print(f'Final Portfolio Value: {final_value:.2f}')
+        # print(f'Final Portfolio Value: {final_value:.2f}')  # Removed for performance
+        pass
     
     # Verify broker value is valid
     assert final_value > 0

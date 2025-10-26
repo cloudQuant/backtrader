@@ -30,7 +30,8 @@ def test_run(main=False):
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
-            print('Trades observer test completed')
+            # print('Trades observer test completed')  # Removed for performance
+            pass
         # Verify the strategy ran successfully
         assert len(strat) > 0
 

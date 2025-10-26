@@ -18,11 +18,13 @@ def test_errors(main=False):
         raise bt.errors.StrategySkipError("Test skip error")
     except bt.errors.StrategySkipError as e:
         if main:
-            print(f'Caught StrategySkipError: {e}')
+            # print(f'Caught StrategySkipError: {e}')  # Removed for performance
+            pass
         assert str(e) == "Test skip error"
     
     if main:
-        print('Errors test passed')
+        # print('Errors test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

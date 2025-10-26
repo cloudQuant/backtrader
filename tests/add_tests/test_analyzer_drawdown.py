@@ -44,7 +44,8 @@ def test_run(main=False):
             analyzer = strat.analyzers[0]  # only 1
             analysis = analyzer.get_analysis()
             if main:
-                print(f'{analyzer_class.__name__} Analysis:')
+                # print(f'{analyzer_class.__name__} Analysis:')  # Removed for performance
+                pass
                 print(analysis)
             else:
                 # Verify that analysis is a dictionary

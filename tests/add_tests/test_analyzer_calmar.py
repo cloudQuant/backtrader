@@ -42,7 +42,8 @@ def test_run(main=False):
         analyzer = strat.analyzers[0]  # only 1
         analysis = analyzer.get_analysis()
         if main:
-            print('Calmar Analysis:')
+            # print('Calmar Analysis:')  # Removed for performance
+            pass
             print(analysis)
         else:
             # Verify that analysis is a dictionary

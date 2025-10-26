@@ -38,7 +38,8 @@ def test_run(main=False):
     cerebro.run()
     
     if main:
-        print('OLS_Slope_InterceptN test passed')
+        # print('OLS_Slope_InterceptN test passed')  # Removed for performance
+        pass
 
 if __name__ == '__main__':
     test_run(main=True)

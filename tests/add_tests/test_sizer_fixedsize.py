@@ -30,7 +30,8 @@ def test_run(main=False):
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
-            print('FixedSize sizer test completed')
+            # print('FixedSize sizer test completed')  # Removed for performance
+            pass
             print(f'Final value: {strat.broker.getvalue()}')
         # Verify the strategy ran successfully
         assert len(strat) > 0
@@ -57,7 +58,8 @@ def test_fixedreverser(main=False):
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
-            print('FixedReverser sizer test completed')
+            # print('FixedReverser sizer test completed')  # Removed for performance
+            pass
         assert len(strat) > 0
 
 
@@ -82,7 +84,8 @@ def test_fixedsizetarget(main=False):
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
-            print('FixedSizeTarget sizer test completed')
+            # print('FixedSizeTarget sizer test completed')  # Removed for performance
+            pass
         assert len(strat) > 0
 
 

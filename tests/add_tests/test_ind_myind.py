@@ -25,7 +25,8 @@ def test_run(main=False):
     except AttributeError:
         # MyInd might not be in all versions
         if main:
-            print('MyInd not available, skipping test')
+            # print('MyInd not available, skipping test')  # Removed for performance
+            pass
 
 
 if __name__ == '__main__':

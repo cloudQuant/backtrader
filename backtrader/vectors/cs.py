@@ -65,7 +65,7 @@ class AlphaCs(object):
     def cal_values(self, datas, signals_arr, hold_days):
         commission = self.commission
         initial_capital = self.initial_capital
-        print("当前的commission为:", commission)
+        # print("当前的commission为:", commission)  # Removed for performance
         # 数据行数
         signals_arr = np.delete(signals_arr, 0, axis=0)
         # print("before",signals_arr.shape,signals_arr[:100])

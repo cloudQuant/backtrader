@@ -39,7 +39,8 @@ def test_btcsv(main=False):
     assert len(results[0]) > 0
     
     if main:
-        print('BacktraderCSVData feed test passed')
+        # print('BacktraderCSVData feed test passed')  # Removed for performance
+        pass
 
 
 def test_generic_csv(main=False):
@@ -71,7 +72,8 @@ def test_generic_csv(main=False):
     assert len(results[0]) > 0
     
     if main:
-        print('GenericCSVData feed test passed')
+        # print('GenericCSVData feed test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

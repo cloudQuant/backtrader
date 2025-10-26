@@ -39,7 +39,8 @@ def test_fillers(main=False):
     assert results[0].broker.getvalue() > 0  # Verify broker worked
     
     if main:
-        print('Fillers test passed')
+        # print('Fillers test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

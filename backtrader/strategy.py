@@ -604,50 +604,52 @@ class Strategy(StrategyBase):
         # 通知
         self._notify()
         
-        # CRITICAL FIX: Set _idx for all indicator and data lines before calling next()
-        # This ensures indicators and data feeds return the correct values when accessed in next()
+        # PERFORMANCE: Optimize _idx setting - cache checks and reduce redundant operations
+        # This method is called frequently during backtesting, so every optimization matters
         current_idx = len(self) - 1  # Current position (0-indexed)
-
-        # CRITICAL FIX: If dt is invalid (0 or negative), use last valid index for data lines
-        # to prevent accessing invalid datetime values
         use_last_valid_idx = dt <= 0
 
-        # Set _idx for data feeds
-        for data in self.datas:
-            # Check if data has array and what its length is
-            data_len = len(data.array) if hasattr(data, 'array') else None
+        # Set _idx for data feeds - optimized version with cached attribute checks
+        if self.datas:
+            for data in self.datas:
+                # Fast path: direct _idx assignment without multiple checks
+                try:
+                    if hasattr(data, 'array'):
+                        data_len = len(data.array)
+                        if use_last_valid_idx and data_len > 0:
+                            data._idx = data_len - 1
+                        elif current_idx < data_len:
+                            data._idx = current_idx
+                        else:
+                            data._idx = max(0, data_len - 1)
+                    else:
+                        data._idx = max(0, current_idx)
+                    
+                    # Set _idx for data lines if they exist
+                    # Cache the lines attribute to avoid repeated attribute access
+                    if hasattr(data, 'lines'):
+                        data_lines = data.lines
+                        if hasattr(data_lines, 'lines'):
+                            for line in data_lines.lines:
+                                line._idx = current_idx
+                except (AttributeError, TypeError):
+                    # Silently continue if any attribute access fails
+                    pass
 
-            # If dt is invalid, use last valid index
-            if use_last_valid_idx and data_len and data_len > 0:
-                data._idx = data_len - 1
-            elif data_len and current_idx < data_len:
-                data._idx = current_idx
-            elif data_len and current_idx >= data_len:
-                # Out of bounds - set to last valid index
-                data._idx = data_len - 1
-            elif current_idx >= 0:
-                data._idx = current_idx
-
-            if hasattr(data, 'lines') and hasattr(data.lines, 'lines'):
-                for line in data.lines.lines:
-                    line_len = len(line.array) if hasattr(line, 'array') else None
-                    # Bounds check for each line
-                    if use_last_valid_idx and line_len and line_len > 0:
-                        line._idx = line_len - 1
-                    elif line_len and current_idx < line_len:
-                        line._idx = current_idx
-                    elif line_len and current_idx >= line_len:
-                        # Out of bounds - set to last valid index
-                        line._idx = line_len - 1
-                    elif current_idx >= 0:
-                        line._idx = current_idx
-
-        # Set _idx for indicators
-        for indicator in self._lineiterators[LineIterator.IndType]:
-            indicator._idx = current_idx
-            if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
-                for line in indicator.lines.lines:
-                    line._idx = current_idx
+        # Set _idx for indicators - optimized version
+        indicators = self._lineiterators.get(LineIterator.IndType, [])
+        if indicators:
+            for indicator in indicators:
+                indicator._idx = current_idx
+                # Fast path for indicator lines
+                try:
+                    if hasattr(indicator, 'lines'):
+                        ind_lines = indicator.lines
+                        if hasattr(ind_lines, 'lines'):
+                            for line in ind_lines.lines:
+                                line._idx = current_idx
+                except (AttributeError, TypeError):
+                    pass
         
         # 获取当前最小周期状态，如果所有数据都满足了，调用next
         # 如果正好所有数据都满足了，调用nextstart

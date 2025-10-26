@@ -46,7 +46,8 @@ def test_sizer(main=False):
     assert results[0].broker.getvalue() > 0
     
     if main:
-        print('Sizer base test passed')
+        # print('Sizer base test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

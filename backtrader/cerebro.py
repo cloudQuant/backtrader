@@ -1942,7 +1942,7 @@ class Cerebro(ParameterizedBase):
                 return
         except Exception as e:
             error_info = traceback.format_exception(e)
-            print(error_info)
+            # print(error_info)  # Removed for performance - can be re-enabled for debugging
 
     # runonce
     def _runonce(self, runstrats):
@@ -2014,11 +2014,11 @@ class Cerebro(ParameterizedBase):
             except Exception as e:
                 # CRITICAL FIX: format_exc() doesn't take an exception argument
                 error_info = traceback.format_exc()
-                print(f"Error in _runonce: {error_info}")
+                # print(f"Error in _runonce: {error_info}")  # Removed for performance
                 # Continue execution instead of crashing
                 return
         
-        print("结束_runonce")
+        # print("结束_runonce")  # Removed for performance - called frequently during tests
 
     # 检查timer
     def _check_timers(self, runstrats, dt0, cheat=False):

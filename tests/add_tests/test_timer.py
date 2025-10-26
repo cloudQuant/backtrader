@@ -51,7 +51,8 @@ def test_timer(main=False):
     assert strat.timer_count >= 0
     
     if main:
-        print(f'Timer triggered {strat.timer_count} times')
+        # print(f'Timer triggered {strat.timer_count} times')  # Removed for performance
+        pass
         print('Timer test passed')
 
 

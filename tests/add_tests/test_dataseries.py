@@ -55,7 +55,8 @@ def test_dataseries(main=False):
     cerebro.run()
     
     if main:
-        print('DataSeries test passed')
+        # print('DataSeries test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

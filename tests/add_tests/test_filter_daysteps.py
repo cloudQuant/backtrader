@@ -43,7 +43,8 @@ def test_run(main=False):
     assert len(results[0]) > 0  # Strategy processed replayed data
     
     if main:
-        print('DayStepsFilter test passed')
+        # print('DayStepsFilter test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

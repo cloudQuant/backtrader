@@ -47,7 +47,8 @@ def test_functions_and_or(main=False):
     cerebro.run()
     
     if main:
-        print('And/Or functions test passed')
+        # print('And/Or functions test passed')  # Removed for performance
+        pass
 
 
 def test_functions_if(main=False):
@@ -82,7 +83,8 @@ def test_functions_if(main=False):
     cerebro.run()
     
     if main:
-        print('If function test passed')
+        # print('If function test passed')  # Removed for performance
+        pass
 
 
 def test_functions_max_min(main=False):
@@ -119,7 +121,8 @@ def test_functions_max_min(main=False):
     cerebro.run()
     
     if main:
-        print('Max/Min functions test passed')
+        # print('Max/Min functions test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

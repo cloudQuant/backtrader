@@ -37,7 +37,8 @@ def test_resample(main=False):
     assert len(results) > 0
     
     if main:
-        print('Resample test passed')
+        # print('Resample test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

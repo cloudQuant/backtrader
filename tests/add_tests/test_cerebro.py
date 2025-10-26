@@ -42,12 +42,14 @@ def test_cerebro_basic(main=False):
     cerebro.broker.setcash(10000.0)
     
     if main:
-        print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())
+        # print('Starting Portfolio Value: %.2f' % cerebro.broker.getvalue())  # Removed for performance
+        pass
     
     cerebro.run()
     
     if main:
-        print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())
+        # print('Final Portfolio Value: %.2f' % cerebro.broker.getvalue())  # Removed for performance
+        pass
     
     # Verify cerebro ran
     assert cerebro.broker.getvalue() > 0
@@ -74,7 +76,8 @@ def test_cerebro_analyzer(main=False):
     strat = results[0]
     
     if main:
-        print('Sharpe Ratio:', strat.analyzers.sharpe.get_analysis())
+        # print('Sharpe Ratio:', strat.analyzers.sharpe.get_analysis())  # Removed for performance
+        pass
         print('Returns:', strat.analyzers.returns.get_analysis())
     
     # Verify analyzers worked
@@ -105,7 +108,8 @@ def test_cerebro_observer(main=False):
     assert len(results[0].observers) > 0
     
     if main:
-        print('Cerebro with observers test passed')
+        # print('Cerebro with observers test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

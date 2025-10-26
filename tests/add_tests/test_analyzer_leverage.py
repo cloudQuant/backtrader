@@ -42,7 +42,8 @@ def test_run(main=False):
         analyzer = strat.analyzers[0]  # only 1
         analysis = analyzer.get_analysis()
         if main:
-            print('GrossLeverage Analysis:')
+            # print('GrossLeverage Analysis:')  # Removed for performance
+            pass
             print(analysis)
             print(f'Number of leverage readings: {len(analysis)}')
         else:

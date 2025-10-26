@@ -31,7 +31,8 @@ def test_run(main=False):
         analyzer = strat.analyzers[0]
         analysis = analyzer.get_analysis()
         if main:
-            print('Transactions Analysis:')
+            # print('Transactions Analysis:')  # Removed for performance
+            pass
             print(analysis)
         else:
             assert isinstance(analysis, dict)

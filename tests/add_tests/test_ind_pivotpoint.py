@@ -33,7 +33,8 @@ def test_run(main=False):
     cerebro.run()
     
     if main:
-        print('PivotPoint test passed')
+        # print('PivotPoint test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

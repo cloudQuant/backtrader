@@ -17,7 +17,8 @@ def test_store(main=False):
     assert hasattr(bt, 'Store')
     
     if main:
-        print('Store base test passed')
+        # print('Store base test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

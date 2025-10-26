@@ -618,32 +618,44 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # 设置_stage2状态
         super(LineIterator, self)._stage2()
         
-        # Recursion guard: track objects currently being processed to prevent infinite loops
-        if not hasattr(self, '_stage2_in_progress') or self._stage2_in_progress is None:
-            self._stage2_in_progress = set()
+        # PERFORMANCE: Use class-level recursion guard to avoid creating new sets
+        # This significantly reduces memory allocations during initialization
+        if not hasattr(LineIterator, '_stage2_guard'):
+            LineIterator._stage2_guard = set()
         
-        # Add this object to the processing set
+        guard = LineIterator._stage2_guard
         self_id = id(self)
-        if self_id in self._stage2_in_progress:
-            # Already processing this object, avoid recursion
+        
+        # Check if already being processed
+        if self_id in guard:
             return
         
-        self._stage2_in_progress.add(self_id)
+        guard.add(self_id)
         
         try:
-            for data in self.datas:
-                data_id = id(data)
-                if data_id not in self._stage2_in_progress:
-                    data._stage2()
+            # PERFORMANCE: Cache datas list to avoid repeated attribute access
+            datas = self.datas
+            if datas:
+                for data in datas:
+                    data_id = id(data)
+                    if data_id not in guard:
+                        data._stage2()
 
+            # PERFORMANCE: Cache lineiterators values to avoid dict.values() overhead
             for lineiterators in self._lineiterators.values():
-                for lineiterator in lineiterators:
-                    lineiterator_id = id(lineiterator)
-                    if lineiterator_id not in self._stage2_in_progress:
-                        lineiterator._stage2()
+                if lineiterators:  # Skip empty lists
+                    for lineiterator in lineiterators:
+                        lineiterator_id = id(lineiterator)
+                        if lineiterator_id not in guard:
+                            lineiterator._stage2()
         finally:
-            # Remove this object from the processing set when done
-            self._stage2_in_progress.discard(self_id)
+            # Remove from guard set
+            guard.discard(self_id)
+            
+            # Clean up guard set if it's the top-level call (empty guard means we're done)
+            if not guard:
+                # Reset for next use
+                LineIterator._stage2_guard = set()
 
     def _stage1(self):
         # 设置_stage1状态

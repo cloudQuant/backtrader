@@ -22,7 +22,8 @@ def test_date_conversion(main=False):
     converted_back = num2date(num_date)
     
     if main:
-        print(f'Original date: {test_date}')
+        # print(f'Original date: {test_date}')  # Removed for performance
+        pass
         print(f'Converted to num: {num_date}')
         print(f'Converted back: {converted_back}')
     
@@ -31,7 +32,8 @@ def test_date_conversion(main=False):
     assert converted_back.day == test_date.day
     
     if main:
-        print('Date conversion test passed')
+        # print('Date conversion test passed')  # Removed for performance
+        pass
 
 
 def test_autodict(main=False):
@@ -50,7 +52,8 @@ def test_autodict(main=False):
     assert aod.key1.key2 == 'test_value'
     
     if main:
-        print('AutoDict test passed')
+        # print('AutoDict test passed')  # Removed for performance
+        pass
         print('AutoOrderedDict test passed')
 
 
@@ -88,7 +91,8 @@ def test_utils_integration(main=False):
     cerebro.run()
     
     if main:
-        print('Utils integration test passed')
+        # print('Utils integration test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

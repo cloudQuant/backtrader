@@ -41,7 +41,8 @@ def test_run(main=False):
     assert len(results[0]) > 0  # Strategy processed data
     
     if main:
-        print('DataFilter test passed')
+        # print('DataFilter test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

@@ -36,7 +36,8 @@ def test_flt(main=False):
     assert len(results) > 0
     
     if main:
-        print('Flt test passed')
+        # print('Flt test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

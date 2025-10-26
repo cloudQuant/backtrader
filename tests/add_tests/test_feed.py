@@ -41,7 +41,8 @@ def test_feed(main=False):
     assert len(results[0]) > 0  # Strategy ran through data
     
     if main:
-        print('Feed test passed')
+        # print('Feed test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

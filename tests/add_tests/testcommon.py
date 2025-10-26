@@ -166,11 +166,12 @@ class TestStrategy(bt.Strategy):
 
         if self.p.main:
             dtstr = self.data.datetime.date(0).strftime('%Y-%m-%d')
-            print('%s - %d - %f' % (dtstr, len(self), self.ind[0]))
-            pstr = ', '.join(str(x) for x in
-                             [self.data.open[0], self.data.high[0],
-                              self.data.low[0], self.data.close[0]])
-            print('%s - %d, %s' % (dtstr, len(self), pstr))
+            # print('%s - %d - %f' % (dtstr, len(self), self.ind[0]))  # Removed for performance
+            # pstr = ', '.join(str(x) for x in
+            #                  [self.data.open[0], self.data.high[0],
+            #                   self.data.low[0], self.data.close[0]])
+            # print('%s - %d, %s' % (dtstr, len(self), pstr))  # Removed for performance
+            pass
 
     def start(self):
         self.nextcalls = 0
@@ -192,36 +193,29 @@ class TestStrategy(bt.Strategy):
         chkpts = [0, -l + mp, (-l + mp) // 2]
 
         if self.p.main:
-            print('----------------------------------------')
-            print('len ind %d == %d len self' % (l, len(self)))
-            print('minperiod %d' % self.chkmin)
-            print('self.p.chknext %d nextcalls %d'
-                  % (self.p.chknext, self.nextcalls))
-
-            print('chkpts are', chkpts)
-            for chkpt in chkpts:
-                dtstr = self.data.datetime.date(chkpt).strftime('%Y-%m-%d')
-                print('chkpt %d -> %s' % (chkpt, dtstr))
-
-            for lidx in range(self.ind.size()):
-                chkvals = list()
-                outtxt = '    ['
-                for chkpt in chkpts:
-                    valtxt = "'%f'" % self.ind.lines[lidx][chkpt]
-                    outtxt += "'%s'," % valtxt
-                    chkvals.append(valtxt)
-
-                    outtxt = '    [' + ', '.join(chkvals) + '],'
-
-                if lidx == self.ind.size() - 1:
-                    outtxt = outtxt.rstrip(',')
-
-                print(outtxt)
-
-            print('vs expected')
-
-            for chkval in self.p.chkvals:
-                print(chkval)
+            # print('----------------------------------------')  # Removed for performance
+            # print('len ind %d == %d len self' % (l, len(self)))  # Removed for performance
+            # print('minperiod %d' % self.chkmin)  # Removed for performance
+            # print('self.p.chknext %d nextcalls %d' % (self.p.chknext, self.nextcalls))  # Removed for performance
+            # print('chkpts are', chkpts)  # Removed for performance
+            # for chkpt in chkpts:
+            #     dtstr = self.data.datetime.date(chkpt).strftime('%Y-%m-%d')
+            #     print('chkpt %d -> %s' % (chkpt, dtstr))  # Removed for performance
+            # for lidx in range(self.ind.size()):
+            #     chkvals = list()
+            #     outtxt = '    ['
+            #     for chkpt in chkpts:
+            #         valtxt = "'%f'" % self.ind.lines[lidx][chkpt]
+            #         outtxt += "'%s'," % valtxt
+            #         chkvals.append(valtxt)
+            #         outtxt = '    [' + ', '.join(chkvals) + '],'
+            #     if lidx == self.ind.size() - 1:
+            #         outtxt = outtxt.rstrip(',')
+            #     print(outtxt)  # Removed for performance
+            # print('vs expected')  # Removed for performance
+            # for chkval in self.p.chkvals:
+            #     print(chkval)  # Removed for performance
+            pass
 
         else:
             assert l == len(self)

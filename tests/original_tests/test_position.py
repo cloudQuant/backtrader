@@ -37,7 +37,8 @@ def test_run(main=False):
     nsize, nprice, opened, closed = pos.update(size=upsize, price=upprice)
 
     if main:
-        print('pos.size/price', pos.size, pos.price)
+        # print('pos.size/price', pos.size, pos.price)  # Removed for performance
+        pass
         print('nsize, nprice, opened, closed', nsize, nprice, opened, closed)
 
     assert pos.size == size + upsize
@@ -55,7 +56,8 @@ def test_run(main=False):
     nsize, nprice, opened, closed = pos.update(size=upsize, price=upprice)
 
     if main:
-        print('pos.size/price', pos.size, pos.price)
+        # print('pos.size/price', pos.size, pos.price)  # Removed for performance
+        pass
         print('nsize, nprice, opened, closed', nsize, nprice, opened, closed)
 
     assert pos.size == size + upsize
@@ -74,7 +76,8 @@ def test_run(main=False):
     nsize, nprice, opened, closed = pos.update(size=upsize, price=upprice)
 
     if main:
-        print('pos.size/price', pos.size, pos.price)
+        # print('pos.size/price', pos.size, pos.price)  # Removed for performance
+        pass
         print('nsize, nprice, opened, closed', nsize, nprice, opened, closed)
 
     assert pos.size == size + upsize

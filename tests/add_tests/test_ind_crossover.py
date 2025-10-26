@@ -37,7 +37,8 @@ def test_run(main=False):
     assert len(results[0]) > 0
     
     if main:
-        print('CrossOver test passed')
+        # print('CrossOver test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

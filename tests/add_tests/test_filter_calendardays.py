@@ -43,7 +43,8 @@ def test_run(main=False):
     assert len(results[0]) > 0  # Strategy processed data
     
     if main:
-        print('CalendarDays filter test passed')
+        # print('CalendarDays filter test passed')  # Removed for performance
+        pass
 
 
 if __name__ == '__main__':

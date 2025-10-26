@@ -161,7 +161,8 @@ def test_run(main=False):
         analyzer = strat.analyzers[0]  # only 1
         analysis = analyzer.get_analysis()
         if main:
-            print(analysis)
+            # print(analysis)  # Removed for performance
+            pass
             print(str(analysis[next(iter(analysis.keys()))]))
         else:
             # Handle different precision
