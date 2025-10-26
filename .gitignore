@@ -138,3 +138,7 @@ dmypy.json
 
 # Cython debug symbols
 cython_debug/
+
+# others
+report.html
+backtrader_master_tests_report.html
