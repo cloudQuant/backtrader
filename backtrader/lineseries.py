@@ -20,6 +20,57 @@ from .metabase import AutoInfoClass
 from . import metabase
 
 
+# 性能优化: 使用模块级集合来追踪递归，避免大量的 setattr/delattr 操作
+_recursion_guards = set()
+
+
+class MinimalData:
+    """
+    Minimal data replacement for missing data0, data1, etc. attributes.
+    
+    性能优化: 在模块级别定义，避免在 __getattr__ 中重复创建类。
+    """
+    def __init__(self):
+        # 使用有效的序数而不是 0.0 来处理 datetime 数组
+        self.array = [1.0] * 1000  # 预填充数组以防止索引错误
+        self._idx = 0
+        self._owner = None
+        self.datas = []
+        self._clock = None
+    
+    def __getitem__(self, key):
+        try:
+            return self.array[self._idx + key]
+        except (IndexError, TypeError):
+            return 0.0
+    
+    def __len__(self):
+        return len(self.array)
+        
+    def __getattr__(self, name):
+        # 对任何缺失的属性返回 None 以防止进一步错误
+        return None
+
+
+class MinimalOwner:
+    """
+    Minimal owner implementation for observers and analyzers.
+    
+    性能优化: 在模块级别定义，避免在 __getattr__ 中重复创建类。
+    """
+    def __init__(self):
+        self.datas = []
+        self.broker = None
+        self._lineiterators = {}
+        self._clock = None
+        self.data = None
+        self.data0 = None
+    
+    def _addanalyzer_slave(self, ancls, *anargs, **ankwargs):
+        """Minimal implementation for observers"""
+        return None
+
+
 class MinimalClock:
     """
     Minimal clock implementation used as a fallback when _clock is not set.
@@ -727,355 +778,311 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         """Alias for lines - used in indicator next() methods like self.l.sma[0]"""
         return self.lines
 
-    def __getattribute__(self, name):
-        """Override to provide attribute access with enhanced error handling"""
+    def __getattr__(self, name):
+        """
+        性能优化: 使用 __getattr__ 替代 __getattribute__
+        __getattr__ 只在属性不存在时调用，大大减少调用次数
+        原版本: __getattribute__ 每次属性访问都调用 (278万次)
+        优化后: __getattr__ 只在属性缺失时调用
+        """
         
-        # CRITICAL FIX: Let the chkmin property handle TestStrategy cases properly
-        # Don't interfere with chkmin here - the property will handle it
+        # 使用模块级集合来追踪递归，避免 setattr/delattr 开销
+        obj_id = id(self)
+        if obj_id in _recursion_guards:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        
+        _recursion_guards.add(obj_id)
+        try:
+            # 处理 _value 属性（用于分析器）
+            if name == '_value':
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '_value'")
+
+            # 处理缺失的 data0/data1 属性（用于指标对象）
+            if name.startswith('data') and len(name) > 4 and name[4:].isdigit():
+                data_index = int(name[4:])
+                # 性能优化: 用 try-except 替代多次检查
+                # 尝试从 datas 获取
+                try:
+                    datas = self.datas
+                    if datas and data_index < len(datas):
+                        data = datas[data_index]
+                        object.__setattr__(self, name, data)
+                        return data
+                except (AttributeError, IndexError):
+                    pass
+                
+                # 尝试从 owner 获取
+                try:
+                    owner = self._owner
+                    try:
+                        owner_datas = owner.datas
+                        if owner_datas and data_index < len(owner_datas):
+                            data = owner_datas[data_index]
+                            object.__setattr__(self, name, data)
+                            return data
+                    except (AttributeError, IndexError):
+                        pass
+                        
+                    try:
+                        data = getattr(owner, name)
+                        object.__setattr__(self, name, data)
+                        return data
+                    except AttributeError:
+                        pass
+                except AttributeError:
+                    pass
+                
+                # 如果找不到，使用模块级 MinimalData 类
+                minimal_data = MinimalData()
+                object.__setattr__(self, name, minimal_data)
+                return minimal_data
+            
+            # 处理 _owner 属性
+            if name == '_owner':
+                minimal_owner = MinimalOwner()
+                object.__setattr__(self, '_owner', minimal_owner)
+                return minimal_owner
+            
+            # 处理 _clock 属性
+            if name == '_clock':
+                minimal_clock = MinimalClock()
+                object.__setattr__(self, '_clock', minimal_clock)
+                return minimal_clock
+            
+            # 注意：不要自动委派到 lines！
+            # 原版本的问题：会将策略/指标对象的属性错误地从 lines 查找
+            # 例如 strategy.sma, strategy.cross 等应该是直接属性，不应该从 lines 查找
+            
+            # 只在特定情况下委派到 lines（例如访问 line 名称）
+            # 检查是否是在访问 line 对象
+            try:
+                lines = object.__getattribute__(self, 'lines')
+                # 尝试从 lines 获取（不使用 hasattr 避免递归）
+                try:
+                    return object.__getattribute__(lines, name)
+                except AttributeError:
+                    # 如果 lines 对象自己也有 __getattr__，尝试调用它
+                    try:
+                        lines_getattr = object.__getattribute__(lines, '__getattr__')
+                        return lines_getattr(name)
+                    except (AttributeError, TypeError):
+                        pass
+            except AttributeError:
+                pass
+            
+            # 所有尝试都失败，抛出 AttributeError
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        finally:
+            # 清理递归守卫
+            _recursion_guards.discard(obj_id)
+
+    def __setattr__(self, name, value):
+        """
+        性能优化: 用 try-except 替代 hasattr，减少函数调用
+        """
+        # 内部属性和已知安全属性直接设置
+        if name.startswith('_') or name in ('lines', 'datas', 'ddatas', 'dnames', 'params', 'p'):
+            object.__setattr__(self, name, value)
+            return
         
         try:
-            # Set recursion guard
-            object.__setattr__(self, '_attr_recursion_guard', True)
-            
-            # CRITICAL FIX: Remove _value fallback that interferes with analyzer calculations
-            # The _value attribute should be handled by the analyzer itself, not by our fallbacks
-            # Our previous fallback was preventing proper trade analysis in SQN analyzer
-            if name == '_value':
-                # Let the analyzer handle _value properly - don't provide fallbacks
-                try:
-                    return object.__getattribute__(self, '_value')
-                except AttributeError:
-                    # For analyzers, let them handle None _value properly
-                    # Don't set arbitrary fallbacks that interfere with their calculation logic
-                    raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '_value'")
-
-            # Handle missing data0/data1 attributes on indicator objects (for nested indicators like NonZeroDifference)
-            if name.startswith('data') and name[4:].isdigit():
-                data_index = int(name[4:])
-                # Check if we already have the attribute using object.__getattribute__ to avoid recursion
-                try:
-                    return object.__getattribute__(self, name)
-                except AttributeError:
-                    # Try to find the data from owner or args
-                    try:
-                        datas = object.__getattribute__(self, 'datas')
-                        if datas and data_index < len(datas):
-                            data = datas[data_index]
-                            object.__setattr__(self, name, data)
-                            return data
-                    except AttributeError:
-                        pass
-                    
-                    try:
-                        owner = object.__getattribute__(self, '_owner')
-                        # Replace hasattr() with try/except to avoid recursion
-                        try:
-                            owner_datas = owner.datas
-                            if owner_datas and data_index < len(owner_datas):
-                                data = owner_datas[data_index]
-                                object.__setattr__(self, name, data)
-                                return data
-                        except AttributeError:
-                            pass
-                            
-                        try:
-                            data = getattr(owner, name)
-                            object.__setattr__(self, name, data)
-                            return data
-                        except AttributeError:
-                            pass
-                    except AttributeError:
-                        pass
-                    
-                    # If not found, create a minimal data replacement
-                    class MinimalData:
-                        def __init__(self):
-                            # CRITICAL FIX: Use valid ordinal instead of 0.0 for datetime arrays
-                            self.array = [1.0] * 1000  # Pre-filled array to prevent index errors
-                            self._idx = 0
-                            self._owner = None
-                            self.datas = []
-                            self._clock = None
-                        
-                        def __getitem__(self, key):
-                            try:
-                                return self.array[self._idx + key]
-                            except (IndexError, TypeError):
-                                return 0.0
-                        
-                        def __len__(self):
-                            return len(self.array)
-                            
-                        def __getattr__(self, name):
-                            # Return None for any missing attributes to prevent further errors
-                            return None
-                    
-                    minimal_data = MinimalData()
-                    object.__setattr__(self, name, minimal_data)
-                    return minimal_data
-            
-            # CRITICAL FIX: Handle _owner attribute for observers and analyzers
-            if name == '_owner':
-                try:
-                    return object.__getattribute__(self, '_owner')
-                except AttributeError:
-                    # Create a minimal owner to prevent further recursion
-                    class MinimalOwner:
-                        def __init__(self):
-                            self.datas = []
-                            self.broker = None
-                            self._lineiterators = {}
-                            self._clock = None
-                            self.data = None
-                            self.data0 = None
-                        
-                        def _addanalyzer_slave(self, ancls, *anargs, **ankwargs):
-                            """Minimal implementation for observers"""
-                            return None
-                    
-                    minimal_owner = MinimalOwner()
-                    object.__setattr__(self, '_owner', minimal_owner)
-                    return minimal_owner
-            
-            # CRITICAL FIX: Handle missing _clock attribute
-            if name == '_clock':
-                try:
-                    return object.__getattribute__(self, '_clock')
-                except AttributeError:
-                    # Create minimal clock to prevent recursion
-                    # Use module-level MinimalClock class to support pickling
-                    minimal_clock = MinimalClock()
-                    object.__setattr__(self, '_clock', minimal_clock)
-                    return minimal_clock
-            
-            # Try to get the attribute normally first
+            # 检查是否为指标（性能优化：用 try-except 替代 hasattr）
+            is_indicator = False
             try:
-                return object.__getattribute__(self, name)
+                # 尝试检查指标属性
+                _ = value.lines
+                _ = value._minperiod
+                is_indicator = True
             except AttributeError:
-                # If attribute is missing, try to delegate to lines
                 try:
-                    lines = object.__getattribute__(self, 'lines')
-                    # Check if lines has the attribute - replace hasattr() with try/except
+                    is_indicator = 'Indicator' in str(value.__class__.__name__)
+                except:
                     try:
-                        return getattr(lines, name)
+                        ltype = value._ltype
+                        is_indicator = (ltype == 0)
                     except AttributeError:
+                        pass
+            
+            if is_indicator:
+                # 设置指标属性
+                object.__setattr__(self, name, value)
+                
+                # 确保指标有正确的 owner
+                try:
+                    if value._owner is None:
+                        value._owner = self
+                except AttributeError:
+                    try:
+                        value._owner = self
+                    except:
+                        pass
+                
+                # 添加到 lineiterators
+                try:
+                    lineiterators = self._lineiterators
+                    ltype = value._ltype
+                    # 检查是否已存在
+                    found = False
+                    for item in lineiterators[ltype]:
+                        if id(item) == id(value):
+                            found = True
+                            break
+                    
+                    if not found:
+                        lineiterators[ltype].append(value)
+                except (AttributeError, KeyError):
+                    pass
+                
+                return
+            
+            # 处理 data 赋值
+            if name.startswith('data'):
+                try:
+                    _ = value._name
+                    object.__setattr__(self, name, value)
+                    return
+                except AttributeError:
+                    try:
+                        _ = value.lines
+                        object.__setattr__(self, name, value)
+                        return
+                    except AttributeError:
+                        pass
+            
+            # 所有其他赋值
+            object.__setattr__(self, name, value)
+                    
+        except Exception:
+            # 如果所有检查都失败，直接设置属性
+            try:
+                object.__setattr__(self, name, value)
+            except Exception:
+                # 最终fallback
+                try:
+                    fallback = self._fallback_attrs
+                except AttributeError:
+                    fallback = {}
+                    object.__setattr__(self, '_fallback_attrs', fallback)
+                fallback[name] = value
+
+    def __len__(self):
+        """
+        性能优化: 用 try-except 替代 hasattr
+        原版本问题: 每次调用包含 30+ 个 hasattr，触发大量 __getattr__
+        优化后: 简化逻辑，减少不必要的检查
+        
+        注意: 不缓存长度，因为长度会在策略运行时动态变化
+        """
+        
+        # 使用模块级集合来追踪递归
+        obj_id = id(self)
+        if obj_id in _recursion_guards:
+            return 0
+        
+        _recursion_guards.add(obj_id)
+        try:
+            result = 0
+            
+            # 检查是否为指标
+            is_indicator = False
+            try:
+                ltype = self._ltype
+                is_indicator = (ltype == 0)
+            except AttributeError:
+                try:
+                    is_indicator = 'Indicator' in str(self.__class__.__name__)
+                except:
+                    pass
+            
+            if is_indicator:
+                # 对于指标，尝试从 owner 获取长度
+                try:
+                    owner = self._owner
+                    if owner is not None:
                         try:
-                            return lines.__getattr__(name)
-                        except (AttributeError, TypeError):
+                            owner_id = id(owner)
+                            if owner_id not in _recursion_guards:
+                                return len(owner)
+                        except:
+                            pass
+                        
+                        try:
+                            datas = owner.datas
+                            if datas:
+                                return len(datas[0])
+                        except:
                             pass
                 except AttributeError:
                     pass
                 
-                # Fallback: Let AttributeError bubble up for unknown attributes
-                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        finally:
-            # Always remove recursion guard
+                # 尝试从 _clock 获取
+                try:
+                    clock = self._clock
+                    if clock is not None:
+                        try:
+                            return len(clock)
+                        except:
+                            try:
+                                return clock.lencount
+                            except:
+                                pass
+                except AttributeError:
+                    pass
+                
+                # 指标的fallback
+                return 0
+            
+            # 对于非指标，使用 lines 的长度
             try:
-                delattr(self, '_attr_recursion_guard')
+                lines = self.lines
+                if lines:
+                    try:
+                        # 如果lines可迭代，获取最小长度
+                        if hasattr(lines, '__iter__') and not isinstance(lines, str):
+                            lengths = []
+                            for line in lines:
+                                line_id = id(line)
+                                if line_id not in _recursion_guards:
+                                    try:
+                                        lengths.append(len(line))
+                                    except:
+                                        try:
+                                            lc = line.lencount
+                                            if lc is not None and lc >= 0:
+                                                lengths.append(lc)
+                                        except:
+                                            pass
+                            
+                            if lengths:
+                                return min(lengths)
+                        else:
+                            # 单个 lines 对象
+                            try:
+                                return len(lines)
+                            except:
+                                try:
+                                    return lines.lencount
+                                except:
+                                    pass
+                    except:
+                        pass
             except AttributeError:
                 pass
-
-    def __setattr__(self, name, value):
-        # CRITICAL FIX: Handle DotDict and similar objects without triggering KeyError
-        # The hasattr() calls were causing KeyError exceptions on DotDict objects
-        if name.startswith('_') or name in ('lines', 'datas', 'ddatas', 'dnames', 'params', 'p'):
-            # For internal attributes and known safe attributes, set directly
-            object.__setattr__(self, name, value)
-            return
-        
-        # CRITICAL FIX: Safe hasattr check that won't trigger KeyError on DotDict
-        def safe_hasattr(obj, attr):
-            """Safe hasattr that won't trigger KeyError on DotDict objects"""
+            
+            # 尝试使用 lencount
             try:
-                # Check if this is a DotDict or similar dict-like object
-                if hasattr(obj.__class__, '__getattr__') and isinstance(obj, dict):
-                    # For dict-like objects, check if the attribute exists without triggering __getattr__
-                    return attr in obj.__dict__ or attr in dir(obj.__class__)
-                else:
-                    # For regular objects, use normal hasattr
-                    return hasattr(obj, attr)
-            except (KeyError, AttributeError, TypeError):
-                return False
-        
-        # CRITICAL FIX: Enhanced line assignment with safe attribute checking
-        try:
-            # Check if this could be an indicator assignment
-            is_indicator = False
-            try:
-                # Safe check for indicator-like properties
-                if (safe_hasattr(value, 'lines') and safe_hasattr(value, '_minperiod')) or \
-                   (safe_hasattr(value, '__class__') and 'Indicator' in str(value.__class__.__name__)) or \
-                   (safe_hasattr(value, '_ltype') and getattr(value, '_ltype', None) == 0):
-                    is_indicator = True
-            except Exception:
+                lc = self.lencount
+                if lc is not None:
+                    return lc
+            except AttributeError:
                 pass
             
-            if is_indicator:
-                # print(f"LineSeries.__setattr__: Setting indicator '{name}' = {value.__class__} (value: {value})")
-                # print(f"LineSeries.__setattr__: Indicator '{name}' class: {value.__class__.__name__}")
-                pass
-                
-                # Set the indicator as an attribute
-                object.__setattr__(self, name, value)
-                
-                # CRITICAL FIX: Ensure the indicator has proper setup
-                if not safe_hasattr(value, '_owner') or getattr(value, '_owner', None) is None:
-                    try:
-                        value._owner = self
-                    except Exception:
-                        pass
-                
-                # CRITICAL FIX: Add to lineiterators if not already there
-                if safe_hasattr(self, '_lineiterators') and safe_hasattr(value, '_ltype'):
-                    try:
-                        ltype = getattr(value, '_ltype', 0)
-                        # 关键修复：不使用 'in' 操作符，而是通过ID比较来检查是否已存在
-                        found = False
-                        for item in self._lineiterators[ltype]:
-                            if id(item) == id(value):
-                                found = True
-                                break
-                                
-                        if not found:
-                            self._lineiterators[ltype].append(value)
-                    except Exception:
-                        pass
-                
-                return
-            
-            # CRITICAL FIX: Handle data assignment
-            if name.startswith('data') and (safe_hasattr(value, '_name') or safe_hasattr(value, 'lines')):
-                # print(f"LineSeries.__setattr__: Detected indicator for '{name}': {value.__class__}")
-                object.__setattr__(self, name, value)
-                return
-            
-            # For all other assignments, use normal attribute setting
-            object.__setattr__(self, name, value)
-                    
-        except Exception as e:
-            # CRITICAL FIX: If anything fails, fall back to simple attribute setting
-            try:
-                object.__setattr__(self, name, value)
-            except Exception as e2:
-                # Final fallback: store in a special dict if needed
-                if not hasattr(self, '_fallback_attrs'):
-                    object.__setattr__(self, '_fallback_attrs', {})
-                self._fallback_attrs[name] = value
-
-    def __len__(self):
-        # CRITICAL FIX: Return the length of the first line for better synchronization
-        
-        # CRITICAL FIX: Prevent infinite recursion with a recursion guard
-        if hasattr(self, '_len_recursion_guard'):
-            return 0
-        
-        self._len_recursion_guard = True
-        try:
-            # CRITICAL FIX: For indicators, return the owner's (strategy's) length for proper synchronization
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                
-                # For indicators, return the owner's (strategy's) length to match test expectations
-                if hasattr(self, '_owner') and self._owner is not None:
-                    try:
-                        # Get the strategy's length - this is what tests expect
-                        if hasattr(self._owner, '__len__') and not hasattr(self._owner, '_len_recursion_guard'):
-                            return len(self._owner)
-                        elif hasattr(self._owner, 'datas') and self._owner.datas:
-                            # If strategy length fails, use its primary data length
-                            primary_data = self._owner.datas[0]
-                            if hasattr(primary_data, '__len__'):
-                                return len(primary_data)
-                            elif hasattr(primary_data, 'lencount'):
-                                return primary_data.lencount
-                        # Final fallback: check if owner has lines with processed length
-                        elif hasattr(self._owner, 'lines') and hasattr(self._owner.lines, 'lines') and self._owner.lines.lines:
-                            first_line = self._owner.lines.lines[0]
-                            if hasattr(first_line, 'lencount'):
-                                return first_line.lencount
-                            elif hasattr(first_line, 'array') and hasattr(first_line.array, '__len__'):
-                                return len(first_line.array)
-                    except Exception:
-                        pass
-                
-                # If no owner, try to get length from clock for synchronization
-                if hasattr(self, '_clock') and self._clock is not None:
-                    try:
-                        if hasattr(self._clock, '__len__'):
-                            return len(self._clock)
-                        elif hasattr(self._clock, 'lencount'):
-                            return self._clock.lencount
-                    except Exception:
-                        pass
-                
-                # If no clock, try to get length from owner's data
-                if hasattr(self, '_owner') and self._owner is not None:
-                    if hasattr(self._owner, 'datas') and self._owner.datas:
-                        try:
-                            return len(self._owner.datas[0])
-                        except Exception:
-                            pass
-                    elif hasattr(self._owner, 'data') and self._owner.data is not None:
-                        try:
-                            return len(self._owner.data)
-                        except Exception:
-                            pass
-                
-                # Fallback for indicators - return 0 if not properly synchronized
-                return 0
-                
-            # For non-indicators (strategies, data feeds, etc.), use the processed line length
-            if hasattr(self, 'lines') and self.lines:
-                # If it's a collection of lines, get the minimum length
-                if hasattr(self.lines, '__iter__') and not isinstance(self.lines, str):
-                    try:
-                        lengths = []
-                        for line in self.lines:
-                            if hasattr(line, '__len__') and not hasattr(line, '_len_recursion_guard'):
-                                # Set recursion guard to prevent infinite loops
-                                line._len_recursion_guard = True
-                                try:
-                                    lengths.append(len(line))
-                                finally:
-                                    if hasattr(line, '_len_recursion_guard'):
-                                        delattr(line, '_len_recursion_guard')
-                            elif hasattr(line, 'lencount') and hasattr(line, 'array'):
-                                # CRITICAL FIX: If lencount is invalid (<0 or None), use array length
-                                lc = line.lencount
-                                if lc is None or (isinstance(lc, int) and lc < 0):
-                                    lengths.append(len(line.array) if line.array else 0)
-                                else:
-                                    lengths.append(lc)
-                            elif hasattr(line, 'lencount'):
-                                lc = line.lencount
-                                # Only use lencount if it's valid
-                                if lc is not None and (not isinstance(lc, int) or lc >= 0):
-                                    lengths.append(lc)
-                        
-                        if lengths:
-                            return min(lengths)
-                    except Exception:
-                        pass
-                
-                # If lines is a single object with length, use it
-                elif hasattr(self.lines, '__len__'):
-                    try:
-                        return len(self.lines)
-                    except Exception:
-                        pass
-                elif hasattr(self.lines, 'lencount'):
-                    return self.lines.lencount
-            
-            # For LineBuffer objects, use lencount
-            if hasattr(self, 'lencount') and self.lencount is not None:
-                return self.lencount
-            
-            # Final fallback
+            # 最终 fallback
             return 0
             
         finally:
-            if hasattr(self, '_len_recursion_guard'):
-                delattr(self, '_len_recursion_guard')
+            # 清理递归守卫
+            _recursion_guards.discard(obj_id)
 
     def __getitem__(self, key):
         # CRITICAL FIX: Ensure we never return None values that would cause comparison errors
