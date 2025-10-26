@@ -79,7 +79,7 @@ def profile_test(test_module_path):
         sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'tests', 'original_tests'))
         
         # Import the test module
-        test_module = __import__('test_strategy_unoptimized', fromlist=['test_run'])
+        test_module = __import__('test_strategy_optimized', fromlist=['test_run'])
         
         # Run the test
         test_module.test_run(main=False)
@@ -121,7 +121,7 @@ def generate_report(stats, total_time, output_file='performance_profile.log'):
         f.write(f"Report Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
         f.write(f"Git Branch: {branch}\n")
         f.write(f"Git Commit: {commit}\n")
-        f.write(f"Test File: tests\\original_tests\\test_strategy_unoptimized.py\n")
+        f.write(f"Test File: tests\\original_tests\\test_strategy_optimized.py\n")
         f.write(f"Total Execution Time: {total_time:.4f} seconds\n")
         f.write("\n" + "=" * 100 + "\n\n")
         
@@ -250,7 +250,7 @@ def main():
     print()
     
     # Profile the test
-    test_path = r'tests\original_tests\test_strategy_unoptimized.py'
+    test_path = r'tests\original_tests\test_strategy_optimized.py'
     
     try:
         stats, total_time = profile_test(test_path)

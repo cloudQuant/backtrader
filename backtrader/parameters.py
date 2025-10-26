@@ -1322,9 +1322,10 @@ class ParameterizedBase:
         Returns:
             Parameter value
         """
-        if hasattr(self, '_param_manager'):
-            return self._param_manager.get(name, default)
-        return default
+        try:
+            return object.__getattribute__(self, '_param_manager').get(name, default)
+        except AttributeError:
+            return default
 
     def set_param(self, name: str, value: Any, validate: bool = True) -> None:
         """
@@ -1339,11 +1340,13 @@ class ParameterizedBase:
             AttributeError: If parameter manager not initialized
             ValueError: If validation fails
         """
-        if not hasattr(self, '_param_manager'):
+        try:
+            param_manager = object.__getattribute__(self, '_param_manager')
+        except AttributeError:
             raise AttributeError(f"Parameter manager not initialized for {self.__class__.__name__}")
         
         try:
-            self._param_manager.set(name, value, skip_validation=not validate)
+            param_manager.set(name, value, skip_validation=not validate)
         except Exception as e:
             raise ValueError(f"Failed to set parameter '{name}' to {value}: {e}") from e
 
@@ -1354,19 +1357,21 @@ class ParameterizedBase:
         Returns:
             Dictionary with parameter information
         """
-        if not hasattr(self, '_param_manager'):
+        try:
+            param_manager = object.__getattribute__(self, '_param_manager')
+        except AttributeError:
             return {}
         
         info = {}
-        for name in self._param_manager.keys():
-            inheritance_info = self._param_manager.get_inheritance_info(name)
+        for name in param_manager.keys():
+            inheritance_info = param_manager.get_inheritance_info(name)
             if inheritance_info:
                 info[name] = inheritance_info
             else:
                 # Fallback for parameters without inheritance info
                 info[name] = {
                     'name': name,
-                    'current_value': self._param_manager.get(name),
+                    'current_value': param_manager.get(name),
                     'type': 'unknown'
                 }
         
