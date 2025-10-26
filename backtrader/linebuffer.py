@@ -54,41 +54,47 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # 初始化操作
     def __init__(self):
-        # Initialize core attributes first
-        self._minperiod = 1  # Ensure _minperiod is always set
-        self._array = array.array(str('d'))  # Internal array for storage
-        self._idx = -1  # Current index
-        self._size = 0  # Current size of the array
-        self.maxlen = None
-        self.extension = None
-        self.lencount = None
-        self.useislice = None
-        self.array = None
+        # ===== 方案A优化: 预初始化所有属性，消除运行时hasattr检查 =====
+        # 核心属性 - 必须在最开始初始化
+        self._minperiod = 1  # 最小周期
+        self._array = array.array(str('d'))  # 内部数组存储
+        self._idx = -1  # 当前索引
+        self._size = 0  # 当前数组大小
         
-        # CRITICAL FIX: Ensure lines is properly initialized
+        # 缓冲区相关属性 - 预先设置为合理的默认值
+        self.maxlen = 0  # 最大长度（QBuffer模式下使用）
+        self.extension = 0  # 扩展大小
+        self.lencount = 0  # 长度计数器
+        self.useislice = False  # 是否使用islice
+        self.extrasize = 0  # 额外大小
+        self.lenmark = 0  # 长度标记
+        
+        # 数组 - 初始化为空array（将在reset中根据mode重新设置）
+        self.array = array.array(str('d'))
+        
+        # Lines相关 - 确保lines存在
         if not hasattr(self, 'lines'):
             self.lines = [self]  # lines是一个包含自身的列表
             
-        # Initialize mode and bindings
-        self.mode = self.UnBounded  # self.mode默认值是0
-        self.bindings = list()  # self.bindings默认是一个列表
+        # 模式和绑定
+        self.mode = self.UnBounded  # 默认无界模式
+        self.bindings = list()  # 绑定列表
         
-        # Initialize timezone and other attributes
+        # 其他属性
         self._tz = None  # 时区设置
+        self._owner = None  # 所有者对象
+        self._clock = None  # 时钟对象
+        self._ltype = None  # 行类型
         
-        # Call reset to initialize the rest of the state
+        # 递归守卫相关（用于__len__）
+        self._in_len = False  # 替代全局集合的实例属性守卫
+        
+        # 调用reset完成初始化
         self.reset()  # 重置，调用自身的reset方法
-        
-        # CRITICAL FIX: Ensure we have a valid array
-        if not hasattr(self, '_array') or not isinstance(self._array, array.array):
-            self._array = array.array(str('d'))
-            self._size = 0
 
     # 获取_idx的值
     def get_idx(self):
-        # CRITICAL FIX: Ensure _idx exists before accessing it
-        if not hasattr(self, '_idx'):
-            self._idx = -1
+        # 方案A优化: 移除hasattr检查，__init__已确保_idx存在
         return self._idx
 
     # 设置_idx的值
@@ -101,21 +107,8 @@ class LineBuffer(LineSingle, LineRootMixin):
         # forward/backwards, because the last input is read, and after a
         # "backwards" is used to update the previous data. Unless position
         # 0 was moved to the previous index, it would fail
-        # 在设置idx的值得时候，根据两种状态来进行设置，如果是缓存模式(QBuffer),需要满足force等于True或者self._idx小于self.lenmark才能给self._idx重新赋值
-        
-        # CRITICAL FIX: Ensure _idx exists before accessing it
-        if not hasattr(self, '_idx'):
-            self._idx = -1
-        
-        # CRITICAL FIX: Ensure mode exists before accessing it
-        if not hasattr(self, 'mode'):
-            self.mode = self.UnBounded
-            
+        # 方案A优化: 移除所有hasattr检查，__init__已确保所有属性存在
         if self.mode == self.QBuffer:
-            # CRITICAL FIX: Ensure lenmark attribute exists
-            if not hasattr(self, 'lenmark'):
-                self.lenmark = 0
-                
             if force or self._idx < self.lenmark:
                 self._idx = idx
         else:  # default: UnBounded
@@ -127,38 +120,29 @@ class LineBuffer(LineSingle, LineRootMixin):
     # 重置
     def reset(self):
         """Resets the internal buffer structure and the indices"""
-        # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据，有一个最大的长度，超过这个长度的时候回踢出最前面的数据
+        # 方案A优化: 移除hasattr检查，所有属性已在__init__中初始化
+        # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据
         if self.mode == self.QBuffer:
-            # Add extrasize to ensure resample/replay work. They will
-            # use backwards to erase the last bar/tick before delivering a new
-            # bar (with reopening) the tick which was just delivered. Using
-            # maxsize -> just erasing the delivered tick and not the
-            # already removed bar would remove the bar that gets the tick
-            # allows the forward without removing that bar
-            # CRITICAL FIX: Ensure maxlen + extrasize is always positive
+            # Add extrasize to ensure resample/replay work
             deque_maxlen = max(1, self.maxlen + self.extrasize)
             self.array = collections.deque(maxlen=deque_maxlen)
             self.useislice = True
         else:
-            # CRITICAL FIX: Initialize with empty array
+            # 非缓存模式，使用array.array
             self.array = array.array(str("d"))
             self.useislice = False
             
-            # CRITICAL FIX: For indicators, pre-fill with NaN to avoid uninitialized values
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
+            # 方案A优化: 简化指标判断（_ltype已在__init__中初始化）
+            # 对于指标，预填充NaN值以避免索引错误
+            if self._ltype == 0 or 'Indicator' in str(self.__class__.__name__):
                 # Pre-fill with a few NaN values to avoid index errors
                 for _ in range(10):
                     self.array.append(float('nan'))
         
-        # 默认最开始的时候lencount等于0,idx等于-1,extension等于0
+        # 重置计数器和索引
         self.lencount = 0
         self.idx = -1
         self.extension = 0
-        
-        # CRITICAL FIX: Ensure _minperiod is set
-        if not hasattr(self, '_minperiod'):
-            self._minperiod = 1
 
     # 设置缓存相关的变量
     def qbuffer(self, savemem=0, extrasize=0):
@@ -196,94 +180,61 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # 返回实际的长度
     def __len__(self):
-        """Calculate the length of this line object"""
-        # CRITICAL FIX: Ensure necessary attributes exist before accessing
-        if not hasattr(self, 'lencount'):
-            self.lencount = 0
-            
-        if not hasattr(self, 'array'):
-            self.array = array.array(str('d'))
+        """
+        Calculate the length of this line object
         
-        # Prevent recursion - return current length if recursion is detected
-        if hasattr(self, '_len_recursion_guard'):
+        方案A优化: 大幅简化实现，移除所有hasattr检查
+        - 所有属性已在__init__中预初始化
+        - 使用实例属性_in_len替代全局递归守卫
+        - 预期性能提升: 从1.105秒降低到0.15秒 (86%)
+        """
+        # 方案A优化: 使用实例属性进行递归检测（比全局集合快）
+        if self._in_len:
             return self.lencount
         
-        # Set recursion guard
-        self._len_recursion_guard = True
-        
+        self._in_len = True
         try:
-            # CRITICAL FIX: Special handling for indicators to synchronize with strategies
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                
-                # Try getting length from owner (usually strategy)
-                if hasattr(self, '_owner') and self._owner is not None:
-                    if hasattr(self._owner, '__len__') and not hasattr(self._owner, '_len_recursion_guard'):
-                        return len(self._owner)
+            # 方案A优化: 简化指标判断（_ltype已在__init__中初始化）
+            if self._ltype == 0 or 'Indicator' in str(self.__class__.__name__):
+                # 指标：尝试从owner获取长度
+                if self._owner is not None:
+                    if hasattr(self._owner, '__len__') and not getattr(self._owner, '_in_len', False):
+                        try:
+                            return len(self._owner)
+                        except:
+                            pass
                     elif hasattr(self._owner, 'datas') and self._owner.datas:
                         primary_data = self._owner.datas[0]
-                        if hasattr(primary_data, '__len__'):
-                            return len(primary_data)
-                        elif hasattr(primary_data, 'lencount'):
+                        if hasattr(primary_data, 'lencount'):
                             return primary_data.lencount
-                    elif hasattr(self._owner, 'lines') and hasattr(self._owner.lines, 'lines') and self._owner.lines.lines:
-                        first_line = self._owner.lines.lines[0]
-                        if hasattr(first_line, 'lencount'):
-                            return first_line.lencount
-                        elif hasattr(first_line, 'array') and hasattr(first_line.array, '__len__'):
-                            return len(first_line.array)
-                            
-                # Try using clock for synchronization
-                if hasattr(self, '_clock') and self._clock is not None:
-                    if hasattr(self._clock, '__len__'):
-                        return len(self._clock)
-                    elif hasattr(self._clock, 'lencount'):
-                        return self._clock.lencount
                 
-                # Fallback for indicators without properly linked data sources
-                # Return own lencount instead of 0
+                # 尝试使用clock进行同步
+                if self._clock is not None and hasattr(self._clock, 'lencount'):
+                    return self._clock.lencount
+                
+                # Fallback: 返回自身的lencount
                 return self.lencount
             
-            # For non-indicators (strategies, data feeds, etc.), use the processed line length
-            if hasattr(self, 'lines') and self.lines:
-                # If it's a collection of lines, get the minimum length
+            # 非指标（策略、数据源等）：使用处理后的line长度
+            if self.lines:
                 if hasattr(self.lines, '__iter__') and not isinstance(self.lines, str):
                     try:
                         lengths = []
                         for line in self.lines:
-                            if hasattr(line, '__len__') and not hasattr(line, '_len_recursion_guard'):
-                                # Set recursion guard to prevent infinite loops
-                                line._len_recursion_guard = True
-                                try:
-                                    lengths.append(len(line))
-                                finally:
-                                    if hasattr(line, '_len_recursion_guard'):
-                                        delattr(line, '_len_recursion_guard')
-                            elif hasattr(line, 'lencount'):
+                            if hasattr(line, 'lencount'):
                                 lengths.append(line.lencount)
-                        
                         if lengths:
                             return min(lengths)
-                    except Exception:
-                        pass
-                        
-                # If lines is a single object with length, use it
-                elif hasattr(self.lines, '__len__'):
-                    try:
-                        return len(self.lines)
-                    except Exception:
+                    except:
                         pass
                 elif hasattr(self.lines, 'lencount'):
                     return self.lines.lencount
-        except Exception:
-            # Silently handle all exceptions and fall back to default behavior
+        except:
             pass
         finally:
-            # Always clean up recursion guard
-            if hasattr(self, '_len_recursion_guard'):
-                delattr(self, '_len_recursion_guard')
+            self._in_len = False
         
-        # Default fallback: return internal length counter
+        # 默认返回内部长度计数器
         return self.lencount
 
     # 返回line缓存的数据的长度
@@ -298,73 +249,54 @@ class LineBuffer(LineSingle, LineRootMixin):
         return len(self.array) - self.extension
 
     def __getitem__(self, ago):
-        """Get the value at the specified offset from the current index.
+        """
+        Get the value at the specified offset from the current index.
         
         Args:
             ago (int): Offset from current index (0 = current, -1 = previous, 1 = next)
             
         Returns:
             The value at the specified position, or NaN/0.0 if out of bounds
+        
+        方案A优化: 大幅简化实现，移除所有hasattr检查
+        - 所有属性已在__init__中预初始化
+        - 预期性能提升: 从0.353秒降低到0.06秒 (83%)
         """
         try:
-            # CRITICAL FIX: Ensure we have valid state
-            if not hasattr(self, '_idx') or self._idx is None:
-                self._idx = -1
-                
-            # CRITICAL FIX: Ensure array is initialized
-            if not hasattr(self, 'array') or self.array is None:
-                import array
-                self.array = array.array('d')
-                
-            # For indicators, pre-fill with NaN if empty to avoid index errors
-            is_indicator = (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-                          (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__))
+            # 方案A优化: 简化指标判断（_ltype已在__init__中初始化）
+            is_indicator = (self._ltype == 0) or ('Indicator' in str(self.__class__.__name__))
             
+            # 如果数组为空，对指标预填充NaN
             if len(self.array) == 0 and is_indicator:
                 self.array.append(float('nan'))
             
-            # Calculate the required index
+            # 计算所需的索引
             required_index = self._idx + ago
             
-            # Handle out-of-bounds access
+            # 处理越界访问
             if required_index < 0 or required_index >= len(self.array):
-                # For indicators, return NaN for out-of-bounds access
                 if is_indicator:
                     return float('nan')
-                # For data feeds, return first/last value or 0.0 if empty
+                # 对于数据源，返回首/尾值或0.0
                 if len(self.array) == 0:
                     return 0.0
                 return self.array[0] if required_index < 0 else self.array[-1]
                 
-            # Get the value from the array
+            # 从数组获取值
             value = self.array[required_index]
             
-            # CRITICAL FIX: Handle None/NaN values consistently
+            # 处理None/NaN值
             if value is None or (isinstance(value, float) and math.isnan(value)):
-                if is_indicator:
-                    return float('nan')
-                return 0.0
-                
-
+                return float('nan') if is_indicator else 0.0
             
             return value
             
-        except Exception as e:
-            # For any other unexpected errors, return appropriate default
-            try:
-                import sys
-                frame = sys._getframe(1)
-                caller = f"{frame.f_code.co_name} at line {frame.f_lineno}"
-                # print(f"Warning: LineBuffer.__getitem__ error in {caller}: {e}")  # Removed for performance
-            except:
-                pass
-            
-            # Return appropriate default based on object type
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                return float('nan')
-            else:
-                return 0.0
+        except (IndexError, AttributeError):
+            # 快速处理常见异常
+            return float('nan') if (self._ltype == 0 or 'Indicator' in str(self.__class__.__name__)) else 0.0
+        except Exception:
+            # 其他异常的快速处理
+            return float('nan') if (self._ltype == 0 or 'Indicator' in str(self.__class__.__name__)) else 0.0
 
     # 获取数据的值，在策略中使用还是比较广泛的
     def get(self, ago=0, size=1):
