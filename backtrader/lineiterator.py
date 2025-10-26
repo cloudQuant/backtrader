@@ -1737,7 +1737,7 @@ class StrategyBase(DataAccessor):
             except Exception as e:
                 # Store the error but continue with minimal setup
                 self._indicator_creation_errors.append(str(e))
-                print(f"CRITICAL WARNING: Strategy __init__ error: {e}")
+                # print(f"CRITICAL WARNING: Strategy __init__ error: {e}")  # Removed for performance
                 
                 # Set up minimal attributes for test compatibility
                 if not hasattr(self, 'cross'):
@@ -1880,10 +1880,11 @@ class StrategyBase(DataAccessor):
                         return 0
                 
                 self._clock = MinimalClock()
-                print("CRITICAL WARNING: Strategy has no data feeds - using minimal clock")
+                # print("CRITICAL WARNING: Strategy has no data feeds - using minimal clock")  # Removed for performance
                 
         except Exception as e:
-            print(f"CRITICAL ERROR: Failed to assign data from cerebro: {e}")
+            # print(f"CRITICAL ERROR: Failed to assign data from cerebro: {e}")  # Removed for performance
+            pass
             # Set up minimal fallbacks
             if not hasattr(self, 'datas'):
                 self.datas = []

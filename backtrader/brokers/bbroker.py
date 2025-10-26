@@ -961,7 +961,7 @@ class BackBroker(bt.BrokerBase):
     # 执行订单
     def _execute(self, order, ago=None, price=None, cash=None, position=None, dtcoc=None):
         # ago = None is used a flag for pseudo execution
-        # print(f"订单的大小:{order.executed.remsize}")
+        # # print(f"订单的大小:{order.executed.remsize}")  # Removed for performance
         # 如果ago不是None，并且price是None的话，不操作，返回
         if ago is not None and price is None:
             return  # no psuedo exec no price - no execution
@@ -1064,7 +1064,7 @@ class BackBroker(bt.BrokerBase):
         if opened:
             # 计算开仓的价值
             if self.get_param('shortcash'):
-                # print(f"opened:{opened},price:{price}")
+                # # print(f"opened:{opened},price:{price}")  # Removed for performance
                 openedvalue = comminfo.getvaluesize(opened, price)
             else:
                 openedvalue = comminfo.getoperationcost(opened, price)
@@ -1073,7 +1073,7 @@ class BackBroker(bt.BrokerBase):
             opencash = openedvalue
             if openedvalue > 0:  # long position being opened
                 opencash /= comminfo.get_leverage()  # dec cash with level
-            # print(f"openedvalue:{openedvalue},opencash:{opencash},cash:{cash}")
+            # # print(f"openedvalue:{openedvalue},opencash:{opencash},cash:{cash}")  # Removed for performance
             # 减去开仓后得到的现金
             cash -= opencash  # original behavior
             # 开仓的佣金

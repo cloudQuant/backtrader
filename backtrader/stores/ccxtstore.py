@@ -108,7 +108,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         def retry_method(self, *args, **kwargs):
             for i in range(self.retries):
                 if self.debug:
-                    print("{} - {} - Attempt {}".format(datetime.now(), method.__name__, i))
+                    # print("{} - {} - Attempt {}".format(datetime.now(), method.__name__, i))  # Removed for performance
                 time.sleep(self.exchange.rateLimit / 1000)
                 try:
                     return method(self, *args, **kwargs)
@@ -154,7 +154,7 @@ class CCXTStore(ParameterizedSingletonMixin):
     @retry
     def fetch_ohlcv(self, symbol, timeframe, since, limit, params=None):
         if self.debug:
-            print(
+            # print(  # Removed for performance
                 "Fetching: {}, TF: {}, Since: {}, Limit: {}".format(symbol, timeframe, since, limit)
             )
         if params is None:
@@ -187,6 +187,6 @@ class CCXTStore(ParameterizedSingletonMixin):
         including implicit methods and unified methods, you can do the
         following:
 
-        print(dir(ccxt.hitbtc()))
+        # print(dir(ccxt.hitbtc()))  # Removed for performance
         """
         return getattr(self.exchange, endpoint)(params)

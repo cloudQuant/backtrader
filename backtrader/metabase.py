@@ -1493,8 +1493,9 @@ def _initialize_indicator_aliases():
         pass
         
     except Exception as e:
-        print(f"Warning: _initialize_indicator_aliases failed: {e}")
+        # print(f"Warning: _initialize_indicator_aliases failed: {e}")  # Removed for performance
         # Continue without failing completely
+        pass
 
 
 # CRITICAL FIX: Call initialization functions when module loads

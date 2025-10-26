@@ -168,7 +168,7 @@ class CCXTBroker(BrokerBase):
 
     def next(self):
         if self.debug:
-            print("Broker next() called")
+            pass  # print("Broker next() called")  # Removed for performance
         # ===========================================
         # 每隔3秒操作一下
         nts = datetime.now().timestamp()
@@ -190,7 +190,7 @@ class CCXTBroker(BrokerBase):
             # Print debug before fetching so we know which order is giving an
             # issue if it crashes
             if self.debug:
-                print("Fetching Order ID: {}".format(oID))
+                pass  # print("Fetching Order ID: {}".format(oID))  # Removed for performance
 
             # Get the order
             ccxt_order = self.store.fetch_order(oID, o_order.data.p.dataname)
@@ -271,7 +271,7 @@ class CCXTBroker(BrokerBase):
                     self.notify(o_order.clone())  # 通知策略
 
             if self.debug:
-                print(json.dumps(ccxt_order, indent=self.indent))
+                pass  # print(json.dumps(ccxt_order, indent=self.indent))  # Removed for performance
 
             # Check if the order is closed
             if status == "closed":

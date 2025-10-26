@@ -513,8 +513,8 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
         else:
             # alpha is a float value - convert it to work with dynamic smoothing
             # In this case, we can't do true dynamic smoothing, so we fall back to static
-            print(f"WARNING: ExponentialSmoothingDynamic received float alpha={self.alpha}, falling back to static smoothing")
-            
+            # print(f"WARNING: ExponentialSmoothingDynamic received float alpha={self.alpha}, falling back to static smoothing")  # Removed for performance
+            pass
             # No additional minperiod adjustment needed for static alpha
             # self.alpha1 is already set in parent class as a float
 

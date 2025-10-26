@@ -813,7 +813,8 @@ class ParameterManager:
                     callback(name, old_value, new_value)
                 except Exception as e:
                     # Log error but don't fail the parameter change
-                    print(f"Warning: Change callback failed for parameter '{name}': {e}")
+                    # print(f"Warning: Change callback failed for parameter '{name}': {e}")  # Removed for performance
+                    pass
         
         # Trigger global callbacks
         if self._global_callbacks is not None:
@@ -821,7 +822,8 @@ class ParameterManager:
                 try:
                     callback(name, old_value, new_value)
                 except Exception as e:
-                    print(f"Warning: Global change callback failed for parameter '{name}': {e}")
+                    # print(f"Warning: Global change callback failed for parameter '{name}': {e}")  # Removed for performance
+                    pass
 
     # History methods
     def get_change_history(self, name: str, limit: Optional[int] = None) -> List[tuple]:

@@ -227,34 +227,37 @@ class SingletonPerformanceMonitor:
     @staticmethod
     def print_performance_report():
         """Print a comprehensive performance report."""
-        print("\n" + "="*60)
-        print("🔍 Singleton Performance Report")
-        print("="*60)
+        # NOTE: This is a debug utility method - prints are intentionally disabled for performance
+        # Uncomment the following lines if you need to debug singleton performance
+        # print("\n" + "="*60)
+        # print("🔍 Singleton Performance Report")
+        # print("="*60)
         
         global_stats = SingletonPerformanceMonitor.get_global_stats()
         
         if not global_stats:
-            print("No singleton usage data available.")
+            # print("No singleton usage data available.")
             return
         
         total_instances = 0
         total_accesses = 0
         
         for class_name, stats in global_stats.items():
-            print(f"\n📊 {class_name}:")
-            print(f"   Instances: {stats['total_instances']}")
-            print(f"   Total accesses: {stats['total_accesses']}")
-            print(f"   Avg accesses per instance: {stats['avg_accesses_per_instance']:.1f}")
-            print(f"   Avg creation time: {stats['avg_creation_time_ms']:.3f}ms")
+            # print(f"\n📊 {class_name}:")
+            # print(f"   Instances: {stats['total_instances']}")
+            # print(f"   Total accesses: {stats['total_accesses']}")
+            # print(f"   Avg accesses per instance: {stats['avg_accesses_per_instance']:.1f}")
+            # print(f"   Avg creation time: {stats['avg_creation_time_ms']:.3f}ms")
             
             total_instances += stats['total_instances']
             total_accesses += stats['total_accesses']
         
-        print(f"\n📈 Global Summary:")
-        print(f"   Total singleton instances: {total_instances}")
-        print(f"   Total singleton accesses: {total_accesses}")
-        print(f"   Average efficiency: {total_accesses / total_instances:.1f} accesses per instance" if total_instances > 0 else "   No instances")
-        print("="*60)
+        # print(f"\n📈 Global Summary:")
+        # print(f"   Total singleton instances: {total_instances}")
+        # print(f"   Total singleton accesses: {total_accesses}")
+        # print(f"   Average efficiency: {total_accesses / total_instances:.1f} accesses per instance" if total_instances > 0 else "   No instances")
+        # print("="*60)
+        pass  # Method disabled for performance - use return global_stats for programmatic access
 
 
 # Utility function for migration

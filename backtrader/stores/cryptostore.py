@@ -74,7 +74,7 @@ class CryptoStore(object):
     @staticmethod
     def dispatch_data_to_queue(data, queues):
         if isinstance(data, RequestData):
-            print("push history bars to queue")
+            # print("push history bars to queue")  # Removed for performance
             data.init_data()
             for data in data.get_data():
                 exchange_name = data.get_exchange_name()
@@ -92,7 +92,7 @@ class CryptoStore(object):
                 key_name = exchange_name + "___" + asset_type + "___" + symbol
                 if key_name not in queues:
                     queues[key_name] = queue.Queue()
-                    print(f"{key_name} queue created!, queues.keys() = {queues.keys()}")
+                    # print(f"{key_name} queue created!, queues.keys() = {queues.keys()}")  # Removed for performance
                 q = queues[key_name]
                 q.put(data)
         elif isinstance(data, BarData):
@@ -112,7 +112,7 @@ class CryptoStore(object):
             key_name = exchange_name + "___" + asset_type + "___" + symbol
             if key_name not in queues:
                 queues[key_name] = queue.Queue()
-                print(f"{key_name} queue created!, queues.keys() = {queues.keys()}")
+                # print(f"{key_name} queue created!, queues.keys() = {queues.keys()}")  # Removed for performance
             q = queues[key_name]
             q.put(data)
 
@@ -135,7 +135,7 @@ class CryptoStore(object):
             #     self.log(f"cryptostore push test info: {data.get_all_data()}")
             # self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
             if not isinstance(data, BarData):
-                print(data)
+                # print(data)  # Removed for performance
             if isinstance(data, BarData):
                 queues = self.bar_queues
                 exchange = data.get_exchange_name()
@@ -203,7 +203,7 @@ class CryptoStore(object):
                     # if bar_status:
                     #     self.log(f"cryptostore dispatch_data_to_queue test {dtime_utc} info: {all_data}")
             elif isinstance(data, OrderData):
-                print("get new order data", data)
+                # print("get new order data", data)  # Removed for performance
                 self.order_queue.put(data)
 
             elif isinstance(data, TradeData):
@@ -300,7 +300,7 @@ class CryptoStore(object):
                         extra_data=None,
                     )
                     bar_data = data.get_data()
-                    print(
+                    # print(  # Removed for performance
                         "symbol = ",
                         symbol,
                         "period = ",
@@ -310,7 +310,7 @@ class CryptoStore(object):
                         start_time,
                         end_time,
                     )
-                    print("bar_data", type(bar_data), bar_data)
+                    # print("bar_data", type(bar_data), bar_data)  # Removed for performance
                     bar_data_list.extend(bar_data)
                     self.log(
                         f"download successfully:{exchange_name}, {symbol}, period: {granularity}, "
@@ -320,7 +320,7 @@ class CryptoStore(object):
                         "BTC-USDT", "15m", 2, start_time=begin_stamp, end_time=end_stamp
                     )
                     new_bar_list = new_data.get_data()
-                    print("new_bar_data", type(new_bar_list), new_bar_list)
+                    # print("new_bar_data", type(new_bar_list), new_bar_list)  # Removed for performance
                     assert 0
                     time.sleep(0.2)
                     # 更新开始时间
@@ -372,7 +372,7 @@ class CryptoStore(object):
         exchange_name = data.get_exchange_name()
         exchange_api = self.exchange_feeds[exchange_name]
         symbol_name = data.get_symbol_name()
-        print(f"offset = {offset}")
+        # print(f"offset = {offset}")  # Removed for performance
         return exchange_api.make_order(
             symbol_name,
             vol,
@@ -386,13 +386,13 @@ class CryptoStore(object):
         )
 
     def cancel_order(self, order):
-        print("begin to cancel order")
+        # print("begin to cancel order")  # Removed for performance
         exchange_name = order.data.get_exchange_name()
         exchange_api = self.exchange_feeds[exchange_name]
         symbol_name = order.data.get_symbol_name()
         new_order = order.bt_api_data
         new_order.init_data()
         order_id = new_order.get_order_id()
-        print(f"order_id = {order_id}")
-        print(f"symbol_name = {symbol_name}")
+        # print(f"order_id = {order_id}")  # Removed for performance
+        # print(f"symbol_name = {symbol_name}")  # Removed for performance
         return exchange_api.cancel_order(symbol_name, order_id)

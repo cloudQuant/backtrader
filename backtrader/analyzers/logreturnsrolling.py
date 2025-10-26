@@ -130,7 +130,7 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
         try:
             self.rets[self.dtkey] = math.log(self._value / self._values[0])
         except Exception as e:
-            print(e)
+            # print(e)  # Removed for performance
             self.rets[self.dtkey] = 0
             # print("计算对数收益率的时候,相应的值小于0")
         self._lastvalue = self._value  # keep last value

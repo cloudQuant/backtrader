@@ -60,7 +60,7 @@ class CTPData(DataBase):
     def _get_backfill_data(self):
         """获取回填数据"""
         self.put_notification(self.DELAYED)
-        print("_get_backfill_data")
+        # print("_get_backfill_data")  # Removed for performance
         self.qhist = (
             queue.Queue()
         )  # qhist是存放历史行情数据的队列,用于回填历史数据,未来考虑从数据库或第三方加载,可参考vnpy的处理
@@ -132,7 +132,7 @@ class CTPData(DataBase):
             if self._state == self._ST_LIVE:
                 try:
                     msg = self.qlive.get(False)
-                    print("msg _load", msg)
+                    # print("msg _load", msg)  # Removed for performance
                 except queue.Empty:
                     return None
                 if msg:
@@ -148,7 +148,7 @@ class CTPData(DataBase):
                     return False  # error management cancelled the queue
                 elif msg:
                     if self._load_candle_history(msg):
-                        print("load candle 历史回填")
+                        # print("load candle 历史回填")  # Removed for performance
                         return True  # loading worked
                     # not loaded ... date may have been seen
                     continue
@@ -165,10 +165,10 @@ class CTPData(DataBase):
 
     def _load_candle(self, msg):
         if msg.symbol != self.p.dataname.split(".")[0]:
-            print("return", msg.symbol, self.p.dataname)
+            # print("return", msg.symbol, self.p.dataname)  # Removed for performance
             return
         if msg.open_price == 0:
-            print("return, msg.symbol open_price is 0")
+            # print("return, msg.symbol open_price is 0")  # Removed for performance
             return
         dt = date2num(msg.datetime)
         # time already seen

@@ -355,7 +355,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                 import sys
                 frame = sys._getframe(1)
                 caller = f"{frame.f_code.co_name} at line {frame.f_lineno}"
-                print(f"Warning: LineBuffer.__getitem__ error in {caller}: {e}")
+                # print(f"Warning: LineBuffer.__getitem__ error in {caller}: {e}")  # Removed for performance
             except:
                 pass
             
@@ -1587,7 +1587,7 @@ class _LineForward(LineActions):
                 
         except Exception as e:
             # If anything fails, store 0.0 to prevent crashes
-            print(f"LinesOperation.next() error: {e}")
+            # print(f"LinesOperation.next() error: {e}")  # Removed for performance
             self[0] = 0.0
 
     def once(self, start, end):
@@ -1717,7 +1717,7 @@ class LinesOperation(LineActions):
                 
         except Exception as e:
             # If anything fails, store 0.0 to prevent crashes
-            print(f"LinesOperation.next() error: {e}")
+            # print(f"LinesOperation.next() error: {e}")  # Removed for performance
             self[0] = 0.0
 
     def once(self, start, end):

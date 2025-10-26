@@ -49,13 +49,13 @@ class MyCtpbeeApi(CtpbeeApi):
         self.bar_volume = 0.0
 
     def subscribe(self, dataname, timeframe, compression):
-        print(f"------开始订阅数据------")
+        # print(f"------开始订阅数据------")  # Removed for performance
         if dataname is not None:
             self.action.subscribe(dataname)
             self._bar_timeframe = timeframe
             self._bar_compression = compression
             self._data_name = dataname
-            print(f"-----订阅数据成功{dataname},{timeframe},{compression}--------")
+            # print(f"-----订阅数据成功{dataname},{timeframe},{compression}--------")  # Removed for performance
             if self._bar_timeframe == 4:
                 self.time_diff = 60 * self._bar_compression
                 self._bar_interval = str(self._bar_compression) + "m"

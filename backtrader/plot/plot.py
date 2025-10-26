@@ -427,7 +427,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             bp_df = df[df.index >= bp]
             new_bp = list(bp_df.index)[1]
             bp_price = list(bp_df["open"])[1]
-            print("做多信号", [bk, new_bk, bp, new_bp], [bk_price, bp_price])
+            # print("做多信号", [bk, new_bk, bp, new_bp], [bk_price, bp_price])  # Removed for performance
             # 测试
             long_line = (
                 Line()
@@ -459,7 +459,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             )
             overlap_kline_line = kline.overlap(long_line)
         except:
-            print("有些信号没有对齐")
+            # print("有些信号没有对齐")  # Removed for performance
 
     sk_df = df[df.index.isin([str(i[0]) for i in sk_list])]
     sk_c = (
@@ -492,7 +492,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             sp_df = df[df.index >= sp]
             sp = list(sp_df.index)[1]
             sp_price = list(sp_df["open"])[1]
-            print("做空信号", [sk, sp], [sk_price, sp_price])
+            # print("做空信号", [sk, sp], [sk_price, sp_price])  # Removed for performance
             # 测试
             short_line = (
                 Line()
@@ -524,7 +524,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             )
             overlap_kline_line = kline.overlap(short_line)
         except:
-            print("空头信号出错")
+            # print("空头信号出错")  # Removed for performance
             # Bar-1
     bar_1 = (
         Bar()
@@ -1683,12 +1683,12 @@ def get_rate_sharpe_drawdown(data):
         """
         begin_max_drawdown_value = data['total_value'][index_i]
         end_max_drawdown_value = data['total_value'][index_j]
-        print("begin_max_drawdown_value",begin_max_drawdown_value)
-        print("end_max_drawdown_value",end_max_drawdown_value)
+        # print("begin_max_drawdown_value",begin_max_drawdown_value)  # Removed for performance
+        # print("end_max_drawdown_value",end_max_drawdown_value)  # Removed for performance
         maxdrawdown_rate = (end_max_drawdown_value -begin_max_drawdown_value)/begin_max_drawdown_value  # 最大回撤比率
         maxdrawdown_value = data['total_value'][index_j] -data['total_value'][index_i] #最大回撤值
-        print("最大回撤值为",maxdrawdown_value)
-        print("最大回撤比率为",maxdrawdown_rate)
+        # print("最大回撤值为",maxdrawdown_value)  # Removed for performance
+        # print("最大回撤比率为",maxdrawdown_rate)  # Removed for performance
         # 绘制图像
         plt.plot(df[1:len(df)])
         plt.plot([index_i], [df[index_i]], 'o', color="r", markersize=10)
@@ -1853,10 +1853,10 @@ def run_cerebro_and_plot(
                 df00["普通交易指标值"] = df02["普通交易指标值"]
                 df00["多空交易指标"] = df03.index
                 df00["多空交易指标值"] = df03["多空交易指标值"]
-                print("绩效指标值", df01["绩效指标值"])
-                print(performance_dict)
-                print(strategy.__name__ + params_str)
-                print(sharpe_ratio, average_rate, max_drawdown_rate)
+                # print("绩效指标值", df01["绩效指标值"])  # Removed for performance
+                # print(performance_dict)  # Removed for performance
+                # print(strategy.__name__ + params_str)  # Removed for performance
+                # print(sharpe_ratio, average_rate, max_drawdown_rate)  # Removed for performance
 
         if not optimize:
             # 保存需要的交易指标
@@ -2110,10 +2110,10 @@ def run_cerebro_and_plot(
                 df00["普通交易指标值"] = df02["普通交易指标值"]
                 df00["多空交易指标"] = df03.index
                 df00["多空交易指标值"] = df03["多空交易指标值"]
-                print("绩效指标值", df01["绩效指标值"])
-                print(performance_dict)
-                print(strategy.__name__ + params_str)
-                print(sharpe_ratio, average_rate, max_drawdown_rate)
+                # print("绩效指标值", df01["绩效指标值"])  # Removed for performance
+                # print(performance_dict)  # Removed for performance
+                # print(strategy.__name__ + params_str)  # Removed for performance
+                # print(sharpe_ratio, average_rate, max_drawdown_rate)  # Removed for performance
 
             # Add table data
             table_data = [
