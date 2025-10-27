@@ -91,6 +91,27 @@ class LineBuffer(LineSingle, LineRootMixin):
         except Exception:
             self._is_indicator = False
         
+        # 性能优化：预计算是否为datetime行，避免在__setitem__中重复检查
+        # 在初始化时检查一次，然后缓存结果
+        self._is_datetime_line = False
+        try:
+            if hasattr(self, '_name'):
+                name_str = str(self._name).lower()
+                self._is_datetime_line = 'datetime' in name_str
+            elif hasattr(self, '__class__'):
+                class_str = str(self.__class__.__name__).lower()
+                self._is_datetime_line = 'datetime' in class_str
+        except Exception:
+            self._is_datetime_line = False
+        
+        # 预计算默认值，避免在__setitem__中重复判断
+        if self._is_datetime_line:
+            self._default_value = 1.0  # datetime行使用1.0（有效的ordinal值）
+        elif self._is_indicator:
+            self._default_value = float('nan')  # 指标使用NaN
+        else:
+            self._default_value = 0.0  # 其他使用0.0
+        
         # 递归守卫相关（用于__len__）
         self._in_len = False  # 替代全局集合的实例属性守卫
         
@@ -284,68 +305,74 @@ class LineBuffer(LineSingle, LineRootMixin):
             ago (int): Point of the array to which size will be added to return
             the slice
             value (variable): value to be set
-        """
-        # CRITICAL FIX: Ensure we have a valid array
-        if not hasattr(self, 'array') or self.array is None:
-            import array
-            self.array = array.array('d')
             
-        # CRITICAL FIX: Special handling for datetime lines - NEVER allow 0.0 for datetime!
-        is_datetime_line = (hasattr(self, '_name') and 'datetime' in str(self._name).lower()) or \
-                          (hasattr(self, '__class__') and 'datetime' in str(self.__class__.__name__).lower())
-        
-        # CRITICAL FIX: Handle None/NaN values consistently
-        if value is None or (isinstance(value, float) and math.isnan(value)):
-            # For datetime lines, use 1.0 (valid ordinal) instead of 0.0
-            if is_datetime_line:
+        性能优化：使用预计算的标志避免重复的hasattr和字符串操作
+        """
+        # 性能优化：使用try-except替代hasattr检查array存在性
+        # array在__init__中已经初始化，这里只是防御性检查
+        try:
+            array = self.array
+        except AttributeError:
+            import array as array_module
+            array = array_module.array('d')
+            self.array = array
+            
+        # 性能优化：使用预计算的标志和默认值
+        # Handle None/NaN values - 使用快速路径判断
+        if value is None:
+            value = self._default_value
+        elif isinstance(value, float):
+            # 只对float类型检查NaN（避免对int调用isnan）
+            if math.isnan(value):
+                value = self._default_value
+            # datetime行的值验证
+            elif self._is_datetime_line and value < 1.0:
                 value = 1.0
-            # For indicators, use NaN as default, for others use 0.0
-            elif (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                value = float('nan')
-            else:
-                value = 0.0
-        # CRITICAL FIX: If setting invalid value on a datetime line, convert to valid ordinal
-        elif is_datetime_line and (not isinstance(value, (int, float)) or value < 1.0):
-            value = 1.0
+        elif self._is_datetime_line:
+            # 非数值类型的datetime行，转换为1.0
+            try:
+                float_value = float(value)
+                value = 1.0 if float_value < 1.0 else float_value
+            except (TypeError, ValueError):
+                value = 1.0
         
         # Calculate the required index
         required_index = self.idx + ago
         
-        # Handle index out of bounds
-        if required_index >= len(self.array):
-            # Extend the array to accommodate the required index
-            extend_size = required_index - len(self.array) + 1
+        # Handle index out of bounds - 快速路径
+        array_len = len(array)
+        if required_index >= array_len:
+            # 性能优化：使用预计算的默认值作为填充值
+            fill_value = self._default_value
+            extend_size = required_index - array_len + 1
             
-            # Determine fill value based on line type
-            if is_datetime_line:
-                fill_value = 1.0  # Safe datetime ordinal
-            elif (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-                 (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                fill_value = float('nan')  # For indicators
-            else:
-                fill_value = 0.0  # For others
-                
+            # 批量扩展数组
             for _ in range(extend_size):
-                self.array.append(fill_value)
+                array.append(fill_value)
         elif required_index < 0:
             # Skip setting values for negative indices
             return
             
         # Set the value at the required index
-        self.array[required_index] = value
+        array[required_index] = value
         
-        # Update any bindings with same datetime protection
-        for binding in self.bindings:
-            # Check if binding is also a datetime line
-            binding_is_datetime = (hasattr(binding, '_name') and 'datetime' in str(binding._name).lower()) or \
-                                 (hasattr(binding, '__class__') and 'datetime' in str(binding.__class__.__name__).lower())
-            
-            binding_value = value
-            if binding_is_datetime and (not isinstance(binding_value, (int, float)) or binding_value < 1.0):
-                binding_value = 1.0
+        # Update any bindings - 只在有绑定时执行
+        # 性能优化：绝大多数情况下bindings为空，先检查再处理
+        if self.bindings:
+            for binding in self.bindings:
+                # 性能优化：使用try-except获取绑定的datetime标志
+                # 大多数绑定不是datetime行，快速路径
+                try:
+                    binding_is_datetime = binding._is_datetime_line
+                except AttributeError:
+                    # 绑定没有预计算标志，回退到简单检查
+                    binding_is_datetime = False
                 
-            binding[ago] = binding_value
+                binding_value = value
+                if binding_is_datetime and (not isinstance(binding_value, (int, float)) or binding_value < 1.0):
+                    binding_value = 1.0
+                    
+                binding[ago] = binding_value
 
     # 给array设置具体的值
     def set(self, value, ago=0):

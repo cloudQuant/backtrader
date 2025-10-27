@@ -783,42 +783,33 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     def __getattr__(self, name):
         """
-        方案A优化: 使用实例属性替代全局集合
-        - 使用 _in_getattr 实例属性进行递归检测（比全局集合快）
-        - 预期性能提升: 从0.275秒降低到0.03秒 (89%)
+        性能优化v2:
+        1. 移除属性缓存（缓存的开销比收益大）
+        2. 简化递归检测
+        3. 减少try-except层数
+        4. 使用快速路径处理常见情况
         """
-        # 简单属性缓存，减少重复解析
-        _dict = object.__getattribute__(self, '__dict__')
-        cache = _dict.get('_attr_cache')
-        if cache is not None and name in cache:
-            return cache[name]
-        if cache is None:
-            cache = {}
-            _dict['_attr_cache'] = cache
-
-        # 方案A优化: 使用实例属性进行递归检测
-        if name == '_in_getattr':
-            return False
-
-        # 检查递归（使用 __dict__ 直查避免再次触发 __getattr__）
-        if _dict.get('_in_getattr', False):
+        # 快速路径：特殊属性直接处理（避免进入慢路径）
+        if name == '_value':
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '_value'")
+        
+        # 递归守卫（简化：直接使用try-except获取__dict__）
+        try:
+            _dict = object.__getattribute__(self, '__dict__')
+            if _dict.get('_in_getattr', False):
+                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+            _dict['_in_getattr'] = True
+        except AttributeError:
+            # __dict__不存在（极少见），直接抛出错误
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-
-        # 设置递归守卫
-        _dict['_in_getattr'] = True
         
         try:
-            # 处理 _value 属性（用于分析器）
-            if name == '_value':
-                raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '_value'")
-
-            # 处理缺失的 data0/data1 属性（用于指标对象）
-            if name.startswith('data') and len(name) > 4 and name[4:].isdigit():
+            # 快速路径1：dataX属性（data0, data1等）
+            if len(name) > 4 and name[:4] == 'data' and name[4].isdigit():
                 data_index = int(name[4:])
-                # 性能优化: 用 try-except 替代多次检查
-                # 尝试从 datas 获取
+                # 尝试从datas获取
                 try:
-                    datas = self.datas
+                    datas = object.__getattribute__(self, 'datas')
                     if datas and data_index < len(datas):
                         data = datas[data_index]
                         object.__setattr__(self, name, data)
@@ -826,180 +817,142 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 except (AttributeError, IndexError):
                     pass
                 
-                # 尝试从 owner 获取
+                # 尝试从owner.datas获取
                 try:
-                    owner = self._owner
-                    try:
-                        owner_datas = owner.datas
+                    owner = object.__getattribute__(self, '_owner')
+                    if owner is not None:
+                        owner_datas = getattr(owner, 'datas', None)
                         if owner_datas and data_index < len(owner_datas):
                             data = owner_datas[data_index]
                             object.__setattr__(self, name, data)
                             return data
-                    except (AttributeError, IndexError):
-                        pass
-                        
-                    try:
-                        data = getattr(owner, name)
-                        object.__setattr__(self, name, data)
-                        return data
-                    except AttributeError:
-                        pass
-                except AttributeError:
+                except (AttributeError, IndexError, TypeError):
                     pass
                 
-                # 如果找不到，创建一个新的 MinimalData 实例（避免共享可变状态）
+                # 创建MinimalData作为fallback
                 minimal_data = MinimalData()
                 object.__setattr__(self, name, minimal_data)
-                cache[name] = minimal_data
                 return minimal_data
             
-            # 处理 _owner 属性
+            # 快速路径2：_owner属性
             if name == '_owner':
                 minimal_owner = MinimalOwner()
                 object.__setattr__(self, '_owner', minimal_owner)
-                cache[name] = minimal_owner
                 return minimal_owner
             
-            # 处理 _clock 属性
+            # 快速路径3：_clock属性
             if name == '_clock':
                 minimal_clock = MinimalClock()
                 object.__setattr__(self, '_clock', minimal_clock)
-                cache[name] = minimal_clock
                 return minimal_clock
             
-            # 注意：不要自动委派到 lines！
-            # 原版本的问题：会将策略/指标对象的属性错误地从 lines 查找
-            # 例如 strategy.sma, strategy.cross 等应该是直接属性，不应该从 lines 查找
-            
-            # 只在特定情况下委派到 lines（例如访问 line 名称）
-            # 检查是否是在访问 line 对象
+            # 快速路径4：从lines对象获取（例如访问line名称）
             try:
                 lines = object.__getattribute__(self, 'lines')
-                # 尝试从 lines 获取（不使用 hasattr 避免递归）
+                # 直接从lines.__dict__获取，避免触发lines的__getattr__
                 try:
                     result = object.__getattribute__(lines, name)
-                    cache[name] = result
                     return result
                 except AttributeError:
-                    # 如果 lines 对象自己也有 __getattr__，尝试调用它
+                    # 尝试调用lines的__getattr__
                     try:
                         lines_getattr = object.__getattribute__(lines, '__getattr__')
-                        result = lines_getattr(name)
-                        cache[name] = result
-                        return result
+                        return lines_getattr(name)
                     except (AttributeError, TypeError):
                         pass
             except AttributeError:
                 pass
             
-            # 所有尝试都失败，抛出 AttributeError
+            # 所有路径都失败，抛出AttributeError
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+            
         finally:
-            # 方案A优化: 清理递归守卫（使用实例属性）
-            _dict['_in_getattr'] = False
+            # 清理递归守卫
+            try:
+                _dict['_in_getattr'] = False
+            except:
+                pass
 
     def __setattr__(self, name, value):
         """
-        性能优化: 用 try-except 替代 hasattr，减少函数调用
+        性能优化v2: 
+        1. 使用字符索引替代startswith (2-3x faster)
+        2. 减少dict.get调用
+        3. 简化指标检测逻辑（只检查关键属性_minperiod）
+        4. 使用try-except EAFP模式
         """
-        # 内部属性和已知安全属性直接设置
-        if name.startswith('_') or name in ('lines', 'datas', 'ddatas', 'dnames', 'params', 'p'):
+        # 快速路径1：内部属性（使用字符索引比startswith快）
+        if name[0] == '_':
             object.__setattr__(self, name, value)
             return
         
+        # 快速路径2：已知的核心属性（使用集合查找）
+        # 注意：集合查找对于小集合(< 10个元素)比多个if语句快
+        if name in {'lines', 'datas', 'ddatas', 'dnames', 'params', 'p', 
+                    'plotinfo', 'plotlines', 'csv', '_indicators'}:
+            object.__setattr__(self, name, value)
+            return
+        
+        # 快速路径3：简单类型值（int, str, bool等）直接设置，跳过指标检测
+        value_type = type(value)
+        if value_type in {int, str, float, bool, list, dict, tuple, type(None)}:
+            object.__setattr__(self, name, value)
+            return
+        
+        # 慢路径：可能是指标或数据对象，需要特殊处理
         try:
-            # 检查是否为指标（加入类型缓存减少判断开销）
-            _dict = object.__getattribute__(self, '__dict__')
-            type_cache = _dict.get('_type_cache')
-            if type_cache is None:
-                type_cache = {}
-                _dict['_type_cache'] = type_cache
-
-            is_indicator = False
-            vtype = type(value)
-            cached_flag = type_cache.get(vtype, None)
-            if cached_flag is not None:
-                is_indicator = cached_flag
-            else:
-                try:
-                    # 尝试检查指标属性
-                    _ = value.lines
-                    _ = value._minperiod
-                    is_indicator = True
-                except AttributeError:
-                    try:
-                        ltype = value._ltype
-                        is_indicator = (ltype == 0)
-                    except AttributeError:
-                        # 最后退回类名判断（慢）
-                        try:
-                            is_indicator = 'Indicator' in value.__class__.__name__
-                        except Exception:
-                            is_indicator = False
-                # 缓存判定结果
-                type_cache[vtype] = is_indicator
-            
-            if is_indicator:
-                # 设置指标属性
+            # 性能优化：只检查关键属性_minperiod来判断是否为指标/线对象
+            # 这比检查多个属性或类名快得多
+            try:
+                minperiod = value._minperiod
+                # 如果有_minperiod，很可能是指标或线对象
                 object.__setattr__(self, name, value)
                 
-                # 确保指标有正确的 owner
+                # 设置owner关系（使用try-except EAFP）
                 try:
                     if value._owner is None:
                         value._owner = self
                 except AttributeError:
                     try:
                         value._owner = self
-                    except:
+                    except Exception:
                         pass
                 
-                # 添加到 lineiterators
+                # 添加到_lineiterators（如果存在）
                 try:
                     lineiterators = self._lineiterators
                     ltype = value._ltype
-                    # 使用 id 集合避免 O(n) 扫描
-                    idset = _dict.get('_lineiterator_ids')
-                    if idset is None:
-                        idset = set()
-                        _dict['_lineiterator_ids'] = idset
-                    vid = id(value)
-                    if vid not in idset:
-                        lineiterators[ltype].append(value)
-                        idset.add(vid)
-                except (AttributeError, KeyError):
+                    # 简化：直接append，不检查重复（策略初始化时不会重复设置）
+                    lineiterators[ltype].append(value)
+                except (AttributeError, KeyError, TypeError):
                     pass
                 
                 return
-            
-            # 处理 data 赋值
-            if name.startswith('data'):
-                try:
-                    _ = value._name
-                    object.__setattr__(self, name, value)
-                    return
-                except AttributeError:
+                
+            except AttributeError:
+                # 没有_minperiod，可能是data对象或普通属性
+                # data对象检测：检查是否有lines或_name属性
+                if len(name) > 3 and name[:4] == 'data':
                     try:
+                        # 尝试访问关键属性来判断是否为data对象
                         _ = value.lines
                         object.__setattr__(self, name, value)
                         return
                     except AttributeError:
-                        pass
-            
-            # 所有其他赋值
-            object.__setattr__(self, name, value)
+                        try:
+                            _ = value._name
+                            object.__setattr__(self, name, value)
+                            return
+                        except AttributeError:
+                            pass
+                
+                # 普通属性，直接设置
+                object.__setattr__(self, name, value)
+                return
                     
         except Exception:
-            # 如果所有检查都失败，直接设置属性
-            try:
-                object.__setattr__(self, name, value)
-            except Exception:
-                # 最终fallback
-                try:
-                    fallback = self._fallback_attrs
-                except AttributeError:
-                    fallback = {}
-                    object.__setattr__(self, '_fallback_attrs', fallback)
-                fallback[name] = value
+            # 任何异常都直接设置属性（防御性编程）
+            object.__setattr__(self, name, value)
 
     def __len__(self):
         """
