@@ -22,6 +22,7 @@ from . import metabase
 
 # 性能优化: 使用模块级集合来追踪递归，避免大量的 setattr/delattr 操作
 _recursion_guards = set()
+_MISSING = object()
 
 
 class MinimalData:
@@ -782,101 +783,71 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         return self.lines
 
     def __getattr__(self, name):
-        """
-        性能优化v3 - 激进缓存策略（TODO 1.1）:
-        1. 所有成功查找的属性都缓存到__dict__，后续访问不再触发__getattr__
-        2. 简化递归守卫（使用更轻量的标记）
-        3. 减少异常处理层数
-        4. 预期：减少60-70%的调用，节省2-3秒
-        """
-        # 快速路径：_value特殊处理
-        if name == '_value':
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '_value'")
-        
-        # 简化的递归守卫
-        if name == '_in_getattr':
+        """High-frequency attribute resolution optimized to minimise exceptions."""
+        if name == '_value' or name == '_in_getattr':
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+        self_dict = object.__getattribute__(self, '__dict__')
+        if self_dict.get('_in_getattr'):
             raise AttributeError(f"Recursion in __getattr__ for '{name}'")
-        
+
+        self_dict['_in_getattr'] = True
+        setattr_obj = object.__setattr__
+
         try:
-            # 设置递归标记（直接使用object方法避免触发__setattr__）
-            object.__setattr__(self, '_in_getattr', True)
-            
-            # 快速路径1：dataX属性（data0, data1等）
-            if name.startswith('data') and len(name) > 4 and name[4:].isdigit():
-                try:
-                    data_index = int(name[4:])
-                    # 尝试从datas获取
-                    try:
-                        datas = object.__getattribute__(self, 'datas')
-                        if datas and data_index < len(datas):
-                            result = datas[data_index]
-                            # 激进缓存：立即缓存到__dict__
-                            object.__setattr__(self, name, result)
+            if name.startswith('data') and len(name) > 4:
+                suffix = name[4:]
+                if suffix.isdigit():
+                    data_index = int(suffix)
+                    datas = self_dict.get('datas')
+                    if datas and data_index < len(datas):
+                        result = datas[data_index]
+                        setattr_obj(self, name, result)
+                        return result
+
+                    owner = self_dict.get('_owner')
+                    if owner is not None:
+                        owner_datas = getattr(owner, 'datas', None)
+                        if owner_datas and data_index < len(owner_datas):
+                            result = owner_datas[data_index]
+                            setattr_obj(self, name, result)
                             return result
-                    except (AttributeError, IndexError):
-                        pass
-                    
-                    # 尝试从owner.datas获取
-                    try:
-                        owner = object.__getattribute__(self, '_owner')
-                        if owner is not None:
-                            owner_datas = getattr(owner, 'datas', None)
-                            if owner_datas and data_index < len(owner_datas):
-                                result = owner_datas[data_index]
-                                object.__setattr__(self, name, result)
-                                return result
-                    except (AttributeError, IndexError, TypeError):
-                        pass
-                    
-                    # 创建MinimalData作为fallback并缓存
+
                     result = MinimalData()
-                    object.__setattr__(self, name, result)
+                    setattr_obj(self, name, result)
                     return result
-                except ValueError:
-                    pass  # name[4:]不是数字
-            
-            # 快速路径2：_owner属性
+
             if name == '_owner':
                 result = MinimalOwner()
-                object.__setattr__(self, name, result)
+                setattr_obj(self, name, result)
                 return result
-            
-            # 快速路径3：_clock属性
+
             if name == '_clock':
                 result = MinimalClock()
-                object.__setattr__(self, name, result)
+                setattr_obj(self, name, result)
                 return result
-            
-            # 快速路径4：从lines对象获取
-            try:
-                lines = object.__getattribute__(self, 'lines')
-                # 先尝试直接属性访问
-                try:
-                    result = object.__getattribute__(lines, name)
-                    # 激进缓存：缓存从lines获取的属性
-                    object.__setattr__(self, name, result)
-                    return result
-                except AttributeError:
-                    # 尝试lines的__getattr__
+
+            lines = self_dict.get('lines')
+            if lines is not None:
+                candidate = getattr(lines, name, _MISSING)
+                if candidate is not _MISSING:
+                    setattr_obj(self, name, candidate)
+                    return candidate
+
+                line_getattr = getattr(lines, '__getattr__', None)
+                if line_getattr is not None:
                     try:
-                        result = lines.__getattr__(name)
-                        # 缓存成功查找的结果
-                        object.__setattr__(self, name, result)
-                        return result
-                    except (AttributeError, TypeError):
+                        candidate = line_getattr(name)
+                    except AttributeError:
                         pass
-            except AttributeError:
-                pass
-            
-            # 所有路径失败
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-            
+                    else:
+                        setattr_obj(self, name, candidate)
+                        return candidate
+
         finally:
-            # 清理递归标记
-            try:
-                object.__delattr__(self, '_in_getattr')
-            except AttributeError:
-                pass
+            self_dict.pop('_in_getattr', None)
+
+        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     # 类变量：预定义简单类型的名称集合（避免重复type()调用）
     _SIMPLE_TYPE_NAMES = frozenset({'int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'NoneType'})
@@ -884,81 +855,46 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                              'plotinfo', 'plotlines', 'csv', '_indicators'})
     
     def __setattr__(self, name, value):
-        """
-        性能优化v3 (TODO 1.2): 
-        1. 使用__class__.__name__替代type()（更快）
-        2. 预定义类型集合为类变量（避免运行时创建）
-        3. 简化属性检测逻辑
-        4. 预期：减少50%耗时，节省1.5-2秒
-        """
-        # 快速路径1：内部属性
-        if name[0] == '_':
+        if name and name[0] == '_':
             object.__setattr__(self, name, value)
             return
-        
-        # 快速路径2：核心属性（使用frozenset更快）
+
         if name in LineSeries._CORE_ATTRS:
             object.__setattr__(self, name, value)
             return
-        
-        # 快速路径3：简单类型值（使用__class__.__name__比type()快）
-        # 这避免了type()调用和集合创建的开销
-        try:
-            value_type_name = value.__class__.__name__
-            if value_type_name in LineSeries._SIMPLE_TYPE_NAMES:
-                object.__setattr__(self, name, value)
-                return
-        except AttributeError:
-            # 极少见：value没有__class__
+
+        value_type_name = getattr(value.__class__, '__name__', None)
+        if value_type_name in LineSeries._SIMPLE_TYPE_NAMES:
             object.__setattr__(self, name, value)
             return
-        
-        # 慢路径：可能是指标或数据对象
-        try:
-            # 尝试访问_minperiod（指标/线对象标志）
-            try:
-                _ = value._minperiod
-                # 是指标/线对象
-                object.__setattr__(self, name, value)
-                
-                # 设置owner关系（简化：直接尝试设置）
-                try:
-                    if value._owner is None:
-                        value._owner = self
-                except (AttributeError, Exception):
-                    pass
-                
-                # 添加到_lineiterators
-                try:
-                    self._lineiterators[value._ltype].append(value)
-                except (AttributeError, KeyError, TypeError):
-                    pass
-                
-                return
-                
-            except AttributeError:
-                # 没有_minperiod，检查是否为data对象
-                # data对象通常有lines或_name属性
-                if name.startswith('data'):
-                    try:
-                        _ = value.lines
-                        object.__setattr__(self, name, value)
-                        return
-                    except AttributeError:
-                        try:
-                            _ = value._name
-                            object.__setattr__(self, name, value)
-                            return
-                        except AttributeError:
-                            pass
-                
-                # 普通属性
-                object.__setattr__(self, name, value)
-                return
-                    
-        except Exception:
-            # 防御性：任何异常都直接设置
+
+        minperiod = getattr(value, '_minperiod', _MISSING)
+        if minperiod is not _MISSING:
             object.__setattr__(self, name, value)
+
+            owner = getattr(value, '_owner', _MISSING)
+            if owner is None:
+                try:
+                    value._owner = self
+                except Exception:
+                    pass
+
+            lineiterators = self.__dict__.get('_lineiterators')
+            if lineiterators is not None:
+                ltype = getattr(value, '_ltype', None)
+                if ltype is not None:
+                    try:
+                        lineiterators[ltype].append(value)
+                    except Exception:
+                        pass
+            return
+
+        if name.startswith('data'):
+            if getattr(value, 'lines', None) is not None or getattr(value, '_name', None) is not None:
+                object.__setattr__(self, name, value)
+                return
+
+        object.__setattr__(self, name, value)
 
     def __len__(self):
         """
