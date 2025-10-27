@@ -982,7 +982,13 @@ class ParameterAccessor:
     """
     
     def __init__(self, param_manager: ParameterManager):
-        """Initialize with a parameter manager."""
+        """
+        Initialize with a parameter manager.
+        
+        NOTE: 原本尝试预创建实例属性以优化性能，但会导致参数同步问题。
+        当通过其他方式（如broker.set_cash()）修改参数时，实例属性不会更新。
+        因此保持动态查找，确保总是获取最新值。
+        """
         # Use object.__setattr__ to avoid our custom __setattr__
         object.__setattr__(self, '_param_manager', param_manager)
         
@@ -990,7 +996,12 @@ class ParameterAccessor:
         object.__setattr__(self, '_items_cache', None)
 
     def __getattr__(self, name):
-        """Get parameter value via attribute access."""
+        """
+        Get parameter value via attribute access.
+        
+        总是从param_manager获取最新值，确保一致性。
+        所有参数访问都动态查找，保证获取最新值。
+        """
         # Use object.__getattribute__ to avoid recursion during unpickling
         param_manager = object.__getattribute__(self, '_param_manager')
         return param_manager.get(name)
