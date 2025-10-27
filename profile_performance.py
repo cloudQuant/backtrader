@@ -263,20 +263,20 @@ def main():
         # Generate report
         generate_report(stats, total_time, output_file)
         
-        # Also print top 20 to console
-        print("\n" + "=" * 50)
-        print("TOP 20 FUNCTIONS BY CUMULATIVE TIME:")
-        print("=" * 50)
+        # Also print top 100 to console
+        print("\n" + "=" * 60)
+        print("TOP 100 FUNCTIONS BY CUMULATIVE TIME:")
+        print("=" * 60)
         stats.stream = sys.stdout
         stats.sort_stats('cumulative')
-        stats.print_stats(20)
+        stats.print_stats(100)
         
-        print("\n" + "=" * 50)
-        print("TOP 20 BACKTRADER FUNCTIONS:")
-        print("=" * 50)
+        print("\n" + "=" * 60)
+        print("TOP 100 BACKTRADER FUNCTIONS:")
+        print("=" * 60)
         stats.stream = sys.stdout
         stats.sort_stats('cumulative')
-        stats.print_stats('backtrader', 20)
+        stats.print_stats('backtrader', 100)
         
     except Exception as e:
         print(f"Error during profiling: {e}")
