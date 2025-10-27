@@ -85,6 +85,11 @@ class LineBuffer(LineSingle, LineRootMixin):
         self._owner = None  # 所有者对象
         self._clock = None  # 时钟对象
         self._ltype = None  # 行类型
+        # 预计算是否为指标行，避免在热点路径中反复判断
+        try:
+            self._is_indicator = (self._ltype == 0) or ('Indicator' in str(self.__class__.__name__))
+        except Exception:
+            self._is_indicator = False
         
         # 递归守卫相关（用于__len__）
         self._in_len = False  # 替代全局集合的实例属性守卫
@@ -132,9 +137,8 @@ class LineBuffer(LineSingle, LineRootMixin):
             self.array = array.array(str("d"))
             self.useislice = False
             
-            # 方案A优化: 简化指标判断（_ltype已在__init__中初始化）
-            # 对于指标，预填充NaN值以避免索引错误
-            if self._ltype == 0 or 'Indicator' in str(self.__class__.__name__):
+            # 方案A优化: 使用预计算标志，指标预填充NaN以避免索引错误
+            if getattr(self, '_is_indicator', False):
                 # Pre-fill with a few NaN values to avoid index errors
                 for _ in range(10):
                     self.array.append(float('nan'))
@@ -414,43 +418,33 @@ class LineBuffer(LineSingle, LineRootMixin):
             value (variable): value to be set in new positions
             size (int): How many extra positions to enlarge the buffer
         """
-        # CRITICAL FIX: Handle None/NaN values consistently
+        # 快速路径：预处理 value，并避免热点路径中使用 hasattr
+        is_indicator = getattr(self, '_is_indicator', False)
+
+        # 规范化值（一次性），避免循环中重复判断
         if value is None or (isinstance(value, float) and math.isnan(value)):
-            # For indicators, use NaN as default, for others use 0.0
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                value = float('nan')
-            else:
-                value = 0.0
-        
-        # CRITICAL FIX: Ensure array is properly initialized
-        if not hasattr(self, 'array') or self.array is None:
-            import array
-            self.array = array.array('d')
-        
-        # CRITICAL FIX: Don't limit advancement for indicators - they need to calculate freely
-        # Only limit for strategies/data feeds that should sync with clock
-        if not ((hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-                (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__))):
-            # For non-indicators, check clock synchronization
-            if hasattr(self, '_clock') and self._clock is not None:
-                try:
-                    clock_len = len(self._clock)
-                    current_len = len(self)
-                    
-                    # If we're already synchronized or ahead, don't advance further
-                    if current_len >= clock_len:
-                        return
-                        
-                    max_advance = clock_len - current_len
-                    if size > max_advance:
-                        size = max_advance
-                        
-                    if size <= 0:
-                        return
-                except Exception:
-                    # If there's an error getting clock length, proceed with original logic
-                    pass
+            value = float('nan') if is_indicator else 0.0
+
+        # 确保 array 初始化
+        if getattr(self, 'array', None) is None:
+            import array as array_module
+            self.array = array_module.array('d')
+
+        # 非指标时遵循时钟同步（直接检查已存在的 _clock 引用）
+        if not is_indicator and self._clock is not None:
+            try:
+                clock_len = len(self._clock)
+                current_len = self.lencount  # 等价于 len(self)，但避免函数调用开销
+                if current_len >= clock_len:
+                    return
+                max_advance = clock_len - current_len
+                if size > max_advance:
+                    size = max_advance
+                if size <= 0:
+                    return
+            except Exception:
+                # 容错：时钟异常则继续按原逻辑推进
+                pass
         
         # CRITICAL FIX: Ensure we have a valid size
         if size <= 0:
@@ -463,14 +457,18 @@ class LineBuffer(LineSingle, LineRootMixin):
         self.idx += size
         self.lencount += size
 
-        # CRITICAL FIX: Append values with proper NaN handling
-        for i in range(size):
-            # For indicators, store NaN as is, otherwise convert to 0.0
-            if (hasattr(self, '_ltype') and getattr(self, '_ltype', None) == 0) or \
-               (hasattr(self, '__class__') and 'Indicator' in str(self.__class__.__name__)):
-                self.array.append(float('nan') if math.isnan(value) else value)
-            else:
-                self.array.append(0.0 if math.isnan(value) or value is None else value)
+        # 追加数据：批量扩展以降低 Python 循环开销
+        append_val = value if is_indicator else (0.0 if (isinstance(value, float) and math.isnan(value)) else value)
+        if size == 1:
+            self.array.append(append_val)
+        elif size > 1:
+            # 使用 fromlist/extend 进行批量追加
+            try:
+                self.array.extend([append_val] * size)
+            except TypeError:
+                # 部分实现不支持 extend list，退回逐个 append
+                for _ in range(size):
+                    self.array.append(append_val)
 
     # 向后移动一位
     def backwards(self, size=1, force=False):

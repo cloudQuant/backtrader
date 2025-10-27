@@ -12,6 +12,9 @@ from .utils.py3 import zip, string_types
 # This avoids repeatedly traversing __mro__ for the same classes
 _type_check_cache = {}
 
+# PERFORMANCE OPTIMIZATION: One-time guard for indicator alias initialization
+_INDICATOR_ALIASES_INITIALIZED = False
+
 def is_class_type(cls, type_name):
     """
     OPTIMIZED: Check if a class is of a certain type by checking __mro__.
@@ -1335,6 +1338,11 @@ def _initialize_indicator_aliases():
     This function must be called after all indicator modules are loaded
     """
     try:
+        global _INDICATOR_ALIASES_INITIALIZED
+        if _INDICATOR_ALIASES_INITIALIZED:
+            return True
+        # Mark as initialized early to prevent re-entrancy from imports
+        _INDICATOR_ALIASES_INITIALIZED = True
         import sys
         import backtrader as bt
         

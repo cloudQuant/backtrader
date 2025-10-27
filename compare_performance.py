@@ -145,7 +145,7 @@ def compare_stats(stats1, stats2, header1, header2):
             elif cumtime_diff > 0.001:  # Degraded (slower)
                 results['degraded'].append(diff_info)
         
-        elif func only in stats2:
+        elif func in stats2:
             results['new'].append({
                 'function': func,
                 'cumtime': stats2[func]['cumtime'],
