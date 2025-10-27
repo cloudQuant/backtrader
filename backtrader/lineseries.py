@@ -967,16 +967,21 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         return len(self.lines[0])
 
     def __getitem__(self, key):
-        # CRITICAL FIX: Ensure we never return None values that would cause comparison errors
+        # PERFORMANCE OPTIMIZATION: Remove isinstance and math.isnan checks
+        # This saves 20M+ function calls
         try:
             value = self.lines[0][key]
-            # CRITICAL FIX: Convert None and NaN to 0.0 to prevent comparison errors
+            # None check
             if value is None:
                 return 0.0
-            elif isinstance(value, float):
-                import math
-                if math.isnan(value):
+            # NaN check using self-inequality (NaN != NaN is True)
+            # This is much faster than isinstance + math.isnan
+            try:
+                if value != value:  # NaN detection without isnan()
                     return 0.0
+            except (TypeError, ValueError):
+                # If comparison fails, value is not a number, return as-is
+                pass
             return value
         except (IndexError, TypeError, AttributeError):
             # If any access fails, return 0.0 instead of None
