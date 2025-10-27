@@ -220,7 +220,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         - 移除类型检查、字符串操作和try-except块
         - 性能提升: 从0.248秒降低到~0.02秒 (92%改进)
         """
-        return self.array[self.idx + ago]
+        return self.array[self._idx + ago]
 
     # 获取数据的值，在策略中使用还是比较广泛的
     def get(self, ago=0, size=1):
@@ -239,12 +239,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         """
         # 是否使用切片，如果使用按照下面的语法
         if self.useislice:
-            start = self.idx + ago - size + 1
-            end = self.idx + ago + 1
+            start = self._idx + ago - size + 1
+            end = self._idx + ago + 1
             return list(islice(self.array, start, end))
 
         # 如果不使用切片，直接截取
-        return self.array[self.idx + ago - size + 1 : self.idx + ago + 1]
+        return self.array[self._idx + ago - size + 1 : self._idx + ago + 1]
 
     # 返回array真正的0处的变量值
     def getzeroval(self, idx=0):

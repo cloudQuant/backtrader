@@ -98,6 +98,9 @@ class MinimalClock:
         return (MinimalClock, ())
 
 
+ 
+
+
 class LineAlias(object):
     """Descriptor class that store a line reference and returns that line
     from the owner
@@ -844,7 +847,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 except AttributeError:
                     pass
                 
-                # 如果找不到，使用模块级 MinimalData 类
+                # 如果找不到，创建一个新的 MinimalData 实例（避免共享可变状态）
                 minimal_data = MinimalData()
                 object.__setattr__(self, name, minimal_data)
                 cache[name] = minimal_data
