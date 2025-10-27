@@ -784,19 +784,25 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         - 使用 _in_getattr 实例属性进行递归检测（比全局集合快）
         - 预期性能提升: 从0.275秒降低到0.03秒 (89%)
         """
+        # 简单属性缓存，减少重复解析
+        _dict = object.__getattribute__(self, '__dict__')
+        cache = _dict.get('_attr_cache')
+        if cache is not None and name in cache:
+            return cache[name]
+        if cache is None:
+            cache = {}
+            _dict['_attr_cache'] = cache
+
         # 方案A优化: 使用实例属性进行递归检测
         if name == '_in_getattr':
             return False
-        
-        # 检查递归
-        if getattr(self, '_in_getattr', False):
+
+        # 检查递归（使用 __dict__ 直查避免再次触发 __getattr__）
+        if _dict.get('_in_getattr', False):
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        
+
         # 设置递归守卫
-        try:
-            object.__setattr__(self, '_in_getattr', True)
-        except:
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        _dict['_in_getattr'] = True
         
         try:
             # 处理 _value 属性（用于分析器）
@@ -841,18 +847,21 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 # 如果找不到，使用模块级 MinimalData 类
                 minimal_data = MinimalData()
                 object.__setattr__(self, name, minimal_data)
+                cache[name] = minimal_data
                 return minimal_data
             
             # 处理 _owner 属性
             if name == '_owner':
                 minimal_owner = MinimalOwner()
                 object.__setattr__(self, '_owner', minimal_owner)
+                cache[name] = minimal_owner
                 return minimal_owner
             
             # 处理 _clock 属性
             if name == '_clock':
                 minimal_clock = MinimalClock()
                 object.__setattr__(self, '_clock', minimal_clock)
+                cache[name] = minimal_clock
                 return minimal_clock
             
             # 注意：不要自动委派到 lines！
@@ -865,12 +874,16 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 lines = object.__getattribute__(self, 'lines')
                 # 尝试从 lines 获取（不使用 hasattr 避免递归）
                 try:
-                    return object.__getattribute__(lines, name)
+                    result = object.__getattribute__(lines, name)
+                    cache[name] = result
+                    return result
                 except AttributeError:
                     # 如果 lines 对象自己也有 __getattr__，尝试调用它
                     try:
                         lines_getattr = object.__getattribute__(lines, '__getattr__')
-                        return lines_getattr(name)
+                        result = lines_getattr(name)
+                        cache[name] = result
+                        return result
                     except (AttributeError, TypeError):
                         pass
             except AttributeError:
@@ -880,10 +893,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
         finally:
             # 方案A优化: 清理递归守卫（使用实例属性）
-            try:
-                object.__setattr__(self, '_in_getattr', False)
-            except:
-                pass
+            _dict['_in_getattr'] = False
 
     def __setattr__(self, name, value):
         """
@@ -895,22 +905,36 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             return
         
         try:
-            # 检查是否为指标（性能优化：用 try-except 替代 hasattr）
+            # 检查是否为指标（加入类型缓存减少判断开销）
+            _dict = object.__getattribute__(self, '__dict__')
+            type_cache = _dict.get('_type_cache')
+            if type_cache is None:
+                type_cache = {}
+                _dict['_type_cache'] = type_cache
+
             is_indicator = False
-            try:
-                # 尝试检查指标属性
-                _ = value.lines
-                _ = value._minperiod
-                is_indicator = True
-            except AttributeError:
+            vtype = type(value)
+            cached_flag = type_cache.get(vtype, None)
+            if cached_flag is not None:
+                is_indicator = cached_flag
+            else:
                 try:
-                    is_indicator = 'Indicator' in str(value.__class__.__name__)
-                except:
+                    # 尝试检查指标属性
+                    _ = value.lines
+                    _ = value._minperiod
+                    is_indicator = True
+                except AttributeError:
                     try:
                         ltype = value._ltype
                         is_indicator = (ltype == 0)
                     except AttributeError:
-                        pass
+                        # 最后退回类名判断（慢）
+                        try:
+                            is_indicator = 'Indicator' in value.__class__.__name__
+                        except Exception:
+                            is_indicator = False
+                # 缓存判定结果
+                type_cache[vtype] = is_indicator
             
             if is_indicator:
                 # 设置指标属性
@@ -930,15 +954,15 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 try:
                     lineiterators = self._lineiterators
                     ltype = value._ltype
-                    # 检查是否已存在
-                    found = False
-                    for item in lineiterators[ltype]:
-                        if id(item) == id(value):
-                            found = True
-                            break
-                    
-                    if not found:
+                    # 使用 id 集合避免 O(n) 扫描
+                    idset = _dict.get('_lineiterator_ids')
+                    if idset is None:
+                        idset = set()
+                        _dict['_lineiterator_ids'] = idset
+                    vid = id(value)
+                    if vid not in idset:
                         lineiterators[ltype].append(value)
+                        idset.add(vid)
                 except (AttributeError, KeyError):
                     pass
                 
