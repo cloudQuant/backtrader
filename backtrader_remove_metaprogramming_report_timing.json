@@ -1,0 +1,15 @@
+{
+  "script_start": "2025-10-26 16:04:58",
+  "pytest_start": "2025-10-26 16:04:59",
+  "pytest_end": "2025-10-26 16:15:36",
+  "pytest_duration_seconds": 637.3503737449646,
+  "total_duration_seconds": 637.9875388145447,
+  "report_file": "backtrader_remove_metaprogramming_report.html",
+  "test_directories": [
+    "tests/add_tests",
+    "tests/original_tests",
+    "tests/base_functions"
+  ],
+  "parallel_workers": 12,
+  "timestamp": "2025-10-26T16:15:36.961126"
+}

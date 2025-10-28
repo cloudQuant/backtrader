@@ -543,14 +543,28 @@ class Lines(object):
     def __getattr__(self, name):
         """Handle missing attributes, especially _owner for observers"""
         # CRITICAL FIX: First check for class-level descriptors (like LineAlias)
-        # This must be done before any other checks to ensure descriptors work properly
+        # This must be done before any other checks to ensure descriptors work properly  
         if not name.startswith('_'):
             cls = object.__getattribute__(self, '__class__')
-            if hasattr(cls, name):
-                class_attr = getattr(cls, name)
-                # If it's a descriptor, call its __get__
-                if hasattr(class_attr, '__get__'):
-                    return class_attr.__get__(self, cls)
+            # 性能优化: 尝试直接访问，失败时使用getattr
+            try:
+                class_attr = cls.__dict__.get(name)
+                if class_attr is None:
+                    # 可能在父类中，使用getattr查找
+                    try:
+                        class_attr = getattr(cls, name)
+                    except AttributeError:
+                        class_attr = None
+                
+                if class_attr is not None:
+                    # If it's a descriptor, call its __get__
+                    try:
+                        get_method = class_attr.__get__
+                        return get_method(self, cls)
+                    except AttributeError:
+                        pass  # 不是描述符
+            except (AttributeError, TypeError):
+                pass
         
         # CRITICAL FIX: Handle _owner and other critical attributes first before delegating to lines
         if name == '_owner':
@@ -560,10 +574,16 @@ class Lines(object):
             except AttributeError:
                 return None
         elif name == '_clock':
-            # Return the owner's clock if available
-            owner = getattr(self, '_owner', None)
-            if owner and hasattr(owner, '_clock'):
-                return owner._clock
+            # 性能优化: 返回owner的clock，使用EAFP模式
+            try:
+                owner = self._owner
+                if owner is not None:
+                    try:
+                        return owner._clock
+                    except AttributeError:
+                        pass
+            except AttributeError:
+                pass
             return None
         elif name == '_getlinealias':
             # CRITICAL FIX: Provide a default _getlinealias method for data feeds that don't have one
@@ -576,14 +596,19 @@ class Lines(object):
                 return f"line_{index}"
             return default_getlinealias
         elif name == 'size':
-            # CRITICAL FIX: Provide size() method for indicators that don't have it
+            # 性能优化: 提供size()方法，使用EAFP模式
             def size():
                 """Return the number of lines in this object"""
-                if hasattr(self, 'lines') and hasattr(self.lines, 'size'):
-                    return self.lines.size()
-                elif hasattr(self, 'lines') and hasattr(self.lines, '__len__'):
-                    return len(self.lines)
-                else:
+                try:
+                    lines = self.lines
+                    try:
+                        return lines.size()
+                    except (AttributeError, TypeError):
+                        try:
+                            return len(lines)
+                        except (AttributeError, TypeError):
+                            return 1
+                except AttributeError:
                     return 1  # Default to 1 line if no lines object available
             return size
         elif name.startswith('_'):
@@ -807,11 +832,15 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
                     owner = self_dict.get('_owner')
                     if owner is not None:
-                        owner_datas = getattr(owner, 'datas', None)
-                        if owner_datas and data_index < len(owner_datas):
-                            result = owner_datas[data_index]
-                            setattr_obj(self, name, result)
-                            return result
+                        # 性能优化: 直接访问owner.datas，避免getattr
+                        try:
+                            owner_datas = owner.datas
+                            if owner_datas and data_index < len(owner_datas):
+                                result = owner_datas[data_index]
+                                setattr_obj(self, name, result)
+                                return result
+                        except AttributeError:
+                            pass  # owner没有datas属性
 
                     result = MinimalData()
                     setattr_obj(self, name, result)
@@ -855,25 +884,40 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                              'plotinfo', 'plotlines', 'csv', '_indicators'})
     
     def __setattr__(self, name, value):
+        # 性能优化: 快速路径处理内部属性
         if name and name[0] == '_':
             object.__setattr__(self, name, value)
             return
 
+        # 性能优化: 快速路径处理核心属性
         if name in LineSeries._CORE_ATTRS:
             object.__setattr__(self, name, value)
             return
 
-        value_type_name = getattr(value.__class__, '__name__', None)
-        if value_type_name in LineSeries._SIMPLE_TYPE_NAMES:
-            object.__setattr__(self, name, value)
-            return
+        # 性能优化: EAFP模式替代getattr - 直接访问属性
+        try:
+            value_type_name = value.__class__.__name__
+            if value_type_name in LineSeries._SIMPLE_TYPE_NAMES:
+                object.__setattr__(self, name, value)
+                return
+        except AttributeError:
+            pass
 
-        minperiod = getattr(value, '_minperiod', _MISSING)
-        if minperiod is not _MISSING:
+        # 性能优化: 直接访问_minperiod，避免getattr调用
+        try:
+            minperiod = value._minperiod  # 直接访问而不是getattr
             object.__setattr__(self, name, value)
 
-            owner = getattr(value, '_owner', _MISSING)
-            if owner is None:
+            # 性能优化: 直接访问_owner
+            try:
+                owner = value._owner
+                if owner is None:
+                    try:
+                        value._owner = self
+                    except Exception:
+                        pass
+            except AttributeError:
+                # _owner不存在，尝试设置
                 try:
                     value._owner = self
                 except Exception:
@@ -881,18 +925,33 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
             lineiterators = self.__dict__.get('_lineiterators')
             if lineiterators is not None:
-                ltype = getattr(value, '_ltype', None)
-                if ltype is not None:
+                # 性能优化: 直接访问_ltype
+                try:
+                    ltype = value._ltype
                     try:
                         lineiterators[ltype].append(value)
                     except Exception:
                         pass
+                except AttributeError:
+                    pass
             return
+        except AttributeError:
+            pass  # 没有_minperiod属性
 
+        # 性能优化: data属性的特殊处理
         if name.startswith('data'):
-            if getattr(value, 'lines', None) is not None or getattr(value, '_name', None) is not None:
+            try:
+                # 直接访问lines或_name属性
+                _ = value.lines
                 object.__setattr__(self, name, value)
                 return
+            except AttributeError:
+                try:
+                    _ = value._name
+                    object.__setattr__(self, name, value)
+                    return
+                except AttributeError:
+                    pass
 
         object.__setattr__(self, name, value)
 
