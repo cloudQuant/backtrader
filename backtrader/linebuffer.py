@@ -26,6 +26,16 @@ from .utils import num2date, time2num
 NAN = float("NaN")
 
 
+# PERFORMANCE OPTIMIZATION: Helper function to check for NaN/None values
+# Using value != value is much faster than isinstance + math.isnan
+def _is_nan_or_none(value):
+    """Fast check for NaN or None values.
+    NaN is the only value that's not equal to itself (value != value).
+    This is much faster than isinstance(value, float) and math.isnan(value).
+    """
+    return value is None or value != value
+
+
 class LineBuffer(LineSingle, LineRootMixin):
     """
     LineBuffer defines an interface to an "array.array" (or list) in which
@@ -321,13 +331,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Handle None/NaN values - 使用快速路径判断
         if value is None:
             value = self._default_value
-        elif isinstance(value, float):
-            # 只对float类型检查NaN（避免对int调用isnan）
-            if math.isnan(value):
-                value = self._default_value
-            # datetime行的值验证
-            elif self._is_datetime_line and value < 1.0:
-                value = 1.0
+        # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
+        elif value != value:  # NaN detection without isinstance + isnan
+            value = self._default_value
+        # datetime行的值验证
+        elif self._is_datetime_line and value < 1.0:
+            value = 1.0
         elif self._is_datetime_line:
             # 非数值类型的datetime行，转换为1.0
             try:
@@ -445,47 +454,51 @@ class LineBuffer(LineSingle, LineRootMixin):
             value (variable): value to be set in new positions
             size (int): How many extra positions to enlarge the buffer
         """
-        # 快速路径：预处理 value，并避免热点路径中使用 hasattr
-        is_indicator = getattr(self, '_is_indicator', False)
+        # PERFORMANCE OPTIMIZATION: Use __dict__ access to avoid getattr overhead
+        # Assume _is_indicator is set in __init__ (fallback to False if missing)
+        self_dict = self.__dict__
+        is_indicator = self_dict.get('_is_indicator', False)
 
-        # 规范化值（一次性），避免循环中重复判断
-        if value is None or (isinstance(value, float) and math.isnan(value)):
+        # PERFORMANCE OPTIMIZATION: Use value != value for NaN check (faster than isinstance + isnan)
+        # NaN is the only value that's not equal to itself
+        if value is None or value != value:
             value = float('nan') if is_indicator else 0.0
 
-        # 确保 array 初始化
-        if getattr(self, 'array', None) is None:
-            import array as array_module
-            self.array = array_module.array('d')
-
+        # PERFORMANCE OPTIMIZATION: Assume array exists (set in __init__)
+        # Remove getattr check from hot path
+        # If array doesn't exist, we'll get AttributeError caught below
+        
         # 非指标时遵循时钟同步（直接检查已存在的 _clock 引用）
-        if not is_indicator and self._clock is not None:
-            try:
-                clock_len = len(self._clock)
-                current_len = self.lencount  # 等价于 len(self)，但避免函数调用开销
-                if current_len >= clock_len:
-                    return
-                max_advance = clock_len - current_len
-                if size > max_advance:
-                    size = max_advance
-                if size <= 0:
-                    return
-            except Exception:
-                # 容错：时钟异常则继续按原逻辑推进
-                pass
+        if not is_indicator:
+            clock = self_dict.get('_clock')
+            if clock is not None:
+                try:
+                    clock_len = len(clock)
+                    current_len = self_dict.get('lencount', 0)  # Direct dict access
+                    if current_len >= clock_len:
+                        return
+                    max_advance = clock_len - current_len
+                    if size > max_advance:
+                        size = max_advance
+                    if size <= 0:
+                        return
+                except Exception:
+                    # 容错：时钟异常则继续按原逻辑推进
+                    pass
         
         # CRITICAL FIX: Ensure we have a valid size
         if size <= 0:
             return
         
-        # CRITICAL FIX: Ensure lencount exists
-        if not hasattr(self, 'lencount'):
-            self.lencount = 0
+        # PERFORMANCE OPTIMIZATION: Assume lencount is initialized in __init__
+        # Remove hasattr check from hot path
             
         self.idx += size
         self.lencount += size
 
         # 追加数据：批量扩展以降低 Python 循环开销
-        append_val = value if is_indicator else (0.0 if (isinstance(value, float) and math.isnan(value)) else value)
+        # PERFORMANCE OPTIMIZATION: Use _is_nan_or_none instead of isinstance + math.isnan
+        append_val = value if is_indicator else (0.0 if _is_nan_or_none(value) else value)
         if size == 1:
             self.array.append(append_val)
         elif size > 1:
@@ -645,7 +658,8 @@ class LineBuffer(LineSingle, LineRootMixin):
     def datetime(self, ago=0, tz=None, naive=True):
         value = self[ago]
         # Check for NaN values and return a default datetime instead of None
-        if value is None or (isinstance(value, float) and math.isnan(value)):
+        # PERFORMANCE OPTIMIZATION: Use _is_nan_or_none
+        if _is_nan_or_none(value):
             # Return a default date (epoch start - Jan 1, 1970)
             try:
                 import datetime

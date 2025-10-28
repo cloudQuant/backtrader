@@ -380,22 +380,25 @@ class Lines(object):
         return self._getlinesextra()
 
     def __getitem__(self, line):
-        # CRITICAL FIX: Bounds checking to prevent IndexError and memory exhaustion
-        if isinstance(line, int):
+        # PERFORMANCE OPTIMIZATION: Use EAFP pattern instead of isinstance check
+        # This reduces isinstance calls and improves performance
+        try:
+            # Try direct access first (fastest path for valid integer indices)
+            return self.lines[line]
+        except IndexError:
+            # Index out of range - need to handle negative or too-large indices
             # CRITICAL FIX: Add reasonable upper limit to prevent memory exhaustion
             MAX_REASONABLE_LINES = 100  # No indicator should have more than 100 lines
             
             if line < 0:
-                # Handle negative indices
+                # Negative index out of range
                 if abs(line) > len(self.lines):
-                    # Return the last line if index is too negative
                     return self.lines[-1] if self.lines else None
                 return self.lines[line]
-            elif line >= len(self.lines):
+            else:
+                # Positive index >= len(self.lines)
                 # CRITICAL FIX: Prevent creating absurd numbers of lines
                 if line >= MAX_REASONABLE_LINES:
-                    # This is likely an error - return None instead of creating thousands of lines
-                    # print(f"WARNING: Attempted to access line {line}, which exceeds reasonable limit. Returning None.")
                     return None
                 
                 # Create additional lines if needed up to the requested index (with limit)
@@ -406,12 +409,12 @@ class Lines(object):
                 if line >= len(self.lines):
                     return self.lines[-1] if self.lines else None
                     
-            return self.lines[line]
-        else:
-            # Handle non-integer indices
+                return self.lines[line]
+        except (TypeError, KeyError):
+            # Non-integer index (string, etc.)
             try:
                 return self.lines[line]
-            except (TypeError, IndexError):
+            except (TypeError, IndexError, KeyError, AttributeError):
                 return None
 
     def get(self, ago=0, size=1, line=0):
@@ -878,8 +881,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-    # 类变量：预定义简单类型的名称集合（避免重复type()调用）
-    _SIMPLE_TYPE_NAMES = frozenset({'int', 'str', 'float', 'bool', 'list', 'dict', 'tuple', 'NoneType'})
+    # 类变量：预定义简单类型（使用type对象而非字符串，更快）
+    _SIMPLE_TYPES = (int, str, float, bool, list, dict, tuple, type(None))
     _CORE_ATTRS = frozenset({'lines', 'datas', 'ddatas', 'dnames', 'params', 'p', 
                              'plotinfo', 'plotlines', 'csv', '_indicators'})
     
@@ -894,14 +897,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             object.__setattr__(self, name, value)
             return
 
-        # 性能优化: EAFP模式替代getattr - 直接访问属性
-        try:
-            value_type_name = value.__class__.__name__
-            if value_type_name in LineSeries._SIMPLE_TYPE_NAMES:
-                object.__setattr__(self, name, value)
-                return
-        except AttributeError:
-            pass
+        # 性能优化: 直接使用isinstance检查简单类型（比__class__.__name__快）
+        # 对于简单类型，直接设置，不需要further处理
+        if isinstance(value, LineSeries._SIMPLE_TYPES):
+            object.__setattr__(self, name, value)
+            return
 
         # 性能优化: 直接访问_minperiod，避免getattr调用
         try:
