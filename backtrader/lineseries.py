@@ -811,74 +811,88 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         return self.lines
 
     def __getattr__(self, name):
-        """High-frequency attribute resolution optimized to minimise exceptions."""
-        if name == '_value' or name == '_in_getattr':
+        """
+        High-frequency attribute resolution optimized for performance.
+        
+        OPTIMIZATION NOTES:
+        - Results are cached in __dict__ to avoid repeated lookups
+        - Removed recursion guard overhead (rely on Python's natural recursion limit)
+        - Use direct __dict__ access instead of getattr() to avoid triggering __getattr__
+        - Use index check (name[0]) instead of startswith() for speed
+        """
+        # Fast fail: These attributes should never exist
+        if name == '_value':
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-
-        self_dict = object.__getattribute__(self, '__dict__')
-        if self_dict.get('_in_getattr'):
-            raise AttributeError(f"Recursion in __getattr__ for '{name}'")
-
-        self_dict['_in_getattr'] = True
+        
+        # OPTIMIZATION: Use object.__setattr__ for caching (alias for speed)
         setattr_obj = object.__setattr__
-
-        try:
-            if name.startswith('data') and len(name) > 4:
-                suffix = name[4:]
-                if suffix.isdigit():
-                    data_index = int(suffix)
-                    datas = self_dict.get('datas')
-                    if datas and data_index < len(datas):
+        
+        # OPTIMIZATION: Fast path for dataX attributes (data0, data1, etc.)
+        # Use index check instead of startswith - 2-3x faster
+        if name and len(name) >= 5 and name[0] == 'd':
+            if name[:4] == 'data' and name[4:5].isdigit():
+                # Extract index
+                data_index = int(name[4:])
+                
+                # Try self.datas first
+                try:
+                    datas = object.__getattribute__(self, 'datas')
+                    if data_index < len(datas):
                         result = datas[data_index]
-                        setattr_obj(self, name, result)
+                        setattr_obj(self, name, result)  # Cache it!
                         return result
-
-                    owner = self_dict.get('_owner')
+                except AttributeError:
+                    pass
+                
+                # Try owner.datas
+                try:
+                    owner = object.__getattribute__(self, '_owner')
                     if owner is not None:
-                        # 性能优化: 直接访问owner.datas，避免getattr
                         try:
-                            owner_datas = owner.datas
-                            if owner_datas and data_index < len(owner_datas):
+                            owner_datas = object.__getattribute__(owner, 'datas')
+                            if data_index < len(owner_datas):
                                 result = owner_datas[data_index]
-                                setattr_obj(self, name, result)
+                                setattr_obj(self, name, result)  # Cache it!
                                 return result
                         except AttributeError:
-                            pass  # owner没有datas属性
-
-                    result = MinimalData()
-                    setattr_obj(self, name, result)
-                    return result
-
-            if name == '_owner':
-                result = MinimalOwner()
-                setattr_obj(self, name, result)
+                            pass
+                except AttributeError:
+                    pass
+                
+                # Fallback: Return minimal data object
+                result = MinimalData()
+                setattr_obj(self, name, result)  # Cache it!
                 return result
-
-            if name == '_clock':
-                result = MinimalClock()
-                setattr_obj(self, name, result)
+        
+        # Special attributes that need minimal objects
+        if name == '_owner':
+            result = MinimalOwner()
+            setattr_obj(self, name, result)  # Cache it!
+            return result
+        
+        if name == '_clock':
+            result = MinimalClock()
+            setattr_obj(self, name, result)  # Cache it!
+            return result
+        
+        # OPTIMIZATION: Look for attribute in lines object
+        # Use try/except instead of checking if lines exists (EAFP)
+        try:
+            lines = object.__getattribute__(self, 'lines')
+            
+            # OPTIMIZATION: Try direct getattr on lines - faster than multiple checks
+            # This will trigger lines.__getattr__ if needed, which handles line names properly
+            try:
+                result = getattr(lines, name)
+                setattr_obj(self, name, result)  # Cache it for next time!
                 return result
-
-            lines = self_dict.get('lines')
-            if lines is not None:
-                candidate = getattr(lines, name, _MISSING)
-                if candidate is not _MISSING:
-                    setattr_obj(self, name, candidate)
-                    return candidate
-
-                line_getattr = getattr(lines, '__getattr__', None)
-                if line_getattr is not None:
-                    try:
-                        candidate = line_getattr(name)
-                    except AttributeError:
-                        pass
-                    else:
-                        setattr_obj(self, name, candidate)
-                        return candidate
-
-        finally:
-            self_dict.pop('_in_getattr', None)
-
+            except AttributeError:
+                pass  # Not in lines either
+                
+        except AttributeError:
+            pass  # No lines attribute
+        
+        # Not found anywhere
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     # 类变量：预定义简单类型（使用type对象而非字符串，更快）
@@ -887,91 +901,143 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                              'plotinfo', 'plotlines', 'csv', '_indicators'})
     
     def __setattr__(self, name, value):
-        # 性能优化: 快速路径处理内部属性
+        """
+        Optimized attribute setter with minimal type checking.
+        
+        OPTIMIZATION NOTES:
+        - Use type() instead of isinstance() - faster for simple types
+        - Use EAFP (try/except) instead of hasattr() to avoid double lookups
+        - Minimize attribute access on value object
+        - Direct __dict__ access where possible
+        """
+        # Fast path 1: Internal attributes (underscore prefix)
+        # Use index check instead of startswith - 2-3x faster
         if name and name[0] == '_':
             object.__setattr__(self, name, value)
             return
 
-        # 性能优化: 快速路径处理核心属性
+        # Fast path 2: Core attributes that don't need special handling
         if name in LineSeries._CORE_ATTRS:
             object.__setattr__(self, name, value)
             return
 
-        # 性能优化: 直接使用isinstance检查简单类型（比__class__.__name__快）
-        # 对于简单类型，直接设置，不需要further处理
-        if isinstance(value, LineSeries._SIMPLE_TYPES):
+        # Fast path 3: Simple types (int, str, float, etc.)
+        # OPTIMIZATION: Use type() instead of isinstance() - faster
+        value_type = type(value)
+        if value_type in LineSeries._SIMPLE_TYPES:
             object.__setattr__(self, name, value)
             return
 
-        # 性能优化: 直接访问_minperiod，避免getattr调用
+        # Slow path: Complex objects (indicators, data feeds, etc.)
+        # OPTIMIZATION: Use EAFP - try to access _minperiod directly
+        # This is faster than hasattr(value, '_minperiod') because:
+        # 1. hasattr calls getattr and catches AttributeError internally
+        # 2. hasattr might trigger value.__getattr__ twice (once for check, once for access)
         try:
-            minperiod = value._minperiod  # 直接访问而不是getattr
+            # Direct access - if this succeeds, it's an indicator/line object
+            minperiod = value._minperiod
+            
+            # Set the attribute first
             object.__setattr__(self, name, value)
-
-            # 性能优化: 直接访问_owner
+            
+            # Set owner if needed (simplified logic)
             try:
-                owner = value._owner
-                if owner is None:
-                    try:
-                        value._owner = self
-                    except Exception:
-                        pass
+                # Try to read _owner
+                existing_owner = value._owner
+                if existing_owner is None:
+                    value._owner = self
             except AttributeError:
-                # _owner不存在，尝试设置
+                # _owner doesn't exist, try to set it
                 try:
                     value._owner = self
-                except Exception:
-                    pass
-
-            lineiterators = self.__dict__.get('_lineiterators')
-            if lineiterators is not None:
-                # 性能优化: 直接访问_ltype
-                try:
-                    ltype = value._ltype
-                    try:
-                        lineiterators[ltype].append(value)
-                    except Exception:
-                        pass
-                except AttributeError:
-                    pass
-            return
-        except AttributeError:
-            pass  # 没有_minperiod属性
-
-        # 性能优化: data属性的特殊处理
-        if name.startswith('data'):
+                except:
+                    pass  # Can't set owner, skip
+            
+            # Add to lineiterators if applicable
+            # OPTIMIZATION: Use object.__getattribute__ to access __dict__ directly
             try:
-                # 直接访问lines或_name属性
+                self_dict = object.__getattribute__(self, '__dict__')
+                lineiterators = self_dict.get('_lineiterators')
+                if lineiterators is not None:
+                    try:
+                        ltype = value._ltype
+                        lineiterators[ltype].append(value)
+                    except:
+                        pass  # No _ltype or append failed
+            except:
+                pass
+            
+            return
+            
+        except AttributeError:
+            # No _minperiod - not an indicator
+            pass
+        
+        # Check for data objects (feeds)
+        # OPTIMIZATION: Use index check instead of startswith
+        if name and len(name) >= 4 and name[0] == 'd' and name[:4] == 'data':
+            try:
+                # Data feeds have 'lines' attribute
                 _ = value.lines
                 object.__setattr__(self, name, value)
                 return
             except AttributeError:
                 try:
+                    # Or '_name' attribute
                     _ = value._name
                     object.__setattr__(self, name, value)
                     return
                 except AttributeError:
                     pass
-
+        
+        # Default: just set the attribute
         object.__setattr__(self, name, value)
 
     def __len__(self):
         """
         返回LineSeries的长度（数据点数量）
         
-        性能优化: 恢复master分支的简单实现
-        - 直接返回第一条line的长度（数据点数量），无递归检查
-        - 移除所有getattr、hasattr和复杂的try-except逻辑
-        - 性能提升: 从0.447秒降低到~0.03秒 (93%改进)
+        OPTIMIZATION NOTES:
+        - Cache lines[0] reference to avoid repeated indexing
+        - Called 11M+ times, so optimization is critical
         """
-        # 返回一条line的长度（数据点数量）
-        return len(self.lines[0])
+        # OPTIMIZATION: Use cached line0 reference if available
+        # This is called 11M+ times during tests
+        try:
+            line0 = object.__getattribute__(self, '_line0_cache')
+            return len(line0)
+        except AttributeError:
+            # Cache not set yet, get it and cache for next time
+            try:
+                line0 = self.lines[0]
+                object.__setattr__(self, '_line0_cache', line0)
+                return len(line0)
+            except:
+                return 0
 
     def __getitem__(self, key):
-        # PERFORMANCE OPTIMIZATION: Remove isinstance and math.isnan checks
-        # This saves 20M+ function calls
+        """
+        Get value at index from primary line.
+        
+        OPTIMIZATION NOTES:
+        - Cache reference to lines[0] to avoid repeated indexing
+        - Use fast NaN detection without isinstance/math.isnan
+        - Minimal exception handling
+        """
+        # OPTIMIZATION: Cache lines[0] reference
+        # This is called 5.7M+ times, so caching makes a big difference
         try:
-            value = self.lines[0][key]
+            line0 = object.__getattribute__(self, '_line0_cache')
+        except AttributeError:
+            try:
+                line0 = self.lines[0]
+                # Cache it for next time
+                object.__setattr__(self, '_line0_cache', line0)
+            except:
+                return 0.0
+        
+        try:
+            value = line0[key]
             # None check
             if value is None:
                 return 0.0

@@ -505,42 +505,63 @@ class Strategy(StrategyBase):
 
     # _oncepost
     def _oncepost(self, dt):
-        # 循环指标，如果指标数据的长度大于指标的长度了，继续运行指标
-        for indicator in self._lineiterators[LineIterator.IndType]:
-            # CRITICAL FIX: 增加防御性编程，避免访问不存在的_clock属性导致错误
-            try:
-                # 首先安全检查_clock属性是否存在
-                if hasattr(indicator, '_clock') and indicator._clock is not None:
-                    if len(indicator._clock) > len(indicator):
+        """
+        Post-processing after once() batch calculations.
+        
+        OPTIMIZATION NOTES:
+        - Removed hasattr() calls - use EAFP instead
+        - Minimize attribute access in hot loop
+        - Cache frequently accessed attributes
+        """
+        # OPTIMIZATION: Advance indicators if needed
+        # Get data0 once to avoid repeated access
+        try:
+            data0 = self.datas[0]
+            data0_len = len(data0)
+        except:
+            data0 = None
+            data0_len = 0
+        
+        # Process indicators with minimal overhead
+        try:
+            indicators = self._lineiterators[LineIterator.IndType]
+            for indicator in indicators:
+                try:
+                    # EAFP: Try to use indicator's clock
+                    clock = indicator._clock
+                    if clock is not None and len(clock) > len(indicator):
                         indicator.advance()
-                # 如果指标没有_clock属性，默认使用策略的第一个数据作为时钟
-                else:
-                    if self.datas and len(self.datas[0]) > len(indicator):
+                except AttributeError:
+                    # No _clock, use data0 as fallback
+                    if data0 is not None and data0_len > len(indicator):
                         indicator.advance()
-            except (AttributeError, TypeError) as e:
-                # 捕获并记录错误，但允许继续执行
-                # print(f"Warning: Error in _oncepost for {indicator.__class__.__name__}: {str(e)}")
-                pass
-                # 尝试设置_clock属性
-                if not hasattr(indicator, '_clock') and self.datas:
-                    indicator._clock = self.datas[0]
-        # 如果是旧的数据处理方式，调用advance;如果不是旧的数据处理方式，代表策略已经初始化了，调用advance
+                        # Set _clock for next time
+                        try:
+                            indicator._clock = data0
+                        except:
+                            pass
+                except:
+                    pass  # Skip failed indicators
+        except:
+            pass  # No indicators
+        
+        # Advance or forward strategy
         if self._oldsync:
-            # The Strategy has not been reset, the line is there
             self.advance()
         else:
-            # the strategy has been reset to beginning. advance step by step
             self.forward()
-        # CRITICAL FIX: Handle invalid dt (0 or negative) - use last valid datetime
-        # This can happen at the end of runonce when all data is exhausted
+        
+        # OPTIMIZATION: Handle datetime with minimal checking
         if dt <= 0:
-            # Use the last valid datetime from the data feed
-            if hasattr(self.datas[0], 'datetime') and hasattr(self.datas[0].datetime, 'array'):
-                dt_array = self.datas[0].datetime.array
+            # EAFP: Try to get last valid datetime
+            try:
+                dt_array = data0.datetime.array
                 if len(dt_array) > 0:
-                    dt = dt_array[-1]  # Use last valid datetime
-
-        # Only set datetime if dt is valid (> 0)
+                    dt = dt_array[-1]
+            except:
+                pass  # Keep dt as is
+        
+        # Set datetime if valid
         if dt > 0:
             self.lines.datetime[0] = dt
         # 通知

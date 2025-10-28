@@ -965,92 +965,85 @@ class LineIterator(LineIteratorMixin, LineSeries):
             return 0
 
     def _once(self, start=None, end=None):
-        # CRITICAL FIX: Accept start and end parameters for compatibility with IndicatorBase._once
-        # If not provided, calculate them
+        """
+        Optimized batch processing method for runonce mode.
         
-        # CRITICAL FIX: Ensure clock and data are available before operations
-        # This is especially important for strategies that might have delayed data assignment
-        if hasattr(self, '_clock') and self._clock is not None:
-            try:
-                clock_len = len(self._clock)
-                self_len = len(self) if hasattr(self, '__len__') else 0
-                if clock_len > self_len:
-                    # Advance to sync with clock
-                    advance_size = clock_len - self_len
-                    if hasattr(self, 'advance'):
-                        self.advance(advance_size)
-            except Exception:
-                # If there's an error, use a minimal clock
-                class MinimalClock:
-                    def buflen(self):
-                        return 1
-                    def __len__(self):
-                        return 1
-                    def __getitem__(self, key):
-                        return 0.0
-                self._clock = MinimalClock()
-
-        # CRITICAL FIX: Use provided start/end or calculate them
+        OPTIMIZATION NOTES:
+        - Removed excessive hasattr() calls - use EAFP (try/except) instead
+        - Direct attribute access where possible
+        - Minimize conditional checks in hot path
+        """
+        # OPTIMIZATION: Calculate start/end parameters with minimal checking
         if start is None:
-            # Use minperiod as the start position to ensure enough data for calculations
-            if hasattr(self, '_minperiod') and self._minperiod is not None:
-                start = self._minperiod - 1
-            else:
-                start = 0
-        if end is None:
-            end = self._clk_update()
-            
-            # CRITICAL FIX: If end is 0, try to get length from data sources
-            # In runonce mode, use buflen() instead of len() to get the actual buffer length
-            if end == 0 and hasattr(self, 'datas') and self.datas:
-                try:
-                    # Try buflen() first (for runonce mode)
-                    if hasattr(self.datas[0], 'buflen'):
-                        end = self.datas[0].buflen()
-                    # Fallback to len()
-                    elif hasattr(self.datas[0], '__len__'):
-                        end = len(self.datas[0])
-                except Exception:
-                    pass
-        
-        # If still 0, try using _clock
-        if end == 0 and hasattr(self, '_clock') and self._clock:
+            # EAFP: Try to access _minperiod directly
             try:
-                # Try buflen() first
-                if hasattr(self._clock, 'buflen'):
-                    end = self._clock.buflen()
-                elif hasattr(self._clock, '__len__'):
-                    end = len(self._clock)
-            except Exception:
-                pass
-
-        for lineiterators in self._lineiterators.values():
-            for lineiterator in lineiterators:
-                # CRITICAL FIX: Call _once with proper start and end parameters
+                start = self._minperiod - 1
+            except AttributeError:
+                start = 0
+        
+        if end is None:
+            # Try to get end from clock update
+            try:
+                end = self._clk_update()
+            except:
+                end = 0
+            
+            # If end is 0, try to get from data sources
+            if end == 0:
                 try:
-                    lineiterator._once(start, end)
-                except Exception:
-                    pass
-
-        try:
-            self.oncestart(start, end)  # called once before once
-        except Exception:
-            pass
-        
-        try:
-            self.once(start, end)  # calculate everything at once
-        except Exception:
-            pass
-        
-        # CRITICAL FIX: Reset data sources to home position after _once processing
-        # This is needed because indicators may have advanced data during once_via_next
-        if hasattr(self, 'datas') and self.datas:
-            for data in self.datas:
-                if hasattr(data, 'home'):
+                    # EAFP: Try datas[0] directly
+                    data0 = self.datas[0]
+                    # Try buflen() first (for runonce mode)
                     try:
-                        data.home()
-                    except Exception:
-                        pass
+                        end = data0.buflen()
+                    except AttributeError:
+                        # Fallback to len()
+                        end = len(data0)
+                except:
+                    # Try _clock as last resort
+                    try:
+                        clock = self._clock
+                        try:
+                            end = clock.buflen()
+                        except AttributeError:
+                            end = len(clock)
+                    except:
+                        pass  # Give up, use 0
+
+        # OPTIMIZATION: Process lineiterators with minimal overhead
+        # Direct access to _lineiterators (should always exist)
+        try:
+            lineiterators = self._lineiterators
+            for lineiter_list in lineiterators.values():
+                for lineiterator in lineiter_list:
+                    try:
+                        lineiterator._once(start, end)
+                    except:
+                        pass  # Skip failed indicators
+        except AttributeError:
+            pass  # No _lineiterators
+
+        # Call oncestart and once methods
+        try:
+            self.oncestart(start, end)
+        except:
+            pass
+        
+        try:
+            self.once(start, end)
+        except:
+            pass
+        
+        # OPTIMIZATION: Reset data sources - use EAFP
+        try:
+            datas = self.datas
+            for data in datas:
+                try:
+                    data.home()
+                except:
+                    pass
+        except AttributeError:
+            pass  # No datas attribute
 
     def preonce(self, start, end):
         # Default implementation - do nothing
