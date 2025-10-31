@@ -69,107 +69,67 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
     # 参数
     params = (
-        ("data", None),
-        ("firstopen", True),
-        ("fund", None),
+        ('data', None),
+        ('firstopen', True),
+        ('fund', None),
     )
 
-    # 开始
+    # __init__ 方法用于支持移除元类后的参数初始化
     def __init__(self, *args, **kwargs):
         super(TimeReturn, self).__init__(*args, **kwargs)
-        
-        self._value_start = None
-        self._value_end = None
-        self._fundmode = None
 
+    # 开始
     def start(self):
         super(TimeReturn, self).start()
-        
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-
-        # Initialize starting value
+        # 开始价值
+        self._value_start = 0.0
+        # 结束价值
+        self._lastvalue = None
+        # 如果参数data是None的时候
         if self.p.data is None:
+            # keep the initial portfolio value if not tracing a data
             if not self._fundmode:
-                self._value_start = self.strategy.broker.getvalue()
+                self._lastvalue = self.strategy.broker.getvalue()
             else:
-                self._value_start = self.strategy.broker.fundvalue
-        else:
-            # Track specific data
-            if len(self.p.data) > 0:
-                if self.p.firstopen:
-                    self._value_start = self.p.data.open[0]
-                else:
-                    self._value_start = self.p.data[0]
-            else:
-                self._value_start = 1.0  # Default fallback
+                self._lastvalue = self.strategy.broker.fundvalue
 
+    # 通知fund信息
     def notify_fund(self, cash, value, fundvalue, shares):
-        # Update current value for tracking
         if not self._fundmode:
-            self._value_end = value if self.p.data is None else self.p.data[0]
-        else:
-            self._value_end = fundvalue if self.p.data is None else self.p.data[0]
-
-    def stop(self):
-        # Final calculation at end of backtest
-        if self.p.data is None:
-            if not self._fundmode:
-                self._value_end = self.strategy.broker.getvalue()
-            else:
-                self._value_end = self.strategy.broker.fundvalue
-        else:
-            if len(self.p.data) > 0:
-                self._value_end = self.p.data[0]
-
-        # Calculate final return for the entire period
-        if self._value_start and self._value_start != 0:
-            final_return = (self._value_end / self._value_start) - 1.0
-            self.rets[self.dtkey] = final_return
-
-    def on_dt_over(self):
-        """Called when a timeframe period is over - store the return for this period"""
-        # Get end value for this period
-        if self.p.data is None:
-            if not self._fundmode:
-                value_end = self.strategy.broker.getvalue()
-            else:
-                value_end = self.strategy.broker.fundvalue
-        else:
-            if len(self.p.data) > 0:
-                value_end = self.p.data[0]
-            else:
-                value_end = self._value_start  # No change if no data
-
-        # Calculate return for this period
-        if self._value_start and self._value_start != 0:
-            period_return = (value_end / self._value_start) - 1.0
-            # Store the return with the period's datetime key
-            self.rets[self.dtkey] = period_return
-            
-        # Update start value for next period  
-        self._value_start = value_end
-
-    def next(self):
-        super(TimeReturn, self).next()
-        
-        # Get current portfolio value
-        if self.p.data is None:
-            if not self._fundmode:
-                self._value_end = self.strategy.broker.getvalue()
-            else:
-                self._value_end = self.strategy.broker.fundvalue
-        else:
-            self._value_end = self.p.data[0]
-        
-        # Set initial start value on first call
-        if self._value_start is None:
+            # Record current value
             if self.p.data is None:
-                self._value_start = self._value_end
+                self._value = value  # the portofolio value if tracking no data
             else:
-                if self.p.firstopen:
-                    self._value_start = self.p.data.open[0]
-                else:
-                    self._value_start = self.p.data[0]
+                self._value = self.p.data[0]  # the data value if tracking data
+        else:
+            if self.p.data is None:
+                self._value = fundvalue  # the fund value if tracking no data
+            else:
+                self._value = self.p.data[0]  # the data value if tracking data
+
+    # on_dt_over
+    def on_dt_over(self):
+        # next is called in a new timeframe period
+        # if self.p.data is None or len(self.p.data) > 1:
+        if self.p.data is None or self._lastvalue is not None:
+            self._value_start = self._lastvalue  # update value_start to last
+
+        else:
+            # The 1st tick has no previous reference, use the opening price
+            if self.p.firstopen:
+                self._value_start = self.p.data.open[0]
+            else:
+                self._value_start = self.p.data[0]
+
+    # 调用next
+    def next(self):
+        # Calculate the return
+        super(TimeReturn, self).next()
+        # self.dtkey是analyzer中设置的属性值，一般是一个period结束的日期
+        self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
+        # self.rets[self.dtkey] = (float(self._value) / float(self._value_start)) - 1.0
+        self._lastvalue = self._value  # keep last value
