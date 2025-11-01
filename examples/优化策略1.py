@@ -10,12 +10,99 @@ import matplotlib as mpl
 import matplotlib.ticker as ticker
 import matplotlib.dates as mdates
 from matplotlib.ticker import FuncFormatter
+from pathlib import Path
 
 import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
 
 # 设置中文字体
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
+from matplotlib.font_manager import FontManager, FontProperties
+import platform
+
+
+BASE_DIR = Path(__file__).resolve().parent
+
+
+def resolve_data_path(filename: str) -> Path:
+    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    path = BASE_DIR / filename
+    if path.exists():
+        return path
+
+    fallback = Path(filename)
+    if fallback.exists():
+        return fallback
+
+    raise FileNotFoundError(
+        f"未找到数据文件: {filename}. 已尝试路径: {path} 和 {fallback.resolve()}"
+    )
+
+
+def setup_chinese_font():
+    """
+    智能设置跨平台的中文字体支持
+    返回最终使用的字体名称
+    """
+    # 获取当前操作系统
+    system = platform.system()
+
+    # 定义各平台的字体优先级列表
+    font_priority = {
+        'Darwin': [  # macOS
+            'PingFang SC',  # 苹方，macOS 现代字体
+            'Heiti SC',  # 黑体-简，macOS
+            'Heiti TC',  # 黑体-繁
+            'STHeiti',  # 华文黑体
+            'Arial Unicode MS'  # 包含中文字符
+        ],
+        'Windows': [
+            'SimHei',  # 黑体，Windows
+            'Microsoft YaHei',  # 微软雅黑
+            'KaiTi',  # 楷体
+            'SimSun',  # 宋体
+            'FangSong'  # 仿宋
+        ],
+        'Linux': [
+            'WenQuanYi Micro Hei',  # 文泉驿微米黑
+            'WenQuanYi Zen Hei',  # 文泉驿正黑
+            'Noto Sans CJK SC',  # 思源黑体
+            'DejaVu Sans',  # 备选
+            'AR PL UMing CN'  # 文鼎明体
+        ]
+    }
+
+    # 获取系统所有可用字体
+    fm = FontManager()
+    available_fonts = [f.name for f in fm.ttflist]
+
+    # 根据当前平台选择字体列表
+    candidate_fonts = font_priority.get(system, [])
+
+    # 在可用字体中查找第一个匹配的候选字体
+    selected_font = None
+    for font in candidate_fonts:
+        if font in available_fonts:
+            selected_font = font
+            break
+
+    # 设置字体配置
+    if selected_font:
+        plt.rcParams['font.sans-serif'] = [selected_font] + plt.rcParams['font.sans-serif']
+        print(f"✅ 已设置字体: {selected_font}")
+        return selected_font
+    else:
+        # 回退方案：使用系统默认 sans-serif 字体
+        fallback_fonts = ['DejaVu Sans', 'Arial', 'Liberation Sans']
+        available_fallback = [f for f in fallback_fonts if f in available_fonts]
+
+        if available_fallback:
+            plt.rcParams['font.sans-serif'] = available_fallback + plt.rcParams['font.sans-serif']
+            print(f"⚠️  使用备选字体: {available_fallback[0]}")
+            return available_fallback[0]
+        else:
+            print("❌ 未找到合适的中文字体，使用系统默认字体")
+            return None
+plt.rcParams['font.sans-serif'] = [setup_chinese_font()]  # 用来正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
 # 忽略警告
 warnings.filterwarnings('ignore')
@@ -61,7 +148,7 @@ class ExtendPandasFeed(bt.feeds.PandasData):
 
 def clean_data():
     """清洗可转债数据"""
-    df = pd.read_csv('bond_merged_all_data.csv')
+    df = pd.read_csv(resolve_data_path('bond_merged_all_data.csv'))
     df.columns = ['symbol', 'bond_symbol', 'datetime', 'open', 'high', 'low', 'close', 'volume',
                   'pure_bond_value', 'convert_value', 'pure_bond_premium_rate', 'convert_premium_rate']
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -101,9 +188,13 @@ class BondConvertTwoFactor(bt.Strategy):
     def prenext(self):
         self.next()
 
+    def stop(self):
+        self.log(f"self.bar_num = {self.bar_num}")
+
     def next(self):
         # 假设有100万资金，每次成份股调整，每个股票使用1万元
         self.bar_num += 1
+        # self.log(f"self.bar_num = {self.bar_num}")
         # 前一交易日和当前的交易日
         pre_date = self.datas[0].datetime.date(-1).strftime("%Y-%m-%d")
         current_date = self.datas[0].datetime.date(0).strftime("%Y-%m-%d")
@@ -138,9 +229,9 @@ class BondConvertTwoFactor(bt.Strategy):
         total_holding_stock_num = len(self.position_dict)
 
         # 如果今天是调仓日
-        self.log(f"current_month={current_month}, next_month={next_month}")
-        if current_month!=next_month:
-            self.log(f"当前可交易的资产数目为:{total_target_stock_num}, 当前持仓的资产数目:{total_holding_stock_num}")
+        # self.log(f"current_month={current_month}, next_month={next_month}")
+        if current_month != next_month:
+            # self.log(f"当前可交易的资产数目为:{total_target_stock_num}, 当前持仓的资产数目:{total_holding_stock_num}")
             # 循环资产
             position_name_list = list(self.position_dict.keys())
             for asset_name in position_name_list:
@@ -175,7 +266,7 @@ class BondConvertTwoFactor(bt.Strategy):
                 now_value = total_value / num
                 lots = now_value / data.close[0]
                 # lots = int(lots / 100) * 100  # 计算能下的手数，取整数
-                self.log(f"buy {data_name} : {lots}, {bt.num2date(data.datetime[0])}")
+                # self.log(f"buy {data_name} : {lots}, {bt.num2date(data.datetime[0])}")
                 order = self.buy(data, size=lots)
                 self.position_dict[data_name] = order
         # 过期订单关闭
@@ -186,11 +277,12 @@ class BondConvertTwoFactor(bt.Strategy):
         for name in keys_list:
             order = self.position_dict[name]
             data = self.getdatabyname(name)
+            close = data.close
             data_date = data.datetime.date(0).strftime("%Y-%m-%d")
             current_date = self.datas[0].datetime.date(0).strftime("%Y-%m-%d")
             if data_date == current_date:
                 try:
-                    data[3]
+                    close[3]
                 except Exception as e:
                     self.log(f"{e}")
                     self.log(f"{data._name} will be cancelled")
@@ -202,7 +294,7 @@ class BondConvertTwoFactor(bt.Strategy):
                     self.position_dict.pop(name)
 
     def get_target_symbol(self):
-        self.log("调用get_target_symbol函数")
+        # self.log("调用get_target_symbol函数")
         # 根据价格和溢价率进行打分
         # 按照价格从低到高进行排序打分,按照溢价率从低到高进行排序打分,然后按照每个50%的权重进行打分，根据打分对可转债进行排序
         # 返回结果是一个list of list, [[data1, score1], [data2, score2] ... ]
@@ -238,7 +330,7 @@ class BondConvertTwoFactor(bt.Strategy):
         df['total_score'] = df['close_score'] * self.p.first_factor_weight + df[
             'rate_score'] * self.p.second_factor_weight
         df = df.sort_values(by=['total_score'], ascending=False)
-        print(df)
+        # print(df)
         # 转换成需要的结果格式 [[data, score], ...]
         result = []
         for _, row in df.iterrows():
@@ -248,37 +340,37 @@ class BondConvertTwoFactor(bt.Strategy):
 
         return result
 
-    def notify_order(self, order):
-        if order.status in [order.Submitted, order.Accepted]:
-            # order被提交和接受
-            return
-        if order.status == order.Rejected:
-            self.log(f"order is rejected : order_ref:{order.ref}  order_info:{order.info}")
-        if order.status == order.Margin:
-            self.log(f"order need more margin : order_ref:{order.ref}  order_info:{order.info}")
-        if order.status == order.Cancelled:
-            self.log(f"order is cancelled : order_ref:{order.ref}  order_info:{order.info}")
-        if order.status == order.Partial:
-            self.log(f"order is partial : order_ref:{order.ref}  order_info:{order.info}")
-        # Check if an order has been completed
-        # Attention: broker could reject order if not enougth cash
-        if order.status == order.Completed:
-            if order.isbuy():
-                self.log("buy result : buy_price : {} , buy_cost : {} , commission : {}".format(
-                    order.executed.price, order.executed.value, order.executed.comm))
-
-            else:  # Sell
-                self.log("sell result : sell_price : {} , sell_cost : {} , commission : {}".format(
-                    order.executed.price, order.executed.value, order.executed.comm))
-
-    def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
-        if trade.isclosed:
-            self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
-                trade.getdataname(), trade.pnl, trade.pnlcomm))
-        if trade.isopen:
-            self.log('open symbol is : {} , price : {} '.format(
-                trade.getdataname(), trade.price))
+    # def notify_order(self, order):
+    #     if order.status in [order.Submitted, order.Accepted]:
+    #         # order被提交和接受
+    #         return
+    #     if order.status == order.Rejected:
+    #         self.log(f"order is rejected : order_ref:{order.ref}  order_info:{order.info}")
+    #     if order.status == order.Margin:
+    #         self.log(f"order need more margin : order_ref:{order.ref}  order_info:{order.info}")
+    #     if order.status == order.Cancelled:
+    #         self.log(f"order is cancelled : order_ref:{order.ref}  order_info:{order.info}")
+    #     if order.status == order.Partial:
+    #         self.log(f"order is partial : order_ref:{order.ref}  order_info:{order.info}")
+    #     # Check if an order has been completed
+    #     # Attention: broker could reject order if not enougth cash
+    #     if order.status == order.Completed:
+    #         if order.isbuy():
+    #             self.log("buy result : buy_price : {} , buy_cost : {} , commission : {}".format(
+    #                 order.executed.price, order.executed.value, order.executed.comm))
+    #
+    #         else:  # Sell
+    #             self.log("sell result : sell_price : {} , sell_cost : {} , commission : {}".format(
+    #                 order.executed.price, order.executed.value, order.executed.comm))
+    #
+    # def notify_trade(self, trade):
+    #     # 一个trade结束的时候输出信息
+    #     if trade.isclosed:
+    #         self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
+    #             trade.getdataname(), trade.pnl, trade.pnlcomm))
+    #     if trade.isopen:
+    #         self.log('open symbol is : {} , price : {} '.format(
+    #             trade.getdataname(), trade.price))
 
 
 def run_test_strategy(max_bonds=None, stdstats=True):
@@ -302,11 +394,11 @@ def run_test_strategy(max_bonds=None, stdstats=True):
         fromdate=datetime.datetime(2018, 1, 1),
         todate=datetime.datetime(2025, 10, 10),
         timeframe=bt.TimeFrame.Days,
-        dtformat=("%Y-%m-%d"),
+        dtformat="%Y-%m-%d",
     )
     # 添加指数数据
     print("正在加载指数数据...")
-    index_data = pd.read_csv('bond_index_000000.csv')
+    index_data = pd.read_csv(resolve_data_path('bond_index_000000.csv'))
     index_data.index = pd.to_datetime(index_data['datetime'])
     index_data = index_data[index_data.index > pd.to_datetime("2018-01-01")]
     index_data = index_data.drop(['datetime'], axis=1)
@@ -331,8 +423,8 @@ def run_test_strategy(max_bonds=None, stdstats=True):
             # 添加合约数据
             cerebro.adddata(feed, name=symbol)
             added_count += 1
-            # if added_count > 60:
-            #     break
+            if added_count > 60:
+                break
             # 添加交易费用
             comm = ComminfoFuturesPercent(commission=0.0001, margin=0.1, mult=1)
             cerebro.broker.addcommissioninfo(comm, name=symbol)
@@ -396,60 +488,60 @@ if __name__ == "__main__":
     print("\n" + "=" * 60)
     print("回测结束")
     print("=" * 60)
-    # 创建图形
-    plt.figure(figsize=(14, 7))
-
-    # 绘制价值曲线
-    plt.plot(value_df.index, value_df['value'], linewidth=2, color='#1f77b4')
-
-    # 设置标题和标签
-    plt.title('投资组合价值曲线', fontsize=16, pad=20)
-    plt.xlabel('日期', fontsize=12)
-    plt.ylabel('组合价值 (元)', fontsize=12)
-
-
-    # 设置y轴格式为科学计数法
-    def format_sci(x, pos):
-        return f"{x / 1e8:.2f}亿"
-
-
-    plt.gca().yaxis.set_major_formatter(FuncFormatter(format_sci))
-
-    # 设置x轴日期格式
-    plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
-    plt.gca().xaxis.set_major_locator(mdates.YearLocator())
-    plt.gcf().autofmt_xdate()  # 自动旋转日期标签
-
-    # 添加网格
-    plt.grid(True, linestyle='--', alpha=0.6)
-
-    # 添加起始和结束点的标注
-    start_date = value_df.index[0].strftime('%Y-%m-%d')
-    end_date = value_df.index[-1].strftime('%Y-%m-%d')
-    start_value = f"{value_df['value'].iloc[0] / 1e8:.2f}亿"
-    end_value = f"{value_df['value'].iloc[-1] / 1e8:.2f}亿"
-
-    plt.annotate(f'起始: {start_date}\n{start_value}',
-                 xy=(value_df.index[0], value_df['value'].iloc[0]),
-                 xytext=(10, 10), textcoords='offset points',
-                 bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
-
-    plt.annotate(f'结束: {end_date}\n{end_value}',
-                 xy=(value_df.index[-1], value_df['value'].iloc[-1]),
-                 xytext=(-100, 10), textcoords='offset points',
-                 bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
-
-    # 计算并显示收益率
-    total_return = (value_df['value'].iloc[-1] / value_df['value'].iloc[0] - 1) * 100
-    annual_return = (value_df['value'].iloc[-1] / value_df['value'].iloc[0]) ** (252 / len(value_df)) - 1
-    annual_return = annual_return * 100
-
-    plt.figtext(0.15, 0.15,
-                f"累计收益率: {total_return:.2f}%\n年化收益率: {annual_return:.2f}%",
-                bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray', boxstyle='round,pad=0.5'))
-
-    # 调整布局
-    plt.tight_layout()
-
-    # 显示图形
-    plt.show()
+    # # 创建图形
+    # plt.figure(figsize=(14, 7))
+    #
+    # # 绘制价值曲线
+    # plt.plot(value_df.index, value_df['value'], linewidth=2, color='#1f77b4')
+    #
+    # # 设置标题和标签
+    # plt.title('投资组合价值曲线', fontsize=16, pad=20)
+    # plt.xlabel('日期', fontsize=12)
+    # plt.ylabel('组合价值 (元)', fontsize=12)
+    #
+    #
+    # # 设置y轴格式为科学计数法
+    # def format_sci(x, pos):
+    #     return f"{x / 1e8:.2f}亿"
+    #
+    #
+    # plt.gca().yaxis.set_major_formatter(FuncFormatter(format_sci))
+    #
+    # # 设置x轴日期格式
+    # plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+    # plt.gca().xaxis.set_major_locator(mdates.YearLocator())
+    # plt.gcf().autofmt_xdate()  # 自动旋转日期标签
+    #
+    # # 添加网格
+    # plt.grid(True, linestyle='--', alpha=0.6)
+    #
+    # # 添加起始和结束点的标注
+    # start_date = value_df.index[0].strftime('%Y-%m-%d')
+    # end_date = value_df.index[-1].strftime('%Y-%m-%d')
+    # start_value = f"{value_df['value'].iloc[0] / 1e8:.2f}亿"
+    # end_value = f"{value_df['value'].iloc[-1] / 1e8:.2f}亿"
+    #
+    # plt.annotate(f'起始: {start_date}\n{start_value}',
+    #              xy=(value_df.index[0], value_df['value'].iloc[0]),
+    #              xytext=(10, 10), textcoords='offset points',
+    #              bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
+    #
+    # plt.annotate(f'结束: {end_date}\n{end_value}',
+    #              xy=(value_df.index[-1], value_df['value'].iloc[-1]),
+    #              xytext=(-100, 10), textcoords='offset points',
+    #              bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
+    #
+    # # 计算并显示收益率
+    # total_return = (value_df['value'].iloc[-1] / value_df['value'].iloc[0] - 1) * 100
+    # annual_return = (value_df['value'].iloc[-1] / value_df['value'].iloc[0]) ** (252 / len(value_df)) - 1
+    # annual_return = annual_return * 100
+    #
+    # plt.figtext(0.15, 0.15,
+    #             f"累计收益率: {total_return:.2f}%\n年化收益率: {annual_return:.2f}%",
+    #             bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray', boxstyle='round,pad=0.5'))
+    #
+    # # 调整布局
+    # plt.tight_layout()
+    #
+    # # 显示图形
+    # plt.show()
