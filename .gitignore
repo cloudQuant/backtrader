@@ -150,3 +150,4 @@ backtrader_remove_metaprogramming_report.html
 backtrader_master_tests_report.html
 backtrader_remove_metaprogramming_report_timing.json
 performance_comparison.json
+backtrader-master/*
