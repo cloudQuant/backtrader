@@ -368,37 +368,37 @@ class BondConvertTwoFactor(bt.Strategy):
 
         return result
 
-    # def notify_order(self, order):
-    #     if order.status in [order.Submitted, order.Accepted]:
-    #         # order被提交和接受
-    #         return
-    #     if order.status == order.Rejected:
-    #         self.log(f"order is rejected : order_ref:{order.ref}  order_info:{order.info}")
-    #     if order.status == order.Margin:
-    #         self.log(f"order need more margin : order_ref:{order.ref}  order_info:{order.info}")
-    #     if order.status == order.Cancelled:
-    #         self.log(f"order is cancelled : order_ref:{order.ref}  order_info:{order.info}")
-    #     if order.status == order.Partial:
-    #         self.log(f"order is partial : order_ref:{order.ref}  order_info:{order.info}")
-    #     # Check if an order has been completed
-    #     # Attention: broker could reject order if not enougth cash
-    #     if order.status == order.Completed:
-    #         if order.isbuy():
-    #             self.log("buy result : buy_price : {} , buy_cost : {} , commission : {}".format(
-    #                 order.executed.price, order.executed.value, order.executed.comm))
-    #
-    #         else:  # Sell
-    #             self.log("sell result : sell_price : {} , sell_cost : {} , commission : {}".format(
-    #                 order.executed.price, order.executed.value, order.executed.comm))
-    #
-    # def notify_trade(self, trade):
-    #     # 一个trade结束的时候输出信息
-    #     if trade.isclosed:
-    #         self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
-    #             trade.getdataname(), trade.pnl, trade.pnlcomm))
-    #     if trade.isopen:
-    #         self.log('open symbol is : {} , price : {} '.format(
-    #             trade.getdataname(), trade.price))
+    def notify_order(self, order):
+        if order.status in [order.Submitted, order.Accepted]:
+            # order被提交和接受
+            return
+        if order.status == order.Rejected:
+            self.log(f"order is rejected : order_ref:{order.ref}  order_info:{order.info}")
+        if order.status == order.Margin:
+            self.log(f"order need more margin : order_ref:{order.ref}  order_info:{order.info}")
+        if order.status == order.Cancelled:
+            self.log(f"order is cancelled : order_ref:{order.ref}  order_info:{order.info}")
+        if order.status == order.Partial:
+            self.log(f"order is partial : order_ref:{order.ref}  order_info:{order.info}")
+        # Check if an order has been completed
+        # Attention: broker could reject order if not enougth cash
+        if order.status == order.Completed:
+            if order.isbuy():
+                self.log("buy result : buy_price : {} , buy_cost : {} , commission : {}".format(
+                    order.executed.price, order.executed.value, order.executed.comm))
+    
+            else:  # Sell
+                self.log("sell result : sell_price : {} , sell_cost : {} , commission : {}".format(
+                    order.executed.price, order.executed.value, order.executed.comm))
+    
+    def notify_trade(self, trade):
+        # 一个trade结束的时候输出信息
+        if trade.isclosed:
+            self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
+                trade.getdataname(), trade.pnl, trade.pnlcomm))
+        if trade.isopen:
+            self.log('open symbol is : {} , price : {} '.format(
+                trade.getdataname(), trade.price))
 
 
 def test_strategy(max_bonds=None, stdstats=True):
