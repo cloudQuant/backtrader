@@ -521,7 +521,7 @@ if __name__ == "__main__":
 
     # 运行回测 - 添加所有可转债
     # 注意：由于有958只可转债，运行可能需要较长时间
-    results, value_df = run_test_strategy(max_bonds=None)
+    results, value_df = test_strategy(max_bonds=None)
     # value_df = value_df[(value_df.index>pd.to_datetime("2025-01-01"))&(value_df.index<pd.to_datetime("2025-07-31"))]
     print("\n" + "=" * 60)
     print("回测结束")
