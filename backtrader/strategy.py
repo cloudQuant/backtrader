@@ -505,138 +505,31 @@ class Strategy(StrategyBase):
 
     # _oncepost
     def _oncepost(self, dt):
-        """
-        Post-processing after once() batch calculations.
-        
-        OPTIMIZATION NOTES:
-        - Removed hasattr() calls - use EAFP instead
-        - Minimize attribute access in hot loop
-        - Cache frequently accessed attributes
-        """
-        # OPTIMIZATION: Advance indicators if needed
-        # Get data0 once to avoid repeated access
-        try:
-            data0 = self.datas[0]
-            data0_len = len(data0)
-        except:
-            data0 = None
-            data0_len = 0
-        
-        # Process indicators with minimal overhead
-        try:
-            indicators = self._lineiterators[LineIterator.IndType]
-            for indicator in indicators:
-                try:
-                    # EAFP: Try to use indicator's clock
-                    clock = indicator._clock
-                    if clock is not None and len(clock) > len(indicator):
-                        indicator.advance()
-                except AttributeError:
-                    # No _clock, use data0 as fallback
-                    if data0 is not None and data0_len > len(indicator):
-                        indicator.advance()
-                        # Set _clock for next time
-                        try:
-                            indicator._clock = data0
-                        except:
-                            pass
-                except:
-                    pass  # Skip failed indicators
-        except:
-            pass  # No indicators
-        
-        # Advance or forward strategy
+        # 循环指标，如果指标数据的长度大于指标的长度了，继续运行指标
+        for indicator in self._lineiterators[LineIterator.IndType]:
+            if len(indicator._clock) > len(indicator):
+                indicator.advance()
+        # 如果是旧的数据处理方式，调用advance;如果不是旧的数据处理方式，代表策略已经初始化了，调用advance
         if self._oldsync:
+            # Strategy has not been reset, the line is there
             self.advance()
         else:
+            # strategy has been reset to beginning. advance step by step
             self.forward()
-        
-        # OPTIMIZATION: Handle datetime with minimal checking
-        if dt <= 0:
-            # EAFP: Try to get last valid datetime
-            try:
-                dt_array = data0.datetime.array
-                if len(dt_array) > 0:
-                    dt = dt_array[-1]
-            except:
-                pass  # Keep dt as is
-        
-        # Set datetime if valid
-        if dt > 0:
-            self.lines.datetime[0] = dt
+        # 设置时间
+        self.lines.datetime[0] = dt
         # 通知
         self._notify()
-        
-        # PERFORMANCE: Optimize _idx setting - only update when changed
-        # This method is called ~42,000 times during tests, so caching is crucial
-        current_idx = len(self) - 1  # Current position (0-indexed)
-        use_last_valid_idx = dt <= 0
-        
-        # Initialize cache on first run
-        if not hasattr(self, '_last_set_idx'):
-            self._last_set_idx = -1
-
-        # Only update _idx if it has changed (major optimization)
-        if current_idx != self._last_set_idx:
-            self._last_set_idx = current_idx
-            
-            # Set _idx for data feeds - optimized version with cached attribute checks
-            if self.datas:
-                for data in self.datas:
-                    # Fast path: direct _idx assignment without multiple checks
-                    try:
-                        if hasattr(data, 'array'):
-                            data_len = len(data.array)
-                            if use_last_valid_idx and data_len > 0:
-                                data._idx = data_len - 1
-                            elif current_idx < data_len:
-                                data._idx = current_idx
-                            else:
-                                data._idx = max(0, data_len - 1)
-                        else:
-                            data._idx = max(0, current_idx)
-                        
-                        # Set _idx for data lines if they exist
-                        # Cache the lines attribute to avoid repeated attribute access
-                        if hasattr(data, 'lines'):
-                            data_lines = data.lines
-                            if hasattr(data_lines, 'lines'):
-                                for line in data_lines.lines:
-                                    line._idx = current_idx
-                    except (AttributeError, TypeError):
-                        # Silently continue if any attribute access fails
-                        pass
-
-            # Set _idx for indicators - optimized version
-            indicators = self._lineiterators.get(LineIterator.IndType, [])
-            if indicators:
-                for indicator in indicators:
-                    indicator._idx = current_idx
-                    # Fast path for indicator lines
-                    try:
-                        if hasattr(indicator, 'lines'):
-                            ind_lines = indicator.lines
-                            if hasattr(ind_lines, 'lines'):
-                                for line in ind_lines.lines:
-                                    line._idx = current_idx
-                    except (AttributeError, TypeError):
-                        pass
-        
         # 获取当前最小周期状态，如果所有数据都满足了，调用next
         # 如果正好所有数据都满足了，调用nextstart
         # 如果不是所有的数据都满足了，调用prenext
         minperstatus = self._getminperstatus()
-
-        # CRITICAL FIX: Only call next/nextstart/prenext if dt is valid
-        # When dt <= 0, it means data is exhausted and we shouldn't process more
-        if dt > 0:
-            if minperstatus < 0:
-                self.next()
-            elif minperstatus == 0:
-                self.nextstart()  # only called for the 1st value
-            else:
-                self.prenext()
-
+        if minperstatus < 0:
+            self.next()
+        elif minperstatus == 0:
+            self.nextstart()  # only called for the 1st value
+        else:
+            self.prenext()
         # 对analyzer增加最小周期状态
         self._next_analyzers(minperstatus, once=True)
         # 对observer增加最小周期状态

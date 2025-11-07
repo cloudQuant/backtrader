@@ -1953,11 +1953,10 @@ class Cerebro(ParameterizedBase):
         Strategies are still invoked on a pseudo-event mode in which `next`
         is called for each data arrival
         """
-        # 遍历策略，调用_once和home
+        # 遍历策略，调用_once和reset
         for strat in runstrats:
             strat._once()
-            strat.home()  # CRITICAL FIX: home() resets position without clearing data
-                         # reset() would clear the data calculated by _once()
+            strat.reset()  # strat called next by next - reset lines
 
         # The default once for strategies does nothing and therefore
         # has not moved forward all datas/indicators/observers that
@@ -1967,57 +1966,48 @@ class Cerebro(ParameterizedBase):
         datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
 
         while True:
-            try:
-                # Check the next incoming date in the datas
-                # 对于每个数据调用advance_peek(),取得最小的一个时间作为第一个
-                dts = [d.advance_peek() for d in datas]
-                dt0 = min(dts)
-                # CRITICAL FIX: Also break if dt0 is invalid (0 or negative)
-                # This prevents processing invalid datetime values
-                if dt0 == float("inf") or dt0 <= 0:
-                    break  # no data delivers anything
+            # Check the next incoming date in the datas
+            # 对于每个数据调用advance_peek(),取得最小的一个时间作为第一个
+            dts = [d.advance_peek() for d in datas]
+            dt0 = min(dts)
+            if dt0 == float('inf'):
+                break  # no data delivers anything
 
-                # Timemaster if needed be
-                # dmaster = datas[dts.index(dt0)]  # and timemaster
-                # 第一个策略现在的长度slen
-                # todo 变量slen没有使用到，进行注释掉
-                # slen = len(runstrats[0])
-                # 对于每个数据的时间，如果时间小于即将到来的最小的时间，数据向前一位，否则，忽略
-                for i, dti in enumerate(dts):
-                    if dti <= dt0:
-                        datas[i].advance()
-                        # self._plotfillers2[i].append(slen)  # mark as fill
-                    else:
-                        # self._plotfillers[i].append(slen)
-                        pass
-                # 检查timer
-                self._check_timers(runstrats, dt0, cheat=True)
-                # 如果是cheat_on_open，对于每个策略调用_oncepost_open()
-                if self.p.cheat_on_open:
-                    for strat in runstrats:
-                        strat._oncepost_open()
-                        # 如果调用了stop，就停止
-                        if self._event_stop:  # stop if requested
-                            return
-                # 调用_brokernotify()
-                self._brokernotify()
-                # 如果调用了stop，就停止
-                if self._event_stop:  # stop if requested
-                    return
-                # 检查timer
-                self._check_timers(runstrats, dt0, cheat=False)
-
+            # Timemaster if needed be
+            # dmaster = datas[dts.index(dt0)]  # and timemaster
+            # 第一个策略现在的长度slen
+            # todo 变量slen没有使用到，进行注释掉
+            # slen = len(runstrats[0])
+            # 对于每个数据的时间，如果时间小于即将到来的最小的时间，数据向前一位，否则，忽略
+            for i, dti in enumerate(dts):
+                if dti <= dt0:
+                    datas[i].advance()
+                    # self._plotfillers2[i].append(slen)  # mark as fill
+                else:
+                    # self._plotfillers[i].append(slen)
+                    pass
+            # 检查timer
+            self._check_timers(runstrats, dt0, cheat=True)
+            # 如果是cheat_on_open，对于每个策略调用_oncepost_open()
+            if self.p.cheat_on_open:
                 for strat in runstrats:
-                    strat._oncepost(dt0)
+                    strat._oncepost_open()
+                    # 如果调用了stop，就停止
                     if self._event_stop:  # stop if requested
                         return
-                    self._next_writers(runstrats)
-            except Exception as e:
-                # CRITICAL FIX: format_exc() doesn't take an exception argument
-                error_info = traceback.format_exc()
-                # print(f"Error in _runonce: {error_info}")  # Removed for performance
-                # Continue execution instead of crashing
+            # 调用_brokernotify()
+            self._brokernotify()
+            # 如果调用了stop，就停止
+            if self._event_stop:  # stop if requested
                 return
+            # 检查timer
+            self._check_timers(runstrats, dt0, cheat=False)
+
+            for strat in runstrats:
+                strat._oncepost(dt0)
+                if self._event_stop:  # stop if requested
+                    return
+                self._next_writers(runstrats)
         
         # print("结束_runonce")  # Removed for performance - called frequently during tests
 
