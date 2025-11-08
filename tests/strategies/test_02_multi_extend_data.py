@@ -116,7 +116,7 @@ def setup_chinese_font():
     # 设置字体配置
     if selected_font:
         plt.rcParams['font.sans-serif'] = [selected_font] + plt.rcParams['font.sans-serif']
-        print(f"✅ 已设置字体: {selected_font}")
+        print(f"OK - Font set: {selected_font}")
         return selected_font
     else:
         # 回退方案：使用系统默认 sans-serif 字体
@@ -125,10 +125,10 @@ def setup_chinese_font():
 
         if available_fallback:
             plt.rcParams['font.sans-serif'] = available_fallback + plt.rcParams['font.sans-serif']
-            print(f"⚠️  使用备选字体: {available_fallback[0]}")
+            print(f"WARN - Using fallback font: {available_fallback[0]}")
             return available_fallback[0]
         else:
-            print("❌ 未找到合适的中文字体，使用系统默认字体")
+            print("ERROR - No suitable Chinese font found, using system default")
             return None
 plt.rcParams['font.sans-serif'] = [setup_chinese_font()]  # 用来正常显示中文标签
 plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
@@ -286,7 +286,7 @@ class BondConvertTwoFactor(bt.Strategy):
             else:
                 num = int(self.p.hold_percent * total_target_stock_num)
             buy_list = result[:num]
-
+            self.log(f"len(self.datas)={len(self.datas)}, total_holding_stock_num={total_holding_stock_num}, len(result) = {len(result)}, len(buy_list) = {len(buy_list)}")
             # 根据计算出来的信号，买卖相应的资产
             for data_name, _cumsum_rate in buy_list:
                 data = self.getdatabyname(data_name)

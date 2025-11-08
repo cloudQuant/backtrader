@@ -505,6 +505,18 @@ class Strategy(StrategyBase):
 
     # _oncepost
     def _oncepost(self, dt):
+        # CRITICAL FIX: Ensure _clock is set to actual data, not MinimalClock
+        # During initialization, _clock might be set to MinimalClock if datas weren't available yet
+        if hasattr(self, '_clock') and self._clock is not None:
+            clock_type_name = type(self._clock).__name__
+            if clock_type_name == 'MinimalClock' and self.datas:
+                # Replace MinimalClock with actual first data
+                self._clock = self.datas[0]
+        elif not hasattr(self, '_clock') or self._clock is None:
+            # Set clock to first data if not set
+            if self.datas:
+                self._clock = self.datas[0]
+        
         # 循环指标，如果指标数据的长度大于指标的长度了，继续运行指标
         for indicator in self._lineiterators[LineIterator.IndType]:
             if len(indicator._clock) > len(indicator):
@@ -516,8 +528,10 @@ class Strategy(StrategyBase):
         else:
             # strategy has been reset to beginning. advance step by step
             self.forward()
-        # 设置时间
+        # 设置时间 - and save it as the last valid datetime for use in stop()
         self.lines.datetime[0] = dt
+        if dt > 0:
+            self._last_valid_datetime = dt
         # 通知
         self._notify()
         # 获取当前最小周期状态，如果所有数据都满足了，调用next
@@ -550,8 +564,10 @@ class Strategy(StrategyBase):
             # 调用策略的_clk_uddate()方法
             clk_len = super(Strategy, self)._clk_update()
             # 设置时间
-            if self.datas:  # CRITICAL FIX: Only set datetime if we have data
-                self.lines.datetime[0] = max(d.datetime[0] for d in self.datas if len(d))
+            if self.datas:
+                valid_datetimes = [d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0]
+                if valid_datetimes:
+                    self.lines.datetime[0] = max(valid_datetimes)
             # 返回数据长度
             return clk_len
         
@@ -564,9 +580,11 @@ class Strategy(StrategyBase):
         # 如果新的数据长度大于旧的数据长度，就forward
         if any(nl > l for l, nl in zip(self._dlens, newdlens)):
             self.forward()
-        # 设置时间，当前数据中的最大的时间
-        if self.datas:  # CRITICAL FIX: Only set datetime if we have data
-            self.lines.datetime[0] = max(d.datetime[0] for d in self.datas if len(d))
+        # 设置时间，当前数据中的最大的时间 - only update if we have valid datetimes
+        if self.datas:
+            valid_datetimes = [d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0]
+            if valid_datetimes:
+                self.lines.datetime[0] = max(valid_datetimes)
         # 旧的数据长度等于新的数据长度
         self._dlens = newdlens
 
@@ -744,6 +762,21 @@ class Strategy(StrategyBase):
 
     # 结束运行
     def _stop(self):
+        # CRITICAL FIX: Restore last valid datetime before calling user's stop()
+        # This ensures datetime[0] is valid for logging in stop() method
+        if hasattr(self, '_last_valid_datetime') and self._last_valid_datetime > 0:
+            try:
+                # Restore strategy datetime
+                self.lines.datetime[0] = self._last_valid_datetime
+                # CRITICAL: Also restore all data feed datetimes
+                for data in self.datas:
+                    try:
+                        data.datetime[0] = self._last_valid_datetime
+                    except:
+                        pass
+            except:
+                pass
+        
         # 结束策略，可以在策略实例中重写
         self.stop()
         # 结束analyzer和observer的analyzer

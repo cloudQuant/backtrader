@@ -2020,9 +2020,12 @@ class Cerebro(ParameterizedBase):
             # 使用timer.check(dt0),如果返回是True,就进入下面，否则，检查下个timer
             if not t.check(dt0):
                 continue
+            # CRITICAL FIX: Remove 'when' from kwargs to avoid conflict with position argument
+            # when is already passed as t.lastwhen (2nd argument)
+            timer_kwargs = {k: v for k, v in t.kwargs.items() if k != 'when'}
             # 通知timer
-            t.params.owner.notify_timer(t, t.lastwhen, *t.args, **t.kwargs)
+            t.params.owner.notify_timer(t, t.lastwhen, *t.args, **timer_kwargs)
             # 如果需要策略使用timer(t.params.strats是True）的时候，循环策略，调用notify_timer
             if t.params.strats:
                 for strat in runstrats:
-                    strat.notify_timer(t, t.lastwhen, *t.args, **t.kwargs)
+                    strat.notify_timer(t, t.lastwhen, *t.args, **timer_kwargs)

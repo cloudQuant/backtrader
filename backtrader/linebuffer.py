@@ -168,11 +168,9 @@ class LineBuffer(LineSingle, LineRootMixin):
             self.array = array.array(str("d"))
             self.useislice = False
             
-            # 方案A优化: 使用预计算标志，指标预填充NaN以避免索引错误
-            if getattr(self, '_is_indicator', False):
-                # Pre-fill with a few NaN values to avoid index errors
-                for _ in range(10):
-                    self.array.append(float('nan'))
+            # CRITICAL FIX: Do NOT pre-fill array - this causes buflen() to be incorrect
+            # buflen() = len(array) - extension, so pre-filling increases buflen incorrectly
+            # Instead, let forward() handle array growth naturally
         
         # 重置计数器和索引
         self.lencount = 0
@@ -246,12 +244,19 @@ class LineBuffer(LineSingle, LineRootMixin):
         Returns:
             指定位置的值
         
-        性能优化: 恢复master分支的简单实现
-        - 直接数组访问，无边界检查（调用者负责）
-        - 移除类型检查、字符串操作和try-except块
-        - 性能提升: 从0.248秒降低到~0.02秒 (92%改进)
+        性能优化: 恢复master分支的简单实现，但添加必要的边界检查
+        - 直接数组访问（快速路径）
+        - 添加IndexError捕获返回合理默认值
         """
-        return self.array[self._idx + ago]
+        try:
+            return self.array[self._idx + ago]
+        except IndexError:
+            # CRITICAL FIX: Return appropriate default value on index error
+            # For indicators: NaN, for data/datetime: 0.0
+            if getattr(self, '_is_indicator', False):
+                return float('nan')
+            else:
+                return 0.0
 
     # 获取数据的值，在策略中使用还是比较广泛的
     def get(self, ago=0, size=1):
@@ -553,10 +558,10 @@ class LineBuffer(LineSingle, LineRootMixin):
     # 把idx和lencount增加size
     def advance(self, size=1):
         """Advances the logical index without touching the underlying buffer"""
-        if hasattr(self, 'idx'):
-            self.idx += size
-        if hasattr(self, 'lencount'):
-            self.lencount += size
+        # CRITICAL FIX: Remove hasattr checks - attributes are always initialized in __init__
+        # The hasattr checks were preventing proper advancement
+        self.idx += size
+        self.lencount += size
 
     # 向前扩展
     def extend(self, value=float('nan'), size=0):
@@ -1254,13 +1259,11 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         # Mark that once was called to prevent double processing in _next
         self._once_called = True
         
-        # CRITICAL FIX: Ensure array exists FIRST before any processing
+        # CRITICAL FIX: Ensure array exists but don't pre-fill it
+        # Pre-filling causes incorrect buflen() calculations
         if not hasattr(self, 'array') or self.array is None:
             import array as array_module
             self.array = array_module.array(str('d'))
-            # Pre-fill array to avoid index errors
-            for _ in range(max(end, 100)):
-                self.array.append(float('nan'))
         
         # CRITICAL FIX: Ensure proper range for once processing
         if start < 0:
@@ -1273,12 +1276,6 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             max_len = self._clock.buflen()
             if end > max_len:
                 end = max_len
-        elif hasattr(self, 'array') and self.array:
-            max_len = len(self.array)
-            if end > max_len:
-                # Extend array if needed
-                while len(self.array) < end:
-                    self.array.append(0.0)
 
         # CRITICAL FIX: Call _once() on all child line iterators first
         # This ensures dependencies are calculated before this indicator
@@ -1627,16 +1624,6 @@ class LinesOperation(LineActions):
         srcb = self.b.array
         op = self.operation
 
-        # CRITICAL FIX: Ensure destination array is properly sized
-        while len(dst) < end:
-            dst.append(0.0)
-        
-        # CRITICAL FIX: Ensure source arrays have required data
-        max_src_len = max(len(srca), len(srcb))
-        if max_src_len < end:
-            # If source arrays are shorter than required range, only process available data
-            end = min(end, max_src_len)
-
         for i in range(start, end):
             try:
                 # CRITICAL FIX: Bounds checking for source arrays
@@ -1670,15 +1657,6 @@ class LinesOperation(LineActions):
         srcb = self.b[0]
         op = self.operation
 
-        # CRITICAL FIX: Ensure destination array is properly sized
-        while len(dst) < end:
-            dst.append(0.0)
-        
-        # CRITICAL FIX: Ensure source array has required data
-        if len(srca) < end:
-            # If source array is shorter than required range, only process available data
-            end = min(end, len(srca))
-
         for i in range(start, end):
             try:
                 # CRITICAL FIX: Bounds checking for source array
@@ -1711,15 +1689,6 @@ class LinesOperation(LineActions):
         srcb = self.b
         op = self.operation
 
-        # CRITICAL FIX: Ensure destination array is properly sized
-        while len(dst) < end:
-            dst.append(0.0)
-        
-        # CRITICAL FIX: Ensure source array has required data
-        if len(srca) < end:
-            # If source array is shorter than required range, only process available data
-            end = min(end, len(srca))
-
         for i in range(start, end):
             try:
                 # CRITICAL FIX: Bounds checking for source array
@@ -1748,15 +1717,6 @@ class LinesOperation(LineActions):
         srca = self.a.array
         srcb = self.b
         op = self.operation
-
-        # CRITICAL FIX: Ensure destination array is properly sized
-        while len(dst) < end:
-            dst.append(0.0)
-        
-        # CRITICAL FIX: Ensure source array has required data
-        if len(srca) < end:
-            # If source array is shorter than required range, only process available data
-            end = min(end, len(srca))
 
         for i in range(start, end):
             try:

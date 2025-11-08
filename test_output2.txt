@@ -1,0 +1,18 @@
+﻿python : Traceback (most recent call last):
+所在位置 行:1 字符: 1
++ python tests\strategies\test_02_multi_extend_data.py 2>&1 | Out-File  ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Traceback (most recent call last) 
+   ::String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+  File "F:\source_code\backtrader\tests\strategies\test_02_multi_extend_data.py
+", line 133, in <module>
+    plt.rcParams['font.sans-serif'] = [setup_chinese_font()]  # 用来正常显示中文标签
+                                       ~~~~~~~~~~~~~~~~~~^^
+  File "F:\source_code\backtrader\tests\strategies\test_02_multi_extend_data.py
+", line 119, in setup_chinese_font
+    print(f"\u2705 已设置字体: {selected_font}")
+    ~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+UnicodeEncodeError: 'gbk' codec can't encode character '\u2705' in position 0: 
+illegal multibyte sequence

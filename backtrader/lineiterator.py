@@ -1231,11 +1231,16 @@ class LineIterator(LineIteratorMixin, LineSeries):
             if hasattr(self, 'lines') and self.lines and hasattr(self.lines, 'lines'):
                 try:
                     first_line = self.lines.lines[0]
-                    if hasattr(first_line, 'lencount'):
+                    # CRITICAL FIX: Try lencount directly without hasattr check
+                    # hasattr can fail in some metaclass scenarios
+                    try:
                         return first_line.lencount
-                    elif hasattr(first_line, 'array'):
+                    except AttributeError:
                         # Fallback to array length if lencount not available
-                        return len(first_line.array)
+                        try:
+                            return len(first_line.array)
+                        except:
+                            pass
                 except (IndexError, AttributeError, TypeError):
                     pass
             
@@ -1342,39 +1347,6 @@ class IndicatorBase(DataAccessor):
     def _plotinit(self):
         """Universal plot initialization method for all indicators"""
         return self._default_plotinit()
-    
-    def _once(self, start, end):
-        """CRITICAL FIX: Enhanced _once method for proper indicator calculation"""
-        try:
-            # First, try to call the original _once implementation
-            for lineiterator in self._lineiterators.values():
-                for obj in lineiterator:
-                    try:
-                        if hasattr(obj, '_once') and callable(obj._once):
-                            obj._once(start, end)
-                    except Exception as e:
-#                         # print(f"DEBUG: _once failed for {obj.__class__.__name__}: {e}")  # Removed for performance
-                        # Fall back to _next processing if _once fails
-                        try:
-                            for i in range(start, end):
-                                if hasattr(obj, '_next') and callable(obj._next):
-                                    obj._next()
-                        except Exception as e2:
-#                             # print(f"DEBUG: _next fallback also failed for {obj.__class__.__name__}: {e2}")  # Removed for performance
-                            pass
-            
-            # Process own lines if this is a composite indicator
-            super()._once(start, end)
-            
-        except Exception as e:
-#             # print(f"DEBUG: IndicatorBase._once failed for {self.__class__.__name__}: {e}")  # Removed for performance
-            # Fallback to next processing
-            try:
-                for i in range(start, end):
-                    self._next()
-            except Exception as e2:
-#                 # print(f"DEBUG: IndicatorBase._next fallback failed: {e2}")  # Removed for performance
-                pass
 
     @staticmethod
     def _register_indicator_aliases():
@@ -1550,10 +1522,25 @@ class StrategyBase(DataAccessor):
         """
         pass
     
-    def _next(self):
-        """Override _next for strategy-specific processing"""
-        # CRITICAL FIX: Simple strategy next that ensures proper data synchronization
+    def oncestart(self, start, end):
+        """CRITICAL FIX: Override oncestart() for strategies to do nothing.
         
+        For strategies, oncestart() should NOT call nextstart()/next() because
+        next() is called by _oncepost() in the cerebro event loop. If we call
+        nextstart()->next() here, it will be called twice (once in _once and
+        once in _oncepost).
+        """
+        pass
+    
+    def _next(self):
+        """Override _next for strategy-specific processing
+        
+        CRITICAL: This method is ONLY called in runonce=False mode.
+        In runonce=True mode, _oncepost() is called instead.
+        
+        NOTE: Strategy._next() overrides this to add analyzers/observers,
+        but it should NOT duplicate the next() call.
+        """
         # Update the clock first
         self._clk_update()
         
@@ -1768,7 +1755,9 @@ class StrategyBase(DataAccessor):
             if datas:
                 self.datas = datas
                 self.data = datas[0] if datas else None
-                self._clock = self.data
+                # CRITICAL FIX: Always use datas[0] as clock, not self.data
+                # self.data might be None in some edge cases
+                self._clock = datas[0]
                 
                 # Set up data aliases
                 for d, data in enumerate(datas):

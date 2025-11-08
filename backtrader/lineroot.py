@@ -604,8 +604,8 @@ class LineMultiple(LineRoot):
             self._minperiod = 1
 
     def reset(self):
-        for line in self.lines:
-            line.reset()
+        self._stage1()
+        self.lines.reset()
 
     def _stage1(self):
         super(LineMultiple, self)._stage1()

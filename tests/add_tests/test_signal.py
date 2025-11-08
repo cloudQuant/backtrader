@@ -14,6 +14,8 @@ import backtrader as bt
 
 class SignalTestStrategy(bt.SignalStrategy):
     def __init__(self):
+        # CRITICAL FIX: Call super().__init__() to initialize _signals
+        super(SignalTestStrategy, self).__init__()
         sma1 = bt.indicators.SMA(self.data, period=10)
         sma2 = bt.indicators.SMA(self.data, period=30)
         self.signal_add(bt.SIGNAL_LONG, bt.ind.CrossOver(sma1, sma2))

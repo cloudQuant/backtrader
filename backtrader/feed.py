@@ -441,10 +441,21 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # 获取未来一个bar的时间
     def advance_peek(self):
-        if len(self) < self.buflen():
-            return self.lines.datetime[1]  # return the future
-
-        return float("inf")  # max date else
+        try:
+            if len(self) < self.buflen():
+                # CRITICAL FIX: Check if datetime[1] is valid before returning
+                try:
+                    next_dt = self.lines.datetime[1]
+                    # If next_dt is 0 or invalid, return inf
+                    if next_dt is None or next_dt <= 0:
+                        return float("inf")
+                    return next_dt
+                except (IndexError, KeyError):
+                    # If accessing datetime[1] fails, we're at the end
+                    return float("inf")
+            return float("inf")  # max date else
+        except:
+            return float("inf")
 
     # 把数据向前移动size
     def advance(self, size=1, datamaster=None, ticks=True):

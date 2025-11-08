@@ -8,6 +8,7 @@
 import subprocess
 import sys
 import os
+import glob
 from datetime import datetime
 
 
@@ -35,6 +36,36 @@ def get_git_branch():
         return 'unknown'
 
 
+def cleanup_old_logs(script_path, branch_name, log_dir='logs'):
+    """
+    清理当前分支的旧日志文件
+    
+    Args:
+        script_path: 脚本路径，用于生成日志文件名模式
+        branch_name: git分支名称
+        log_dir: 日志目录
+    """
+    if not os.path.exists(log_dir):
+        return
+    
+    script_name = os.path.splitext(os.path.basename(script_path))[0]
+    # 匹配模式：{script_name}_{branch_name}_*.log
+    pattern = os.path.join(log_dir, f'{script_name}_{branch_name}_*.log')
+    
+    # 查找所有匹配的旧日志文件
+    old_logs = glob.glob(pattern)
+    
+    if old_logs:
+        print(f"清理 {len(old_logs)} 个旧日志文件...")
+        for log_file in old_logs:
+            try:
+                os.remove(log_file)
+                print(f"  已删除: {os.path.basename(log_file)}")
+            except Exception as e:
+                print(f"  删除失败 {os.path.basename(log_file)}: {e}")
+        print()
+
+
 def run_with_logging(script_path, log_dir='logs'):
     """
     运行指定的脚本，并将输出同时显示在终端和保存到日志文件
@@ -49,6 +80,9 @@ def run_with_logging(script_path, log_dir='logs'):
     
     # 获取git分支名称
     branch_name = get_git_branch()
+    
+    # 清理当前分支的旧日志文件
+    cleanup_old_logs(script_path, branch_name, log_dir)
     
     # 生成日志文件名
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
