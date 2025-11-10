@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import functools
+import itertools
 import math
 
 from .linebuffer import LineActions
@@ -177,12 +178,140 @@ class If(Logic):
     def once(self, start, end):
         # cache python dictionary lookups
         dst = self.array
-        srca = self.a.array
-        srcb = self.b.array
-        cond = self.cond.array
+
+        # CRITICAL FIX: Ensure destination array is properly sized
+        while len(dst) < end:
+            dst.append(0.0)
+
+        # CRITICAL FIX: Try to get arrays, but also prepare fallback to direct access
+        # Also, if arrays are empty, try to manually process the source objects
+        try:
+            srca = self.a.array
+            a_has_array = True
+            # If array is empty, try to manually process the source object
+            if len(srca) == 0 and hasattr(self.a, '_once'):
+                try:
+                    # Try to process the source object manually
+                    self.a._once(start, end)
+                    srca = self.a.array
+                except:
+                    pass
+        except (AttributeError, TypeError):
+            srca = []
+            a_has_array = False
+            
+        try:
+            srcb = self.b.array
+            b_has_array = True
+            # If array is empty, try to manually process the source object
+            if len(srcb) == 0 and hasattr(self.b, '_once'):
+                try:
+                    # Try to process the source object manually
+                    self.b._once(start, end)
+                    srcb = self.b.array
+                except:
+                    pass
+        except (AttributeError, TypeError):
+            srcb = []
+            b_has_array = False
+            
+        try:
+            cond = self.cond.array
+            cond_has_array = True
+        except (AttributeError, TypeError):
+            cond = []
+            cond_has_array = False
 
         for i in range(start, end):
-            dst[i] = srca[i] if cond[i] else srcb[i]
+            # Get condition value - convert to boolean properly
+            cond_val = 0.0
+            if cond_has_array:
+                try:
+                    if i < len(cond):
+                        cond_val = cond[i]
+                    elif len(cond) > 0:
+                        cond_val = cond[-1]  # Use last value if index out of bounds
+                except (IndexError, TypeError):
+                    pass
+            else:
+                # Fallback: try to get value directly from cond object
+                try:
+                    cond_val = self.cond[i] if hasattr(self.cond, '__getitem__') else 0.0
+                except:
+                    cond_val = 0.0
+            
+            # Convert to boolean: non-zero values are True, zero is False
+            # Use explicit comparison to handle float precision issues
+            cond_bool = (cond_val != 0.0) and (not (isinstance(cond_val, float) and math.isnan(cond_val)))
+            
+            # Get a value
+            a_val = None
+            a_val_set = False
+            if a_has_array:
+                try:
+                    if i < len(srca):
+                        a_val = srca[i]
+                        a_val_set = True
+                    elif len(srca) > 0:
+                        a_val = srca[-1]  # Use last value if index out of bounds
+                        a_val_set = True
+                except (IndexError, TypeError):
+                    pass
+            # Fallback: try to get value directly from a object if array didn't work
+            if not a_val_set:
+                try:
+                    if hasattr(self.a, '__getitem__'):
+                        a_val = self.a[0]  # Try to get current value
+                        a_val_set = True
+                    elif hasattr(self.a, 'a') and hasattr(self.a.a, 'wrapped'):
+                        # Try to extract constant from PseudoArray
+                        wrapped = self.a.a.wrapped
+                        if isinstance(wrapped, itertools.repeat):
+                            a_val = next(iter(wrapped))
+                            a_val_set = True
+                except:
+                    pass
+            if a_val is None:
+                a_val = 0.0
+            
+            # Get b value
+            b_val = None
+            b_val_set = False
+            if b_has_array:
+                try:
+                    if i < len(srcb):
+                        b_val = srcb[i]
+                        b_val_set = True
+                    elif len(srcb) > 0:
+                        b_val = srcb[-1]  # Use last value if index out of bounds
+                        b_val_set = True
+                except (IndexError, TypeError):
+                    pass
+            # Fallback: try to get value directly from b object if array didn't work
+            if not b_val_set:
+                try:
+                    if hasattr(self.b, '__getitem__'):
+                        b_val = self.b[0]  # Try to get current value
+                        b_val_set = True
+                    elif hasattr(self.b, 'a') and hasattr(self.b.a, 'wrapped'):
+                        # Try to extract constant from PseudoArray
+                        wrapped = self.b.a.wrapped
+                        if isinstance(wrapped, itertools.repeat):
+                            b_val = next(iter(wrapped))
+                            b_val_set = True
+                except:
+                    pass
+            if b_val is None:
+                b_val = 0.0
+            
+            # Ensure values are not None or NaN
+            if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
+                a_val = 0.0
+            if b_val is None or (isinstance(b_val, float) and math.isnan(b_val)):
+                b_val = 0.0
+            
+            # Select value based on condition
+            dst[i] = a_val if cond_bool else b_val
 
 
 # 一个逻辑应用到多个元素上

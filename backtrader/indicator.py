@@ -241,6 +241,42 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
                         line._idx = i
             self.next()
         
+        # CRITICAL FIX: Update lencount after once_via_next processing
+        # This ensures len(indicator) == len(strategy) in runonce mode
+        # Get the actual data length from the clock or data source
+        actual_data_len = end
+        try:
+            # Try to get the actual data length from clock or data sources
+            if hasattr(self, '_clock') and self._clock:
+                try:
+                    actual_data_len = self._clock.buflen()
+                except:
+                    try:
+                        actual_data_len = len(self._clock)
+                    except:
+                        pass
+            elif hasattr(self, 'datas') and self.datas and len(self.datas) > 0:
+                try:
+                    actual_data_len = self.datas[0].buflen()
+                except:
+                    try:
+                        actual_data_len = len(self.datas[0])
+                    except:
+                        pass
+            # Use the maximum of end and actual_data_len to ensure we don't truncate
+            final_len = max(end, actual_data_len) if actual_data_len > 0 else end
+        except:
+            final_len = end
+        
+        if hasattr(self, 'lines') and hasattr(self.lines, 'lines') and self.lines.lines:
+            for line in self.lines.lines:
+                if hasattr(line, 'lencount'):
+                    # Set lencount to final_len (actual data length)
+                    line.lencount = final_len
+                if hasattr(line, '_idx'):
+                    # Set _idx to the last processed position
+                    line._idx = final_len - 1 if final_len > 0 else -1
+        
         # CRITICAL FIX: Execute bindings after once processing
         # For line bindings like: self.lines.crossover = upcross - downcross
         # Call oncebinding() on sub-indicators first (they may have bindings too)

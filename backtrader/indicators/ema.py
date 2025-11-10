@@ -31,12 +31,20 @@ class ExponentialMovingAverage(MovingAverageBase):
         super(ExponentialMovingAverage, self).__init__()
         
         # Now we can safely use self.data
-        # Before supper to ensure mixins (right-hand side in subclassing)
-        # can see the assignment operation and operate on the line
-        self.lines[0] = es = ExponentialSmoothing(
+        # Create ExponentialSmoothing indicator
+        es = ExponentialSmoothing(
             self.data, period=self.p.period, alpha=2.0 / (1.0 + self.p.period)
         )
-
+        
+        # CRITICAL FIX: Add ExponentialSmoothing as a sub-indicator so it gets processed
+        # This ensures its once() method is called in runonce mode
+        from ..lineiterator import LineIterator
+        if hasattr(self, '_lineiterators'):
+            self._lineiterators[LineIterator.IndType].append(es)
+            es._owner = self
+        
+        # Set lines[0] to the ExponentialSmoothing indicator
+        self.lines[0] = es
         self.alpha, self.alpha1 = es.alpha, es.alpha1
 
 

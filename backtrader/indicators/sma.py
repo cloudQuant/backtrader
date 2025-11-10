@@ -228,8 +228,35 @@ class MovingAverageSimple(MovingAverageBase):
             elif hasattr(self, 'lines') and len(self.lines.lines) > 0:
                 self.lines.lines[0][0] = 0.0
 
-    # Don't override once() - let the framework use once_via_next() automatically
-    # This is simpler and more reliable than a custom once() implementation
+    def once(self, start, end):
+        """Optimized batch calculation for runonce mode"""
+        try:
+            # Get arrays for efficient calculation
+            dst = self.lines[0].array
+            src = self.data.array
+            period = self.p.period
+            
+            # Ensure destination array is large enough
+            while len(dst) < end:
+                dst.append(0.0)
+            
+            # Calculate SMA for each index
+            for i in range(start, end):
+                if i >= period - 1:
+                    # Calculate SMA: average of last 'period' values
+                    start_idx = i - period + 1
+                    end_idx = i + 1
+                    if end_idx <= len(src):
+                        window_sum = sum(src[start_idx:end_idx])
+                        dst[i] = window_sum / period
+                    else:
+                        dst[i] = float('nan')
+                else:
+                    # Not enough data yet
+                    dst[i] = float('nan')
+        except Exception:
+            # Fallback to once_via_next if once() fails
+            super().once_via_next(start, end)
 
 
 SMA = MovingAverageSimple

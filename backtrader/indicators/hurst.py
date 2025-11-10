@@ -2,6 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from . import PeriodN
 from numpy import *
+import math
 
 __all__ = ["HurstExponent", "Hurst"]
 
@@ -72,6 +73,55 @@ class HurstExponent(PeriodN):
 
         # Return the Hurst exponent from the polyfit output
         self.lines.hurst[0] = poly[0] * 2.0
+
+    def once(self, start, end):
+        """Calculate Hurst Exponent in runonce mode"""
+        dst = self.lines[0].array
+        src = self.data.array
+        period = self.p.period
+        lag_start = self._lag_start
+        lag_end = self._lag_end
+        lags = self.lags
+        log10lags = self.log10lags
+
+        # Ensure destination array is large enough
+        while len(dst) < end:
+            dst.append(0.0)
+
+        # Calculate Hurst Exponent for each index
+        for i in range(start, end):
+            if i >= period - 1:
+                # Get data slice for this period
+                start_idx = i - period + 1
+                end_idx = i + 1
+                if end_idx <= len(src):
+                    ts = asarray([float(x) for x in src[start_idx:end_idx]])
+                    
+                    # Calculate the array of the variances of the lagged differences
+                    tau = []
+                    for lag in lags:
+                        if lag < len(ts):
+                            lagged_diff = subtract(ts[lag:], ts[:-lag])
+                            if len(lagged_diff) > 0:
+                                tau_val = sqrt(std(lagged_diff))
+                                if not isnan(tau_val) and tau_val > 0:
+                                    tau.append(tau_val)
+                    
+                    # Use a linear fit to estimate the Hurst Exponent
+                    if len(tau) > 1 and len(tau) == len(lags):
+                        try:
+                            log10tau = log10(tau)
+                            poly = polyfit(log10lags, log10tau, 1)
+                            hurst = poly[0] * 2.0
+                            dst[i] = float(hurst) if not isnan(hurst) else float('nan')
+                        except:
+                            dst[i] = float('nan')
+                    else:
+                        dst[i] = float('nan')
+                else:
+                    dst[i] = float('nan')
+            else:
+                dst[i] = float('nan')
 
 
 Hurst = HurstExponent

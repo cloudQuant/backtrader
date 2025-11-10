@@ -47,31 +47,44 @@ class OperationN(PeriodN):
         self.lines[0][0] = value
 
     def once(self, start, end):
-        dst = self.lines[0].array
-        src = self.data.array
-        period = self.p.period
-        func = self.func
-
-        # Ensure dst array is large enough
-        while len(dst) < end:
-            dst.append(0.0)
-
-        for i in range(start, end):
-            # Ensure we have enough data for the period
-            if i >= period - 1:
-                slice_data = src[i - period + 1 : i + 1]
-                if len(slice_data) > 0:
-                    dst[i] = func(slice_data)
+        """Optimized batch calculation for runonce mode - same approach as SMA"""
+        try:
+            # Get arrays for efficient calculation - use same approach as SMA
+            dst = self.lines[0].array
+            src = self.data.array
+            period = self.p.period
+            func = self.func
+            
+            # Ensure destination array is large enough
+            while len(dst) < end:
+                dst.append(0.0)
+            
+            # Calculate for each index from start to end
+            for i in range(start, end):
+                if i >= period - 1:
+                    # Calculate SMA-style: get last 'period' values
+                    start_idx = i - period + 1
+                    end_idx = i + 1
+                    if end_idx <= len(src):
+                        # Get slice of data
+                        slice_data = src[start_idx:end_idx]
+                        # Apply function (min, max, etc.)
+                        if len(slice_data) == period:
+                            try:
+                                result = func(slice_data)
+                                dst[i] = float(result) if result is not None else float('nan')
+                            except (ValueError, TypeError):
+                                dst[i] = float('nan')
+                        else:
+                            dst[i] = float('nan')
+                    else:
+                        dst[i] = float('nan')
                 else:
+                    # Not enough data yet
                     dst[i] = float('nan')
-            else:
-                dst[i] = float('nan')
-        
-        # CRITICAL FIX: Set _idx and lencount to the last valid position after once processing
-        if hasattr(self.lines[0], '_idx'):
-            self.lines[0]._idx = end - 1
-        if hasattr(self.lines[0], 'lencount'):
-            self.lines[0].lencount = end
+        except Exception:
+            # Fallback to once_via_next if once() fails
+            super(OperationN, self).once_via_next(start, end)
 
 
 # 设置计算指标的时候的可调用函数
@@ -398,12 +411,25 @@ class Average(PeriodN):
         self.lines[0][0] = avg_value
 
     def once(self, start, end):
+        """Calculate Average (SMA) in runonce mode"""
         src = self.data.array
         dst = self.lines[0].array
         period = self.p.period
+        
+        # Ensure destination array is large enough
+        while len(dst) < end:
+            dst.append(0.0)
 
         for i in range(start, end):
-            dst[i] = math.fsum(src[i - period + 1 : i + 1]) / period
+            if i >= period - 1:
+                start_idx = i - period + 1
+                end_idx = i + 1
+                if end_idx <= len(src):
+                    dst[i] = sum(src[start_idx:end_idx]) / period
+                else:
+                    dst[i] = float('nan')
+            else:
+                dst[i] = float('nan')
 
 
 # 计算指数平均值
@@ -441,19 +467,66 @@ class ExponentialSmoothing(Average):
         self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
 
     def oncestart(self, start, end):
-        # Fetch the seed value from the base class calculation
-        super(ExponentialSmoothing, self).once(start, end)
+        # Calculate seed value using parent's once method (SMA of first period values)
+        # Call parent's once method to populate seed at index period-1
+        if start == period - 1:
+            super(ExponentialSmoothing, self).once(start, end)
 
     def once(self, start, end):
+        """Calculate EMA in runonce mode"""
         darray = self.data.array
         larray = self.lines[0].array
         alpha = self.alpha
         alpha1 = self.alpha1
+        period = self.p.period
 
-        # Seed value from SMA calculated with the call to oncestart
-        prev = larray[start - 1]
-        for i in range(start, end):
-            larray[i] = prev = prev * alpha1 + darray[i] * alpha
+        # CRITICAL FIX: Ensure array is properly sized
+        while len(larray) < end:
+            larray.append(0.0)
+
+        # CRITICAL FIX: Calculate seed value (SMA of first period values)
+        # EMA starts at index period-1 with seed = SMA of first period values
+        seed_idx = period - 1
+        
+        # Calculate seed as SMA of first period values
+        prev = None
+        if seed_idx < len(darray) and seed_idx >= 0:
+            seed_start = max(0, seed_idx - period + 1)
+            seed_end = seed_idx + 1
+            if seed_end <= len(darray) and seed_end > seed_start:
+                seed_data = darray[seed_start:seed_end]
+                if len(seed_data) >= period:
+                    prev = sum(seed_data) / period
+                elif len(seed_data) > 0:
+                    prev = sum(seed_data) / len(seed_data)
+        
+        # Fallback: use first data point if seed calculation failed
+        if prev is None or prev <= 0.0 or (isinstance(prev, float) and math.isnan(prev)):
+            if len(darray) > 0:
+                prev = float(darray[0])
+            else:
+                prev = 0.0
+
+        # Set seed value at index period-1 if within calculation range
+        if seed_idx >= start and seed_idx < end:
+            larray[seed_idx] = prev
+
+        # Calculate EMA for indices from period to end
+        calc_start = max(start, period)
+        for i in range(calc_start, end):
+            if i < len(darray) and i >= 0:
+                # Use previous EMA value if available, otherwise use seed
+                if i > calc_start:
+                    prev_ema = larray[i - 1]
+                    if prev_ema > 0.0 and not (isinstance(prev_ema, float) and math.isnan(prev_ema)):
+                        prev = prev_ema
+                
+                # EMA formula: prev * alpha1 + current * alpha
+                current_val = float(darray[i])
+                prev = prev * alpha1 + current_val * alpha
+                larray[i] = prev
+            elif i >= len(darray):
+                break
 
 
 # 动态指数移动平均值

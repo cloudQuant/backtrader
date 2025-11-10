@@ -13,6 +13,7 @@ import array
 import collections
 import datetime
 from itertools import islice, repeat
+import itertools
 import math
 import time
 
@@ -156,26 +157,68 @@ class LineBuffer(LineSingle, LineRootMixin):
     # 重置
     def reset(self):
         """Resets the internal buffer structure and the indices"""
-        # 方案A优化: 移除hasattr检查，所有属性已在__init__中初始化
-        # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据
-        if self.mode == self.QBuffer:
-            # Add extrasize to ensure resample/replay work
-            deque_maxlen = max(1, self.maxlen + self.extrasize)
-            self.array = collections.deque(maxlen=deque_maxlen)
-            self.useislice = True
-        else:
-            # 非缓存模式，使用array.array
-            self.array = array.array(str("d"))
-            self.useislice = False
-            
-            # CRITICAL FIX: Do NOT pre-fill array - this causes buflen() to be incorrect
-            # buflen() = len(array) - extension, so pre-filling increases buflen incorrectly
-            # Instead, let forward() handle array growth naturally
+        # CRITICAL FIX: In runonce mode, if array is already populated (from _once()),
+        # preserve the array and lencount, only reset idx
+        # Check if we're in runonce mode and array is populated
+        preserve_array = False
+        saved_lencount = 0
+        try:
+            # Check if this is an indicator line that was processed in runonce mode
+            # Line's _owner might be a Lines object, which has _owner pointing to the indicator
+            if hasattr(self, '_owner') and self._owner is not None:
+                owner = self._owner
+                # Check if owner is a Lines object (which wraps lines for indicators)
+                # Lines objects have _owner pointing to the actual indicator
+                if hasattr(owner, '_owner') and owner._owner is not None:
+                    indicator = owner._owner
+                    # Check if indicator was processed in runonce mode
+                    if hasattr(indicator, '_once_called') and indicator._once_called:
+                        # Check if array has data
+                        if hasattr(self, 'array') and self.array is not None:
+                            array_len = len(self.array)
+                            if array_len > 0:
+                                preserve_array = True
+                                saved_lencount = array_len
+                # Also check if owner itself is an indicator
+                elif hasattr(owner, '_once_called') and owner._once_called:
+                    # Check if array has data
+                    if hasattr(self, 'array') and self.array is not None:
+                        array_len = len(self.array)
+                        if array_len > 0:
+                            preserve_array = True
+                            saved_lencount = array_len
+        except:
+            pass
         
-        # 重置计数器和索引
-        self.lencount = 0
-        self.idx = -1
-        self.extension = 0
+        if preserve_array:
+            # In runonce mode with populated array: only reset idx, preserve array and lencount
+            self.idx = -1
+            # Keep lencount at saved value (array length)
+            if hasattr(self, 'lencount'):
+                self.lencount = saved_lencount
+            self.extension = 0
+        else:
+            # Normal reset: clear array and reset all counters
+            # 方案A优化: 移除hasattr检查，所有属性已在__init__中初始化
+            # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据
+            if self.mode == self.QBuffer:
+                # Add extrasize to ensure resample/replay work
+                deque_maxlen = max(1, self.maxlen + self.extrasize)
+                self.array = collections.deque(maxlen=deque_maxlen)
+                self.useislice = True
+            else:
+                # 非缓存模式，使用array.array
+                self.array = array.array(str("d"))
+                self.useislice = False
+                
+                # CRITICAL FIX: Do NOT pre-fill array - this causes buflen() to be incorrect
+                # buflen() = len(array) - extension, so pre-filling increases buflen incorrectly
+                # Instead, let forward() handle array growth naturally
+            
+            # 重置计数器和索引
+            self.lencount = 0
+            self.idx = -1
+            self.extension = 0
 
     # 设置缓存相关的变量
     def qbuffer(self, savemem=0, extrasize=0):
@@ -1306,11 +1349,43 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             # The indicator will be calculated via next() calls during strategy execution
             pass
 
-        # CRITICAL FIX: Ensure the buffer is properly positioned after once processing
-        # Don't modify lencount here - it's managed by forward/backwards in the data feed
-        if hasattr(self, '_idx') and hasattr(self, 'lencount') and self.lencount > 0:
-            # Set _idx based on lencount, not array length
-            self._idx = self.lencount - 1
+        # CRITICAL FIX: Update lencount after once processing to match the data length
+        # In runonce mode, lencount should equal the number of data points processed
+        # Get the actual data length from the clock or data source
+        actual_data_len = end
+        try:
+            # Try to get the actual data length from clock or data sources
+            if hasattr(self, '_clock') and self._clock:
+                try:
+                    actual_data_len = self._clock.buflen()
+                except:
+                    try:
+                        actual_data_len = len(self._clock)
+                    except:
+                        pass
+            elif hasattr(self, 'datas') and self.datas and len(self.datas) > 0:
+                try:
+                    actual_data_len = self.datas[0].buflen()
+                except:
+                    try:
+                        actual_data_len = len(self.datas[0])
+                    except:
+                        pass
+            # Use the maximum of end and actual_data_len to ensure we don't truncate
+            final_len = max(end, actual_data_len) if actual_data_len > 0 else end
+        except:
+            final_len = end
+        
+        if hasattr(self, 'lines') and hasattr(self.lines, 'lines') and self.lines.lines:
+            # Update lencount for all lines to match the data length
+            for line in self.lines.lines:
+                if hasattr(line, 'lencount'):
+                    # CRITICAL FIX: Set lencount to final_len (actual data length)
+                    # This ensures len(indicator) == len(strategy) in runonce mode
+                    line.lencount = final_len
+                if hasattr(line, '_idx'):
+                    # Set _idx to the last processed position
+                    line._idx = final_len - 1 if final_len > 0 else -1
 
     @classmethod
     def cleancache(cls):
@@ -1368,27 +1443,72 @@ class _LineDelay(LineActions):
     def once(self, start, end):
         # cache python dictionary lookups
         dst = self.array
-        src = self.a.array
         ago = self.ago
 
         # CRITICAL FIX: Ensure destination array is properly sized
         while len(dst) < end:
             dst.append(0.0)
 
+        # CRITICAL FIX: Check if source is a constant value (PseudoArray with repeat)
+        # We need to check the wrapped object, not just the array, because
+        # PseudoArray.array returns a new list each time
+        is_constant = False
+        constant_value = None
+        
+        # Check if self.a is a PseudoArray wrapping a repeat object
+        # OR if self.a is a _LineDelay that wraps a PseudoArray with repeat
+        source_obj = self.a
+        if hasattr(self.a, 'a'):
+            # self.a is a _LineDelay, check its source
+            source_obj = self.a.a
+        
+        if hasattr(source_obj, 'wrapped'):
+            wrapped = source_obj.wrapped
+            # Check if it's a repeat object
+            if isinstance(wrapped, itertools.repeat) or str(type(wrapped)) == "<class 'itertools.repeat'>":
+                is_constant = True
+                try:
+                    # Get the constant value from the repeat object
+                    # Create a new iterator to avoid consuming it
+                    constant_value = next(iter(wrapped))
+                    # Ensure constant value is not None or NaN
+                    if constant_value is None:
+                        constant_value = 0.0
+                    elif isinstance(constant_value, float) and math.isnan(constant_value):
+                        constant_value = 0.0
+                except (StopIteration, TypeError):
+                    constant_value = 0.0
+        
+        # If not a constant, get the source array
+        if not is_constant:
+            src = self.a.array
+
         for i in range(start, end):
-            # CRITICAL FIX: Proper bounds checking for delayed access
-            src_index = i - ago
-            if src_index >= 0 and src_index < len(src):
-                val = src[src_index]
-                # Ensure value is never None or NaN
-                if val is None:
-                    val = 0.0
-                elif isinstance(val, float) and math.isnan(val):
-                    val = 0.0
-                dst[i] = val
+            if is_constant:
+                # For constant values, just use the constant
+                dst[i] = constant_value
             else:
-                # If index is out of bounds, use 0.0
-                dst[i] = 0.0
+                # CRITICAL FIX: Proper bounds checking for delayed access
+                src_index = i - ago
+                if src_index >= 0 and src_index < len(src):
+                    val = src[src_index]
+                    # Ensure value is never None or NaN
+                    if val is None:
+                        val = 0.0
+                    elif isinstance(val, float) and math.isnan(val):
+                        val = 0.0
+                    dst[i] = val
+                elif len(src) > 0:
+                    # If index is out of bounds but we have source data, use the last available value
+                    val = src[-1]
+                    if val is None:
+                        val = 0.0
+                    elif isinstance(val, float) and math.isnan(val):
+                        val = 0.0
+                    dst[i] = val
+                else:
+                    # If no source data available, use 0.0
+                    dst[i] = 0.0
 
 
 class _LineForward(LineActions):
