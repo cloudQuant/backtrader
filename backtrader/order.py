@@ -791,7 +791,23 @@ class Order(OrderBase):
 
     # 订单过期
     def expire(self):
-        self.status = OrderBase.Expired
+        """检查订单是否应该过期
+        
+        Returns:
+            True: 如果订单已过期
+            False: 如果订单未过期
+        """
+        # 市价单不会过期，总会被执行
+        if self.exectype == Order.Market:
+            return False
+
+        # 检查订单是否超过有效期
+        if self.valid and self.data.datetime[0] > self.valid:
+            self.status = Order.Expired
+            self.executed.dt = self.data.datetime[0]
+            return True
+
+        return False
 
     # 跟踪调整价格，跟踪调整价格是为了跟踪止损单服务的。跟踪止损单也就是移动止损单，移动的距离可以用绝对值表示，
     # 也可以用百分比表示。这个函数主要是为了计算跟踪止损单调整之后的价格
