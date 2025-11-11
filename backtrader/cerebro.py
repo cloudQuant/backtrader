@@ -2009,6 +2009,53 @@ class Cerebro(ParameterizedBase):
                     return
                 self._next_writers(runstrats)
         
+        # CRITICAL FIX: Process any pending orders that were submitted in the last iteration
+        # In runonce mode, orders submitted in the last _oncepost() call (which calls next())
+        # need to be processed before calling stop(), otherwise they won't be executed and trades won't be counted
+        # However, we need to ensure data index positions are correct before calling _brokernotify()
+        # The issue is that after the loop ends, data may have advanced beyond the last valid point,
+        # so we need to ensure data positions are set to the last valid datetime before processing orders
+        try:
+            # Get the last valid datetime from the strategy
+            if runstrats and len(runstrats) > 0:
+                strat = runstrats[0]
+                if hasattr(strat, '_last_valid_datetime') and strat._last_valid_datetime > 0:
+                    last_dt = strat._last_valid_datetime
+                    # For each data, find the index where datetime matches last_dt and set _idx accordingly
+                    # This ensures broker can access data correctly when executing orders
+                    for data in self.datas:
+                        try:
+                            if hasattr(data, 'lines') and hasattr(data.lines, 'datetime'):
+                                # In runonce mode, data has an array of datetime values
+                                # We need to find the index where datetime matches last_dt
+                                if hasattr(data.lines.datetime, 'array'):
+                                    dt_array = data.lines.datetime.array
+                                    # Find the last index where datetime <= last_dt
+                                    # This ensures we're at or before the last valid datetime
+                                    for i in range(len(dt_array) - 1, -1, -1):
+                                        if dt_array[i] <= last_dt and dt_array[i] > 0:
+                                            # Set _idx to this position so data.datetime[0] returns the correct value
+                                            if hasattr(data, '_idx'):
+                                                data._idx = i
+                                            if hasattr(data.lines.datetime, '_idx'):
+                                                data.lines.datetime._idx = i
+                                            # Also set _idx for all other lines in the data
+                                            if hasattr(data.lines, 'lines'):
+                                                for line in data.lines.lines:
+                                                    if hasattr(line, '_idx') and hasattr(line, 'array'):
+                                                        if i < len(line.array):
+                                                            line._idx = i
+                                            break
+                        except:
+                            pass
+        except:
+            pass
+        
+        # Now call _brokernotify() to process pending orders
+        # _brokernotify() internally calls broker.next() to process pending orders and then delivers notifications
+        # This ensures all orders submitted during the strategy execution are processed
+        self._brokernotify()
+        
         # print("结束_runonce")  # Removed for performance - called frequently during tests
 
     # 检查timer

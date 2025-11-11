@@ -294,12 +294,62 @@ class LineBuffer(LineSingle, LineRootMixin):
         try:
             return self.array[self._idx + ago]
         except IndexError:
-            # CRITICAL FIX: Return appropriate default value on index error
-            # For indicators: NaN, for data/datetime: 0.0
-            if getattr(self, '_is_indicator', False):
-                return float('nan')
+            # CRITICAL FIX: For data feeds and datetime lines, raise IndexError to match master behavior
+            # This is needed for:
+            # 1. expire_order_close() to detect data shortage (close[3] access)
+            # 2. Strategy to detect end of data (datetime.date(1) access for next_month calculation)
+            # For indicators, return NaN to allow calculations to continue
+            is_data_feed = False
+            is_datetime_line = False
+            try:
+                # Check if this is a datetime line (data feeds have datetime lines)
+                # Datetime lines are typically named 'datetime' or have _name == 'datetime'
+                if hasattr(self, '_name') and self._name == 'datetime':
+                    is_datetime_line = True
+                    # Datetime lines in data feeds should raise IndexError
+                    is_data_feed = True
+                
+                # Check if this linebuffer is part of a data feed
+                # Data feeds have _owner that is an AbstractDataBase instance
+                if hasattr(self, '_owner') and self._owner is not None:
+                    owner = self._owner
+                    # Check if owner is a data feed class
+                    from .feed import AbstractDataBase
+                    if isinstance(owner, AbstractDataBase):
+                        is_data_feed = True
+                    # Also check if owner has _name (data feeds have names)
+                    elif hasattr(owner, '_name') and owner._name:
+                        # Check if owner's class name suggests it's a data feed
+                        owner_class_name = type(owner).__name__
+                        if 'Data' in owner_class_name or 'Feed' in owner_class_name:
+                            is_data_feed = True
+                    # Also check if owner has lines and those lines have _owner that is a data feed
+                    elif hasattr(owner, 'lines'):
+                        lines = owner.lines
+                        if hasattr(lines, '_owner') and lines._owner is not None:
+                            lines_owner = lines._owner
+                            from .feed import AbstractDataBase
+                            if isinstance(lines_owner, AbstractDataBase):
+                                is_data_feed = True
+                            elif hasattr(lines_owner, '_name') and lines_owner._name:
+                                lines_owner_class_name = type(lines_owner).__name__
+                                if 'Data' in lines_owner_class_name or 'Feed' in lines_owner_class_name:
+                                    is_data_feed = True
+            except:
+                pass
+            
+            if is_data_feed or is_datetime_line:
+                # For data feeds and datetime lines, raise IndexError to match master behavior
+                # This allows:
+                # 1. expire_order_close() to detect data shortage
+                # 2. Strategy to detect end of data for next_month calculation
+                raise IndexError(f"Index {self._idx + ago} out of range for data feed")
             else:
-                return 0.0
+                # For indicators, return NaN to allow calculations to continue
+                if getattr(self, '_is_indicator', False):
+                    return float('nan')
+                else:
+                    return 0.0
 
     # 获取数据的值，在策略中使用还是比较广泛的
     def get(self, ago=0, size=1):
@@ -704,7 +754,32 @@ class LineBuffer(LineSingle, LineRootMixin):
         self._tz = tz
 
     def datetime(self, ago=0, tz=None, naive=True):
-        value = self[ago]
+        # CRITICAL FIX: For datetime lines, if index is out of range, raise IndexError
+        # This allows strategy to detect end of data for next_month calculation
+        # First, check if we're accessing a future index (ago > 0) and if we're at the end of data
+        if ago > 0:
+            # Check if this is a datetime line
+            # Since datetime() method is only called on datetime lines, we can assume this is a datetime line
+            # Check if the index is out of range by comparing with array length
+            if hasattr(self, 'array') and hasattr(self, '_idx'):
+                # Check if accessing future index would be out of bounds
+                # _idx is the current position, ago is the offset
+                # If _idx + ago >= len(array), we're trying to access beyond the array
+                if self._idx + ago >= len(self.array):
+                    raise IndexError(f"Index {self._idx + ago} out of range for datetime line (array length: {len(self.array)})")
+                # CRITICAL FIX: Also check if the value at the future index is 0.0
+                # This indicates we're at the end of valid data (array may be padded with 0.0)
+                future_idx = self._idx + ago
+                if future_idx < len(self.array) and self.array[future_idx] == 0.0:
+                    raise IndexError(f"Index {future_idx} out of range for datetime line (value is 0.0, indicating end of data)")
+        
+        try:
+            value = self[ago]
+        except IndexError:
+            # If IndexError is raised, re-raise it to allow strategy to detect end of data
+            # This is needed for datetime.date(1) access in strategy to detect end of data
+            raise
+        
         # Check for NaN values and return a default datetime instead of None
         # PERFORMANCE OPTIMIZATION: Use _is_nan_or_none
         if _is_nan_or_none(value):
@@ -772,7 +847,13 @@ class LineBuffer(LineSingle, LineRootMixin):
                 return MinimalDateTime()
 
     def date(self, ago=0, tz=None, naive=True):
-        dt = self.datetime(ago, tz, naive)
+        # CRITICAL FIX: date() calls datetime(), which should raise IndexError if out of range
+        # This allows strategy to detect end of data for next_month calculation
+        try:
+            dt = self.datetime(ago, tz, naive)
+        except IndexError:
+            # Re-raise IndexError to allow strategy to detect end of data
+            raise
         if dt is None:
             return None
         try:
