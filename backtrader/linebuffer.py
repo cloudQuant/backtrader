@@ -291,6 +291,22 @@ class LineBuffer(LineSingle, LineRootMixin):
         - 直接数组访问（快速路径）
         - 添加IndexError捕获返回合理默认值
         """
+        # CRITICAL FIX: For data feed lines accessing FUTURE data, check if beyond real data
+        # Arrays may be pre-allocated with default values (0.0 or NaN) for unloaded data
+        # Check both the index bounds AND the value to detect end of valid data
+        # Only check for future access (ago > 0); past/current access uses natural bounds
+        if getattr(self, '_is_data_feed_line', False) and ago > 0:
+            target_idx = self._idx + ago
+            # First check: is target_idx beyond the array length?
+            if target_idx >= len(self.array):
+                raise IndexError(f"array index out of range")
+            # Second check: is the value at target_idx a default/unloaded value (0.0)?
+            # This catches cases where array is pre-allocated but data isn't loaded yet
+            if self.array[target_idx] == 0.0:
+                # Check if this is actually a valid 0.0 value or an unloaded placeholder
+                # For datetime lines, 0.0 is never a valid value, so we can safely raise
+                raise IndexError(f"array index out of range")
+        
         try:
             return self.array[self._idx + ago]
         except IndexError:
@@ -304,7 +320,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             # Check the simple flag first
             if getattr(self, '_is_data_feed_line', False):
                 # This is a data feed line - raise IndexError
-                raise IndexError(f"Index {self._idx + ago} out of range for data feed")
+                raise IndexError(f"array index out of range")
             
             # For indicators and other cases, return appropriate default
             if getattr(self, '_is_indicator', False):
@@ -717,23 +733,7 @@ class LineBuffer(LineSingle, LineRootMixin):
     def datetime(self, ago=0, tz=None, naive=True):
         # CRITICAL FIX: For datetime lines, if index is out of range, raise IndexError
         # This allows strategy to detect end of data for next_month calculation
-        # First, check if we're accessing a future index (ago > 0) and if we're at the end of data
-        if ago > 0:
-            # Check if this is a datetime line
-            # Since datetime() method is only called on datetime lines, we can assume this is a datetime line
-            # Check if the index is out of range by comparing with array length
-            if hasattr(self, 'array') and hasattr(self, '_idx'):
-                # Check if accessing future index would be out of bounds
-                # _idx is the current position, ago is the offset
-                # If _idx + ago >= len(array), we're trying to access beyond the array
-                if self._idx + ago >= len(self.array):
-                    raise IndexError(f"Index {self._idx + ago} out of range for datetime line (array length: {len(self.array)})")
-                # CRITICAL FIX: Also check if the value at the future index is 0.0
-                # This indicates we're at the end of valid data (array may be padded with 0.0)
-                future_idx = self._idx + ago
-                if future_idx < len(self.array) and self.array[future_idx] == 0.0:
-                    raise IndexError(f"Index {future_idx} out of range for datetime line (value is 0.0, indicating end of data)")
-        
+        # Simply delegate to __getitem__ which will raise IndexError if out of bounds for data feeds
         try:
             value = self[ago]
         except IndexError:

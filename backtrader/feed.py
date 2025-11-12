@@ -88,6 +88,16 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             except:
                 pass
         
+        # CRITICAL FIX: Also explicitly mark the datetime line
+        # The datetime line might be accessed separately (e.g., self.datas[0].datetime)
+        # and needs to raise IndexError when accessing out of bounds
+        if hasattr(self, 'datetime') and self.datetime is not None:
+            try:
+                if hasattr(self.datetime, '__dict__'):
+                    self.datetime._is_data_feed_line = True
+            except:
+                pass
+        
         # 原来__init__中的内容
         self._env = None
         self._barstash = None
