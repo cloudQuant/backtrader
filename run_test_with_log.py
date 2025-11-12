@@ -157,7 +157,7 @@ def run_with_logging(script_path, log_dir='logs'):
 def main():
     """主函数"""
     # 默认运行 test_02_multi_extend_data.py
-    script_path = r'tests\strategies\test_02_multi_extend_data.py'
+    script_path = r'tests/strategies/test_02_multi_extend_data.py'
     
     # 如果命令行提供了参数，使用命令行参数
     if len(sys.argv) > 1:
