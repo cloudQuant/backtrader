@@ -201,8 +201,20 @@ class BondConvertTwoFactor(bt.Strategy):
 
     def log(self, txt, dt=None):
         """log信息的功能"""
-        dt = dt or bt.num2date(self.datas[0].datetime[0])
-        print('%s, %s' % (dt.isoformat(), txt))
+        if dt is None:
+            try:
+                dt_val = self.datas[0].datetime[0]
+                if dt_val > 0:  # Valid datetime value
+                    dt = bt.num2date(dt_val)
+                else:
+                    dt = None
+            except (IndexError, ValueError):
+                dt = None
+        
+        if dt:
+            print('%s, %s' % (dt.isoformat(), txt))
+        else:
+            print('%s' % txt)
 
     def __init__(self, *args, **kwargs):
         # 一般用于计算指标或者预先加载数据，定义变量使用
@@ -222,6 +234,8 @@ class BondConvertTwoFactor(bt.Strategy):
     def next(self):
         # 假设有100万资金，每次成份股调整，每个股票使用1万元
         self.bar_num += 1
+        if self.bar_num == 1:
+            print(f"DEBUG: next() called, bar_num = {self.bar_num}")
         # self.log(f"self.bar_num = {self.bar_num}")
         # 前一交易日和当前的交易日
         pre_date = self.datas[0].datetime.date(-1).strftime("%Y-%m-%d")
@@ -498,7 +512,15 @@ def test_strategy(max_bonds=None, stdstats=True):
     cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
     # cerebro.addanalyzer(bt.analyzers.PyFolio)
     # 运行回测
-    results = cerebro.run()
+    print(f"DEBUG: About to run cerebro with {len(cerebro.datas)} data feeds")
+    try:
+        results = cerebro.run()
+        print(f"DEBUG: Cerebro run completed, results: {results}")
+    except Exception as e:
+        print(f"DEBUG: Exception during cerebro.run(): {type(e).__name__}: {e}")
+        import traceback
+        traceback.print_exc()
+        raise
     value_df = pd.DataFrame([results[0].analyzers.my_value.get_analysis()]).T
     value_df.columns = ['value']
     value_df['datetime'] = pd.to_datetime(value_df.index)

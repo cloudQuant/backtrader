@@ -294,62 +294,23 @@ class LineBuffer(LineSingle, LineRootMixin):
         try:
             return self.array[self._idx + ago]
         except IndexError:
-            # CRITICAL FIX: For data feeds and datetime lines, raise IndexError to match master behavior
+            # CRITICAL FIX: Simplified logic - check if this line is marked as data feed line
+            # Lines belonging to data feeds are marked with _is_data_feed_line = True in feed.py
             # This is needed for:
             # 1. expire_order_close() to detect data shortage (close[3] access)
             # 2. Strategy to detect end of data (datetime.date(1) access for next_month calculation)
-            # For indicators, return NaN to allow calculations to continue
-            is_data_feed = False
-            is_datetime_line = False
-            try:
-                # Check if this is a datetime line (data feeds have datetime lines)
-                # Datetime lines are typically named 'datetime' or have _name == 'datetime'
-                if hasattr(self, '_name') and self._name == 'datetime':
-                    is_datetime_line = True
-                    # Datetime lines in data feeds should raise IndexError
-                    is_data_feed = True
-                
-                # Check if this linebuffer is part of a data feed
-                # Data feeds have _owner that is an AbstractDataBase instance
-                if hasattr(self, '_owner') and self._owner is not None:
-                    owner = self._owner
-                    # Check if owner is a data feed class
-                    from .feed import AbstractDataBase
-                    if isinstance(owner, AbstractDataBase):
-                        is_data_feed = True
-                    # Also check if owner has _name (data feeds have names)
-                    elif hasattr(owner, '_name') and owner._name:
-                        # Check if owner's class name suggests it's a data feed
-                        owner_class_name = type(owner).__name__
-                        if 'Data' in owner_class_name or 'Feed' in owner_class_name:
-                            is_data_feed = True
-                    # Also check if owner has lines and those lines have _owner that is a data feed
-                    elif hasattr(owner, 'lines'):
-                        lines = owner.lines
-                        if hasattr(lines, '_owner') and lines._owner is not None:
-                            lines_owner = lines._owner
-                            from .feed import AbstractDataBase
-                            if isinstance(lines_owner, AbstractDataBase):
-                                is_data_feed = True
-                            elif hasattr(lines_owner, '_name') and lines_owner._name:
-                                lines_owner_class_name = type(lines_owner).__name__
-                                if 'Data' in lines_owner_class_name or 'Feed' in lines_owner_class_name:
-                                    is_data_feed = True
-            except:
-                pass
+            # For indicators, return NaN/0.0 to allow calculations to continue
             
-            if is_data_feed or is_datetime_line:
-                # For data feeds and datetime lines, raise IndexError to match master behavior
-                # This allows:
-                # 1. expire_order_close() to detect data shortage
-                # 2. Strategy to detect end of data for next_month calculation
+            # Check the simple flag first
+            if getattr(self, '_is_data_feed_line', False):
+                # This is a data feed line - raise IndexError
                 raise IndexError(f"Index {self._idx + ago} out of range for data feed")
+            
+            # For indicators and other cases, return appropriate default
+            if getattr(self, '_is_indicator', False):
+                return float('nan')
             else:
-                # For indicators, return NaN to allow calculations to continue
-                if getattr(self, '_is_indicator', False):
-                    return float('nan')
-                else:
-                    return 0.0
+                return 0.0
 
     # 获取数据的值，在策略中使用还是比较广泛的
     def get(self, ago=0, size=1):

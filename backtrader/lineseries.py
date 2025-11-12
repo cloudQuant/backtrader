@@ -1026,6 +1026,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         """
         # OPTIMIZATION: Cache lines[0] reference
         # This is called 5.7M+ times, so caching makes a big difference
+        line0 = None
         try:
             line0 = object.__getattribute__(self, '_line0_cache')
         except AttributeError:
@@ -1051,59 +1052,21 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 pass
             return value
         except (IndexError, TypeError, AttributeError) as e:
-            # CRITICAL FIX: For data feeds, raise IndexError to allow expire_order_close() to detect data shortage
-            # Also needed for datetime.date(1) access in strategy to detect end of data
-            # Check if this LineSeries is part of a data feed
-            is_data_feed = False
-            is_datetime_line = False
-            try:
-                # Check if this is a datetime line (data.datetime is a datetime LineSeries)
-                # Datetime lines are accessed via data.datetime, and datetime.date(1) is used to get next bar date
-                # Check if this LineSeries represents datetime by checking if it's accessed via .date() method
-                # Or check if line0 has _name == 'datetime'
-                if hasattr(self, 'lines') and self.lines:
-                    try:
-                        line0 = self.lines[0]
-                        # Check if line0 is a datetime line
-                        if hasattr(line0, '_name') and line0._name == 'datetime':
-                            is_datetime_line = True
-                            is_data_feed = True
-                        # Also check if line0's _owner is a data feed
-                        elif hasattr(line0, '_owner') and line0._owner is not None:
-                            line0_owner = line0._owner
-                            from .feed import AbstractDataBase
-                            if isinstance(line0_owner, AbstractDataBase):
-                                is_data_feed = True
-                            elif hasattr(line0_owner, '_name') and line0_owner._name:
-                                line0_owner_class_name = type(line0_owner).__name__
-                                if 'Data' in line0_owner_class_name or 'Feed' in line0_owner_class_name:
-                                    is_data_feed = True
-                    except:
-                        pass
-                
-                # Check if _owner is a data feed
-                if not is_data_feed and hasattr(self, '_owner') and self._owner is not None:
-                    owner = self._owner
-                    from .feed import AbstractDataBase
-                    if isinstance(owner, AbstractDataBase):
-                        is_data_feed = True
-                    # Also check if owner has _name (data feeds have names)
-                    elif hasattr(owner, '_name') and owner._name:
-                        owner_class_name = type(owner).__name__
-                        if 'Data' in owner_class_name or 'Feed' in owner_class_name:
-                            is_data_feed = True
-            except:
-                pass
+            # CRITICAL FIX: Simplified logic - check if line0 is marked as data feed line
+            # Lines belonging to data feeds are marked with _is_data_feed_line = True in feed.py
+            # This is needed for:
+            # 1. expire_order_close() to detect data shortage (close[3] access)
+            # 2. Strategy to detect end of data (datetime.date(1) access for next_month calculation)
+            # For indicators, return 0.0 to allow calculations to continue
             
-            if (is_data_feed or is_datetime_line) and isinstance(e, IndexError):
-                # For data feeds and datetime lines, raise IndexError to match master behavior
-                # This allows:
-                # 1. expire_order_close() to detect data shortage (close[3] access)
-                # 2. Strategy to detect end of data (datetime.date(1) access for next_month calculation)
-                raise IndexError(f"Index {key} out of range for data feed")
-            else:
-                # For indicators or other cases, return 0.0 instead of None
-                return 0.0
+            # Check if line0 has the data feed marker (only if line0 was successfully obtained)
+            if line0 is not None and isinstance(e, IndexError):
+                if hasattr(line0, '_is_data_feed_line') and line0._is_data_feed_line:
+                    # This is a data feed line - raise IndexError
+                    raise IndexError(f"Index {key} out of range for data feed")
+            
+            # For indicators or other cases, return 0.0 instead of None
+            return 0.0
 
     def __setitem__(self, key, value):
         # Delegate to the Lines.__setitem__ method which handles line assignments properly

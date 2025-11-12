@@ -75,6 +75,19 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # 执行原来元类中dopostinit的功能
         self._init_postinit(*args, **kwargs)
         
+        # CRITICAL FIX: Mark all lines as belonging to a data feed
+        # This must be done AFTER _init_postinit to ensure lines are fully initialized
+        # This allows LineSeries.__getitem__ and LineBuffer.__getitem__ to correctly
+        # raise IndexError when accessing out-of-range indices
+        # This is essential for expire_order_close() to detect insufficient data
+        if hasattr(self, 'lines') and self.lines is not None:
+            try:
+                for line in self.lines:
+                    if hasattr(line, '__dict__'):
+                        line._is_data_feed_line = True
+            except:
+                pass
+        
         # 原来__init__中的内容
         self._env = None
         self._barstash = None
