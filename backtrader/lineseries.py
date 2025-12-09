@@ -944,7 +944,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             try:
                 # Try to read _owner
                 existing_owner = value._owner
-                if existing_owner is None:
+                # NOTE: value._owner 可能被 LineSeries.__getattribute__ 懒加载成 MinimalOwner
+                # 这种情况下也要把 owner 改成真实的拥有者（这里的 self），否则指标不会
+                # 挂到策略的 _lineiterators 上，导致 _next 不会被调用，len(indicator)==0。
+                if (existing_owner is None or
+                        existing_owner.__class__.__name__ == 'MinimalOwner'):
                     value._owner = self
             except AttributeError:
                 # _owner doesn't exist, try to set it
