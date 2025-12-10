@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-from . import Indicator, Max, MovAv, MeanDev
+from . import Indicator, MovAv, MeanDev
 
 
 # CCI指标
@@ -50,4 +49,4 @@ class CommodityChannelIndex(Indicator):
 
         self.lines.cci = dev / (self.p.factor * meandev)
 
-        super(CommodityChannelIndex, self).__init__()
+        super().__init__()

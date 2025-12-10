@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import sys
 
 
@@ -33,7 +32,7 @@ class OscillatorMixIn(Indicator):
 
     def __init__(self):
         self.lines[0] = self.data - self.lines[0]
-        super(OscillatorMixIn, self).__init__()
+        super().__init__()
 
 
 class Oscillator(Indicator):
@@ -70,7 +69,7 @@ class Oscillator(Indicator):
             pass
 
     def __init__(self):
-        super(Oscillator, self).__init__()
+        super().__init__()
 
         if len(self.datas) > 1:
             datasrc = self.data
@@ -94,7 +93,7 @@ for movav in MovingAverage._movavs[0:]:
 
     movname = movav.__name__
     # Handle both tuple lines and Lines objects after refactoring
-    if hasattr(movav.lines, '_getlinealias'):
+    if hasattr(movav.lines, "_getlinealias"):
         # It's a Lines object
         linename = movav.lines._getlinealias(0)
     elif isinstance(movav.lines, (tuple, list)) and movav.lines:
@@ -102,8 +101,12 @@ for movav in MovingAverage._movavs[0:]:
         linename = movav.lines[0]
     else:
         # Fallback to first line name or class name
-        linename = getattr(movav.lines, '_getlinealias', lambda x: movav.__name__.lower())(0) if hasattr(movav.lines, '_getlinealias') else movav.__name__.lower()
-    
+        linename = (
+            getattr(movav.lines, "_getlinealias", lambda x: movav.__name__.lower())(0)
+            if hasattr(movav.lines, "_getlinealias")
+            else movav.__name__.lower()
+        )
+
     newclsname = movname + "Oscillator"
 
     newaliases = [movname + "Osc"]

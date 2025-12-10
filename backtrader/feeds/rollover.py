@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from datetime import datetime
-import backtrader as bt
+from ..feed import DataBase
 
 
-class RollOver(bt.DataBase):
+class RollOver(DataBase):
     # 当条件满足之后，移动到下一个合约上
     """Class that rolls over to the next future when a condition is met
 
@@ -81,11 +80,11 @@ class RollOver(bt.DataBase):
         # 处理timeframe和compression参数，原来由元类处理
         if args:
             # 从第一个数据源复制timeframe和compression
-            kwargs.setdefault('timeframe', getattr(args[0], '_timeframe', None))
-            kwargs.setdefault('compression', getattr(args[0], '_compression', None))
-        
-        super(RollOver, self).__init__(**kwargs)
-        
+            kwargs.setdefault("timeframe", getattr(args[0], "_timeframe", None))
+            kwargs.setdefault("compression", getattr(args[0], "_compression", None))
+
+        super().__init__(**kwargs)
+
         # 准备用于换月的期货合约
         self._dts = None
         self._dexp = None
@@ -94,7 +93,7 @@ class RollOver(bt.DataBase):
         self._rolls = args
 
     def start(self):
-        super(RollOver, self).start()
+        super().start()
         # 循环所有的数据，准备开始
         for d in self._rolls:
             d.setenvironment(self._env)
@@ -112,7 +111,7 @@ class RollOver(bt.DataBase):
 
     def stop(self):
         # 结束数据
-        super(RollOver, self).stop()
+        super().stop()
         for d in self._rolls:
             d.stop()
 

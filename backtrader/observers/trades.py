@@ -1,10 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import uuid
 
 from .. import Observer
-
-from ..trade import Trade
 
 
 # 这个类保存所有的trade和trade关闭的时候画出来pnl
@@ -49,7 +45,6 @@ class Trades(Observer):
 
     # 初始化具trades相关的值
     def __init__(self):
-
         self.trades = 0
 
         self.trades_long = 0
@@ -97,6 +92,7 @@ class DataTrades(Observer):
     DataTrades observer that has been refactored to remove metaclass usage
     and dynamic class creation. Uses fixed line definitions for common cases.
     """
+
     _stclock = True
 
     params = (("usenames", True),)
@@ -104,60 +100,107 @@ class DataTrades(Observer):
     plotinfo = dict(plot=True, subplot=True, plothlines=[0.0], plotymargin=0.10)
 
     plotlines = dict()
-    
+
     # Define a reasonable number of lines for common use cases
     # This replaces the dynamic line creation from the metaclass
-    lines = ('data0', 'data1', 'data2', 'data3', 'data4', 'data5', 'data6', 'data7', 'data8', 'data9')
+    lines = (
+        "data0",
+        "data1",
+        "data2",
+        "data3",
+        "data4",
+        "data5",
+        "data6",
+        "data7",
+        "data8",
+        "data9",
+    )
 
     def __init__(self, *args, **kwargs):
         """
         Initialize with standard line system
         """
         # Initialize parent first - this will set up the line system
-        super(DataTrades, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         # Setup plotlines configuration after parent initialization
         self._setup_plotlines_simple()
 
     def _setup_plotlines_simple(self):
         """Setup plotlines configuration using simple dictionary approach"""
         # Only set up plotlines if we have access to datas
-        if not hasattr(self, 'datas') or not self.datas:
+        if not hasattr(self, "datas") or not self.datas:
             return
-            
+
         # CRITICAL FIX: Access parameter properly through self.params or self.p
         try:
-            use_names = getattr(self.params, 'usenames', True)
+            use_names = getattr(self.params, "usenames", True)
         except AttributeError:
             try:
-                use_names = getattr(self.p, 'usenames', True)
+                use_names = getattr(self.p, "usenames", True)
             except AttributeError:
                 use_names = True  # Default fallback
-            
+
         # Create line names based on data
         if use_names:
-            lnames = [getattr(x, '_name', f'data{i}') for i, x in enumerate(self.datas)]
+            lnames = [getattr(x, "_name", f"data{i}") for i, x in enumerate(self.datas)]
         else:
-            lnames = ["data{}".format(x) for x in range(len(self.datas))]
+            lnames = [f"data{x}" for x in range(len(self.datas))]
 
         markers = [
-            "o", "v", "^", "<", ">", "1", "2", "3", "4", "8", "s", "p", "*", "h", "H", "+", "x", "D", "d",
+            "o",
+            "v",
+            "^",
+            "<",
+            ">",
+            "1",
+            "2",
+            "3",
+            "4",
+            "8",
+            "s",
+            "p",
+            "*",
+            "h",
+            "H",
+            "+",
+            "x",
+            "D",
+            "d",
         ]
 
         colors = [
-            "b", "g", "r", "c", "m", "y", "k", "b", "g", "r", "c", "m", "y", "k", "b", "g", "r", "c", "m",
+            "b",
+            "g",
+            "r",
+            "c",
+            "m",
+            "y",
+            "k",
+            "b",
+            "g",
+            "r",
+            "c",
+            "m",
+            "y",
+            "k",
+            "b",
+            "g",
+            "r",
+            "c",
+            "m",
         ]
-        
+
         # Base style for all markers
         basedict = dict(ls="", markersize=8.0, fillstyle="full")
-        
+
         # Create plotlines configuration using simple dict update
         for i, (lname, marker, color) in enumerate(zip(lnames, markers, colors)):
             if i < len(self.lines):  # Only configure lines that exist
                 plot_config = basedict.copy()
                 plot_config.update(marker=marker, color=color)
                 # Set plotline configuration as attribute
-                line_name = getattr(self.lines, '_getlinealias', lambda x: 'data{}'.format(x))(i)
+                line_name = getattr(self.lines, "_getlinealias", lambda x: f"data{x}")(i)
                 setattr(self.plotlines, line_name, plot_config)
 
     def next(self):
@@ -167,7 +210,7 @@ class DataTrades(Observer):
 
             if not trade.isclosed:
                 continue
-            
+
             # Set pnl using standard line system
             data_id = trade.data._id - 1
             if data_id >= 0 and data_id < len(self.lines):

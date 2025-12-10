@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import time
-from datetime import datetime
 from functools import wraps
 
 import backtrader as bt
@@ -108,6 +106,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         def retry_method(self, *args, **kwargs):
             for i in range(self.retries):
                 if self.debug:
+                    pass
                     # print("{} - {} - Attempt {}".format(datetime.now(), method.__name__, i))  # Removed for performance
                 time.sleep(self.exchange.rateLimit / 1000)
                 try:
@@ -154,9 +153,8 @@ class CCXTStore(ParameterizedSingletonMixin):
     @retry
     def fetch_ohlcv(self, symbol, timeframe, since, limit, params=None):
         if self.debug:
-            # print(  # Removed for performance
-                "Fetching: {}, TF: {}, Since: {}, Limit: {}".format(symbol, timeframe, since, limit)
-            )
+            pass
+            # print("Fetching: {}, TF: {}, Since: {}, Limit: {}".format(symbol, timeframe, since, limit))  # Removed for performance
         if params is None:
             params = {}
         return self.exchange.fetch_ohlcv(

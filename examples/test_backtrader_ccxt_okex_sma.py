@@ -1,10 +1,11 @@
-from backtrader.stores.ccxtstore import *
-from backtrader.feeds.ccxtfeed import *
-from backtrader.brokers.ccxtbroker import *
-from backtrader import Order
-import backtrader as bt
-from datetime import datetime, timedelta
 import json
+from datetime import datetime, timedelta
+
+import backtrader as bt
+from backtrader import Order
+from backtrader.brokers.ccxtbroker import *
+from backtrader.feeds.ccxtfeed import *
+from backtrader.stores.ccxtstore import *
 
 
 class TestStrategy(bt.Strategy):
@@ -17,11 +18,11 @@ class TestStrategy(bt.Strategy):
         # 将时间戳转换为datetime对象
         dt_object = datetime.fromtimestamp(timestamp)
         # 将datetime对象格式化为字符串形式
-        formatted_time = dt_object.strftime('%Y-%m-%d %H:%M:%S.%f')
+        formatted_time = dt_object.strftime("%Y-%m-%d %H:%M:%S.%f")
         return formatted_time
 
     def log(self, msg):
-        now_time = datetime.fromtimestamp(time.time()).strftime('%Y-%m-%d %H:%M:%S.%f')
+        now_time = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S.%f")
         print(f"{now_time} === {msg}")
 
     def next(self):
@@ -33,8 +34,8 @@ class TestStrategy(bt.Strategy):
         # NOTE: If you try to get the wallet balance from a wallet you have
         # never funded, a KeyError will be raised! Change LTC below as approriate
         if self.live_data:
-            balance = self.broker.get_wallet_balance(['BTC', 'ETH', 'EOS', 'USDT'])
-            cash = balance['USDT']['cash']
+            balance = self.broker.get_wallet_balance(["BTC", "ETH", "EOS", "USDT"])
+            cash = balance["USDT"]["cash"]
             if self.live_data and not self.bought:
                 # Buy
                 # size x price should be >10 USDT at a minimum at Binance
@@ -56,20 +57,27 @@ class TestStrategy(bt.Strategy):
         else:
             # Avoid checking the balance during a backfill. Otherwise, it will
             # Slow things down.
-            cash = 'NA'
+            cash = "NA"
 
-        self.log('---------------------------------------')
+        self.log("---------------------------------------")
         for data in self.datas:
-            self.log('{} - {} | Cash {} | O: {}  C: {}, len:{}'.format(data.datetime.datetime(),
-                                                                    data._name, cash, data.open[0],
-                                                                    data.close[0], len(data)))
+            self.log(
+                "{} - {} | Cash {} | O: {}  C: {}, len:{}".format(
+                    data.datetime.datetime(),
+                    data._name,
+                    cash,
+                    data.open[0],
+                    data.close[0],
+                    len(data),
+                )
+            )
 
     def notify_data(self, data, status, *args, **kwargs):
         dn = data._name
         dt = datetime.now()
-        msg = 'Data Status: {}'.format(data._getstatusname(status))
+        msg = f"Data Status: {data._getstatusname(status)}"
         print(dt, dn, msg)
-        if data._getstatusname(status) == 'LIVE':
+        if data._getstatusname(status) == "LIVE":
             self.live_data = True
         else:
             self.live_data = False
@@ -77,14 +85,14 @@ class TestStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status in [order.Completed, order.Cancelled, order.Rejected]:
             self.order = None
-        print('-' * 50, 'ORDER BEGIN', datetime.now())
+        print("-" * 50, "ORDER BEGIN", datetime.now())
         print(order)
-        print('-' * 50, 'ORDER END')
+        print("-" * 50, "ORDER END")
 
     def notify_trade(self, trade):
-        print('-' * 50, 'TRADE BEGIN', datetime.now())
+        print("-" * 50, "TRADE BEGIN", datetime.now())
         print(trade)
-        print('-' * 50, 'TRADE END')
+        print("-" * 50, "TRADE END")
 
     def notify_cashvalue(self, cash, value):
         """
@@ -99,7 +107,7 @@ class TestStrategy(bt.Strategy):
         pass
 
 
-with open("D:\key_info\params-crypto.json", 'r') as f:
+with open(r"D:\key_info\params-crypto.json") as f:
     params = json.load(f)
 
 cerebro = bt.Cerebro(quicknotify=True, live=True)
@@ -108,15 +116,17 @@ cerebro = bt.Cerebro(quicknotify=True, live=True)
 cerebro.addstrategy(TestStrategy)
 
 # Create our store
-config = {'apiKey': params["okex"]["apikey"],
-          'secret': params["okex"]["secret"],
-          'password': params["okex"]["password"],
-          'enableRateLimit': True, }
+config = {
+    "apiKey": params["okex"]["apikey"],
+    "secret": params["okex"]["secret"],
+    "password": params["okex"]["password"],
+    "enableRateLimit": True,
+}
 
 # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
 # for get cash or value if You have never held any BNB coins in your account.
 # So switch BNB to a coin you have funded previously if you get errors
-store = CCXTStore(exchange='okex5', currency='USDT', config=config, retries=5, debug=False)
+store = CCXTStore(exchange="okex5", currency="USDT", config=config, retries=5, debug=False)
 
 # Get the broker and pass any kwargs if needed.
 broker = store.getbroker()
@@ -125,11 +135,17 @@ cerebro.setbroker(broker)
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
 hist_start_date = datetime.utcnow() - timedelta(minutes=100)
-for symbol in ["BTC/USDT", 'LPT/USDT', 'EOS/USDT']:
+for symbol in ["BTC/USDT", "LPT/USDT", "EOS/USDT"]:
     # for symbol in ["BTC/USDT"]:
-    data = store.getdata(dataname=symbol, name=symbol,
-                         timeframe=bt.TimeFrame.Minutes, fromdate=hist_start_date,
-                         compression=3, ohlcv_limit=100, drop_newest=False)
+    data = store.getdata(
+        dataname=symbol,
+        name=symbol,
+        timeframe=bt.TimeFrame.Minutes,
+        fromdate=hist_start_date,
+        compression=3,
+        ohlcv_limit=100,
+        drop_newest=False,
+    )
     # data = store.getdata(dataname=symbol, name=symbol,
     #                      timeframe=bt.TimeFrame.Days, fromdate=hist_start_date,
     #                      compression=1, ohlcv_limit=100, drop_newest=True)

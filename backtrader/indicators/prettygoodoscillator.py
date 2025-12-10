@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, MovAv, ATR
 
 
@@ -43,4 +42,4 @@ class PrettyGoodOscillator(Indicator):
         atr = ATR(self.data, period=self.p.period)
 
         self.lines.pgo = (self.data - movav) / atr
-        super(PrettyGoodOscillator, self).__init__()
+        super().__init__()

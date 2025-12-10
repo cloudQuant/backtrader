@@ -1,14 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
-from . import MovAv
+from . import Indicator
 from .sma import SMA
 
 __all__ = ["HaDelta", "haD", "haDelta"]
 
 
 # HaDelta指标
-class HaDelta(bt.Indicator):
+class HaDelta(Indicator):
     """Heikin Ashi Delta. Defined by Dan Valcu in his book "Heikin-Ashi: How to
     Trade Without Candlestick Patterns ".
 
@@ -44,7 +42,9 @@ class HaDelta(bt.Indicator):
     )
 
     def __init__(self):
-        d = bt.ind.HeikinAshi(self.data) if self.p.autoheikin else self.data
+        from . import HeikinAshi
+
+        d = HeikinAshi(self.data) if self.p.autoheikin else self.data
 
         # Use lines.ha_close and lines.ha_open for HeikinAshi, close and open for regular data
         if self.p.autoheikin:
@@ -52,7 +52,7 @@ class HaDelta(bt.Indicator):
         else:
             self.lines.haDelta = hd = d.close - d.open
         self.lines.smoothed = self.p.movav(hd, period=self.p.period)
-        super(HaDelta, self).__init__()
+        super().__init__()
 
 
 haD = HaDelta

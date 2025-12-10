@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from datetime import datetime, date, timedelta, UTC
+from datetime import datetime, timedelta, UTC
 
 from .dataseries import TimeFrame, _Bar
 from .parameters import ParameterizedBase

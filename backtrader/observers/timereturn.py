@@ -1,13 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-import calendar
-import datetime
 
-import backtrader as bt
-from .. import Observer, TimeFrame
-
-from backtrader.utils.py3 import MAXINT
+from .. import Observer
+from ..dataseries import TimeFrame
 
 
 # 时间收益率的类

@@ -1,8 +1,7 @@
 import collections
-from backtrader import BrokerBase, Order, BuyOrder, SellOrder
+from backtrader import BrokerBase
 from backtrader.position import Position
-from backtrader.parameters import Bool
-from ..parameters import ParameterizedBase, BoolParam
+from ..parameters import BoolParam
 
 from backtrader.stores.ctpstore import CTPStore
 
@@ -34,7 +33,7 @@ class CTPBroker(BrokerBase):
     use_positions = BoolParam(default=True, doc="Use existing positions to kickstart the broker")
 
     def __init__(self, **kwargs):
-        super(CTPBroker, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.o = CTPStore(**kwargs)
 
         self.orders = collections.OrderedDict()  # orders by order id
@@ -45,13 +44,13 @@ class CTPBroker(BrokerBase):
         self.positions = collections.defaultdict(Position)
 
     def start(self):
-        super(CTPBroker, self).start()
+        super().start()
         # Get balance on start
         self.o.get_balance()
         self.startingcash = self.cash = self.o.get_cash()
         self.startingvalue = self.value = self.o.get_value()
 
-        if self.get_param('use_positions'):
+        if self.get_param("use_positions"):
             positions = self.o.get_positions()
             if positions is None:
                 return
@@ -78,7 +77,7 @@ class CTPBroker(BrokerBase):
                 self.positions[p["local_symbol"]] = Position(final_size, final_price)
 
     def stop(self):
-        super(CTPBroker, self).stop()
+        super().stop()
         self.o.stop()
 
     def getcash(self):

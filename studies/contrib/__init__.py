@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
 # Copyright (C) 2015-2020 Daniel Rodriguez
@@ -20,6 +19,7 @@
 ###############################################################################
 import backtrader as bt
 
-from .import fractal as fractal
+from . import fractal as fractal
+
 for name in fractal.__all__:
     setattr(bt.studies, name, getattr(fractal, name))

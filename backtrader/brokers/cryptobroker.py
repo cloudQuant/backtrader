@@ -1,5 +1,4 @@
 import collections
-import json
 from datetime import datetime
 
 from backtrader import BrokerBase, Order
@@ -20,7 +19,7 @@ class CryptoOrder(Order):
         self.data_type = data_type if data_type is not None else "order"
         self.bt_api_data = bt_api_data
         self.executed_fills = []
-        super(CryptoOrder, self).__init__()
+        super().__init__()
 
 
 # 注册机制，在导入模块时自动注册broker类
@@ -75,7 +74,7 @@ class CryptoBroker(BrokerBase):
     """
 
     def __init__(self, store=None, **kwargs):
-        super(CryptoBroker, self).__init__()
+        super().__init__()
         self.value = None
         self.cash = None
         self.startingvalue = None
@@ -98,7 +97,7 @@ class CryptoBroker(BrokerBase):
         self.debug = self.store.debug
         self.startingcash = self.store.getcash()
         self.startingvalue = self.store.getvalue()
-        self.log("init store success, debug = {}".format(self.debug))
+        self.log(f"init store success, debug = {self.debug}")
 
     def init_logger(self):
         if self.debug:

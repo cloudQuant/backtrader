@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, Highest, Lowest, If, UpDay, DownDay, Accum, TrueLow, TrueHigh
 
 
@@ -40,7 +39,7 @@ class WilliamsR(Indicator):
 
         self.lines.percR = -100.0 * (h - c) / (h - l)
 
-        super(WilliamsR, self).__init__()
+        super().__init__()
 
 
 class WilliamsAD(Indicator):
@@ -69,4 +68,4 @@ class WilliamsAD(Indicator):
 
         self.lines.ad = Accum(adup + addown)
 
-        super(WilliamsAD, self).__init__()
+        super().__init__()

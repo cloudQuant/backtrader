@@ -1,22 +1,20 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 import datetime
 
-import backtrader as bt
-from backtrader.parameters import ParameterDescriptor, Float, Bool
+from backtrader.parameters import ParameterDescriptor, Float
+from backtrader.broker import BrokerBase
 
 # from backtrader.comminfo import CommInfoBase
 from backtrader.order import Order, BuyOrder, SellOrder
 from backtrader.position import Position
 from backtrader.utils.py3 import string_types, integer_types
-from backtrader import test_helpers
 
 __all__ = ["BackBroker", "BrokerBack"]
 
 
 # 这个是回测的时候使用的类
-class BackBroker(bt.BrokerBase):
+class BackBroker(BrokerBase):
     """Broker Simulator
 
     The simulation supports different order types, checking a submitted order
@@ -244,107 +242,74 @@ class BackBroker(bt.BrokerBase):
     """
 
     # 使用新的参数描述符系统
-    cash = ParameterDescriptor(
-        default=10000.0,
-        type_=float,
-        doc="Starting cash amount"
-    )
-    
+    cash = ParameterDescriptor(default=10000.0, type_=float, doc="Starting cash amount")
+
     checksubmit = ParameterDescriptor(
-        default=True,
-        type_=bool,
-        doc="Check margin/cash before accepting orders"
+        default=True, type_=bool, doc="Check margin/cash before accepting orders"
     )
-    
+
     eosbar = ParameterDescriptor(
         default=False,
         type_=bool,
-        doc="Consider bar with same time as end of session as end of session"
+        doc="Consider bar with same time as end of session as end of session",
     )
-    
-    filler = ParameterDescriptor(
-        default=None,
-        doc="Volume filler callable for order execution"
-    )
-    
+
+    filler = ParameterDescriptor(default=None, doc="Volume filler callable for order execution")
+
     slip_perc = ParameterDescriptor(
-        default=0.0,
-        type_=float,
-        validator=Float(min_val=0.0),
-        doc="Percentage slippage for orders"
+        default=0.0, type_=float, validator=Float(min_val=0.0), doc="Percentage slippage for orders"
     )
-    
+
     slip_fixed = ParameterDescriptor(
-        default=0.0,
-        type_=float,
-        validator=Float(min_val=0.0),
-        doc="Fixed slippage for orders"
+        default=0.0, type_=float, validator=Float(min_val=0.0), doc="Fixed slippage for orders"
     )
-    
+
     slip_open = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Apply slippage to opening prices"
+        default=False, type_=bool, doc="Apply slippage to opening prices"
     )
-    
+
     slip_match = ParameterDescriptor(
-        default=True,
-        type_=bool,
-        doc="Cap slippage at high/low prices"
+        default=True, type_=bool, doc="Cap slippage at high/low prices"
     )
-    
+
     slip_limit = ParameterDescriptor(
-        default=True,
-        type_=bool,
-        doc="Allow limit order matching with slippage capping"
+        default=True, type_=bool, doc="Allow limit order matching with slippage capping"
     )
-    
+
     slip_out = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Provide slippage even outside high-low range"
+        default=False, type_=bool, doc="Provide slippage even outside high-low range"
     )
-    
+
     coc = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Cheat-On-Close: match market orders to closing price"
+        default=False, type_=bool, doc="Cheat-On-Close: match market orders to closing price"
     )
-    
+
     coo = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Cheat-On-Open: match market orders to opening price"
+        default=False, type_=bool, doc="Cheat-On-Open: match market orders to opening price"
     )
-    
+
     int2pnl = ParameterDescriptor(
-        default=True,
-        type_=bool,
-        doc="Assign interest to profit and loss"
+        default=True, type_=bool, doc="Assign interest to profit and loss"
     )
-    
+
     shortcash = ParameterDescriptor(
-        default=True,
-        type_=bool,
-        doc="Increase cash when shorting stocklike assets"
+        default=True, type_=bool, doc="Increase cash when shorting stocklike assets"
     )
-    
+
     fundstartval = ParameterDescriptor(
         default=100.0,
         type_=float,
         validator=Float(min_val=0.0),
-        doc="Starting value for fund-like performance measurement"
+        doc="Starting value for fund-like performance measurement",
     )
-    
+
     fundmode = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Enable fund-like performance calculation"
+        default=False, type_=bool, doc="Enable fund-like performance calculation"
     )
 
     # 创建实例的时候初始化
     def __init__(self, **kwargs):
-        super(BackBroker, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # 用于保存order历史记录
         self._cash_addition = None
         self._ocol = None
@@ -378,9 +343,9 @@ class BackBroker(bt.BrokerBase):
 
     # 初始化函数
     def init(self):
-        super(BackBroker, self).init()
+        super().init()
         # 开始的时候的初始现金 - 从参数系统获取
-        cash_param = self.get_param('cash')
+        cash_param = self.get_param("cash")
         self.startingcash = self._cash = cash_param
         # 未加杠杆的账户价值
         self._value = self._cash
@@ -416,9 +381,9 @@ class BackBroker(bt.BrokerBase):
         # ocol
         self._ocol = collections.defaultdict(list)
         # fund value
-        self._fundval = self.get_param('fundstartval')
+        self._fundval = self.get_param("fundstartval")
         # fund shares
-        self._fundshares = self.get_param('cash') / self._fundval
+        self._fundshares = self.get_param("cash") / self._fundval
         # 现金增加
         self._cash_addition = collections.deque()
 
@@ -437,78 +402,78 @@ class BackBroker(bt.BrokerBase):
 
         If the argument fundstartval is not ``None``, it will use
         """
-        self.set_param('fundmode', fundmode)
+        self.set_param("fundmode", fundmode)
         if fundstartval is not None:
             self.set_fundstartval(fundstartval)
 
     # 获取fundmode
     def get_fundmode(self):
         # Returns the actual fundmode (True or False)
-        return self.get_param('fundmode')
+        return self.get_param("fundmode")
 
     # 设置fund的开始价值
     def set_fundstartval(self, fundstartval):
         # Set the starting value of the fund-like performance tracker
-        self.set_param('fundstartval', fundstartval)
+        self.set_param("fundstartval", fundstartval)
 
     # 把利息费用转移到pnl
     def set_int2pnl(self, int2pnl):
         # Configure assignment of interest to profit and loss
-        self.set_param('int2pnl', int2pnl)
+        self.set_param("int2pnl", int2pnl)
 
     # 设置Cheat-On-Close
     def set_coc(self, coc):
         # Configure the Cheat-On-Close method to buy the close on order bar
-        self.set_param('coc', coc)
+        self.set_param("coc", coc)
 
     # 设置Cheat-On-Open
     def set_coo(self, coo):
         # Configure the Cheat-On-Open method to buy the close on order bar
-        self.set_param('coo', coo)
+        self.set_param("coo", coo)
 
     # 设置shortcash参数
     def set_shortcash(self, shortcash):
         # Configure the shortcash parameters
-        self.set_param('shortcash', shortcash)
+        self.set_param("shortcash", shortcash)
 
     # 设置百分比滑点相关的信息
     def set_slippage_perc(
         self, perc, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
     ):
         # Configure slippage to be percentage based
-        self.set_param('slip_perc', perc)
-        self.set_param('slip_fixed', 0.0)
-        self.set_param('slip_open', slip_open)
-        self.set_param('slip_limit', slip_limit)
-        self.set_param('slip_match', slip_match)
-        self.set_param('slip_out', slip_out)
+        self.set_param("slip_perc", perc)
+        self.set_param("slip_fixed", 0.0)
+        self.set_param("slip_open", slip_open)
+        self.set_param("slip_limit", slip_limit)
+        self.set_param("slip_match", slip_match)
+        self.set_param("slip_out", slip_out)
 
     # 设置固定滑点相关的信息
     def set_slippage_fixed(
         self, fixed, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
     ):
         # Configure slippage to be fixed points based
-        self.set_param('slip_perc', 0.0)
-        self.set_param('slip_fixed', fixed)
-        self.set_param('slip_open', slip_open)
-        self.set_param('slip_limit', slip_limit)
-        self.set_param('slip_match', slip_match)
-        self.set_param('slip_out', slip_out)
+        self.set_param("slip_perc", 0.0)
+        self.set_param("slip_fixed", fixed)
+        self.set_param("slip_open", slip_open)
+        self.set_param("slip_limit", slip_limit)
+        self.set_param("slip_match", slip_match)
+        self.set_param("slip_out", slip_out)
 
     # 设置根据成交量限制决定订单成交大小的可调用对象
     def set_filler(self, filler):
         # Sets a volume filler for volume filling execution
-        self.set_param('filler', filler)
+        self.set_param("filler", filler)
 
     # 设置checksubmit参数
     def set_checksubmit(self, checksubmit):
         # Sets the checksubmit parameter
-        self.set_param('checksubmit', checksubmit)
+        self.set_param("checksubmit", checksubmit)
 
     # 设置eosbar参数
     def set_eosbar(self, eosbar):
         # Sets the eosbar parameter (alias: ``seteosbar``
-        self.set_param('eosbar', eosbar)
+        self.set_param("eosbar", eosbar)
 
     seteosbar = set_eosbar
 
@@ -516,10 +481,10 @@ class BackBroker(bt.BrokerBase):
     def get_cash(self):
         # Returns the current cash (alias: ``getcash``)
         # 如果还没有初始化，返回参数值；否则返回当前现金状态
-        if hasattr(self, '_cash') and self._cash is not None:
+        if hasattr(self, "_cash") and self._cash is not None:
             return self._cash
         else:
-            return self.get_param('cash')
+            return self.get_param("cash")
 
     getcash = get_cash
 
@@ -527,7 +492,7 @@ class BackBroker(bt.BrokerBase):
     def set_cash(self, cash):
         # Sets the cash parameter (alias: ``setcash``)
         self.startingcash = self._cash = cash
-        self.set_param('cash', cash)
+        self.set_param("cash", cash)
         self._value = cash
 
     setcash = set_cash
@@ -609,7 +574,7 @@ class BackBroker(bt.BrokerBase):
             # use valuesize:  returns raw value, rather than negative adj val
             # 如果shortcash是False的话，用comminfo.getvalue获取data的value
             # 如果shortcash是True的话，用comminfo.getvaluesize获取data的value
-            if not self.get_param('shortcash'):
+            if not self.get_param("shortcash"):
                 dvalue = comminfo.getvalue(position, data.close[0])
             else:
                 dvalue = comminfo.getvaluesize(position.size, data.close[0])
@@ -624,7 +589,7 @@ class BackBroker(bt.BrokerBase):
                 # 如果lever是False或者因为shortcash导致dvalue<0,返回dvalue
                 return dvalue  # raw data value requested, short selling is neg
             # 如果shortcash是False的话
-            if not self.get_param('shortcash'):
+            if not self.get_param("shortcash"):
                 dvalue = abs(dvalue)  # short selling adds value in this case
             # 持仓价值等于持仓价值加上数据的价值
             pos_value += dvalue
@@ -749,7 +714,7 @@ class BackBroker(bt.BrokerBase):
     # transmit函数
     def transmit(self, order, check=True):
         # 如果check是True,并且checksubmit是True的话
-        if check and self.get_param('checksubmit'):
+        if check and self.get_param("checksubmit"):
             # 订单submit
             order.submit()
             # 把订单追加到submitted中
@@ -894,7 +859,6 @@ class BackBroker(bt.BrokerBase):
         _checksubmit=True,
         **kwargs,
     ):
-
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -936,7 +900,6 @@ class BackBroker(bt.BrokerBase):
         _checksubmit=True,
         **kwargs,
     ):
-
         order = SellOrder(
             owner=owner,
             data=data,
@@ -967,12 +930,12 @@ class BackBroker(bt.BrokerBase):
             return  # no psuedo exec no price - no execution
 
         # 获取要执行的订单量
-        if self.get_param('filler') is None or ago is None:
+        if self.get_param("filler") is None or ago is None:
             # Order gets full size or pseudo-execution
             size = order.executed.remsize
         else:
             # Execution depends on volume filler
-            size = self.get_param('filler')(order, price, ago)
+            size = self.get_param("filler")(order, price, ago)
             if not order.isbuy():
                 size = -size
 
@@ -1007,7 +970,7 @@ class BackBroker(bt.BrokerBase):
             # pnl = 0
             pnl = 0
             # 如果cheat_on_open=False的话
-            if not self.get_param('coo'):
+            if not self.get_param("coo"):
                 # 价格
                 price = pprice_orig = order.created.price
             # 如果cheat_on_open = True 的话
@@ -1029,7 +992,7 @@ class BackBroker(bt.BrokerBase):
             # Adjust to returned value for closed items & acquired opened items
             # 如果shortcash是True的话，平仓的价值用comminfo.getvaluesize计算得到，
             # 如果shortcash是False的话，用comminfo.getoperationcost计算得到平仓的价值
-            if self.get_param('shortcash'):
+            if self.get_param("shortcash"):
                 closedvalue = comminfo.getvaluesize(-closed, pprice_orig)
             else:
                 closedvalue = comminfo.getoperationcost(closed, pprice_orig)
@@ -1063,7 +1026,7 @@ class BackBroker(bt.BrokerBase):
         popened = opened
         if opened:
             # 计算开仓的价值
-            if self.get_param('shortcash'):
+            if self.get_param("shortcash"):
                 # # print(f"opened:{opened},price:{price}")  # Removed for performance
                 openedvalue = comminfo.getvaluesize(opened, price)
             else:
@@ -1128,7 +1091,7 @@ class BackBroker(bt.BrokerBase):
             # 更新position
             position.update(execsize, price, data.datetime.datetime())
             # 如果是closed并且把利息转成pnl的话，平仓的时候佣金要加上利息费用
-            if closed and self.get_param('int2pnl'):  # Assign accumulated interest data
+            if closed and self.get_param("int2pnl"):  # Assign accumulated interest data
                 closedcomm += self.d_credit.pop(data, 0.0)
 
             # Execute and notify the order
@@ -1175,7 +1138,7 @@ class BackBroker(bt.BrokerBase):
         # ago = 0
         # todo 注释掉了没有使用的ago
         # 如果cheat_on_close是True，或者order里面cheat_on_open是True的话
-        if self.get_param('coc') and order.info.get("coc", True):
+        if self.get_param("coc") and order.info.get("coc", True):
             # 订单创建时间
             dtcoc = order.created.dt
             # 执行价格
@@ -1183,7 +1146,7 @@ class BackBroker(bt.BrokerBase):
         # 如果coc不是True的话
         else:
             # 如果当前不是cheat_on_open，如果数据的时间小于等于创建时间，直接返回，不执行
-            if not self.get_param('coo') and order.data.datetime[0] <= order.created.dt:
+            if not self.get_param("coo") and order.data.datetime[0] <= order.created.dt:
                 return  # can only execute after creation time
             # dtcoc设置成None
             dtcoc = None
@@ -1191,9 +1154,9 @@ class BackBroker(bt.BrokerBase):
             exprice = popen
         # 如果是买单和卖单，分别得到考虑滑点之后的价格
         if order.isbuy():
-            p = self._slip_up(phigh, exprice, doslip=self.get_param('slip_open'))
+            p = self._slip_up(phigh, exprice, doslip=self.get_param("slip_open"))
         else:
-            p = self._slip_down(plow, exprice, doslip=self.get_param('slip_open'))
+            p = self._slip_down(plow, exprice, doslip=self.get_param("slip_open"))
         # 执行订单
         self._execute(order, ago=0, price=p, dtcoc=dtcoc)
 
@@ -1239,7 +1202,7 @@ class BackBroker(bt.BrokerBase):
                 # 计算pmax
                 pmax = min(phigh, plimit)
                 # 计算算上滑点之后的价格
-                p = self._slip_up(pmax, popen, doslip=self.get_param('slip_open'), lim=True)
+                p = self._slip_up(pmax, popen, doslip=self.get_param("slip_open"), lim=True)
                 # 执行订单
                 self._execute(order, ago=0, price=p)
             # 如果plimit大于等于plow,执行订单
@@ -1255,7 +1218,7 @@ class BackBroker(bt.BrokerBase):
                 # todo 注释掉了没有使用的pmin
                 # pmin = max(plow, plimit)
                 # 计算算上滑点之后的价格
-                p = self._slip_down(plimit, popen, doslip=self.get_param('slip_open'), lim=True)
+                p = self._slip_down(plimit, popen, doslip=self.get_param("slip_open"), lim=True)
                 # 执行订单
                 self._execute(order, ago=0, price=p)
             # plimit小于等于最高价，执行订单
@@ -1271,7 +1234,7 @@ class BackBroker(bt.BrokerBase):
             if popen >= pcreated:
                 # price penetrated with an open gap - use open
                 # 计算考虑过滑点的价格
-                p = self._slip_up(phigh, popen, doslip=self.get_param('slip_open'))
+                p = self._slip_up(phigh, popen, doslip=self.get_param("slip_open"))
                 # 执行订单
                 self._execute(order, ago=0, price=p)
             # 如果phigh小于等于pcreated
@@ -1287,7 +1250,7 @@ class BackBroker(bt.BrokerBase):
             if popen <= pcreated:
                 # price penetrated with an open gap - use open
                 # 计算考虑过滑点的价格
-                p = self._slip_down(plow, popen, doslip=self.get_param('slip_open'))
+                p = self._slip_down(plow, popen, doslip=self.get_param("slip_open"))
                 # 执行订单
                 self._execute(order, ago=0, price=p)
             # 如果plow小于等于pcreated
@@ -1305,7 +1268,6 @@ class BackBroker(bt.BrokerBase):
 
     # 尝试执行止损限价单
     def _try_exec_stoplimit(self, order, popen, phigh, plow, pclose, pcreated, plimit):
-
         # 和止损单比较类似，只是止损单触发止损的时候下的是市价单，这个下的是限价单
         if order.isbuy():
             if popen >= pcreated:
@@ -1357,8 +1319,8 @@ class BackBroker(bt.BrokerBase):
         if not doslip:
             return price
 
-        slip_perc = self.get_param('slip_perc')
-        slip_fixed = self.get_param('slip_fixed')
+        slip_perc = self.get_param("slip_perc")
+        slip_fixed = self.get_param("slip_fixed")
         if slip_perc:
             pslip = price * (1 + slip_perc)
         elif slip_fixed:
@@ -1368,8 +1330,8 @@ class BackBroker(bt.BrokerBase):
 
         if pslip <= pmax:  # slipping can return price
             return pslip
-        elif self.get_param('slip_match') or (lim and self.get_param('slip_limit')):
-            if not self.get_param('slip_out'):
+        elif self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
+            if not self.get_param("slip_out"):
                 return pmax
 
             return pslip  # non existent price
@@ -1381,8 +1343,8 @@ class BackBroker(bt.BrokerBase):
         if not doslip:
             return price
 
-        slip_perc = self.get_param('slip_perc')
-        slip_fixed = self.get_param('slip_fixed')
+        slip_perc = self.get_param("slip_perc")
+        slip_fixed = self.get_param("slip_fixed")
         if slip_perc:
             pslip = price * (1 - slip_perc)
         elif slip_fixed:
@@ -1392,8 +1354,8 @@ class BackBroker(bt.BrokerBase):
 
         if pslip >= pmin:  # slipping can return price
             return pslip
-        elif self.get_param('slip_match') or (lim and self.get_param('slip_limit')):
-            if not self.get_param('slip_out'):
+        elif self.get_param("slip_match") or (lim and self.get_param("slip_limit")):
+            if not self.get_param("slip_out"):
                 return pmin
 
             return pslip  # non existent price
@@ -1549,7 +1511,7 @@ class BackBroker(bt.BrokerBase):
         while self._toactivate:
             self._toactivate.popleft().activate()
 
-        if self.get_param('checksubmit'):
+        if self.get_param("checksubmit"):
             self.check_submitted()
 
         # Discount any cash for positions hold

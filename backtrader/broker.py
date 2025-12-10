@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from backtrader.comminfo import CommInfoBase
 from backtrader.parameters import ParameterizedBase, ParameterDescriptor
 
@@ -9,15 +8,15 @@ from backtrader.parameters import ParameterizedBase, ParameterDescriptor
 
 
 # 创建一个mixin来处理别名，而不使用元类
-class BrokerAliasMixin(object):
+class BrokerAliasMixin:
     """Mixin to provide method aliases without using metaclasses"""
-    
+
     def __init__(self, *args, **kwargs):
-        super(BrokerAliasMixin, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # Create aliases if they don't exist
-        if not hasattr(self, 'get_cash'):
+        if not hasattr(self, "get_cash"):
             self.get_cash = self.getcash
-        if not hasattr(self, 'get_value'):
+        if not hasattr(self, "get_value"):
             self.get_value = self.getvalue
 
 
@@ -25,8 +24,7 @@ class BrokerAliasMixin(object):
 class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     # 使用新的参数描述符
     commission = ParameterDescriptor(
-        default=CommInfoBase(percabs=True),
-        doc="Default commission scheme for all assets"
+        default=CommInfoBase(percabs=True), doc="Default commission scheme for all assets"
     )
 
     # 初始化
@@ -39,7 +37,7 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     def init(self):
         # called from init and from start
         if None not in self.comminfo:
-            self.comminfo = dict({None: self.get_param('commission')})
+            self.comminfo = dict({None: self.get_param("commission")})
 
     # 开始
     def start(self):
@@ -65,7 +63,7 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         # if data._name in self.comminfo:
         #     return self.comminfo[data._name]
         # todo 避免访问被保护的属性._name,在加载数据的时候，已经增加了.name属性，用.name替代_name,避免pycharm弹出警告信息
-        if hasattr(data, 'name') and data.name in self.comminfo:
+        if hasattr(data, "name") and data.name in self.comminfo:
             return self.comminfo[data.name]
 
         return self.comminfo[None]
@@ -176,7 +174,6 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         trailpercent=None,
         **kwargs,
     ):
-
         raise NotImplementedError
 
     # 卖出下单
@@ -195,7 +192,6 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         trailpercent=None,
         **kwargs,
     ):
-
         raise NotImplementedError
 
     # 下一个bar

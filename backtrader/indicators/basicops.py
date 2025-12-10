@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import functools
 import math
 import operator
@@ -21,7 +20,7 @@ class PeriodN(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
-        super(PeriodN, self).__init__()
+        super().__init__()
         self.addminperiod(self.p.period)
 
 
@@ -54,11 +53,11 @@ class OperationN(PeriodN):
             src = self.data.array
             period = self.p.period
             func = self.func
-            
+
             # Ensure destination array is large enough
             while len(dst) < end:
                 dst.append(0.0)
-            
+
             # Calculate for each index from start to end
             for i in range(start, end):
                 if i >= period - 1:
@@ -72,19 +71,19 @@ class OperationN(PeriodN):
                         if len(slice_data) == period:
                             try:
                                 result = func(slice_data)
-                                dst[i] = float(result) if result is not None else float('nan')
+                                dst[i] = float(result) if result is not None else float("nan")
                             except (ValueError, TypeError):
-                                dst[i] = float('nan')
+                                dst[i] = float("nan")
                         else:
-                            dst[i] = float('nan')
+                            dst[i] = float("nan")
                     else:
-                        dst[i] = float('nan')
+                        dst[i] = float("nan")
                 else:
                     # Not enough data yet
-                    dst[i] = float('nan')
+                    dst[i] = float("nan")
         except Exception:
             # Fallback to once_via_next if once() fails
-            super(OperationN, self).once_via_next(start, end)
+            super().once_via_next(start, end)
 
 
 # 设置计算指标的时候的可调用函数
@@ -106,7 +105,7 @@ class BaseApplyN(OperationN):
 
     def __init__(self):
         self.func = self.p.func
-        super(BaseApplyN, self).__init__()
+        super().__init__()
 
 
 # 根据设置的可调用函数计算具体的line
@@ -181,7 +180,7 @@ class ReduceN(OperationN):
         else:
             self.func = functools.partial(self.func, function, initializer=kwargs["initializer"])
 
-        super(ReduceN, self).__init__()
+        super().__init__()
 
 
 # 求过去N周期的和
@@ -415,7 +414,7 @@ class Average(PeriodN):
         src = self.data.array
         dst = self.lines[0].array
         period = self.p.period
-        
+
         # Ensure destination array is large enough
         while len(dst) < end:
             dst.append(0.0)
@@ -427,9 +426,9 @@ class Average(PeriodN):
                 if end_idx <= len(src):
                     dst[i] = sum(src[start_idx:end_idx]) / period
                 else:
-                    dst[i] = float('nan')
+                    dst[i] = float("nan")
             else:
-                dst[i] = float('nan')
+                dst[i] = float("nan")
 
 
 # 计算指数平均值
@@ -457,11 +456,11 @@ class ExponentialSmoothing(Average):
 
         self.alpha1 = 1.0 - self.alpha
 
-        super(ExponentialSmoothing, self).__init__()
+        super().__init__()
 
     def nextstart(self):
         # Fetch the seed value from the base class calculation
-        super(ExponentialSmoothing, self).next()
+        super().next()
 
     def next(self):
         self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
@@ -470,7 +469,7 @@ class ExponentialSmoothing(Average):
         # Calculate seed value using parent's once method (SMA of first period values)
         # Call parent's once method to populate seed at index period-1
         if start == period - 1:
-            super(ExponentialSmoothing, self).once(start, end)
+            super().once(start, end)
 
     def once(self, start, end):
         """Calculate EMA in runonce mode"""
@@ -487,7 +486,7 @@ class ExponentialSmoothing(Average):
         # CRITICAL FIX: Calculate seed value (SMA of first period values)
         # EMA starts at index period-1 with seed = SMA of first period values
         seed_idx = period - 1
-        
+
         # Calculate seed as SMA of first period values
         prev = None
         if seed_idx < len(darray) and seed_idx >= 0:
@@ -499,7 +498,7 @@ class ExponentialSmoothing(Average):
                     prev = sum(seed_data) / period
                 elif len(seed_data) > 0:
                     prev = sum(seed_data) / len(seed_data)
-        
+
         # Fallback: use first data point if seed calculation failed
         if prev is None or prev <= 0.0 or (isinstance(prev, float) and math.isnan(prev)):
             if len(darray) > 0:
@@ -518,9 +517,11 @@ class ExponentialSmoothing(Average):
                 # Use previous EMA value if available, otherwise use seed
                 if i > calc_start:
                     prev_ema = larray[i - 1]
-                    if prev_ema > 0.0 and not (isinstance(prev_ema, float) and math.isnan(prev_ema)):
+                    if prev_ema > 0.0 and not (
+                        isinstance(prev_ema, float) and math.isnan(prev_ema)
+                    ):
                         prev = prev_ema
-                
+
                 # EMA formula: prev * alpha1 + current * alpha
                 current_val = float(darray[i])
                 prev = prev * alpha1 + current_val * alpha
@@ -550,39 +551,39 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
     alias = ("ExpSmoothingDynamic",)
 
     def __init__(self):
-        super(ExponentialSmoothingDynamic, self).__init__()
+        super().__init__()
 
         # CRITICAL FIX: Handle cases where alpha is a float instead of a LineBuffer
         # The parent class sets self.alpha to a float value, but ExponentialSmoothingDynamic
         # expects it to be a line-like object with _minperiod and array access
-        
-        if hasattr(self.alpha, '_minperiod'):
+
+        if hasattr(self.alpha, "_minperiod"):
             # alpha is a LineBuffer or similar object
             minperioddiff = max(0, self.alpha._minperiod - self.p.period)
             self.lines[0].incminperiod(minperioddiff)
-            
+
             # Set up alpha1 as a line that computes 1 - alpha
             from . import Indicator
-            
+
             class Alpha1Line(Indicator):
-                lines = ('alpha1',)
-                params = (('alpha_source', None),)
-                
+                lines = ("alpha1",)
+                params = (("alpha_source", None),)
+
                 def __init__(self):
                     self.alpha_source = self.p.alpha_source
-                    super(Alpha1Line, self).__init__()
-                
+                    super().__init__()
+
                 def next(self):
                     self.lines.alpha1[0] = 1.0 - self.alpha_source[0]
-                    
+
                 def once(self, start, end):
                     alpha_array = self.alpha_source.array
                     alpha1_array = self.lines.alpha1.array
                     for i in range(start, end):
                         alpha1_array[i] = 1.0 - alpha_array[i]
-            
+
             self.alpha1 = Alpha1Line(alpha_source=self.alpha)
-            
+
         else:
             # alpha is a float value - convert it to work with dynamic smoothing
             # In this case, we can't do true dynamic smoothing, so we fall back to static
@@ -593,7 +594,7 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
 
     def next(self):
         # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
-        if hasattr(self.alpha, '__getitem__'):
+        if hasattr(self.alpha, "__getitem__"):
             # alpha is a LineBuffer - use array access
             self.lines[0][0] = self.lines[0][-1] * self.alpha1[0] + self.data[0] * self.alpha[0]
         else:
@@ -604,12 +605,12 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
         # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
         darray = self.data.array
         larray = self.line.array
-        
-        if hasattr(self.alpha, 'array'):
+
+        if hasattr(self.alpha, "array"):
             # alpha is a LineBuffer - use array access
             alpha = self.alpha.array
             alpha1 = self.alpha1.array
-            
+
             # Seed value from SMA calculated with the call to oncestart
             prev = larray[start - 1]
             for i in range(start, end):
@@ -618,7 +619,7 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
             # alpha is a float - use regular arithmetic (fall back to parent behavior)
             alpha = self.alpha
             alpha1 = self.alpha1
-            
+
             # Seed value from SMA calculated with the call to oncestart
             prev = larray[start - 1]
             for i in range(start, end):
@@ -650,7 +651,7 @@ class WeightedAverage(PeriodN):
     )
 
     def __init__(self):
-        super(WeightedAverage, self).__init__()
+        super().__init__()
 
     def next(self):
         data = self.data.get(size=self.p.period)

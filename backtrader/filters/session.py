@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 
-from ..parameters import ParameterizedBase, ParameterDescriptor, Float
-from .. import TimeFrame
+from ..parameters import ParameterizedBase, ParameterDescriptor
+from ..dataseries import TimeFrame
 
 
 class SessionFiller(ParameterizedBase):
@@ -55,22 +54,18 @@ class SessionFiller(ParameterizedBase):
     # 使用新的参数描述符系统定义参数
     fill_price = ParameterDescriptor(
         default=None,
-        doc="Price to be used to fill missing bars. If None will be used the closing price of the previous bar"
+        doc="Price to be used to fill missing bars. If None will be used the closing price of the previous bar",
     )
     fill_vol = ParameterDescriptor(
-        default=float("NaN"),
-        type_=float,
-        doc="Value to use to fill the missing volume"
+        default=float("NaN"), type_=float, doc="Value to use to fill the missing volume"
     )
     fill_oi = ParameterDescriptor(
-        default=float("NaN"),
-        type_=float,
-        doc="Value to use to fill the missing Open Interest"
+        default=float("NaN"), type_=float, doc="Value to use to fill the missing Open Interest"
     )
     skip_first_fill = ParameterDescriptor(
         default=True,
         type_=bool,
-        doc="Upon seeing the 1st valid bar do not fill from the sessionstart up to that bar"
+        doc="Upon seeing the 1st valid bar do not fill from the sessionstart up to that bar",
     )
 
     MAXDATE = datetime.max
@@ -83,7 +78,7 @@ class SessionFiller(ParameterizedBase):
     }
 
     def __init__(self, data, **kwargs):
-        super(SessionFiller, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # Calculate and save timedelta for timeframe
         self._tdframe = self._tdeltas[data._timeframe]
         self._tdunit = self._tdeltas[data._timeframe] * data._compression
@@ -137,7 +132,7 @@ class SessionFiller(ParameterizedBase):
 
             if sessstart <= dtime_cur <= sessend:
                 # 1st bar from session in the session - fill from session start
-                if self.seenbar or not self.get_param('skip_first_fill'):
+                if self.seenbar or not self.get_param("skip_first_fill"):
                     ret = self._fillbars(data, sessstart - self._tdunit, dtime_cur)
 
             self.seenbar = True
@@ -177,13 +172,13 @@ class SessionFiller(ParameterizedBase):
         bar[data.DateTime] = data.date2num(dtime)
 
         # Fill the prices
-        price = self.get_param('fill_price') or data.close[-1]
+        price = self.get_param("fill_price") or data.close[-1]
         for pricetype in [data.Open, data.High, data.Low, data.Close]:
             bar[pricetype] = price
 
         # Fill volume and open interest
-        bar[data.Volume] = self.get_param('fill_vol')
-        bar[data.OpenInterest] = self.get_param('fill_oi')
+        bar[data.Volume] = self.get_param("fill_vol")
+        bar[data.OpenInterest] = self.get_param("fill_oi")
 
         # Fill extra lines the data feed may have defined beyond DateTime
         for i in range(data.DateTime + 1, data.size()):
@@ -214,7 +209,7 @@ class SessionFilterSimple(ParameterizedBase):
     """
 
     def __init__(self, data, **kwargs):
-        super(SessionFilterSimple, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __call__(self, data):
         """
@@ -243,7 +238,7 @@ class SessionFilter(ParameterizedBase):
     """
 
     def __init__(self, data, **kwargs):
-        super(SessionFilter, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __call__(self, data):
         """

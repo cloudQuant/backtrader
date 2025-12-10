@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 # from backtrader.utils.cython_func import date2num
 # from backtrader.utils.cython_func import num2dt
 # from backtrader.utils.cython_func import num2date

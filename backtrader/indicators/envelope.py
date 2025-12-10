@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import sys
 
 from . import Indicator, MovingAverage
@@ -10,21 +9,21 @@ class PlotLineAttr:
     def __init__(self, **kwargs):
         for k, v in kwargs.items():
             setattr(self, k, v)
-    
+
     def _get(self, key, default=None):
         """CRITICAL: _get method expected by plotting system"""
         return getattr(self, key, default)
-    
+
     def get(self, key, default=None):
         """Standard get method for compatibility"""
         return getattr(self, key, default)
-        
+
     def __contains__(self, key):
         return hasattr(self, key)
 
 
 # 装饰其他指标，给其他指标值设定了一个百分比的上下限
-class EnvelopeMixIn(object):
+class EnvelopeMixIn:
     """
     MixIn class to create a subclass with another indicator. The main line of
     that indicator will be surrounded by an upper and lower band separated a
@@ -48,32 +47,32 @@ class EnvelopeMixIn(object):
         "bot",
     )
     params = (("perc", 2.5),)
-    
+
     # CRITICAL FIX: Convert plotlines from dict to object with _get method for plotting compatibility
     class PlotLinesObj:
         def __init__(self):
             self.top = PlotLineAttr(_samecolor=True)
             self.bot = PlotLineAttr(_samecolor=True)
-        
+
         def _get(self, key, default=None):
             """CRITICAL: _get method expected by plotting system"""
             return getattr(self, key, default)
-        
+
         def get(self, key, default=None):
             """Standard get method for compatibility"""
             return getattr(self, key, default)
-            
+
         def __contains__(self, key):
             return hasattr(self, key)
-    
+
     plotlines = PlotLinesObj()
-    
+
     # CRITICAL FIX: Add complete plotinfo object with all required attributes
     class PlotInfoObj:
         def __init__(self):
             self.subplot = False
             self.plot = True
-            self.plotname = ''
+            self.plotname = ""
             self.plotskip = False
             self.plotabove = False
             self.plotlinelabels = False
@@ -86,27 +85,27 @@ class EnvelopeMixIn(object):
             self.plotforce = False
             self.plotmaster = None
             self.legendloc = None  # CRITICAL: Add the missing legendloc attribute
-        
+
         def _get(self, key, default=None):
             """CRITICAL: _get method expected by plotting system"""
             return getattr(self, key, default)
-        
+
         def get(self, key, default=None):
             """Standard get method for compatibility"""
             return getattr(self, key, default)
-            
+
         def __contains__(self, key):
             return hasattr(self, key)
-    
+
     plotinfo = PlotInfoObj()
 
     def __init__(self):
         # CRITICAL FIX: Call super().__init__() first to ensure params and lines are initialized
-        super(EnvelopeMixIn, self).__init__()
-        
+        super().__init__()
+
         # Now we can safely use self.p.perc and self.lines[0]
         # Check if perc parameter exists, use default if not
-        perc_value = getattr(self.p, 'perc', 2.5)
+        perc_value = getattr(self.p, "perc", 2.5)
         if perc_value is None:
             perc_value = 2.5
         perc = perc_value / 100.0
@@ -124,7 +123,7 @@ class _EnvelopeBase(Indicator):
         def __init__(self):
             self.subplot = False
             self.plot = True
-            self.plotname = ''
+            self.plotname = ""
             self.plotskip = False
             self.plotabove = False
             self.plotlinelabels = False
@@ -137,18 +136,18 @@ class _EnvelopeBase(Indicator):
             self.plotforce = False
             self.plotmaster = None
             self.legendloc = None  # CRITICAL: Add the missing legendloc attribute
-        
+
         def _get(self, key, default=None):
             """CRITICAL: _get method expected by plotting system"""
             return getattr(self, key, default)
-        
+
         def get(self, key, default=None):
             """Standard get method for compatibility"""
             return getattr(self, key, default)
-            
+
         def __contains__(self, key):
             return hasattr(self, key)
-    
+
     plotinfo = PlotInfoObjBase()
 
     # Do not replot the data line
@@ -156,23 +155,23 @@ class _EnvelopeBase(Indicator):
     class PlotLinesObjBase:
         def __init__(self):
             self.src = PlotLineAttr(_plotskip=True)
-        
+
         def _get(self, key, default=None):
             """CRITICAL: _get method expected by plotting system"""
             return getattr(self, key, default)
-        
+
         def get(self, key, default=None):
             """Standard get method for compatibility"""
             return getattr(self, key, default)
-            
+
         def __contains__(self, key):
             return hasattr(self, key)
-    
+
     plotlines = PlotLinesObjBase()
 
     def __init__(self):
         self.lines.src = self.data
-        super(_EnvelopeBase, self).__init__()
+        super().__init__()
 
 
 class Envelope(_EnvelopeBase, EnvelopeMixIn):
@@ -211,7 +210,7 @@ for movav in MovingAverage._movavs[0:]:
     movname = movav.__name__
     # Handle both tuple lines and Lines objects after refactoring
     try:
-        if hasattr(movav.lines, '_getlinealias'):
+        if hasattr(movav.lines, "_getlinealias"):
             # It's a Lines object
             linename = movav.lines._getlinealias(0)
         elif isinstance(movav.lines, (tuple, list)) and movav.lines:
@@ -222,7 +221,7 @@ for movav in MovingAverage._movavs[0:]:
             if movav.lines:
                 try:
                     # Handle the case when trying to access _get on dict object
-                    if hasattr(movav.lines, '_get'):
+                    if hasattr(movav.lines, "_get"):
                         linename = movav.lines._get(0)
                     else:
                         # Use first key in the dictionary
@@ -238,7 +237,7 @@ for movav in MovingAverage._movavs[0:]:
     except (AttributeError, IndexError, KeyError, TypeError):
         # Ultimate fallback - use class name if all else fails
         linename = movav.__name__.lower()
-    
+
     newclsname = movname + "Envelope"
 
     newaliases = []
@@ -257,5 +256,3 @@ for movav in MovingAverage._movavs[0:]:
     newcls = type(str(newclsname), (movav, EnvelopeMixIn), newclsdct)
     module = sys.modules[EnvelopeMixIn.__module__]
     setattr(module, newclsname, newcls)
-
-

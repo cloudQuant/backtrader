@@ -1,17 +1,15 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+
+import backtrader as bt
 
 from . import testcommon
-import backtrader as bt
 
 
 class RunStrategy(bt.Strategy):
     params = (
-        ('period', 15),
-        ('printdata', True),
+        ("period", 15),
+        ("printdata", True),
     )
 
     def __init__(self):
@@ -31,11 +29,9 @@ chkdatas = 1
 
 def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
-    cerebros = testcommon.runtest(datas,
-                                  RunStrategy,
-                                  printdata=main,
-                                  plot=main,
-                                  analyzer=(bt.analyzers.LogReturnsRolling, {}))
+    cerebros = testcommon.runtest(
+        datas, RunStrategy, printdata=main, plot=main, analyzer=(bt.analyzers.LogReturnsRolling, {})
+    )
 
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]  # no optimization, only 1
@@ -45,7 +41,7 @@ def test_run(main=False):
             # print('LogReturnsRolling Analysis:')  # Removed for performance
             pass
             print(analysis)
-            print(f'Number of return readings: {len(analysis)}')
+            print(f"Number of return readings: {len(analysis)}")
         else:
             # Verify that analysis is a dictionary
             assert isinstance(analysis, dict)
@@ -57,6 +53,5 @@ def test_run(main=False):
                 assert -5 < ret < 5, f"Log return {ret} seems extreme"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)
-

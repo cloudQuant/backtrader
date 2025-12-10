@@ -9,6 +9,7 @@ class Observer(ObserverBase):
     Observer base class that has been refactored to remove metaclass usage
     while maintaining the same functionality.
     """
+
     # _stclock设置成False
     _stclock = False
     # 拥有的实例
@@ -26,10 +27,10 @@ class Observer(ObserverBase):
         """
         # Create the instance using parent's __new__
         _obj = super(Observer, cls).__new__(cls)
-        
+
         # Initialize _analyzers list (previously done in MetaObserver.donew)
         _obj._analyzers = list()  # keep children analyzers
-        
+
         return _obj
 
     def __init__(self, *args, **kwargs):
@@ -38,7 +39,7 @@ class Observer(ObserverBase):
         """
         # Initialize parent first
         super(Observer, self).__init__(*args, **kwargs)
-        
+
         # Handle _stclock functionality (previously in MetaObserver.dopreinit)
         if self._stclock:  # Change the clock if strategy wide observer
             self._clock = self._owner
@@ -55,11 +56,11 @@ class Observer(ObserverBase):
     def _start(self):
         # PERFORMANCE FIX: Ensure _owner is set before calling start()
         # This is a fallback for cases where findowner didn't find the strategy during __init__
-        if not hasattr(self, '_owner') or self._owner is None:
+        if not hasattr(self, "_owner") or self._owner is None:
             # Try to get owner from _parent (set by strategy when adding observer)
-            if hasattr(self, '_parent') and self._parent is not None:
+            if hasattr(self, "_parent") and self._parent is not None:
                 self._owner = self._parent
-        
+
         self.start()
 
     def start(self):

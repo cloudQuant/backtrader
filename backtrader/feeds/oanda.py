@@ -1,14 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from datetime import datetime, timedelta, UTC
 from backtrader.feed import DataBase
-from backtrader import TimeFrame, date2num, num2date
+from ..utils import date2num, num2date
 from backtrader.utils.py3 import (
-    integer_types,
     queue,
-    string_types,
 )
-from backtrader.metabase import MetaParams
 from backtrader.stores import oandastore
 
 
@@ -141,10 +137,10 @@ class OandaData(DataBase):
         return True
 
     def __init__(self, **kwargs):
-        super(OandaData, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # 处理原来元类的注册功能
         oandastore.OandaStore.DataCls = self.__class__
-        
+
         self._state = None
         self._reconns = None
         self.contractdetails = None
@@ -157,13 +153,13 @@ class OandaData(DataBase):
     def setenvironment(self, env):
         """Receives an environment (cerebro) and passes it over to the store it
         belongs to"""
-        super(OandaData, self).setenvironment(env)
+        super().setenvironment(env)
         env.addstore(self.o)
 
     def start(self):
         """Starts the Oanda connecction and gets the real contract and
         contractdetails if it exists"""
-        super(OandaData, self).start()
+        super().start()
 
         # Create attributes as soon as possible
         self._statelivereconn = False  # if reconnecting in live state
@@ -238,7 +234,7 @@ class OandaData(DataBase):
 
     def stop(self):
         """Stops and tells the store to stop"""
-        super(OandaData, self).stop()
+        super().stop()
         self.o.stop()
 
     def haslivedata(self):

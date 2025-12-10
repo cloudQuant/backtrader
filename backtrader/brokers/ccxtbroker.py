@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 
 import collections
@@ -22,7 +21,7 @@ class CCXTOrder(Order):
         self.price = float(price) if price else None
         self.ccxt_order = ccxt_order
         self.executed_fills = []
-        super(CCXTOrder, self).__init__()
+        super().__init__()
 
 
 # 注册机制，在导入模块时自动注册broker类
@@ -90,7 +89,7 @@ class CCXTBroker(BrokerBase):
     }
 
     def __init__(self, broker_mapping=None, debug=False, **kwargs):
-        super(CCXTBroker, self).__init__()
+        super().__init__()
 
         self.cash = None
         if broker_mapping is not None:
@@ -343,12 +342,11 @@ class CCXTBroker(BrokerBase):
         return self._submit(owner, data, exectype, "sell", size, price, kwargs)
 
     def cancel(self, order):
-
         oID = order.ccxt_order["id"]
 
         if self.debug:
             print("Broker cancel() called")
-            print("Fetching Order ID: {}".format(oID))
+            print(f"Fetching Order ID: {oID}")
 
         # check first if the order has already been filled, otherwise an error
         # might be raised if we try to cancel an order that is not open.

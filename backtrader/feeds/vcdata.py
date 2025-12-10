@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from datetime import datetime, timedelta, tzinfo
-import backtrader as bt
-from backtrader import TimeFrame, date2num, num2date
+from ..utils import date2num
+from ..dataseries import TimeFrame
 from backtrader.feed import DataBase
-from backtrader.metabase import MetaParams
 from backtrader.utils.py3 import (
     integer_types,
     queue,
@@ -312,7 +310,7 @@ class VCData(DataBase):
         return True
 
     def __init__(self, **kwargs):
-        super(VCData, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # 处理原来元类的注册功能
         vcstore.VCStore.DataCls = self.__class__
         self._state = None
@@ -347,13 +345,13 @@ class VCData(DataBase):
     def setenvironment(self, env):
         """Receives an environment (cerebro) and passes it over to the store it
         belongs to"""
-        super(VCData, self).setenvironment(env)
+        super().setenvironment(env)
         env.addstore(self.store)
 
     def start(self):
         """Starts the VC connecction and gets the real contract and
         contractdetails if it exists"""
-        super(VCData, self).start()
+        super().start()
 
         self._state = self._ST_START  # mini finite state machine
 
@@ -450,7 +448,7 @@ class VCData(DataBase):
 
     def stop(self):
         """Stops and tells the store to stop"""
-        super(VCData, self).stop()
+        super().stop()
         if self.q:
             self.store._canceldirectdata(self.q)
 
@@ -672,7 +670,7 @@ class VCData(DataBase):
             print("-" * 40)
             print("tick.SymbolCode", tick.SymbolCode.encode("ascii", "ignore"))
             fname = self.store.vcrtfields.get(tick.Field, tick.Field)
-            print("  tick.Field   : {} ({})".format(fname, tick.Field))
+            print(f"  tick.Field   : {fname} ({tick.Field})")
             print("  tick.FieldEx :", tick.FieldEx)
             tdate = tick.Date
             if tdate:

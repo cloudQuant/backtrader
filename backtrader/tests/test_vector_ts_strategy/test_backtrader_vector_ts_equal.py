@@ -3,9 +3,8 @@
 import pandas as pd
 import numpy as np
 import backtrader as bt
-import datetime
 import time
-from backtrader.comminfo import ComminfoFuturesPercent, ComminfoFuturesFixed
+from backtrader.comminfo import ComminfoFuturesPercent
 from backtrader.vectors.ts import AlphaTs
 
 

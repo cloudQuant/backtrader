@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
+from . import Analyzer
 
 
 # 使用资金的比率
-class GrossLeverage(bt.Analyzer):
+class GrossLeverage(Analyzer):
     """This analyzer calculates the Gross Leverage of the current strategy
     on a timeframe basis
 
@@ -33,7 +32,7 @@ class GrossLeverage(bt.Analyzer):
     # 开始
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
-        super(GrossLeverage, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._value = None
         self._cash = None
         self._fundmode = None

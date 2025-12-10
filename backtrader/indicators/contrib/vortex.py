@@ -19,12 +19,12 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-import backtrader as bt
+from .. import Indicator, SumN, Max
 
 __all__ = ["Vortex"]
 
 
-class Vortex(bt.Indicator):
+class Vortex(Indicator):
     """
     See:
       - http://www.vortexindicator.com/VFX_VORTEX.PDF
@@ -42,16 +42,16 @@ class Vortex(bt.Indicator):
 
     def __init__(self):
         h0l1 = abs(self.data.high(0) - self.data.low(-1))
-        vm_plus = bt.ind.SumN(h0l1, period=self.p.period)
+        vm_plus = SumN(h0l1, period=self.p.period)
 
         l0h1 = abs(self.data.low(0) - self.data.high(-1))
-        vm_minus = bt.ind.SumN(l0h1, period=self.p.period)
+        vm_minus = SumN(l0h1, period=self.p.period)
 
         h0c1 = abs(self.data.high(0) - self.data.close(-1))
         l0c1 = abs(self.data.low(0) - self.data.close(-1))
         h0l0 = abs(self.data.high(0) - self.data.low(0))
 
-        tr = bt.ind.SumN(bt.Max(h0l0, h0c1, l0c1), period=self.p.period)
+        tr = SumN(Max(h0l0, h0c1, l0c1), period=self.p.period)
 
         self.l.vi_plus = vm_plus / tr
         self.l.vi_minus = vm_minus / tr

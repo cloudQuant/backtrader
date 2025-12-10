@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+
+import backtrader as bt
 
 from . import testcommon
-import backtrader as bt
 
 
 class RunStrategy(bt.Strategy):
@@ -23,8 +21,9 @@ class RunStrategy(bt.Strategy):
 
 def test_run(main=False):
     datas = [testcommon.getdata(0)]
-    cerebros = testcommon.runtest(datas, RunStrategy, plot=main,
-                                  analyzer=(bt.analyzers.PyFolio, {}))
+    cerebros = testcommon.runtest(
+        datas, RunStrategy, plot=main, analyzer=(bt.analyzers.PyFolio, {})
+    )
 
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
@@ -38,9 +37,8 @@ def test_run(main=False):
             # PyFolio analyzer returns a dict-like object
             assert analysis is not None
             # PyFolio should return returns, positions, transactions
-            assert 'returns' in analysis or 'positions' in analysis or analysis is not None
+            assert "returns" in analysis or "positions" in analysis or analysis is not None
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)
-

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import math
 from backtrader import Analyzer
@@ -7,7 +6,7 @@ from backtrader.mathsupport import average, standarddev
 from backtrader.utils import AutoOrderedDict
 
 
-__all__ = ['SQN']
+__all__ = ["SQN"]
 
 
 # 获取SQN指标
@@ -36,8 +35,9 @@ class SQN(Analyzer):
         considered trades)
 
     """
+
     # 系统质量数
-    alias = ('SystemQualityNumber',)
+    alias = ("SystemQualityNumber",)
 
     # 创建分析
     def create_analysis(self):
@@ -47,7 +47,7 @@ class SQN(Analyzer):
 
     # 开始，初始化pnl和count
     def start(self):
-        super(SQN, self).start()
+        super().start()
         self.pnl = list()
         self.count = 0
 

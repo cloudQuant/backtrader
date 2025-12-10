@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 from ..sizer import Sizer
 from ..parameters import ParameterDescriptor, Float
@@ -11,9 +10,9 @@ __all__ = ["PercentSizer", "AllInSizer", "PercentSizerInt", "AllInSizerInt"]
 class PercentSizer(Sizer):
     """This sizer return percentages of available cash
 
-    This class has been refactored from legacy params tuple to the new 
+    This class has been refactored from legacy params tuple to the new
     ParameterDescriptor system for Day 36-38 of the metaprogramming removal project.
-    
+
     Params:
       - ``percents`` (default: ``20``)
       - ``retint`` (default: ``False``) return an int size or rather the float value
@@ -24,16 +23,14 @@ class PercentSizer(Sizer):
         default=20,
         type_=float,
         validator=Float(min_val=0.0, max_val=100.0),
-        doc="Percentage of available cash to use"
+        doc="Percentage of available cash to use",
     )
     retint = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Return an int size or rather the float value"
+        default=False, type_=bool, doc="Return an int size or rather the float value"
     )
 
     def __init__(self, **kwargs):
-        super(PercentSizer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     # 如果当前没有持仓，根据现金的百分比计算可以下单的数目
     # 如果当前有持仓，根据，直接使用持仓的大小作为下单的手数
@@ -41,11 +38,11 @@ class PercentSizer(Sizer):
     def _getsizing(self, comminfo, cash, data, isbuy):
         position = self.broker.getposition(data)
         if not position:
-            size = cash / data.close[0] * (self.get_param('percents') / 100)
+            size = cash / data.close[0] * (self.get_param("percents") / 100)
         else:
             size = position.size
 
-        if self.get_param('retint'):
+        if self.get_param("retint"):
             size = int(size)
 
         return size
@@ -64,7 +61,7 @@ class AllInSizer(PercentSizer):
         default=100,
         type_=float,
         validator=Float(min_val=0.0, max_val=100.0),
-        doc="Percentage of available cash to use (100% for all-in)"
+        doc="Percentage of available cash to use (100% for all-in)",
     )
 
 
@@ -79,9 +76,7 @@ class PercentSizerInt(PercentSizer):
 
     # 重新定义retint参数的默认值
     retint = ParameterDescriptor(
-        default=True,
-        type_=bool,
-        doc="Return an int size or rather the float value (True for int)"
+        default=True, type_=bool, doc="Return an int size or rather the float value (True for int)"
     )
 
 
@@ -99,5 +94,5 @@ class AllInSizerInt(PercentSizerInt):
         default=100,
         type_=float,
         validator=Float(min_val=0.0, max_val=100.0),
-        doc="Percentage of available cash to use (100% for all-in)"
+        doc="Percentage of available cash to use (100% for all-in)",
     )

@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 # import collections
-import backtrader as bt
 from backtrader.utils.py3 import iteritems
 import pandas as pd
+from backtrader.dataseries import TimeFrame
 
-from . import TimeReturn, PositionsValue, Transactions, GrossLeverage
+from . import TimeReturn, PositionsValue, Transactions, GrossLeverage, Analyzer
 
 
 # pyfolio的分析模块
-class PyFolio(bt.Analyzer):
+class PyFolio(Analyzer):
     """This analyzer uses 4 children analyzers to collect data and transforms it
     in to a data set compatible with ``pyfolio``
 
@@ -59,12 +58,12 @@ class PyFolio(bt.Analyzer):
     """
 
     # 参数
-    params = (("timeframe", bt.TimeFrame.Days), ("compression", 1))
+    params = (("timeframe", TimeFrame.Days), ("compression", 1))
 
     # 初始化
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
-        super(PyFolio, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         dtfcomp = dict(timeframe=self.p.timeframe, compression=self.p.compression)
 
         self._returns = TimeReturn(**dtfcomp)
@@ -74,7 +73,7 @@ class PyFolio(bt.Analyzer):
 
     # 停止的时候，获取几个分析结果
     def stop(self):
-        super(PyFolio, self).stop()
+        super().stop()
         self.rets["returns"] = self._returns.get_analysis()
         self.rets["positions"] = self._positions.get_analysis()
         self.rets["transactions"] = self._transactions.get_analysis()

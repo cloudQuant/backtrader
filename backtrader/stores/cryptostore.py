@@ -1,10 +1,7 @@
 import queue
-import threading
 import time
 import traceback
 
-import pytz
-import pandas as pd
 from datetime import datetime, timedelta, timezone
 from bt_api_py.containers import OrderData, BarData, TradeData, RequestData
 from bt_api_py.bt_api import BtApi
@@ -12,7 +9,7 @@ from bt_api_py.functions.log_message import SpdLogManager
 
 
 # class CryptoStore(with_metaclass(MetaSingleton, object)):
-class CryptoStore(object):
+class CryptoStore:
     """bt_api_py and backtrader store"""
 
     BrokerCls = None  # broker class will auto register
@@ -135,6 +132,7 @@ class CryptoStore(object):
             #     self.log(f"cryptostore push test info: {data.get_all_data()}")
             # self.log(f"{self.bar_queues} , {self.subscribe_bar_num}")
             if not isinstance(data, BarData):
+                pass
                 # print(data)  # Removed for performance
             if isinstance(data, BarData):
                 queues = self.bar_queues
@@ -300,16 +298,7 @@ class CryptoStore(object):
                         extra_data=None,
                     )
                     bar_data = data.get_data()
-                    # print(  # Removed for performance
-                        "symbol = ",
-                        symbol,
-                        "period = ",
-                        granularity,
-                        "count = ",
-                        count,
-                        start_time,
-                        end_time,
-                    )
+                    # print("symbol = ", symbol, "period = ", granularity, "count = ", count, start_time, end_time)  # Removed for performance
                     # print("bar_data", type(bar_data), bar_data)  # Removed for performance
                     bar_data_list.extend(bar_data)
                     self.log(

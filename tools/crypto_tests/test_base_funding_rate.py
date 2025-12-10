@@ -1,32 +1,36 @@
 import datetime
-import pandas as pd
-import backtrader as bt
-import matplotlib.pyplot as plt
 from pathlib import Path
+
+import matplotlib.pyplot as plt
+import pandas as pd
+
+import backtrader as bt
 from backtrader.comminfo import ComminfoFundingRate
 
 
 # 在交易信息之外，额外增加了其他指标
 class GenericFundingRateCsv(bt.feeds.GenericCSVData):
     # 增加两个line,每个line的名称，就是csv文件中，额外增加的列的名称
-    lines = ('quote_volume',
-             'count',
-             'taker_buy_volume',
-             'taker_buy_quote_volume',
-             'mark_price_open',
-             'mark_price_close',
-             'current_funding_rate',
-             )
+    lines = (
+        "quote_volume",
+        "count",
+        "taker_buy_volume",
+        "taker_buy_quote_volume",
+        "mark_price_open",
+        "mark_price_close",
+        "current_funding_rate",
+    )
 
     # 具体每个新增加的变量index是多少，要根据自己的csv文件去决定，从0开始数
-    params = (('quote_volume', 6),
-              ('count', 7),
-              ('taker_buy_volume', 8),
-              ('taker_buy_quote_volume', 9),
-              ('mark_price_open', 10),
-              ('mark_price_close', 11),
-              ('current_funding_rate', 12),
-              )
+    params = (
+        ("quote_volume", 6),
+        ("count", 7),
+        ("taker_buy_volume", 8),
+        ("taker_buy_quote_volume", 9),
+        ("mark_price_open", 10),
+        ("mark_price_close", 11),
+        ("current_funding_rate", 12),
+    )
 
     def get_name(self):
         return self._name
@@ -40,11 +44,12 @@ def get_data_root(symbol):
     # 获取上一级目录
     parent_dir_path = current_dir_path.parent
     # 拼接上一级目录和datas目录
-    data_root = parent_dir_path.joinpath('datas')
+    data_root = parent_dir_path.joinpath("datas")
     # 拼接datas目录和symbol文件名
     data_file_path = data_root.joinpath(f"fake_kline_{symbol}.csv")
     print("data_file_path", data_file_path)
     return data_file_path
+
 
 # 我们使用的时候，直接用我们新的类读取数据就可以了。
 class FundingRateStrategy(bt.Strategy):
@@ -53,7 +58,7 @@ class FundingRateStrategy(bt.Strategy):
     def log(self, txt, dt=None):
         """Logging function fot this strategy"""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
-        print('{}, {}'.format(dt.isoformat(), txt))
+        print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
         self.bar_num = 0
@@ -88,27 +93,33 @@ class FundingRateStrategy(bt.Strategy):
         # Attention: broker could reject order if not enough cash
         if order.status == order.Completed:
             if order.isbuy():
-                self.log(f"{order.data.get_name()} buy order : "
-                         f"price : {round(order.executed.price, 6)} , "
-                         f"size : {round(order.executed.size, 6)} , "
-                         f"margin : {round(order.executed.value, 6)} , "
-                         f"cost : {round(order.executed.comm, 6)}")
+                self.log(
+                    f"{order.data.get_name()} buy order : "
+                    f"price : {round(order.executed.price, 6)} , "
+                    f"size : {round(order.executed.size, 6)} , "
+                    f"margin : {round(order.executed.value, 6)} , "
+                    f"cost : {round(order.executed.comm, 6)}"
+                )
 
             else:  # Sell
-                self.log(f"{order.data.get_name()} sell order : "
-                         f"price : {round(order.executed.price, 6)} , "
-                         f"size : {round(order.executed.size, 6)} , "
-                         f"margin : {round(order.executed.value, 6)} , "
-                         f"cost : {round(order.executed.comm, 6)}")
+                self.log(
+                    f"{order.data.get_name()} sell order : "
+                    f"price : {round(order.executed.price, 6)} , "
+                    f"size : {round(order.executed.size, 6)} , "
+                    f"margin : {round(order.executed.value, 6)} , "
+                    f"cost : {round(order.executed.comm, 6)}"
+                )
 
     def notify_trade(self, trade):
         # 一个trade结束的时候输出信息
         if trade.isclosed:
-            self.log(f'closed symbol is : {trade.getdataname()} , '
-                     f'total_profit : {round(trade.pnl, 6)} , '
-                     f'net_profit : {round(trade.pnlcomm, 6)}')
+            self.log(
+                f"closed symbol is : {trade.getdataname()} , "
+                f"total_profit : {round(trade.pnl, 6)} , "
+                f"net_profit : {round(trade.pnlcomm, 6)}"
+            )
         if trade.isopen:
-            self.log(f'open symbol is : {trade.getdataname()} , price : {trade.price} ')
+            self.log(f"open symbol is : {trade.getdataname()} , price : {trade.price} ")
 
     def next(self):
         # 有一些简化的高级用法并没有使用，只是为了展示一些基础用法
@@ -183,12 +194,15 @@ def run_strategy():
         # 由于是datetime，所以要添加一个参数，使得backtrader能够识别的日期和csv文件中的日期格式是一样的
         # data_path = "../datas/merge_kline_and_funding_rate_" + symbol + ".csv"
         data_file_path = get_data_root(symbol)
-        gas_feed = GenericFundingRateCsv(dataname=data_file_path,
-                                         **{"dtformat": "%Y-%m-%d %H:%M:%S",
-                                            "timeframe": bt.TimeFrame.Minutes,
-                                            "compression": 60,
-                                            # "fromdate": datetime.datetime(2024, 11, 15)
-                                            })
+        gas_feed = GenericFundingRateCsv(
+            dataname=data_file_path,
+            **{
+                "dtformat": "%Y-%m-%d %H:%M:%S",
+                "timeframe": bt.TimeFrame.Minutes,
+                "compression": 60,
+                # "fromdate": datetime.datetime(2024, 11, 15)
+            },
+        )
         # 添加gasusdt数据到cerebro
         cerebro.adddata(gas_feed, name=symbol)
         # 添加手续费，按照万分之六收取
@@ -200,11 +214,11 @@ def run_strategy():
     # 添加策略
     cerebro.addstrategy(FundingRateStrategy)
     # 添加分析器
-    cerebro.addanalyzer(bt.analyzers.TotalValue, _name='my_value')
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='my_sharpe')
-    cerebro.addanalyzer(bt.analyzers.Returns, _name='my_returns')
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='my_drawdown')
-    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='my_trade_analyzer')
+    cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     # cerebro.addanalyzer(bt.analyzers.PyFolio)
     # 运行回测
@@ -214,12 +228,12 @@ def run_strategy():
     # max_drawdown = results[0].analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
     # trade_num = results[0].analyzers.my_trade_analyzer.get_analysis()['total']['total']
     value_df = pd.DataFrame([results[0].analyzers.my_value.get_analysis()]).T
-    value_df.columns = ['value']
-    value_df['datetime'] = pd.to_datetime(value_df.index)
-    value_df.index = value_df['datetime']
-    value_df['date'] = [i.date() for i in value_df['datetime']]
+    value_df.columns = ["value"]
+    value_df["datetime"] = pd.to_datetime(value_df.index)
+    value_df.index = value_df["datetime"]
+    value_df["date"] = [i.date() for i in value_df["datetime"]]
     value_df = value_df.drop_duplicates("date", keep="last")
-    value_df = value_df[['value']]
+    value_df = value_df[["value"]]
     return value_df
     # value_df.plot()
     # plt.show()
@@ -243,50 +257,50 @@ def get_expected_value():
     # print(gas_data.head(2))
     # print(token_data.head(2))
     # 计算 next_funding_rate 和 value
-    gas_data['next_funding_rate'] = gas_data['current_funding_rate'].shift(-1)
-    gas_data['value'] = -1 * gas_data['next_funding_rate'] * 1000000
+    gas_data["next_funding_rate"] = gas_data["current_funding_rate"].shift(-1)
+    gas_data["value"] = -1 * gas_data["next_funding_rate"] * 1000000
 
-    token_data['next_funding_rate'] = token_data['current_funding_rate'].shift(-1)
-    token_data['value'] = -1 * token_data['next_funding_rate'] * (-1000000)
+    token_data["next_funding_rate"] = token_data["current_funding_rate"].shift(-1)
+    token_data["value"] = -1 * token_data["next_funding_rate"] * (-1000000)
 
     # 填充 NaN 值
-    gas_data['value'] = gas_data['value'].fillna(0)
-    token_data['value'] = token_data['value'].fillna(0)
+    gas_data["value"] = gas_data["value"].fillna(0)
+    token_data["value"] = token_data["value"].fillna(0)
 
     # 创建一个新的 DataFrame
     df = pd.DataFrame(index=init_gas_data.index)
-    df['value'] = gas_data['value'] + token_data['value']
-    df['value'] = df['value'].fillna(0)
+    df["value"] = gas_data["value"] + token_data["value"]
+    df["value"] = df["value"].fillna(0)
     # df.to_csv("expected_value_daily.csv")
 
     # 计算累积值
-    df['cumsum_value'] = df['value'].cumsum()
-    df['cumsum_value'] = df['cumsum_value'] + 1000000
+    df["cumsum_value"] = df["value"].cumsum()
+    df["cumsum_value"] = df["cumsum_value"] + 1000000
 
     # 处理日期
-    df['datetime'] = pd.to_datetime(df.index)
-    df['date'] = df['datetime'].dt.date
+    df["datetime"] = pd.to_datetime(df.index)
+    df["date"] = df["datetime"].dt.date
 
     # 去重并保留最后一个值
     df = df.drop_duplicates("date", keep="last")
 
     # 选择需要的列
-    df = df[['cumsum_value']]
-    df.columns = ['value']
+    df = df[["cumsum_value"]]
+    df.columns = ["value"]
     # df.to_csv("expected_value.csv")
     return df
 
 
 def test_base_funding_rate():
     actual_value_df = run_strategy()
-    actual_value_list = actual_value_df['value'].tolist()
+    actual_value_list = actual_value_df["value"].tolist()
     expected_value_df = get_expected_value()
-    expected_value_list = expected_value_df['value'].tolist()
+    expected_value_list = expected_value_df["value"].tolist()
     for actual_value, expected_value in zip(actual_value_list, expected_value_list):
         assert abs(actual_value - expected_value) < 1e-6
 
     # assert actual_value_df['value'].tolist() == expected_value_df['value'].tolist()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_base_funding_rate()

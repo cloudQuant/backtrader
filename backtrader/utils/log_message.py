@@ -1,29 +1,41 @@
 try:
     import spdlog
+
     SPDLOG_AVAILABLE = True
 except ImportError:
     SPDLOG_AVAILABLE = False
+
     # Create a dummy spdlog module to prevent errors
     class DummySpdLog:
         @staticmethod
         def stdout_sink_st():
             return None
+
         @staticmethod
         def daily_file_sink_st(filename, hour, minute):
             return None
+
         @staticmethod
         def SinkLogger(name, sinks):
             class DummyLogger:
-                def info(self, msg): print(f"[INFO] {msg}")
-                def warning(self, msg): print(f"[WARNING] {msg}")
-                def error(self, msg): print(f"[ERROR] {msg}")
-                def debug(self, msg): print(f"[DEBUG] {msg}")
+                def info(self, msg):
+                    print(f"[INFO] {msg}")
+
+                def warning(self, msg):
+                    print(f"[WARNING] {msg}")
+
+                def error(self, msg):
+                    print(f"[ERROR] {msg}")
+
+                def debug(self, msg):
+                    print(f"[DEBUG] {msg}")
+
             return DummyLogger()
-    
+
     spdlog = DummySpdLog()
 
 
-class SpdLogManager(object):
+class SpdLogManager:
     """创建一个spdlog的日志输出功能，每天一个日志文件，使用需要先pip install spdlog
     :param: file_name:输出日志的文件
     :logger_name:输出日志的名称
@@ -49,12 +61,20 @@ class SpdLogManager(object):
         if not self.spdlog_available:
             # Return a simple logger that prints to console
             class SimpleLogger:
-                def info(self, msg): print(f"[INFO] {msg}")
-                def warning(self, msg): print(f"[WARNING] {msg}")
-                def error(self, msg): print(f"[ERROR] {msg}")
-                def debug(self, msg): print(f"[DEBUG] {msg}")
+                def info(self, msg):
+                    print(f"[INFO] {msg}")
+
+                def warning(self, msg):
+                    print(f"[WARNING] {msg}")
+
+                def error(self, msg):
+                    print(f"[ERROR] {msg}")
+
+                def debug(self, msg):
+                    print(f"[DEBUG] {msg}")
+
             return SimpleLogger()
-            
+
         if self.print_info:
             sinks = [
                 spdlog.stdout_sink_st(),
@@ -73,4 +93,4 @@ class SpdLogManager(object):
             ]
         logger = spdlog.SinkLogger(self.logger_name, sinks)
         # logger = spdlog.create(self.logger_name, sinks)
-        return logger 
+        return logger

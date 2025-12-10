@@ -1,6 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import itertools
 import sys
 
 PY2 = (
@@ -96,11 +94,6 @@ else:
     def bstr(x):
         return str(x)
 
-    from io import StringIO
-
-    from urllib.request import urlopen, ProxyHandler, build_opener, install_opener
-    from urllib.parse import quote as urlquote
-
     def iterkeys(d):
         return iter(d.keys())
 
@@ -134,8 +127,7 @@ def with_metaclass(meta, *bases):
     # https://zhuanlan.zhihu.com/p/354828950
     # https://www.jianshu.com/p/224ffcb8e73e
     class metaclass(meta):
-
         def __new__(cls, name, this_bases, d):
             return meta(name, bases, d)
 
-    return type.__new__(metaclass, str("temporary_class"), (), {})
+    return type.__new__(metaclass, "temporary_class", (), {})

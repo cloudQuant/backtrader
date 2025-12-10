@@ -3,9 +3,7 @@
 import pandas as pd
 import numpy as np
 import backtrader as bt
-import datetime
 import time
-from backtrader.comminfo import ComminfoFuturesPercent, ComminfoFuturesFixed
 
 
 class SmaStrategy(bt.Strategy):
@@ -36,7 +34,7 @@ class SmaStrategy(bt.Strategy):
             try:
                 # 引用下一根bar的开盘价计算具体的手数
                 lots = 0.1 * value / (self.datas[0].open[1])
-            except:
+            except IndexError:
                 lots = 0.1 * value / (self.datas[0].close[0])
             self.buy(self.datas[0], size=lots)
         # 平多

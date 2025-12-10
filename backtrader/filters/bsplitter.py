@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import datetime
-import backtrader as bt
 from backtrader.parameters import ParameterizedBase
 
-__all__ = ['DaySplitterClose', 'DaySplitter_Close']
+__all__ = ["DaySplitterClose", "DaySplitter_Close"]
 
 
 class DaySplitterClose(ParameterizedBase):
@@ -43,7 +41,7 @@ class DaySplitterClose(ParameterizedBase):
     # replaying = True
 
     def __init__(self, data, **kwargs):
-        super(DaySplitterClose, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self.lastdt = None
 
     def __call__(self, data):

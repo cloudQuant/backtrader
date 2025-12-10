@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import bisect
 import collections
 import time
 import datetime
-import itertools
 import math
 import operator
 import os
@@ -13,13 +11,9 @@ import sys
 import matplotlib
 import pandas as pd
 import numpy as np  # guaranteed by matplotlib
-import matplotlib.dates as mdates
 import matplotlib.font_manager as mfontmgr
-import matplotlib.legend as mlegend
 import matplotlib.ticker as mticker
 import backtrader as bt
-import dash
-from dash import dcc
 from dash import html
 
 from pyecharts import options as opts
@@ -27,18 +21,18 @@ from pyecharts.charts import Kline, Line, EffectScatter, Bar, Grid
 from pyecharts.commons.utils import JsCode
 from pyecharts.globals import SymbolType
 
-from dash.dependencies import Input, Output
 
 # from jupyter_plotly_dash import JupyterDash
 
 from collections import OrderedDict
 
-from ..utils.py3 import range, string_types, integer_types
-from .. import AutoInfoClass, TimeFrame, date2num
+from ..utils.py3 import range, integer_types
+from .. import AutoInfoClass, date2num
+from ..dataseries import TimeFrame
 from ..parameters import ParameterizedBase, ParameterDescriptor
 
 from .finance import plot_candlestick, plot_ohlc, plot_volume, plot_lineonclose
-from .formatters import MyVolFormatter, MyDateFormatter, getlocator
+from .formatters import MyVolFormatter, MyDateFormatter
 from . import locator as loc
 from .multicursor import MultiCursor
 from .scheme import PlotScheme
@@ -46,7 +40,6 @@ from .utils import tag_box_style
 
 import plotly as py
 import plotly.graph_objs as go
-import plotly.express as px
 import plotly.offline as py
 import plotly.figure_factory as ff
 import copy
@@ -458,8 +451,9 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                 )
             )
             overlap_kline_line = kline.overlap(long_line)
-        except:
+        except Exception:
             # print("有些信号没有对齐")  # Removed for performance
+            pass
 
     sk_df = df[df.index.isin([str(i[0]) for i in sk_list])]
     sk_c = (
@@ -523,9 +517,11 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                 )
             )
             overlap_kline_line = kline.overlap(short_line)
-        except:
+        except Exception:
             # print("空头信号出错")  # Removed for performance
-            # Bar-1
+            pass
+
+    # Bar-1
     bar_1 = (
         Bar()
         .add_xaxis(xaxis_data=data["times"])
@@ -667,7 +663,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
     grid_chart.render("c:/result/test_price_action_kline_chart.html")
 
 
-class PInfo(object):
+class PInfo:
     def __init__(self, sch):
         self.sch = sch
         self.nrows = 0
@@ -719,14 +715,13 @@ class Plot_OldSync(ParameterizedBase):
 
     def __init__(self, **kwargs):
         # 首先调用父类初始化，这样 self.p 才能被正确设置
-        super(Plot_OldSync, self).__init__()
-        
+        super().__init__()
+
         # 然后设置 scheme 的属性
         for pname, pvalue in kwargs.items():
             setattr(self.p.scheme, pname, pvalue)
 
     def drawtag(self, ax, x, y, facecolor, edgecolor, alpha=0.9, **kwargs):
-
         txt = ax.text(
             x,
             y,
@@ -1013,7 +1008,6 @@ class Plot_OldSync(ParameterizedBase):
         return ax
 
     def plotind(self, iref, ind, subinds=None, upinds=None, downinds=None, masterax=None):
-
         sch = self.p.scheme
 
         # check subind
@@ -1098,14 +1092,14 @@ class Plot_OldSync(ParameterizedBase):
             pltmethod = getattr(ax, lineplotinfo._get("_method", "plot"))
 
             xdata, lplotarray = self.pinf.xdata, lplot
-            
+
             # CRITICAL FIX: 检查数组是否为空，避免维度不匹配错误
             # 修复维度不匹配错误：ValueError: x and y must have same first dimension
             if not lplotarray or len(lplotarray) == 0:
                 # 如果数据为空，跳过绘图
                 plottedline = None
                 return  # 强制跳出此次线条绘制
-                
+
             if lineplotinfo._get("_skipnan", False):
                 # Get the full array and a mask to skipnan
                 lplotarray = np.array(lplot)
@@ -1114,7 +1108,7 @@ class Plot_OldSync(ParameterizedBase):
                 # Get both the axis and the data masked
                 lplotarray = lplotarray[lplotmask]
                 xdata = np.array(xdata)[lplotmask]
-                
+
                 # 再次检查数组是否为空
                 if len(lplotarray) == 0 or len(xdata) == 0 or len(lplotarray) != len(xdata):
                     plottedline = None
@@ -1211,7 +1205,6 @@ class Plot_OldSync(ParameterizedBase):
                 )
 
             if self.pinf.sch.legendind and ind.plotinfo._get("plotlegend", True):
-
                 handles, labels = ax.get_legend_handles_labels()
                 # Ensure that we have something to show
                 if labels:
@@ -1259,7 +1252,6 @@ class Plot_OldSync(ParameterizedBase):
 
         maxvol = volylim = max(volumes)
         if maxvol:
-
             # Plot the volume (no matter if as overlay or standalone)
             vollabel = label
             (volplot,) = plot_volume(
@@ -1341,7 +1333,7 @@ class Plot_OldSync(ParameterizedBase):
         voloverlay = self.pinf.sch.voloverlay and pmaster is None
 
         if not voloverlay:
-            vollabel += " ({})".format(datalabel)
+            vollabel += f" ({datalabel})"
 
         # if self.pinf.sch.volume and self.pinf.sch.voloverlay:
         axdatamaster = None
@@ -1380,7 +1372,7 @@ class Plot_OldSync(ParameterizedBase):
             plotted = plot_lineonclose(ax, self.pinf.xdata, closes, color=color, label=datalabel)
         else:
             if self.pinf.sch.linevalues and plinevalues:
-                datalabel += " O:%.2f H:%.2f L:%.2f C:%.2f" % (
+                datalabel += " O:{:.2f} H:{:.2f} L:{:.2f} C:{:.2f}".format(
                     opens[-1],
                     highs[-1],
                     lows[-1],
@@ -1733,7 +1725,7 @@ def run_cerebro_and_plot(
     else:
         file_list = os.listdir(os.getcwd())
     if file_name in file_list:
-        print("backtest {} consume time  :0 because of it has run".format(params_str))
+        print(f"backtest {params_str} consume time  :0 because of it has run")
     # print("file name is {}".format(file_name))
     # print("file_list is {}".format(file_list))
     if file_name not in file_list:

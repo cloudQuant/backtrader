@@ -1,14 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
-from . import MovAv
+from . import Indicator
 from .sma import SMA
 
 __all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
 
 
 # AwesomeOscillator指标
-class AwesomeOscillator(bt.Indicator):
+class AwesomeOscillator(Indicator):
     """
     Awesome Oscillator (AO) is a momentum indicator reflecting the precise
     changes in the market driving force, which helps to identify the trend’s
@@ -41,8 +39,8 @@ class AwesomeOscillator(bt.Indicator):
     # 初始化的时候，创建指标
     def __init__(self):
         # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
-        super(AwesomeOscillator, self).__init__()
-        
+        super().__init__()
+
         # 最高价和最低价的平均值
         median_price = (self.data.high + self.data.low) / 2.0
         # 计算平均值的fast个周期的平均值

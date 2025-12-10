@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from ..utils.py3 import range, zip
 
 import matplotlib.collections as mcol
@@ -10,7 +9,7 @@ import matplotlib.lines as mlines
 from .utils import shade_color
 
 
-class CandlestickPlotHandler(object):
+class CandlestickPlotHandler:
     legend_opens = [0.50, 0.50, 0.50]
     legend_highs = [1.00, 1.00, 1.00]
     legend_lows = [0.00, 0.00, 0.00]
@@ -40,7 +39,6 @@ class CandlestickPlotHandler(object):
         filldown=True,
         **kwargs,
     ):
-
         # Manager up/down bar colors
         r, g, b = mcolors.colorConverter.to_rgb(colorup)
         self.colorup = r, g, b, alpha
@@ -143,7 +141,6 @@ class CandlestickPlotHandler(object):
         filldown=True,
         **kwargs,
     ):
-
         # Prepack different zips of the series values
         oc = lambda: zip(opens, closes)  # NOQA: E731
         xoc = lambda: zip(xs, opens, closes)  # NOQA: E731
@@ -246,7 +243,6 @@ def plot_candlestick(
     filldown=True,
     **kwargs,
 ):
-
     chandler = CandlestickPlotHandler(
         ax,
         x,
@@ -277,7 +273,7 @@ def plot_candlestick(
     return chandler.barcol, chandler.tickcol
 
 
-class VolumePlotHandler(object):
+class VolumePlotHandler:
     legend_vols = [0.5, 1.0, 0.75]
     legend_opens = [0, 1, 0]
     legend_closes = [1, 0, 1]
@@ -299,7 +295,6 @@ class VolumePlotHandler(object):
         alpha=1.0,
         **kwargs,
     ):
-
         # Manage the up/down colors
         r, g, b = mcolors.colorConverter.to_rgb(colorup)
         self.colorup = r, g, b, alpha
@@ -360,7 +355,6 @@ class VolumePlotHandler(object):
     def barcollection(
         self, x, opens, closes, vols, width, edgeadjust=0, vscaling=1.0, vbot=0, **kwargs
     ):
-
         # Prepare the data
         openclose = lambda: zip(opens, closes)  # NOQA: E731
 
@@ -408,7 +402,6 @@ def plot_volume(
     alpha=1.0,
     **kwargs,
 ):
-
     vhandler = VolumePlotHandler(
         ax,
         x,
@@ -429,7 +422,7 @@ def plot_volume(
     return (vhandler.barcol,)
 
 
-class OHLCPlotHandler(object):
+class OHLCPlotHandler:
     legend_opens = [0.50, 0.50, 0.50]
     legend_highs = [1.00, 1.00, 1.00]
     legend_lows = [0.00, 0.00, 0.00]
@@ -451,7 +444,6 @@ class OHLCPlotHandler(object):
         label="_nolegend",
         **kwargs,
     ):
-
         # Manager up/down bar colors
         r, g, b = mcolors.colorConverter.to_rgb(colorup)
         self.colorup = r, g, b, alpha
@@ -522,7 +514,6 @@ class OHLCPlotHandler(object):
         bot=0,
         **kwargs,
     ):
-
         # Prepack different zips of the series values
         ihighlow = lambda: zip(xs, highs, lows)  # NOQA: E731
         iopen = lambda: zip(xs, opens)  # NOQA: E731
@@ -594,7 +585,6 @@ def plot_ohlc(
     label="_nolegend",
     **kwargs,
 ):
-
     handler = OHLCPlotHandler(
         ax,
         x,
@@ -614,11 +604,10 @@ def plot_ohlc(
     return handler.barcol, handler.opencol, handler.closecol
 
 
-class LineOnClosePlotHandler(object):
+class LineOnClosePlotHandler:
     legend_closes = [0.00, 0.66, 0.33, 1.00]
 
     def __init__(self, ax, x, closes, color="k", width=1, alpha=1.0, label="_nolegend", **kwargs):
-
         self.color = color
         self.alpha = alpha
 
@@ -651,7 +640,6 @@ class LineOnClosePlotHandler(object):
         return (linecol,)
 
     def barcollection(self, xs, closes, width, label="_nolegend", scaling=1.0, bot=0, **kwargs):
-
         # Prepack different zips of the series values
         scaled = [close * scaling + bot for close in closes]
 
@@ -663,7 +651,6 @@ class LineOnClosePlotHandler(object):
 
 
 def plot_lineonclose(ax, x, closes, color="k", width=1.5, alpha=1.0, label="_nolegend", **kwargs):
-
     handler = LineOnClosePlotHandler(
         ax, x, closes, color=color, width=width, alpha=alpha, label=label, **kwargs
     )

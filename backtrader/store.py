@@ -9,13 +9,13 @@ import collections
 # Simple singleton implementation without metaclass
 class SingletonMixin(object):
     """Mixin class to make a class a singleton without using metaclasses"""
-    
+
     def __new__(cls, *args, **kwargs):
-        if not hasattr(cls, '_singleton'):
+        if not hasattr(cls, "_singleton"):
             cls._singleton = super(SingletonMixin, cls).__new__(cls)
             cls._singleton._initialized = False
         return cls._singleton
-    
+
     def __init__(self, *args, **kwargs):
         if self._initialized:
             return
@@ -27,12 +27,12 @@ class SingletonMixin(object):
 # Store parameter management
 class StoreParams(object):
     """Simple parameter management for Store classes"""
-    
+
     def __init__(self):
         # Initialize parameters from the class-level params tuple
-        self.p = type('Params', (), {})()
-        params = getattr(self.__class__, 'params', ())
-        
+        self.p = type("Params", (), {})()
+        params = getattr(self.__class__, "params", ())
+
         # Set default values from params tuple
         for param in params:
             if isinstance(param, tuple) and len(param) >= 2:

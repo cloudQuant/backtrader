@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-import backtrader as bt
 from . import TimeReturn
 
 
@@ -74,7 +72,7 @@ class Benchmark(TimeReturn):
     )
 
     def _plotlabel(self):
-        labels = super(Benchmark, self)._plotlabel()
+        labels = super()._plotlabel()
         labels.append(self.p.data._name)
         return labels
 
@@ -83,7 +81,7 @@ class Benchmark(TimeReturn):
         if self.p.data is None:  # use the 1st data in the system if none given
             self.p.data = self.data0
 
-        super(Benchmark, self).__init__()  # treturn including data parameter
+        super().__init__()  # treturn including data parameter
         # Create a time return object without the data
         kwargs = self.p._getkwargs()
         kwargs.update(data=None)  # to create a return for the strategy
@@ -95,7 +93,7 @@ class Benchmark(TimeReturn):
 
     # 设置benchmark的值
     def next(self):
-        super(Benchmark, self).next()
+        super().next()
         self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey, float("NaN"))
 
     # prenext

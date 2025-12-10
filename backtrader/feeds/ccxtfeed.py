@@ -1,16 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import time
-from collections import deque
-from datetime import datetime, timedelta
+from datetime import datetime
 
-import backtrader as bt
-from backtrader import TimeFrame, date2num, num2date
+from ..utils import date2num
 from backtrader.feed import DataBase
-from backtrader.utils.py3 import queue, string_types
+from backtrader.utils.py3 import queue
 from backtrader.stores import ccxtstore
-from backtrader.utils.date import get_last_timeframe_timestamp
 
 
 class CCXTFeed(DataBase):

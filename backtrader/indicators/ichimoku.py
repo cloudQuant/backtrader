@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
-from . import Highest, Lowest
+from . import Highest, Lowest, Indicator
 
 
 # 日本云图指标
-class Ichimoku(bt.Indicator):
+class Ichimoku(Indicator):
     """
     Developed and published in his book in 1969 by journalist Goichi Hosoda
 
@@ -68,4 +66,4 @@ class Ichimoku(bt.Indicator):
 
         self.l.chikou_span = self.data.close(self.p.chikou)
 
-        super(Ichimoku, self).__init__()
+        super().__init__()

@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-from . import Indicator, And
+from . import Indicator
 
 
 class NonZeroDifference(Indicator):
@@ -14,7 +13,7 @@ class NonZeroDifference(Indicator):
     lines = ("nzd",)
 
     def __init__(self):
-        super(NonZeroDifference, self).__init__()
+        super().__init__()
 
     def nextstart(self):
         self.l.nzd[0] = self.data0[0] - self.data1[0]
@@ -34,12 +33,12 @@ class _CrossBase(Indicator):
     plotinfo = dict(plotymargin=0.05, plotyhlines=[0.0, 1.0])
 
     def __init__(self):
-        super(_CrossBase, self).__init__()  # CRITICAL: Call parent init first
+        super().__init__()  # CRITICAL: Call parent init first
         self.nzd = NonZeroDifference(self.data0, self.data1)
 
     def next(self):
         # Check for crossover
-        if hasattr(self, '_crossup'):
+        if hasattr(self, "_crossup"):
             if self._crossup:
                 # Upward cross: previous diff < 0 (strictly), now data0 > data1
                 before = self.nzd(-1) < 0.0  # STRICT inequality
@@ -58,11 +57,13 @@ class _CrossBase(Indicator):
 
 class CrossUp(_CrossBase):
     """Upward cross indicator"""
+
     _crossup = True
 
 
 class CrossDown(_CrossBase):
     """Downward cross indicator"""
+
     _crossup = False
 
 
@@ -77,7 +78,7 @@ class CrossOver(Indicator):
     plotinfo = dict(plotymargin=0.05, plotyhlines=[-1.0, 1.0])
 
     def __init__(self):
-        super(CrossOver, self).__init__()
+        super().__init__()
         # For next() mode: track last non-zero difference
         self._last_nzd = None
 

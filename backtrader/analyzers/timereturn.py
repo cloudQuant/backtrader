@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from backtrader import TimeFrameAnalyzerBase
 
 
@@ -69,18 +68,18 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
     # 参数
     params = (
-        ('data', None),
-        ('firstopen', True),
-        ('fund', None),
+        ("data", None),
+        ("firstopen", True),
+        ("fund", None),
     )
 
     # __init__ 方法用于支持移除元类后的参数初始化
     def __init__(self, *args, **kwargs):
-        super(TimeReturn, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     # 开始
     def start(self):
-        super(TimeReturn, self).start()
+        super().start()
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
@@ -128,7 +127,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
     # 调用next
     def next(self):
         # Calculate the return
-        super(TimeReturn, self).next()
+        super().next()
         # self.dtkey是analyzer中设置的属性值，一般是一个period结束的日期
         self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
         # self.rets[self.dtkey] = (float(self._value) / float(self._value_start)) - 1.0

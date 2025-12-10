@@ -1,14 +1,15 @@
+import json
+from datetime import UTC, datetime, timedelta
+
+import pytz
+from bt_api_py.functions.utils import read_yaml_file
+from tzlocal import get_localzone
 
 import backtrader as bt
-from datetime import datetime, timedelta, UTC
-import json
-import pytz
-from tzlocal import get_localzone
-from backtrader.stores.cryptostore import CryptoStore
-from backtrader.feeds.cryptofeed import CryptoFeed
 from backtrader.brokers.cryptobroker import CryptoBroker
+from backtrader.feeds.cryptofeed import CryptoFeed
+from backtrader.stores.cryptostore import CryptoStore
 from backtrader.utils.log_message import SpdLogManager
-from bt_api_py.functions.utils import read_yaml_file
 
 
 def get_from_time_and_end_time():
@@ -23,6 +24,7 @@ def get_from_time_and_end_time():
 
     # 返回从当前时间的前一小时到当前时间的范围
     return utc_time - timedelta(hours=1), utc_time
+
 
 class TestStrategy(bt.BtApiStrategy):
 
@@ -61,7 +63,9 @@ class TestStrategy(bt.BtApiStrategy):
             # now_time = bt.num2date(data.datetime[0]).astimezone()   # 先将数字时间转换为无时区的 datetime 对象
             now_time = bt.num2date(data.datetime[0], tz=get_localzone())
             now_ma = self.sma_dict[data.get_name()][0]
-            self.log(f"{data.get_name()}, {now_time}, cash = {round(cash)}, value = {round(value)}, {data.close[0]}, {round(now_ma,2)}")
+            self.log(
+                f"{data.get_name()}, {now_time}, cash = {round(cash)}, value = {round(value)}, {data.close[0]}, {round(now_ma,2)}"
+            )
 
             if self.init_ma is None:
                 self.init_ma = now_ma
@@ -89,21 +93,20 @@ class TestStrategy(bt.BtApiStrategy):
             # self.envs.stop()
             self.env.runstop()  # Stop the backtest
 
-
-
     def notify_data(self, data, status, *args, **kwargs):
         dn = data.get_name()
         dt = datetime.now()
-        msg= '{}, {} Data Status: {}'.format(dt, dn, data._getstatusname(status))
+        msg = f"{dt}, {dn} Data Status: {data._getstatusname(status)}"
         self.log(msg)
-        if data._getstatusname(status) == 'LIVE':
+        if data._getstatusname(status) == "LIVE":
             self.live_data = True
             self.now_live_data = True
         else:
             self.live_data = False
 
+
 def get_account_config():
-    account_config_data = read_yaml_file('account_config.yaml')
+    account_config_data = read_yaml_file("account_config.yaml")
     return account_config_data
 
 
@@ -114,19 +117,21 @@ def test_binance_ma():
     account_config_data = get_account_config()
     exchange_params = {
         "BINANCE___SWAP": {
-            "public_key": account_config_data['binance']['public_key'],
-            "private_key": account_config_data['binance']['private_key']
+            "public_key": account_config_data["binance"]["public_key"],
+            "private_key": account_config_data["binance"]["private_key"],
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
     fromdate, todate = get_from_time_and_end_time()
-    data3 = crypto_store.getdata(store=crypto_store,
-                                 debug=True,
-                                 dataname="BINANCE___SWAP___BTC-USDT",
-                                 fromdate=fromdate,
-                                 todate=todate,
-                                 timeframe=bt.TimeFrame.Minutes,
-                                 compression=1)
+    data3 = crypto_store.getdata(
+        store=crypto_store,
+        debug=True,
+        dataname="BINANCE___SWAP___BTC-USDT",
+        fromdate=fromdate,
+        todate=todate,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
     cerebro.adddata(data3, name="BINANCE___SWAP___BTC-USDT")
 
     broker = CryptoBroker(store=crypto_store)
@@ -141,6 +146,7 @@ def test_binance_ma():
     # assert strategy_instance.update_value is True
     assert strategy_instance.update_ma is True
 
+
 def test_okx_ma():
     cerebro = bt.Cerebro(quicknotify=True)
     # Add the strategy
@@ -148,20 +154,22 @@ def test_okx_ma():
     account_config_data = get_account_config()
     exchange_params = {
         "OKX___SWAP": {
-            "public_key": account_config_data['okx']['public_key'],
-            "private_key": account_config_data['okx']['private_key'],
-            "passphrase": account_config_data['okx']["passphrase"],
+            "public_key": account_config_data["okx"]["public_key"],
+            "private_key": account_config_data["okx"]["private_key"],
+            "passphrase": account_config_data["okx"]["passphrase"],
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
     fromdate, todate = get_from_time_and_end_time()
-    data3 = crypto_store.getdata(store=crypto_store,
-                                 debug=True,
-                                 dataname="OKX___SWAP___BTC-USDT",
-                                 fromdate=fromdate,
-                                 todate=todate,
-                                 timeframe=bt.TimeFrame.Minutes,
-                                 compression=1)
+    data3 = crypto_store.getdata(
+        store=crypto_store,
+        debug=True,
+        dataname="OKX___SWAP___BTC-USDT",
+        fromdate=fromdate,
+        todate=todate,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
     cerebro.adddata(data3, name="OKX___SWAP___BTC-USDT")
 
     broker = CryptoBroker(store=crypto_store)
@@ -184,33 +192,37 @@ def test_okx_and_binance():
     account_config_data = get_account_config()
     exchange_params = {
         "OKX___SWAP": {
-            "public_key": account_config_data['okx']['public_key'],
-            "private_key": account_config_data['okx']['private_key'],
-            "passphrase": account_config_data['okx']["passphrase"],
+            "public_key": account_config_data["okx"]["public_key"],
+            "private_key": account_config_data["okx"]["private_key"],
+            "passphrase": account_config_data["okx"]["passphrase"],
         },
         "BINANCE___SWAP": {
-            "public_key": account_config_data['binance']['public_key'],
-            "private_key": account_config_data['binance']['private_key']
-        }
+            "public_key": account_config_data["binance"]["public_key"],
+            "private_key": account_config_data["binance"]["private_key"],
+        },
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
     fromdate, todate = get_from_time_and_end_time()
-    data1 = crypto_store.getdata(store=crypto_store,
-                                 debug=True,
-                                 dataname="BINANCE___SWAP___BNB-USDT",
-                                 fromdate=fromdate,
-                                 todate=todate,
-                                 timeframe=bt.TimeFrame.Minutes,
-                                 compression=1)
+    data1 = crypto_store.getdata(
+        store=crypto_store,
+        debug=True,
+        dataname="BINANCE___SWAP___BNB-USDT",
+        fromdate=fromdate,
+        todate=todate,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
     cerebro.adddata(data1, name="BINANCE___SWAP___BNB-USDT")
 
-    data2 = crypto_store.getdata(store=crypto_store,
-                                 debug=True,
-                                 dataname="OKX___SWAP___BTC-USDT",
-                                 fromdate=fromdate,
-                                 todate=todate,
-                                 timeframe=bt.TimeFrame.Minutes,
-                                 compression=1)
+    data2 = crypto_store.getdata(
+        store=crypto_store,
+        debug=True,
+        dataname="OKX___SWAP___BTC-USDT",
+        fromdate=fromdate,
+        todate=todate,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
     cerebro.adddata(data2, name="OKX___SWAP___BTC-USDT")
 
     broker = CryptoBroker(store=crypto_store)
@@ -225,7 +237,8 @@ def test_okx_and_binance():
     # assert strategy_instance.update_value is True
     assert strategy_instance.update_ma is True
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     print("-----------第一个进行测试---------------")
     test_binance_ma()
     print("-----------第二个进行测试---------------")

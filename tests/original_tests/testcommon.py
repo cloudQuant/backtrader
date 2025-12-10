@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -24,12 +23,14 @@ import os.path
 import sys
 from math import factorial
 
-# No longer need sys.path manipulation with pip install -e .
-# sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 import backtrader as bt
 import backtrader.utils.flushfile
 from backtrader.metabase import ParamsBase
+from backtrader.strategy import Strategy
+from backtrader.cerebro import Cerebro
+
+# No longer need sys.path manipulation with pip install -e .
+# sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 modpath = os.path.dirname(os.path.abspath(__file__))
@@ -40,14 +41,21 @@ datafiles = [
     "2006-week-001.txt",
 ]
 
-DATAFEED = bt.feeds.BacktraderCSVData
+
+def get_datafeed():
+    return bt.feeds.BacktraderCSVData
+
+
+DATAFEED = None  # Lazy init to avoid module-level access
 
 FROMDATE = datetime.datetime(2006, 1, 1)
 TODATE = datetime.datetime(2006, 12, 31)
 
 
 def getdata(index, fromdate=FROMDATE, todate=TODATE):
-
+    global DATAFEED
+    if DATAFEED is None:
+        DATAFEED = get_datafeed()
     datapath = os.path.join(modpath, dataspath, datafiles[index])
     # print("datapath", datapath)  # Removed for performance - called frequently during tests
     data = DATAFEED(dataname=datapath, fromdate=fromdate, todate=todate)
@@ -72,7 +80,7 @@ def runtest(
     runonces = [True, False] if runonce is None else [runonce]
     preloads = [True, False] if preload is None else [preload]
     exbars = [-2, -1, False] if exbar is None else [exbar]
-    
+
     # CRITICAL FIX: Create fresh data instances for each cerebro to avoid accumulation
     # Store data creation functions instead of data objects
     data_creators = []
@@ -80,18 +88,18 @@ def runtest(
         datas_list = [datas]
     else:
         datas_list = datas
-    
+
     for data in datas_list:
-        if hasattr(data, 'p') and hasattr(data.p, 'dataname'):
+        if hasattr(data, "p") and hasattr(data.p, "dataname"):
             # Store a function that creates new data with same parameters
             dataname = data.p.dataname
-            fromdate = getattr(data.p, 'fromdate', FROMDATE)
-            todate = getattr(data.p, 'todate', TODATE)
+            fromdate = getattr(data.p, "fromdate", FROMDATE)
+            todate = getattr(data.p, "todate", TODATE)
             datacls = type(data)
-            
+
             def create_data(cls=datacls, dn=dataname, fd=fromdate, td=todate):
                 return cls(dataname=dn, fromdate=fd, todate=td)
-            
+
             data_creators.append(create_data)
         else:
             # Can't recreate, will use original
@@ -101,9 +109,7 @@ def runtest(
     for prload in preloads:
         for ronce in runonces:
             for exbar in exbars:
-                cerebro = bt.Cerebro(
-                    runonce=ronce, preload=prload, maxcpus=maxcpus, exactbars=exbar
-                )
+                cerebro = Cerebro(runonce=ronce, preload=prload, maxcpus=maxcpus, exactbars=exbar)
 
                 if kwargs.get("main", False):
                     # print("prload {} / ronce {} exbar {}".format(prload, ronce, exbar))  # Removed for performance
@@ -156,7 +162,7 @@ def runtest(
     return cerebros
 
 
-class TestStrategy(bt.Strategy):
+class TestStrategy(Strategy):
     params = dict(
         main=False, chkind=[], inddata=[], chkmin=1, chknext=0, chkvals=None, chkargs=dict()
     )
@@ -188,7 +194,7 @@ class TestStrategy(bt.Strategy):
 
     def nextstart(self):
         self.chkmin = len(self)
-        super(TestStrategy, self).nextstart()
+        super().nextstart()
 
     def next(self):
         self.nextcalls += 1

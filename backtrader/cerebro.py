@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import datetime
 import collections
 import itertools
@@ -22,12 +21,12 @@ from . import observers
 from .writer import WriterFile
 from .utils import OrderedDict, tzparse, num2date, date2num
 from .strategy import Strategy, SignalStrategy
-from .tradingcal import TradingCalendarBase, TradingCalendar, PandasMarketCalendar
+from .tradingcal import TradingCalendarBase, PandasMarketCalendar
 from .timer import Timer
 
 
 # Defined here to make it pickable. Ideally it could be defined inside Cerebro
-class OptReturn(object):
+class OptReturn:
     def __init__(self, params, **kwargs):
         self.p = self.params = params
         for k, v in kwargs.items():
@@ -308,31 +307,51 @@ class Cerebro(ParameterizedBase):
     """
 
     # Parameter descriptors using new system
-    preload = ParameterDescriptor(default=True, type_=bool, doc="Whether to preload the different data feeds")
+    preload = ParameterDescriptor(
+        default=True, type_=bool, doc="Whether to preload the different data feeds"
+    )
     runonce = ParameterDescriptor(default=True, type_=bool, doc="Run Indicators in vectorized mode")
     maxcpus = ParameterDescriptor(default=None, doc="How many cores to use for optimization")
     stdstats = ParameterDescriptor(default=True, type_=bool, doc="Add default Observers")
-    oldbuysell = ParameterDescriptor(default=False, type_=bool, doc="Use old BuySell observer behavior")
-    oldtrades = ParameterDescriptor(default=False, type_=bool, doc="Use old Trades observer behavior")
+    oldbuysell = ParameterDescriptor(
+        default=False, type_=bool, doc="Use old BuySell observer behavior"
+    )
+    oldtrades = ParameterDescriptor(
+        default=False, type_=bool, doc="Use old Trades observer behavior"
+    )
     lookahead = ParameterDescriptor(default=0, type_=int, doc="Lookahead parameter")
     exactbars = ParameterDescriptor(default=False, doc="Memory usage control for lines objects")
-    optdatas = ParameterDescriptor(default=True, type_=bool, doc="Optimize data preloading during optimization")
-    optreturn = ParameterDescriptor(default=True, type_=bool, doc="Return simplified objects during optimization")
-    objcache = ParameterDescriptor(default=False, type_=bool, doc="Cache lines objects to reduce memory")
+    optdatas = ParameterDescriptor(
+        default=True, type_=bool, doc="Optimize data preloading during optimization"
+    )
+    optreturn = ParameterDescriptor(
+        default=True, type_=bool, doc="Return simplified objects during optimization"
+    )
+    objcache = ParameterDescriptor(
+        default=False, type_=bool, doc="Cache lines objects to reduce memory"
+    )
     live = ParameterDescriptor(default=False, type_=bool, doc="Run in live mode")
     writer = ParameterDescriptor(default=False, type_=bool, doc="Add a default WriterFile")
-    tradehistory = ParameterDescriptor(default=False, type_=bool, doc="Activate trade history logging")
+    tradehistory = ParameterDescriptor(
+        default=False, type_=bool, doc="Activate trade history logging"
+    )
     oldsync = ParameterDescriptor(default=False, type_=bool, doc="Use old synchronization behavior")
     tz = ParameterDescriptor(default=None, doc="Global timezone for strategies")
-    cheat_on_open = ParameterDescriptor(default=False, type_=bool, doc="Enable cheat-on-open execution")
-    broker_coo = ParameterDescriptor(default=True, type_=bool, doc="Auto-activate broker cheat-on-open")
-    quicknotify = ParameterDescriptor(default=False, type_=bool, doc="Deliver broker notifications quickly")
+    cheat_on_open = ParameterDescriptor(
+        default=False, type_=bool, doc="Enable cheat-on-open execution"
+    )
+    broker_coo = ParameterDescriptor(
+        default=True, type_=bool, doc="Auto-activate broker cheat-on-open"
+    )
+    quicknotify = ParameterDescriptor(
+        default=False, type_=bool, doc="Deliver broker notifications quickly"
+    )
 
     # 初始化
     def __init__(self, **kwargs):
         # 首先调用父类初始化
-        super(Cerebro, self).__init__(**kwargs)
-        
+        super().__init__(**kwargs)
+
         # 是否实盘，初始化的时候，默认不是实盘
         self._timerscheat = None
         self._timers = None
@@ -1434,7 +1453,7 @@ class Cerebro(ParameterizedBase):
             # 实例化策略
             try:
                 # Use safe strategy creation to handle parameter filtering
-                if hasattr(stratcls, '_create_strategy_safely'):
+                if hasattr(stratcls, "_create_strategy_safely"):
                     strat = stratcls._create_strategy_safely(*sargs, **skwargs)
                 else:
                     # Fallback to direct instantiation
@@ -1821,8 +1840,8 @@ class Cerebro(ParameterizedBase):
                     # if d_next:
                     #     print(drets)
                 # 遍历drets,如果d0ret是False,并且存在dret是None的话，d0ret是None
-                d0ret = any((dret for dret in drets))
-                if not d0ret and any((dret is None for dret in drets)):
+                d0ret = any(dret for dret in drets)
+                if not d0ret and any(dret is None for dret in drets):
                     d0ret = None
                 # 如果d0ret不是None的话
                 if d0ret:
@@ -1833,14 +1852,14 @@ class Cerebro(ParameterizedBase):
                     # Get index to minimum datetime
                     # 获取最小的时间
                     if onlyresample or noresample:
-                        dt0 = min((d for d in dts if d is not None))
+                        dt0 = min(d for d in dts if d is not None)
                     else:
                         dt0 = min(
                             (d for i, d in enumerate(dts) if d is not None and i not in rsonly)
                         )
                     # todo dt0 < 1,是错误的，进行修改
                     if dt0 < 1:
-                        return 
+                        return
                     # 获取主数据，及时间
                     dmaster = datas[dts.index(dt0)]  # and timemaster
                     self._dtmaster = dmaster.num2date(dt0)
@@ -1970,7 +1989,7 @@ class Cerebro(ParameterizedBase):
             # 对于每个数据调用advance_peek(),取得最小的一个时间作为第一个
             dts = [d.advance_peek() for d in datas]
             dt0 = min(dts)
-            if dt0 == float('inf'):
+            if dt0 == float("inf"):
                 break  # no data delivers anything
 
             # Timemaster if needed be
@@ -2008,7 +2027,7 @@ class Cerebro(ParameterizedBase):
                 if self._event_stop:  # stop if requested
                     return
                 self._next_writers(runstrats)
-        
+
         # CRITICAL FIX: Process any pending orders that were submitted in the last iteration
         # In runonce mode, orders submitted in the last _oncepost() call (which calls next())
         # need to be processed before calling stop(), otherwise they won't be executed and trades won't be counted
@@ -2019,30 +2038,32 @@ class Cerebro(ParameterizedBase):
             # Get the last valid datetime from the strategy
             if runstrats and len(runstrats) > 0:
                 strat = runstrats[0]
-                if hasattr(strat, '_last_valid_datetime') and strat._last_valid_datetime > 0:
+                if hasattr(strat, "_last_valid_datetime") and strat._last_valid_datetime > 0:
                     last_dt = strat._last_valid_datetime
                     # For each data, find the index where datetime matches last_dt and set _idx accordingly
                     # This ensures broker can access data correctly when executing orders
                     for data in self.datas:
                         try:
-                            if hasattr(data, 'lines') and hasattr(data.lines, 'datetime'):
+                            if hasattr(data, "lines") and hasattr(data.lines, "datetime"):
                                 # In runonce mode, data has an array of datetime values
                                 # We need to find the index where datetime matches last_dt
-                                if hasattr(data.lines.datetime, 'array'):
+                                if hasattr(data.lines.datetime, "array"):
                                     dt_array = data.lines.datetime.array
                                     # Find the last index where datetime <= last_dt
                                     # This ensures we're at or before the last valid datetime
                                     for i in range(len(dt_array) - 1, -1, -1):
                                         if dt_array[i] <= last_dt and dt_array[i] > 0:
                                             # Set _idx to this position so data.datetime[0] returns the correct value
-                                            if hasattr(data, '_idx'):
+                                            if hasattr(data, "_idx"):
                                                 data._idx = i
-                                            if hasattr(data.lines.datetime, '_idx'):
+                                            if hasattr(data.lines.datetime, "_idx"):
                                                 data.lines.datetime._idx = i
                                             # Also set _idx for all other lines in the data
-                                            if hasattr(data.lines, 'lines'):
+                                            if hasattr(data.lines, "lines"):
                                                 for line in data.lines.lines:
-                                                    if hasattr(line, '_idx') and hasattr(line, 'array'):
+                                                    if hasattr(line, "_idx") and hasattr(
+                                                        line, "array"
+                                                    ):
                                                         if i < len(line.array):
                                                             line._idx = i
                                             break
@@ -2050,12 +2071,12 @@ class Cerebro(ParameterizedBase):
                             pass
         except:
             pass
-        
+
         # Now call _brokernotify() to process pending orders
         # _brokernotify() internally calls broker.next() to process pending orders and then delivers notifications
         # This ensures all orders submitted during the strategy execution are processed
         self._brokernotify()
-        
+
         # print("结束_runonce")  # Removed for performance - called frequently during tests
 
     # 检查timer
@@ -2069,7 +2090,7 @@ class Cerebro(ParameterizedBase):
                 continue
             # CRITICAL FIX: Remove 'when' from kwargs to avoid conflict with position argument
             # when is already passed as t.lastwhen (2nd argument)
-            timer_kwargs = {k: v for k, v in t.kwargs.items() if k != 'when'}
+            timer_kwargs = {k: v for k, v in t.kwargs.items() if k != "when"}
             # 通知timer
             t.params.owner.notify_timer(t, t.lastwhen, *t.args, **timer_kwargs)
             # 如果需要策略使用timer(t.params.strats是True）的时候，循环策略，调用notify_timer

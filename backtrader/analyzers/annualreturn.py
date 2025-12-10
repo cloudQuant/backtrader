@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-import datetime
 from collections import OrderedDict
 from backtrader.utils.py3 import range
 from backtrader.utils.date import num2date
@@ -28,13 +26,13 @@ class AnnualReturn(Analyzer):
 
       - Returns a dictionary of annual returns (key: year)
     """
-    
+
     def __init__(self):
-        super(AnnualReturn, self).__init__()
+        super().__init__()
         # 缓存数据
         self._dt_cache = []
         self._value_cache = []
-    
+
     def next(self):
         # 每次next被调用时，缓存当前的日期和账户价值
         dt_val = self.data.datetime[0]
@@ -58,18 +56,18 @@ class AnnualReturn(Analyzer):
         # self.ret = OrderedDict()
         setattr(self, "rets", list())
         setattr(self, "ret", OrderedDict())
-        
+
         # 使用缓存的数据进行计算
         for i in range(len(self._dt_cache)):
             dt_val = self._dt_cache[i]
             value_cur = self._value_cache[i]
-            
+
             # 转换日期
             try:
                 dt = num2date(dt_val)
             except:
                 continue
-            
+
             # 如果i的时候的年份大于当前年份，如果当前年份大于0，计算收益率，并保存到self.ret中，并且开始价值等于结束价值
             # 当年份不等的时候，表明当前i是新的一年
             if dt.year > cur_year:

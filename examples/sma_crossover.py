@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
 # Copyright (C) 2015-2020 Daniel Rodriguez
@@ -44,15 +43,16 @@ class MA_CrossOver(bt.Strategy):
       - Market
 
     """
-    alias = ('SMA_CrossOver',)
+
+    alias = ("SMA_CrossOver",)
 
     params = (
         # period for the fast Moving Average
-        ('fast', 10),
+        ("fast", 10),
         # period for the slow moving average
-        ('slow', 30),
+        ("slow", 30),
         # moving average to use
-        ('_movav', btind.MovAv.SMA)
+        ("_movav", btind.MovAv.SMA),
     )
 
     def __init__(self):

@@ -1,26 +1,18 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import collections
 
-from datetime import datetime
 
-import backtrader
 from backtrader import (
-    TimeFrame,
     BrokerBase,
     Order,
     BuyOrder,
     SellOrder,
-    OrderBase,
-    OrderData,
 )
-from backtrader.utils.py3 import bytes, MAXFLOAT
 from backtrader.comminfo import CommInfoBase
 from backtrader.position import Position
 from backtrader.stores import oandastore
-from backtrader.utils import AutoDict, AutoOrderedDict
-from backtrader.parameters import ParameterDescriptor, Bool, ParameterizedBase, BoolParam
+from backtrader.parameters import ParameterDescriptor, BoolParam
 
 
 class OandaCommInfo(CommInfoBase):
@@ -61,11 +53,11 @@ class OandaBroker(BrokerBase):
     use_positions = BoolParam(default=True, doc="使用position API")
     commission = ParameterDescriptor(
         default=lambda: CommInfoBase(percabs=True),
-        doc="Default commission scheme which applies to all assets"
+        doc="Default commission scheme which applies to all assets",
     )
 
     def __init__(self, **kwargs):
-        super(OandaBroker, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.o = oandastore.OandaStore(**kwargs)
 
@@ -80,12 +72,12 @@ class OandaBroker(BrokerBase):
         self.positions = collections.defaultdict(Position)
 
     def start(self):
-        super(OandaBroker, self).start()
+        super().start()
         self.o.start(broker=self)
         self.startingcash = self.cash = cash = self.o.get_cash()
         self.startingvalue = self.value = self.o.get_value()
 
-        if self.get_param('use_positions'):
+        if self.get_param("use_positions"):
             for p in self.o.get_positions():
                 print("position for instrument:", p["instrument"])
                 is_sell = p["side"] == "sell"
@@ -149,7 +141,7 @@ class OandaBroker(BrokerBase):
             self.notify(order)
 
     def stop(self):
-        super(OandaBroker, self).stop()
+        super().stop()
         self.o.stop()
 
     def getcash(self):
@@ -340,7 +332,6 @@ class OandaBroker(BrokerBase):
         transmit=True,
         **kwargs,
     ):
-
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -377,7 +368,6 @@ class OandaBroker(BrokerBase):
         transmit=True,
         **kwargs,
     ):
-
         order = SellOrder(
             owner=owner,
             data=data,

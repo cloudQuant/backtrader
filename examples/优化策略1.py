@@ -1,24 +1,24 @@
+import datetime
+import platform
 import sys
 import time
-import datetime
 import warnings
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-import matplotlib as mpl
-import matplotlib.ticker as ticker
-import matplotlib.dates as mdates
-from matplotlib.ticker import FuncFormatter
 from pathlib import Path
 
-import backtrader as bt
-from backtrader.comminfo import ComminfoFuturesPercent
+import matplotlib as mpl
+import matplotlib.dates as mdates
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
+import numpy as np
+import pandas as pd
+import seaborn as sns
 
 # 设置中文字体
 from matplotlib.font_manager import FontManager, FontProperties
-import platform
+from matplotlib.ticker import FuncFormatter
 
+import backtrader as bt
+from backtrader.comminfo import ComminfoFuturesPercent
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -48,27 +48,27 @@ def setup_chinese_font():
 
     # 定义各平台的字体优先级列表
     font_priority = {
-        'Darwin': [  # macOS
-            'PingFang SC',  # 苹方，macOS 现代字体
-            'Heiti SC',  # 黑体-简，macOS
-            'Heiti TC',  # 黑体-繁
-            'STHeiti',  # 华文黑体
-            'Arial Unicode MS'  # 包含中文字符
+        "Darwin": [  # macOS
+            "PingFang SC",  # 苹方，macOS 现代字体
+            "Heiti SC",  # 黑体-简，macOS
+            "Heiti TC",  # 黑体-繁
+            "STHeiti",  # 华文黑体
+            "Arial Unicode MS",  # 包含中文字符
         ],
-        'Windows': [
-            'SimHei',  # 黑体，Windows
-            'Microsoft YaHei',  # 微软雅黑
-            'KaiTi',  # 楷体
-            'SimSun',  # 宋体
-            'FangSong'  # 仿宋
+        "Windows": [
+            "SimHei",  # 黑体，Windows
+            "Microsoft YaHei",  # 微软雅黑
+            "KaiTi",  # 楷体
+            "SimSun",  # 宋体
+            "FangSong",  # 仿宋
         ],
-        'Linux': [
-            'WenQuanYi Micro Hei',  # 文泉驿微米黑
-            'WenQuanYi Zen Hei',  # 文泉驿正黑
-            'Noto Sans CJK SC',  # 思源黑体
-            'DejaVu Sans',  # 备选
-            'AR PL UMing CN'  # 文鼎明体
-        ]
+        "Linux": [
+            "WenQuanYi Micro Hei",  # 文泉驿微米黑
+            "WenQuanYi Zen Hei",  # 文泉驿正黑
+            "Noto Sans CJK SC",  # 思源黑体
+            "DejaVu Sans",  # 备选
+            "AR PL UMing CN",  # 文鼎明体
+        ],
     }
 
     # 获取系统所有可用字体
@@ -87,25 +87,27 @@ def setup_chinese_font():
 
     # 设置字体配置
     if selected_font:
-        plt.rcParams['font.sans-serif'] = [selected_font] + plt.rcParams['font.sans-serif']
+        plt.rcParams["font.sans-serif"] = [selected_font] + plt.rcParams["font.sans-serif"]
         print(f"✅ 已设置字体: {selected_font}")
         return selected_font
     else:
         # 回退方案：使用系统默认 sans-serif 字体
-        fallback_fonts = ['DejaVu Sans', 'Arial', 'Liberation Sans']
+        fallback_fonts = ["DejaVu Sans", "Arial", "Liberation Sans"]
         available_fallback = [f for f in fallback_fonts if f in available_fonts]
 
         if available_fallback:
-            plt.rcParams['font.sans-serif'] = available_fallback + plt.rcParams['font.sans-serif']
+            plt.rcParams["font.sans-serif"] = available_fallback + plt.rcParams["font.sans-serif"]
             print(f"⚠️  使用备选字体: {available_fallback[0]}")
             return available_fallback[0]
         else:
             print("❌ 未找到合适的中文字体，使用系统默认字体")
             return None
-plt.rcParams['font.sans-serif'] = [setup_chinese_font()]  # 用来正常显示中文标签
-plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
+
+
+plt.rcParams["font.sans-serif"] = [setup_chinese_font()]  # 用来正常显示中文标签
+plt.rcParams["axes.unicode_minus"] = False  # 用来正常显示负号
 # 忽略警告
-warnings.filterwarnings('ignore')
+warnings.filterwarnings("ignore")
 
 
 class ExtendPandasFeed(bt.feeds.PandasData):
@@ -128,36 +130,49 @@ class ExtendPandasFeed(bt.feeds.PandasData):
     - 列7：pure_bond_premium_rate
     - 列8：convert_premium_rate
     """
+
     params = (
-        ('datetime', None),  # datetime是索引，不是数据列
-        ('open', 0),  # 第1列 -> 索引0
-        ('high', 1),  # 第2列 -> 索引1
-        ('low', 2),  # 第3列 -> 索引2
-        ('close', 3),  # 第4列 -> 索引3
-        ('volume', 4),  # 第5列 -> 索引4
-        ('openinterest', -1),  # 不存在该列
-        ('pure_bond_value', 5),  # 第6列 -> 索引5
-        ('convert_value', 6),  # 第7列 -> 索引6
-        ('pure_bond_premium_rate', 7),  # 第8列 -> 索引7
-        ('convert_premium_rate', 8)  # 第9列 -> 索引8
+        ("datetime", None),  # datetime是索引，不是数据列
+        ("open", 0),  # 第1列 -> 索引0
+        ("high", 1),  # 第2列 -> 索引1
+        ("low", 2),  # 第3列 -> 索引2
+        ("close", 3),  # 第4列 -> 索引3
+        ("volume", 4),  # 第5列 -> 索引4
+        ("openinterest", -1),  # 不存在该列
+        ("pure_bond_value", 5),  # 第6列 -> 索引5
+        ("convert_value", 6),  # 第7列 -> 索引6
+        ("pure_bond_premium_rate", 7),  # 第8列 -> 索引7
+        ("convert_premium_rate", 8),  # 第9列 -> 索引8
     )
 
     # 定义扩展的数据线
-    lines = ('pure_bond_value', 'convert_value', 'pure_bond_premium_rate', 'convert_premium_rate')
+    lines = ("pure_bond_value", "convert_value", "pure_bond_premium_rate", "convert_premium_rate")
 
 
 def clean_data():
     """清洗可转债数据"""
-    df = pd.read_csv(resolve_data_path('bond_merged_all_data.csv'))
-    df.columns = ['symbol', 'bond_symbol', 'datetime', 'open', 'high', 'low', 'close', 'volume',
-                  'pure_bond_value', 'convert_value', 'pure_bond_premium_rate', 'convert_premium_rate']
-    df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df[df['datetime'] > pd.to_datetime("2018-01-01")]
+    df = pd.read_csv(resolve_data_path("bond_merged_all_data.csv"))
+    df.columns = [
+        "symbol",
+        "bond_symbol",
+        "datetime",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "pure_bond_value",
+        "convert_value",
+        "pure_bond_premium_rate",
+        "convert_premium_rate",
+    ]
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    df = df[df["datetime"] > pd.to_datetime("2018-01-01")]
 
     datas = {}
-    for symbol, data in df.groupby('symbol'):
-        data = data.set_index('datetime')
-        data = data.drop(['symbol', 'bond_symbol'], axis=1)
+    for symbol, data in df.groupby("symbol"):
+        data = data.set_index("datetime")
+        data = data.drop(["symbol", "bond_symbol"], axis=1)
         data = data.dropna()
         datas[symbol] = data.astype("float")
 
@@ -166,15 +181,16 @@ def clean_data():
 
 class BondConvertTwoFactor(bt.Strategy):
     # params = (('short_window',10),('long_window',60))
-    params = (("first_factor_weight", 0.5),
-              ("second_factor_weight", 0.5),
-              ("hold_percent", 20),
-              )
+    params = (
+        ("first_factor_weight", 0.5),
+        ("second_factor_weight", 0.5),
+        ("hold_percent", 20),
+    )
 
     def log(self, txt, dt=None):
         """log信息的功能"""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
-        print('%s, %s' % (dt.isoformat(), txt))
+        print("{}, {}".format(dt.isoformat(), txt))
 
     def __init__(self, *args, **kwargs):
         # 一般用于计算指标或者预先加载数据，定义变量使用
@@ -311,11 +327,7 @@ class BondConvertTwoFactor(bt.Strategy):
             rate_list.append(rate)
 
         # 创建DataFrame
-        df = pd.DataFrame({
-            'data_name': data_name_list,
-            'close': close_list,
-            'rate': rate_list
-        })
+        df = pd.DataFrame({"data_name": data_name_list, "close": close_list, "rate": rate_list})
 
         # # 对价格进行排序并打分（从低到高，排名越靠前分数越低）
         # df['close_score'] = df['close'].rank(method='min')
@@ -323,20 +335,22 @@ class BondConvertTwoFactor(bt.Strategy):
         # # 对溢价率进行排序并打分（从低到高，排名越靠前分数越低）
         # df['rate_score'] = df['rate'].rank(method='min')
         # 对价格进行排序并打分（从低到高，排名越靠前分数越低）
-        df['close_score'] = df['close'].rank(method='min')
+        df["close_score"] = df["close"].rank(method="min")
         # 对溢价率进行排序并打分（从低到高，排名越靠前分数越低）
-        df['rate_score'] = df['rate'].rank(method='min')
+        df["rate_score"] = df["rate"].rank(method="min")
         # 计算综合得分（使用权重）
-        df['total_score'] = df['close_score'] * self.p.first_factor_weight + df[
-            'rate_score'] * self.p.second_factor_weight
-        df = df.sort_values(by=['total_score'], ascending=False)
+        df["total_score"] = (
+            df["close_score"] * self.p.first_factor_weight
+            + df["rate_score"] * self.p.second_factor_weight
+        )
+        df = df.sort_values(by=["total_score"], ascending=False)
         # print(df)
         # 转换成需要的结果格式 [[data, score], ...]
         result = []
         for _, row in df.iterrows():
             # 通过data_name找回对应的data对象
             # data = self.getdatabyname(row['data_name'])
-            result.append([row['data_name'], row['total_score']])
+            result.append([row["data_name"], row["total_score"]])
 
         return result
 
@@ -398,14 +412,14 @@ def run_test_strategy(max_bonds=None, stdstats=True):
     )
     # 添加指数数据
     print("正在加载指数数据...")
-    index_data = pd.read_csv(resolve_data_path('bond_index_000000.csv'))
-    index_data.index = pd.to_datetime(index_data['datetime'])
+    index_data = pd.read_csv(resolve_data_path("bond_index_000000.csv"))
+    index_data.index = pd.to_datetime(index_data["datetime"])
     index_data = index_data[index_data.index > pd.to_datetime("2018-01-01")]
-    index_data = index_data.drop(['datetime'], axis=1)
+    index_data = index_data.drop(["datetime"], axis=1)
     print(f"指数数据范围: {index_data.index[0]} 至 {index_data.index[-1]}, 共 {len(index_data)} 条")
 
     feed = ExtendPandasFeed(dataname=index_data)
-    cerebro.adddata(feed, name='000000')
+    cerebro.adddata(feed, name="000000")
 
     # 清洗数据并添加可转债数据
     print("\n正在加载可转债数据...")
@@ -439,26 +453,26 @@ def run_test_strategy(max_bonds=None, stdstats=True):
     cerebro.broker.setcash(100000000.0)
     print("\n开始运行回测...")
     # 添加分析器
-    cerebro.addanalyzer(bt.analyzers.TotalValue, _name='my_value')
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='my_sharpe')
-    cerebro.addanalyzer(bt.analyzers.Returns, _name='my_returns')
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='my_drawdown')
-    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='my_trade_analyzer')
-    cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
+    cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
+    cerebro.addanalyzer(bt.analyzers.PyFolio, _name="pyfolio")
     # cerebro.addanalyzer(bt.analyzers.PyFolio)
     # 运行回测
     results = cerebro.run()
     value_df = pd.DataFrame([results[0].analyzers.my_value.get_analysis()]).T
-    value_df.columns = ['value']
-    value_df['datetime'] = pd.to_datetime(value_df.index)
-    value_df['date'] = [i.date() for i in value_df['datetime']]
+    value_df.columns = ["value"]
+    value_df["datetime"] = pd.to_datetime(value_df.index)
+    value_df["date"] = [i.date() for i in value_df["datetime"]]
     value_df = value_df.drop_duplicates("date", keep="last")
-    value_df = value_df[['value']]
+    value_df = value_df[["value"]]
     # value_df.to_csv("./result/参数优化结果/" + file_name + ".csv")
-    sharpe_ratio = results[0].analyzers.my_sharpe.get_analysis()['sharperatio']
-    annual_return = results[0].analyzers.my_returns.get_analysis()['rnorm']
+    sharpe_ratio = results[0].analyzers.my_sharpe.get_analysis()["sharperatio"]
+    annual_return = results[0].analyzers.my_returns.get_analysis()["rnorm"]
     max_drawdown = results[0].analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
-    trade_num = results[0].analyzers.my_trade_analyzer.get_analysis()['total']['total']
+    trade_num = results[0].analyzers.my_trade_analyzer.get_analysis()["total"]["total"]
     print("sharpe_ratio:", sharpe_ratio)
     print("annual_return:", annual_return)
     print("max_drawdown:", max_drawdown)

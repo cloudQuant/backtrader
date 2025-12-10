@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, MovAv
 
 
@@ -37,13 +36,13 @@ class MACD(Indicator):
     plotlines = dict(signal=dict(ls="--"))
 
     def _plotlabel(self):
-        plabels = super(MACD, self)._plotlabel()
+        plabels = super()._plotlabel()
         if self.p.isdefault("movav"):
             plabels.remove(self.p.movav)
         return plabels
 
     def __init__(self):
-        super(MACD, self).__init__()
+        super().__init__()
         me1 = self.p.movav(self.data, period=self.p.period_me1)
         me2 = self.p.movav(self.data, period=self.p.period_me2)
         self.lines.macd = me1 - me2
@@ -68,5 +67,5 @@ class MACDHisto(MACD):
     plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
 
     def __init__(self):
-        super(MACDHisto, self).__init__()
+        super().__init__()
         self.lines.histo = self.lines.macd - self.lines.signal

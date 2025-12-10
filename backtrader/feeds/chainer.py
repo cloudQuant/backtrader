@@ -1,12 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 from datetime import datetime
-import backtrader as bt
 from backtrader.utils.py3 import range
+from ..feed import DataBase
+from ..utils import date
 
 
-class Chainer(bt.DataBase):
+class Chainer(DataBase):
     """Class that chains datas"""
 
     # 当数据是实时数据的时候 ，会避免preloading 和 runonce行为
@@ -20,11 +20,11 @@ class Chainer(bt.DataBase):
         # 处理timeframe和compression参数，原来由元类处理
         if args:
             # 从第一个数据源复制timeframe和compression
-            kwargs.setdefault('timeframe', getattr(args[0], '_timeframe', None))
-            kwargs.setdefault('compression', getattr(args[0], '_compression', None))
-        
-        super(Chainer, self).__init__(**kwargs)
-        
+            kwargs.setdefault("timeframe", getattr(args[0], "_timeframe", None))
+            kwargs.setdefault("compression", getattr(args[0], "_compression", None))
+
+        super().__init__(**kwargs)
+
         self._lastdt = None
         self._d = None
         self._ds = None
@@ -32,7 +32,7 @@ class Chainer(bt.DataBase):
 
     # 开始
     def start(self):
-        super(Chainer, self).start()
+        super().start()
         for d in self._args:
             d.setenvironment(self._env)
             d._start()
@@ -44,7 +44,7 @@ class Chainer(bt.DataBase):
 
     # 停止
     def stop(self):
-        super(Chainer, self).stop()
+        super().stop()
         for d in self._args:
             d.stop()
 
@@ -58,7 +58,7 @@ class Chainer(bt.DataBase):
         timezone"""
         if self._args:
             return self._args[0]._gettz()
-        return bt.utils.date.Localizer(self.p.tz)
+        return date.Localizer(self.p.tz)
 
     # load数据，这个处理看起挺巧妙的，后续准备对期货数据的换月做一个处理或者数据到期之后就剔除这个数据
     def _load(self):

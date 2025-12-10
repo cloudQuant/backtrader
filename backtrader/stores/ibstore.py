@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 from copy import copy
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 import inspect
 import itertools
 import random
@@ -13,6 +12,7 @@ from ib.ext.Contract import Contract
 import ib.opt as ibopt
 
 from backtrader import TimeFrame, Position
+
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
 from backtrader.mixins import ParameterizedSingletonMixin
@@ -36,7 +36,7 @@ def _ts2dt(tstamp=None):
     return datetime.fromtimestamp(sec, UTC).replace(microsecond=usec)
 
 
-class RTVolume(object):
+class RTVolume:
     """Parses a tickString tickType 48 (RTVolume) event from the IB API into its
     constituent fields
     Supports using a "price" to simulate an RTVolume from a tickPrice event
@@ -519,7 +519,7 @@ class IBStore(ParameterizedSingletonMixin):
 
     def __init__(self):
         # 初始化IBStore
-        super(IBStore, self).__init__()
+        super().__init__()
         # 创建4个线程，并加锁
         self._lock_q = threading.Lock()  # sync access to _tickerId/Queues
         self._lock_accupd = threading.Lock()  # sync account updates
@@ -1074,15 +1074,13 @@ class IBStore(ParameterizedSingletonMixin):
         if begindate is None:
             duration = self.getmaxduration(timeframe, compression)
             if duration is None:
-                err = "No duration for historical data request for " "timeframe/compresison"
+                err = "No duration for historical data request for timeframe/compresison"
                 self.notifs.put((err, (), kwargs))
                 return self.getTickerQueue(start=True)
 
             barsize = self.tfcomp_to_size(timeframe, compression)
             if barsize is None:
-                err = (
-                    "No supported barsize for historical data request for " "timeframe/compresison"
-                )
+                err = "No supported barsize for historical data request for timeframe/compresison"
                 self.notifs.put((err, (), kwargs))
                 return self.getTickerQueue(start=True)
 
@@ -1412,26 +1410,26 @@ class IBStore(ParameterizedSingletonMixin):
     # 把timeframe和compression转换成 barsize
     def tfcomp_to_size(self, timeframe, compression):
         if timeframe == TimeFrame.Months:
-            return "{} M".format(compression)
+            return f"{compression} M"
 
         if timeframe == TimeFrame.Weeks:
-            return "{} W".format(compression)
+            return f"{compression} W"
 
         if timeframe == TimeFrame.Days:
             if not compression % 7:
-                return "{} W".format(compression // 7)
+                return f"{compression // 7} W"
 
-            return "{} day".format(compression)
+            return f"{compression} day"
 
         if timeframe == TimeFrame.Minutes:
             if not compression % 60:
                 hours = compression // 60
-                return ("{} hour".format(hours)) + ("s" * (hours > 1))
+                return (f"{hours} hour") + ("s" * (hours > 1))
 
-            return ("{} min".format(compression)) + ("s" * (compression > 1))
+            return (f"{compression} min") + ("s" * (compression > 1))
 
         if timeframe == TimeFrame.Seconds:
-            return "{} secs".format(compression)
+            return f"{compression} secs"
 
         # Microseconds or ticks
         return None
@@ -1467,7 +1465,7 @@ class IBStore(ParameterizedSingletonMixin):
             m = int(duration.split()[0])
             m1 = min(2, m)  # (2, 1) -> 1, (2, 7) -> 2. Bottomline: 1 or 2
             m2 = max(1, m1)  # m1 can only be 1 or 2
-            checkdur = "{} M".format(m2)
+            checkdur = f"{m2} M"
         elif duration[-1] == "Y":
             checkdur = "1 Y"
         else:
@@ -1503,20 +1501,20 @@ class IBStore(ParameterizedSingletonMixin):
 
         idxsec = bisect.bisect_left(secs, tsecs)
         if idxsec < len(secs):
-            return "{} S".format(secs[idxsec])
+            return f"{secs[idxsec]} S"
 
         tdextra = bool(td.seconds or td.microseconds)  # over days/weeks
 
         # Next: 1 or 2 days
         days = td.days + tdextra
         if td.days <= 2:
-            return "{} D".format(days)
+            return f"{days} D"
 
         # Next: 1 or 2 weeks
         weeks, d = divmod(td.days, 7)
         weeks += bool(d or tdextra)
         if weeks <= 2:
-            return "{} W".format(weeks)
+            return f"{weeks} W"
 
         # Get references to dt components
         y2, m2, d2 = dt2.year, dt2.month, dt2.day

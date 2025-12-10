@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-from . import Indicator, Max, MovAv, Highest, Lowest, DivByZero
+from . import Indicator, MovAv, Highest, Lowest, DivByZero
 
 
 # kdj随机指标
@@ -40,7 +39,7 @@ class _StochasticBase(Indicator):
             self.k = 100.0 * (knum / kden)
         self.d = self.p.movav(self.k, period=self.p.period_dfast)
 
-        super(_StochasticBase, self).__init__()
+        super().__init__()
 
 
 class StochasticFast(_StochasticBase):
@@ -68,7 +67,7 @@ class StochasticFast(_StochasticBase):
     """
 
     def __init__(self):
-        super(StochasticFast, self).__init__()
+        super().__init__()
         self.lines.percK = self.k
         self.lines.percD = self.d
 
@@ -99,7 +98,7 @@ class Stochastic(_StochasticBase):
         return plabels
 
     def __init__(self):
-        super(Stochastic, self).__init__()
+        super().__init__()
         self.lines.percK = self.d
         self.l.percD = self.p.movav(self.l.percK, period=self.p.period_dslow)
 
@@ -132,7 +131,7 @@ class StochasticFull(_StochasticBase):
         return plabels
 
     def __init__(self):
-        super(StochasticFull, self).__init__()
+        super().__init__()
         self.lines.percK = self.k
         self.lines.percD = self.d
         self.l.percDSlow = self.p.movav(self.l.percD, period=self.p.period_dslow)

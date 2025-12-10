@@ -1,15 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import datetime
-import backtrader as bt
 from backtrader.feed import DataBase
-from backtrader import TimeFrame, date2num, num2date
+from ..utils import date2num, num2date
+from ..dataseries import TimeFrame
 from backtrader.utils.py3 import (
     integer_types,
     queue,
     string_types,
 )
-from backtrader.metabase import MetaParams
 from backtrader.stores import ibstore
 
 
@@ -262,10 +260,10 @@ class IBData(DataBase):
 
     # 初始化
     def __init__(self, **kwargs):
-        super(IBData, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # 处理原来元类的注册功能
         ibstore.IBStore.DataCls = self.__class__
-        
+
         self.tradecontractdetails = None
         self.tradecontract = None
         self.contractdetails = None
@@ -285,7 +283,7 @@ class IBData(DataBase):
     def setenvironment(self, env):
         """Receives an environment (cerebro) and passes it over to the store it
         belongs to"""
-        super(IBData, self).setenvironment(env)
+        super().setenvironment(env)
         env.addstore(self.ib)
 
     # 根据具体的数据名称生成合同
@@ -371,7 +369,7 @@ class IBData(DataBase):
     def start(self):
         """Starts the IB connecction and gets the real contract and
         contractdetails if it exists"""
-        super(IBData, self).start()
+        super().start()
         # Kickstart store and get queue to wait on
         self.qlive = self.ib.start(data=self)
         self.qhist = None
@@ -436,7 +434,7 @@ class IBData(DataBase):
     # 准备结束
     def stop(self):
         """Stops and tells the store to stop"""
-        super(IBData, self).stop()
+        super().stop()
         self.ib.stop()
 
     # 请求数据

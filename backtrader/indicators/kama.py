@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import SumN, MovingAverageBase, ExponentialSmoothingDynamic
 
 
@@ -60,4 +59,4 @@ class AdaptiveMovingAverage(MovingAverageBase):
 
         self.lines[0] = ExponentialSmoothingDynamic(self.data, period=self.p.period, alpha=sc)
 
-        super(AdaptiveMovingAverage, self).__init__()
+        super().__init__()

@@ -2,14 +2,18 @@
 
 使用可转债指数数据 bond_index_000000.csv 测试止损订单功能
 """
-import os
+
 import datetime
+import os
 from pathlib import Path
 
-import pandas as pd
 import numpy as np
-import backtrader as bt
+import pandas as pd
 
+import backtrader as bt
+from backtrader.cerebro import Cerebro
+from backtrader.strategy import Strategy
+from backtrader.feeds import PandasData
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -44,12 +48,10 @@ def resolve_data_path(filename: str) -> Path:
         return fallback
 
     searched = " , ".join(str(path) for path in search_paths + [fallback.resolve()])
-    raise FileNotFoundError(
-        f"未找到数据文件: {filename}. 已尝试路径: {searched}"
-    )
+    raise FileNotFoundError(f"未找到数据文件: {filename}. 已尝试路径: {searched}")
 
 
-class ExtendPandasFeed(bt.feeds.PandasData):
+class ExtendPandasFeed(PandasData):
     """
     扩展的Pandas数据源，添加可转债特有的字段
 
@@ -65,36 +67,38 @@ class ExtendPandasFeed(bt.feeds.PandasData):
     - 列7：pure_bond_premium_rate
     - 列8：convert_premium_rate
     """
+
     params = (
-        ('datetime', None),  # datetime是索引，不是数据列
-        ('open', 0),  # 第1列 -> 索引0
-        ('high', 1),  # 第2列 -> 索引1
-        ('low', 2),  # 第3列 -> 索引2
-        ('close', 3),  # 第4列 -> 索引3
-        ('volume', 4),  # 第5列 -> 索引4
-        ('openinterest', -1),  # 不存在该列
-        ('pure_bond_value', 5),  # 第6列 -> 索引5
-        ('convert_value', 6),  # 第7列 -> 索引6
-        ('pure_bond_premium_rate', 7),  # 第8列 -> 索引7
-        ('convert_premium_rate', 8)  # 第9列 -> 索引8
+        ("datetime", None),  # datetime是索引，不是数据列
+        ("open", 0),  # 第1列 -> 索引0
+        ("high", 1),  # 第2列 -> 索引1
+        ("low", 2),  # 第3列 -> 索引2
+        ("close", 3),  # 第4列 -> 索引3
+        ("volume", 4),  # 第5列 -> 索引4
+        ("openinterest", -1),  # 不存在该列
+        ("pure_bond_value", 5),  # 第6列 -> 索引5
+        ("convert_value", 6),  # 第7列 -> 索引6
+        ("pure_bond_premium_rate", 7),  # 第8列 -> 索引7
+        ("convert_premium_rate", 8),  # 第9列 -> 索引8
     )
 
     # 定义扩展的数据线
-    lines = ('pure_bond_value', 'convert_value', 'pure_bond_premium_rate', 'convert_premium_rate')
+    lines = ("pure_bond_value", "convert_value", "pure_bond_premium_rate", "convert_premium_rate")
 
 
-class StopOrderStrategy(bt.Strategy):
+class StopOrderStrategy(Strategy):
     """止损订单策略
-    
+
     策略逻辑：
     - 使用双均线交叉产生买入信号
     - 买入后同时设置止损单（stop loss）
     - 止损价格为买入价的一定比例
     """
+
     params = (
-        ('short_period', 5),
-        ('long_period', 20),
-        ('stop_loss_pct', 0.03),  # 3%止损
+        ("short_period", 5),
+        ("long_period", 20),
+        ("stop_loss_pct", 0.03),  # 3%止损
     )
 
     def log(self, txt, dt=None, force=False):
@@ -110,30 +114,32 @@ class StopOrderStrategy(bt.Strategy):
                     dt = None
             except (IndexError, ValueError):
                 dt = None
-        
+
         if dt:
-            print('%s, %s' % (dt.isoformat(), txt))
+            print("{}, {}".format(dt.isoformat(), txt))
         else:
-            print('%s' % txt)
+            print("%s" % txt)
 
     def __init__(self):
         # 计算均线指标
         self.short_ma = bt.indicators.SimpleMovingAverage(
-            self.datas[0].close, period=self.p.short_period)
+            self.datas[0].close, period=self.p.short_period
+        )
         self.long_ma = bt.indicators.SimpleMovingAverage(
-            self.datas[0].close, period=self.p.long_period)
-        
+            self.datas[0].close, period=self.p.long_period
+        )
+
         # 记录交叉信号
         self.crossover = bt.indicators.CrossOver(self.short_ma, self.long_ma)
-        
+
         # 记录bar数量
         self.bar_num = 0
-        
+
         # 记录交易次数
         self.buy_count = 0
         self.sell_count = 0
         self.stop_count = 0  # 止损触发次数
-        
+
         # 保存订单引用
         self.order = None
         self.stop_order = None
@@ -141,11 +147,11 @@ class StopOrderStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        
+
         # 如果有未完成的订单，等待
         if self.order:
             return
-        
+
         # 如果有止损单在等待，也不要操作
         if self.stop_order:
             # 检查是否出现死叉，需要主动平仓
@@ -155,7 +161,7 @@ class StopOrderStrategy(bt.Strategy):
                 self.order = self.close()
                 self.sell_count += 1
             return
-        
+
         # 如果没有持仓，且出现金叉，则买入
         if not self.position:
             if self.crossover > 0:
@@ -168,52 +174,56 @@ class StopOrderStrategy(bt.Strategy):
                     self.buy_count += 1
 
     def stop(self):
-        self.log(f"bar_num = {self.bar_num}, buy_count = {self.buy_count}, sell_count = {self.sell_count}, stop_count = {self.stop_count}")
+        self.log(
+            f"bar_num = {self.bar_num}, buy_count = {self.buy_count}, sell_count = {self.sell_count}, stop_count = {self.stop_count}"
+        )
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
             return
-        
+
         if order.status == order.Completed:
             if order.isbuy():
-                self.log(f"买入执行: 价格={order.executed.price:.2f}, 数量={order.executed.size:.0f}")
+                self.log(
+                    f"买入执行: 价格={order.executed.price:.2f}, 数量={order.executed.size:.0f}"
+                )
                 self.buy_price = order.executed.price
-                
+
                 # 买入成功后，设置止损单
                 stop_price = self.buy_price * (1 - self.p.stop_loss_pct)
-                self.log(f'设置止损单: 止损价={stop_price:.2f}')
+                self.log(f"设置止损单: 止损价={stop_price:.2f}")
                 self.stop_order = self.sell(
-                    size=order.executed.size,
-                    exectype=bt.Order.Stop,
-                    price=stop_price
+                    size=order.executed.size, exectype=bt.Order.Stop, price=stop_price
                 )
             else:
-                self.log(f"卖出执行: 价格={order.executed.price:.2f}, 数量={abs(order.executed.size):.0f}")
+                self.log(
+                    f"卖出执行: 价格={order.executed.price:.2f}, 数量={abs(order.executed.size):.0f}"
+                )
                 self.buy_price = None
-                
+
                 # 检查是否是止损单触发
                 if order == self.stop_order:
                     self.stop_count += 1
-                    self.log('止损单触发!')
+                    self.log("止损单触发!")
                     self.stop_order = None
-        
+
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log(f'订单取消/保证金不足/拒绝: {order.status}')
-        
+            self.log(f"订单取消/保证金不足/拒绝: {order.status}")
+
         # 重置订单状态
         if self.stop_order is None or order.ref != self.stop_order.ref:
             self.order = None
 
     def notify_trade(self, trade):
         if trade.isclosed:
-            self.log(f'交易完成: 毛利润={trade.pnl:.2f}, 净利润={trade.pnlcomm:.2f}')
+            self.log(f"交易完成: 毛利润={trade.pnl:.2f}, 净利润={trade.pnlcomm:.2f}")
 
 
-def load_index_data(filename: str = 'bond_index_000000.csv') -> pd.DataFrame:
+def load_index_data(filename: str = "bond_index_000000.csv") -> pd.DataFrame:
     """加载可转债指数数据"""
     df = pd.read_csv(resolve_data_path(filename))
-    df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df.set_index('datetime')
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    df = df.set_index("datetime")
     df = df.dropna()
     df = df.astype("float")
     return df
@@ -222,23 +232,23 @@ def load_index_data(filename: str = 'bond_index_000000.csv') -> pd.DataFrame:
 def test_stop_order_strategy():
     """
     测试止损订单策略
-    
+
     使用可转债指数数据 bond_index_000000.csv 进行回测
     """
     # 创建 cerebro
-    cerebro = bt.Cerebro(stdstats=True)
+    cerebro = Cerebro(stdstats=True)
 
     # 添加策略
     cerebro.addstrategy(StopOrderStrategy, short_period=5, long_period=20, stop_loss_pct=0.03)
 
     # 加载数据
     print("正在加载可转债指数数据...")
-    df = load_index_data('bond_index_000000.csv')
+    df = load_index_data("bond_index_000000.csv")
     print(f"数据范围: {df.index[0]} 至 {df.index[-1]}, 共 {len(df)} 条")
 
     # 添加数据
     feed = ExtendPandasFeed(dataname=df)
-    cerebro.adddata(feed, name='bond_index')
+    cerebro.adddata(feed, name="bond_index")
 
     # 设置佣金
     cerebro.broker.setcommission(commission=0.001)
@@ -247,11 +257,11 @@ def test_stop_order_strategy():
     cerebro.broker.setcash(100000.0)
 
     # 添加分析器
-    cerebro.addanalyzer(bt.analyzers.TotalValue, _name='my_value')
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='my_sharpe')
-    cerebro.addanalyzer(bt.analyzers.Returns, _name='my_returns')
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='my_drawdown')
-    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='my_trade_analyzer')
+    cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     # 运行回测
     print("开始运行回测...")
@@ -259,13 +269,13 @@ def test_stop_order_strategy():
 
     # 获取结果
     strat = results[0]
-    sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio')
-    annual_return = strat.analyzers.my_returns.get_analysis().get('rnorm')
+    sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
+    annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
     max_drawdown = strat.analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
     trade_analysis = strat.analyzers.my_trade_analyzer.get_analysis()
-    total_trades = trade_analysis.get('total', {}).get('total', 0)
+    total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
-    
+
     # 打印结果
     print("\n" + "=" * 50)
     print("回测结果:")
@@ -286,7 +296,7 @@ def test_stop_order_strategy():
     assert strat.sell_count == 1, f"Expected sell_count=1, got {strat.sell_count}"
     assert strat.stop_count == 3, f"Expected stop_count=3, got {strat.stop_count}"
     assert total_trades == 5, f"Expected total_trades=5, got {total_trades}"
-    
+
     print("\n所有测试通过!")
 
 

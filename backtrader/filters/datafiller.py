@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 from datetime import datetime, timedelta
 from backtrader import AbstractDataBase, TimeFrame
@@ -43,7 +42,7 @@ class DataFiller(AbstractDataBase):
         self._fillbars = None
 
     def start(self):
-        super(DataFiller, self).start()
+        super().start()
         self._fillbars = collections.deque()
         self._dbar = False
 
@@ -58,7 +57,7 @@ class DataFiller(AbstractDataBase):
         self.p.timeframe = self._timeframe = self.p.dataname._timeframe
         self.p.compression = self._compression = self.p.dataname._compression
 
-        super(DataFiller, self).preload()
+        super().preload()
 
     def _copyfromdata(self):
         # Data is allowed - Copy size which is "number of lines"

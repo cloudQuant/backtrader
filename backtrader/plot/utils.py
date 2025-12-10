@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 from colorsys import rgb_to_hls as rgb2hls, hls_to_rgb as hls2rgb
 

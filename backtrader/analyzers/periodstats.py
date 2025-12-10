@@ -1,15 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
 from backtrader.utils.py3 import itervalues
 from backtrader.mathsupport import average, standarddev
-from . import TimeReturn
+from backtrader.dataseries import TimeFrame
+from . import TimeReturn, Analyzer
 
 __all__ = ["PeriodStats"]
 
 
 # 阶段统计
-class PeriodStats(bt.Analyzer):
+class PeriodStats(Analyzer):
     """Calculates basic statistics for given timeframe
 
     Params:
@@ -55,7 +54,7 @@ class PeriodStats(bt.Analyzer):
 
     # 参数
     params = (
-        ("timeframe", bt.TimeFrame.Years),
+        ("timeframe", TimeFrame.Years),
         ("compression", 1),
         ("zeroispos", False),
         ("fund", None),
@@ -64,7 +63,7 @@ class PeriodStats(bt.Analyzer):
     # 初始化，调用TimeReturn
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
-        super(PeriodStats, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._tr = TimeReturn(
             timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
         )

@@ -3,18 +3,20 @@
 性能基准测试工具 - 为去除元编程项目建立性能基线
 """
 
-import time
-import psutil
-import memory_profiler
 import gc
-from pathlib import Path
 import sys
+import time
+from pathlib import Path
+
+import memory_profiler
+import psutil
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import backtrader as bt
-import pandas as pd
 import numpy as np
+import pandas as pd
+
+import backtrader as bt
 
 
 class PerformanceBenchmark:

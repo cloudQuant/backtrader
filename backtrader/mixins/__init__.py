@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 """Backtrader mixins module.
 
@@ -16,7 +15,7 @@ from .singleton import (
 )
 
 __all__ = [
-    'SingletonMixin',
-    'ParameterizedSingletonMixin', 
-    'StoreBase',
-] 
+    "SingletonMixin",
+    "ParameterizedSingletonMixin",
+    "StoreBase",
+]

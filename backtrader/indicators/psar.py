@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import PeriodN
 
 
@@ -8,7 +7,7 @@ __all__ = ["ParabolicSAR", "PSAR"]
 # 这个用于计算SAR指标
 
 
-class _SarStatus(object):
+class _SarStatus:
     sar = None
     tr = None
     af = 0.0
@@ -16,10 +15,10 @@ class _SarStatus(object):
 
     def __str__(self):
         txt = []
-        txt.append("sar: {}".format(self.sar))
-        txt.append("tr: {}".format(self.tr))
-        txt.append("af: {}".format(self.af))
-        txt.append("ep: {}".format(self.ep))
+        txt.append(f"sar: {self.sar}")
+        txt.append(f"tr: {self.tr}")
+        txt.append(f"af: {self.af}")
+        txt.append(f"ep: {self.ep}")
         return "\n".join(txt)
 
 

@@ -1,6 +1,6 @@
 from datetime import datetime
 from backtrader.feed import DataBase
-from backtrader import date2num, num2date
+from ..utils import date2num
 from backtrader.utils.py3 import queue
 from backtrader.stores.ctpstore import CTPStore
 import akshare as ak
@@ -40,17 +40,17 @@ class CTPData(DataBase):
         return True
 
     def __init__(self, **kwargs):
-        super(CTPData, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # 处理原来元类的注册功能
         CTPStore.DataCls = self.__class__
-        
+
         self._state = None
         self.o = self._store(**kwargs)
         self.qlive = self.o.register(self)
 
     def start(self):
         """ """
-        super(CTPData, self).start()
+        super().start()
         # 订阅标的行情
         # self.o.subscribe(data=self)
         self.o.main_ctpbee_api.subscribe(self.p.dataname, self._timeframe, self._compression)
@@ -61,9 +61,7 @@ class CTPData(DataBase):
         """获取回填数据"""
         self.put_notification(self.DELAYED)
         # print("_get_backfill_data")  # Removed for performance
-        self.qhist = (
-            queue.Queue()
-        )  # qhist是存放历史行情数据的队列,用于回填历史数据,未来考虑从数据库或第三方加载,可参考vnpy的处理
+        self.qhist = queue.Queue()  # qhist是存放历史行情数据的队列,用于回填历史数据,未来考虑从数据库或第三方加载,可参考vnpy的处理
         #
         CHINA_TZ = pytz.timezone("Asia/Shanghai")
         #
@@ -113,7 +111,7 @@ class CTPData(DataBase):
 
     def stop(self):
         """Stops and tells the store to stop"""
-        super(CTPData, self).stop()
+        super().stop()
         self.o.stop()
 
     def haslivedata(self):

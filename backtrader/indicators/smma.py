@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import MovingAverageBase, ExponentialSmoothing
 
 
@@ -40,4 +39,4 @@ class SmoothedMovingAverage(MovingAverageBase):
         self.lines[0] = ExponentialSmoothing(
             self.data, period=self.p.period, alpha=1.0 / self.p.period
         )
-        super(SmoothedMovingAverage, self).__init__()
+        super().__init__()

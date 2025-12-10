@@ -1,59 +1,61 @@
 import sys
+
 # import numpy as np  # 注释掉顶层导入
-from setuptools import setup, find_packages, Extension
+from setuptools import Extension, find_packages, setup
 
 
 def get_numpy_include():
     """延迟导入numpy以避免构建时依赖问题"""
     try:
         import numpy as np
+
         return np.get_include()
     except ImportError:
         return ""
 
 
 def set_optimize_option(optimize_arg: int) -> str:
-    if sys.platform == 'win32':
-        return f'/O{optimize_arg}'
-    elif sys.platform == 'linux':
-        return f'-O{optimize_arg}'
-    elif sys.platform == 'darwin':
-        return f'-O{optimize_arg}'
+    if sys.platform == "win32":
+        return f"/O{optimize_arg}"
+    elif sys.platform == "linux":
+        return f"-O{optimize_arg}"
+    elif sys.platform == "darwin":
+        return f"-O{optimize_arg}"
     else:
-        return f'-O{optimize_arg}'
+        return f"-O{optimize_arg}"
 
 
 def set_compile_args(compile_arg: str) -> str:
-    if sys.platform == 'win32':
-        return f'/{compile_arg}'
-    elif sys.platform == 'linux':
-        return f'-f{compile_arg}'
-    elif sys.platform == 'darwin':
-        return f'-O{compile_arg}'
+    if sys.platform == "win32":
+        return f"/{compile_arg}"
+    elif sys.platform == "linux":
+        return f"-f{compile_arg}"
+    elif sys.platform == "darwin":
+        return f"-O{compile_arg}"
     else:
-        return f'-O{compile_arg}'
+        return f"-O{compile_arg}"
 
 
 def set_extra_link_args(link_arg: str) -> str:
-    if sys.platform == 'win32':
-        return f'/{link_arg}'
-    elif sys.platform == 'linux':
-        return f'-{link_arg}'
-    elif sys.platform == 'darwin':
-        return f'-D{link_arg}'
+    if sys.platform == "win32":
+        return f"/{link_arg}"
+    elif sys.platform == "linux":
+        return f"-{link_arg}"
+    elif sys.platform == "darwin":
+        return f"-D{link_arg}"
     else:
-        return f'-{link_arg}'
+        return f"-{link_arg}"
 
 
 def set_cpp_version(cpp_version: str) -> str:
-    if sys.platform == 'win32':
-        return f'-std:{cpp_version}'
-    elif sys.platform == 'linux':
-        return f'-std={cpp_version}'
-    elif sys.platform == 'darwin':
-        return f'-std={cpp_version}'
+    if sys.platform == "win32":
+        return f"-std:{cpp_version}"
+    elif sys.platform == "linux":
+        return f"-std={cpp_version}"
+    elif sys.platform == "darwin":
+        return f"-std={cpp_version}"
     else:
-        return f'-std={cpp_version}'
+        return f"-std={cpp_version}"
 
 
 # # 定义扩展模块
@@ -129,25 +131,27 @@ def set_cpp_version(cpp_version: str) -> str:
 extensions = []
 
 setup(
-    name='backtrader',  # 项目的名称
-    version='0.1',  # 版本号
-    packages=find_packages(exclude=['strategies', 'studies']),
+    name="backtrader",  # 项目的名称
+    version="0.1",  # 版本号
+    packages=find_packages(exclude=["strategies", "studies"]),
     # package_data={'bt_alpha': ['bt_alpha/utils/*', 'utils/*']},
-    author='cloud',  # 作者名字
-    author_email='yunjinqi@qq.com',  # 作者邮箱
-    description='the cpp and cython version of backtrader',  # 项目描述
-    long_description=open('README.md', encoding="utf-8").read(),  # 项目长描述（一般是 README 文件内容）
-    long_description_content_type='text/markdown',  # 长描述的内容类型
-    url='https://gitee.com/yunjinqi/backtrader.git',  # 项目的 URL
+    author="cloud",  # 作者名字
+    author_email="yunjinqi@qq.com",  # 作者邮箱
+    description="the cpp and cython version of backtrader",  # 项目描述
+    long_description=open(
+        "README.md", encoding="utf-8"
+    ).read(),  # 项目长描述（一般是 README 文件内容）
+    long_description_content_type="text/markdown",  # 长描述的内容类型
+    url="https://gitee.com/yunjinqi/backtrader.git",  # 项目的 URL
     install_requires=[
-        'numpy>=1.20.0',  # 添加numpy依赖
-        'cython'
+        "numpy>=1.20.0",  # 添加numpy依赖
+        "cython",
         # 添加其他依赖项
     ],  # 项目所需的依赖项列表
     ext_modules=extensions,  # 添加扩展模块
     classifiers=[
-        'Programming Language :: Python :: 3',
-        'License :: OSI Approved :: MIT License',
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
         # 可以根据需要添加其他分类器
     ],  # 项目的分类器列表
 )

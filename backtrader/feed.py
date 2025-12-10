@@ -1,17 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 import datetime
 import inspect
-import io
 import os.path
 
-import backtrader as bt
-from backtrader import date2num, num2date, time2num, TimeFrame, dataseries, metabase
-
-from backtrader.utils.py3 import zip, range, string_types
-from backtrader.utils import tzparse
-from .dataseries import SimpleFilterWrapper
+from . import dataseries
+from .dataseries import TimeFrame, SimpleFilterWrapper
+from .utils.py3 import zip, range, string_types
+from .utils import tzparse, date2num, num2date, time2num
+from .utils.date import Localizer
 from .resamplerfilter import Resampler, Replayer
 from .tradingcal import PandasMarketCalendar
 
@@ -20,7 +17,7 @@ from .tradingcal import PandasMarketCalendar
 class AbstractDataBase(dataseries.OHLCDateTime):
     # 类级别的注册字典，替代元类的_indcol功能
     _registry = {}
-    
+
     # 参数的初始化设置 - 使用_params_tuple保存原始定义
     _params_tuple = (
         ("dataname", None),
@@ -37,7 +34,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         ("qcheck", 0.0),  # timeout in seconds (float) to check for events
         ("calendar", None),
     )
-    
+
     # 保留原来的params定义以兼容元类系统
     params = _params_tuple
 
@@ -68,36 +65,36 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     def __init__(self, *args, **kwargs):
         # 执行原来元类中dopreinit的功能
         self._init_preinit(*args, **kwargs)
-        
+
         # 调用父类初始化
-        super(AbstractDataBase, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         # 执行原来元类中dopostinit的功能
         self._init_postinit(*args, **kwargs)
-        
+
         # CRITICAL FIX: Mark all lines as belonging to a data feed
         # This must be done AFTER _init_postinit to ensure lines are fully initialized
         # This allows LineSeries.__getitem__ and LineBuffer.__getitem__ to correctly
         # raise IndexError when accessing out-of-range indices
         # This is essential for expire_order_close() to detect insufficient data
-        if hasattr(self, 'lines') and self.lines is not None:
+        if hasattr(self, "lines") and self.lines is not None:
             try:
                 for line in self.lines:
-                    if hasattr(line, '__dict__'):
+                    if hasattr(line, "__dict__"):
                         line._is_data_feed_line = True
             except:
                 pass
-        
+
         # CRITICAL FIX: Also explicitly mark the datetime line
         # The datetime line might be accessed separately (e.g., self.datas[0].datetime)
         # and needs to raise IndexError when accessing out of bounds
-        if hasattr(self, 'datetime') and self.datetime is not None:
+        if hasattr(self, "datetime") and self.datetime is not None:
             try:
-                if hasattr(self.datetime, '__dict__'):
+                if hasattr(self.datetime, "__dict__"):
                     self.datetime._is_data_feed_line = True
             except:
                 pass
-        
+
         # 原来__init__中的内容
         self._env = None
         self._barstash = None
@@ -111,7 +108,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # 初始化一个队列，用于存储从cerebro来的信息
         self.notifs = collections.deque()  # store notifications for cerebro
         # 从参数中获取_dataname的值
-        self._dataname = getattr(self.p, 'dataname', None)
+        self._dataname = getattr(self.p, "dataname", None)
         # 默认_name属性是空
         self._name = ""
 
@@ -120,63 +117,63 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # Debug: check parameter state at the beginning
         # print(f"_init_postinit start: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
         # print(f"_init_postinit kwargs: {kwargs}")
-        
+
         # Either set by subclass or the parameter or use the dataname (ticker)
         # 重新设置_name属性，如果_name属性不是空的，就保持，如果是空的，就让它等于参数中的name的值
-        self._name = self._name or getattr(self.p, 'name', '')
+        self._name = self._name or getattr(self.p, "name", "")
         # 如果_name属性值还是为空，并且参数dataname的值是字符串的话，就把_name设置为dataname值
-        if not self._name and isinstance(getattr(self.p, 'dataname', None), string_types):
+        if not self._name and isinstance(getattr(self.p, "dataname", None), string_types):
             self._name = self.p.dataname
         # _compression值等于参数compression的值
-        self._compression = getattr(self.p, 'compression', 1)
+        self._compression = getattr(self.p, "compression", 1)
         # _timeframe的值等于参数timeframe的值
-        self._timeframe = getattr(self.p, 'timeframe', TimeFrame.Days)
-        
+        self._timeframe = getattr(self.p, "timeframe", TimeFrame.Days)
+
         # Only set sessionstart/sessionend defaults if they weren't explicitly passed
         # 开始的时间如果是datetime格式，就等于从sessionstart获取具体的时间，如果是None的话，只在未明确传入时等于最小的时间
-        sessionstart = getattr(self.p, 'sessionstart', None)
+        sessionstart = getattr(self.p, "sessionstart", None)
         if isinstance(sessionstart, datetime.datetime):
             self.p.sessionstart = sessionstart.time()
-        elif sessionstart is None and 'sessionstart' not in kwargs:
+        elif sessionstart is None and "sessionstart" not in kwargs:
             self.p.sessionstart = datetime.time.min
-            
+
         # 结束的时间如果是datetime格式，就等于从sessionend获取具体的时间，如果是None的话，只在未明确传入时等于23：59：59.999990
-        sessionend = getattr(self.p, 'sessionend', None)
+        sessionend = getattr(self.p, "sessionend", None)
         if isinstance(sessionend, datetime.datetime):
             self.p.sessionend = sessionend.time()
-        elif sessionend is None and 'sessionend' not in kwargs:
+        elif sessionend is None and "sessionend" not in kwargs:
             # remove 9 to avoid precision rounding errors
             self.p.sessionend = datetime.time(23, 59, 59, 999990)
-            
+
         # Debug: check parameter state after modification
         # print(f"_init_postinit end: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
-            
+
         # 如果开始日期是date格式，如果没有hour的属性的话，就增加sessionstart的时间，把开始日期变成了日期+时间的格式
-        fromdate = getattr(self.p, 'fromdate', None)
+        fromdate = getattr(self.p, "fromdate", None)
         if isinstance(fromdate, datetime.date):
             # push it to the end of the day, or else intraday
             # values before the end of the day would be gone
             if not hasattr(fromdate, "hour"):
                 self.p.fromdate = datetime.datetime.combine(fromdate, self.p.sessionstart)
-                
+
         # 如果结束日期是date格式，如果没有hour的属性的话，就增加sessionend的时间，把开始日期变成了日期+时间的格式
-        todate = getattr(self.p, 'todate', None)
+        todate = getattr(self.p, "todate", None)
         if isinstance(todate, datetime.date):
             # push it to the end of the day, or else intraday
             # values before the end of the day would be gone
             if not hasattr(todate, "hour"):
                 self.p.todate = datetime.datetime.combine(todate, self.p.sessionend)
-                
+
         # 设置_barstack,_barstash两个属性作为队列，用于过滤操作
         self._barstack = collections.deque()  # for filter operations
         self._barstash = collections.deque()  # for filter operations
         # 设置_filters,_ffilters作为空的列表
         self._filters = list()
         self._ffilters = list()
-        
+
         # 遍历参数中的filters，先判断是否是类，如果是类，就先实例化，如果实例中有last属性，就把这个过滤器传入到_ffilters中
         # 如果不是类，就直接把过滤器传入到_filters中
-        filters = getattr(self.p, 'filters', [])
+        filters = getattr(self.p, "filters", [])
         for fp in filters:
             if inspect.isclass(fp):
                 fp = fp(self)
@@ -188,23 +185,24 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     def _find_feed_owner(self):
         """替代原来的metabase.findowner功能"""
         import sys
+
         # 简化的owner查找逻辑，在实际的调用栈中寻找FeedBase实例
         for frame_level in range(2, 10):  # 限制搜索深度
             try:
                 frame = sys._getframe(frame_level)
                 self_obj = frame.f_locals.get("self", None)
-                if self_obj is not None and hasattr(self_obj, '__class__'):
+                if self_obj is not None and hasattr(self_obj, "__class__"):
                     # 检查是否是FeedBase的实例（这里使用字符串检查避免循环导入）
-                    if 'FeedBase' in str(type(self_obj)):
+                    if "FeedBase" in str(type(self_obj)):
                         return self_obj
-                obj = frame.f_locals.get("_obj", None) 
-                if obj is not None and hasattr(obj, '__class__'):
-                    if 'FeedBase' in str(type(obj)):
+                obj = frame.f_locals.get("_obj", None)
+                if obj is not None and hasattr(obj, "__class__"):
+                    if "FeedBase" in str(type(obj)):
                         return obj
             except ValueError:
                 break
         return None
-        
+
     @classmethod
     def _getstatusname(cls, status):
         return cls._NOTIFNAMES[status]
@@ -241,7 +239,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         # This should probably be also called from an override-able method
         # 本地化输入的时区
-        self._tzinput = bt.utils.date.Localizer(self._gettzinput())
+        self._tzinput = Localizer(self._gettzinput())
 
         # Convert user input times to the output timezone (or min/max)
         # 把用户输入的开始和结束时间转化为具体的数字，如果是None的话，开始时间是无限小的数字，结束时间是无限大的数字
@@ -593,7 +591,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # 加载数据
     def load(self):
-
         while True:
             # move a data pointer forward for new bar
             # 把数据指针向前移动一位
@@ -745,7 +742,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     @classmethod
     def _gettuple(cls):
         """为了兼容性，提供_gettuple方法"""
-        return cls._params_tuple if hasattr(cls, '_params_tuple') else cls.params
+        return cls._params_tuple if hasattr(cls, "_params_tuple") else cls.params
 
 
 # DataBase类，直接继承的是抽象的DataBase
@@ -754,7 +751,7 @@ class DataBase(AbstractDataBase):
 
 
 # 重构: 移除MetaParams元类，使用普通的参数处理
-class FeedBase(object):
+class FeedBase:
     # 参数处理，原来通过元类自动合并参数，现在手动处理
     def __init__(self, **kwargs):
         # 手动设置参数，替代原来的元类功能
@@ -763,6 +760,7 @@ class FeedBase(object):
 
     def _create_params(self, **kwargs):
         """手动创建参数对象，替代元类的参数处理"""
+
         # 创建一个简单的参数对象
         class Params:
             def _getitems(self):
@@ -770,26 +768,26 @@ class FeedBase(object):
                 # OPTIMIZED: Use __dict__ instead of dir() for better performance
                 items = []
                 for attr_name, value in self.__dict__.items():
-                    if not attr_name.startswith('_') and not callable(value):
+                    if not attr_name.startswith("_") and not callable(value):
                         items.append((attr_name, value))
                 return items
-        
+
         params_obj = Params()
-        
+
         # 从DataBase获取默认参数
-        if hasattr(DataBase, 'params'):
+        if hasattr(DataBase, "params"):
             base_params = DataBase.params
             if isinstance(base_params, (tuple, list)):
                 for param_tuple in base_params:
                     if isinstance(param_tuple, (tuple, list)) and len(param_tuple) >= 2:
                         param_name, param_default = param_tuple[0], param_tuple[1]
                         setattr(params_obj, param_name, kwargs.get(param_name, param_default))
-        
+
         # 设置其他传入的参数
         for key, value in kwargs.items():
             if not hasattr(params_obj, key):
                 setattr(params_obj, key, value)
-                
+
         return params_obj
 
     # 数据开始
@@ -806,15 +804,15 @@ class FeedBase(object):
     def getdata(self, dataname, name=None, **kwargs):
         # 合并参数
         final_kwargs = {}
-        if hasattr(self.p, '_getitems'):
+        if hasattr(self.p, "_getitems"):
             for pname, pvalue in self.p._getitems():
                 final_kwargs[pname] = pvalue
-        elif hasattr(self.p, '__dict__'):
+        elif hasattr(self.p, "__dict__"):
             final_kwargs.update(self.p.__dict__)
-            
+
         final_kwargs.update(kwargs)
         final_kwargs["dataname"] = dataname
-        
+
         data = self._getdata(**final_kwargs)
         data._name = name
         self.datas.append(data)
@@ -823,12 +821,12 @@ class FeedBase(object):
     def _getdata(self, dataname, **kwargs):
         # 设置关键字参数
         final_kwargs = {}
-        if hasattr(self.p, '_getitems'):
+        if hasattr(self.p, "_getitems"):
             for pname, pvalue in self.p._getitems():
                 final_kwargs[pname] = pvalue
-        elif hasattr(self.p, '__dict__'):
+        elif hasattr(self.p, "__dict__"):
             final_kwargs.update(self.p.__dict__)
-            
+
         final_kwargs.update(kwargs)
         final_kwargs["dataname"] = dataname
         return self.DataCls(**final_kwargs)
@@ -857,7 +855,7 @@ class CSVDataBase(DataBase):
         ("headers", True),
         ("separator", ","),
     )
-    
+
     # 保留原来的params定义以兼容元类系统
     params = _params_tuple
 
@@ -865,29 +863,29 @@ class CSVDataBase(DataBase):
     def __init__(self, *args, **kwargs):
         # 执行原来元类MetaCSVDataBase.dopostinit的功能
         self._csv_postinit(**kwargs)
-        
+
         # 调用父类初始化
-        super(CSVDataBase, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         self.separator = None
 
     def _csv_postinit(self, **kwargs):
         """替代原来的MetaCSVDataBase.dopostinit"""
         # 如果参数中没有名字并且_name属性是空的话，从数据文件的名称得到一个具体的名字
         # 使用现有的参数系统
-        dataname = getattr(self, 'p', None) and getattr(self.p, 'dataname', None)
+        dataname = getattr(self, "p", None) and getattr(self.p, "dataname", None)
         if not dataname:
-            dataname = kwargs.get('dataname', '')
-        name = getattr(self, 'p', None) and getattr(self.p, 'name', None)
+            dataname = kwargs.get("dataname", "")
+        name = getattr(self, "p", None) and getattr(self.p, "name", None)
         if not name:
-            name = kwargs.get('name', '')
-            
-        if not name and not getattr(self, '_name', ''):
+            name = kwargs.get("name", "")
+
+        if not name and not getattr(self, "_name", ""):
             if isinstance(dataname, string_types):
                 self._name, _ = os.path.splitext(os.path.basename(dataname))
 
     def start(self):
-        super(CSVDataBase, self).start()
+        super().start()
         # 如果数据是None的话
         if self.f is None:
             # 如果参数中dataname具有readline属性，那么就说明dataname是一个数据，直接f等于参数中的数据
@@ -896,7 +894,7 @@ class CSVDataBase(DataBase):
             # 如果没有readline属性的话，说明dataname是一个地址，那么就根据这个地址打开文件，获取数据
             else:
                 # Let an exception propagate to let the caller know
-                self.f = io.open(self.p.dataname, "r")
+                self.f = open(self.p.dataname)
         # 如果有headers的话，就读取一行，跳过headers
         if self.p.headers:
             self.f.readline()  # skip the headers
@@ -905,7 +903,7 @@ class CSVDataBase(DataBase):
 
     # 停止
     def stop(self):
-        super(CSVDataBase, self).stop()
+        super().stop()
         # 如果数据文件不是None，就关闭文件，并设置成None
         if self.f is not None:
             self.f.close()
@@ -964,33 +962,32 @@ class CSVFeedBase(FeedBase):
         self.basepath = basepath
         # 合并CSVDataBase的参数
         csv_params = {}
-        if hasattr(CSVDataBase, 'params'):
+        if hasattr(CSVDataBase, "params"):
             csv_base_params = CSVDataBase.params
             if isinstance(csv_base_params, (tuple, list)):
                 for param_tuple in csv_base_params:
                     if isinstance(param_tuple, (tuple, list)) and len(param_tuple) >= 2:
                         param_name, param_default = param_tuple[0], param_tuple[1]
                         csv_params[param_name] = kwargs.get(param_name, param_default)
-        
+
         kwargs.update(csv_params)
-        super(CSVFeedBase, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     # 获取数据
     def _getdata(self, dataname, **kwargs):
         final_kwargs = {}
-        if hasattr(self.p, '_getitems'):
+        if hasattr(self.p, "_getitems"):
             for pname, pvalue in self.p._getitems():
                 final_kwargs[pname] = pvalue
-        elif hasattr(self.p, '__dict__'):
+        elif hasattr(self.p, "__dict__"):
             final_kwargs.update(self.p.__dict__)
-            
+
         final_kwargs.update(kwargs)
         return self.DataCls(dataname=self.basepath + dataname, **final_kwargs)
 
 
 # 数据克隆
 class DataClone(AbstractDataBase):
-
     # _clone属性设置为True
     _clone = True
 
@@ -1001,71 +998,71 @@ class DataClone(AbstractDataBase):
         # to ensure they exist when parent class methods access them
         self._dlen = None
         self._preloading = None
-        
+
         # Get dataname and set it as self.data
-        dataname = kwargs.get('dataname')
+        dataname = kwargs.get("dataname")
         if dataname is None:
             raise ValueError("DataClone requires 'dataname' parameter")
-        
+
         # CRITICAL FIX: Store data reference using object.__setattr__ to bypass
         # any custom __setattr__ that might interfere
-        object.__setattr__(self, 'data', dataname)
-        self._dataname = getattr(self.data, '_dataname', None)
+        object.__setattr__(self, "data", dataname)
+        self._dataname = getattr(self.data, "_dataname", None)
 
         # Copy date/session parameters from source data
-        if hasattr(self.data, 'p'):
-            kwargs.setdefault('fromdate', getattr(self.data.p, 'fromdate', None))
-            kwargs.setdefault('todate', getattr(self.data.p, 'todate', None))
-            kwargs.setdefault('sessionstart', getattr(self.data.p, 'sessionstart', None))
-            kwargs.setdefault('sessionend', getattr(self.data.p, 'sessionend', None))
-            kwargs.setdefault('timeframe', getattr(self.data.p, 'timeframe', None))
-            kwargs.setdefault('compression', getattr(self.data.p, 'compression', None))
-        
-        super(DataClone, self).__init__(*args, **kwargs)
-        
+        if hasattr(self.data, "p"):
+            kwargs.setdefault("fromdate", getattr(self.data.p, "fromdate", None))
+            kwargs.setdefault("todate", getattr(self.data.p, "todate", None))
+            kwargs.setdefault("sessionstart", getattr(self.data.p, "sessionstart", None))
+            kwargs.setdefault("sessionend", getattr(self.data.p, "sessionend", None))
+            kwargs.setdefault("timeframe", getattr(self.data.p, "timeframe", None))
+            kwargs.setdefault("compression", getattr(self.data.p, "compression", None))
+
+        super().__init__(*args, **kwargs)
+
         # CRITICAL FIX: Ensure self.data is still set after parent init
         # Re-set it to be safe, in case parent class __init__ cleared attributes
-        if not hasattr(self, 'data') or object.__getattribute__(self, 'data') is None:
-            object.__setattr__(self, 'data', dataname)
+        if not hasattr(self, "data") or object.__getattribute__(self, "data") is None:
+            object.__setattr__(self, "data", dataname)
 
     def _start(self):
         # redefine to copy data bits from guest data
         self.start()
 
         # Copy tz infos
-        if hasattr(self.data, '_tz'):
+        if hasattr(self.data, "_tz"):
             self._tz = self.data._tz
             self.lines.datetime._settz(self._tz)
 
-        if hasattr(self.data, '_calendar'):
+        if hasattr(self.data, "_calendar"):
             self._calendar = self.data._calendar
 
         # guest data have already converted input
         self._tzinput = None  # no need to further converr
 
         # Copy dates/session infos
-        if hasattr(self.data, 'fromdate'):
+        if hasattr(self.data, "fromdate"):
             self.fromdate = self.data.fromdate
-        if hasattr(self.data, 'todate'):
+        if hasattr(self.data, "todate"):
             self.todate = self.data.todate
 
         # FIXME: if removed from guest, remove here too
-        if hasattr(self.data, 'sessionstart'):
+        if hasattr(self.data, "sessionstart"):
             self.sessionstart = self.data.sessionstart
-        if hasattr(self.data, 'sessionend'):
+        if hasattr(self.data, "sessionend"):
             self.sessionend = self.data.sessionend
 
     # 开始
     def start(self):
-        super(DataClone, self).start()
+        super().start()
         self._dlen = 0
         self._preloading = False
 
     # preload数据
     def preload(self):
         self._preloading = True
-        super(DataClone, self).preload()
-        if hasattr(self.data, 'home'):
+        super().preload()
+        if hasattr(self.data, "home"):
             self.data.home()  # preloading data was pushed forward
         self._preloading = False
 
@@ -1078,7 +1075,7 @@ class DataClone(AbstractDataBase):
             # data is preloaded, we are preloading too, can move
             # forward until have full bar or a data source is exhausted
             # 数据向前
-            if hasattr(self.data, 'advance'):
+            if hasattr(self.data, "advance"):
                 self.data.advance()
             # 如果当前的数据大于了数据的缓存的长度，返回False
             if len(self.data) > self.data.buflen():
@@ -1108,4 +1105,4 @@ class DataClone(AbstractDataBase):
     # 向前移动size的量
     def advance(self, size=1, datamaster=None, ticks=True):
         self._dlen += size
-        super(DataClone, self).advance(size, datamaster, ticks=ticks)
+        super().advance(size, datamaster, ticks=ticks)

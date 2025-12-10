@@ -3,10 +3,10 @@
 元编程分析工具 - 检测backtrader项目中的元编程使用情况
 """
 
+import ast
 import os
 import re
-import ast
-from collections import defaultdict, Counter
+from collections import Counter, defaultdict
 from pathlib import Path
 
 
@@ -27,7 +27,7 @@ class MetaprogrammingAnalyzer:
     def analyze_file(self, file_path):
         """分析单个Python文件"""
         try:
-            with open(file_path, "r", encoding="utf-8") as f:
+            with open(file_path, encoding="utf-8") as f:
                 content = f.read()
 
             # 检查metaclass使用
@@ -105,28 +105,28 @@ class MetaprogrammingAnalyzer:
         print(f"\n2. TYPE() 动态类创建:")
         print(f"   总计: {len(self.results['type_creation'])} 个")
 
-        files_with_type = set(file_path for file_path, _ in self.results["type_creation"])
+        files_with_type = {file_path for file_path, _ in self.results["type_creation"]}
         print(f"   涉及文件: {len(files_with_type)} 个")
 
         # 统计setattr使用
         print(f"\n3. SETATTR 动态属性设置:")
         print(f"   总计: {len(self.results['setattr_usage'])} 个")
 
-        files_with_setattr = set(file_path for file_path, _ in self.results["setattr_usage"])
+        files_with_setattr = {file_path for file_path, _ in self.results["setattr_usage"]}
         print(f"   涉及文件: {len(files_with_setattr)} 个")
 
         # 统计getattr使用
         print(f"\n4. GETATTR 动态属性获取:")
         print(f"   总计: {len(self.results['getattr_usage'])} 个")
 
-        files_with_getattr = set(file_path for file_path, _ in self.results["getattr_usage"])
+        files_with_getattr = {file_path for file_path, _ in self.results["getattr_usage"]}
         print(f"   涉及文件: {len(files_with_getattr)} 个")
 
         # 统计findowner使用
         print(f"\n5. FINDOWNER 栈帧查找:")
         print(f"   总计: {len(self.results['findowner_usage'])} 个")
 
-        files_with_findowner = set(file_path for file_path, _ in self.results["findowner_usage"])
+        files_with_findowner = {file_path for file_path, _ in self.results["findowner_usage"]}
         print(f"   涉及文件: {len(files_with_findowner)} 个")
 
         # 重度使用元编程的文件

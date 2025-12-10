@@ -18,12 +18,12 @@ class TotalValue(Analyzer):
     rets = None
 
     def start(self):
-        super(TotalValue, self).start()
+        super().start()
         self.rets = OrderedDict()
 
     def next(self):
         # Calculate the return
-        super(TotalValue, self).next()
+        super().next()
         self.rets[self.datas[0].datetime.datetime()] = self.strategy.broker.getvalue()
 
     def get_analysis(self):

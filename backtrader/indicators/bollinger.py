@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, MovAv, StdDev
 
 
@@ -49,7 +48,7 @@ class BollingerBands(Indicator):
         self.lines.top = ma + stddev
         self.lines.bot = ma - stddev
 
-        super(BollingerBands, self).__init__()
+        super().__init__()
 
 
 # 布林带百分比指标
@@ -62,5 +61,5 @@ class BollingerBandsPct(BollingerBands):
     plotlines = dict(pctb=dict(_name="%B"))  # display the line as %B on chart
 
     def __init__(self):
-        super(BollingerBandsPct, self).__init__()
+        super().__init__()
         self.l.pctb = (self.data - self.l.bot) / (self.l.top - self.l.bot)

@@ -64,7 +64,7 @@
 from ..utils.py3 import zip
 
 
-class Widget(object):
+class Widget:
     """
     Abstract base class for GUI neutral widgets
     """
@@ -137,7 +137,6 @@ class MultiCursor(Widget):
         vertShared=False,
         **lineprops,
     ):
-
         self._ciddraw = None
         self._cidmotion = None
         self.canvas = canvas
@@ -272,7 +271,6 @@ class MultiCursor2(Widget):
     """
 
     def __init__(self, canvas, axes, useblit=True, horizOn=False, vertOn=True, **lineprops):
-
         self._ciddraw = None
         self._cidmotion = None
         self.canvas = canvas

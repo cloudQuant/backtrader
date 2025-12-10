@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import datetime as _datetime
-from datetime import datetime
 import inspect
 
 from .utils.py3 import range
@@ -9,7 +7,7 @@ from .lineseries import LineSeries
 from .utils import AutoOrderedDict, OrderedDict, date2num
 
 
-class TimeFrame(object):
+class TimeFrame:
     # 给TimeFrame这个类增加9个属性，用于区分交易的周期
     (Ticks, MicroSeconds, Seconds, Minutes, Days, Weeks, Months, Years, NoTimeFrame) = range(1, 10)
     # 增加一个names属性值
@@ -131,7 +129,7 @@ class OHLCDateTime(OHLC):
     lines = (("datetime"),)
 
 
-class SimpleFilterWrapper(object):
+class SimpleFilterWrapper:
     """Wrapper for filters added via .addfilter to turn them
     into processors.
 
@@ -185,7 +183,7 @@ class _Bar(AutoOrderedDict):
     MAXDATE = date2num(_datetime.datetime.max) - 2
 
     def __init__(self, maxdate=False):
-        super(_Bar, self).__init__()
+        super().__init__()
         # todo 去掉这几行的注释会报错，需要检查一下是什么原因
         # self.datetime = None
         # self.openinterest = None

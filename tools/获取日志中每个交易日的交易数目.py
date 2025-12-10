@@ -13,7 +13,6 @@ from collections import Counter
 from pathlib import Path
 from typing import Dict, Iterable, Iterator, List
 
-
 TRADE_PATTERN = re.compile(
     r"(?P<date>\d{4}-\d{2}-\d{2})T[0-9:.+-]*,\s*open symbol is\s*:\s*(?P<symbol>\S+)",
     re.IGNORECASE,
@@ -53,7 +52,7 @@ def guess_log_label(name: str) -> str:
     return Path(name).stem
 
 
-def unique_label(label: str, existing: Dict[str, Path]) -> str:
+def unique_label(label: str, existing: dict[str, Path]) -> str:
     if label not in existing:
         return label
 
@@ -63,7 +62,7 @@ def unique_label(label: str, existing: Dict[str, Path]) -> str:
     return f"{label}_{index}"
 
 
-def discover_logs(log_dir: Path) -> Dict[str, Path]:
+def discover_logs(log_dir: Path) -> dict[str, Path]:
     log_dir = log_dir.resolve()
     if not log_dir.exists():
         raise FileNotFoundError(f"日志目录不存在: {log_dir}")
@@ -87,9 +86,7 @@ def discover_logs(log_dir: Path) -> Dict[str, Path]:
     if remove_log is None:
         missing.append("remove_metaprogramming")
     if missing:
-        raise FileNotFoundError(
-            "日志目录中缺少以下日志文件，请手动指定: " + ", ".join(missing)
-        )
+        raise FileNotFoundError("日志目录中缺少以下日志文件，请手动指定: " + ", ".join(missing))
 
     return {
         "master": master_log,
@@ -97,9 +94,9 @@ def discover_logs(log_dir: Path) -> Dict[str, Path]:
     }
 
 
-def resolve_log_paths(args: argparse.Namespace) -> Dict[str, Path]:
+def resolve_log_paths(args: argparse.Namespace) -> dict[str, Path]:
     if args.log_files:
-        resolved: Dict[str, Path] = {}
+        resolved: dict[str, Path] = {}
         for raw_path in args.log_files:
             path = raw_path.resolve()
             label = unique_label(guess_log_label(path.name), resolved)
@@ -109,12 +106,12 @@ def resolve_log_paths(args: argparse.Namespace) -> Dict[str, Path]:
     return discover_logs(args.log_dir)
 
 
-def sort_labels(labels: List[str]) -> List[str]:
+def sort_labels(labels: list[str]) -> list[str]:
     priority = {"master": 0, "remove_metaprogramming": 1}
     return sorted(labels, key=lambda label: (priority.get(label, 99), label))
 
 
-def print_table(counts_map: Dict[str, Counter[str]], sort_by: str) -> None:
+def print_table(counts_map: dict[str, Counter[str]], sort_by: str) -> None:
     if not counts_map:
         print("未在日志中找到符合格式的交易记录")
         return
@@ -135,7 +132,7 @@ def print_table(counts_map: Dict[str, Counter[str]], sort_by: str) -> None:
     for counter in counts_map.values():
         all_dates.update(counter.keys())
 
-    differing_rows: List[tuple[str, Dict[str, int]]] = []
+    differing_rows: list[tuple[str, dict[str, int]]] = []
     for date in all_dates:
         row_counts = {label: counts_map[label].get(date, 0) for label in labels}
         if len({row_counts[label] for label in labels}) > 1:
@@ -151,12 +148,14 @@ def print_table(counts_map: Dict[str, Counter[str]], sort_by: str) -> None:
         differing_rows.sort(key=lambda item: (-max(item[1].values()), item[0]))
 
     headers = ["日期"] + labels
-    widths: Dict[str, int] = {"日期": max(len("日期"), max(len(date) for date, _ in differing_rows))}
+    widths: dict[str, int] = {
+        "日期": max(len("日期"), max(len(date) for date, _ in differing_rows))
+    }
     for label in labels:
         max_count_len = max(len(str(row_counts[label])) for _, row_counts in differing_rows)
         widths[label] = max(len(label), max_count_len)
 
-    def build_line(values: List[str]) -> str:
+    def build_line(values: list[str]) -> str:
         return "  ".join(f"{value:<{widths[header]}}" for value, header in zip(values, headers))
 
     print(build_line(headers))
@@ -194,7 +193,7 @@ def main() -> None:
     args = parse_args()
 
     log_paths = resolve_log_paths(args)
-    counts_map: Dict[str, Counter[str]] = {}
+    counts_map: dict[str, Counter[str]] = {}
 
     for label, path in log_paths.items():
         counts_map[label] = count_trades_per_day(path)

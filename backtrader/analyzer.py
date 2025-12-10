@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import calendar
 from collections import OrderedDict
 import datetime
@@ -79,11 +78,11 @@ class Analyzer(ParameterizedBase):
         Custom __new__ to implement the functionality previously in MetaAnalyzer.donew
         """
         # Create the object using parent's __new__
-        _obj = super(Analyzer, cls).__new__(cls)
-        
+        _obj = super().__new__(cls)
+
         # Initialize children list
         _obj._children = list()
-        
+
         return _obj
 
     def __init__(self, *args, **kwargs):
@@ -91,8 +90,8 @@ class Analyzer(ParameterizedBase):
         Initialize Analyzer with basic functionality
         """
         # Initialize parent first
-        super(Analyzer, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         # findowner用于发现_obj的父类，bt.Strategy的实例，如果没有找到，返回None
         self.strategy = strategy = bt.metabase.findowner(self, bt.Strategy)
         # findowner用于发现_obj的父类，属于Analyzer的实例,如果没有找到，返回None
@@ -129,7 +128,7 @@ class Analyzer(ParameterizedBase):
                     if linealias:
                         setattr(self, "data%d_%s" % (d, linealias), line)
                     setattr(self, "data%d_%d" % (d, l), line)
-        
+
         # 调用create_analysis方法
         self.create_analysis()
 
@@ -298,21 +297,21 @@ class TimeFrameAnalyzerBase(Analyzer):
     params = (
         ("timeframe", TimeFrame.Days),
         ("compression", 1),
-        ('_doprenext', True),  # override default behavior
+        ("_doprenext", True),  # override default behavior
     )
 
     def __init__(self, *args, **kwargs):
         """Initialize with functionality previously in MetaTimeFrameAnalyzerBase"""
-        super(TimeFrameAnalyzerBase, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         # Hack to support original method name - add on_dt_over_orig if on_dt_over_orig exists
-        if hasattr(self, 'on_dt_over_orig') and not hasattr(self, 'on_dt_over'):
+        if hasattr(self, "on_dt_over_orig") and not hasattr(self, "on_dt_over"):
             self.on_dt_over = self.on_dt_over_orig
 
     def _start(self):
         # Override to add specific attributes
         # 设置交易周期，比如分钟
-        super(TimeFrameAnalyzerBase, self)._start()
+        super()._start()
         # 设置交易周期
         self.timeframe = self.p.timeframe
         # 设置压缩
@@ -332,21 +331,21 @@ class TimeFrameAnalyzerBase(Analyzer):
             self._save_dtcmp()
             # 做prenext分析
             self._dt_prenext()
-            super(TimeFrameAnalyzerBase, self)._prenext()
+            super()._prenext()
 
     def _nextstart(self):
         # 保存当前状态
         self._save_dtcmp()
         # next分析
         self._dt_next()
-        super(TimeFrameAnalyzerBase, self)._nextstart()
+        super()._nextstart()
 
     def _next(self):
         # 保存当前状态
         self._save_dtcmp()
         # next分析
         self._dt_next()
-        super(TimeFrameAnalyzerBase, self)._next()
+        super()._next()
 
     # 这个方法子类一般需要重写
     def on_dt_over(self):
@@ -388,7 +387,7 @@ class TimeFrameAnalyzerBase(Analyzer):
         # 如果当前的交易周期是没有时间周期的话，返回两个None
         if self.timeframe == TimeFrame.NoTimeFrame:
             return MAXINT, datetime.datetime.max
-        
+
         # Convert float timestamp to datetime if necessary
         if isinstance(dt, float):
             # CRITICAL FIX: Prevent ValueError for ordinal < 1
@@ -397,20 +396,22 @@ class TimeFrameAnalyzerBase(Analyzer):
                 # Use Jan 1, year 1 as minimum valid date
                 dt_int = 1
                 dt = 1.0
-            
+
             # Convert from ordinal to datetime
             point = datetime.datetime.fromordinal(dt_int)
             # Handle fractional part for intraday
             fractional = dt - dt_int
             if fractional > 0:
                 seconds = fractional * 86400  # 24 * 60 * 60
-                point = point.replace(hour=int(seconds // 3600),
-                                    minute=int((seconds % 3600) // 60),
-                                    second=int(seconds % 60),
-                                    microsecond=int((seconds % 1) * 1000000))
+                point = point.replace(
+                    hour=int(seconds // 3600),
+                    minute=int((seconds % 3600) // 60),
+                    second=int(seconds % 60),
+                    microsecond=int((seconds % 1) * 1000000),
+                )
         else:
             point = dt
-            
+
         # Calculate intraday position
         if self.timeframe < TimeFrame.Days:
             return self._get_subday_cmpkey(point)
@@ -451,20 +452,22 @@ class TimeFrameAnalyzerBase(Analyzer):
                 # Use Jan 1, year 1 as minimum valid date
                 dt_int = 1
                 dt = 1.0
-                
+
             # Convert from ordinal to datetime
             point = datetime.datetime.fromordinal(dt_int)
             # Handle fractional part for intraday
             fractional = dt - dt_int
             if fractional > 0:
                 seconds = fractional * 86400  # 24 * 60 * 60
-                point = point.replace(hour=int(seconds // 3600),
-                                    minute=int((seconds % 3600) // 60),
-                                    second=int(seconds % 60),
-                                    microsecond=int((seconds % 1) * 1000000))
+                point = point.replace(
+                    hour=int(seconds // 3600),
+                    minute=int((seconds % 3600) // 60),
+                    second=int(seconds % 60),
+                    microsecond=int((seconds % 1) * 1000000),
+                )
         else:
             point = dt
-            
+
         # 计算当前的分钟数目
         point = point.replace(second=0, microsecond=0)
         # 如果周期是分钟的话

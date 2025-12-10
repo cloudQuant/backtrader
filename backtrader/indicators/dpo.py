@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, MovAv
 
 
@@ -45,4 +44,4 @@ class DetrendedPriceOscillator(Indicator):
         # Calculate value (look back period/2 + 1 in MA) and bind to 'dpo' line
         self.lines.dpo = self.data - ma(-self.p.period // 2 + 1)
 
-        super(DetrendedPriceOscillator, self).__init__()
+        super().__init__()

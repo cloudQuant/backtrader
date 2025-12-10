@@ -1,9 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import datetime
 from .. import feed
-from .. import TimeFrame
-from ..utils import date
+from ..dataseries import TimeFrame
 
 
 # 处理vc chart csv文件

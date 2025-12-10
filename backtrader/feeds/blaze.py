@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-from backtrader import date2num
+from ..utils import date2num
 import backtrader.feed as feed
 
 
@@ -43,7 +42,7 @@ class BlazeData(feed.DataBase):
         self._rows = None
 
     def start(self):
-        super(BlazeData, self).start()
+        super().start()
 
         # reset the iterator on each start
         self._rows = iter(self.p.dataname)

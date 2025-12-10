@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, FindFirstIndexHighest, FindFirstIndexLowest
 
 
@@ -48,7 +47,7 @@ class _AroonBase(Indicator):
             llidx = FindFirstIndexLowest(self.data.low, period=idxperiod)
             self.down = (100.0 / self.p.period) * (self.p.period - llidx)
 
-        super(_AroonBase, self).__init__()
+        super().__init__()
 
 
 class AroonUp(_AroonBase):
@@ -78,7 +77,7 @@ class AroonUp(_AroonBase):
     lines = ("aroonup",)
 
     def __init__(self):
-        super(AroonUp, self).__init__()
+        super().__init__()
 
         self.lines.aroonup = self.up
 
@@ -110,7 +109,7 @@ class AroonDown(_AroonBase):
     lines = ("aroondown",)
 
     def __init__(self):
-        super(AroonDown, self).__init__()
+        super().__init__()
 
         self.lines.aroondown = self.down
 
@@ -165,13 +164,13 @@ class AroonOscillator(_AroonBase):
     lines = ("aroonosc",)
 
     def _plotinit(self):
-        super(AroonOscillator, self)._plotinit()
+        super()._plotinit()
 
         for yhline in self.plotinfo.plotyhlines[:]:
             self.plotinfo.plotyhlines.append(-yhline)
 
     def __init__(self):
-        super(AroonOscillator, self).__init__()
+        super().__init__()
 
         self.lines.aroonosc = self.up - self.down
 

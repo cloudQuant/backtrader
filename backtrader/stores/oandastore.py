@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import collections
 from datetime import datetime, timedelta, UTC
@@ -11,11 +10,11 @@ import oandapy
 import requests  # oandapy depdendency
 
 import backtrader as bt
+
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
 from backtrader.mixins import ParameterizedSingletonMixin
-from backtrader.utils.py3 import queue, with_metaclass
-from backtrader.utils import AutoDict
+from backtrader.utils.py3 import queue
 
 
 # Extend the exceptions to support extra cases
@@ -50,7 +49,7 @@ class API(oandapy.API):
     def request(self, endpoint, method="GET", params=None):
         # Overriden to make something sensible out of a
         # request.RequestException rather than simply issuing a print(str(e))
-        url = "%s/%s" % (self.api_url, endpoint)
+        url = f"{self.api_url}/{endpoint}"
 
         method = method.lower()
         params = params or {}
@@ -84,7 +83,7 @@ class API(oandapy.API):
 class Streamer(oandapy.Streamer):
     def __init__(self, q, headers=None, *args, **kwargs):
         # Override to provide headers, which is in the standard API interface
-        super(Streamer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         self.connected = None
         if headers:
@@ -105,7 +104,7 @@ class Streamer(oandapy.Streamer):
 
         request_args = {"params": params}
 
-        url = "%s/%s" % (self.api_url, endpoint)
+        url = f"{self.api_url}/{endpoint}"
 
         while self.connected:
             # Added exception control here
@@ -191,7 +190,7 @@ class OandaStore(ParameterizedSingletonMixin):
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self):
-        super(OandaStore, self).__init__()
+        super().__init__()
 
         self.q_orderclose = None
         self.q_ordercreate = None
@@ -336,7 +335,6 @@ class OandaStore(ParameterizedSingletonMixin):
         streamer.events(ignore_heartbeat=False)
 
     def candles(self, dataname, dtbegin, dtend, timeframe, compression, candleFormat, includeFirst):
-
         kwargs = locals().copy()
         kwargs.pop("self")
         kwargs["q"] = q = queue.Queue()
@@ -348,7 +346,6 @@ class OandaStore(ParameterizedSingletonMixin):
     def _t_candles(
         self, dataname, dtbegin, dtend, timeframe, compression, candleFormat, includeFirst, q
     ):
-
         granularity = self.get_granularity(timeframe, compression)
         if granularity is None:
             e = OandaTimeFrameError()

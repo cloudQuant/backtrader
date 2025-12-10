@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import math
-import backtrader as bt
 from backtrader import TimeFrameAnalyzerBase
+from backtrader.dataseries import TimeFrame
 from . import Returns
 from ..mathsupport import standarddev
 
@@ -86,17 +85,17 @@ class VWR(TimeFrameAnalyzerBase):
 
     # 一年对应的交易周期
     _TANN = {
-        bt.TimeFrame.Days: 252.0,
-        bt.TimeFrame.Weeks: 52.0,
-        bt.TimeFrame.Months: 12.0,
-        bt.TimeFrame.Years: 1.0,
+        TimeFrame.Days: 252.0,
+        TimeFrame.Weeks: 52.0,
+        TimeFrame.Months: 12.0,
+        TimeFrame.Years: 1.0,
     }
 
     # 初始化，获取收益率
     def __init__(self, *args, **kwargs):
         # 调用父类的__init__方法以支持timeframe和compression参数
-        super(VWR, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         # Children log return analyzer
         self._pns = None
         self._pis = None
@@ -107,7 +106,7 @@ class VWR(TimeFrameAnalyzerBase):
 
     # 开始
     def start(self):
-        super(VWR, self).start()
+        super().start()
         # Add an initial placeholder for [-1] operation
         # 获取fundmode
         if self.p.fund is None:
@@ -124,7 +123,7 @@ class VWR(TimeFrameAnalyzerBase):
 
     # 停止
     def stop(self):
-        super(VWR, self).stop()
+        super().stop()
         # Check if no value has been seen after the last 'dt_over'
         # If so, there is one 'pi' out of place and a None 'pn'. Purge
         # 如果最后一个值是None, 删除最后一个元素

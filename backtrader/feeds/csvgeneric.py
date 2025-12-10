@@ -1,9 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from datetime import datetime, UTC
-import itertools
 
-from .. import feed, TimeFrame
+from .. import feed
+from ..dataseries import TimeFrame
 from ..utils import date2num
 from ..utils.py3 import integer_types, string_types
 
@@ -65,12 +64,12 @@ class GenericCSVData(feed.CSVDataBase):
 
     # 开始，根据传入的日期参数确定转换的方法
     def __init__(self, *args, **kwargs):
-        super(GenericCSVData, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._dtconvert = None
         self._dtstr = None
 
     def start(self):
-        super(GenericCSVData, self).start()
+        super().start()
         # 如果是字符串类型，就把self._dtstr设置成True,否则就是默认的False
         self._dtstr = False
         if isinstance(self.p.dtformat, string_types):

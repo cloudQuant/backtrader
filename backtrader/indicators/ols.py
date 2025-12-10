@@ -1,9 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import pandas as pd
 import statsmodels.api as sm
-import backtrader as bt
-from . import PeriodN
+from . import PeriodN, SMA, StdDev
 from statsmodels.tsa.stattools import coint
 
 
@@ -63,8 +61,8 @@ class OLS_TransformationN(PeriodN):
         spread = self.data0 - (slint.slope * self.data1 + slint.intercept)
         self.l.spread = spread
 
-        self.l.spread_mean = bt.ind.SMA(spread, period=self.p.period)
-        self.l.spread_std = bt.ind.StdDev(spread, period=self.p.period)
+        self.l.spread_mean = SMA(spread, period=self.p.period)
+        self.l.spread_std = StdDev(spread, period=self.p.period)
         self.l.zscore = (spread - self.l.spread_mean) / self.l.spread_std
 
 

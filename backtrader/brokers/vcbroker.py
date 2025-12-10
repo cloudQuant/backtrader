@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import threading
 import collections
@@ -9,8 +8,8 @@ from backtrader.order import Order, BuyOrder, SellOrder
 from backtrader.brokerbase import BrokerBase
 from backtrader.position import Position
 from backtrader.comminfo import CommInfoBase
-from backtrader.parameters import ParameterDescriptor, String
-from ..parameters import ParameterizedBase, StringParam
+from backtrader.parameters import ParameterDescriptor
+from ..parameters import StringParam
 
 from backtrader.stores import vcstore
 
@@ -105,14 +104,14 @@ class VCBroker(BrokerBase):
     """
 
     # 参数描述符定义
-    account = StringParam(default='', doc="账户名称")
+    account = StringParam(default="", doc="账户名称")
     commission = ParameterDescriptor(
         default=lambda: CommInfoBase(percabs=True),
-        doc="Default commission scheme which applies to all assets"
+        doc="Default commission scheme which applies to all assets",
     )
 
     def __init__(self, **kwargs):
-        super(VCBroker, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         self.store = vcstore.VCStore(**kwargs)
 
@@ -164,11 +163,11 @@ class VCBroker(BrokerBase):
         )
 
     def start(self):
-        super(VCBroker, self).start()
+        super().start()
         self.store.start(broker=self)
 
     def stop(self):
-        super(VCBroker, self).stop()
+        super().stop()
         self.store.stop()
 
     def getcash(self):
@@ -220,7 +219,6 @@ class VCBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
-
         order = self.store.vcctmod.Order()
         order.Account = self._acc_name
         order.SymbolCode = data._tradename
@@ -235,7 +233,7 @@ class VCBroker(BrokerBase):
         # order.OrderId = 'a' * 50  # str(tradeid)
         order.UserOrderId = ""
         if tradeid:
-            order.ExtendedInfo = "TradeId {}".format(tradeid)
+            order.ExtendedInfo = f"TradeId {tradeid}"
         else:
             order.ExtendedInfo = ""
 
@@ -318,7 +316,6 @@ class VCBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
-
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -350,7 +347,6 @@ class VCBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
-
         order = SellOrder(
             owner=owner,
             data=data,

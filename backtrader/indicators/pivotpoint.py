@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, CmpEx
 
 
@@ -86,7 +85,7 @@ class PivotPoint(Indicator):
         self.lines.s2 = p - (h - l)
         self.lines.r2 = p + (h - l)
 
-        super(PivotPoint, self).__init__()  # enable coopertive inheritance
+        super().__init__()  # enable coopertive inheritance
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
@@ -176,7 +175,7 @@ class FibonacciPivotPoint(Indicator):
         self.lines.r2 = p + self.p.level2 * (h - l)
         self.lines.r3 = p + self.p.level3 * (h - l)
 
-        super(FibonacciPivotPoint, self).__init__()
+        super().__init__()
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
@@ -261,7 +260,7 @@ class DemarkPivotPoint(Indicator):
         self.lines.s1 = x / 2.0 - self.data.high
         self.lines.r1 = x / 2.0 - self.data.low
 
-        super(DemarkPivotPoint, self).__init__()
+        super().__init__()
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting

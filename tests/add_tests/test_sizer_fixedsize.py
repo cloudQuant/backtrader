@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+
+import backtrader as bt
 
 from . import testcommon
-import backtrader as bt
 
 
 class RunStrategy(bt.Strategy):
@@ -26,13 +24,13 @@ class RunStrategy(bt.Strategy):
 def test_run(main=False):
     datas = [testcommon.getdata(0)]
     cerebros = testcommon.runtest(datas, RunStrategy, plot=main)
-    
+
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
             # print('FixedSize sizer test completed')  # Removed for performance
             pass
-            print(f'Final value: {strat.broker.getvalue()}')
+            print(f"Final value: {strat.broker.getvalue()}")
         # Verify the strategy ran successfully
         assert len(strat) > 0
 
@@ -51,10 +49,10 @@ def test_fixedreverser(main=False):
                     self.buy()
             elif self.cross < 0.0:
                 self.sell()
-    
+
     datas = [testcommon.getdata(0)]
     cerebros = testcommon.runtest(datas, ReverserStrategy, plot=main)
-    
+
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
@@ -77,10 +75,10 @@ def test_fixedsizetarget(main=False):
                     self.buy()
             elif self.cross < 0.0:
                 self.close()
-    
+
     datas = [testcommon.getdata(0)]
     cerebros = testcommon.runtest(datas, TargetStrategy, plot=main)
-    
+
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
@@ -89,8 +87,7 @@ def test_fixedsizetarget(main=False):
         assert len(strat) > 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)
     test_fixedreverser(main=True)
     test_fixedsizetarget(main=True)
-

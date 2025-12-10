@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-from . import Indicator, Max, MovAv
+from . import Indicator, MovAv
 
 
 # 两均线差
@@ -18,7 +17,7 @@ class _PriceOscBase(Indicator):
         self.ma2 = self.p._movav(self.data, period=self.p.period2)
         self.lines[0] = self.ma1 - self.ma2
 
-        super(_PriceOscBase, self).__init__()
+        super().__init__()
 
 
 # 均线差
@@ -74,7 +73,7 @@ class PercentagePriceOscillator(_PriceOscBase):
     plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
 
     def __init__(self):
-        super(PercentagePriceOscillator, self).__init__()
+        super().__init__()
 
         den = self.ma2 if self._long else self.ma1
 

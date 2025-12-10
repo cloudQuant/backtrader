@@ -3,14 +3,14 @@
 from .utils.py3 import range
 
 from .lineiterator import LineIterator, IndicatorBase
-from .lineseries import LineSeriesMaker, Lines
-from .metabase import AutoInfoClass, ObjectFactory
-from .linebuffer import LineActions
+from .lineseries import Lines
+from .metabase import AutoInfoClass
 
 
 # Simple indicator registry to replace MetaIndicator functionality
 class IndicatorRegistry:
     """Registry to manage indicator classes and provide caching functionality"""
+
     _indcol = dict()
     _icache = dict()
     _icacheuse = False
@@ -21,7 +21,7 @@ class IndicatorRegistry:
         if not name.startswith("_") and name != "Indicator":
             cls._indcol[name] = indicator_cls
 
-    @classmethod  
+    @classmethod
     def cleancache(cls):
         """Clear the indicator cache"""
         cls._icache = dict()
@@ -56,45 +56,47 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
     _ltype = LineIterator.IndType
     # 输出到csv文件被设置成False
     csv = False
-    
+
     def __getitem__(self, ago):
         """CRITICAL FIX: Forward item access to the first line (e.g., sma line)
-        
+
         For indicators with named lines like SMA (which has lines.sma), accessing
         indicator[0] should return the value from the first line, not the indicator's
         own array.
         """
         # Use the first line if available
-        if hasattr(self, 'lines') and hasattr(self.lines, 'lines') and len(self.lines.lines) > 0:
+        if hasattr(self, "lines") and hasattr(self.lines, "lines") and len(self.lines.lines) > 0:
             return self.lines.lines[0][ago]
         # Fallback to parent class behavior
         return super(Indicator, self).__getitem__(ago)
+
     # Track if this is an aliased indicator
     aliased = False
 
     def __init_subclass__(cls, **kwargs):
         """Handle subclass registration without metaclass"""
         super().__init_subclass__(**kwargs)
-        
+
         # CRITICAL FIX: Handle lines creation for indicators like LineSeries does
         # This ensures that lines tuples are converted to Lines instances
-        lines = cls.__dict__.get('lines', ())
-        extralines = cls.__dict__.get('extralines', 0)
-        
+        lines = cls.__dict__.get("lines", ())
+        extralines = cls.__dict__.get("extralines", 0)
+
         # Ensure lines is a tuple (it might be a class type)
         if not isinstance(lines, (tuple, list)):
-            if hasattr(lines, '_getlines'):
+            if hasattr(lines, "_getlines"):
                 lines = lines._getlines() or ()
             else:
                 lines = ()
         else:
             lines = tuple(lines)  # Ensure it's a tuple
-        
+
         # Create lines class using the proper Lines infrastructure
         if lines or extralines:
             # Use the LineSeries mechanism to create the lines class
             from .lineseries import Lines
-            cls.lines = Lines._derive('lines', lines, extralines, ())
+
+            cls.lines = Lines._derive("lines", lines, extralines, ())
             pass
 
         # CRITICAL FIX: Do NOT patch __init__ here - it's already patched by metabase.py
@@ -108,14 +110,15 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
         #     ...
         #     cls.__init__ = patched_init
 
-        # Register subclasses automatically  
+        # Register subclasses automatically
         if not cls.aliased and cls.__name__ != "Indicator" and not cls.__name__.startswith("_"):
             IndicatorRegistry.register(cls.__name__, cls)
-            
+
             # Handle aliases - register them to the indicators module
-            if hasattr(cls, 'alias') and cls.alias:
+            if hasattr(cls, "alias") and cls.alias:
                 import sys
-                indicators_module = sys.modules.get('backtrader.indicators')
+
+                indicators_module = sys.modules.get("backtrader.indicators")
                 if indicators_module:
                     # Set the main class name
                     setattr(indicators_module, cls.__name__, cls)
@@ -128,19 +131,22 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
 
         # Check if next and once have both been overridden
         # Define default methods if they don't exist
-        if not hasattr(cls, 'next'):
+        if not hasattr(cls, "next"):
             cls.next = lambda self: None
-        if not hasattr(cls, 'once'):
+        if not hasattr(cls, "once"):
             cls.once = lambda self, start, end: None
-        
-        next_over = getattr(cls, 'next', None) != getattr(Indicator, 'next', None)
-        once_over = getattr(cls, 'once', None) != getattr(Indicator, 'once', None)
-        
+
+        next_over = getattr(cls, "next", None) != getattr(Indicator, "next", None)
+        once_over = getattr(cls, "once", None) != getattr(Indicator, "once", None)
+
         # CRITICAL FIX: Also check if once() is the no-op from LineRoot
         # If once is inherited from LineRoot (which is just 'pass'), treat it as not overridden
         # This handles indicators that only set up line bindings without defining next/once
         from .lineroot import LineRoot
-        if hasattr(LineRoot, 'once') and getattr(cls, 'once', None) == getattr(LineRoot, 'once', None):
+
+        if hasattr(LineRoot, "once") and getattr(cls, "once", None) == getattr(
+            LineRoot, "once", None
+        ):
             # LineRoot.once is a no-op, so always use once_via_next
             cls.once = cls.once_via_next
             cls.preonce = cls.preonce_via_prenext
@@ -159,7 +165,7 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
 
     @classmethod
     def usecache(cls, onoff):
-        """Enable or disable caching""" 
+        """Enable or disable caching"""
         IndicatorRegistry.usecache(onoff)
 
     # 当数据小于当前时间的时候，数据向前移动size
@@ -205,49 +211,49 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
         for i in range(start, end):
             # CRITICAL FIX: Set _idx for runonce mode before calling next()
             # This allows indicators to access data at the correct position
-            if hasattr(self, '_idx'):
+            if hasattr(self, "_idx"):
                 self._idx = i
-            
+
             for data in self.datas:
                 # Call advance first
                 data.advance()
                 # CRITICAL FIX: Set _idx for data AND all its lines AFTER advance()
                 # This ensures data.get() uses the correct index during next()
-                if hasattr(data, '_idx'):
+                if hasattr(data, "_idx"):
                     data._idx = i
                 # CRITICAL FIX: Also set _idx for all lines in the data
-                if hasattr(data, 'lines') and hasattr(data.lines, 'lines'):
+                if hasattr(data, "lines") and hasattr(data.lines, "lines"):
                     for line in data.lines.lines:
-                        if hasattr(line, '_idx'):
+                        if hasattr(line, "_idx"):
                             line._idx = i
 
             for indicator in self._lineiterators[LineIterator.IndType]:
                 # CRITICAL FIX: Set sub-indicator's _idx as well
-                if hasattr(indicator, '_idx'):
+                if hasattr(indicator, "_idx"):
                     indicator._idx = i
                 indicator.advance()
                 # CRITICAL FIX: Set _idx for all lines AFTER advance()
                 # This ensures lines have the correct _idx during next()
-                if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
                     for line in indicator.lines.lines:
-                        if hasattr(line, '_idx'):
+                        if hasattr(line, "_idx"):
                             line._idx = i
 
             self.advance()
             # CRITICAL FIX: Set _idx for own lines AFTER advance()
-            if hasattr(self, 'lines') and hasattr(self.lines, 'lines'):
+            if hasattr(self, "lines") and hasattr(self.lines, "lines"):
                 for line in self.lines.lines:
-                    if hasattr(line, '_idx'):
+                    if hasattr(line, "_idx"):
                         line._idx = i
             self.next()
-        
+
         # CRITICAL FIX: Update lencount after once_via_next processing
         # This ensures len(indicator) == len(strategy) in runonce mode
         # Get the actual data length from the clock or data source
         actual_data_len = end
         try:
             # Try to get the actual data length from clock or data sources
-            if hasattr(self, '_clock') and self._clock:
+            if hasattr(self, "_clock") and self._clock:
                 try:
                     actual_data_len = self._clock.buflen()
                 except:
@@ -255,7 +261,7 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
                         actual_data_len = len(self._clock)
                     except:
                         pass
-            elif hasattr(self, 'datas') and self.datas and len(self.datas) > 0:
+            elif hasattr(self, "datas") and self.datas and len(self.datas) > 0:
                 try:
                     actual_data_len = self.datas[0].buflen()
                 except:
@@ -267,38 +273,38 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
             final_len = max(end, actual_data_len) if actual_data_len > 0 else end
         except:
             final_len = end
-        
-        if hasattr(self, 'lines') and hasattr(self.lines, 'lines') and self.lines.lines:
+
+        if hasattr(self, "lines") and hasattr(self.lines, "lines") and self.lines.lines:
             for line in self.lines.lines:
-                if hasattr(line, 'lencount'):
+                if hasattr(line, "lencount"):
                     # Set lencount to final_len (actual data length)
                     line.lencount = final_len
-                if hasattr(line, '_idx'):
+                if hasattr(line, "_idx"):
                     # Set _idx to the last processed position
                     line._idx = final_len - 1 if final_len > 0 else -1
-        
+
         # CRITICAL FIX: Execute bindings after once processing
         # For line bindings like: self.lines.crossover = upcross - downcross
         # Call oncebinding() on sub-indicators first (they may have bindings too)
-        if hasattr(self, '_lineiterators'):
+        if hasattr(self, "_lineiterators"):
             for indicator in self._lineiterators.get(LineIterator.IndType, []):
-                if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
                     for line in indicator.lines.lines:
-                        if hasattr(line, 'oncebinding'):
+                        if hasattr(line, "oncebinding"):
                             try:
                                 line.oncebinding()
                             except Exception:
                                 pass
-        
+
         # Then call oncebinding() on this indicator's own lines
-        if hasattr(self, 'lines') and hasattr(self.lines, 'lines'):
+        if hasattr(self, "lines") and hasattr(self.lines, "lines"):
             for line in self.lines.lines:
-                if hasattr(line, 'oncebinding'):
+                if hasattr(line, "oncebinding"):
                     try:
                         line.oncebinding()
                     except Exception:
                         pass
-        
+
         # Data reset is now handled in LineIterator._once()
 
 

@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
+from . import Indicator
 from .ema import ExponentialMovingAverage
 
 
 # 真正强度指标
-class TrueStrengthIndicator(bt.Indicator):
+class TrueStrengthIndicator(Indicator):
     """
     The True Strength Indicators was first introduced in Stocks & Commodities
     Magazine by its author William Blau. It measures momentum with a double

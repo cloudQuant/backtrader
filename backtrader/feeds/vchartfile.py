@@ -1,14 +1,15 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from datetime import datetime
 from struct import unpack
 import os.path
 
-import backtrader as bt
-from backtrader import date2num  # avoid dict lookups
+from ..feed import DataBase
+from ..utils import date2num  # avoid dict lookups
+from ..dataseries import TimeFrame
+from .. import stores
 
 
-class VChartFile(bt.DataBase):
+class VChartFile(DataBase):
     """
     Support for `Visual Chart <www.visualchart.com>`_ binary on-disk files for
     both daily and intradaily formats.
@@ -20,11 +21,11 @@ class VChartFile(bt.DataBase):
     """
 
     def __init__(self, **kwargs):
-        super(VChartFile, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # 处理原来元类的注册功能
-        if hasattr(bt.stores, 'VChartFile'):
-            bt.stores.VChartFile.DataCls = self.__class__
-        
+        if hasattr(stores, "VChartFile"):
+            stores.VChartFile.DataCls = self.__class__
+
         self.f = None
         self._barfmt = None
         self._dtsize = None
@@ -32,18 +33,18 @@ class VChartFile(bt.DataBase):
         self._store = None
 
     def start(self):
-        super(VChartFile, self).start()
+        super().start()
         if self._store is None:
-            self._store = bt.stores.VChartFile()
+            self._store = stores.VChartFile()
             self._store.start()
 
         self._store.start(data=self)
 
         # Choose extension and extraction/calculation parameters
-        if self.p.timeframe < bt.TimeFrame.Minutes:
+        if self.p.timeframe < TimeFrame.Minutes:
             ext = ".tck"  # seconds will still need resampling
             # FIXME: find reference to tick counter for format
-        elif self.p.timeframe < bt.TimeFrame.Days:
+        elif self.p.timeframe < TimeFrame.Days:
             ext = ".min"
             self._dtsize = 2
             self._barsize = 32
@@ -66,7 +67,7 @@ class VChartFile(bt.DataBase):
         path = os.path.join(basepath, mktcode, dataname)
         try:
             self.f = open(path, "rb")
-        except IOError:
+        except OSError:
             self.f = None
 
     def stop(self):
@@ -80,7 +81,7 @@ class VChartFile(bt.DataBase):
 
         try:
             bardata = self.f.read(self._barsize)
-        except IOError:
+        except OSError:
             self.f = None  # cannot return, nullify file
             return False  # cannot load more
 

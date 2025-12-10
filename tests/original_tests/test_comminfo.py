@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -18,8 +17,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import backtrader as bt
 from backtrader import Position
@@ -84,5 +81,5 @@ def test_run(main=False):
     check_futures()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, Max, MovAv
 from . import DivZeroByZero
 
@@ -25,7 +24,7 @@ class UpDay(Indicator):
 
     def __init__(self):
         self.lines.upday = Max(self.data - self.data(-self.p.period), 0.0)
-        super(UpDay, self).__init__()
+        super().__init__()
 
 
 class DownDay(Indicator):
@@ -48,7 +47,7 @@ class DownDay(Indicator):
 
     def __init__(self):
         self.lines.downday = Max(self.data(-self.p.period) - self.data, 0.0)
-        super(DownDay, self).__init__()
+        super().__init__()
 
 
 class UpDayBool(Indicator):
@@ -74,7 +73,7 @@ class UpDayBool(Indicator):
 
     def __init__(self):
         self.lines.upday = self.data > self.data(-self.p.period)
-        super(UpDayBool, self).__init__()
+        super().__init__()
 
 
 class DownDayBool(Indicator):
@@ -100,7 +99,7 @@ class DownDayBool(Indicator):
 
     def __init__(self):
         self.lines.downday = self.data(-self.p.period) > self.data
-        super(DownDayBool, self).__init__()
+        super().__init__()
 
 
 class RelativeStrengthIndex(Indicator):
@@ -177,7 +176,7 @@ class RelativeStrengthIndex(Indicator):
             rs = DivZeroByZero(maup, madown, highrs, lowrs)
 
         self.lines.rsi = 100.0 - 100.0 / (1.0 + rs)
-        super(RelativeStrengthIndex, self).__init__()
+        super().__init__()
 
     def _rscalc(self, rsi):
         try:

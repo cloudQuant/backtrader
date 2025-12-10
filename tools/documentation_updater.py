@@ -1,106 +1,92 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 """
 Day 25-28 文档完善工具
 自动更新和验证 Store 系统重构相关的所有文档
 """
 
+import json
 import os
 import re
 import time
-import json
-from typing import Dict, List, Tuple, Optional
 from pathlib import Path
+from typing import Dict, List, Optional, Tuple
 
 
 class DocumentationUpdater:
     """文档更新和验证工具"""
-    
+
     def __init__(self, project_root="."):
         self.project_root = Path(project_root)
         self.docs_dir = self.project_root / "docs"
         self.source_dir = self.project_root / "backtrader"
         self.update_log = []
         self.validation_results = {}
-        
+
     def analyze_store_system_changes(self):
         """分析 Store 系统的变更"""
         print("🔍 Analyzing Store System Changes...")
-        
+
         changes = {
-            'removed_metaclasses': [
-                'MetaSingleton in IBStore',
-                'MetaSingleton in OandaStore', 
-                'MetaSingleton in CCXTStore',
-                'MetaSingleton in CTPStore',
-                'MetaSingleton in VCStore'
+            "removed_metaclasses": [
+                "MetaSingleton in IBStore",
+                "MetaSingleton in OandaStore",
+                "MetaSingleton in CCXTStore",
+                "MetaSingleton in CTPStore",
+                "MetaSingleton in VCStore",
             ],
-            'added_mixins': [
-                'ParameterizedSingletonMixin',
-                'SingletonMixin'
+            "added_mixins": ["ParameterizedSingletonMixin", "SingletonMixin"],
+            "new_files": [
+                "backtrader/mixins/singleton.py",
+                "backtrader/mixins/__init__.py",
+                "backtrader/mixins/optimized_singleton.py",
             ],
-            'new_files': [
-                'backtrader/mixins/singleton.py',
-                'backtrader/mixins/__init__.py',
-                'backtrader/mixins/optimized_singleton.py'
-            ],
-            'performance_improvements': {
-                'singleton_access': '50-80% faster',
-                'memory_usage': '20% reduction',
-                'thread_safety': 'Enhanced with explicit locking'
+            "performance_improvements": {
+                "singleton_access": "50-80% faster",
+                "memory_usage": "20% reduction",
+                "thread_safety": "Enhanced with explicit locking",
             },
-            'compatibility': {
-                'api_compatibility': '100%',
-                'behavior_compatibility': '100%',
-                'migration_required': False
-            }
+            "compatibility": {
+                "api_compatibility": "100%",
+                "behavior_compatibility": "100%",
+                "migration_required": False,
+            },
         }
-        
+
         print("   ✅ Store system changes analyzed")
         return changes
-        
+
     def update_api_documentation(self):
         """更新 API 文档"""
         print("\n📚 Updating API Documentation...")
-        
+
         api_updates = {}
-        
+
         # 更新 Store 类文档
-        store_classes = [
-            'IBStore',
-            'OandaStore', 
-            'CCXTStore',
-            'CTPStore',
-            'VCStore'
-        ]
-        
+        store_classes = ["IBStore", "OandaStore", "CCXTStore", "CTPStore", "VCStore"]
+
         for store_class in store_classes:
             doc_content = self.generate_store_class_documentation(store_class)
             api_updates[store_class] = doc_content
             print(f"   📝 Updated {store_class} documentation")
-            
+
         # 更新 Mixin 文档
-        mixin_classes = [
-            'ParameterizedSingletonMixin',
-            'SingletonMixin',
-            'OptimizedSingletonMixin'
-        ]
-        
+        mixin_classes = ["ParameterizedSingletonMixin", "SingletonMixin", "OptimizedSingletonMixin"]
+
         for mixin_class in mixin_classes:
             doc_content = self.generate_mixin_documentation(mixin_class)
             api_updates[mixin_class] = doc_content
             print(f"   📝 Updated {mixin_class} documentation")
-            
+
         # 保存更新的文档
         api_doc_file = self.docs_dir / "store_system_api.md"
         self.save_api_documentation(api_updates, api_doc_file)
-        
+
         self.update_log.append(f"API documentation updated: {api_doc_file}")
         print("   ✅ API documentation updated")
-        
+
         return api_updates
-        
+
     def generate_store_class_documentation(self, store_class):
         """生成 Store 类的文档"""
         doc_template = f"""
@@ -173,10 +159,10 @@ assert store1 is store2  # True
 - ✅ **性能提升**: 自动获得性能改进
 """
         return doc_template
-        
+
     def generate_mixin_documentation(self, mixin_class):
         """生成 Mixin 类的文档"""
-        if mixin_class == 'ParameterizedSingletonMixin':
+        if mixin_class == "ParameterizedSingletonMixin":
             return """
 # ParameterizedSingletonMixin
 
@@ -231,8 +217,8 @@ MyStore._reset_instance(param1="value1")
 3. **线程安全**: 内建的并发支持
 4. **易测试**: 提供测试友好的重置机制
 """
-        
-        elif mixin_class == 'OptimizedSingletonMixin':
+
+        elif mixin_class == "OptimizedSingletonMixin":
             return """
 # OptimizedSingletonMixin
 
@@ -265,10 +251,10 @@ MyStore._reset_instance(param1="value1")
 - **内存效率**: 减少 10-30% 内存使用
 - **监控开销**: < 1% 性能影响
 """
-        
+
         else:
             return f"# {mixin_class}\n\n待完善的文档..."
-            
+
     def save_api_documentation(self, api_updates, file_path):
         """保存 API 文档"""
         doc_content = """# Store System API Documentation
@@ -288,20 +274,20 @@ Store 系统在 Day 15-18 期间完成了从元类到 Mixin 的重构，
 4. **向后兼容**: 100% API 兼容，无需代码修改
 
 """
-        
+
         for class_name, content in api_updates.items():
             doc_content += content + "\n\n"
-            
+
         # 确保目录存在
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(file_path, 'w', encoding='utf-8') as f:
+
+        with open(file_path, "w", encoding="utf-8") as f:
             f.write(doc_content)
-            
+
     def update_migration_guide(self):
         """更新迁移指南"""
         print("\n🔄 Updating Migration Guide...")
-        
+
         migration_guide = """# Store System Migration Guide
 
 ## 迁移概述
@@ -415,22 +401,22 @@ A: 运行现有的测试套件，所有测试应该继续通过。
 Store 系统的重构是一次成功的内部优化，在提升性能和代码质量的同时，
 保持了完全的向后兼容性。用户可以享受到性能提升，而无需任何操作。
 """
-        
+
         migration_file = self.docs_dir / "store_migration_guide.md"
         migration_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(migration_file, 'w', encoding='utf-8') as f:
+
+        with open(migration_file, "w", encoding="utf-8") as f:
             f.write(migration_guide)
-            
+
         self.update_log.append(f"Migration guide updated: {migration_file}")
         print("   ✅ Migration guide updated")
-        
+
         return migration_guide
-        
+
     def update_performance_documentation(self):
         """更新性能文档"""
         print("\n⚡ Updating Performance Documentation...")
-        
+
         performance_doc = """# Store System Performance Improvements
 
 ## 性能提升概览
@@ -573,107 +559,107 @@ Store 系统的性能优化带来了全面的改进：
 
 这些改进为用户提供了更快、更稳定的 Store 系统体验。
 """
-        
+
         performance_file = self.docs_dir / "store_performance_guide.md"
         performance_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(performance_file, 'w', encoding='utf-8') as f:
+
+        with open(performance_file, "w", encoding="utf-8") as f:
             f.write(performance_doc)
-            
+
         self.update_log.append(f"Performance documentation updated: {performance_file}")
         print("   ✅ Performance documentation updated")
-        
+
         return performance_doc
-        
+
     def validate_documentation_consistency(self):
         """验证文档一致性"""
         print("\n✅ Validating Documentation Consistency...")
-        
+
         validation_results = {
-            'api_consistency': {},
-            'code_examples': {},
-            'links': {},
-            'formatting': {}
+            "api_consistency": {},
+            "code_examples": {},
+            "links": {},
+            "formatting": {},
         }
-        
+
         # 验证 API 一致性
         print("   🔍 Checking API consistency...")
         api_issues = self.check_api_consistency()
-        validation_results['api_consistency'] = api_issues
-        
+        validation_results["api_consistency"] = api_issues
+
         # 验证代码示例
         print("   📝 Validating code examples...")
         code_issues = self.validate_code_examples()
-        validation_results['code_examples'] = code_issues
-        
+        validation_results["code_examples"] = code_issues
+
         # 检查文档链接
         print("   🔗 Checking documentation links...")
         link_issues = self.check_documentation_links()
-        validation_results['links'] = link_issues
-        
+        validation_results["links"] = link_issues
+
         # 格式检查
         print("   📋 Checking formatting...")
         format_issues = self.check_formatting()
-        validation_results['formatting'] = format_issues
-        
+        validation_results["formatting"] = format_issues
+
         self.validation_results = validation_results
-        
+
         # 生成验证摘要
         total_issues = sum(len(issues) for issues in validation_results.values())
         if total_issues == 0:
             print("   ✅ All documentation validation passed")
         else:
             print(f"   ⚠️ Found {total_issues} documentation issues")
-            
+
         return validation_results
-        
+
     def check_api_consistency(self):
         """检查 API 一致性"""
         issues = []
-        
+
         # 检查 Store 类的关键方法是否在文档中提到
-        required_methods = ['getdata', 'getbroker', '__init__']
-        store_classes = ['IBStore', 'OandaStore', 'CCXTStore', 'CTPStore', 'VCStore']
-        
+        required_methods = ["getdata", "getbroker", "__init__"]
+        store_classes = ["IBStore", "OandaStore", "CCXTStore", "CTPStore", "VCStore"]
+
         for store_class in store_classes:
             for method in required_methods:
                 # 这里简化检查逻辑
                 pass  # 实际实现会检查文档中是否提到这些方法
-                
+
         return issues
-        
+
     def validate_code_examples(self):
         """验证代码示例"""
         issues = []
-        
+
         # 检查文档中的代码示例是否可以执行
         # 这里可以实现简单的语法检查
-        
+
         return issues
-        
+
     def check_documentation_links(self):
         """检查文档链接"""
         issues = []
-        
+
         # 检查内部链接是否有效
         # 检查外部链接是否可访问
-        
+
         return issues
-        
+
     def check_formatting(self):
         """检查格式"""
         issues = []
-        
+
         # 检查 Markdown 格式
         # 检查标题层级
         # 检查代码块格式
-        
+
         return issues
-        
+
     def generate_changelog(self):
         """生成变更日志"""
         print("\n📄 Generating Changelog...")
-        
+
         changelog = """# Store System Changelog
 
 ## Version: Day 25-28 Release
@@ -787,97 +773,99 @@ Singleton 后续访问  25μs       1μs        2400% ⬆️
 ---
 
 **重要提醒**: 此次重构为内部优化，用户无需任何操作即可享受性能提升。
-""".format(release_date=time.strftime('%Y-%m-%d'))
-        
+""".format(
+            release_date=time.strftime("%Y-%m-%d")
+        )
+
         changelog_file = self.docs_dir / "CHANGELOG_store_system.md"
         changelog_file.parent.mkdir(parents=True, exist_ok=True)
-        
-        with open(changelog_file, 'w', encoding='utf-8') as f:
+
+        with open(changelog_file, "w", encoding="utf-8") as f:
             f.write(changelog)
-            
+
         self.update_log.append(f"Changelog generated: {changelog_file}")
         print("   ✅ Changelog generated")
-        
+
         return changelog
-        
+
     def run_documentation_update(self):
         """运行完整的文档更新"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("📚 Day 25-28 Documentation Update Process")
-        print("="*80)
-        
+        print("=" * 80)
+
         start_time = time.time()
-        
+
         # 分析变更
         changes = self.analyze_store_system_changes()
-        
+
         # 更新各种文档
         api_updates = self.update_api_documentation()
         migration_guide = self.update_migration_guide()
         performance_doc = self.update_performance_documentation()
         changelog = self.generate_changelog()
-        
+
         # 验证文档一致性
         validation_results = self.validate_documentation_consistency()
-        
+
         update_time = time.time() - start_time
-        
+
         # 生成总结
         self.generate_update_summary(update_time)
-        
+
         return {
-            'changes': changes,
-            'api_updates': api_updates,
-            'migration_guide': migration_guide,
-            'performance_doc': performance_doc,
-            'changelog': changelog,
-            'validation_results': validation_results,
-            'update_log': self.update_log,
-            'update_time': update_time
+            "changes": changes,
+            "api_updates": api_updates,
+            "migration_guide": migration_guide,
+            "performance_doc": performance_doc,
+            "changelog": changelog,
+            "validation_results": validation_results,
+            "update_log": self.update_log,
+            "update_time": update_time,
         }
-        
+
     def generate_update_summary(self, update_time):
         """生成更新总结"""
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("📋 Documentation Update Summary")
-        print("="*80)
-        
+        print("=" * 80)
+
         print(f"⏱️ Update Time: {update_time:.2f}s")
         print(f"📝 Files Updated: {len(self.update_log)}")
-        
+
         print("\n📚 Updated Documents:")
         for log_entry in self.update_log:
             print(f"   ✅ {log_entry}")
-            
+
         # 验证摘要
         if self.validation_results:
             total_issues = sum(len(issues) for issues in self.validation_results.values())
             print(f"\n✅ Validation Results:")
             print(f"   Total Issues Found: {total_issues}")
-            
+
             if total_issues == 0:
                 print("   🎉 All documentation validation passed!")
             else:
                 print("   ⚠️ Some issues need attention")
-                
+
         print(f"\n🎯 Documentation Status: Ready for release")
-        
+
     def save_update_report(self, filename="day25-28_documentation_report.json"):
         """保存文档更新报告"""
         results = self.run_documentation_update()
-        
+
         report = {
-            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
-            'update_phase': 'Day 25-28 Documentation Update',
-            'changes_analyzed': results['changes'],
-            'files_updated': self.update_log,
-            'validation_results': self.validation_results,
-            'update_time': results['update_time']
+            "timestamp": time.strftime("%Y-%m-%d %H:%M:%S"),
+            "update_phase": "Day 25-28 Documentation Update",
+            "changes_analyzed": results["changes"],
+            "files_updated": self.update_log,
+            "validation_results": self.validation_results,
+            "update_time": results["update_time"],
         }
-        
-        with open(filename, 'w') as f:
+
+        with open(filename, "w") as f:
             json.dump(report, f, indent=2, default=str)
-            
+
         print(f"📄 Documentation update report saved to: {filename}")
         return filename
 
@@ -885,27 +873,28 @@ Singleton 后续访问  25μs       1μs        2400% ⬆️
 def main():
     """主文档更新执行"""
     updater = DocumentationUpdater()
-    
+
     try:
         # 运行文档更新
         results = updater.run_documentation_update()
-        
+
         # 保存报告
         report_file = updater.save_update_report()
-        
+
         print(f"\n✅ Documentation update completed!")
         print(f"📚 Documents updated: {len(updater.update_log)}")
         print(f"📄 Report: {report_file}")
-        
+
         return True
-        
+
     except Exception as e:
         print(f"\n❌ Documentation update failed: {str(e)}")
         import traceback
+
         traceback.print_exc()
         return False
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     success = main()
-    sys.exit(0 if success else 1) 
+    sys.exit(0 if success else 1)

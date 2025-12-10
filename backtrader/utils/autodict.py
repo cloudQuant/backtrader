@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 from collections import OrderedDict, defaultdict
 
@@ -27,7 +26,7 @@ class DotDict(dict):
     # _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, '_name', '')])
     def __getattr__(self, key):
         if key.startswith("__"):
-            return super(DotDict, self).__getattr__(key)
+            return super().__getattr__(key)
         return self[key]
 
 

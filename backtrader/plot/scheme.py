@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 tableau20 = [
     "steelblue",  # 0
@@ -53,7 +52,7 @@ tableau10_light = [
 tab10_index = [3, 0, 2, 1, 2, 4, 5, 6, 7, 8, 9]
 
 
-class PlotScheme(object):
+class PlotScheme:
     def __init__(self):
         # to have tight packing on the chart, whether only the x-axis or also
         # the y-axis have (see matplotlib)

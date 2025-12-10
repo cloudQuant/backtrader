@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-from . import Indicator, MovingAverageBase, MovAv
+from . import MovingAverageBase
 from .ema import EMA
+
 
 # 零滞后指数移动平均线
 class ZeroLagExponentialMovingAverage(MovingAverageBase):
@@ -31,4 +31,4 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
         data = 2 * self.data - self.data(-lag)
         self.lines.zlema = self.p._movav(data, period=self.p.period)
 
-        super(ZeroLagExponentialMovingAverage, self).__init__()
+        super().__init__()

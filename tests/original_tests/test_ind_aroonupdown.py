@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -18,18 +17,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import testcommon
 
 import backtrader.indicators as btind
 
 chkdatas = 1
-chkvals = [
-    ['42.857143', '35.714286', '85.714286'],
-    ['7.142857', '85.714286', '28.571429']
-]
+chkvals = [["42.857143", "35.714286", "85.714286"], ["7.142857", "85.714286", "28.571429"]]
 
 chkmin = 15
 chkind = btind.AroonUpDown
@@ -37,14 +31,16 @@ chkind = btind.AroonUpDown
 
 def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
-    testcommon.runtest(datas,
-                       testcommon.TestStrategy,
-                       main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+    testcommon.runtest(
+        datas,
+        testcommon.TestStrategy,
+        main=main,
+        plot=main,
+        chkind=chkind,
+        chkmin=chkmin,
+        chkvals=chkvals,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

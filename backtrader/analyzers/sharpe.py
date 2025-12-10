@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import math
 from backtrader.utils.py3 import itervalues
 from backtrader import Analyzer, TimeFrame
@@ -87,6 +86,7 @@ class SharpeRatio(Analyzer):
         Returns a dictionary with key "sharperatio" holding the ratio
 
     """
+
     # 默认的参数
     params = (
         ("timeframe", TimeFrame.Years),
@@ -111,7 +111,7 @@ class SharpeRatio(Analyzer):
 
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
-        super(SharpeRatio, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         # 如果按照年的话，获取年化收益率，否则就获取每日的收益率
         if self.p.legacyannual:
             self.anret = AnnualReturn()
@@ -121,7 +121,7 @@ class SharpeRatio(Analyzer):
             )
 
     def stop(self):
-        super(SharpeRatio, self).stop()
+        super().stop()
         # 以年为单位计算收益率和夏普率
         if self.p.legacyannual:
             rate = self.p.riskfreerate
@@ -143,7 +143,6 @@ class SharpeRatio(Analyzer):
             # Hack to identify old code
             # 获取具体的factor日期，如果是日周期并且daysfactor不是None的话，另factor = daysfactor
             if self.p.timeframe == TimeFrame.Days and self.p.daysfactor is not None:
-
                 factor = self.p.daysfactor
             # 否则，如果factor这个参数不是None的话，就等于factor这个参数的值，否则根据交易周期从定义的factors里面找
             # 默认情况下，factor应该是252

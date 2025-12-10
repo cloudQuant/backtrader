@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+
+import backtrader as bt
 
 from . import testcommon
-import backtrader as bt
 
 
 class RunStrategy(bt.Strategy):
@@ -23,8 +21,9 @@ class RunStrategy(bt.Strategy):
 
 def test_run(main=False):
     datas = [testcommon.getdata(0)]
-    cerebros = testcommon.runtest(datas, RunStrategy, plot=main,
-                                  analyzer=(bt.analyzers.SharpeRatio, {}))
+    cerebros = testcommon.runtest(
+        datas, RunStrategy, plot=main, analyzer=(bt.analyzers.SharpeRatio, {})
+    )
 
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
@@ -36,12 +35,13 @@ def test_run(main=False):
             print(analysis)
         else:
             assert isinstance(analysis, dict)
-            assert 'sharperatio' in analysis
+            assert "sharperatio" in analysis
             # SharpeRatio may be None for short periods or no variance
             # Just verify it exists and is a valid type
-            assert analysis['sharperatio'] is None or isinstance(analysis['sharperatio'], (int, float))
+            assert analysis["sharperatio"] is None or isinstance(
+                analysis["sharperatio"], (int, float)
+            )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)
-

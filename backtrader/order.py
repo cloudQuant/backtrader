@@ -66,7 +66,6 @@ class OrderExecutionBit(object):
         psize=0,
         pprice=0.0,
     ):
-
         self.dt = dt
         self.size = size
         self.price = price
@@ -151,7 +150,6 @@ class OrderData(object):
         trailamount=0.0,
         trailpercent=0.0,
     ):
-
         self.pclose = pclose
         self.exbits = collections.deque()  # for historical purposes
         self.p1, self.p2 = 0, 0  # indices to pending notifications
@@ -216,7 +214,6 @@ class OrderData(object):
         psize=0,
         pprice=0.0,
     ):
-
         self.addbit(
             OrderExecutionBit(
                 dt,
@@ -275,7 +272,7 @@ class OrderData(object):
 # Simple parameter container to replace metaclass functionality
 class OrderParams(object):
     """Simple parameter container for Order classes"""
-    
+
     def __init__(self, **kwargs):
         # Default parameters
         defaults = {
@@ -295,11 +292,11 @@ class OrderParams(object):
             "simulated": False,
             "histnotify": False,
         }
-        
+
         # Set defaults first
         for key, value in defaults.items():
             setattr(self, key, value)
-        
+
         # Override with provided kwargs
         for key, value in kwargs.items():
             if hasattr(self, key):
@@ -367,24 +364,24 @@ class OrderBase(object):
     # 获取order的属性 - modified to work with OrderParams
     def __getattr__(self, name):
         # Return attr from params if not found in order
-        if name == 'p':  # Avoid recursion when checking for 'p' itself
+        if name == "p":  # Avoid recursion when checking for 'p' itself
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        if hasattr(self, 'p') and hasattr(self.p, name):
+        if hasattr(self, "p") and hasattr(self.p, name):
             return getattr(self.p, name)
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-    # 设置order的属性 - modified to work with OrderParams  
+    # 设置order的属性 - modified to work with OrderParams
     def __setattr__(self, name, value):
         # Check if we have params and the name exists in params
         # Use object.__getattribute__ to avoid recursion
         try:
-            p = object.__getattribute__(self, 'p')
+            p = object.__getattribute__(self, "p")
             if hasattr(p, name):
                 setattr(p, name, value)
                 return
         except AttributeError:
             pass  # p doesn't exist yet, fall through to normal assignment
-        
+
         super(OrderBase, self).__setattr__(name, value)
 
     # 打印order的时候，显示出来的内容
@@ -414,9 +411,9 @@ class OrderBase(object):
     def __init__(self, **kwargs):
         # Create params object manually instead of using metaclass
         self.p = OrderParams(**kwargs)
-        # Create convenient direct access to params - alias for backward compatibility  
+        # Create convenient direct access to params - alias for backward compatibility
         self.params = self.p
-        
+
         # 每次创建实例的时候，都会增加一个数字
         self.plen = None
         self.ref = next(self.refbasis)
@@ -570,7 +567,12 @@ class OrderBase(object):
         """Returns True if the order is in a status in which it can still be
         executed
         """
-        return self.status in [OrderBase.Created, OrderBase.Submitted, OrderBase.Partial, OrderBase.Accepted]
+        return self.status in [
+            OrderBase.Created,
+            OrderBase.Submitted,
+            OrderBase.Partial,
+            OrderBase.Accepted,
+        ]
 
     # 增加佣金相关的信息
     def addcomminfo(self, comminfo):
@@ -765,7 +767,6 @@ class Order(OrderBase):
         psize,
         pprice,
     ):
-
         self.executed.add(
             dt,
             size,
@@ -792,7 +793,7 @@ class Order(OrderBase):
     # 订单过期
     def expire(self):
         """检查订单是否应该过期
-        
+
         Returns:
             True: 如果订单已过期
             False: 如果订单未过期

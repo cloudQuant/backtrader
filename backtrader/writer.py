@@ -187,8 +187,8 @@ class WriterFile(WriterBase):
 
     # 把多条line写入到self.out中
     def writelines(self, lines):
-        for l in lines:
-            self.out.write(l + "\n")
+        for line in lines:
+            self.out.write(line + "\n")
 
     # 写入line的分隔符
     def writelineseparator(self, level=0):
@@ -275,7 +275,7 @@ class WriterStringIO(WriterFile):
         self.close_out = False
         super(WriterStringIO, self).__init__(**kwargs)
 
-    @property  
+    @property
     def out(self):
         """Always return our StringIO object."""
         return self._stringio
@@ -291,7 +291,7 @@ class WriterStringIO(WriterFile):
             self._stringio.seek(0)
 
     def getvalue(self):
-        """Get the content from the StringIO object.""" 
+        """Get the content from the StringIO object."""
         if self._stringio:
             return self._stringio.getvalue()
         return ""

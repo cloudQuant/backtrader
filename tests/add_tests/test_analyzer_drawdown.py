@@ -1,17 +1,15 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+
+import backtrader as bt
 
 from . import testcommon
-import backtrader as bt
 
 
 class RunStrategy(bt.Strategy):
     params = (
-        ('period', 15),
-        ('printdata', True),
+        ("period", 15),
+        ("printdata", True),
     )
 
     def __init__(self):
@@ -33,11 +31,9 @@ def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     # Test both DrawDown and TimeDrawDown
     for analyzer_class in [bt.analyzers.DrawDown, bt.analyzers.TimeDrawDown]:
-        cerebros = testcommon.runtest(datas,
-                                      RunStrategy,
-                                      printdata=main,
-                                      plot=main,
-                                      analyzer=(analyzer_class, {}))
+        cerebros = testcommon.runtest(
+            datas, RunStrategy, printdata=main, plot=main, analyzer=(analyzer_class, {})
+        )
 
         for cerebro in cerebros:
             strat = cerebro.runstrats[0][0]  # no optimization, only 1
@@ -52,20 +48,19 @@ def test_run(main=False):
                 assert isinstance(analysis, dict)
                 # Verify expected keys exist
                 if analyzer_class == bt.analyzers.DrawDown:
-                    assert 'len' in analysis
-                    assert 'max' in analysis
+                    assert "len" in analysis
+                    assert "max" in analysis
                     # Verify specific values from actual run
-                    assert hasattr(analysis.max, 'drawdown')
-                    assert hasattr(analysis.max, 'len')
+                    assert hasattr(analysis.max, "drawdown")
+                    assert hasattr(analysis.max, "len")
                     # Verify max drawdown and length (from actual run)
                     assert analysis.max.drawdown > 0  # Should have some drawdown
                     assert analysis.max.len > 0  # Should have length > 0
                     assert analysis.max.len == 157  # Specific value from run
                 else:  # TimeDrawDown
-                    assert 'maxdrawdown' in analysis
-                    assert analysis['maxdrawdown'] >= 0
+                    assert "maxdrawdown" in analysis
+                    assert analysis["maxdrawdown"] >= 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)
-

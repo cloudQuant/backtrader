@@ -1,14 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 import math
 
-import backtrader as bt
+from backtrader import TimeFrameAnalyzerBase
 
 __all__ = ["LogReturnsRolling"]
 
 
-class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
+class LogReturnsRolling(TimeFrameAnalyzerBase):
     """This analyzer calculates rolling returns for a given timeframe and
     compression
 
@@ -81,21 +80,23 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
     # 开始
     def __init__(self, *args, **kwargs):
         # 调用父类的__init__方法以支持timeframe和compression参数
-        super(LogReturnsRolling, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         self._value = None
         self._lastvalue = None
         self._values = None
         self._fundmode = None
 
     def start(self):
-        super(LogReturnsRolling, self).start()
+        super().start()
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
         # 比较特殊的地方在于self._values设置成了一个队列，这里面self.p.compression这个参数用于控制队列保存多少个元素
-        self._values = collections.deque([float("Nan")] * self.p.compression, maxlen=self.p.compression)
+        self._values = collections.deque(
+            [float("Nan")] * self.p.compression, maxlen=self.p.compression
+        )
 
         if self.p.data is None:
             # keep the initial portfolio value if not tracing data
@@ -124,12 +125,12 @@ class LogReturnsRolling(bt.TimeFrameAnalyzerBase):
 
     def next(self):
         # Calculate the return
-        super(LogReturnsRolling, self).next()
+        super().next()
         # print(self._value,self._values[0])
         # 策略运行的时候如果亏损太多，可能导致self._value / self._values[0]的值是0,避免这种情况
         try:
             self.rets[self.dtkey] = math.log(self._value / self._values[0])
-        except Exception as e:
+        except Exception:
             # print(e)  # Removed for performance
             self.rets[self.dtkey] = 0
             # print("计算对数收益率的时候,相应的值小于0")

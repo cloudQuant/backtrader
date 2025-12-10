@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import datetime
 import struct
 import os.path
 
 from .. import feed
-from .. import TimeFrame
+from ..dataseries import TimeFrame
 from ..utils import date2num
 
 
@@ -34,7 +33,7 @@ class VChartData(feed.DataBase):
         self.ext = None
 
     def start(self):
-        super(VChartData, self).start()
+        super().start()
 
         # Not yet known if an extension is needed
         self.ext = ""
@@ -122,7 +121,12 @@ class VChartFeed(feed.FeedBase):
         subcode = dataname[2:6]
 
         datapath = os.path.join(
-            self.p.basepath, "RealServer", "Data", maincode, subcode, dataname  # 01 00XX
+            self.p.basepath,
+            "RealServer",
+            "Data",
+            maincode,
+            subcode,
+            dataname,  # 01 00XX
         )
 
         newkwargs = self.p._getkwargs()

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from .mabase import MovingAverageBase
 import numpy as np
 from collections import deque
@@ -35,7 +34,7 @@ class MovingAverageSimple(MovingAverageBase):
 
         # Before super to ensure mixins (right-hand side in subclassing)
         # can see the assignment operation and operate on the line
-        super(MovingAverageSimple, self).__init__()
+        super().__init__()
 
     def _calculate_sma_optimized(self, period):
         """Phase 2 Optimization: Optimized SMA calculation with caching and vectorization"""
@@ -43,12 +42,16 @@ class MovingAverageSimple(MovingAverageBase):
         # CRITICAL FIX: Don't use cache in runonce mode as it breaks with index changes
         # Check cache first only if we're not in runonce mode
         cache_key = f"sma_{period}_{len(self.data)}"
-        if not (hasattr(self, '_idx') and self._idx >= 0) and cache_key in self._result_cache:
+        if not (hasattr(self, "_idx") and self._idx >= 0) and cache_key in self._result_cache:
             return self._result_cache[cache_key]
 
         # Phase 2: Use vectorized calculation when enough data is available
         # CRITICAL FIX: In runonce mode, use manual calculation which handles indices correctly
-        if self._vectorized_enabled and len(self.data) >= period and not (hasattr(self, '_idx') and self._idx >= 0):
+        if (
+            self._vectorized_enabled
+            and len(self.data) >= period
+            and not (hasattr(self, "_idx") and self._idx >= 0)
+        ):
             try:
                 # Extract recent prices for vectorized calculation
                 # Use range(1-period, 1) to get the last 'period' bars including current
@@ -74,69 +77,77 @@ class MovingAverageSimple(MovingAverageBase):
             # CRITICAL FIX: Access data correctly regardless of mode
             # Try multiple methods to get the current price
             current_price = None
-            
+
             # Method 1: Direct array access with absolute index
-            if hasattr(self.data, 'array') and hasattr(self, '_idx') and self._idx >= 0:
+            if hasattr(self.data, "array") and hasattr(self, "_idx") and self._idx >= 0:
                 try:
                     if 0 <= self._idx < len(self.data.array):
                         current_price = float(self.data.array[self._idx])
                 except (IndexError, TypeError, AttributeError):
                     pass
-            
+
             # Method 2: Standard relative access
             if current_price is None:
                 try:
                     current_price = float(self.data[0])
                 except (IndexError, TypeError, AttributeError):
                     pass
-            
+
             # Method 3: Try close line directly
-            if current_price is None and hasattr(self.data, 'close'):
+            if current_price is None and hasattr(self.data, "close"):
                 try:
-                    if hasattr(self.data.close, 'array') and hasattr(self, '_idx') and self._idx >= 0:
+                    if (
+                        hasattr(self.data.close, "array")
+                        and hasattr(self, "_idx")
+                        and self._idx >= 0
+                    ):
                         if 0 <= self._idx < len(self.data.close.array):
                             current_price = float(self.data.close.array[self._idx])
                     else:
                         current_price = float(self.data.close[0])
                 except (IndexError, TypeError, AttributeError):
                     pass
-            
+
             if current_price is None:
-                return float('nan')
+                return float("nan")
 
             # CRITICAL FIX: In runonce mode, don't rely on _price_window state
             # Instead, calculate from the data array directly using absolute indices
-            if hasattr(self, '_idx') and self._idx >= 0:
+            if hasattr(self, "_idx") and self._idx >= 0:
                 # Runonce mode: use absolute indices
                 # Get the data array - try multiple sources
                 data_array = None
-                if hasattr(self.data, 'lines') and hasattr(self.data.lines, 'close') and hasattr(self.data.lines.close, 'array'):
+                if (
+                    hasattr(self.data, "lines")
+                    and hasattr(self.data.lines, "close")
+                    and hasattr(self.data.lines.close, "array")
+                ):
                     data_array = self.data.lines.close.array
-                elif hasattr(self.data, 'array'):
+                elif hasattr(self.data, "array"):
                     data_array = self.data.array
-                
+
                 if data_array is not None:
                     start_idx = max(0, self._idx - period + 1)
                     end_idx = self._idx + 1
-                    
+
                     # DEBUG
                     # print(f"      SMA calc: _idx={self._idx}, period={period}, start_idx={start_idx}, end_idx={end_idx}")
-                    
+
                     if end_idx > start_idx:
                         prices = []
                         for i in range(start_idx, end_idx):
                             if i < len(data_array):
                                 prices.append(float(data_array[i]))
-                        
+
                         # DEBUG
                         # if len(prices) > 0:
                         #     print(f"      Prices: {prices[:5]}... (total {len(prices)} prices)")
                         #     print(f"      SMA result: {sum(prices) / len(prices)}")
-                        
+
                         if prices:
                             return sum(prices) / len(prices)
                         else:
-                            return float('nan')
+                            return float("nan")
             else:
                 # Normal mode: use rolling window optimization
                 if len(self._price_window) == period:
@@ -156,12 +167,12 @@ class MovingAverageSimple(MovingAverageBase):
                     return sum(self._price_window) / len(self._price_window)
 
         except (IndexError, ValueError, TypeError):
-            return float('nan')
+            return float("nan")
 
     def nextstart(self):
         """Initialize on first call after minperiod is met"""
         try:
-            period = self.p.period if hasattr(self, 'p') else 30
+            period = self.p.period if hasattr(self, "p") else 30
 
             # Initialize _price_window with historical prices
             # At this point, we have exactly 'period' bars of data
@@ -183,49 +194,55 @@ class MovingAverageSimple(MovingAverageBase):
                 sma_value = 0.0
 
             # Set the value
-            if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
+            if hasattr(self, "lines") and hasattr(self.lines, "sma"):
                 self.lines.sma[0] = sma_value
-            elif hasattr(self, 'lines') and len(self.lines.lines) > 0:
+            elif hasattr(self, "lines") and len(self.lines.lines) > 0:
                 self.lines.lines[0][0] = sma_value
 
         except Exception:
             # Fallback to safe default
-            if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
+            if hasattr(self, "lines") and hasattr(self.lines, "sma"):
                 self.lines.sma[0] = 0.0
 
     def next(self):
         """Phase 2 Optimized next() method with vectorized calculations"""
         try:
-            if hasattr(self, 'p') and hasattr(self.p, 'period'):
+            if hasattr(self, "p") and hasattr(self.p, "period"):
                 period = self.p.period
             else:
                 period = 30  # Default period
 
             # Phase 2: Use optimized calculation method
             sma_value = self._calculate_sma_optimized(period)
-            
+
             # CRITICAL FIX: If value is NaN and we have sufficient data, try manual calculation
-            if (sma_value is None or (isinstance(sma_value, float) and (sma_value != sma_value or sma_value == float('nan')))):
+            if sma_value is None or (
+                isinstance(sma_value, float)
+                and (sma_value != sma_value or sma_value == float("nan"))
+            ):
                 # Try one more time with direct manual calculation
                 sma_value = self._calculate_sma_manual(period)
-            
+
             # CRITICAL FIX: If still NaN or None, set to 0.0 as a fallback
-            if sma_value is None or (isinstance(sma_value, float) and (sma_value != sma_value or sma_value == float('nan'))):
+            if sma_value is None or (
+                isinstance(sma_value, float)
+                and (sma_value != sma_value or sma_value == float("nan"))
+            ):
                 sma_value = 0.0
 
             # Set the SMA line value
             # CRITICAL FIX: Always use line assignment to ensure lencount is managed correctly
             # Using self.lines.sma[0] = value will automatically call forward() and update lencount
-            if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
+            if hasattr(self, "lines") and hasattr(self.lines, "sma"):
                 self.lines.sma[0] = sma_value
-            elif hasattr(self, 'lines') and len(self.lines.lines) > 0:
+            elif hasattr(self, "lines") and len(self.lines.lines) > 0:
                 self.lines.lines[0][0] = sma_value
 
-        except Exception as e:
+        except Exception:
             # Fallback to safe default
-            if hasattr(self, 'lines') and hasattr(self.lines, 'sma'):
+            if hasattr(self, "lines") and hasattr(self.lines, "sma"):
                 self.lines.sma[0] = 0.0
-            elif hasattr(self, 'lines') and len(self.lines.lines) > 0:
+            elif hasattr(self, "lines") and len(self.lines.lines) > 0:
                 self.lines.lines[0][0] = 0.0
 
     def once(self, start, end):
@@ -235,11 +252,11 @@ class MovingAverageSimple(MovingAverageBase):
             dst = self.lines[0].array
             src = self.data.array
             period = self.p.period
-            
+
             # Ensure destination array is large enough
             while len(dst) < end:
                 dst.append(0.0)
-            
+
             # Calculate SMA for each index
             for i in range(start, end):
                 if i >= period - 1:
@@ -250,10 +267,10 @@ class MovingAverageSimple(MovingAverageBase):
                         window_sum = sum(src[start_idx:end_idx])
                         dst[i] = window_sum / period
                     else:
-                        dst[i] = float('nan')
+                        dst[i] = float("nan")
                 else:
                     # Not enough data yet
-                    dst[i] = float('nan')
+                    dst[i] = float("nan")
         except Exception:
             # Fallback to once_via_next if once() fails
             super().once_via_next(start, end)

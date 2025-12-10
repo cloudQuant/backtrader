@@ -1,10 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import argparse
 import datetime
 import inspect
-import itertools
 import random
 import string
 import sys
@@ -52,7 +50,7 @@ def btrun(pargs=""):
     args = parse_args(pargs)
 
     if args.flush:
-        import backtrader.utils.flushfile
+        pass
 
     stdstats = not args.nostdstats
 
@@ -343,7 +341,7 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
         loaded = getmodclasses(mod=mod, clstype=clsbase, clsname=name)
 
         if not loaded:
-            print("No class %s / module %s" % (str(name), modpath))
+            print(f"No class {str(name)} / module {modpath}")
             sys.exit(1)
 
         if issignal:
@@ -388,7 +386,7 @@ def getfunctions(iterable, modbase):
         loaded = getmodfunctions(mod=mod, funcname=name)
 
         if not loaded:
-            print("No function %s / module %s" % (str(name), modpath))
+            print(f"No function {str(name)} / module {modpath}")
             sys.exit(1)
 
         retfunctions.append((loaded[0], kwargs))

@@ -1,13 +1,13 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
+from . import Analyzer
+from backtrader import TimeFrameAnalyzerBase
 from backtrader.utils import AutoOrderedDict
 
 __all__ = ["DrawDown", "TimeDrawDown"]
 
 
 # 分析回撤的情况
-class DrawDown(bt.Analyzer):
+class DrawDown(Analyzer):
     """This analyzer calculates trading system drawdowns stats such as drawdown
     values in %s and in dollars, max drawdown in %s and in dollars, drawdown
     length and drawdown max length
@@ -43,7 +43,7 @@ class DrawDown(bt.Analyzer):
 
     # 开始，获取fundmode
     def start(self):
-        super(DrawDown, self).start()
+        super().start()
         if self.p.fund is None:
             # self._fundmode = self.strategy.broker.fundmode
             setattr(self, "_fundmode", self.strategy.broker.fundmode)
@@ -94,7 +94,7 @@ class DrawDown(bt.Analyzer):
 
 
 # 分析时间回撤情况(最大回撤)
-class TimeDrawDown(bt.TimeFrameAnalyzerBase):
+class TimeDrawDown(TimeFrameAnalyzerBase):
     """This analyzer calculates trading system drawdowns on the chosen
     timeframe which can be different from the one used in the underlying data
     Params:
@@ -145,8 +145,8 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
 
     def __init__(self, *args, **kwargs):
         # 调用父类的__init__方法以支持timeframe和compression参数
-        super(TimeDrawDown, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         self.ddlen = None
         self.peak = None
         self.maxddlen = None
@@ -155,7 +155,7 @@ class TimeDrawDown(bt.TimeFrameAnalyzerBase):
         self._fundmode = None
 
     def start(self):
-        super(TimeDrawDown, self).start()
+        super().start()
         # fundmode
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode

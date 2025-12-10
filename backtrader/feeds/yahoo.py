@@ -1,15 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 from datetime import date, datetime
 import io
 import itertools
 
-from ..utils.py3 import urlopen, urlquote, ProxyHandler, build_opener, install_opener
-
-import backtrader as bt
 from .. import feed
 from ..utils import date2num
+from ..dataseries import TimeFrame
 
 
 class YahooFinanceCSVData(feed.CSVDataBase):
@@ -75,7 +72,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
     )
 
     def start(self):
-        super(YahooFinanceCSVData, self).start()
+        super().start()
         # 如果reverse是False的话，直接return,下面就不在运行
         if not self.params.reverse:
             return
@@ -252,7 +249,6 @@ class YahooFinanceData(YahooFinanceCSVData):
         self.error = None
 
     def start_v7(self):
-
         try:
             import requests
         except ImportError:
@@ -301,32 +297,34 @@ class YahooFinanceData(YahooFinanceCSVData):
             self.f = None
             return
 
+        from ..utils.py3 import urlquote
+
         crumb = urlquote(crumb)
 
         # urldown/ticker?period1=posix1&period2=posix2&interval=1d&events=history&crumb=crumb
 
         # Try to download
-        urld = "{}/{}".format(self.p.urldown, self.p.dataname)
+        urld = f"{self.p.urldown}/{self.p.dataname}"
 
         urlargs = []
         posix = date(1970, 1, 1)
         if self.p.todate is not None:
             period2 = (self.p.todate.date() - posix).total_seconds()
-            urlargs.append("period2={}".format(int(period2)))
+            urlargs.append(f"period2={int(period2)}")
 
         if self.p.todate is not None:
             period1 = (self.p.fromdate.date() - posix).total_seconds()
-            urlargs.append("period1={}".format(int(period1)))
+            urlargs.append(f"period1={int(period1)}")
 
         intervals = {
-            bt.TimeFrame.Days: "1d",
-            bt.TimeFrame.Weeks: "1wk",
-            bt.TimeFrame.Months: "1mo",
+            TimeFrame.Days: "1d",
+            TimeFrame.Weeks: "1wk",
+            TimeFrame.Months: "1mo",
         }
 
-        urlargs.append("interval={}".format(intervals[self.p.timeframe]))
+        urlargs.append(f"interval={intervals[self.p.timeframe]}")
         urlargs.append("events=history")
-        urlargs.append("crumb={}".format(crumb))
+        urlargs.append(f"crumb={crumb}")
 
         urld = "{}?{}".format(urld, "&".join(urlargs))
         f = None
@@ -357,7 +355,7 @@ class YahooFinanceData(YahooFinanceCSVData):
         self.start_v7()
 
         # Prepared a "path" file -  CSV Parser can take over
-        super(YahooFinanceData, self).start()
+        super().start()
 
 
 class YahooFinance(feed.CSVFeedBase):

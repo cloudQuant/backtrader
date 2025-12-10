@@ -1,33 +1,33 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import time
-import collections
-import threading
+
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
 from backtrader.mixins import ParameterizedSingletonMixin
 from backtrader.utils.py3 import queue
-from backtrader.utils import AutoDict
-from datetime import datetime
 from time import sleep
 import numpy as np
-import backtrader as bt
 from backtrader.utils.date import (
     get_last_timeframe_timestamp,
-    datetime2str,
-    str2datetime,
     datetime2timestamp,
     timestamp2datetime,
 )
-from ctpbee import CtpbeeApi, CtpBee, helper
+from ctpbee import CtpbeeApi, CtpBee
 from ctpbee.constant import *
 from ctpbee.api import CtpbeeApi
-from ctpbee.constant import BarData, TickData, OrderData, TradeData, PositionData, AccountData, ContractData, LogData
+from ctpbee.constant import (
+    BarData,
+    TickData,
+    OrderData,
+    TradeData,
+    PositionData,
+    AccountData,
+    ContractData,
+    LogData,
+)
 from ctpbee.helpers import get_last_timeframe_timestamp, timestamp2datetime, datetime2timestamp
 
 
 class MyCtpbeeApi(CtpbeeApi):
-
     def __init__(self, name, timeframe=None, compression=None, md_queue=None):
         super().__init__(name)
         self.md_queue = md_queue  # 行情队列
@@ -190,7 +190,7 @@ class CTPStore(ParameterizedSingletonMixin):
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self, ctp_setting, *args, **kwargs):
-        super(CTPStore, self).__init__()
+        super().__init__()
         # 连接设置
         self.ctp_setting = ctp_setting
         # 初始值

@@ -10,7 +10,7 @@ __all__ = ["Filter"]
 class Filter(ParameterizedBase):
     """
     Base class for data filters in backtrader.
-    
+
     This class has been refactored from MetaParams to the new ParameterizedBase
     system for Day 36-38 of the metaprogramming removal project.
     """

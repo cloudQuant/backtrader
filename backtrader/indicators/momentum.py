@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator
 
 
@@ -23,7 +22,7 @@ class Momentum(Indicator):
 
     def __init__(self):
         self.l.momentum = self.data - self.data(-self.p.period)
-        super(Momentum, self).__init__()
+        super().__init__()
 
 
 class MomentumOscillator(Indicator):
@@ -54,7 +53,7 @@ class MomentumOscillator(Indicator):
 
     def __init__(self):
         self.l.momosc = 100.0 * (self.data / self.data(-self.p.period))
-        super(MomentumOscillator, self).__init__()
+        super().__init__()
 
 
 class RateOfChange(Indicator):
@@ -79,7 +78,7 @@ class RateOfChange(Indicator):
     def __init__(self):
         dperiod = self.data(-self.p.period)
         self.l.roc = (self.data - dperiod) / dperiod
-        super(RateOfChange, self).__init__()
+        super().__init__()
 
 
 class RateOfChange100(Indicator):
@@ -106,7 +105,7 @@ class RateOfChange100(Indicator):
 
     def __init__(self):
         # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
-        super(RateOfChange100, self).__init__()
+        super().__init__()
         self.l.roc100 = 100.0 * ROC(self.data, period=self.p.period)
 
 

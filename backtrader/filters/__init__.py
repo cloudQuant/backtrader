@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from .. import Filter
 from .datafilter import *
 from .datafiller import *

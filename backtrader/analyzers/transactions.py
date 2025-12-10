@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
-import backtrader as bt
 from backtrader import Order, Position
+from . import Analyzer
 
 
 # 交易
-class Transactions(bt.Analyzer):
+class Transactions(Analyzer):
     """This analyzer reports the transactions occurred with each every data in
     the system
 
@@ -45,12 +44,12 @@ class Transactions(bt.Analyzer):
     # 开始
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
-        super(Transactions, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._idnames = None
         self._positions = None
 
     def start(self):
-        super(Transactions, self).start()
+        super().start()
         # 如果headers等于True的话，初始化rets
         if self.p.headers:
             self.rets[self.p._pfheaders[0]] = [list(self.p._pfheaders[1:])]

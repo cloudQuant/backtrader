@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import random
 import datetime
 import backtrader as bt
 from cProfile import Profile
@@ -33,14 +32,13 @@ def generate_random_n_bar_df(n):
 
 
 class DirectStrategy(bt.Strategy):
-
     # params = (('short_window',10),('long_window',60))
     params = {"short_window": 10, "long_window": 20}
 
     def log(self, txt, dt=None):
         """log信息的功能"""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
-        print("%s, %s" % (dt.isoformat(), txt))
+        print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
         # 一般用于计算指标或者预先加载数据，定义变量使用
@@ -148,7 +146,6 @@ def run_direct_data(n):
 
 
 if __name__ == "__main__":
-
     prof = Profile()
     prof.enable()
     run_direct_data(1000000)

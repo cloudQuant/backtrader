@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from datetime import date, datetime, timedelta
-from backtrader import TimeFrame
 from ..parameters import ParameterizedBase
 
 
@@ -36,7 +34,7 @@ class CalendarDays(ParameterizedBase):
     lastdt = date.max
 
     def __init__(self, data, **kwargs):
-        super(CalendarDays, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __call__(self, data):
         """

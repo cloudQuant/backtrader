@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-from . import Indicator, MovAv
+from . import Indicator
 from .ema import EMA
+
 
 # 三重指数移动平均斜率
 class Trix(Indicator):
@@ -42,7 +42,6 @@ class Trix(Indicator):
         return plabels
 
     def __init__(self):
-
         ema1 = self.p._movav(self.data, period=self.p.period)
         ema2 = self.p._movav(ema1, period=self.p.period)
         ema3 = self.p._movav(ema2, period=self.p.period)
@@ -50,7 +49,7 @@ class Trix(Indicator):
         # 1-period Percentage Rate of Change
         self.lines.trix = 100.0 * (ema3 / ema3(-self.p._rocperiod) - 1.0)
 
-        super(Trix, self).__init__()
+        super().__init__()
 
 
 class TrixSignal(Trix):
@@ -69,6 +68,6 @@ class TrixSignal(Trix):
     params = (("sigperiod", 9),)
 
     def __init__(self):
-        super(TrixSignal, self).__init__()
+        super().__init__()
 
         self.l.signal = self.p._movav(self.lines[0], period=self.p.sigperiod)

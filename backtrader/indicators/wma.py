@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from ..utils.py3 import range
 
 from . import MovingAverageBase, AverageWeighted
@@ -34,7 +33,7 @@ class WeightedMovingAverage(MovingAverageBase):
         # can see the assignment operation and operate on the line
         self.lines[0] = AverageWeighted(self.data, period=self.p.period, coef=coef, weights=weights)
 
-        super(WeightedMovingAverage, self).__init__()
+        super().__init__()
 
 
 WMA = WeightedMovingAverage

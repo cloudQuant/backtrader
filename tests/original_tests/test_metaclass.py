@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -29,7 +28,7 @@ class RunFrompackages(testcommon.SampleParamsHolder):
     """
 
     def __init__(self):
-        super(RunFrompackages, self).__init__()
+        super().__init__()
         # Prepare the lags array
 
 
@@ -42,5 +41,5 @@ def test_run(main=False):
     test = RunFrompackages()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

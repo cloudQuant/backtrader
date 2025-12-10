@@ -1,13 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
+from . import Indicator
 from .awesomeoscillator import AwesomeOscillator
 from .sma import SMA
 
 __all__ = ["AccelerationDecelerationOscillator", "AccDeOsc"]
 
 
-class AccelerationDecelerationOscillator(bt.Indicator):
+class AccelerationDecelerationOscillator(Indicator):
     """
     Acceleration/Deceleration Technical Indicator (AC) measures acceleration
     and deceleration of the current driving force. This indicator will change
@@ -36,7 +35,7 @@ class AccelerationDecelerationOscillator(bt.Indicator):
     def __init__(self):
         ao = AwesomeOscillator()
         self.l.accde = ao - self.p.movav(ao, period=self.p.period)
-        super(AccelerationDecelerationOscillator, self).__init__()
+        super().__init__()
 
 
 AccDeOsc = AccelerationDecelerationOscillator

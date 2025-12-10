@@ -1,30 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import collections
-from datetime import date, datetime, time, timedelta
+from datetime import datetime, timedelta
 import os.path
 import threading
-import time as _timemod
 import traceback
 import ctypes
-from copy import copy
 from queue import Queue
 
-from backtrader import TimeFrame, Position
-from backtrader.feed import DataBase
+from backtrader import TimeFrame
 from backtrader.mixins import ParameterizedSingletonMixin
-from backtrader.utils.py3 import (
-    MAXINT,
-    range,
-    queue,
-    string_types,
-)
-from backtrader.utils import AutoDict
 
 
 # 对SymbolInfo对象进行复制，把syminfo的属性及值设置到类实例里面
-class _SymInfo(object):
+class _SymInfo:
     # Replica of the SymbolInfo COM object to pass it over thread boundaries
     _fields = ["Type", "Description", "Decimals", "TimeOffset", "PointValue", "MinMovement"]
 
@@ -113,7 +102,7 @@ def PumpEvents(timeout=-1, hevt=None, cb=None):
                 ctypes.byref(ctypes.c_ulong()),
             )
 
-        except WindowsError as details:
+        except OSError as details:
             if details.args[0] == RPC_S_CALLPENDING:  # timeout expired
                 if cb is not None:
                     cb()
@@ -136,7 +125,7 @@ def PumpEvents(timeout=-1, hevt=None, cb=None):
         # break
 
 
-class RTEventSink(object):
+class RTEventSink:
     def __init__(self, store):
         self.store = store
         self.vcrtmod = store.vcrtmod
@@ -244,14 +233,14 @@ class VCStore(ParameterizedSingletonMixin):
         ):
             try:
                 vckey = _winreg.OpenKey(rkey, self.VC_KEYNAME)
-            except WindowsError as e:
+            except OSError as e:
                 traceback.format_exception(e)
                 continue
 
             # Try to get the key value
             try:
                 vcdir, _ = _winreg.QueryValueEx(vckey, self.VC_KEYVAL)
-            except WindowsError as e:
+            except OSError as e:
                 traceback.format_exception(e)
                 continue
             else:
@@ -322,11 +311,11 @@ class VCStore(ParameterizedSingletonMixin):
             self.vcdsmod = self.GetModule(vctypelibs[0])
             self.vcrtmod = self.GetModule(vctypelibs[1])
             self.vcctmod = self.GetModule(vctypelibs[2])
-        except WindowsError as e:
+        except OSError as e:
             self.vcdsmod = None
             self.vcrtmod = None
             self.vcctmod = None
-            txt = "Failed to Load COM TypeLib Modules {}".format(e)
+            txt = f"Failed to Load COM TypeLib Modules {e}"
             msg = self._RT_TYPELIB, txt
             self.put_notification(msg, *msg)
             return
@@ -336,7 +325,7 @@ class VCStore(ParameterizedSingletonMixin):
             self.vcds = self.CreateObject(self.vcdsmod.DataSourceManager)
             # self.vcrt = self.CreateObject(self.vcrtmod.RealTime)
             self.vcct = self.CreateObject(self.vcctmod.Trader)
-        except WindowsError as e:
+        except OSError as e:
             txt = (
                 "Failed to Load COM TypeLib Objects but the COM TypeLibs "
                 "have been loaded. If VisualChart has been recently "
@@ -463,7 +452,6 @@ class VCStore(ParameterizedSingletonMixin):
         self.comtypes.CoUninitialize()
 
     def _symboldata(self, symbol):
-
         # Assumption -> we are connected, and the symbol has been found
         self.vcds.ActiveEvents = 0
         # self.vcds.EventsType = self.vcdsmod.EF_Always
@@ -480,7 +468,6 @@ class VCStore(ParameterizedSingletonMixin):
         self._delq(q)
 
     def _directdata(self, data, symbol, timeframe, compression, d1, d2=None, historical=False):
-
         # Assume the data has checked the existence of the symbol
         timeframe, compression = self._tf2ct(timeframe, compression)
         kwargs = locals().copy()  # make a copy of the args
@@ -495,7 +482,6 @@ class VCStore(ParameterizedSingletonMixin):
         return q  # tell the caller where to expect the hist data
 
     def _t_directdata(self, data, symbol, timeframe, compression, d1, d2, q, historical):
-
         self.comtypes.CoInitialize()  # start com threading
         vcds = self.CreateObject(self.vcdsmod.DataSourceManager)
 

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-import backtrader as bt
 from .. import Observer
+from ..analyzers import DrawDown as DrawDownAnalyzer
 
 
 # 回撤
@@ -42,7 +41,7 @@ class DrawDown(Observer):
 
     def __init__(self):
         kwargs = self.p._getkwargs()
-        self._dd = self._owner._addanalyzer_slave(bt.analyzers.DrawDown, **kwargs)
+        self._dd = self._owner._addanalyzer_slave(DrawDownAnalyzer, **kwargs)
 
     # 设置回撤和最大回撤的值
     def next(self):
@@ -106,7 +105,7 @@ class DrawDownOld(Observer):
     )
 
     def __init__(self):
-        super(DrawDownOld, self).__init__()
+        super().__init__()
 
         self.maxdd = 0.0
         self.peak = float("-inf")

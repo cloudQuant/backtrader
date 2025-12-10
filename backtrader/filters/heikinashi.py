@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 
 __all__ = ["HeikinAshi"]
 
 
-class HeikinAshi(object):
+class HeikinAshi:
     """
     The filter remodels the open, high, low, close to make HeikinAshi
     candlesticks

@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 
-class BarReplayerOpen(object):
+class BarReplayerOpen:
     """
     This filters splits a bar in two parts:
 

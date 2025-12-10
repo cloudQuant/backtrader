@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator
 
 
@@ -24,7 +23,7 @@ class PercentChange(Indicator):
 
     def __init__(self):
         self.lines.pctchange = self.data / self.data(-self.p.period) - 1.0
-        super(PercentChange, self).__init__()
+        super().__init__()
 
 
 PctChange = PercentChange

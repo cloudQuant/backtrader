@@ -189,7 +189,7 @@ class If(Logic):
             srca = self.a.array
             a_has_array = True
             # If array is empty, try to manually process the source object
-            if len(srca) == 0 and hasattr(self.a, '_once'):
+            if len(srca) == 0 and hasattr(self.a, "_once"):
                 try:
                     # Try to process the source object manually
                     self.a._once(start, end)
@@ -199,12 +199,12 @@ class If(Logic):
         except (AttributeError, TypeError):
             srca = []
             a_has_array = False
-            
+
         try:
             srcb = self.b.array
             b_has_array = True
             # If array is empty, try to manually process the source object
-            if len(srcb) == 0 and hasattr(self.b, '_once'):
+            if len(srcb) == 0 and hasattr(self.b, "_once"):
                 try:
                     # Try to process the source object manually
                     self.b._once(start, end)
@@ -214,7 +214,7 @@ class If(Logic):
         except (AttributeError, TypeError):
             srcb = []
             b_has_array = False
-            
+
         try:
             cond = self.cond.array
             cond_has_array = True
@@ -236,14 +236,16 @@ class If(Logic):
             else:
                 # Fallback: try to get value directly from cond object
                 try:
-                    cond_val = self.cond[i] if hasattr(self.cond, '__getitem__') else 0.0
+                    cond_val = self.cond[i] if hasattr(self.cond, "__getitem__") else 0.0
                 except:
                     cond_val = 0.0
-            
+
             # Convert to boolean: non-zero values are True, zero is False
             # Use explicit comparison to handle float precision issues
-            cond_bool = (cond_val != 0.0) and (not (isinstance(cond_val, float) and math.isnan(cond_val)))
-            
+            cond_bool = (cond_val != 0.0) and (
+                not (isinstance(cond_val, float) and math.isnan(cond_val))
+            )
+
             # Get a value
             a_val = None
             a_val_set = False
@@ -260,10 +262,10 @@ class If(Logic):
             # Fallback: try to get value directly from a object if array didn't work
             if not a_val_set:
                 try:
-                    if hasattr(self.a, '__getitem__'):
+                    if hasattr(self.a, "__getitem__"):
                         a_val = self.a[0]  # Try to get current value
                         a_val_set = True
-                    elif hasattr(self.a, 'a') and hasattr(self.a.a, 'wrapped'):
+                    elif hasattr(self.a, "a") and hasattr(self.a.a, "wrapped"):
                         # Try to extract constant from PseudoArray
                         wrapped = self.a.a.wrapped
                         if isinstance(wrapped, itertools.repeat):
@@ -273,7 +275,7 @@ class If(Logic):
                     pass
             if a_val is None:
                 a_val = 0.0
-            
+
             # Get b value
             b_val = None
             b_val_set = False
@@ -290,10 +292,10 @@ class If(Logic):
             # Fallback: try to get value directly from b object if array didn't work
             if not b_val_set:
                 try:
-                    if hasattr(self.b, '__getitem__'):
+                    if hasattr(self.b, "__getitem__"):
                         b_val = self.b[0]  # Try to get current value
                         b_val_set = True
-                    elif hasattr(self.b, 'a') and hasattr(self.b.a, 'wrapped'):
+                    elif hasattr(self.b, "a") and hasattr(self.b.a, "wrapped"):
                         # Try to extract constant from PseudoArray
                         wrapped = self.b.a.wrapped
                         if isinstance(wrapped, itertools.repeat):
@@ -303,13 +305,13 @@ class If(Logic):
                     pass
             if b_val is None:
                 b_val = 0.0
-            
+
             # Ensure values are not None or NaN
             if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
                 a_val = 0.0
             if b_val is None or (isinstance(b_val, float) and math.isnan(b_val)):
                 b_val = 0.0
-            
+
             # Select value based on condition
             dst[i] = a_val if cond_bool else b_val
 

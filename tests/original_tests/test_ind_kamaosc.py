@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -18,17 +17,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import testcommon
 
 import backtrader.indicators as btind
 
 chkdatas = 1
-chkvals = [
-    ['65.752078', '78.911000', '39.950810']
-]
+chkvals = [["65.752078", "78.911000", "39.950810"]]
 
 chkmin = 31
 chkind = btind.KAMAOsc
@@ -36,14 +31,16 @@ chkind = btind.KAMAOsc
 
 def test_run(main=False):
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
-    testcommon.runtest(datas,
-                       testcommon.TestStrategy,
-                       main=main,
-                       plot=main,
-                       chkind=chkind,
-                       chkmin=chkmin,
-                       chkvals=chkvals)
+    testcommon.runtest(
+        datas,
+        testcommon.TestStrategy,
+        main=main,
+        plot=main,
+        chkind=chkind,
+        chkmin=chkmin,
+        chkvals=chkvals,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)

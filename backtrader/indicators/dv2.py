@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import Indicator, SMA, PercentRank
 
 
@@ -31,4 +30,4 @@ class DV2(Indicator):
         chl = self.data.close / ((self.data.high + self.data.low) / 2.0)
         dvu = self.p._movav(chl, period=self.p.maperiod)
         self.lines.dv2 = PercentRank(dvu, period=self.p.period) * 100
-        super(DV2, self).__init__()
+        super().__init__()

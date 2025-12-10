@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
-from backtrader.indicators import SumN, TrueLow, TrueRange
+from . import SumN, TrueLow, TrueRange, Indicator
 
 
 # 最终震荡指标
-class UltimateOscillator(bt.Indicator):
+class UltimateOscillator(Indicator):
     """
     Formula:
       # Buying Pressure = Close - TrueLow
@@ -58,4 +56,4 @@ class UltimateOscillator(bt.Indicator):
         uo = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28
         self.lines.uo = uo
 
-        super(UltimateOscillator, self).__init__()
+        super().__init__()

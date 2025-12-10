@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import os.path
 import traceback
@@ -47,14 +46,14 @@ class VChartFile(bt.Store):
         ):
             try:
                 vckey = winreg.OpenKey(rkey, VC_KEYNAME)
-            except WindowsError as e:
+            except OSError as e:
                 traceback.format_exception(e)
                 continue
 
             # Try to get the key value
             try:
                 vcdir, _ = winreg.QueryValueEx(vckey, VC_KEYVAL)
-            except WindowsError as e:
+            except OSError as e:
                 traceback.format_exception(e)
                 continue
             else:

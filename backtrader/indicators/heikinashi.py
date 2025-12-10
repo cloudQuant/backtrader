@@ -1,14 +1,12 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
-from backtrader.utils.py3 import range
+from . import Indicator, Max, Min
 
 
 __all__ = ["HeikinAshi"]
 
 
 # HeikinAshi 形成另类的K线
-class HeikinAshi(bt.Indicator):
+class HeikinAshi(Indicator):
     """
     Heikin Ashi candlesticks in the forms of lines
 
@@ -61,10 +59,10 @@ class HeikinAshi(bt.Indicator):
 
         self.l.ha_close = ha_close = (o + h + l + c) / 4.0
         self.l.ha_open = ha_open = (self.l.ha_open(-1) + ha_close(-1)) / 2.0
-        self.l.ha_high = bt.Max(h, ha_open, ha_close)
-        self.l.ha_low = bt.Min(l, ha_open, ha_close)
+        self.l.ha_high = Max(h, ha_open, ha_close)
+        self.l.ha_low = Min(l, ha_open, ha_close)
 
-        super(HeikinAshi, self).__init__()
+        super().__init__()
 
     def prenext(self):
         # seed recursive value

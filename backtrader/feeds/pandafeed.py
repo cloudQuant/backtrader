@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from backtrader.utils.py3 import filter, string_types, integer_types
-from backtrader import date2num
+from ..utils import date2num
 import backtrader.feed as feed
 
 
@@ -41,7 +40,7 @@ class PandasDirectData(feed.DataBase):
         self._rows = None
 
     def start(self):
-        super(PandasDirectData, self).start()
+        super().start()
 
         # reset the iterator on each start
         self._rows = self.p.dataname.itertuples()
@@ -146,7 +145,7 @@ class PandasData(feed.DataBase):
 
     # 类初始化
     def __init__(self):
-        super(PandasData, self).__init__()
+        super().__init__()
 
         # these "colnames" can be strings or numeric types
         # 列的名字，列表格式
@@ -200,7 +199,7 @@ class PandasData(feed.DataBase):
 
     # 开始处理数据
     def start(self):
-        super(PandasData, self).start()
+        super().start()
         # 开始之前，先重新设置_idx
         # reset the length with each start
         self._idx = -1

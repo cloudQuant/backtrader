@@ -1,8 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import PeriodN
 from numpy import *
-import math
 
 __all__ = ["HurstExponent", "Hurst"]
 
@@ -54,7 +52,7 @@ class HurstExponent(PeriodN):
         return plabels
 
     def __init__(self):
-        super(HurstExponent, self).__init__()
+        super().__init__()
         # Prepare the lag array
         self._lag_start = lag_start = self.p.lag_start or 2
         self._lag_end = lag_end = self.p.lag_end or (self.p.period // 2)
@@ -96,7 +94,7 @@ class HurstExponent(PeriodN):
                 end_idx = i + 1
                 if end_idx <= len(src):
                     ts = asarray([float(x) for x in src[start_idx:end_idx]])
-                    
+
                     # Calculate the array of the variances of the lagged differences
                     tau = []
                     for lag in lags:
@@ -106,22 +104,22 @@ class HurstExponent(PeriodN):
                                 tau_val = sqrt(std(lagged_diff))
                                 if not isnan(tau_val) and tau_val > 0:
                                     tau.append(tau_val)
-                    
+
                     # Use a linear fit to estimate the Hurst Exponent
                     if len(tau) > 1 and len(tau) == len(lags):
                         try:
                             log10tau = log10(tau)
                             poly = polyfit(log10lags, log10tau, 1)
                             hurst = poly[0] * 2.0
-                            dst[i] = float(hurst) if not isnan(hurst) else float('nan')
+                            dst[i] = float(hurst) if not isnan(hurst) else float("nan")
                         except:
-                            dst[i] = float('nan')
+                            dst[i] = float("nan")
                     else:
-                        dst[i] = float('nan')
+                        dst[i] = float("nan")
                 else:
-                    dst[i] = float('nan')
+                    dst[i] = float("nan")
             else:
-                dst[i] = float('nan')
+                dst[i] = float("nan")
 
 
 Hurst = HurstExponent

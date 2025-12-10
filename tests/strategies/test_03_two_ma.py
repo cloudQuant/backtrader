@@ -2,14 +2,18 @@
 
 使用债券数据 113013.csv 测试双均线交叉策略
 """
-import os
+
 import datetime
+import os
 from pathlib import Path
 
-import pandas as pd
 import numpy as np
-import backtrader as bt
+import pandas as pd
 
+import backtrader as bt
+from backtrader.cerebro import Cerebro
+from backtrader.strategy import Strategy
+from backtrader.feeds import PandasData
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -44,12 +48,10 @@ def resolve_data_path(filename: str) -> Path:
         return fallback
 
     searched = " , ".join(str(path) for path in search_paths + [fallback.resolve()])
-    raise FileNotFoundError(
-        f"未找到数据文件: {filename}. 已尝试路径: {searched}"
-    )
+    raise FileNotFoundError(f"未找到数据文件: {filename}. 已尝试路径: {searched}")
 
 
-class ExtendPandasFeed(bt.feeds.PandasData):
+class ExtendPandasFeed(PandasData):
     """
     扩展的Pandas数据源，添加可转债特有的字段
 
@@ -65,32 +67,34 @@ class ExtendPandasFeed(bt.feeds.PandasData):
     - 列7：pure_bond_premium_rate
     - 列8：convert_premium_rate
     """
+
     params = (
-        ('datetime', None),  # datetime是索引，不是数据列
-        ('open', 0),  # 第1列 -> 索引0
-        ('high', 1),  # 第2列 -> 索引1
-        ('low', 2),  # 第3列 -> 索引2
-        ('close', 3),  # 第4列 -> 索引3
-        ('volume', 4),  # 第5列 -> 索引4
-        ('openinterest', -1),  # 不存在该列
-        ('pure_bond_value', 5),  # 第6列 -> 索引5
-        ('convert_value', 6),  # 第7列 -> 索引6
-        ('pure_bond_premium_rate', 7),  # 第8列 -> 索引7
-        ('convert_premium_rate', 8)  # 第9列 -> 索引8
+        ("datetime", None),  # datetime是索引，不是数据列
+        ("open", 0),  # 第1列 -> 索引0
+        ("high", 1),  # 第2列 -> 索引1
+        ("low", 2),  # 第3列 -> 索引2
+        ("close", 3),  # 第4列 -> 索引3
+        ("volume", 4),  # 第5列 -> 索引4
+        ("openinterest", -1),  # 不存在该列
+        ("pure_bond_value", 5),  # 第6列 -> 索引5
+        ("convert_value", 6),  # 第7列 -> 索引6
+        ("pure_bond_premium_rate", 7),  # 第8列 -> 索引7
+        ("convert_premium_rate", 8),  # 第9列 -> 索引8
     )
 
     # 定义扩展的数据线
-    lines = ('pure_bond_value', 'convert_value', 'pure_bond_premium_rate', 'convert_premium_rate')
+    lines = ("pure_bond_value", "convert_value", "pure_bond_premium_rate", "convert_premium_rate")
 
 
-class TwoMAStrategy(bt.Strategy):
+class TwoMAStrategy(Strategy):
     """双均线策略
-    
+
     当短期均线上穿长期均线时买入，下穿时卖出
     """
+
     params = (
-        ('short_period', 5),
-        ('long_period', 20),
+        ("short_period", 5),
+        ("long_period", 20),
     )
 
     def log(self, txt, dt=None):
@@ -104,32 +108,34 @@ class TwoMAStrategy(bt.Strategy):
                     dt = None
             except (IndexError, ValueError):
                 dt = None
-        
+
         if dt:
-            print('%s, %s' % (dt.isoformat(), txt))
+            print("{}, {}".format(dt.isoformat(), txt))
         else:
-            print('%s' % txt)
+            print("%s" % txt)
 
     def __init__(self):
         # 计算均线指标
         self.short_ma = bt.indicators.SimpleMovingAverage(
-            self.datas[0].close, period=self.p.short_period)
+            self.datas[0].close, period=self.p.short_period
+        )
         self.long_ma = bt.indicators.SimpleMovingAverage(
-            self.datas[0].close, period=self.p.long_period)
-        
+            self.datas[0].close, period=self.p.long_period
+        )
+
         # 记录交叉信号
         self.crossover = bt.indicators.CrossOver(self.short_ma, self.long_ma)
-        
+
         # 记录bar数量
         self.bar_num = 0
-        
+
         # 记录交易次数
         self.buy_count = 0
         self.sell_count = 0
 
     def next(self):
         self.bar_num += 1
-        
+
         # 如果没有持仓，且出现金叉（短期均线上穿长期均线），则买入
         if not self.position:
             if self.crossover > 0:
@@ -147,7 +153,9 @@ class TwoMAStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def stop(self):
-        self.log(f"bar_num = {self.bar_num}, buy_count = {self.buy_count}, sell_count = {self.sell_count}")
+        self.log(
+            f"bar_num = {self.bar_num}, buy_count = {self.buy_count}, sell_count = {self.sell_count}"
+        )
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
@@ -160,17 +168,29 @@ class TwoMAStrategy(bt.Strategy):
 
     def notify_trade(self, trade):
         if trade.isclosed:
-            self.log(f'交易完成: 毛利润={trade.pnl:.2f}, 净利润={trade.pnlcomm:.2f}')
+            self.log(f"交易完成: 毛利润={trade.pnl:.2f}, 净利润={trade.pnlcomm:.2f}")
 
 
-def load_bond_data(filename: str = '113013.csv') -> pd.DataFrame:
+def load_bond_data(filename: str = "113013.csv") -> pd.DataFrame:
     """加载债券数据"""
     df = pd.read_csv(resolve_data_path(filename))
-    df.columns = ['symbol', 'bond_symbol', 'datetime', 'open', 'high', 'low', 'close', 'volume',
-                  'pure_bond_value', 'convert_value', 'pure_bond_premium_rate', 'convert_premium_rate']
-    df['datetime'] = pd.to_datetime(df['datetime'])
-    df = df.set_index('datetime')
-    df = df.drop(['symbol', 'bond_symbol'], axis=1)
+    df.columns = [
+        "symbol",
+        "bond_symbol",
+        "datetime",
+        "open",
+        "high",
+        "low",
+        "close",
+        "volume",
+        "pure_bond_value",
+        "convert_value",
+        "pure_bond_premium_rate",
+        "convert_premium_rate",
+    ]
+    df["datetime"] = pd.to_datetime(df["datetime"])
+    df = df.set_index("datetime")
+    df = df.drop(["symbol", "bond_symbol"], axis=1)
     df = df.dropna()
     df = df.astype("float")
     return df
@@ -179,23 +199,23 @@ def load_bond_data(filename: str = '113013.csv') -> pd.DataFrame:
 def test_two_ma_strategy():
     """
     测试双均线策略
-    
+
     使用债券数据 113013.csv 进行回测
     """
     # 创建 cerebro
-    cerebro = bt.Cerebro(stdstats=True)
+    cerebro = Cerebro(stdstats=True)
 
     # 添加策略
     cerebro.addstrategy(TwoMAStrategy, short_period=5, long_period=20)
 
     # 加载数据
     print("正在加载债券数据...")
-    df = load_bond_data('113013.csv')
+    df = load_bond_data("113013.csv")
     print(f"数据范围: {df.index[0]} 至 {df.index[-1]}, 共 {len(df)} 条")
 
     # 添加数据
     feed = ExtendPandasFeed(dataname=df)
-    cerebro.adddata(feed, name='113013')
+    cerebro.adddata(feed, name="113013")
 
     # 设置佣金
     cerebro.broker.setcommission(commission=0.001)
@@ -204,11 +224,11 @@ def test_two_ma_strategy():
     cerebro.broker.setcash(100000.0)
 
     # 添加分析器
-    cerebro.addanalyzer(bt.analyzers.TotalValue, _name='my_value')
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='my_sharpe')
-    cerebro.addanalyzer(bt.analyzers.Returns, _name='my_returns')
-    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='my_drawdown')
-    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='my_trade_analyzer')
+    cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
     # 运行回测
     print("开始运行回测...")
@@ -216,13 +236,13 @@ def test_two_ma_strategy():
 
     # 获取结果
     strat = results[0]
-    sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio')
-    annual_return = strat.analyzers.my_returns.get_analysis().get('rnorm')
+    sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
+    annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
     max_drawdown = strat.analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
     trade_analysis = strat.analyzers.my_trade_analyzer.get_analysis()
-    total_trades = trade_analysis.get('total', {}).get('total', 0)
+    total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
-    
+
     # 打印结果
     print("\n" + "=" * 50)
     print("回测结果:")
@@ -241,7 +261,7 @@ def test_two_ma_strategy():
     assert strat.buy_count == 52, f"Expected buy_count=52, got {strat.buy_count}"
     assert strat.sell_count == 51, f"Expected sell_count=51, got {strat.sell_count}"
     assert total_trades == 51, f"Expected total_trades=51, got {total_trades}"
-    
+
     print("\n所有测试通过!")
 
 

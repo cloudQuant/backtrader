@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 # 从from error import * 的时候，只导入下面两个类BacktraderError和StrategySkipError
 __all__ = ["BacktraderError", "StrategySkipError"]
 
@@ -25,7 +24,7 @@ class ModuleImportError(BacktraderError):
     be imported"""
 
     def __init__(self, message, *args):
-        super(ModuleImportError, self).__init__(message)
+        super().__init__(message)
         self.args = args
 
 
@@ -35,4 +34,4 @@ class FromModuleImportError(ModuleImportError):
     be imported"""
 
     def __init__(self, message, *args):
-        super(FromModuleImportError, self).__init__(message, *args)
+        super().__init__(message, *args)

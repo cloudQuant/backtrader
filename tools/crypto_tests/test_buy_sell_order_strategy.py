@@ -1,16 +1,17 @@
-import backtrader as bt
-from datetime import datetime, timedelta, UTC
 import json
+from datetime import UTC, datetime, timedelta
+
 import pytz
+from bt_api_py.containers.orders.order import OrderStatus
+from bt_api_py.functions.utils import read_yaml_file
 from tzlocal import get_localzone
 
-from backtrader import Trade, Order
-from backtrader.stores.cryptostore import CryptoStore
-from backtrader.feeds.cryptofeed import CryptoFeed
+import backtrader as bt
+from backtrader import Order, Trade
 from backtrader.brokers.cryptobroker import CryptoBroker
+from backtrader.feeds.cryptofeed import CryptoFeed
+from backtrader.stores.cryptostore import CryptoStore
 from backtrader.utils.log_message import SpdLogManager
-from bt_api_py.functions.utils import read_yaml_file
-from bt_api_py.containers.orders.order import OrderStatus
 
 
 def get_from_time_and_end_time():
@@ -26,13 +27,15 @@ def get_from_time_and_end_time():
     # 返回从当前时间的前一小时到当前时间的范围
     return utc_time - timedelta(hours=1), utc_time
 
+
 class TestStrategy(bt.BtApiStrategy):
     params = (("period", 22), ("log_file_name", "buy_sell_cancel_order.log"))
 
     def __init__(self):
         super().__init__()
-        self.ma_dict = {data.get_name(): bt.indicators.SMA(data, period=self.p.period)
-                        for data in self.datas}
+        self.ma_dict = {
+            data.get_name(): bt.indicators.SMA(data, period=self.p.period) for data in self.datas
+        }
 
         self.now_live_data = False
         self.live_bar_num = 0
@@ -49,16 +52,17 @@ class TestStrategy(bt.BtApiStrategy):
             now_ma = ma_indicator[0]
             pre_ma = ma_indicator[-1]
             self.log(
-                f"{data.get_name()}, {now_time}, cash = {round(cash)}, value = {round(value)}, {data.close[0]}, {round(now_ma, 2)}")
+                f"{data.get_name()}, {now_time}, cash = {round(cash)}, value = {round(value)}, {data.close[0]}, {round(now_ma, 2)}"
+            )
             if not self.now_live_data:
                 return
             if now_ma > pre_ma:
                 self.log("begin to make a long order")
-                self.buy(data, 6, round(now_close*0.95, 4),  exectype='limit')
+                self.buy(data, 6, round(now_close * 0.95, 4), exectype="limit")
                 self.log("make order completely")
             else:
                 self.log("begin to make a short order")
-                self.sell(data, 6, round(now_close*1.05, 4),  exectype='limit')
+                self.sell(data, 6, round(now_close * 1.05, 4), exectype="limit")
                 self.log("make order completely")
 
         if self.now_live_data:
@@ -91,7 +95,6 @@ class TestStrategy(bt.BtApiStrategy):
             if stop:
                 self.env.runstop()
 
-
     def notify_trade(self, trade):
         # 一个trade结束的时候输出信息
         data = trade.data
@@ -103,16 +106,17 @@ class TestStrategy(bt.BtApiStrategy):
         dn = data.get_name()
         dt = datetime.now()
         new_status = data._getstatusname(status)
-        msg= '{}, {} Data Status: {}'.format(dt, dn, new_status)
+        msg = f"{dt}, {dn} Data Status: {new_status}"
         self.log(msg)
-        if new_status == 'LIVE':
+        if new_status == "LIVE":
             self.live_data = True
             self.now_live_data = True
         else:
             self.live_data = False
 
+
 def get_account_config():
-    account_config_data = read_yaml_file('account_config.yaml')
+    account_config_data = read_yaml_file("account_config.yaml")
     return account_config_data
 
 
@@ -123,19 +127,21 @@ def test_binance_buy_sell_order():
     account_config_data = get_account_config()
     exchange_params = {
         "BINANCE___SWAP": {
-            "public_key": account_config_data['binance']['public_key'],
-            "private_key": account_config_data['binance']['private_key']
+            "public_key": account_config_data["binance"]["public_key"],
+            "private_key": account_config_data["binance"]["private_key"],
         }
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
     fromdate, todate = get_from_time_and_end_time()
-    data3 = crypto_store.getdata(store=crypto_store,
-                                 debug=True,
-                                 dataname="BINANCE___SWAP___OP-USDT",
-                                 fromdate=fromdate,
-                                 todate=todate,
-                                 timeframe=bt.TimeFrame.Minutes,
-                                 compression=1)
+    data3 = crypto_store.getdata(
+        store=crypto_store,
+        debug=True,
+        dataname="BINANCE___SWAP___OP-USDT",
+        fromdate=fromdate,
+        todate=todate,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
     cerebro.adddata(data3, name="BINANCE___SWAP___OP-USDT")
 
     broker = CryptoBroker(store=crypto_store)
@@ -159,22 +165,24 @@ def test_okx_buy_and_sell():
     account_config_data = get_account_config()
     exchange_params = {
         "OKX___SWAP": {
-            "public_key": account_config_data['okx']['public_key'],
-            "private_key": account_config_data['okx']['private_key'],
-            "passphrase": account_config_data['okx']["passphrase"],
+            "public_key": account_config_data["okx"]["public_key"],
+            "private_key": account_config_data["okx"]["private_key"],
+            "passphrase": account_config_data["okx"]["passphrase"],
         }
     }
     print(exchange_params)
     crypto_store = CryptoStore(exchange_params, debug=True)
     print(crypto_store.kwargs)
     fromdate, todate = get_from_time_and_end_time()
-    data3 = crypto_store.getdata(store=crypto_store,
-                                 debug=True,
-                                 dataname="OKX___SWAP___OP-USDT",
-                                 fromdate=fromdate,
-                                 todate=todate,
-                                 timeframe=bt.TimeFrame.Minutes,
-                                 compression=1)
+    data3 = crypto_store.getdata(
+        store=crypto_store,
+        debug=True,
+        dataname="OKX___SWAP___OP-USDT",
+        fromdate=fromdate,
+        todate=todate,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
     cerebro.adddata(data3, name="OKX___SWAP___OP-USDT")
 
     broker = CryptoBroker(store=crypto_store)
@@ -198,33 +206,37 @@ def test_okx_and_binance_buy_sell_order():
     account_config_data = get_account_config()
     exchange_params = {
         "OKX___SWAP": {
-            "public_key": account_config_data['okx']['public_key'],
-            "private_key": account_config_data['okx']['private_key'],
-            "passphrase": account_config_data['okx']["passphrase"],
+            "public_key": account_config_data["okx"]["public_key"],
+            "private_key": account_config_data["okx"]["private_key"],
+            "passphrase": account_config_data["okx"]["passphrase"],
         },
         "BINANCE___SWAP": {
-            "public_key": account_config_data['binance']['public_key'],
-            "private_key": account_config_data['binance']['private_key']
-        }
+            "public_key": account_config_data["binance"]["public_key"],
+            "private_key": account_config_data["binance"]["private_key"],
+        },
     }
     crypto_store = CryptoStore(exchange_params, debug=True)
     fromdate, todate = get_from_time_and_end_time()
-    data1 = crypto_store.getdata(store=crypto_store,
-                                 debug=True,
-                                 dataname="BINANCE___SWAP___OP-USDT",
-                                 fromdate=fromdate,
-                                 todate=todate,
-                                 timeframe=bt.TimeFrame.Minutes,
-                                 compression=1)
+    data1 = crypto_store.getdata(
+        store=crypto_store,
+        debug=True,
+        dataname="BINANCE___SWAP___OP-USDT",
+        fromdate=fromdate,
+        todate=todate,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
     cerebro.adddata(data1, name="BINANCE___SWAP___OP-USDT")
 
-    data2 = crypto_store.getdata(store=crypto_store,
-                                 debug=True,
-                                 dataname="OKX___SWAP___OP-USDT",
-                                 fromdate=fromdate,
-                                 todate=todate,
-                                 timeframe=bt.TimeFrame.Minutes,
-                                 compression=1)
+    data2 = crypto_store.getdata(
+        store=crypto_store,
+        debug=True,
+        dataname="OKX___SWAP___OP-USDT",
+        fromdate=fromdate,
+        todate=todate,
+        timeframe=bt.TimeFrame.Minutes,
+        compression=1,
+    )
     cerebro.adddata(data2, name="OKX___SWAP___OP-USDT")
 
     broker = CryptoBroker(store=crypto_store)
@@ -241,7 +253,7 @@ def test_okx_and_binance_buy_sell_order():
         assert create_order is True
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     print("--------------进行第一个测试-------------------")
     test_binance_buy_sell_order()
     print("--------------进行第二个测试-------------------")

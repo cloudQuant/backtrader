@@ -13,7 +13,6 @@ import pandas as pd
 # from backtrader.vectors.cal_functions import get_symbol
 from backtrader.comminfo import (
     ComminfoFuturesPercent,
-    ComminfoFuturesFixed,
 )  # 期货交易的手续费用，按照比例或者按照金额
 
 # from multiprocessing import Pool
@@ -117,7 +116,6 @@ class CloseMaCs(bt.Strategy):
         self.bar_num = self.bar_num + 1
 
     def notify_order(self, order):
-
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -236,9 +234,9 @@ def run(n_rows=10000, n_data=1000):
     # cerebro.addanalyzer(bt.analyzers.PyFolio)
     # 运行回测
     my_results = cerebro.run()
-    sharpe_ratio = my_results[0].analyzers.my_sharpe.get_analysis()["sharperatio"]
-    annual_return = my_results[0].analyzers.my_returns.get_analysis()["rnorm"]
-    max_drawdown = my_results[0].analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
+    # sharpe_ratio = my_results[0].analyzers.my_sharpe.get_analysis()["sharperatio"]
+    # annual_return = my_results[0].analyzers.my_returns.get_analysis()["rnorm"]
+    # max_drawdown = my_results[0].analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
     trade_num = (
         my_results[0].analyzers.my_trade_analyzer.get_analysis().get("total", {}).get("total", 0)
     )
@@ -249,6 +247,7 @@ def run(n_rows=10000, n_data=1000):
         profit_percent = 0
     else:
         profit_percent = round(won_num / trade_num, 3)
+    # profit_percent is used in the print statement below
     value_df = pd.DataFrame([my_results[0].analyzers.my_value.get_analysis()]).T
     value_df.columns = ["value"]
     value_df["datetime"] = pd.to_datetime(value_df.index)

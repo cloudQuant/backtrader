@@ -1,11 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
 from datetime import date, datetime
 import io
 import itertools
-
-from ..utils.py3 import urlopen, urlquote, ProxyHandler, build_opener, install_opener
 
 from .. import feed
 from ..utils import date2num
@@ -54,7 +51,7 @@ class QuandlCSV(feed.CSVDataBase):
     )
 
     def start(self):
-        super(QuandlCSV, self).start()
+        super().start()
 
         if not self.params.reverse:
             return
@@ -172,25 +169,27 @@ class Quandl(QuandlCSV):
     def start(self):
         self.error = None
 
-        url = "{}/{}/{}.csv".format(self.p.baseurl, self.p.dataset, urlquote(self.p.dataname))
+        url = f"{self.p.baseurl}/{self.p.dataset}/{urlquote(self.p.dataname)}.csv"
 
         urlargs = []
         if self.p.reverse:
             urlargs.append("order=asc")
 
         if self.p.apikey is not None:
-            urlargs.append("api_key={}".format(self.p.apikey))
+            urlargs.append(f"api_key={self.p.apikey}")
 
         if self.p.fromdate:
             dtxt = self.p.fromdate.strftime("%Y-%m-%d")
-            urlargs.append("start_date={}".format(dtxt))
+            urlargs.append(f"start_date={dtxt}")
 
         if self.p.todate:
             dtxt = self.p.todate.strftime("%Y-%m-%d")
-            urlargs.append("end_date={}".format(dtxt))
+            urlargs.append(f"end_date={dtxt}")
 
         if urlargs:
             url += "?" + "&".join(urlargs)
+
+        from ..utils.py3 import urlopen, ProxyHandler, build_opener, install_opener
 
         if self.p.proxies:
             proxy = ProxyHandler(self.p.proxies)
@@ -199,7 +198,7 @@ class Quandl(QuandlCSV):
 
         try:
             datafile = urlopen(url)
-        except IOError as e:
+        except OSError as e:
             self.error = str(e)
             # leave us empty
             return
@@ -218,4 +217,4 @@ class Quandl(QuandlCSV):
         self.f = f
 
         # Prepared a "path" file -  CSV Parser can take over
-        super(Quandl, self).start()
+        super().start()

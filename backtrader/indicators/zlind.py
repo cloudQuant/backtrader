@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
 from backtrader.utils.py3 import MAXINT
 
 
-from . import MovingAverageBase, MovAv
+from . import MovingAverageBase
 from .ema import EMA
+
 
 # 零滞后均线
 class ZeroLagIndicator(MovingAverageBase):
@@ -56,7 +55,7 @@ class ZeroLagIndicator(MovingAverageBase):
         self.limits = [-self.p.gainlimit, self.p.gainlimit + 1]
 
         # To make mixins work - super at the end for cooperative inheritance
-        super(ZeroLagIndicator, self).__init__()
+        super().__init__()
 
     def next(self):
         leasterror = MAXINT  # 1000000 in original code

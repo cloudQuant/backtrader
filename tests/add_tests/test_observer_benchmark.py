@@ -1,11 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
+
+import backtrader as bt
 
 from . import testcommon
-import backtrader as bt
 
 
 class RunStrategy(bt.Strategy):
@@ -26,7 +24,7 @@ class RunStrategy(bt.Strategy):
 def test_run(main=False):
     datas = [testcommon.getdata(0)]
     cerebros = testcommon.runtest(datas, RunStrategy, plot=main)
-    
+
     for cerebro in cerebros:
         strat = cerebro.runstrats[0][0]
         if main:
@@ -36,6 +34,5 @@ def test_run(main=False):
         assert len(strat) > 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     test_run(main=True)
-

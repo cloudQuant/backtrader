@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
 from . import SMA, ROC100
+from . import Indicator
 
 
 # KnowSureThing指标
-class KnowSureThing(bt.Indicator):
+class KnowSureThing(Indicator):
     """
     It is a "summed" momentum indicator. Developed by Martin Pring and
     published in 1992 in Stocks & Commodities.
@@ -57,8 +56,8 @@ class KnowSureThing(bt.Indicator):
 
     def __init__(self):
         # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
-        super(KnowSureThing, self).__init__()
-        
+        super().__init__()
+
         rcma1 = self.p._rmovav(ROC100(self.data, period=self.p.rp1), period=self.p.rma1)
         rcma2 = self.p._rmovav(ROC100(self.data, period=self.p.rp2), period=self.p.rma2)
         rcma3 = self.p._rmovav(ROC100(self.data, period=self.p.rp3), period=self.p.rma3)

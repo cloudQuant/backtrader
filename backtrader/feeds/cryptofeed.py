@@ -1,13 +1,12 @@
 import time
 import traceback
 import pytz
-import backtrader as bt
-from bt_api_py.containers import BarData
-from datetime import datetime, UTC
+from datetime import datetime
 from backtrader.feed import DataBase
 from backtrader.utils.py3 import queue
 from backtrader.stores.cryptostore import CryptoStore
 from bt_api_py.functions.log_message import SpdLogManager
+from ..dataseries import TimeFrame
 
 
 class CryptoFeed(DataBase):
@@ -37,35 +36,35 @@ class CryptoFeed(DataBase):
     _ST_LIVE, _ST_HISTORBACK, _ST_OVER = range(3)
 
     _GRANULARITIES = {
-        (bt.TimeFrame.Minutes, 1): "1m",
-        (bt.TimeFrame.Minutes, 3): "3m",
-        (bt.TimeFrame.Minutes, 5): "5m",
-        (bt.TimeFrame.Minutes, 15): "15m",
-        (bt.TimeFrame.Minutes, 30): "30m",
-        (bt.TimeFrame.Minutes, 60): "1h",
-        (bt.TimeFrame.Minutes, 90): "90m",
-        (bt.TimeFrame.Minutes, 120): "2h",
-        (bt.TimeFrame.Minutes, 180): "3h",
-        (bt.TimeFrame.Minutes, 240): "4h",
-        (bt.TimeFrame.Minutes, 360): "6h",
-        (bt.TimeFrame.Minutes, 480): "8h",
-        (bt.TimeFrame.Minutes, 720): "12h",
-        (bt.TimeFrame.Days, 1): "1d",
-        (bt.TimeFrame.Days, 3): "3d",
-        (bt.TimeFrame.Weeks, 1): "1w",
-        (bt.TimeFrame.Weeks, 2): "2w",
-        (bt.TimeFrame.Months, 1): "1M",
-        (bt.TimeFrame.Months, 3): "3M",
-        (bt.TimeFrame.Months, 6): "6M",
-        (bt.TimeFrame.Years, 1): "1y",
+        (TimeFrame.Minutes, 1): "1m",
+        (TimeFrame.Minutes, 3): "3m",
+        (TimeFrame.Minutes, 5): "5m",
+        (TimeFrame.Minutes, 15): "15m",
+        (TimeFrame.Minutes, 30): "30m",
+        (TimeFrame.Minutes, 60): "1h",
+        (TimeFrame.Minutes, 90): "90m",
+        (TimeFrame.Minutes, 120): "2h",
+        (TimeFrame.Minutes, 180): "3h",
+        (TimeFrame.Minutes, 240): "4h",
+        (TimeFrame.Minutes, 360): "6h",
+        (TimeFrame.Minutes, 480): "8h",
+        (TimeFrame.Minutes, 720): "12h",
+        (TimeFrame.Days, 1): "1d",
+        (TimeFrame.Days, 3): "3d",
+        (TimeFrame.Weeks, 1): "1w",
+        (TimeFrame.Weeks, 2): "2w",
+        (TimeFrame.Months, 1): "1M",
+        (TimeFrame.Months, 3): "3M",
+        (TimeFrame.Months, 6): "6M",
+        (TimeFrame.Years, 1): "1y",
     }
 
     def __init__(self, store, debug=True, *args, **kwargs):
         """feed初始化的时候,先初始化store,实现与交易所对接"""
-        super(CryptoFeed, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # 处理原来元类的注册功能
         CryptoStore.DataCls = self.__class__
-        
+
         self.debug = debug
         self.logger = self.init_logger()
         self.store = store
@@ -115,7 +114,7 @@ class CryptoFeed(DataBase):
             else:
                 topics = [{"topic": "kline", "symbol": self.symbol, "period": self.period}]
             self.store.feed_api.subscribe(self.p.dataname, topics)
-            self.log("subscribe {} topics: {} successfully".format(self.p.dataname, topics))
+            self.log(f"subscribe {self.p.dataname} topics: {topics} successfully")
 
     def init_logger(self):
         if self.debug:
@@ -144,7 +143,7 @@ class CryptoFeed(DataBase):
         # self.log(f"self.store.bar_queues.keys() = {self.store.bar_queues.keys()}")
         while key_name not in self.store.bar_queues:
             time.sleep(1)
-            self.log("self.store.bar_queues not found {}".format(key_name))
+            self.log(f"self.store.bar_queues not found {key_name}")
         return self.store.bar_queues[key_name]
 
     def start(self):
@@ -256,7 +255,7 @@ class CryptoFeed(DataBase):
             raise ValueError(
                 "backtrader bt_api_py module doesn't support fetching OHLCV "
                 "data for time frame %s, compression %s"
-                % (bt.TimeFrame.getname(timeframe), compression)
+                % (TimeFrame.getname(timeframe), compression)
             )
 
         return granularity

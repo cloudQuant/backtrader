@@ -1,12 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 
 from . import Indicator
 
 
 # 移动平均类，用于设置指标的名字
-class MovingAverage(object):
+class MovingAverage:
     """MovingAverage (alias MovAv)
 
     A placeholder to gather all Moving Average Types in a single place.
@@ -51,10 +50,10 @@ class MovingAverage(object):
 
         if clsalias:
             setattr(cls, clsalias, regcls)
-        
+
         # CRITICAL FIX: Process the alias attribute if it exists
         # Many indicators define their own aliases like alias = ("SMA", "SimpleMovingAverage")
-        if hasattr(regcls, 'alias'):
+        if hasattr(regcls, "alias"):
             aliases = regcls.alias
             # Support both tuple and single string
             if isinstance(aliases, str):
@@ -79,7 +78,7 @@ class MovingAverageBase(Indicator):
 
     def __init__(self):
         """Initialize moving average and set minimum period"""
-        super(MovingAverageBase, self).__init__()
+        super().__init__()
         # CRITICAL FIX: Set the minimum period based on the period parameter
         # This ensures the indicator doesn't start calculating until enough data is available
         self.addminperiod(self.p.period)

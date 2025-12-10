@@ -3,11 +3,10 @@
 import collections
 import copy
 import datetime
-import inspect
 import itertools
 import operator
 
-from .utils.py3 import filter, keys, integer_types, iteritems, itervalues, map, MAXINT, string_types
+from .utils.py3 import filter, keys, integer_types, iteritems, map, MAXINT, string_types
 
 import backtrader as bt
 from .lineiterator import LineIterator, StrategyBase
@@ -15,7 +14,7 @@ from .lineroot import LineSingle
 from .lineseries import LineSeriesStub
 from .metabase import ItemCollection, findowner
 from .trade import Trade
-from .utils import OrderedDict, AutoOrderedDict, AutoDictList
+from .utils import AutoOrderedDict, AutoDictList
 from backtrader.utils.log_message import SpdLogManager
 
 
@@ -24,7 +23,7 @@ class Strategy(StrategyBase):
     """
     Base class to be subclassed for user defined strategies.
     """
-    
+
     # Class-level storage for strategies
     _indcol = dict()
 
@@ -33,15 +32,15 @@ class Strategy(StrategyBase):
         """Safely create a strategy instance with proper parameter filtering"""
         # Call the full __new__ chain with all kwargs to ensure parameter processing
         instance = cls.__new__(cls, *args, **kwargs)
-        
+
         # Now manually call the Strategy.__init__ method with filtered kwargs (no params)
         # We need to filter out the strategy parameter kwargs for __init__
         filtered_kwargs = {}  # TestStrategy.__init__ takes no kwargs
-        
+
         # Call Strategy.__init__ with filtered kwargs (which should be empty for TestStrategy)
         if instance is not None:
             Strategy.__init__(instance, *args, **filtered_kwargs)
-        
+
         return instance
 
     def __new__(cls, *args, **kwargs):
@@ -49,79 +48,83 @@ class Strategy(StrategyBase):
         # CRITICAL: First call StrategyBase.__new__ to properly set up data arguments and lines
         # This ensures strategies get their data arguments processed correctly
         instance = super(Strategy, cls).__new__(cls, *args, **kwargs)
-        
+
         # Store the original kwargs for parameter processing
         instance._strategy_init_kwargs = kwargs
-        
+
         # CRITICAL FIX: Manually set up parameters here since Strategy inherits from ParamsMixin
         # But we need to ensure the kwargs from cerebro.addstrategy are properly processed
-        if hasattr(cls, '_params') and cls._params is not None:
+        if hasattr(cls, "_params") and cls._params is not None:
             params_cls = cls._params
             param_names = set()
-            
+
             # Get all parameter names from the class
-            if hasattr(params_cls, '_getpairs'):
+            if hasattr(params_cls, "_getpairs"):
                 param_names.update(params_cls._getpairs().keys())
-            elif hasattr(params_cls, '_gettuple'):
+            elif hasattr(params_cls, "_gettuple"):
                 param_names.update(key for key, value in params_cls._gettuple())
-            
+
             # Filter parameter kwargs
             param_kwargs = {k: v for k, v in kwargs.items() if k in param_names}
-                    
+
             # Create parameter instance
             try:
                 instance._params_instance = params_cls()
             except:
                 # If instantiation fails, create a simple object
-                instance._params_instance = type('ParamsInstance', (), {})()
-                
+                instance._params_instance = type("ParamsInstance", (), {})()
+
             # Set all parameter values - first defaults, then custom values
-            if hasattr(params_cls, '_getpairs'):
+            if hasattr(params_cls, "_getpairs"):
                 for key, value in params_cls._getpairs().items():
                     # Use custom value if provided, otherwise use default
                     final_value = param_kwargs.get(key, value)
                     setattr(instance._params_instance, key, final_value)
-            elif hasattr(params_cls, '_gettuple'):
+            elif hasattr(params_cls, "_gettuple"):
                 for key, value in params_cls._gettuple():
                     # Use custom value if provided, otherwise use default
                     final_value = param_kwargs.get(key, value)
                     setattr(instance._params_instance, key, final_value)
-                    
+
             # Set any extra parameters that were passed but not in the params definition
             for key, value in param_kwargs.items():
                 if not hasattr(instance._params_instance, key):
                     setattr(instance._params_instance, key, value)
-                    
+
         else:
             # No parameters defined, create parameter instance from kwargs
-            instance._params_instance = type('ParamsInstance', (), {})()
+            instance._params_instance = type("ParamsInstance", (), {})()
             # Set all kwargs as parameters
             for key, value in kwargs.items():
                 setattr(instance._params_instance, key, value)
-            
+
         # Create p property for parameter access
         instance.p = instance._params_instance
         # print(f"Strategy.__new__: Set parameters for {cls.__name__}: chkind={getattr(instance.p, 'chkind', 'NOT_SET')}")
-        
+
         # Handle method renaming like the old MetaStrategy.__new__ did
-        if hasattr(cls, 'notify') and not hasattr(cls, 'notify_order'):
+        if hasattr(cls, "notify") and not hasattr(cls, "notify_order"):
             cls.notify_order = cls.notify
-            delattr(cls, 'notify')
-        if hasattr(cls, 'notify_operation') and not hasattr(cls, 'notify_trade'):
+            delattr(cls, "notify")
+        if hasattr(cls, "notify_operation") and not hasattr(cls, "notify_trade"):
             cls.notify_trade = cls.notify_operation
-            delattr(cls, 'notify_operation')
-            
+            delattr(cls, "notify_operation")
+
         # Register subclasses (from MetaStrategy.__init__)
-        if not getattr(cls, 'aliased', False) and cls.__name__ != "Strategy" and not cls.__name__.startswith("_"):
+        if (
+            not getattr(cls, "aliased", False)
+            and cls.__name__ != "Strategy"
+            and not cls.__name__.startswith("_")
+        ):
             cls._indcol[cls.__name__] = cls
-            
+
         # Initialize critical attributes early (from MetaStrategy.donew and dopreinit)
         # These need to be available before __init__ completes since methods might be called
         instance.env = instance.cerebro = cerebro = findowner(instance, bt.Cerebro)
         instance._id = cerebro._next_stid()
         instance.broker = instance.env.broker
         instance._sizer = bt.sizers.FixedSize()
-        
+
         instance.stats = instance.observers = ItemCollection()
         instance.analyzers = ItemCollection()
         instance._alnames = collections.defaultdict(itertools.count)
@@ -132,37 +135,37 @@ class Strategy(StrategyBase):
         instance._orderspending = list()
         instance._trades = collections.defaultdict(AutoDictList)
         instance._tradespending = list()
-            
+
         return instance
 
     def __init__(self, *args, **kwargs):
         """Initialize with functionality from MetaStrategy methods"""
         # Critical attributes already initialized in __new__
         # Use stored kwargs for parameter processing
-        original_kwargs = getattr(self, '_strategy_init_kwargs', {})
-        
+        original_kwargs = getattr(self, "_strategy_init_kwargs", {})
+
         # Handle the functionality that was in MetaStrategy.dopostinit
         self._sizer.set(self, self.broker)
-        
+
         # OPTIMIZED: Simple and fast data extraction from args
         # Cerebro passes datas at the beginning of args (cerebro.py:1433)
-        if not hasattr(self, 'datas') or not self.datas:
+        if not hasattr(self, "datas") or not self.datas:
             self.datas = []
-            
+
             # Quick method: Extract datas directly from args
             # Cerebro prepends all datas to args, so we just need to identify them
             if args:
                 for arg in args:
                     # Fast check: data feeds have 'lines' and 'datetime' attributes
-                    if hasattr(arg, 'lines') and hasattr(arg, 'datetime'):
+                    if hasattr(arg, "lines") and hasattr(arg, "datetime"):
                         self.datas.append(arg)
                     # No need for nested loops or complex checks
-            
+
             # Fallback: Try cerebro.datas directly (fast)
-            if not self.datas and hasattr(self, 'cerebro') and self.cerebro is not None:
-                if hasattr(self.cerebro, 'datas') and self.cerebro.datas:
+            if not self.datas and hasattr(self, "cerebro") and self.cerebro is not None:
+                if hasattr(self.cerebro, "datas") and self.cerebro.datas:
                     self.datas = list(self.cerebro.datas)
-        
+
         # Set up primary data reference and data0/data1 aliases
         if self.datas:
             self.data = self.datas[0]
@@ -172,71 +175,80 @@ class Strategy(StrategyBase):
         else:
             self.data = None
             # print(f"Strategy.__init__: WARNING - No data available")
-        
+
         # Set up clock - this is critical for strategy execution
-        if not hasattr(self, '_clock') or self._clock is None:
+        if not hasattr(self, "_clock") or self._clock is None:
             if self.datas:
                 self._clock = self.datas[0]
                 # print(f"Strategy.__init__: Set clock to first data")
             # CRITICAL FIX: Don't create MinimalClock fallback
             # It causes problems with indicator clock detection in _periodset()
             # If no datas, leave _clock as None and let it be set later
-        
+
         # CRITICAL FIX: For TestStrategy, we need to call its __init__ method directly
         # without filtering parameters since TestStrategy.__init__ doesn't take kwargs
-        if self.__class__.__name__ == 'TestStrategy':
+        if self.__class__.__name__ == "TestStrategy":
             # For TestStrategy, call its __init__ directly - it takes no kwargs
             # Look for TestStrategy's __init__ method
             for cls in self.__class__.__mro__:
-                if cls.__name__ == 'TestStrategy' and hasattr(cls, '__init__') and '__init__' in cls.__dict__:
-                    user_init = cls.__dict__['__init__']
+                if (
+                    cls.__name__ == "TestStrategy"
+                    and hasattr(cls, "__init__")
+                    and "__init__" in cls.__dict__
+                ):
+                    user_init = cls.__dict__["__init__"]
                     user_init(self)  # TestStrategy.__init__ takes only self
                     break
         elif self.__class__ != Strategy:
             # For other strategy subclasses, filter kwargs before calling
             filtered_kwargs = kwargs.copy()
-            if hasattr(self.__class__, '_params') and self.__class__._params is not None:
+            if hasattr(self.__class__, "_params") and self.__class__._params is not None:
                 params_cls = self.__class__._params
                 param_names = set()
-                
+
                 # Get all parameter names from the class
-                if hasattr(params_cls, '_getpairs'):
+                if hasattr(params_cls, "_getpairs"):
                     param_names.update(params_cls._getpairs().keys())
-                elif hasattr(params_cls, '_gettuple'):
+                elif hasattr(params_cls, "_gettuple"):
                     param_names.update(key for key, value in params_cls._gettuple())
-                
-                # Remove strategy parameter kwargs 
+
+                # Remove strategy parameter kwargs
                 filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
-            
+
             # Call the user's __init__ method directly
             # CRITICAL FIX: Exclude StrategyBase to prevent infinite recursion
             from backtrader.lineiterator import StrategyBase
+
             for cls in self.__class__.__mro__:
-                if cls not in (Strategy, StrategyBase) and hasattr(cls, '__init__') and '__init__' in cls.__dict__:
-                    user_init = cls.__dict__['__init__']
+                if (
+                    cls not in (Strategy, StrategyBase)
+                    and hasattr(cls, "__init__")
+                    and "__init__" in cls.__dict__
+                ):
+                    user_init = cls.__dict__["__init__"]
                     try:
                         user_init(self)
                         break
-                    except Exception as e:
+                    except Exception:
                         # If user init fails, try with filtered_kwargs
                         if filtered_kwargs:
                             user_init(self, **filtered_kwargs)
                         break
-        
+
         # Initialize critical attributes that are expected by strategy execution
         # These should be available before any user code runs
-        if not hasattr(self, '_dlens'):
+        if not hasattr(self, "_dlens"):
             self._dlens = [len(data) for data in self.datas]
-        
+
         # CRITICAL FIX: DO NOT call super().__init__() here!
         # StrategyBase.__init__ already calls super().__init__() which eventually
         # calls Strategy.__init__. Calling super() again would create infinite recursion.
         # The parent initialization is already done by StrategyBase.
-        
+
         # Clean up the temporary attribute
-        if hasattr(self, '_strategy_init_kwargs'):
-            delattr(self, '_strategy_init_kwargs')
-        
+        if hasattr(self, "_strategy_init_kwargs"):
+            delattr(self, "_strategy_init_kwargs")
+
         # print(f"Strategy.__init__: Completed initialization with {len(self.datas)} datas and clock: {type(self._clock).__name__}")
 
     # line类型是策略类型
@@ -249,7 +261,7 @@ class Strategy(StrategyBase):
     # keep the latest delivered data date in the line
     # 保存最新的数据的日期
     lines = ("datetime",)
-    
+
     def log(self, txt, dt=None):
         """Default log method - can be overridden by subclasses"""
         # Default implementation does nothing
@@ -318,21 +330,29 @@ class Strategy(StrategyBase):
             # timeframe may place larger time constraints in calling next.
             # 获取指标的_clock属性
             clk = getattr(lineiter, "_clock", None)
-            
+
             # CRITICAL FIX: If clock is MinimalClock, use data instead
-            if clk is not None and hasattr(clk, '__class__') and 'MinimalClock' in clk.__class__.__name__:
+            if (
+                clk is not None
+                and hasattr(clk, "__class__")
+                and "MinimalClock" in clk.__class__.__name__
+            ):
                 if self.datas:
                     clk = self.datas[0]
                     lineiter._clock = clk  # Update indicator's clock
                 else:
                     clk = None
-            
+
             # 如果属性值是None的话
             if clk is None:
                 # 获取指标父类的_clock属性值，如果还是None的话，循环下个指标
                 clk = getattr(lineiter._owner, "_clock", None)
                 # CRITICAL FIX: If owner's clock is also MinimalClock, use data
-                if clk is not None and hasattr(clk, '__class__') and 'MinimalClock' in clk.__class__.__name__:
+                if (
+                    clk is not None
+                    and hasattr(clk, "__class__")
+                    and "MinimalClock" in clk.__class__.__name__
+                ):
                     if self.datas:
                         clk = self.datas[0]
                     else:
@@ -366,17 +386,16 @@ class Strategy(StrategyBase):
                 clk = clk.lines[0]
             # 保存最小周期
             _dminperiods[clk].append(lineiter._minperiod)
-        
+
         # DEBUG: Print _dminperiods content
         # print(f"DEBUG _periodset: _dminperiods = {dict(_dminperiods)}")
         # for key, val in _dminperiods.items():
         #     print(f"  {type(key).__name__}: {val}")
-        
+
         # 最小周期设置成空列表
         self._minperiods = list()
         # 循环所有的数据
         for data in self.datas:
-
             # Do not only consider the data as clock but also its lines, which
             # may have been individually passed as clock references and
             # discovered as clocks above
@@ -494,7 +513,6 @@ class Strategy(StrategyBase):
     # 如果minperstatus=0,代表数据刚准备齐全，调用self.nextstart_open
     # 如果minperstatus<0,代表数据还没有准备全，调用self.prenext_open
     def _oncepost_open(self):
-
         minperstatus = self._minperstatus
         if minperstatus < 0:
             self.next_open()
@@ -507,16 +525,16 @@ class Strategy(StrategyBase):
     def _oncepost(self, dt):
         # CRITICAL FIX: Ensure _clock is set to actual data, not MinimalClock
         # During initialization, _clock might be set to MinimalClock if datas weren't available yet
-        if hasattr(self, '_clock') and self._clock is not None:
+        if hasattr(self, "_clock") and self._clock is not None:
             clock_type_name = type(self._clock).__name__
-            if clock_type_name == 'MinimalClock' and self.datas:
+            if clock_type_name == "MinimalClock" and self.datas:
                 # Replace MinimalClock with actual first data
                 self._clock = self.datas[0]
-        elif not hasattr(self, '_clock') or self._clock is None:
+        elif not hasattr(self, "_clock") or self._clock is None:
             # Set clock to first data if not set
             if self.datas:
                 self._clock = self.datas[0]
-        
+
         # 循环指标，如果指标数据的长度大于指标的长度了，继续运行指标
         for indicator in self._lineiterators[LineIterator.IndType]:
             if len(indicator._clock) > len(indicator):
@@ -534,24 +552,24 @@ class Strategy(StrategyBase):
             self._last_valid_datetime = dt
         # 通知
         self._notify()
-        
+
         # CRITICAL FIX: In runonce mode, ensure indicator lencount matches strategy length
         # This ensures len(indicator) == len(strategy) at the end of processing
         try:
             strategy_len = len(self)
             for indicator in self._lineiterators[LineIterator.IndType]:
                 # Only update if indicator was processed in runonce mode
-                if hasattr(indicator, '_once_called') and indicator._once_called:
+                if hasattr(indicator, "_once_called") and indicator._once_called:
                     # Update lencount for all lines in the indicator
-                    if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                    if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
                         for line in indicator.lines.lines:
-                            if hasattr(line, 'lencount'):
+                            if hasattr(line, "lencount"):
                                 # Set lencount to match strategy length (which equals data length)
                                 # Use the maximum of current lencount and strategy_len to ensure we don't decrease it
                                 line.lencount = max(line.lencount, strategy_len)
         except:
             pass
-        
+
         # 获取当前最小周期状态，如果所有数据都满足了，调用next
         # 如果正好所有数据都满足了，调用nextstart
         # 如果不是所有的数据都满足了，调用prenext
@@ -572,27 +590,33 @@ class Strategy(StrategyBase):
     # 更新数据
     def _clk_update(self):
         # CRITICAL FIX: Ensure data is available before clock operations
-        if getattr(self, '_data_assignment_pending', True) or not hasattr(self, '_clock') or self._clock is None:
+        if (
+            getattr(self, "_data_assignment_pending", True)
+            or not hasattr(self, "_clock")
+            or self._clock is None
+        ):
             # Try to get data assignment from cerebro if not already done
-            if hasattr(self, '_ensure_data_available'):
+            if hasattr(self, "_ensure_data_available"):
                 self._ensure_data_available()
-        
+
         # 如果是旧的数据管理方法
         if self._oldsync:
             # 调用策略的_clk_uddate()方法
             clk_len = super(Strategy, self)._clk_update()
             # 设置时间
             if self.datas:
-                valid_datetimes = [d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0]
+                valid_datetimes = [
+                    d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0
+                ]
                 if valid_datetimes:
                     self.lines.datetime[0] = max(valid_datetimes)
             # 返回数据长度
             return clk_len
-        
+
         # CRITICAL FIX: Initialize _dlens if not present
-        if not hasattr(self, '_dlens'):
+        if not hasattr(self, "_dlens"):
             self._dlens = [len(d) for d in self.datas]
-        
+
         # 当前最新的数据长度
         newdlens = [len(d) for d in self.datas]
         # 如果新的数据长度大于旧的数据长度，就forward
@@ -786,22 +810,23 @@ class Strategy(StrategyBase):
             strategy_len = len(self)
             # Update lencount for all indicators to match strategy length
             # This is critical for runonce mode where indicators are pre-calculated but lencount may not match
-            if hasattr(self, '_lineiterators'):
+            if hasattr(self, "_lineiterators"):
                 from .lineiterator import LineIterator
+
                 for indicator in self._lineiterators.get(LineIterator.IndType, []):
                     # Update lencount for all lines in the indicator to match strategy length
-                    if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                    if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
                         for line in indicator.lines.lines:
-                            if hasattr(line, 'lencount'):
+                            if hasattr(line, "lencount"):
                                 # In runonce mode, set lencount to match strategy length (which equals data length)
                                 # This ensures len(indicator) == len(strategy) for test assertions
                                 line.lencount = strategy_len
         except:
             pass
-        
+
         # CRITICAL FIX: Restore last valid datetime before calling user's stop()
         # This ensures datetime[0] is valid for logging in stop() method
-        if hasattr(self, '_last_valid_datetime') and self._last_valid_datetime > 0:
+        if hasattr(self, "_last_valid_datetime") and self._last_valid_datetime > 0:
             try:
                 # Restore strategy datetime
                 self.lines.datetime[0] = self._last_valid_datetime
@@ -809,11 +834,11 @@ class Strategy(StrategyBase):
                 for data in self.datas:
                     try:
                         data.datetime[0] = self._last_valid_datetime
-                    except:
+                    except Exception:
                         pass
-            except:
+            except Exception:
                 pass
-        
+
         # 结束策略，可以在策略实例中重写
         self.stop()
         # 结束analyzer和observer的analyzer
@@ -2073,7 +2098,7 @@ class Strategy(StrategyBase):
         used
         """
         # Ensure sizer has broker reference
-        if hasattr(self._sizer, 'broker') and self._sizer.broker is None:
+        if hasattr(self._sizer, "broker") and self._sizer.broker is None:
             self._sizer.set(self, self.broker)
         return self._sizer.getsizing(data, isbuy)
 
@@ -2195,24 +2220,24 @@ class SignalStrategy(Strategy):
     def __new__(cls, *args, **kwargs):
         """Override __new__ to handle next method remapping that was done in MetaSigStrategy"""
         # Handle next method remapping like the old MetaSigStrategy.__new__ did
-        if hasattr(cls, 'next') and not hasattr(cls, '_next_custom'):
+        if hasattr(cls, "next") and not hasattr(cls, "_next_custom"):
             cls._next_custom = cls.next
-            
+
         # Create the instance
         instance = super(SignalStrategy, cls).__new__(cls, *args, **kwargs)
-        
+
         # Set the next method to _next_catch (from MetaSigStrategy)
         instance.next = instance._next_catch
-        
+
         return instance
 
     def __init__(self, *args, **kwargs):
         """Initialize the signal strategy with functionality from MetaSigStrategy methods"""
         # Handle the functionality that was in MetaSigStrategy.dopreinit
         self._signals = collections.defaultdict(list)
-        
+
         # Set the data target (from MetaSigStrategy.dopreinit)
-        _data = getattr(self.p, '_data', None)
+        _data = getattr(self.p, "_data", None)
         if _data is None:
             self._dtarget = self.data0
         elif isinstance(_data, integer_types):
@@ -2223,29 +2248,29 @@ class SignalStrategy(Strategy):
             self._dtarget = _data
         else:
             self._dtarget = self.data0
-            
+
         # Filter out strategy parameter kwargs to prevent them from reaching parent __init__
         filtered_kwargs = kwargs.copy()
-        if hasattr(self.__class__, '_params') and self.__class__._params is not None:
+        if hasattr(self.__class__, "_params") and self.__class__._params is not None:
             params_cls = self.__class__._params
             param_names = set()
-            
+
             # Get all parameter names from the class
-            if hasattr(params_cls, '_getpairs'):
+            if hasattr(params_cls, "_getpairs"):
                 param_names.update(params_cls._getpairs().keys())
-            elif hasattr(params_cls, '_gettuple'):
+            elif hasattr(params_cls, "_gettuple"):
                 param_names.update(key for key, value in params_cls._gettuple())
-            
-            # Remove strategy parameter kwargs 
+
+            # Remove strategy parameter kwargs
             filtered_kwargs = {k: v for k, v in kwargs.items() if k not in param_names}
-            
+
         # Call parent initialization with filtered kwargs
         # Don't pass *args to avoid object.__init__() error, consistent with Strategy.__init__ fix
         if filtered_kwargs:
             super(SignalStrategy, self).__init__(**filtered_kwargs)
         else:
             super(SignalStrategy, self).__init__()
-        
+
         # Handle the functionality that was in MetaSigStrategy.dopostinit
         # Add signals from params
         for sigtype, sigcls, sigargs, sigkwargs in self.p.signals:

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
+from . import Analyzer
+from backtrader.dataseries import TimeFrame
 
 
 # 持仓价值
-class PositionsValue(bt.Analyzer):
+class PositionsValue(Analyzer):
     """This analyzer reports the value of the positions of the current set of
     datas
 
@@ -49,7 +49,7 @@ class PositionsValue(bt.Analyzer):
     # 开始
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
-        super(PositionsValue, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self._usedate = None
 
     def start(self):
@@ -61,7 +61,7 @@ class PositionsValue(bt.Analyzer):
         # 时间周期
         tf = min(d._timeframe for d in self.datas)
         # 如果时间周期大于等于日，usedate参数设置成True
-        self._usedate = tf >= bt.TimeFrame.Days
+        self._usedate = tf >= TimeFrame.Days
 
     # 每个bar调用一次
     def next(self):

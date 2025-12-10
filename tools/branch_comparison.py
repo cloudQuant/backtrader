@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 """
 Branch comparison runner for 需求09.md
@@ -38,7 +37,6 @@ import subprocess
 import sys
 import time
 from pathlib import Path
-
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -131,7 +129,9 @@ def switched_branch(target_branch: str):
             if stashed:
                 ok = git_stash_pop()
                 if not ok:
-                    print("Warning: failed to auto-apply stashed changes. Manual recovery may be needed (git stash list).")
+                    print(
+                        "Warning: failed to auto-apply stashed changes. Manual recovery may be needed (git stash list)."
+                    )
         except Exception as e:  # noqa: BLE001
             print(f"Warning: failed to restore original branch: {e}")
 
@@ -164,13 +164,17 @@ def add_worktree(branch: str, worktree_path: Path):
     # Ensure parent exists
     worktree_path.parent.mkdir(parents=True, exist_ok=True)
     # Add the worktree
-    subprocess.check_call(["git", "worktree", "add", "--force", str(worktree_path), branch], cwd=REPO_ROOT)
+    subprocess.check_call(
+        ["git", "worktree", "add", "--force", str(worktree_path), branch], cwd=REPO_ROOT
+    )
 
 
 def remove_worktree(worktree_path: Path):
     worktree_path = worktree_path.resolve()
     try:
-        subprocess.check_call(["git", "worktree", "remove", "--force", str(worktree_path)], cwd=REPO_ROOT)
+        subprocess.check_call(
+            ["git", "worktree", "remove", "--force", str(worktree_path)], cwd=REPO_ROOT
+        )
     except subprocess.CalledProcessError:
         # Fallback: hard delete directory
         shutil.rmtree(worktree_path, ignore_errors=True)
@@ -198,7 +202,11 @@ def parse_pytest_summary_from_log(log_text: str) -> dict:
                 summary["collected"] = int(parts[1])
             except Exception:
                 pass
-        if s.lower().startswith("== ") and (" in " in s) and (" seconds ==" in s.lower() or "s ==" in s.lower()):
+        if (
+            s.lower().startswith("== ")
+            and (" in " in s)
+            and (" seconds ==" in s.lower() or "s ==" in s.lower())
+        ):
             # Example: "== 88 passed, 2 skipped in 12.34s =="
             # We capture counts and duration loosely
             try:
@@ -317,7 +325,9 @@ def main():
                 log_fp.write("DRY-RUN: " + " ".join(pytest_cmd_a) + "\n")
                 a_duration = 0.0
             else:
-                _, a_duration = run_command(pytest_cmd_a, cwd=str(REPO_ROOT), log_fp=log_fp, check=False)
+                _, a_duration = run_command(
+                    pytest_cmd_a, cwd=str(REPO_ROOT), log_fp=log_fp, check=False
+                )
             summary["branch_a"]["duration_seconds"] = a_duration
 
         # Branch B: run tests on a separate git worktree for the branch using conda env
@@ -328,7 +338,11 @@ def main():
             print(f"Creating worktree for {args.branch_b} at {worktree_dir}")
             add_worktree(args.branch_b, worktree_dir)
             # Resolve commit in worktree
-            commit_b = subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=worktree_dir).decode().strip()
+            commit_b = (
+                subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=worktree_dir)
+                .decode()
+                .strip()
+            )
             summary["branch_b"]["commit"] = commit_b
         else:
             commit_b = "DRYRUN"
@@ -339,25 +353,37 @@ def main():
 
         # Ensure required tooling and package are installed in target env
         install_cmds = [
-            conda_run(args.conda_env, [
-                "python", "-m", "pip", "install", "-U",
-                "-r", "requirements.txt",
-                "pytest", "pytest-xdist", "pytest-html", "pytest-metadata",
-                "empyrical-reloaded"
-            ]),
-            conda_run(args.conda_env, [
-                "python", "-m", "pip", "install", "-U", "."
-            ]),
+            conda_run(
+                args.conda_env,
+                [
+                    "python",
+                    "-m",
+                    "pip",
+                    "install",
+                    "-U",
+                    "-r",
+                    "requirements.txt",
+                    "pytest",
+                    "pytest-xdist",
+                    "pytest-html",
+                    "pytest-metadata",
+                    "empyrical-reloaded",
+                ],
+            ),
+            conda_run(args.conda_env, ["python", "-m", "pip", "install", "-U", "."]),
         ]
 
-        pytest_cmd_b = conda_run(args.conda_env, [
-            "python",
-            "-m",
-            "pytest",
-            *b_tests,
-            "-n",
-            str(args.workers),
-        ])
+        pytest_cmd_b = conda_run(
+            args.conda_env,
+            [
+                "python",
+                "-m",
+                "pytest",
+                *b_tests,
+                "-n",
+                str(args.workers),
+            ],
+        )
         if args.dry_run:
             print("DRY-RUN:", " ".join(pytest_cmd_b))
             log_fp.write("DRY-RUN: " + " ".join(pytest_cmd_b) + "\n")
@@ -368,7 +394,9 @@ def main():
                 for cmd in install_cmds:
                     run_command(cmd, cwd=str(worktree_dir), log_fp=log_fp, check=False)
                 # Run pytest rooted at worktree so it imports the correct code
-                _, b_duration = run_command(pytest_cmd_b, cwd=str(worktree_dir), log_fp=log_fp, check=False)
+                _, b_duration = run_command(
+                    pytest_cmd_b, cwd=str(worktree_dir), log_fp=log_fp, check=False
+                )
             finally:
                 # Clean up worktree directory
                 remove_worktree(worktree_dir)
@@ -404,5 +432,3 @@ def main():
 
 if __name__ == "__main__":
     sys.exit(main() or 0)
-
-

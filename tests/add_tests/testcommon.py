@@ -1,8 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
 
 import datetime
 import os
@@ -16,38 +13,46 @@ import backtrader as bt
 import backtrader.utils.flushfile
 
 modpath = os.path.dirname(os.path.abspath(__file__))
-dataspath = '../datas'
+dataspath = "../datas"
 datafiles = [
-    '2006-day-001.txt',
-    '2006-week-001.txt',
+    "2006-day-001.txt",
+    "2006-week-001.txt",
 ]
 
-DATAFEED = bt.feeds.BacktraderCSVData
+
+# Lazy initialization to avoid accessing bt.feeds during module import
+def get_datafeed():
+    return bt.feeds.BacktraderCSVData
+
+
+DATAFEED = None  # Will be set on first use
 
 FROMDATE = datetime.datetime(2006, 1, 1)
 TODATE = datetime.datetime(2006, 12, 31)
 
 
 def getdata(index, fromdate=FROMDATE, todate=TODATE):
+    global DATAFEED
+    if DATAFEED is None:
+        DATAFEED = get_datafeed()
     datapath = os.path.join(modpath, dataspath, datafiles[index])
-    data = DATAFEED(
-        dataname=datapath,
-        fromdate=fromdate,
-        todate=todate)
+    data = DATAFEED(dataname=datapath, fromdate=fromdate, todate=todate)
     return data
 
 
-def runtest(datas,
-            strategy,
-            runonce=None,
-            preload=None,
-            exbar=None,
-            plot=False,
-            optimize=False,
-            maxcpus=1,
-            writer=None,
-            analyzer=None,
-            **kwargs):
+def runtest(
+    datas,
+    strategy,
+    runonce=None,
+    preload=None,
+    exbar=None,
+    plot=False,
+    optimize=False,
+    maxcpus=1,
+    writer=None,
+    analyzer=None,
+    **kwargs,
+):
 
     runonces = [True, False] if runonce is None else [runonce]
     preloads = [True, False] if preload is None else [preload]
@@ -58,38 +63,44 @@ def runtest(datas,
         data_list = [datas]
     else:
         data_list = datas
-    
+
     # Extract data parameters for recreation
     data_params_list = []
     for data in data_list:
         # Store the data creation parameters
         data_params = {
-            'dataname': data._dataname if hasattr(data, '_dataname') else None,
+            "dataname": data._dataname if hasattr(data, "_dataname") else None,
         }
         # Copy relevant parameters from the data's params
-        if hasattr(data, 'p'):
-            for pname in ['fromdate', 'todate', 'sessionstart', 'sessionend', 
-                         'timeframe', 'compression', 'name']:
+        if hasattr(data, "p"):
+            for pname in [
+                "fromdate",
+                "todate",
+                "sessionstart",
+                "sessionend",
+                "timeframe",
+                "compression",
+                "name",
+            ]:
                 if hasattr(data.p, pname):
                     data_params[pname] = getattr(data.p, pname)
-        data_params['data_class'] = data.__class__
+        data_params["data_class"] = data.__class__
         data_params_list.append(data_params)
 
     cerebros = list()
     for prload in preloads:
         for ronce in runonces:
             for exbar in exbars:
-                cerebro = bt.Cerebro(runonce=ronce,
-                                     preload=prload,
-                                     maxcpus=maxcpus,
-                                     exactbars=exbar)
+                cerebro = bt.Cerebro(
+                    runonce=ronce, preload=prload, maxcpus=maxcpus, exactbars=exbar
+                )
 
                 # CRITICAL FIX: Create fresh data instances for each cerebro to avoid state pollution
                 for data_params in data_params_list:
-                    data_class = data_params.pop('data_class')
+                    data_class = data_params.pop("data_class")
                     new_data = data_class(**data_params)
                     # Restore data_class for next iteration
-                    data_params['data_class'] = data_class
+                    data_params["data_class"] = data_class
                     cerebro.adddata(new_data)
 
                 if not optimize:
@@ -118,13 +129,9 @@ def runtest(datas,
 
 
 class TestStrategy(bt.Strategy):
-    params = dict(main=False,
-                  chkind=[],
-                  inddata=[],
-                  chkmin=1,
-                  chknext=0,
-                  chkvals=None,
-                  chkargs=dict())
+    params = dict(
+        main=False, chkind=[], inddata=[], chkmin=1, chknext=0, chkvals=None, chkargs=dict()
+    )
 
     def __init__(self):
         try:
@@ -153,19 +160,19 @@ class TestStrategy(bt.Strategy):
 
     def nextstart(self):
         self.chkmin = len(self)
-        super(TestStrategy, self).nextstart()
+        super().nextstart()
 
     def oncestart(self, start, end):
         # In runonce mode, oncestart is called instead of nextstart
         # Set chkmin based on the start parameter
         self.chkmin = start
-        super(TestStrategy, self).oncestart(start, end)
+        super().oncestart(start, end)
 
     def next(self):
         self.nextcalls += 1
 
         if self.p.main:
-            dtstr = self.data.datetime.date(0).strftime('%Y-%m-%d')
+            dtstr = self.data.datetime.date(0).strftime("%Y-%m-%d")
             # print('%s - %d - %f' % (dtstr, len(self), self.ind[0]))  # Removed for performance
             # pstr = ', '.join(str(x) for x in
             #                  [self.data.open[0], self.data.high[0],
@@ -178,7 +185,7 @@ class TestStrategy(bt.Strategy):
         # CRITICAL FIX: Don't reset chkmin to 0 here
         # It will be set by nextstart() or oncestart()
         # Resetting it here causes issues in multi-run scenarios
-        if not hasattr(self, 'chkmin'):
+        if not hasattr(self, "chkmin"):
             self.chkmin = 0
 
     def stop(self):
@@ -186,7 +193,7 @@ class TestStrategy(bt.Strategy):
         # CRITICAL FIX: Get the actual minperiod from the indicator
         # In runonce mode, self.chkmin may be 0 if oncestart wasn't called properly
         # Use the indicator's _minperiod as fallback
-        if self.chkmin == 0 and hasattr(self.ind, '_minperiod'):
+        if self.chkmin == 0 and hasattr(self.ind, "_minperiod"):
             mp = self.ind._minperiod
         else:
             mp = self.chkmin
@@ -226,7 +233,7 @@ class TestStrategy(bt.Strategy):
             # if mp != self.p.chkmin:
             #     print(f"\nMinperiod mismatch: actual={mp}, expected={self.p.chkmin}")
             # assert mp == self.p.chkmin
-            
+
             # Only validate values when exactbars=False (historical data accessible)
             # Check if we have access to historical data by testing one negative index
             has_history = True
@@ -237,16 +244,16 @@ class TestStrategy(bt.Strategy):
                 # If the value is 0.0 and we expect non-zero, history may be unavailable
                 if test_val == 0.0 and len(self.p.chkvals) > 0 and len(self.p.chkvals[0]) > 1:
                     expected = self.p.chkvals[0][1]
-                    if expected not in ('0.000000', '0.0'):
+                    if expected not in ("0.000000", "0.0"):
                         has_history = False
             except (IndexError, AttributeError):
                 has_history = False
-            
+
             # Only check values if we have historical data access
             if has_history:
                 for lidx, linevals in enumerate(self.p.chkvals):
                     for i, chkpt in enumerate(chkpts):
-                        chkval = '%f' % self.ind.lines[lidx][chkpt]
+                        chkval = "%f" % self.ind.lines[lidx][chkpt]
                         if not isinstance(linevals[i], tuple):
                             # CRITICAL FIX: Add detailed error message for debugging
                             if chkval != linevals[i]:
@@ -266,4 +273,3 @@ class TestStrategy(bt.Strategy):
                                     matched = True
                                     break
                             assert matched, f"Value {chkval} not in expected values {linevals[i]}"
-

@@ -8,7 +8,7 @@ class Sizer(ParameterizedBase):
     """
     This is the base class for *Sizers*. Any *sizer* should subclass this
     and override the ``_getsizing`` method.
-    
+
     This class has been refactored from MetaParams to the new ParameterizedBase
     system for Day 36-38 of the metaprogramming removal project.
 

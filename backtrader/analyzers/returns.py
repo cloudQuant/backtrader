@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 import math
-import backtrader as bt
 from backtrader import TimeFrameAnalyzerBase
+from backtrader.dataseries import TimeFrame
 
 
 # 使用对数方法计算总的，平均，复合和年化收益率
@@ -76,24 +75,24 @@ class Returns(TimeFrameAnalyzerBase):
     )
     # 计算年化的时候的天数等
     _TANN = {
-        bt.TimeFrame.Days: 252.0,
-        bt.TimeFrame.Weeks: 52.0,
-        bt.TimeFrame.Months: 12.0,
-        bt.TimeFrame.Years: 1.0,
+        TimeFrame.Days: 252.0,
+        TimeFrame.Weeks: 52.0,
+        TimeFrame.Months: 12.0,
+        TimeFrame.Years: 1.0,
     }
 
     # 开始
     def __init__(self, *args, **kwargs):
         # 调用父类的__init__方法以支持timeframe和compression参数
-        super(Returns, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         self._value_end = None
         self._tcount = None
         self._value_start = None
         self._fundmode = None
 
     def start(self):
-        super(Returns, self).start()
+        super().start()
         # 如果fund是None的话，_fundmode是broker的fundmode，否则就等于fund
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
@@ -109,7 +108,7 @@ class Returns(TimeFrameAnalyzerBase):
 
     # 停止的时候
     def stop(self):
-        super(Returns, self).stop()
+        super().stop()
         # 如果fundmode是False的话，获取value,如果不是False的话，获取fundvalue
         if not self._fundmode:
             self._value_end = self.strategy.broker.getvalue()

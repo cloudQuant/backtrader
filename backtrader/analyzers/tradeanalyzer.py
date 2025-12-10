@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from backtrader import Analyzer
 from backtrader.utils import AutoOrderedDict, AutoDict
 from backtrader.utils.py3 import MAXINT
@@ -53,7 +52,7 @@ class TradeAnalyzer(Analyzer):
 
     # 停止
     def stop(self):
-        super(TradeAnalyzer, self).stop()
+        super().stop()
         self.rets._close()
 
     # trade通知

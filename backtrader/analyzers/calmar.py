@@ -1,16 +1,16 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-import backtrader as bt
 import math
 import collections
 from . import TimeDrawDown
+from backtrader import TimeFrameAnalyzerBase
+from backtrader.dataseries import TimeFrame
 
 __all__ = ["Calmar"]
 
 
 # 计算calmar比例，总体上来看，这个calmar计算的并不算是太成功，或者说analyzer,observer等系列指标，使用效率并不是很高，
 # 可以考虑做一个类似pyfolio的分析模块
-class Calmar(bt.TimeFrameAnalyzerBase):
+class Calmar(TimeFrameAnalyzerBase):
     """This analyzer calculates the CalmarRatio
     timeframe which can be different from the one used in the underlying data
     Params:
@@ -61,7 +61,7 @@ class Calmar(bt.TimeFrameAnalyzerBase):
     )
     # 参数
     params = (
-        ("timeframe", bt.TimeFrame.Months),  # default in calmar
+        ("timeframe", TimeFrame.Months),  # default in calmar
         ("period", 36),
         ("fund", None),
     )
@@ -69,8 +69,8 @@ class Calmar(bt.TimeFrameAnalyzerBase):
     # 计算最大回撤
     def __init__(self, *args, **kwargs):
         # 调用父类的__init__方法以支持timeframe和compression参数
-        super(Calmar, self).__init__(*args, **kwargs)
-        
+        super().__init__(*args, **kwargs)
+
         self.calmar = None
         self._fundmode = None
         self._values = None

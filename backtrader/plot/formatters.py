@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import matplotlib.dates as mdates
 import matplotlib.ticker as mplticker

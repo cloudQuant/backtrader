@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 from collections import OrderedDict
 
@@ -20,7 +19,7 @@ class OrderedDefaultdict(OrderedDict):
                 raise TypeError("first argument must be callable or None")
             self.default_factory = args[0]
             args = args[1:]
-        super(OrderedDefaultdict, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
     # 当key值不存在的时候，如果self.default_factory是None的话，将会返回key error;如果不是None的话，将会返回self.default_factory()
     def __missing__(self, key):

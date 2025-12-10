@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
-from . import MovingAverageBase, MovAv, ZeroLagIndicator
+from . import MovingAverageBase, ZeroLagIndicator
 from .ema import EMA
 from .hma import HMA
+
 
 # Dickson均线
 class DicksonMovingAverage(MovingAverageBase):
@@ -59,4 +59,4 @@ class DicksonMovingAverage(MovingAverageBase):
         self.lines.dma = (ec + hull) / 2.0
 
         # To make mixins work - super at the end for cooperative inheritance
-        super(DicksonMovingAverage, self).__init__()
+        super().__init__()

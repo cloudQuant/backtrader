@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import sys
 
@@ -9,8 +8,7 @@ import sys
 # 是不是win32,如果是win32就用flushfile创建两个实例，初始化的时候使用sys.stdout，sys.stderr这两个方法
 # 实际上看起来，并没有起到什么作用。就跟py3的文件一样，可能是为了起到兼容的作用，但是现在谁还用python2呀，几乎很少了
 # 所以整个框架看起来冗余了不少的函数和类
-class flushfile(object):
-
+class flushfile:
     def __init__(self, f):
         self.f = f
 
@@ -28,8 +26,7 @@ if sys.platform == "win32":
 
 
 # 没有用到的类，看类型的话，应该是输出的
-class StdOutDevNull(object):
-
+class StdOutDevNull:
     def __init__(self):
         self.stdout = sys.stdout
         sys.stdout = self

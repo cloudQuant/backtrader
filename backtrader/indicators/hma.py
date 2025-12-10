@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 from . import MovingAverageBase
 from .wma import WMA
 
@@ -41,8 +40,8 @@ class HullMovingAverage(MovingAverageBase):
 
     def __init__(self):
         # CRITICAL FIX: Call super().__init__() first and use self.p instead of self.params
-        super(HullMovingAverage, self).__init__()
-        
+        super().__init__()
+
         wma = self.p._movav(self.data, period=self.p.period)
         wma2 = 2.0 * self.p._movav(self.data, period=self.p.period // 2)
 

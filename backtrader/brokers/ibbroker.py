@@ -1,30 +1,22 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
 import collections
-from copy import copy
 from datetime import date, datetime, timedelta
 import threading
 import uuid
 
 import ib.ext.Order
-import ib.opt as ibopt
 
-from backtrader.feed import DataBase
-from backtrader import TimeFrame, num2date, date2num, BrokerBase, Order, OrderBase, OrderData
-from backtrader.utils.py3 import bytes, bstr, queue, MAXFLOAT
+from backtrader import num2date, date2num, BrokerBase, Order, OrderBase
+from backtrader.utils.py3 import bytes, bstr, queue
 from backtrader.comminfo import CommInfoBase
-from backtrader.position import Position
 from backtrader.stores import ibstore
-from backtrader.utils import AutoDict, AutoOrderedDict
-from backtrader.parameters import ParameterizedBase
-from backtrader.utils.py3 import with_metaclass
 
 bytes = bstr  # py2/3 need for ibpy
 
 
 # IB订单的状态
-class IBOrderState(object):
+class IBOrderState:
     # wraps OrderState object and can print it
     _fields = [
         "status",
@@ -46,7 +38,7 @@ class IBOrderState(object):
         txt = []
         txt.append("--- ORDERSTATE BEGIN")
         for field in self._fields:
-            txt.append("{}: {}".format(field.capitalize(), getattr(self, field)))
+            txt.append(f"{field.capitalize()}: {getattr(self, field)}")
         txt.append("--- ORDERSTATE END")
         return "\n".join(txt)
 
@@ -80,17 +72,17 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
     def __str__(self):
         """Get the printout from the base class and add some ib.Order specific
         fields"""
-        basetxt = super(IBOrder, self).__str__()
+        basetxt = super().__str__()
         tojoin = [basetxt]
-        tojoin.append("Ref: {}".format(self.ref))
-        tojoin.append("orderId: {}".format(self.m_orderId))
-        tojoin.append("Action: {}".format(self.m_action))
-        tojoin.append("Size (ib): {}".format(self.m_totalQuantity))
-        tojoin.append("Lmt Price: {}".format(self.m_lmtPrice))
-        tojoin.append("Aux Price: {}".format(self.m_auxPrice))
-        tojoin.append("OrderType: {}".format(self.m_orderType))
-        tojoin.append("Tif (Time in Force): {}".format(self.m_tif))
-        tojoin.append("GoodTillDate: {}".format(self.m_goodTillDate))
+        tojoin.append(f"Ref: {self.ref}")
+        tojoin.append(f"orderId: {self.m_orderId}")
+        tojoin.append(f"Action: {self.m_action}")
+        tojoin.append(f"Size (ib): {self.m_totalQuantity}")
+        tojoin.append(f"Lmt Price: {self.m_lmtPrice}")
+        tojoin.append(f"Aux Price: {self.m_auxPrice}")
+        tojoin.append(f"OrderType: {self.m_orderType}")
+        tojoin.append(f"Tif (Time in Force): {self.m_tif}")
+        tojoin.append(f"GoodTillDate: {self.m_goodTillDate}")
         return "\n".join(tojoin)
 
     # Map backtrader order types to the ib specifics
@@ -108,7 +100,6 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
 
     # 初始化，从backtrader的订单类型转到ib的订单类型
     def __init__(self, action, **kwargs):
-
         # Marker to indicate an openOrder has been seen with
         # PendinCancel/Canceled which is an indication of an upcoming
         # cancellation
@@ -117,7 +108,7 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
         # 订单方向
         self.ordtype = self.Buy if action == "BUY" else self.Sell
 
-        super(IBOrder, self).__init__()
+        super().__init__()
         ib.ext.Order.Order.__init__(self)  # Invoke 2nd base class
 
         # Now fill in the specific IB parameters
@@ -231,6 +222,7 @@ class IBCommInfo(CommInfoBase):
 def _register_broker_class(broker_cls):
     """Register broker class with the store when module is loaded"""
     from backtrader.stores import ibstore
+
     ibstore.IBStore.BrokerCls = broker_cls
     return broker_cls
 
@@ -268,7 +260,7 @@ class IBBroker(BrokerBase):
     # IBBroker没有额外的参数，所以不需要定义参数
 
     def __init__(self, **kwargs):
-        super(IBBroker, self).__init__()
+        super().__init__()
         # ibstore
         self.ib = ibstore.IBStore(**kwargs)
         # 开始现金，开始价值
@@ -288,7 +280,7 @@ class IBBroker(BrokerBase):
 
     # 开始
     def start(self):
-        super(IBBroker, self).start()
+        super().start()
         self.ib.start(broker=self)
         # 如果连接成功了，获取账户信息，更新cash和value
         if self.ib.connected():
@@ -301,7 +293,7 @@ class IBBroker(BrokerBase):
 
     # 结束
     def stop(self):
-        super(IBBroker, self).stop()
+        super().stop()
         self.ib.stop()
 
     # 获取现金
@@ -386,7 +378,6 @@ class IBBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
-
         order = IBOrder(
             action,
             owner=owner,
@@ -418,7 +409,6 @@ class IBBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
-
         order = self._makeorder(
             "BUY", owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
         )
@@ -438,7 +428,6 @@ class IBBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
-
         order = self._makeorder(
             "SELL", owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
         )

@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 
-import backtrader as bt
+from .. import Observer
+from ..analyzers import LogReturnsRolling
 
 
 __all__ = ["LogReturns", "LogReturns2"]
 
 
 # 获取对数收益率
-class LogReturns(bt.Observer):
+class LogReturns(Observer):
     """This observer stores the *log returns* of the strategy or a
 
     Params:
@@ -75,12 +75,12 @@ class LogReturns2(LogReturns):
     lines = ("logret2",)
 
     def __init__(self):
-        super(LogReturns2, self).__init__()
+        super().__init__()
 
         self.logret2 = self._owner._addanalyzer_slave(
-            bt.analyzers.LogReturnsRolling, data=self.data1, **self.p._getkwargs()
+            LogReturnsRolling, data=self.data1, **self.p._getkwargs()
         )
 
     def next(self):
-        super(LogReturns2, self).next()
+        super().next()
         self.lines.logret2[0] = self.logret2.rets[self.logret2.dtkey]

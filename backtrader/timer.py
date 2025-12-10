@@ -3,10 +3,9 @@
 import bisect
 import collections
 from datetime import date, datetime, timedelta
-from itertools import islice
 
 from .feed import AbstractDataBase
-from .parameters import ParameterizedBase, ParameterDescriptor, OneOf
+from .parameters import ParameterizedBase, ParameterDescriptor
 from .utils import date2num, num2date
 from .utils.py3 import integer_types, range
 from .utils import TIME_MAX
@@ -23,71 +22,42 @@ SESSION_TIME, SESSION_START, SESSION_END = range(3)
 class Timer(ParameterizedBase):
     """
     Timer class for scheduling time-based notifications in backtrader.
-    
+
     This class has been refactored from MetaParams to the new ParameterizedBase
     system for Day 36-38 of the metaprogramming removal project.
     """
-    
+
     # 使用新的参数描述符系统定义参数
-    tid = ParameterDescriptor(
-        default=None,
-        doc="Timer ID"
-    )
-    owner = ParameterDescriptor(
-        default=None,
-        doc="Owner object of the timer"
-    )
-    strats = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Whether to notify strategies"
-    )
+    tid = ParameterDescriptor(default=None, doc="Timer ID")
+    owner = ParameterDescriptor(default=None, doc="Owner object of the timer")
+    strats = ParameterDescriptor(default=False, type_=bool, doc="Whether to notify strategies")
     when = ParameterDescriptor(
-        default=None,
-        doc="When to trigger the timer (time, SESSION_START, or SESSION_END)"
+        default=None, doc="When to trigger the timer (time, SESSION_START, or SESSION_END)"
     )
     offset = ParameterDescriptor(
-        default=timedelta(),
-        type_=timedelta,
-        doc="Time offset for the timer"
+        default=timedelta(), type_=timedelta, doc="Time offset for the timer"
     )
     repeat = ParameterDescriptor(
-        default=timedelta(),
-        type_=timedelta,
-        doc="Repeat interval for the timer"
+        default=timedelta(), type_=timedelta, doc="Repeat interval for the timer"
     )
     weekdays = ParameterDescriptor(
-        default=[],
-        type_=list,
-        doc="List of weekdays when timer is active"
+        default=[], type_=list, doc="List of weekdays when timer is active"
     )
     weekcarry = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Whether to carry over to next weekday if missed"
+        default=False, type_=bool, doc="Whether to carry over to next weekday if missed"
     )
     monthdays = ParameterDescriptor(
-        default=[],
-        type_=list,
-        doc="List of month days when timer is active"
+        default=[], type_=list, doc="List of month days when timer is active"
     )
     monthcarry = ParameterDescriptor(
-        default=True,
-        type_=bool,
-        doc="Whether to carry over to next month day if missed"
+        default=True, type_=bool, doc="Whether to carry over to next month day if missed"
     )
     allow = ParameterDescriptor(
-        default=None,
-        doc="Callback function to allow/disallow timer on specific dates"
+        default=None, doc="Callback function to allow/disallow timer on specific dates"
     )
-    tzdata = ParameterDescriptor(
-        default=None,
-        doc="Timezone data for the timer"
-    )
+    tzdata = ParameterDescriptor(default=None, doc="Timezone data for the timer")
     cheat = ParameterDescriptor(
-        default=False,
-        type_=bool,
-        doc="Whether timer can cheat (execute before broker)"
+        default=False, type_=bool, doc="Whether timer can cheat (execute before broker)"
     )
 
     # 这三个常量的值
@@ -98,10 +68,10 @@ class Timer(ParameterizedBase):
         # 保存传入的参数
         self.args = args
         self.kwargs = kwargs
-        
+
         # 调用父类初始化
         super(Timer, self).__init__(**kwargs)
-        
+
         # 初始化内部状态变量
         self._weekmask = None
         self._dwhen = None
@@ -120,19 +90,19 @@ class Timer(ParameterizedBase):
     def start(self, data):
         # write down the 'reset when' value
         # 如果参数when不是整数
-        if not isinstance(self.get_param('when'), integer_types):  # expect time/datetime
+        if not isinstance(self.get_param("when"), integer_types):  # expect time/datetime
             # 重新设置when，并且设置时区数据
-            self._rstwhen = self.get_param('when')
-            self._tzdata = self.get_param('tzdata')
+            self._rstwhen = self.get_param("when")
+            self._tzdata = self.get_param("tzdata")
         # 如果参数when是整数的话
         else:
             # 如果时区数据是None的话，时区数据等于data,否则，时区数据就是tzdata
-            self._tzdata = data if self.get_param('tzdata') is None else self.get_param('tzdata')
+            self._tzdata = data if self.get_param("tzdata") is None else self.get_param("tzdata")
             # 如果when等于开盘时间，重新设置时间为开盘时间
-            if self.get_param('when') == SESSION_START:
+            if self.get_param("when") == SESSION_START:
                 self._rstwhen = self._tzdata.p.sessionstart
             # 如果when等于收盘时间，重新设置时间为收盘时间
-            elif self.get_param('when') == SESSION_END:
+            elif self.get_param("when") == SESSION_END:
                 self._rstwhen = self._tzdata.p.sessionend
         # 判断时区数据是否是数据
         self._isdata = isinstance(self._tzdata, AbstractDataBase)
@@ -160,7 +130,7 @@ class Timer(ParameterizedBase):
     # 检查月份
     def _check_month(self, ddate):
         # 如果没有设置在每月几号激活，返回True
-        if not self.get_param('monthdays'):
+        if not self.get_param("monthdays"):
             return True
         # 月面具
         mask = self._monthmask
@@ -173,15 +143,15 @@ class Timer(ParameterizedBase):
             # 当前的月份等于传进来日期的月份
             self._curmonth = dmonth  # write down new month
             # 参数monthcarry为真的时候，同时mask为真的时候，顺延到下个交易日。否则，不顺延
-            daycarry = self.get_param('monthcarry') and bool(mask)
+            daycarry = self.get_param("monthcarry") and bool(mask)
             # 月面具等于每个月激活的天数
-            self._monthmask = mask = collections.deque(self.get_param('monthdays'))
+            self._monthmask = mask = collections.deque(self.get_param("monthdays"))
         # 日期的每个月的几日
         dday = ddate.day
         # 插入到激活日期中的index,index左边的元素都小于dday,index右边的元素都大于等于dday
         dc = bisect.bisect_left(mask, dday)  # "left" for days before dday
         # daycarry是否是True,如果原先是daycarry是True,或者月日期顺延并且dc大于0的话，daycarry的值是True,否则就是False
-        daycarry = daycarry or (self.get_param('monthcarry') and dc > 0)
+        daycarry = daycarry or (self.get_param("monthcarry") and dc > 0)
         # 如果dc小于激活日期列表的长度
         if dc < len(mask):
             # 如果得到的新的index仍然是大于0的，那么就把dc增加1，否则，curday就是False
@@ -199,7 +169,7 @@ class Timer(ParameterizedBase):
     # 检查周
     def _check_week(self, ddate=date.min):
         # 如果没有在周几激活定时器，返回True
-        if not self.get_param('weekdays'):
+        if not self.get_param("weekdays"):
             return True
         # 计算当前时间是哪一年，多少周了，周几
         _, dweek, dwkday = ddate.isocalendar()
@@ -212,13 +182,13 @@ class Timer(ParameterizedBase):
             # 当前周数等于传递时间的周数
             self._curweek = dweek  # write down new month
             # 参数weekcarry为真的时候，同时mask为真的时候，顺延到下个交易日。否则，不顺延
-            daycarry = self.get_param('weekcarry') and bool(mask)
+            daycarry = self.get_param("weekcarry") and bool(mask)
             # 设置_weekmask为每周定时器激活的时间
-            self._weekmask = mask = collections.deque(self.get_param('weekdays'))
+            self._weekmask = mask = collections.deque(self.get_param("weekdays"))
         # 获取当前星期几在激活日期列表中的index,使得列表左边的数字小于当前数字，列表右边的数字大于等于当前的数字
         dc = bisect.bisect_left(mask, dwkday)  # "left" for days before dday
         # daycarry为真的条件需要满足下面的两个之一：daycarry为真，或者同时满足节假日顺延，并且dc大于0
-        daycarry = daycarry or (self.get_param('weekcarry') and dc > 0)
+        daycarry = daycarry or (self.get_param("weekcarry") and dc > 0)
         # 如果dc的值小于激活日期序列的长度
         if dc < len(mask):
             # 获取具体的index,如果index大于0，curday等于True
@@ -263,8 +233,8 @@ class Timer(ParameterizedBase):
             ret = self._check_month(ddate)
             if ret:
                 ret = self._check_week(ddate)
-            if ret and self.get_param('allow') is not None:
-                ret = self.get_param('allow')(ddate)
+            if ret and self.get_param("allow") is not None:
+                ret = self.get_param("allow")(ddate)
             # 如果ret是False的时候，需要重新设置when,返回False
             if not ret:
                 self._reset_when(ddate)  # this day won't make it
@@ -278,8 +248,8 @@ class Timer(ParameterizedBase):
             # dwhen代表当天最小的时间
             dwhen = datetime.combine(ddate, self._when)
             # 如果有时间补偿的话，dwhen是加上时间补偿后的当天最小时间
-            if self.get_param('offset'):
-                dwhen += self.get_param('offset')
+            if self.get_param("offset"):
+                dwhen += self.get_param("offset")
             # 设置_dwhen
             self._dwhen = dwhen
             # 如果_tzdata是数据的话，把dwhen设置为dtwhen
@@ -295,7 +265,7 @@ class Timer(ParameterizedBase):
         self.lastwhen = dwhen
 
         # 如果不重复的话，重置when
-        if not self.get_param('repeat'):  # cannot repeat
+        if not self.get_param("repeat"):  # cannot repeat
             self._reset_when(ddate)  # reset and mark as called on ddate
         # 如果需要重复的话
         else:
@@ -315,7 +285,7 @@ class Timer(ParameterizedBase):
             # while循环
             while True:
                 # 下个when开始的时间
-                dwhen += self.get_param('repeat')
+                dwhen += self.get_param("repeat")
                 # 如果dwhen大于了当前交易日最后的时间，重设when，退出while循环
                 if dwhen > nexteos:  # if new schedule is beyond session
                     self._reset_when(ddate)  # reset to original point

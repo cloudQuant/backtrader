@@ -1,0 +1,66 @@
+# Pre-commit hooks configuration for Backtrader
+# Install: pip install pre-commit
+# Setup: pre-commit install
+# Run manually: pre-commit run --all-files
+
+repos:
+  # Python code upgrade tool
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.21.2
+    hooks:
+      - id: pyupgrade
+        args: [--py311-plus]
+        name: pyupgrade
+        description: Automatically upgrade Python syntax
+
+  # Fast Python linter and formatter
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.14.6
+    hooks:
+      # Linting
+      - id: ruff
+        args: [--fix]
+        name: ruff-lint
+        description: Run ruff linter with auto-fix
+      
+      # Formatting
+      - id: ruff-format
+        args: [--line-length=100]
+        name: ruff-format
+        description: Format code with ruff
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+        name: Trim trailing whitespace
+      - id: end-of-file-fixer
+        name: Fix end of file
+      - id: check-yaml
+        name: Check YAML
+      - id: check-json
+        name: Check JSON
+      - id: check-merge-conflict
+        name: Check merge conflicts
+      - id: debug-statements
+        name: Check for debugger imports
+      - id: mixed-line-ending
+        name: Fix mixed line endings
+        args: [--fix=lf]
+
+# Configuration for specific tools
+default_language_version:
+  python: python3.11
+
+# Skip certain files
+exclude: |
+  (?x)^(
+    backtrader/tests/|
+    docs/|
+    build/|
+    dist/
+  )
+
+# Minimum Python version
+minimum_pre_commit_version: '2.15.0'

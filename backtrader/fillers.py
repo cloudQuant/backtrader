@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from backtrader.utils.py3 import MAXINT
-from backtrader.utils.autodict import DictKeyAsAttr
 
 from backtrader.parameters import ParameterizedBase
 
