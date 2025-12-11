@@ -141,9 +141,6 @@ class Strategy(StrategyBase):
     def __init__(self, *args, **kwargs):
         """Initialize with functionality from MetaStrategy methods"""
         # Critical attributes already initialized in __new__
-        # Use stored kwargs for parameter processing
-        getattr(self, "_strategy_init_kwargs", {})
-
         # Handle the functionality that was in MetaStrategy.dopostinit
         self._sizer.set(self, self.broker)
 

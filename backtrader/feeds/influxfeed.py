@@ -14,6 +14,7 @@ except Exception:  # pragma: no cover - optional dependency, handled at runtime
     class InfluxDBClientError(Exception):
         pass
 
+
 # 时间周期的对应
 TIMEFRAMES = dict(
     (
