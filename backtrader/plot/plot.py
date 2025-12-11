@@ -25,8 +25,7 @@ from pyecharts.charts import Bar, EffectScatter, Grid, Kline, Line
 from pyecharts.commons.utils import JsCode
 from pyecharts.globals import SymbolType
 
-from .. import AutoInfoClass, date2num
-from .. import analyzers
+from .. import AutoInfoClass, analyzers, date2num
 from ..dataseries import TimeFrame
 from ..parameters import ParameterDescriptor, ParameterizedBase
 from ..utils.py3 import integer_types, range

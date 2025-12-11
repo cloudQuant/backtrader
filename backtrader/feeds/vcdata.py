@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 from datetime import datetime, timedelta, tzinfo
 
+from ..dataseries import TimeFrame
 from ..feed import DataBase
 from ..stores import vcstore
+from ..utils import date2num
+from ..utils.date import Localizer
 from ..utils.py3 import (
     integer_types,
     queue,
     string_types,
 )
-
-from ..dataseries import TimeFrame
-from ..utils import date2num
-from ..utils.date import Localizer
 
 
 class VCData(DataBase):

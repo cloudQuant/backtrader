@@ -3,7 +3,6 @@ import math
 
 from ..analyzer import TimeFrameAnalyzerBase
 from ..dataseries import TimeFrame
-
 from ..mathsupport import standarddev
 from .returns import Returns
 

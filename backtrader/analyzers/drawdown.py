@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from ..analyzer import TimeFrameAnalyzerBase, Analyzer
+from ..analyzer import Analyzer, TimeFrameAnalyzerBase
 from ..utils import AutoOrderedDict
 
 __all__ = ["DrawDown", "TimeDrawDown"]

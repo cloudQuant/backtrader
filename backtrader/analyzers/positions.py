@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-from ..dataseries import TimeFrame
-
 from ..analyzer import Analyzer
+from ..dataseries import TimeFrame
 
 
 # 持仓价值

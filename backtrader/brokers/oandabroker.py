@@ -3,8 +3,8 @@
 import collections
 
 from ..broker import BrokerBase
-from ..order import BuyOrder, Order, SellOrder
 from ..comminfo import CommInfoBase
+from ..order import BuyOrder, Order, SellOrder
 from ..parameters import BoolParam, ParameterDescriptor
 from ..position import Position
 from ..stores import oandastore

@@ -5,8 +5,8 @@ from functools import wraps
 import ccxt
 from ccxt.base.errors import ExchangeError, NetworkError
 
-from .mixins import ParameterizedSingletonMixin
 from ..dataseries import TimeFrame
+from .mixins import ParameterizedSingletonMixin
 
 
 class CCXTStore(ParameterizedSingletonMixin):

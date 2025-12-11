@@ -12,14 +12,14 @@ from datetime import datetime, timedelta
 import ib.opt as ibopt
 from ib.ext.Contract import Contract
 
-from ..position import Position
 from ..dataseries import TimeFrame
+from ..position import Position
+from ..utils import UTC, AutoDict
+from ..utils.py3 import bstr, long, queue
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
 from .mixins import ParameterizedSingletonMixin
-from ..utils import UTC, AutoDict
-from ..utils.py3 import bstr, long, queue
 
 bytes = bstr  # py2/3 need for ibpy
 

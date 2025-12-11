@@ -6,21 +6,30 @@ import datetime
 import itertools
 import operator
 
-from .utils.log_message import SpdLogManager
-
 from .lineiterator import LineIterator, StrategyBase
-from .lineroot import LineSingle, LineRoot
+from .lineroot import LineRoot, LineSingle
 from .lineseries import LineSeriesStub
 from .metabase import ItemCollection, findowner
 from .order import Order
 from .signal import (
-    SIGNAL_LONGSHORT, SIGNAL_LONG, SIGNAL_LONG_INV, SIGNAL_LONG_ANY,
-    SIGNAL_SHORT, SIGNAL_SHORT_INV, SIGNAL_SHORT_ANY,
-    SIGNAL_LONGEXIT, SIGNAL_LONGEXIT_INV, SIGNAL_LONGEXIT_ANY,
-    SIGNAL_SHORTEXIT, SIGNAL_SHORTEXIT_INV, SIGNAL_SHORTEXIT_ANY,
+    SIGNAL_LONG,
+    SIGNAL_LONG_ANY,
+    SIGNAL_LONG_INV,
+    SIGNAL_LONGEXIT,
+    SIGNAL_LONGEXIT_ANY,
+    SIGNAL_LONGEXIT_INV,
+    SIGNAL_LONGSHORT,
+    SIGNAL_SHORT,
+    SIGNAL_SHORT_ANY,
+    SIGNAL_SHORT_INV,
+    SIGNAL_SHORTEXIT,
+    SIGNAL_SHORTEXIT_ANY,
+    SIGNAL_SHORTEXIT_INV,
 )
+from .sizers.fixedsize import FixedSize
 from .trade import Trade
 from .utils import AutoDictList, AutoOrderedDict
+from .utils.log_message import SpdLogManager
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
 
@@ -127,10 +136,12 @@ class Strategy(StrategyBase):
         # Initialize critical attributes early (from MetaStrategy.donew and dopreinit)
         # These need to be available before __init__ completes since methods might be called
         from .cerebro import Cerebro
+
         instance.env = instance.cerebro = cerebro = findowner(instance, Cerebro)
         instance._id = cerebro._next_stid()
         instance.broker = instance.env.broker
         from .sizers import FixedSize
+
         instance._sizer = FixedSize()
 
         instance.stats = instance.observers = ItemCollection()

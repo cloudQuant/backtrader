@@ -2,10 +2,9 @@
 # import collections
 import pandas as pd
 
+from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 from ..utils.py3 import iteritems
-
-from ..analyzer import Analyzer
 from .leverage import GrossLeverage
 from .positions import PositionsValue
 from .timereturn import TimeReturn

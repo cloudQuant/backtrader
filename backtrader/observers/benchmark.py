@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from .timereturn import TimeReturn
 from ..analyzers.timereturn import TimeReturn as TimeReturnAnalyzer
+from .timereturn import TimeReturn
 
 
 # 基准

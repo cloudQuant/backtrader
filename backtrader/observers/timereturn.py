@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from ..observer import Observer
-from ..dataseries import TimeFrame
 from ..analyzers.timereturn import TimeReturn as TimeReturnAnalyzer
+from ..dataseries import TimeFrame
+from ..observer import Observer
 
 
 # 时间收益率的类
@@ -61,9 +61,7 @@ class TimeReturn(Observer):
 
     # 初始化，增加analyzers中的TimeReturn
     def __init__(self):
-        self.treturn = self._owner._addanalyzer_slave(
-            TimeReturnAnalyzer, **self.p._getkwargs()
-        )
+        self.treturn = self._owner._addanalyzer_slave(TimeReturnAnalyzer, **self.p._getkwargs())
 
     # 每个next设置当前的收益率
     def next(self):

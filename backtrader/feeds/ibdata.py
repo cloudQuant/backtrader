@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 import datetime
 
+from ..dataseries import TimeFrame
 from ..feed import DataBase
 from ..stores import ibstore
+from ..utils import UTC, date2num, num2date
+from ..utils.date import Localizer
 from ..utils.py3 import (
     integer_types,
     queue,
     string_types,
 )
-
-from ..dataseries import TimeFrame
-from ..utils import UTC, date2num, num2date
-from ..utils.date import Localizer
 
 
 class IBData(DataBase):

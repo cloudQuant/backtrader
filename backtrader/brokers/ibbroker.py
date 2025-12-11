@@ -8,10 +8,10 @@ from datetime import date, datetime, timedelta
 import ib.ext.Order
 
 from ..broker import BrokerBase
-from ..order import Order, OrderBase
-from ..utils import date2num, num2date
 from ..comminfo import CommInfoBase
+from ..order import Order, OrderBase
 from ..stores import ibstore
+from ..utils import date2num, num2date
 from ..utils.py3 import bstr, queue
 
 bytes = bstr  # py2/3 need for ibpy

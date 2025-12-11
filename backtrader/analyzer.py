@@ -5,11 +5,11 @@ import pprint as pp
 from collections import OrderedDict
 
 from .dataseries import TimeFrame
-from .parameters import ParameterizedBase
-from .utils.py3 import MAXINT
 from .metabase import findowner
-from .strategy import Strategy
 from .observer import Observer
+from .parameters import ParameterizedBase
+from .strategy import Strategy
+from .utils.py3 import MAXINT
 
 
 # Analyzer类 - 重构为不使用元类

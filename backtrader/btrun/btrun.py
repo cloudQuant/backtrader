@@ -7,6 +7,12 @@ import random
 import string
 import sys
 
+from .. import analyzers as analyzers_module
+from .. import indicators as indicators_module
+from .. import observers as observers_module
+from .. import signal as signal_module
+from .. import signals as signals_module
+from .. import strategies as strategies_module
 from ..analyzer import Analyzer
 from ..cerebro import Cerebro
 from ..dataseries import TimeFrame
@@ -19,15 +25,8 @@ from ..feeds.yahoo import YahooFinanceCSVData, YahooFinanceData
 from ..feeds.yahoounreversed import YahooFinanceCSVData as YahooFinanceCSVDataUnreversed
 from ..indicator import Indicator
 from ..observer import Observer
-from ..signal import SIGNAL_LONGSHORT  # default fallback constant
 from ..strategy import Strategy
 from ..writer import WriterFile
-from .. import analyzers as analyzers_module
-from .. import indicators as indicators_module
-from .. import observers as observers_module
-from .. import signal as signal_module
-from .. import signals as signals_module
-from .. import strategies as strategies_module
 
 try:
     from ..feeds.vcdata import VCData

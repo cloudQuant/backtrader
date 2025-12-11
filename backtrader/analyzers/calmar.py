@@ -4,7 +4,6 @@ import math
 
 from ..analyzer import TimeFrameAnalyzerBase
 from ..dataseries import TimeFrame
-
 from .drawdown import TimeDrawDown
 
 __all__ = ["Calmar"]

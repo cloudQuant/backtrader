@@ -3,8 +3,8 @@
 # or prepend an "_" (underscore) to private classes/variables
 
 from .annualreturn import *
-from .drawdown import *
 from .calmar import *
+from .drawdown import *
 from .leverage import *
 from .logreturnsrolling import *
 from .periodstats import *

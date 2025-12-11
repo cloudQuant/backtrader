@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from ..observer import Observer
 from ..analyzers import LogReturnsRolling
 from ..dataseries import TimeFrame
+from ..observer import Observer
 
 __all__ = ["LogReturns", "LogReturns2"]
 

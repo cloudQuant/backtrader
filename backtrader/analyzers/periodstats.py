@@ -1,9 +1,8 @@
 #!/usr/bin/env python
+from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 from ..mathsupport import average, standarddev
 from ..utils.py3 import itervalues
-
-from ..analyzer import Analyzer
 from .timereturn import TimeReturn
 
 __all__ = ["PeriodStats"]

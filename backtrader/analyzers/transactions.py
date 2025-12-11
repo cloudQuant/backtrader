@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 import collections
 
+from ..analyzer import Analyzer
 from ..order import Order
 from ..position import Position
-
-from ..analyzer import Analyzer
 
 
 # 交易

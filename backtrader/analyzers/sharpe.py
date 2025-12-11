@@ -3,10 +3,10 @@ import math
 
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
-from .annualreturn import AnnualReturn
-from .timereturn import TimeReturn
 from ..mathsupport import average, standarddev
 from ..utils.py3 import itervalues
+from .annualreturn import AnnualReturn
+from .timereturn import TimeReturn
 
 
 class SharpeRatio(Analyzer):

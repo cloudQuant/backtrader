@@ -10,12 +10,13 @@ from datetime import UTC, datetime, timedelta
 import oandapy
 import requests  # oandapy depdendency
 
-# Remove MetaParams import since we'll eliminate metaclass usage
-# from backtrader.metabase import MetaParams
-from .mixins import ParameterizedSingletonMixin
 from ..dataseries import TimeFrame
 from ..order import Order
 from ..utils.py3 import queue
+
+# Remove MetaParams import since we'll eliminate metaclass usage
+# from backtrader.metabase import MetaParams
+from .mixins import ParameterizedSingletonMixin
 
 # Extend the exceptions to support extra cases
 

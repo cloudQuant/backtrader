@@ -2,8 +2,8 @@
 import collections
 from datetime import datetime, timedelta
 
-from ..feed import AbstractDataBase
 from ..dataseries import TimeFrame
+from ..feed import AbstractDataBase
 
 
 class DataFiller(AbstractDataBase):

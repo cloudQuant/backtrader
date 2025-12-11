@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-from ..observer import Observer
 from ..analyzers import DrawDown as DrawDownAnalyzer
+from ..observer import Observer
 
 
 # 回撤
