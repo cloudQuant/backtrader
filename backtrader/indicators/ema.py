@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import MovingAverageBase, ExponentialSmoothing
+from . import ExponentialSmoothing, MovingAverageBase
 
 
 # 指数移动平均线

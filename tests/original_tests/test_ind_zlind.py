@@ -18,6 +18,9 @@
 #
 ###############################################################################
 
+
+import backtrader as bt
+
 import testcommon
 
 import backtrader.indicators as btind

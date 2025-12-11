@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 from datetime import datetime, timedelta
 
-from ..parameters import ParameterizedBase, ParameterDescriptor
 from ..dataseries import TimeFrame
+from ..parameters import ParameterDescriptor, ParameterizedBase
 
 
 class SessionFiller(ParameterizedBase):

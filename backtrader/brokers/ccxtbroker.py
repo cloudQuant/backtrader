@@ -5,10 +5,11 @@ import collections
 import json
 from datetime import datetime
 
-from backtrader import BrokerBase, Order
-from backtrader.position import Position
-from backtrader.utils.py3 import queue
-from backtrader.stores.ccxtstore import CCXTStore
+from ..broker import BrokerBase
+from ..order import Order
+from ..position import Position
+from ..stores.ccxtstore import CCXTStore
+from ..utils.py3 import queue
 
 
 class CCXTOrder(Order):

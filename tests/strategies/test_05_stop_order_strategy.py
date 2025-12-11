@@ -1,3 +1,4 @@
+import backtrader as bt
 """止损订单策略测试用例
 
 使用可转债指数数据 bond_index_000000.csv 测试止损订单功能
@@ -10,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import backtrader as bt
 from backtrader.cerebro import Cerebro
 from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
@@ -86,7 +86,7 @@ class ExtendPandasFeed(PandasData):
     lines = ("pure_bond_value", "convert_value", "pure_bond_premium_rate", "convert_premium_rate")
 
 
-class StopOrderStrategy(Strategy):
+class StopOrderStrategy(bt.Strategy):
     """止损订单策略
 
     策略逻辑：
@@ -236,7 +236,7 @@ def test_stop_order_strategy():
     使用可转债指数数据 bond_index_000000.csv 进行回测
     """
     # 创建 cerebro
-    cerebro = Cerebro(stdstats=True)
+    cerebro = bt.Cerebro(stdstats=True)
 
     # 添加策略
     cerebro.addstrategy(StopOrderStrategy, short_period=5, long_period=20, stop_loss_pct=0.03)

@@ -11,6 +11,7 @@ module author:: Daniel Rodriguez
 """
 
 import operator
+
 from . import metabase
 from .utils.py3 import range
 

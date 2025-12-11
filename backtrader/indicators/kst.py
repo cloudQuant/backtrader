@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-from . import SMA, ROC100
-from . import Indicator
+from . import ROC100, SMA, Indicator
 
 
 # KnowSureThing指标

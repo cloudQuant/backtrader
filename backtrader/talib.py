@@ -5,7 +5,7 @@
 
 import sys
 
-import backtrader as bt
+from .indicator import Indicator
 
 # 如果import talib正常，运行else下面的代码，否则，运行except下面的代码
 try:
@@ -41,7 +41,7 @@ else:
     OUT_FLAGS_LOWER = 4096
 
     # talib指标基类 - 去掉元类，改用普通继承
-    class _TALibIndicator(bt.Indicator):
+    class _TALibIndicator(Indicator):
         CANDLEOVER = 1.02  # 2% over
         CANDLEREF = 1  # Open, High, Low, Close (0, 1, 2, 3)
 

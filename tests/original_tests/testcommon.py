@@ -109,7 +109,7 @@ def runtest(
     for prload in preloads:
         for ronce in runonces:
             for exbar in exbars:
-                cerebro = Cerebro(runonce=ronce, preload=prload, maxcpus=maxcpus, exactbars=exbar)
+                cerebro = bt.Cerebro(runonce=ronce, preload=prload, maxcpus=maxcpus, exactbars=exbar)
 
                 if kwargs.get("main", False):
                     # print("prload {} / ronce {} exbar {}".format(prload, ronce, exbar))  # Removed for performance
@@ -162,7 +162,7 @@ def runtest(
     return cerebros
 
 
-class TestStrategy(Strategy):
+class TestStrategy(bt.Strategy):
     params = dict(
         main=False, chkind=[], inddata=[], chkmin=1, chknext=0, chkvals=None, chkargs=dict()
     )

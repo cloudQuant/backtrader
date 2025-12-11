@@ -1,11 +1,13 @@
 #!/usr/bin/env python
-from datetime import datetime, timedelta, UTC
+from datetime import UTC, datetime, timedelta
+
 from backtrader.feed import DataBase
-from ..utils import date2num, num2date
+from backtrader.stores import oandastore
 from backtrader.utils.py3 import (
     queue,
 )
-from backtrader.stores import oandastore
+
+from ..utils import date2num, num2date
 
 
 # 处理oanda数据，忽略这篇源代码s

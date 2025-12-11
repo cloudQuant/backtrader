@@ -2,10 +2,11 @@
 import time
 from functools import wraps
 
-import backtrader as bt
 import ccxt
-from ccxt.base.errors import NetworkError, ExchangeError
-from backtrader.mixins import ParameterizedSingletonMixin
+from ccxt.base.errors import ExchangeError, NetworkError
+
+from .mixins import ParameterizedSingletonMixin
+from ..dataseries import TimeFrame
 
 
 class CCXTStore(ParameterizedSingletonMixin):
@@ -24,27 +25,27 @@ class CCXTStore(ParameterizedSingletonMixin):
 
     # Supported granularities
     _GRANULARITIES = {
-        (bt.TimeFrame.Minutes, 1): "1m",
-        (bt.TimeFrame.Minutes, 3): "3m",
-        (bt.TimeFrame.Minutes, 5): "5m",
-        (bt.TimeFrame.Minutes, 15): "15m",
-        (bt.TimeFrame.Minutes, 30): "30m",
-        (bt.TimeFrame.Minutes, 60): "1h",
-        (bt.TimeFrame.Minutes, 90): "90m",
-        (bt.TimeFrame.Minutes, 120): "2h",
-        (bt.TimeFrame.Minutes, 180): "3h",
-        (bt.TimeFrame.Minutes, 240): "4h",
-        (bt.TimeFrame.Minutes, 360): "6h",
-        (bt.TimeFrame.Minutes, 480): "8h",
-        (bt.TimeFrame.Minutes, 720): "12h",
-        (bt.TimeFrame.Days, 1): "1d",
-        (bt.TimeFrame.Days, 3): "3d",
-        (bt.TimeFrame.Weeks, 1): "1w",
-        (bt.TimeFrame.Weeks, 2): "2w",
-        (bt.TimeFrame.Months, 1): "1M",
-        (bt.TimeFrame.Months, 3): "3M",
-        (bt.TimeFrame.Months, 6): "6M",
-        (bt.TimeFrame.Years, 1): "1y",
+        (TimeFrame.Minutes, 1): "1m",
+        (TimeFrame.Minutes, 3): "3m",
+        (TimeFrame.Minutes, 5): "5m",
+        (TimeFrame.Minutes, 15): "15m",
+        (TimeFrame.Minutes, 30): "30m",
+        (TimeFrame.Minutes, 60): "1h",
+        (TimeFrame.Minutes, 90): "90m",
+        (TimeFrame.Minutes, 120): "2h",
+        (TimeFrame.Minutes, 180): "3h",
+        (TimeFrame.Minutes, 240): "4h",
+        (TimeFrame.Minutes, 360): "6h",
+        (TimeFrame.Minutes, 480): "8h",
+        (TimeFrame.Minutes, 720): "12h",
+        (TimeFrame.Days, 1): "1d",
+        (TimeFrame.Days, 3): "3d",
+        (TimeFrame.Weeks, 1): "1w",
+        (TimeFrame.Weeks, 2): "2w",
+        (TimeFrame.Months, 1): "1M",
+        (TimeFrame.Months, 3): "3M",
+        (TimeFrame.Months, 6): "6M",
+        (TimeFrame.Years, 1): "1y",
     }
 
     BrokerCls = None  # broker class will auto register
@@ -90,7 +91,7 @@ class CCXTStore(ParameterizedSingletonMixin):
             raise ValueError(
                 "backtrader CCXT module doesn't support fetching OHLCV "
                 "data for time frame %s, compression %s"
-                % (bt.TimeFrame.getname(timeframe), compression)
+                % (TimeFrame.getname(timeframe), compression)
             )
 
         if self.exchange.timeframes and granularity not in self.exchange.timeframes:

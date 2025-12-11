@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from .utils.py3 import range
-
-from .lineiterator import LineIterator, IndicatorBase
+from .lineiterator import IndicatorBase, LineIterator
 from .lineseries import Lines
 from .metabase import AutoInfoClass
+from .utils.py3 import range
 
 
 # Simple indicator registry to replace MetaIndicator functionality

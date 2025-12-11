@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 import calendar
-from collections import OrderedDict
 import datetime
 import pprint as pp
+from collections import OrderedDict
 
-import backtrader as bt
-from backtrader import TimeFrame
-from backtrader.utils.py3 import MAXINT
-from backtrader.parameters import ParameterizedBase
+from .dataseries import TimeFrame
+from .parameters import ParameterizedBase
+from .utils.py3 import MAXINT
+from .metabase import findowner
+from .strategy import Strategy
+from .observer import Observer
 
 
 # Analyzer类 - 重构为不使用元类
@@ -92,13 +94,13 @@ class Analyzer(ParameterizedBase):
         # Initialize parent first
         super().__init__(*args, **kwargs)
 
-        # findowner用于发现_obj的父类，bt.Strategy的实例，如果没有找到，返回None
-        self.strategy = strategy = bt.metabase.findowner(self, bt.Strategy)
+        # findowner用于发现_obj的父类，Strategy的实例，如果没有找到，返回None
+        self.strategy = strategy = findowner(self, Strategy)
         # findowner用于发现_obj的父类，属于Analyzer的实例,如果没有找到，返回None
-        self._parent = bt.metabase.findowner(self, Analyzer)
+        self._parent = findowner(self, Analyzer)
         # Register with a master observer if created inside one
-        # findowner用于发现_obj的父类，但是属于bt.Observer的实例,如果没有找到，返回None
-        masterobs = bt.metabase.findowner(self, bt.Observer)
+        # findowner用于发现_obj的父类，但是属于Observer的实例,如果没有找到，返回None
+        masterobs = findowner(self, Observer)
         # 如果有obs的话，就把analyzer注册到obs中
         if masterobs is not None:
             masterobs._register_analyzer(self)

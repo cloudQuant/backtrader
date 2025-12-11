@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import SumN, TrueLow, TrueRange, Indicator
+from . import Indicator, SumN, TrueLow, TrueRange
 
 
 # 最终震荡指标

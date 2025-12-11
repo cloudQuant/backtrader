@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-
 import backtrader as bt
 
 from . import testcommon

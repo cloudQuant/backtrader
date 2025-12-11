@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import backtrader as bt
 """
 多数据源简单均线策略测试用例
 
@@ -17,7 +19,6 @@ import warnings
 
 import pandas as pd
 
-import backtrader as bt
 from backtrader.cerebro import Cerebro
 from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
@@ -60,7 +61,7 @@ class ExtendPandasFeed(PandasData):
 # ============================================================
 
 
-class SimpleMAMultiDataStrategy(Strategy):
+class SimpleMAMultiDataStrategy(bt.Strategy):
     """
     多数据源简单均线策略
 
@@ -298,7 +299,7 @@ def run_strategy(max_bonds=100, initial_cash=10000000.0, commission=0.0002, verb
     返回:
         tuple: (cerebro, results, metrics)
     """
-    cerebro = Cerebro()
+    cerebro = bt.Cerebro()
 
     # 添加策略
     cerebro.addstrategy(SimpleMAMultiDataStrategy, period=60, verbose=verbose)

@@ -5,11 +5,9 @@ import collections
 from datetime import date, datetime, timedelta
 
 from .feed import AbstractDataBase
-from .parameters import ParameterizedBase, ParameterDescriptor
-from .utils import date2num, num2date
+from .parameters import ParameterDescriptor, ParameterizedBase
+from .utils import TIME_MAX, date2num, num2date
 from .utils.py3 import integer_types, range
-from .utils import TIME_MAX
-
 
 #  from timer import * 只能import这几个常量和类
 __all__ = ["SESSION_TIME", "SESSION_START", "SESSION_END", "Timer"]

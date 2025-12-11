@@ -1,3 +1,6 @@
+
+import backtrader as bt
+
 """
 Tests for Parameter System Performance (Day 42)
 

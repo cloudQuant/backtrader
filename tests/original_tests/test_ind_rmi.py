@@ -18,9 +18,11 @@
 #
 ###############################################################################
 
-import testcommon
 
 import backtrader as bt
+
+import testcommon
+
 
 chkdatas = 1
 chkvals = [["67.786097", "59.856230", "38.287526"]]

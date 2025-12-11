@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 
 import collections
-from datetime import datetime, timedelta
+import ctypes
 import os.path
 import threading
 import traceback
-import ctypes
+from datetime import datetime, timedelta
 from queue import Queue
 
-from backtrader import TimeFrame
-from backtrader.mixins import ParameterizedSingletonMixin
+from ..dataseries import TimeFrame
+from .mixins import ParameterizedSingletonMixin
 
 
 # 对SymbolInfo对象进行复制，把syminfo的属性及值设置到类实例里面

@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 
 
-import backtrader as bt
-
+from ..indicators import PeriodN
 
 __all__ = ["Fractal"]
 
 
-class Fractal(bt.ind.PeriodN):
+class Fractal(PeriodN):
     """
     References:
         [Ref 1] http://www.investopedia.com/articles/trading/06/fractals.asp

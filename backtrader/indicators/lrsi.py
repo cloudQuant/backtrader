@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from . import PeriodN
 
-
 __all__ = ["LaguerreRSI", "LRSI", "LaguerreFilter", "LAGF"]
 
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 import sys
 
-
 from . import Indicator, MovingAverage
 
 

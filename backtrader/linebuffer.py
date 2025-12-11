@@ -13,16 +13,14 @@ module author:: Daniel Rodriguez
 import array
 import collections
 import datetime
-from itertools import islice, repeat
 import itertools
 import math
+from itertools import islice, repeat
 
-from .utils.py3 import range, string_types
-
-from .lineroot import LineRoot, LineSingle, LineRootMixin
 from . import metabase
+from .lineroot import LineRoot, LineRootMixin, LineSingle
 from .utils import num2date
-
+from .utils.py3 import range, string_types
 
 NAN = float("NaN")
 
@@ -1183,11 +1181,12 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
             # Strategy 1: Use findowner
             try:
-                import backtrader as bt
+                from .strategy import Strategy
+            except ImportError:
+                Strategy = None
 
-                owner = metabase.findowner(instance, bt.Strategy)
-            except Exception:
-                pass
+            if Strategy is not None:
+                owner = metabase.findowner(instance, Strategy)
 
             # If we found an owner with data, auto-assign it
             if owner is not None and hasattr(owner, "data") and owner.data is not None:
@@ -1257,15 +1256,14 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         from . import metabase
 
         # Try to find any LineIterator-like owner
-
         # Try findowner first with different classes
         self._owner = None
 
         # First try to find a Strategy specifically
         try:
-            import backtrader as bt
+            from .strategy import Strategy
 
-            self._owner = metabase.findowner(self, bt.Strategy)
+            self._owner = metabase.findowner(self, Strategy)
         except Exception:
             pass
 

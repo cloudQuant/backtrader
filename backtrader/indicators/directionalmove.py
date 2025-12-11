@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, And, If, MovAv, ATR
+from . import ATR, And, If, Indicator, MovAv
 
 # ADX相关的指标
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 import pandas as pd
 import statsmodels.api as sm
-from . import PeriodN, SMA, StdDev
 from statsmodels.tsa.stattools import coint
 
+from . import SMA, PeriodN, StdDev
 
 __all__ = ["OLS_Slope_InterceptN", "OLS_TransformationN", "OLS_BetaN", "CointN"]
 

@@ -6,7 +6,7 @@
 保持完全向后兼容的API接口。
 """
 
-from .parameters import ParameterDescriptor, ParameterizedBase, BoolParam, Float
+from .parameters import BoolParam, Float, ParameterDescriptor, ParameterizedBase
 
 
 class CommInfoBase(ParameterizedBase):

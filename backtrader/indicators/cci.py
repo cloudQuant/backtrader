@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, MovAv, MeanDev
+from . import Indicator, MeanDev, MovAv
 
 
 # CCI指标

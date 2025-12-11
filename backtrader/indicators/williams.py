@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, Highest, Lowest, If, UpDay, DownDay, Accum, TrueLow, TrueHigh
+from . import Accum, DownDay, Highest, If, Indicator, Lowest, TrueHigh, TrueLow, UpDay
 
 
 # 威廉指标

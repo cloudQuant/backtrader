@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, SumN, Max
+from . import Indicator, Max, SumN
 
 
 # vortex指标

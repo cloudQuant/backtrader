@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import math
-from backtrader import TimeFrameAnalyzerBase
-from backtrader.dataseries import TimeFrame
+
+from ..analyzer import TimeFrameAnalyzerBase
+from ..dataseries import TimeFrame
 
 
 # 使用对数方法计算总的，平均，复合和年化收益率

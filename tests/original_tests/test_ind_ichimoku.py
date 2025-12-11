@@ -18,9 +18,11 @@
 #
 ###############################################################################
 
-import testcommon
 
 import backtrader as bt
+
+import testcommon
+
 
 chkdatas = 1
 chkvals = [

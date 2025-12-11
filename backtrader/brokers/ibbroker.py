@@ -1,16 +1,18 @@
 #!/usr/bin/env python
 
 import collections
-from datetime import date, datetime, timedelta
 import threading
 import uuid
+from datetime import date, datetime, timedelta
 
 import ib.ext.Order
 
-from backtrader import num2date, date2num, BrokerBase, Order, OrderBase
-from backtrader.utils.py3 import bstr, queue
-from backtrader.comminfo import CommInfoBase
-from backtrader.stores import ibstore
+from ..broker import BrokerBase
+from ..order import Order, OrderBase
+from ..utils import date2num, num2date
+from ..comminfo import CommInfoBase
+from ..stores import ibstore
+from ..utils.py3 import bstr, queue
 
 bytes = bstr  # py2/3 need for ibpy
 

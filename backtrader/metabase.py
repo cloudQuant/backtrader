@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from collections import OrderedDict
 import itertools
-import sys
 import math
+import sys
+from collections import OrderedDict
 
-from .utils.py3 import zip, string_types
+from .utils.py3 import string_types, zip
 
 # PERFORMANCE OPTIMIZATION: Cache for MRO type checks
 # This avoids repeatedly traversing __mro__ for the same classes

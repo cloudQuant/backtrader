@@ -1,11 +1,11 @@
 #!/usr/bin/env python
-from backtrader.utils.py3 import filter, string_types, integer_types
+from ..feed import DataBase
 from ..utils import date2num
-import backtrader.feed as feed
+from ..utils.py3 import filter, integer_types, string_types
 
 
 # backtrader通过pandas加载数据
-class PandasDirectData(feed.DataBase):
+class PandasDirectData(DataBase):
     """
     Uses a Pandas DataFrame as the feed source, iterating directly over the
     tuples returned by "itertuples".
@@ -90,7 +90,7 @@ class PandasDirectData(feed.DataBase):
         return True
 
 
-class PandasData(feed.DataBase):
+class PandasData(DataBase):
     """
     Uses a Pandas DataFrame as the feed source, using indices into column
     names (which can be "numeric")

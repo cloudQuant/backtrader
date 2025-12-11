@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-import backtrader as bt
+from ..feed import AbstractDataBase
 
 
-class DataFilter(bt.AbstractDataBase):
+class DataFilter(AbstractDataBase):
     """
     This class filters out bars from a given data source. In addition to the
     standard parameters of a DataBase, it takes a ``funcfilter`` parameter which

@@ -1,3 +1,6 @@
+
+import backtrader as bt
+
 """
 Tests for Parameter Inheritance (Day 39-41)
 

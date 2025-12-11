@@ -12,6 +12,8 @@ import sys
 
 import pytest
 
+import backtrader as bt
+
 # Import refactored implementation
 from backtrader import comminfo as refactored_comminfo
 
@@ -120,7 +122,7 @@ class TestCommInfoBaseFunctionality:
 
     def test_inheritance_compatibility(self):
         """Test inheritance behavior"""
-        # Test CommissionInfo (inherits from CommInfoBase)
+        # Test CommissionInfo (inherits from bt.CommInfoBase)
         info = refactored_comminfo.CommissionInfo(commission=0.2)
 
         # Should have percabs=True by default for CommissionInfo

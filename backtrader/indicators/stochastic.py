@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, MovAv, Highest, Lowest, DivByZero
+from . import DivByZero, Highest, Indicator, Lowest, MovAv
 
 
 # kdj随机指标

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-from . import Analyzer
-from backtrader.dataseries import TimeFrame
+from ..dataseries import TimeFrame
+
+from ..analyzer import Analyzer
 
 
 # 持仓价值

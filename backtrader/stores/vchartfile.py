@@ -2,10 +2,11 @@
 
 import os.path
 import traceback
-import backtrader as bt
+
+from ..store import Store
 
 
-class VChartFile(bt.Store):
+class VChartFile(Store):
     """Store provider for Visual Chart binary files
 
     Params:

@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import backtrader as bt
 """
 Final Integration Test for Day 46-48 Broker System Refactoring
 
@@ -14,7 +16,6 @@ import sys
 
 import backtrader as bt
 from backtrader.brokers.bbroker import BackBroker
-from backtrader.comminfo import CommInfoBase
 from backtrader.parameters import Bool, Float, ParameterDescriptor
 
 
@@ -23,7 +24,7 @@ def test_broker_comminfo_integration():
     print("🧪 Testing Broker-CommInfo Integration...")
 
     # Create a custom commission info
-    comminfo = CommInfoBase(
+    comminfo = bt.CommInfoBase(
         commission=0.001, mult=1.0, stocklike=True, percabs=True  # 0.1% commission
     )
 
@@ -109,7 +110,7 @@ def test_performance_integration():
     # Performance test: CommInfo creation
     start_time = time.time()
     for _ in range(1000):
-        comminfo = CommInfoBase(commission=0.001, mult=1.0)
+        comminfo = bt.CommInfoBase(commission=0.001, mult=1.0)
     end_time = time.time()
 
     duration = end_time - start_time
@@ -138,7 +139,7 @@ def test_backward_compatibility_integration():
     assert broker.get_param("slip_perc") == 0.002
 
     # Test CommInfo compatibility
-    comminfo = CommInfoBase()
+    comminfo = bt.CommInfoBase()
     assert hasattr(comminfo, "params")
     assert hasattr(comminfo, "p")
 
@@ -165,7 +166,7 @@ def test_real_usage_scenario():
     broker.init()  # Initialize the broker
 
     # Create custom commission info
-    stock_commission = CommInfoBase(
+    stock_commission = bt.CommInfoBase(
         commission=0.005, mult=1.0, stocklike=True, percabs=True  # 0.5% commission
     )
 

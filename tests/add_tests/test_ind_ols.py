@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 
+
+import backtrader as bt
+
 import backtrader.indicators as btind
 
 from . import testcommon
@@ -16,7 +19,6 @@ chkind = btind.OLS_Slope_InterceptN
 
 def test_run(main=False):
     """Test that OLS_Slope_InterceptN indicator can be created and run"""
-    import backtrader as bt
 
     class TestInd(bt.Strategy):
         def __init__(self):

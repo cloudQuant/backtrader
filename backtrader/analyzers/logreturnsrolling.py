@@ -2,7 +2,7 @@
 import collections
 import math
 
-from backtrader import TimeFrameAnalyzerBase
+from ..analyzer import TimeFrameAnalyzerBase
 
 __all__ = ["LogReturnsRolling"]
 

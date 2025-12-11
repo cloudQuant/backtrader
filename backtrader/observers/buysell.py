@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import math
+
 from ..observer import Observer
 
 

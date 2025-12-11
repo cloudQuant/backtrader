@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-from backtrader import Analyzer
-from backtrader.utils import AutoOrderedDict, AutoDict
-from backtrader.utils.py3 import MAXINT
+from ..analyzer import Analyzer
+from ..utils import AutoDict, AutoOrderedDict
+from ..utils.py3 import MAXINT
 
 
 # 分析交易

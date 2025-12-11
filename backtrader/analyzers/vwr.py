@@ -1,9 +1,11 @@
 #!/usr/bin/env python
 import math
-from backtrader import TimeFrameAnalyzerBase
-from backtrader.dataseries import TimeFrame
-from . import Returns
+
+from ..analyzer import TimeFrameAnalyzerBase
+from ..dataseries import TimeFrame
+
 from ..mathsupport import standarddev
+from .returns import Returns
 
 
 # 获取VMR指标

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
 import math
-from backtrader import Analyzer
-from backtrader.mathsupport import average, standarddev
-from backtrader.utils import AutoOrderedDict
 
+from ..analyzer import Analyzer
+from ..mathsupport import average, standarddev
+from ..utils import AutoOrderedDict
 
 __all__ = ["SQN"]
 

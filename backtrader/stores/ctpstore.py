@@ -2,22 +2,24 @@
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
-from backtrader.mixins import ParameterizedSingletonMixin
-from backtrader.utils.py3 import queue
 from time import sleep
+
 import numpy as np
-from ctpbee import CtpbeeApi, CtpBee
+from ctpbee import CtpBee, CtpbeeApi
 from ctpbee.constant import (
-    BarData,
-    TickData,
-    OrderData,
-    TradeData,
-    PositionData,
     AccountData,
+    BarData,
     ContractData,
     LogData,
+    OrderData,
+    PositionData,
+    TickData,
+    TradeData,
 )
-from ctpbee.helpers import get_last_timeframe_timestamp, timestamp2datetime, datetime2timestamp
+from ctpbee.helpers import datetime2timestamp, get_last_timeframe_timestamp, timestamp2datetime
+
+from backtrader.mixins import ParameterizedSingletonMixin
+from backtrader.utils.py3 import queue
 
 
 class MyCtpbeeApi(CtpbeeApi):

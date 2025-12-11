@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
-import backtrader.feed as feed
-from ..utils import date2num
-from ..dataseries import TimeFrame
 import datetime as dt
+
+from ..dataseries import TimeFrame
+from ..feed import DataBase
+from ..utils import date2num
 
 try:
     from influxdb import InfluxDBClient as idbclient
@@ -29,7 +30,7 @@ TIMEFRAMES = dict(
 
 
 # backtrader从influxDB获取数据
-class InfluxDB(feed.DataBase):
+class InfluxDB(DataBase):
     # 导入包
     frompackages = (
         ("influxdb", [("InfluxDBClient", "idbclient")]),

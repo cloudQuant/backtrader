@@ -6,16 +6,22 @@ import datetime
 import itertools
 import operator
 
-from .utils.py3 import filter, keys, integer_types, iteritems, map, MAXINT, string_types
+from .utils.log_message import SpdLogManager
 
-import backtrader as bt
 from .lineiterator import LineIterator, StrategyBase
-from .lineroot import LineSingle
+from .lineroot import LineSingle, LineRoot
 from .lineseries import LineSeriesStub
 from .metabase import ItemCollection, findowner
+from .order import Order
+from .signal import (
+    SIGNAL_LONGSHORT, SIGNAL_LONG, SIGNAL_LONG_INV, SIGNAL_LONG_ANY,
+    SIGNAL_SHORT, SIGNAL_SHORT_INV, SIGNAL_SHORT_ANY,
+    SIGNAL_LONGEXIT, SIGNAL_LONGEXIT_INV, SIGNAL_LONGEXIT_ANY,
+    SIGNAL_SHORTEXIT, SIGNAL_SHORTEXIT_INV, SIGNAL_SHORTEXIT_ANY,
+)
 from .trade import Trade
-from .utils import AutoOrderedDict, AutoDictList
-from backtrader.utils.log_message import SpdLogManager
+from .utils import AutoDictList, AutoOrderedDict
+from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
 
 # Strategy类，用户编写策略的时候可以继承这个类
@@ -120,10 +126,12 @@ class Strategy(StrategyBase):
 
         # Initialize critical attributes early (from MetaStrategy.donew and dopreinit)
         # These need to be available before __init__ completes since methods might be called
-        instance.env = instance.cerebro = cerebro = findowner(instance, bt.Cerebro)
+        from .cerebro import Cerebro
+        instance.env = instance.cerebro = cerebro = findowner(instance, Cerebro)
         instance._id = cerebro._next_stid()
         instance.broker = instance.env.broker
-        instance._sizer = bt.sizers.FixedSize()
+        from .sizers import FixedSize
+        instance._sizer = FixedSize()
 
         instance.stats = instance.observers = ItemCollection()
         instance.analyzers = ItemCollection()
@@ -1535,17 +1543,17 @@ class Strategy(StrategyBase):
         size=None,
         price=None,
         plimit=None,
-        exectype=bt.Order.Limit,
+        exectype=Order.Limit,
         valid=None,
         tradeid=0,
         trailamount=None,
         trailpercent=None,
         oargs={},
         stopprice=None,
-        stopexec=bt.Order.Stop,
+        stopexec=Order.Stop,
         stopargs={},
         limitprice=None,
-        limitexec=bt.Order.Limit,
+        limitexec=Order.Limit,
         limitargs={},
         **kwargs,
     ):
@@ -1758,17 +1766,17 @@ class Strategy(StrategyBase):
         size=None,
         price=None,
         plimit=None,
-        exectype=bt.Order.Limit,
+        exectype=Order.Limit,
         valid=None,
         tradeid=0,
         trailamount=None,
         trailpercent=None,
         oargs={},
         stopprice=None,
-        stopexec=bt.Order.Stop,
+        stopexec=Order.Stop,
         stopargs={},
         limitprice=None,
-        limitexec=bt.Order.Limit,
+        limitexec=Order.Limit,
         limitargs={},
         **kwargs,
     ):
@@ -2063,7 +2071,7 @@ class Strategy(StrategyBase):
     # 增加sizer,如果sizer是None的话，默认使用固定的sizer，如果不是None的话，就实例化sizer,并设置到broker中
     def _addsizer(self, sizer, *args, **kwargs):
         if sizer is None:
-            self.setsizer(bt.sizers.FixedSize())
+            self.setsizer(FixedSize())
         else:
             self.setsizer(sizer(*args, **kwargs))
 
@@ -2241,7 +2249,7 @@ class SignalStrategy(Strategy):
             self._dtarget = self.datas[_data]
         elif isinstance(_data, string_types):
             self._dtarget = self.getdatabyname(_data)
-        elif isinstance(_data, bt.LineRoot):
+        elif isinstance(_data, LineRoot):
             self._dtarget = _data
         else:
             self._dtarget = self.data0
@@ -2274,13 +2282,13 @@ class SignalStrategy(Strategy):
             self._signals[sigtype].append(sigcls(*sigargs, **sigkwargs))
 
         # Record types of signals
-        self._longshort = bool(self._signals[bt.SIGNAL_LONGSHORT])
+        self._longshort = bool(self._signals[SIGNAL_LONGSHORT])
 
-        self._long = bool(self._signals[bt.SIGNAL_LONG])
-        self._short = bool(self._signals[bt.SIGNAL_SHORT])
+        self._long = bool(self._signals[SIGNAL_LONG])
+        self._short = bool(self._signals[SIGNAL_SHORT])
 
-        self._longexit = bool(self._signals[bt.SIGNAL_LONGEXIT])
-        self._shortexit = bool(self._signals[bt.SIGNAL_SHORTEXIT])
+        self._longexit = bool(self._signals[SIGNAL_LONGEXIT])
+        self._shortexit = bool(self._signals[SIGNAL_SHORTEXIT])
 
     # 开始
     def _start(self):
@@ -2321,29 +2329,29 @@ class SignalStrategy(Strategy):
 
         # Calculate current status of the signals
         # 计算信号的当前状态
-        # sigs[bt.SIGNAL_LONGSHORT]如果是空得到话，就循环nosig，返回False
+        # sigs[SIGNAL_LONGSHORT]如果是空得到话，就循环nosig，返回False
         # longshort的信号
-        ls_long = all(x[0] > 0.0 for x in sigs[bt.SIGNAL_LONGSHORT] or nosig)
-        ls_short = all(x[0] < 0.0 for x in sigs[bt.SIGNAL_LONGSHORT] or nosig)
+        ls_long = all(x[0] > 0.0 for x in sigs[SIGNAL_LONGSHORT] or nosig)
+        ls_short = all(x[0] < 0.0 for x in sigs[SIGNAL_LONGSHORT] or nosig)
         # 多头进场信号
-        l_enter0 = all(x[0] > 0.0 for x in sigs[bt.SIGNAL_LONG] or nosig)
-        l_enter1 = all(x[0] < 0.0 for x in sigs[bt.SIGNAL_LONG_INV] or nosig)
-        l_enter2 = all(x[0] for x in sigs[bt.SIGNAL_LONG_ANY] or nosig)
+        l_enter0 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONG] or nosig)
+        l_enter1 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONG_INV] or nosig)
+        l_enter2 = all(x[0] for x in sigs[SIGNAL_LONG_ANY] or nosig)
         l_enter = l_enter0 or l_enter1 or l_enter2
         # 空头进场信号
-        s_enter0 = all(x[0] < 0.0 for x in sigs[bt.SIGNAL_SHORT] or nosig)
-        s_enter1 = all(x[0] > 0.0 for x in sigs[bt.SIGNAL_SHORT_INV] or nosig)
-        s_enter2 = all(x[0] for x in sigs[bt.SIGNAL_SHORT_ANY] or nosig)
+        s_enter0 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORT] or nosig)
+        s_enter1 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORT_INV] or nosig)
+        s_enter2 = all(x[0] for x in sigs[SIGNAL_SHORT_ANY] or nosig)
         s_enter = s_enter0 or s_enter1 or s_enter2
         # 多头出场信号
-        l_ex0 = all(x[0] < 0.0 for x in sigs[bt.SIGNAL_LONGEXIT] or nosig)
-        l_ex1 = all(x[0] > 0.0 for x in sigs[bt.SIGNAL_LONGEXIT_INV] or nosig)
-        l_ex2 = all(x[0] for x in sigs[bt.SIGNAL_LONGEXIT_ANY] or nosig)
+        l_ex0 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONGEXIT] or nosig)
+        l_ex1 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONGEXIT_INV] or nosig)
+        l_ex2 = all(x[0] for x in sigs[SIGNAL_LONGEXIT_ANY] or nosig)
         l_exit = l_ex0 or l_ex1 or l_ex2
         # 空头出场信号
-        s_ex0 = all(x[0] > 0.0 for x in sigs[bt.SIGNAL_SHORTEXIT] or nosig)
-        s_ex1 = all(x[0] < 0.0 for x in sigs[bt.SIGNAL_SHORTEXIT_INV] or nosig)
-        s_ex2 = all(x[0] for x in sigs[bt.SIGNAL_SHORTEXIT_ANY] or nosig)
+        s_ex0 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORTEXIT] or nosig)
+        s_ex1 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORTEXIT_INV] or nosig)
+        s_ex2 = all(x[0] for x in sigs[SIGNAL_SHORTEXIT_ANY] or nosig)
         s_exit = s_ex0 or s_ex1 or s_ex2
 
         # Use oppossite signales to start reversal (by closing)
@@ -2355,14 +2363,14 @@ class SignalStrategy(Strategy):
 
         # Opposite of individual long and short
         # 多头离场
-        l_leav0 = all(x[0] < 0.0 for x in sigs[bt.SIGNAL_LONG] or nosig)
-        l_leav1 = all(x[0] > 0.0 for x in sigs[bt.SIGNAL_LONG_INV] or nosig)
-        l_leav2 = all(x[0] for x in sigs[bt.SIGNAL_LONG_ANY] or nosig)
+        l_leav0 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONG] or nosig)
+        l_leav1 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONG_INV] or nosig)
+        l_leav2 = all(x[0] for x in sigs[SIGNAL_LONG_ANY] or nosig)
         l_leave = l_leav0 or l_leav1 or l_leav2
         # 空头离场
-        s_leav0 = all(x[0] > 0.0 for x in sigs[bt.SIGNAL_SHORT] or nosig)
-        s_leav1 = all(x[0] < 0.0 for x in sigs[bt.SIGNAL_SHORT_INV] or nosig)
-        s_leav2 = all(x[0] for x in sigs[bt.SIGNAL_SHORT_ANY] or nosig)
+        s_leav0 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORT] or nosig)
+        s_leav1 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORT_INV] or nosig)
+        s_leav2 = all(x[0] for x in sigs[SIGNAL_SHORT_ANY] or nosig)
         s_leave = s_leav0 or s_leav1 or s_leav2
 
         # Invalidate long leave if longexit signals are available

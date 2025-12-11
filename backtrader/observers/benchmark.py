@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
-import backtrader as bt
-from . import TimeReturn
+from .timereturn import TimeReturn
+from ..analyzers.timereturn import TimeReturn as TimeReturnAnalyzer
 
 
 # 基准
@@ -87,7 +87,7 @@ class Benchmark(TimeReturn):
         kwargs = self.p._getkwargs()
         kwargs.update(data=None)  # to create a return for the strategy
         # 获取收益率
-        t = self._owner._addanalyzer_slave(bt.analyzers.TimeReturn, **kwargs)
+        t = self._owner._addanalyzer_slave(TimeReturnAnalyzer, **kwargs)
 
         # swap for consistency
         self.treturn, self.tbench = t, self.treturn

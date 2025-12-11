@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, CmpEx
+from . import CmpEx, Indicator
 
 
 # 一些价格中枢的算法

@@ -1,8 +1,10 @@
 #!/usr/bin/env python
-from backtrader.utils.py3 import itervalues
-from backtrader.mathsupport import average, standarddev
-from backtrader.dataseries import TimeFrame
-from . import TimeReturn, Analyzer
+from ..dataseries import TimeFrame
+from ..mathsupport import average, standarddev
+from ..utils.py3 import itervalues
+
+from ..analyzer import Analyzer
+from .timereturn import TimeReturn
 
 __all__ = ["PeriodStats"]
 

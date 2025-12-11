@@ -29,7 +29,7 @@ def get_test_value(test_file, index=0):
     try:
         test_name = os.path.basename(test_file)
         if test_name == "test_strategy_optimized.py":
-            from tests.original_tests.test_strategy_optimized import CHKVALUES, CHKCASH
+            from tests.original_tests.test_strategy_optimized import CHKCASH, CHKVALUES
 
             if index < len(CHKVALUES):
                 return float(CHKVALUES[index]), (

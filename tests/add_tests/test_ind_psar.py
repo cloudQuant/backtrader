@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 
+
+import backtrader as bt
+
 import backtrader.indicators as btind
 
 from . import testcommon

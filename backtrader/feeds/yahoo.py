@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 import collections
-from datetime import date, datetime
 import io
 import itertools
+from datetime import date, datetime
 
 from .. import feed
-from ..utils import date2num
 from ..dataseries import TimeFrame
+from ..utils import date2num
 
 
 class YahooFinanceCSVData(feed.CSVDataBase):

@@ -9,9 +9,9 @@ try:  # For new Python versions
     collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
 except AttributeError:  # For old Python versions
     collectionsAbc = collections
-import backtrader as bt
-from backtrader.utils.py3 import map, string_types, integer_types
-from backtrader.parameters import ParameterizedBase
+from .lineseries import LineSeries
+from .parameters import ParameterizedBase
+from .utils.py3 import integer_types, map, string_types
 
 
 # WriterBase类 - 重构为不使用元类
@@ -219,7 +219,7 @@ class WriterFile(WriterBase):
             kline += str(key) + ":"
             # 判断val是不是一个lineseries的子类
             try:
-                sclass = issubclass(val, bt.LineSeries)
+                sclass = issubclass(val, LineSeries)
             except TypeError:
                 sclass = False
             # 如果是子类，加一个空格，增加val的名称

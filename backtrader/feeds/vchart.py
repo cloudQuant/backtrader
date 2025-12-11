@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 import datetime
-import struct
 import os.path
+import struct
 
 from .. import feed
 from ..dataseries import TimeFrame

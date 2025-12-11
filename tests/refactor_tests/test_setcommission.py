@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+
+import backtrader as bt
 import os
 import sys
 
 import testcommon
 
-import backtrader as bt
 
 
 def test_setcommission_behavior():

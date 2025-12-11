@@ -18,14 +18,16 @@
 #
 ###############################################################################
 
-from backtrader import position
+
+import backtrader as bt
+
 
 
 def test_run(main=False):
     size = 10
     price = 10.0
 
-    pos = position.Position(size=size, price=price)
+    pos = bt.Position(size=size, price=price)
     assert pos.size == size
     assert pos.price == price
 

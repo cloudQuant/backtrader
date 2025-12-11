@@ -1,8 +1,10 @@
+import datetime
+from cProfile import Profile
+
 import numpy as np
 import pandas as pd
-import datetime
+
 import backtrader as bt
-from cProfile import Profile
 
 
 def generate_random_n_bar_df(n):

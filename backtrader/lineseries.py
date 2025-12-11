@@ -13,12 +13,10 @@ Module author:: Daniel Rodriguez
 
 import sys
 
-from .utils.py3 import range, string_types
-
-from .linebuffer import LineBuffer, LineActions, LineDelay, NAN
-from .lineroot import LineMultiple
 from . import metabase
-
+from .linebuffer import NAN, LineActions, LineBuffer, LineDelay
+from .lineroot import LineMultiple
+from .utils.py3 import range, string_types
 
 # 性能优化: 使用模块级集合来追踪递归，避免大量的 setattr/delattr 操作
 _recursion_guards = set()

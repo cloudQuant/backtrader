@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -18,9 +19,11 @@
 #
 ###############################################################################
 
-import testcommon
 
 import backtrader as bt
+
+import testcommon
+
 import backtrader.indicators as btind
 
 chkdatas = 1

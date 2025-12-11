@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats
-from backtrader.analyzers import my_corr
+
+from .my_corr import my_corr
 
 
 def estimated_sharpe_ratio(returns):

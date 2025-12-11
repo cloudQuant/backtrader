@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 import collections
 from datetime import datetime, timedelta
-from backtrader import AbstractDataBase, TimeFrame
+
+from ..feed import AbstractDataBase
+from ..dataseries import TimeFrame
 
 
 class DataFiller(AbstractDataBase):

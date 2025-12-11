@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
-from copy import copy
 import datetime
 import itertools
-
-from .utils.py3 import range, iteritems
+from copy import copy
 
 from .utils import AutoOrderedDict
+from .utils.py3 import iteritems, range
 
 
 # 保存订单执行相关的信息，这个信息并不能决定订单是完全或者部分执行，它仅仅保存信息

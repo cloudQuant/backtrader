@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-import backtrader as bt
-from .. import Observer
+from ..observer import Observer
 from ..analyzers import DrawDown as DrawDownAnalyzer
 
 
@@ -74,7 +73,7 @@ class DrawDownLength(Observer):
     )
 
     def __init__(self):
-        self._dd = self._owner._addanalyzer_slave(bt.analyzers.DrawDown)
+        self._dd = self._owner._addanalyzer_slave(DrawDownAnalyzer)
 
     # 设置回撤长度和最大回撤长度
     def next(self):

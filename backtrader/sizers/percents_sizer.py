@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
+from ..parameters import Float, ParameterDescriptor
 from ..sizer import Sizer
-from ..parameters import ParameterDescriptor, Float
 
 __all__ = ["PercentSizer", "AllInSizer", "PercentSizerInt", "AllInSizerInt"]
 

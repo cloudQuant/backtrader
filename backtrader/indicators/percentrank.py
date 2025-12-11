@@ -3,7 +3,6 @@ from math import fsum
 
 from . import BaseApplyN
 
-
 __all__ = ["PercentRank", "PctRank"]
 
 

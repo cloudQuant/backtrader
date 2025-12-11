@@ -1,11 +1,14 @@
 import time
 import traceback
-import pytz
 from datetime import datetime
-from backtrader.feed import DataBase
-from backtrader.utils.py3 import queue
-from backtrader.stores.cryptostore import CryptoStore
+
+import pytz
 from bt_api_py.functions.log_message import SpdLogManager
+
+from backtrader.feed import DataBase
+from backtrader.stores.cryptostore import CryptoStore
+from backtrader.utils.py3 import queue
+
 from ..dataseries import TimeFrame
 from ..utils import date2num
 

@@ -2,7 +2,6 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from .parameters import ParameterizedBase
 
-
 __all__ = ["Filter"]
 
 

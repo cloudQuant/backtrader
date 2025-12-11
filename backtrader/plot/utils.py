@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-from colorsys import rgb_to_hls as rgb2hls, hls_to_rgb as hls2rgb
+from colorsys import hls_to_rgb as hls2rgb
+from colorsys import rgb_to_hls as rgb2hls
 
 import matplotlib.colors as mplcolors
 import matplotlib.path as mplpath

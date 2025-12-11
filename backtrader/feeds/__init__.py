@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-from .csvgeneric import *
 from .btcsv import *
-from .vchartcsv import *
-from .vchart import *
-from .yahoo import *
-from .quandl import *
-from .sierrachart import *
+from .csvgeneric import *
+from .influxfeed import *
 from .mt4csv import *
 from .pandafeed import *
-from .influxfeed import *
+from .quandl import *
+from .sierrachart import *
+from .vchart import *
+from .vchartcsv import *
+from .yahoo import *
 
 try:
     from .ibdata import *
@@ -26,7 +26,6 @@ except ImportError:
     pass  # The user may not have something installed
 
 
-from .vchartfile import VChartFile as VChartFile
-
-from .rollover import RollOver as RollOver
 from .chainer import Chainer as Chainer
+from .rollover import RollOver as RollOver
+from .vchartfile import VChartFile as VChartFile

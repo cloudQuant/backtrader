@@ -1,6 +1,8 @@
-import numpy as np
 import math
-from . import Indicator, SMA, And, Min, Max, If
+
+import numpy as np
+
+from . import SMA, And, If, Indicator, Max, Min
 
 # 这个文件中保存一些自定义的指标算法
 

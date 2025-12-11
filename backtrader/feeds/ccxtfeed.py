@@ -3,10 +3,11 @@
 import time
 from datetime import datetime
 
-from ..utils import date2num
 from backtrader.feed import DataBase
-from backtrader.utils.py3 import queue
 from backtrader.stores import ccxtstore
+from backtrader.utils.py3 import queue
+
+from ..utils import date2num
 
 
 class CCXTFeed(DataBase):

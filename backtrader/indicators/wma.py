@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from ..utils.py3 import range
-
-from . import MovingAverageBase, AverageWeighted
+from . import AverageWeighted, MovingAverageBase
 
 
 # 加权平均均线

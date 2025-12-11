@@ -1,12 +1,12 @@
 #!/usr/bin/env python
+import os.path
 from datetime import datetime
 from struct import unpack
-import os.path
 
+from .. import stores
+from ..dataseries import TimeFrame
 from ..feed import DataBase
 from ..utils import date2num  # avoid dict lookups
-from ..dataseries import TimeFrame
-from .. import stores
 
 
 class VChartFile(DataBase):

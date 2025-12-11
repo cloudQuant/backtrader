@@ -25,6 +25,8 @@ echo "📋 检查依赖工具..."
 check_tool "python" "python3"
 python -m pip list | grep -q "pyupgrade" || (echo "❌ 缺少 pyupgrade"; exit 1)
 python -m pip list | grep -q "ruff" || (echo "❌ 缺少 ruff"; exit 1)
+python -m pip list | grep -q "black" || (echo "❌ 缺少 black"; exit 1)
+python -m pip list | grep -q "isort" || (echo "❌ 缺少 isort"; exit 1)
 echo "✅ 所有依赖工具已安装"
 echo ""
 
@@ -34,20 +36,26 @@ python -m pyupgrade --py311-plus backtrader/**/*.py --exit-zero-even-if-changed
 echo "✅ pyupgrade 完成"
 echo ""
 
-# 步骤 2: 使用 ruff 格式化代码
-echo "🔧 步骤 2: 使用 ruff 格式化代码..."
-python -m ruff format backtrader/ --line-length 100
-echo "✅ ruff format 完成"
+# 步骤 2: 使用 isort 规范导入顺序
+echo "🔧 步骤 2: 使用 isort 规范导入顺序..."
+python -m isort backtrader/
+echo "✅ isort 完成"
 echo ""
 
-# 步骤 3: 使用 ruff 进行 linting 并自动修复
-echo "🔧 步骤 3: 使用 ruff 进行 linting 并自动修复..."
+# 步骤 3: 使用 black 格式化代码
+echo "🔧 步骤 3: 使用 black 格式化代码..."
+python -m black backtrader/ --line-length 100
+echo "✅ black 完成"
+echo ""
+
+# 步骤 4: 使用 ruff 进行 linting 并自动修复
+echo "🔧 步骤 4: 使用 ruff 进行 linting 并自动修复..."
 python -m ruff check backtrader/ --fix
 echo "✅ ruff check 完成"
 echo ""
 
-# 步骤 4: 运行测试验证
-echo "🧪 步骤 4: 运行测试验证代码完整性..."
+# 步骤 5: 运行测试验证
+echo "🧪 步骤 5: 运行测试验证代码完整性..."
 if [ -d "tests/add_tests" ]; then
     python -m pytest tests/add_tests/ -x --tb=short -q
     echo "✅ 所有测试通过"

@@ -1,6 +1,6 @@
 #!/usr/bin/env python
+from ..parameters import Int, ParameterDescriptor
 from ..sizer import Sizer
-from ..parameters import ParameterDescriptor, Int
 
 
 # 固定手数类，如果下单的时候没有指定size,将会默认调用一个sizer

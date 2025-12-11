@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, FindFirstIndexHighest, FindFirstIndexLowest
+from . import FindFirstIndexHighest, FindFirstIndexLowest, Indicator
 
 
 # 这个文件是设计了几个计算AROON相关指标的类

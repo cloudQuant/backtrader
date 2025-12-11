@@ -1,3 +1,4 @@
+import backtrader as bt
 """
 Tests for Simple Classes Refactoring (Day 36-38)
 
@@ -15,7 +16,6 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from backtrader import TimeFrame
 from backtrader.filters.session import SessionFiller, SessionFilter, SessionFilterSimple
 from backtrader.flt import Filter
 from backtrader.parameters import ParameterDescriptor, ParameterizedBase
@@ -128,7 +128,7 @@ class TestFilterRefactoring:
 
         # Mock data object with required attributes
         class MockData:
-            _timeframe = TimeFrame.Minutes  # Use actual TimeFrame constant
+            _timeframe = bt.TimeFrame.Minutes  # Use actual TimeFrame constant
             _compression = 1
 
         data = MockData()
@@ -263,7 +263,7 @@ class TestMigrationCompleteness:
     def test_init_method_compatibility(self):
         """Test that __init__ methods accept **kwargs for parameter passing."""
         # Test that all classes can be instantiated with keyword arguments
-        mock_data = type("MockData", (), {"_timeframe": TimeFrame.Minutes, "_compression": 1})()
+        mock_data = type("MockData", (), {"_timeframe": bt.TimeFrame.Minutes, "_compression": 1})()
 
         # These should not raise exceptions
         FixedSize(stake=5, tranches=2)

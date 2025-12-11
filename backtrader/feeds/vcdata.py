@@ -1,16 +1,17 @@
 #!/usr/bin/env python
 from datetime import datetime, timedelta, tzinfo
-from ..utils import date2num
-from ..dataseries import TimeFrame
-from backtrader.feed import DataBase
-import backtrader as bt
-from backtrader.utils.py3 import (
+
+from ..feed import DataBase
+from ..stores import vcstore
+from ..utils.py3 import (
     integer_types,
     queue,
     string_types,
 )
 
-from backtrader.stores import vcstore
+from ..dataseries import TimeFrame
+from ..utils import date2num
+from ..utils.date import Localizer
 
 
 class VCData(DataBase):
@@ -259,7 +260,7 @@ class VCData(DataBase):
         ptz = self.p.tz
         tzstr = isinstance(ptz, string_types)
         if ptz is not None and not tzstr:
-            return bt.utils.date.Localizer(ptz)
+            return Localizer(ptz)
 
         if self._state == self._ST_NOTFOUND:
             return None  # nothing else can be done
@@ -292,7 +293,7 @@ class VCData(DataBase):
                 return None
 
             if isinstance(tzs, tzinfo):
-                return bt.utils.date.Localizer(tzs)
+                return Localizer(tzs)
 
         if tzs:
             try:

@@ -19,7 +19,6 @@
 ###############################################################################
 
 import backtrader as bt
-from backtrader import Order, Position
 
 
 class FakeCommInfo:
@@ -92,7 +91,7 @@ def _execute(position, order, size, price, partial):
 
 
 def test_run(main=False):
-    position = Position()
+    position = bt.Position()
     comminfo = FakeCommInfo()
     order = bt.BuyOrder(
         data=FakeData(), size=100, price=1.0, exectype=bt.Order.Market, simulated=True

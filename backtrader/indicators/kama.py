@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import SumN, MovingAverageBase, ExponentialSmoothingDynamic
+from . import ExponentialSmoothingDynamic, MovingAverageBase, SumN
 
 
 # 自适应均线

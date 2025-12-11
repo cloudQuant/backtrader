@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 import math
-from backtrader.utils.py3 import itervalues
-from backtrader import Analyzer, TimeFrame
-from backtrader.mathsupport import average, standarddev
-from backtrader.analyzers import TimeReturn, AnnualReturn
+
+from ..analyzer import Analyzer
+from ..dataseries import TimeFrame
+from .annualreturn import AnnualReturn
+from .timereturn import TimeReturn
+from ..mathsupport import average, standarddev
+from ..utils.py3 import itervalues
 
 
 class SharpeRatio(Analyzer):

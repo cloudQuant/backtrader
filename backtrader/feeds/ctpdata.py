@@ -1,10 +1,13 @@
 from datetime import datetime
-from backtrader.feed import DataBase
-from ..utils import date2num
-from backtrader.utils.py3 import queue
-from backtrader.stores.ctpstore import CTPStore
+
 import akshare as ak
 import pytz
+
+from backtrader.feed import DataBase
+from backtrader.stores.ctpstore import CTPStore
+from backtrader.utils.py3 import queue
+
+from ..utils import date2num
 
 
 class CTPData(DataBase):
@@ -61,7 +64,9 @@ class CTPData(DataBase):
         """获取回填数据"""
         self.put_notification(self.DELAYED)
         # print("_get_backfill_data")  # Removed for performance
-        self.qhist = queue.Queue()  # qhist是存放历史行情数据的队列,用于回填历史数据,未来考虑从数据库或第三方加载,可参考vnpy的处理
+        self.qhist = (
+            queue.Queue()
+        )  # qhist是存放历史行情数据的队列,用于回填历史数据,未来考虑从数据库或第三方加载,可参考vnpy的处理
         #
         CHINA_TZ = pytz.timezone("Asia/Shanghai")
         #

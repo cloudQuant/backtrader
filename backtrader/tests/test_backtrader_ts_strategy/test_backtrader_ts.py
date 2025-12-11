@@ -1,9 +1,11 @@
 """用于测试backtrader在时间序列上运行的效率"""
 
-import pandas as pd
-import numpy as np
-import backtrader as bt
 import time
+
+import numpy as np
+import pandas as pd
+
+import backtrader as bt
 
 
 class SmaStrategy(bt.Strategy):

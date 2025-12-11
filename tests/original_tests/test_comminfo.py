@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -18,7 +19,9 @@
 #
 ###############################################################################
 
+
 import backtrader as bt
+
 from backtrader import Position
 
 
@@ -33,7 +36,7 @@ def check_stocks():
     opcost = comm.getoperationcost(size=size, price=price)
     assert opcost == size * price
 
-    pos = Position(size=size, price=price)
+    pos = bt.Position(size=size, price=price)
     value = comm.getvalue(pos, price)
     assert value == size * price
 
@@ -61,7 +64,7 @@ def check_futures():
     opcost = comm.getoperationcost(size=size, price=price)
     assert opcost == size * margin
 
-    pos = Position(size=size, price=price)
+    pos = bt.Position(size=size, price=price)
     value = comm.getvalue(pos, price)
     assert value == size * margin
 

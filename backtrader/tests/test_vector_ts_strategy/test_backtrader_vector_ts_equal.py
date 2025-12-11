@@ -1,9 +1,11 @@
 """用于测试backtrader和ts在时间序列上运行的效率,以及python,numba,cython改写具体函数后提高的效率"""
 
-import pandas as pd
-import numpy as np
-import backtrader as bt
 import time
+
+import numpy as np
+import pandas as pd
+
+import backtrader as bt
 from backtrader.comminfo import ComminfoFuturesPercent
 from backtrader.vectors.ts import AlphaTs
 

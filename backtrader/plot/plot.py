@@ -1,48 +1,43 @@
 #!/usr/bin/env python
 import bisect
 import collections
-import time
+import copy
 import datetime
 import math
 import operator
 import os
 import sys
+import time
+import traceback
+from collections import OrderedDict
 
 import matplotlib
-import pandas as pd
-import numpy as np  # guaranteed by matplotlib
 import matplotlib.font_manager as mfontmgr
 import matplotlib.ticker as mticker
-import backtrader as bt
+import numpy as np  # guaranteed by matplotlib
+import pandas as pd
+import plotly.figure_factory as ff
+import plotly.graph_objs as go
+import plotly.offline as py
 from dash import html
-
 from pyecharts import options as opts
-from pyecharts.charts import Kline, Line, EffectScatter, Bar, Grid
+from pyecharts.charts import Bar, EffectScatter, Grid, Kline, Line
 from pyecharts.commons.utils import JsCode
 from pyecharts.globals import SymbolType
 
-
-# from jupyter_plotly_dash import JupyterDash
-
-from collections import OrderedDict
-
-from ..utils.py3 import range, integer_types
 from .. import AutoInfoClass, date2num
+from .. import analyzers
 from ..dataseries import TimeFrame
-from ..parameters import ParameterizedBase, ParameterDescriptor
-
-from .finance import plot_candlestick, plot_ohlc, plot_volume, plot_lineonclose
-from .formatters import MyVolFormatter, MyDateFormatter
+from ..parameters import ParameterDescriptor, ParameterizedBase
+from ..utils.py3 import integer_types, range
 from . import locator as loc
+from .finance import plot_candlestick, plot_lineonclose, plot_ohlc, plot_volume
+from .formatters import MyDateFormatter, MyVolFormatter
 from .multicursor import MultiCursor
 from .scheme import PlotScheme
 from .utils import tag_box_style
 
-import plotly.graph_objs as go
-import plotly.offline as py
-import plotly.figure_factory as ff
-import copy
-import traceback
+# from jupyter_plotly_dash import JupyterDash
 
 
 def cal_macd_system(data, short_=26, long_=12, m=9):
@@ -1719,7 +1714,7 @@ def run_cerebro_and_plot(
         cerebro.addstrategy(strategy, **params)
         begin_time = time.time()
         if optimize:
-            cerebro.addanalyzer(bt.analyzers.TotalValue, _name="_TotalValue")
+            cerebro.addanalyzer(analyzers.TotalValue, _name="_TotalValue")
             results = cerebro.run()
             # plot_results(results,"/home/yun/index_000300_reverse_strategy_hold_day_90.html")
             end_time = time.time()
@@ -1834,25 +1829,25 @@ def run_cerebro_and_plot(
 
         if not optimize:
             # 保存需要的交易指标
-            # cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
-            # cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='_AnnualReturn') # 计算年化收益有问题，剔除
-            cerebro.addanalyzer(bt.analyzers.Calmar, _name="_Calmar")
-            cerebro.addanalyzer(bt.analyzers.DrawDown, _name="_DrawDown")
-            # cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='_TimeDrawDown')
-            cerebro.addanalyzer(bt.analyzers.GrossLeverage, _name="_GrossLeverage")
-            cerebro.addanalyzer(bt.analyzers.PositionsValue, _name="_PositionsValue")
-            # cerebro.addanalyzer(bt.analyzers.LogReturnsRolling, _name='_LogReturnsRolling')
-            cerebro.addanalyzer(bt.analyzers.PeriodStats, _name="_PeriodStats")
-            cerebro.addanalyzer(bt.analyzers.Returns, _name="_Returns")
-            cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="_SharpeRatio")
-            # cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='_SharpeRatio_A')
-            cerebro.addanalyzer(bt.analyzers.SQN, _name="_SQN")
-            cerebro.addanalyzer(bt.analyzers.TimeReturn, _name="_TimeReturn")
-            cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="_TradeAnalyzer")
-            cerebro.addanalyzer(bt.analyzers.Transactions, _name="_Transactions")
-            cerebro.addanalyzer(bt.analyzers.VWR, _name="_VWR")
-            cerebro.addanalyzer(bt.analyzers.TotalValue, _name="_TotalValue")
-            cerebro.addanalyzer(bt.analyzers.PyFolio)
+            # cerebro.addanalyzer(analyzers.PyFolio, _name='pyfolio')
+            # cerebro.addanalyzer(analyzers.AnnualReturn, _name='_AnnualReturn') # 计算年化收益有问题，剔除
+            cerebro.addanalyzer(analyzers.Calmar, _name="_Calmar")
+            cerebro.addanalyzer(analyzers.DrawDown, _name="_DrawDown")
+            # cerebro.addanalyzer(analyzers.TimeDrawDown, _name='_TimeDrawDown')
+            cerebro.addanalyzer(analyzers.GrossLeverage, _name="_GrossLeverage")
+            cerebro.addanalyzer(analyzers.PositionsValue, _name="_PositionsValue")
+            # cerebro.addanalyzer(analyzers.LogReturnsRolling, _name='_LogReturnsRolling')
+            cerebro.addanalyzer(analyzers.PeriodStats, _name="_PeriodStats")
+            cerebro.addanalyzer(analyzers.Returns, _name="_Returns")
+            cerebro.addanalyzer(analyzers.SharpeRatio, _name="_SharpeRatio")
+            # cerebro.addanalyzer(analyzers.SharpeRatio_A, _name='_SharpeRatio_A')
+            cerebro.addanalyzer(analyzers.SQN, _name="_SQN")
+            cerebro.addanalyzer(analyzers.TimeReturn, _name="_TimeReturn")
+            cerebro.addanalyzer(analyzers.TradeAnalyzer, _name="_TradeAnalyzer")
+            cerebro.addanalyzer(analyzers.Transactions, _name="_Transactions")
+            cerebro.addanalyzer(analyzers.VWR, _name="_VWR")
+            cerebro.addanalyzer(analyzers.TotalValue, _name="_TotalValue")
+            cerebro.addanalyzer(analyzers.PyFolio)
             results = cerebro.run()
             # plot_results(results,"/home/yun/index_000300_reverse_strategy_hold_day_90.html")
             end_time = time.time()
@@ -2198,26 +2193,26 @@ def run_cerebro_and_plot(
 #         cerebro.addstrategy(strategy,**params)
 #         begin_time=time.time()
 #         if plot:
-#             cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
-#             cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='_AnnualReturn')
-#             cerebro.addanalyzer(bt.analyzers.Calmar, _name='_Calmar')
-#             cerebro.addanalyzer(bt.analyzers.DrawDown, _name='_DrawDown')
-#             # cerebro.addanalyzer(bt.analyzers.TimeDrawDown, _name='_TimeDrawDown')
-#             cerebro.addanalyzer(bt.analyzers.GrossLeverage, _name='_GrossLeverage')
-#             cerebro.addanalyzer(bt.analyzers.PositionsValue, _name='_PositionsValue')
-#             # cerebro.addanalyzer(bt.analyzers.LogReturnsRolling, _name='_LogReturnsRolling')
-#             cerebro.addanalyzer(bt.analyzers.PeriodStats, _name='_PeriodStats')
-#             cerebro.addanalyzer(bt.analyzers.Returns, _name='_Returns')
-#             cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='_SharpeRatio')
-#             # cerebro.addanalyzer(bt.analyzers.SharpeRatio_A, _name='_SharpeRatio_A')
-#             cerebro.addanalyzer(bt.analyzers.SQN, _name='_SQN')
-#             cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='_TimeReturn')
-#             cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='_TradeAnalyzer')
-#             cerebro.addanalyzer(bt.analyzers.Transactions, _name='_Transactions')
-#             cerebro.addanalyzer(bt.analyzers.VWR, _name='_VWR')
-#             cerebro.addanalyzer(bt.analyzers.TotalValue, _name='_TotalValue')
+#             cerebro.addanalyzer(analyzers.PyFolio, _name='pyfolio')
+#             cerebro.addanalyzer(analyzers.AnnualReturn, _name='_AnnualReturn')
+#             cerebro.addanalyzer(analyzers.Calmar, _name='_Calmar')
+#             cerebro.addanalyzer(analyzers.DrawDown, _name='_DrawDown')
+#             # cerebro.addanalyzer(analyzers.TimeDrawDown, _name='_TimeDrawDown')
+#             cerebro.addanalyzer(analyzers.GrossLeverage, _name='_GrossLeverage')
+#             cerebro.addanalyzer(analyzers.PositionsValue, _name='_PositionsValue')
+#             # cerebro.addanalyzer(analyzers.LogReturnsRolling, _name='_LogReturnsRolling')
+#             cerebro.addanalyzer(analyzers.PeriodStats, _name='_PeriodStats')
+#             cerebro.addanalyzer(analyzers.Returns, _name='_Returns')
+#             cerebro.addanalyzer(analyzers.SharpeRatio, _name='_SharpeRatio')
+#             # cerebro.addanalyzer(analyzers.SharpeRatio_A, _name='_SharpeRatio_A')
+#             cerebro.addanalyzer(analyzers.SQN, _name='_SQN')
+#             cerebro.addanalyzer(analyzers.TimeReturn, _name='_TimeReturn')
+#             cerebro.addanalyzer(analyzers.TradeAnalyzer, _name='_TradeAnalyzer')
+#             cerebro.addanalyzer(analyzers.Transactions, _name='_Transactions')
+#             cerebro.addanalyzer(analyzers.VWR, _name='_VWR')
+#             cerebro.addanalyzer(analyzers.TotalValue, _name='_TotalValue')
 #         else:
-#             cerebro.addanalyzer(bt.analyzers.TotalValue, _name='_TotalValue')
+#             cerebro.addanalyzer(analyzers.TotalValue, _name='_TotalValue')
 #         results = cerebro.run()
 #         # plot_results(results,"/home/yun/index_000300_reverse_strategy_hold_day_90.html")
 #         end_time=time.time()

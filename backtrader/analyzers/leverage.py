@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Analyzer
+from ..analyzer import Analyzer
 
 
 # 使用资金的比率

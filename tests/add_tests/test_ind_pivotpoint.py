@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 
+
+import backtrader as bt
+
 import backtrader.indicators as btind
 
 from . import testcommon
@@ -8,7 +11,6 @@ from . import testcommon
 
 def test_run(main=False):
     """Test that PivotPoint indicator can be created and run"""
-    import backtrader as bt
 
     class TestInd(bt.Strategy):
         def __init__(self):

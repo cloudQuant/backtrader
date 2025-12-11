@@ -1,21 +1,21 @@
 #!/usr/bin/env python
 
 import collections
-from datetime import datetime, timedelta, UTC
-import time as _time
 import json
 import threading
+import time as _time
 import traceback
+from datetime import UTC, datetime, timedelta
+
 import oandapy
 import requests  # oandapy depdendency
 
-import backtrader as bt
-
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
-from backtrader.mixins import ParameterizedSingletonMixin
-from backtrader.utils.py3 import queue
-
+from .mixins import ParameterizedSingletonMixin
+from ..dataseries import TimeFrame
+from ..order import Order
+from ..utils.py3 import queue
 
 # Extend the exceptions to support extra cases
 
@@ -253,27 +253,27 @@ class OandaStore(ParameterizedSingletonMixin):
 
     # Oanda supported granularities
     _GRANULARITIES = {
-        (bt.TimeFrame.Seconds, 5): "S5",
-        (bt.TimeFrame.Seconds, 10): "S10",
-        (bt.TimeFrame.Seconds, 15): "S15",
-        (bt.TimeFrame.Seconds, 30): "S30",
-        (bt.TimeFrame.Minutes, 1): "M1",
-        (bt.TimeFrame.Minutes, 2): "M3",
-        (bt.TimeFrame.Minutes, 3): "M3",
-        (bt.TimeFrame.Minutes, 4): "M4",
-        (bt.TimeFrame.Minutes, 5): "M5",
-        (bt.TimeFrame.Minutes, 10): "M5",
-        (bt.TimeFrame.Minutes, 15): "M5",
-        (bt.TimeFrame.Minutes, 30): "M5",
-        (bt.TimeFrame.Minutes, 60): "H1",
-        (bt.TimeFrame.Minutes, 120): "H2",
-        (bt.TimeFrame.Minutes, 180): "H3",
-        (bt.TimeFrame.Minutes, 240): "H4",
-        (bt.TimeFrame.Minutes, 360): "H6",
-        (bt.TimeFrame.Minutes, 480): "H8",
-        (bt.TimeFrame.Days, 1): "D",
-        (bt.TimeFrame.Weeks, 1): "W",
-        (bt.TimeFrame.Months, 1): "M",
+        (TimeFrame.Seconds, 5): "S5",
+        (TimeFrame.Seconds, 10): "S10",
+        (TimeFrame.Seconds, 15): "S15",
+        (TimeFrame.Seconds, 30): "S30",
+        (TimeFrame.Minutes, 1): "M1",
+        (TimeFrame.Minutes, 2): "M3",
+        (TimeFrame.Minutes, 3): "M3",
+        (TimeFrame.Minutes, 4): "M4",
+        (TimeFrame.Minutes, 5): "M5",
+        (TimeFrame.Minutes, 10): "M5",
+        (TimeFrame.Minutes, 15): "M5",
+        (TimeFrame.Minutes, 30): "M5",
+        (TimeFrame.Minutes, 60): "H1",
+        (TimeFrame.Minutes, 120): "H2",
+        (TimeFrame.Minutes, 180): "H3",
+        (TimeFrame.Minutes, 240): "H4",
+        (TimeFrame.Minutes, 360): "H6",
+        (TimeFrame.Minutes, 480): "H8",
+        (TimeFrame.Days, 1): "D",
+        (TimeFrame.Weeks, 1): "W",
+        (TimeFrame.Months, 1): "M",
     }
 
     def get_positions(self):
@@ -402,10 +402,10 @@ class OandaStore(ParameterizedSingletonMixin):
         return self._value
 
     _ORDEREXECS = {
-        bt.Order.Market: "market",
-        bt.Order.Limit: "limit",
-        bt.Order.Stop: "stop",
-        bt.Order.StopLimit: "stop",
+        Order.Market: "market",
+        Order.Limit: "limit",
+        Order.Stop: "stop",
+        Order.StopLimit: "stop",
     }
 
     def broker_threads(self):
@@ -457,7 +457,7 @@ class OandaStore(ParameterizedSingletonMixin):
         okwargs["units"] = abs(order.created.size)
         okwargs["side"] = "buy" if order.isbuy() else "sell"
         okwargs["type"] = self._ORDEREXECS[order.exectype]
-        if order.exectype != bt.Order.Market:
+        if order.exectype != Order.Market:
             okwargs["price"] = order.created.price
             if order.valid is None:
                 # 1 year and datetime.max fail ... 1-month works
@@ -467,11 +467,11 @@ class OandaStore(ParameterizedSingletonMixin):
                 # To timestamp with seconds precision
             okwargs["expiry"] = int((valid - self._DTEPOCH).total_seconds())
 
-        if order.exectype == bt.Order.StopLimit:
+        if order.exectype == Order.StopLimit:
             okwargs["lowerBound"] = order.created.pricelimit
             okwargs["upperBound"] = order.created.pricelimit
 
-        if order.exectype == bt.Order.StopTrail:
+        if order.exectype == Order.StopTrail:
             okwargs["trailingStop"] = order.trailamount
 
         if stopside is not None:

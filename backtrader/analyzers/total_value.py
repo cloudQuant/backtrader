@@ -1,5 +1,6 @@
 from collections import OrderedDict
-from backtrader import Analyzer
+
+from ..analyzer import Analyzer
 
 
 class TotalValue(Analyzer):

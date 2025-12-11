@@ -1,3 +1,6 @@
+
+import backtrader as bt
+
 """
 Tests for Enhanced ParameterManager (Day 32-33)
 

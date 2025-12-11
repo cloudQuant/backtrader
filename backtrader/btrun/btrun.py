@@ -7,42 +7,72 @@ import random
 import string
 import sys
 
-import backtrader as bt
+from ..analyzer import Analyzer
+from ..cerebro import Cerebro
+from ..dataseries import TimeFrame
+from ..feeds.btcsv import BacktraderCSVData
+from ..feeds.mt4csv import MT4CSVData
+from ..feeds.sierrachart import SierraChartCSVData
+from ..feeds.vchartcsv import VChartCSVData
+from ..feeds.vchartfile import VChartFile
+from ..feeds.yahoo import YahooFinanceCSVData, YahooFinanceData
+from ..feeds.yahoounreversed import YahooFinanceCSVData as YahooFinanceCSVDataUnreversed
+from ..indicator import Indicator
+from ..observer import Observer
+from ..signal import SIGNAL_LONGSHORT  # default fallback constant
+from ..strategy import Strategy
+from ..writer import WriterFile
+from .. import analyzers as analyzers_module
+from .. import indicators as indicators_module
+from .. import observers as observers_module
+from .. import signal as signal_module
+from .. import signals as signals_module
+from .. import strategies as strategies_module
+
+try:
+    from ..feeds.vcdata import VCData
+except ImportError:
+    VCData = None
+
+try:
+    from ..feeds.ibdata import IBData
+except ImportError:
+    IBData = None
+
+try:
+    from ..feeds.oanda import OandaData
+except ImportError:
+    OandaData = None
+
 
 DATAFORMATS = dict(
-    btcsv=bt.feeds.BacktraderCSVData,
-    vchartcsv=bt.feeds.VChartCSVData,
-    vcfile=bt.feeds.VChartFile,
-    sierracsv=bt.feeds.SierraChartCSVData,
-    mt4csv=bt.feeds.MT4CSVData,
-    yahoocsv=bt.feeds.YahooFinanceCSVData,
-    yahoocsv_unreversed=bt.feeds.YahooFinanceCSVData,
-    yahoo=bt.feeds.YahooFinanceData,
+    btcsv=BacktraderCSVData,
+    vchartcsv=VChartCSVData,
+    vcfile=VChartFile,
+    sierracsv=SierraChartCSVData,
+    mt4csv=MT4CSVData,
+    yahoocsv=YahooFinanceCSVData,
+    yahoocsv_unreversed=YahooFinanceCSVDataUnreversed,
+    yahoo=YahooFinanceData,
 )
 
-try:
-    DATAFORMATS["vcdata"] = bt.feeds.VCData
-except AttributeError:
-    pass  # no comtypes available
+if VCData is not None:
+    DATAFORMATS["vcdata"] = VCData
 
-try:
-    DATAFORMATS["ibdata"] = (bt.feeds.IBData,)
-except AttributeError:
-    pass  # no ibpy available
+if IBData is not None:
+    DATAFORMATS["ibdata"] = (IBData,)
 
-try:
-    DATAFORMATS["oandadata"] = (bt.feeds.OandaData,)
-except AttributeError:
-    pass  # no oandapy available
+if OandaData is not None:
+    DATAFORMATS["oandadata"] = (OandaData,)
 
 TIMEFRAMES = dict(
-    microseconds=bt.TimeFrame.MicroSeconds,
-    seconds=bt.TimeFrame.Seconds,
-    minutes=bt.TimeFrame.Minutes,
-    days=bt.TimeFrame.Days,
-    weeks=bt.TimeFrame.Weeks,
-    months=bt.TimeFrame.Months,
-    years=bt.TimeFrame.Years,
+    microseconds=TimeFrame.MicroSeconds,
+    seconds=TimeFrame.Seconds,
+    minutes=TimeFrame.Minutes,
+    days=TimeFrame.Days,
+    weeks=TimeFrame.Weeks,
+    months=TimeFrame.Months,
+    years=TimeFrame.Years,
 )
 
 
@@ -59,7 +89,7 @@ def btrun(pargs=""):
     if "stdstats" not in cer_kwargs:
         cer_kwargs.update(stdstats=stdstats)
 
-    cerebro = bt.Cerebro(**cer_kwargs)
+    cerebro = Cerebro(**cer_kwargs)
 
     if args.resample is not None or args.replay is not None:
         if args.resample is not None:
@@ -85,25 +115,25 @@ def btrun(pargs=""):
             cerebro.adddata(data)
 
     # get and add signals
-    signals = getobjects(args.signals, bt.Indicator, bt.signals, issignal=True)
+    signals = getobjects(args.signals, Indicator, signals_module, issignal=True)
     for sig, kwargs, sigtype in signals:
-        stype = getattr(bt.signal, "SIGNAL_" + sigtype.upper())
+        stype = getattr(signal_module, "SIGNAL_" + sigtype.upper())
         cerebro.add_signal(stype, sig, **kwargs)
 
     # get and add strategies
-    strategies = getobjects(args.strategies, bt.Strategy, bt.strategies)
+    strategies = getobjects(args.strategies, Strategy, strategies_module)
     for strat, kwargs in strategies:
         cerebro.addstrategy(strat, **kwargs)
 
-    inds = getobjects(args.indicators, bt.Indicator, bt.indicators)
+    inds = getobjects(args.indicators, Indicator, indicators_module)
     for ind, kwargs in inds:
         cerebro.addindicator(ind, **kwargs)
 
-    obs = getobjects(args.observers, bt.Observer, bt.observers)
+    obs = getobjects(args.observers, Observer, observers_module)
     for ob, kwargs in obs:
         cerebro.addobserver(ob, **kwargs)
 
-    ans = getobjects(args.analyzers, bt.Analyzer, bt.analyzers)
+    ans = getobjects(args.analyzers, Analyzer, analyzers_module)
     for an, kwargs in ans:
         cerebro.addanalyzer(an, **kwargs)
 
@@ -111,9 +141,9 @@ def btrun(pargs=""):
 
     for wrkwargs_str in args.writers or []:
         wrkwargs = eval("dict(" + wrkwargs_str + ")")
-        cerebro.addwriter(bt.WriterFile, **wrkwargs)
+        cerebro.addwriter(WriterFile, **wrkwargs)
 
-    ans = getfunctions(args.hooks, bt.Cerebro)
+    ans = getfunctions(args.hooks, Cerebro)
     for hook, kwargs in ans:
         hook(cerebro, **kwargs)
     runsts = cerebro.run()

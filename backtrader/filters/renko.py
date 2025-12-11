@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from . import Filter
 
-
 __all__ = ["Renko"]
 
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from . import PeriodN
 
-
 __all__ = ["ParabolicSAR", "PSAR"]
 
 # 这个用于计算SAR指标

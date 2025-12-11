@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-from . import Analyzer
-from backtrader import TimeFrameAnalyzerBase
-from backtrader.utils import AutoOrderedDict
+from ..analyzer import TimeFrameAnalyzerBase, Analyzer
+from ..utils import AutoOrderedDict
 
 __all__ = ["DrawDown", "TimeDrawDown"]
 

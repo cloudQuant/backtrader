@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from .. import Observer
+from ..observer import Observer
 
 
 # 这个类保存所有的trade和trade关闭的时候画出来pnl

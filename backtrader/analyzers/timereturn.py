@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from backtrader import TimeFrameAnalyzerBase
+from ..analyzer import TimeFrameAnalyzerBase
 
 
 class TimeReturn(TimeFrameAnalyzerBase):

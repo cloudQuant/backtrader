@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 
 from datetime import datetime
+
 from backtrader.utils.py3 import range
+
 from ..feed import DataBase
 from ..utils import date
 

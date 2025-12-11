@@ -5,6 +5,7 @@
 # trade_num: 1750
 
 
+import backtrader as bt
 import datetime
 import os
 import platform
@@ -25,7 +26,6 @@ import seaborn as sns
 from matplotlib.font_manager import FontManager, FontProperties
 from matplotlib.ticker import FuncFormatter
 
-import backtrader as bt
 from backtrader.cerebro import Cerebro
 from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
@@ -208,7 +208,7 @@ def clean_data():
     return datas
 
 
-class BondConvertTwoFactor(Strategy):
+class BondConvertTwoFactor(bt.Strategy):
     # params = (('short_window',10),('long_window',60))
     params = (
         ("first_factor_weight", 0.5),
@@ -478,7 +478,7 @@ def test_strategy(max_bonds=None, stdstats=True):
     # 添加cerebro
     # 修复说明：之前需要设置stdstats=False是因为ExtendPandasFeed的列索引定义错误
     # 现已修复，可以正常使用stdstats=True
-    cerebro = Cerebro(stdstats=stdstats)
+    cerebro = bt.Cerebro(stdstats=stdstats)
 
     # 添加策略
     cerebro.addstrategy(BondConvertTwoFactor)

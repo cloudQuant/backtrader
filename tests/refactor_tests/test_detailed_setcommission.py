@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import backtrader as bt
 import os
 import sys
 
@@ -8,7 +10,6 @@ sys.path.insert(0, "tests/original_tests")
 
 import testcommon
 
-import backtrader as bt
 
 
 def test_parameter_setting_details():
@@ -17,7 +18,7 @@ def test_parameter_setting_details():
 
     # 1. 测试直接创建CommInfo对象
     print("\n1. 直接创建CommInfo对象（类似broker.setcommission）:")
-    print("   调用: CommInfoBase(commission=2.0, margin=1000.0, mult=10.0)")
+    print("   调用: bt.CommInfoBase(commission=2.0, margin=1000.0, mult=10.0)")
 
     try:
         comminfo = bt.CommInfoBase(commission=2.0, margin=1000.0, mult=10.0)
@@ -47,7 +48,7 @@ def test_parameter_setting_details():
 
     # 2. 测试原始参数创建（对比）
     print("\n\n2. 测试原始参数创建（默认值）:")
-    print("   调用: CommInfoBase()")
+    print("   调用: bt.CommInfoBase()")
 
     try:
         default_comminfo = bt.CommInfoBase()

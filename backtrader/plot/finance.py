@@ -1,11 +1,10 @@
 #!/usr/bin/env python
-from ..utils.py3 import range, zip
-
 import matplotlib.collections as mcol
 import matplotlib.colors as mcolors
 import matplotlib.legend as mlegend
 import matplotlib.lines as mlines
 
+from ..utils.py3 import range, zip
 from .utils import shade_color
 
 

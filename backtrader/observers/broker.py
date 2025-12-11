@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from .. import Observer
+from ..observer import Observer
 
 
 # 获取cash

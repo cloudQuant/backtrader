@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from backtrader.utils.py3 import MAXINT
 
-
 from . import MovingAverageBase
 from .ema import EMA
 

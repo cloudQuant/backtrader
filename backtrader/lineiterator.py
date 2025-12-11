@@ -1,17 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 import collections
-import sys
 import math
+import sys
 
-from .utils.py3 import range, zip, string_types
-from .utils import DotDict
-
-from .lineroot import LineSingle
-from .linebuffer import LineActions, LineNum
-from .lineseries import LineSeries, LineSeriesMaker
-from .dataseries import DataSeries
 from . import metabase
+from .dataseries import DataSeries
+from .linebuffer import LineActions, LineNum
+from .lineroot import LineSingle
+from .lineseries import LineSeries, LineSeriesMaker
+from .utils import DotDict
+from .utils.py3 import range, string_types, zip
 
 
 class LineIteratorMixin:
@@ -449,14 +448,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # CRITICAL FIX: Auto-assign owner before processing args to help with data assignment
         if not is_strategy:
             try:
-                # Try to find a Strategy first
-                import backtrader as bt
+                from .strategy import Strategy
+            except ImportError:
+                Strategy = None
 
-                owner = metabase.findowner(instance, bt.Strategy)
+            if Strategy is not None:
+                owner = metabase.findowner(instance, Strategy)
                 if owner:
                     instance._owner = owner
-            except Exception:
-                pass
 
         # CRITICAL FIX: Initialize lines if the class has a lines definition
         # The lines attribute needs to be an instance, not the class
@@ -1542,13 +1541,14 @@ class ObserverBase(DataAccessor):
 
                 # OPTIMIZED: Use metabase.findowner with Strategy (no call stack traversal needed)
                 try:
-                    import backtrader as bt
+                    from .strategy import Strategy
+                except ImportError:
+                    Strategy = None
 
-                    strategy = metabase.findowner(self, bt.Strategy)
+                if Strategy is not None:
+                    strategy = metabase.findowner(self, Strategy)
                     if strategy:
                         self._owner = strategy
-                except Exception:
-                    pass
 
                 # Fallback: Set up a flag to be connected later by cerebro
                 if self._owner is None:

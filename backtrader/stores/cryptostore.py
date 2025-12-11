@@ -1,10 +1,10 @@
 import queue
 import time
 import traceback
-
 from datetime import datetime, timedelta, timezone
-from bt_api_py.containers import OrderData, BarData, TradeData, RequestData
+
 from bt_api_py.bt_api import BtApi
+from bt_api_py.containers import BarData, OrderData, RequestData, TradeData
 from bt_api_py.functions.log_message import SpdLogManager
 
 

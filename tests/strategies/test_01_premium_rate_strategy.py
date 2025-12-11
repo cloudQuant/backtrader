@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import backtrader as bt
 """
 可转债溢价率均线交叉策略 - 独立测试文件
 
@@ -27,7 +29,6 @@ import warnings
 
 import pandas as pd
 
-import backtrader as bt
 from backtrader.cerebro import Cerebro
 from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
@@ -88,7 +89,7 @@ class ExtendPandasFeed(PandasData):
 # ============================================================
 
 
-class PremiumRateCrossoverStrategy(Strategy):
+class PremiumRateCrossoverStrategy(bt.Strategy):
     """
     转股溢价率均线交叉策略
 
@@ -235,7 +236,7 @@ def run_strategy(csv_file="113013.csv", initial_cash=100000.0, commission=0.0003
         tuple: (cerebro, results, time_return, metrics)
     """
     # 创建Cerebro引擎
-    cerebro = Cerebro()
+    cerebro = bt.Cerebro()
 
     # 添加策略（传递verbose参数）
     cerebro.addstrategy(PremiumRateCrossoverStrategy, verbose=verbose)

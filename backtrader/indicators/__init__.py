@@ -1,10 +1,9 @@
 #!/usr/bin/env python
-from backtrader import Indicator as Indicator
+from ..indicator import Indicator as Indicator
 from backtrader.functions import *
 
 # The modules below should/must define __all__ with the Indicator objects
 # of prepend an "_" (underscore) to private classes/variables
-
 from .basicops import *
 
 # base for moving averages
@@ -57,7 +56,6 @@ from .accdecoscillator import *
 
 
 from .dv2 import *  # depends on percentrank
-
 # Depends on Momentum
 from .kst import *
 

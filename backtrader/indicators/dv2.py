@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, SMA, PercentRank
-
+from . import SMA, Indicator, PercentRank
 
 __all__ = ["DV2"]
 

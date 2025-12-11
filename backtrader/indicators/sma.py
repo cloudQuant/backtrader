@@ -1,7 +1,9 @@
 #!/usr/bin/env python
-from .mabase import MovingAverageBase
-import numpy as np
 from collections import deque
+
+import numpy as np
+
+from .mabase import MovingAverageBase
 
 
 # 移动平均线指标

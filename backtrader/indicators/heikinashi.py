@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 from . import Indicator, Max, Min
 
-
 __all__ = ["HeikinAshi"]
 
 

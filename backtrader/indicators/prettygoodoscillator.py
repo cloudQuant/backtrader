@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, MovAv, ATR
+from . import ATR, Indicator, MovAv
 
 
 # 价格与均线的距离除以ATR的值

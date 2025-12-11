@@ -2,17 +2,12 @@
 
 import collections
 
-
-from backtrader import (
-    BrokerBase,
-    Order,
-    BuyOrder,
-    SellOrder,
-)
-from backtrader.comminfo import CommInfoBase
-from backtrader.position import Position
-from backtrader.stores import oandastore
-from backtrader.parameters import ParameterDescriptor, BoolParam
+from ..broker import BrokerBase
+from ..order import BuyOrder, Order, SellOrder
+from ..comminfo import CommInfoBase
+from ..parameters import BoolParam, ParameterDescriptor
+from ..position import Position
+from ..stores import oandastore
 
 
 class OandaCommInfo(CommInfoBase):

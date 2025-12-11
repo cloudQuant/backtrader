@@ -2,8 +2,10 @@
 import datetime
 import math
 import time as _time
-from .py3 import string_types
+
 import pytz
+
+from .py3 import string_types
 
 # from numba import jit
 

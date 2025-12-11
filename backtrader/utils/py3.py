@@ -70,8 +70,8 @@ else:
         winreg = None
 
     # Python 3 URL helpers, used by some feeds (for example Quandl)
-    from urllib.parse import quote as _urlquote
     import urllib.request as _urllib_request
+    from urllib.parse import quote as _urlquote
 
     def urlquote(s, *args, **kwargs):
         return _urlquote(s, *args, **kwargs)

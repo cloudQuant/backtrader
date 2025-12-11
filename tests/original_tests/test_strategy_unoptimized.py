@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -18,6 +19,9 @@
 #
 ###############################################################################
 
+
+import backtrader as bt
+
 import time
 
 try:
@@ -27,7 +31,6 @@ except:
 
 import testcommon
 
-import backtrader as bt
 import backtrader.indicators as btind
 
 BUYCREATE = [

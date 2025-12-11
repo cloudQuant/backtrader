@@ -19,7 +19,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from .. import Indicator, SumN, Max
+from .. import Indicator, Max, SumN
 
 __all__ = ["Vortex"]
 

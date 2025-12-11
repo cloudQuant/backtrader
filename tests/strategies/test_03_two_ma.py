@@ -1,3 +1,4 @@
+import backtrader as bt
 """双均线策略测试用例
 
 使用债券数据 113013.csv 测试双均线交叉策略
@@ -10,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-import backtrader as bt
 from backtrader.cerebro import Cerebro
 from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
@@ -86,7 +86,7 @@ class ExtendPandasFeed(PandasData):
     lines = ("pure_bond_value", "convert_value", "pure_bond_premium_rate", "convert_premium_rate")
 
 
-class TwoMAStrategy(Strategy):
+class TwoMAStrategy(bt.Strategy):
     """双均线策略
 
     当短期均线上穿长期均线时买入，下穿时卖出
@@ -203,7 +203,7 @@ def test_two_ma_strategy():
     使用债券数据 113013.csv 进行回测
     """
     # 创建 cerebro
-    cerebro = Cerebro(stdstats=True)
+    cerebro = bt.Cerebro(stdstats=True)
 
     # 添加策略
     cerebro.addstrategy(TwoMAStrategy, short_period=5, long_period=20)

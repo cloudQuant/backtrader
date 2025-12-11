@@ -1,17 +1,17 @@
 #!/usr/bin/env python
 
-import threading
 import collections
-from datetime import datetime, date, timedelta
+import threading
+from datetime import date, datetime, timedelta
 
-from backtrader.order import Order, BuyOrder, SellOrder
 from backtrader.brokerbase import BrokerBase
-from backtrader.position import Position
 from backtrader.comminfo import CommInfoBase
+from backtrader.order import BuyOrder, Order, SellOrder
 from backtrader.parameters import ParameterDescriptor
-from ..parameters import StringParam
-
+from backtrader.position import Position
 from backtrader.stores import vcstore
+
+from ..parameters import StringParam
 
 
 class VCCommInfo(CommInfoBase):

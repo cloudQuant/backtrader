@@ -18,8 +18,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-from . import vortex as vortex
 import backtrader
+
+from . import vortex as vortex
 
 for name in vortex.__all__:
     setattr(backtrader.indicators, name, getattr(vortex, name))

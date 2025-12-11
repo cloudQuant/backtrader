@@ -9,8 +9,8 @@ backward compatibility.
 """
 
 from .singleton import (
-    SingletonMixin,
     ParameterizedSingletonMixin,
+    SingletonMixin,
     StoreBase,
 )
 

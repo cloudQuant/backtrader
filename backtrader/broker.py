@@ -1,7 +1,6 @@
 #!/usr/bin/env python
-from backtrader.comminfo import CommInfoBase
-from backtrader.parameters import ParameterizedBase, ParameterDescriptor
-
+from .comminfo import CommInfoBase
+from .parameters import ParameterDescriptor, ParameterizedBase
 
 # from . import fillers as fillers
 # from . import fillers as filler

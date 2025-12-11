@@ -4,19 +4,17 @@
 
 from .annualreturn import *
 from .drawdown import *
-from .timereturn import *
-from .sharpe import *
-from .tradeanalyzer import *
-from .sqn import *
+from .calmar import *
 from .leverage import *
+from .logreturnsrolling import *
+from .periodstats import *
 from .positions import *
-from .transactions import *
 from .pyfolio import *
 from .returns import *
-from .vwr import *
-
-from .logreturnsrolling import *
-
-from .calmar import *
-from .periodstats import *
+from .sharpe import *
+from .sqn import *
+from .timereturn import *
 from .total_value import *
+from .tradeanalyzer import *
+from .transactions import *
+from .vwr import *

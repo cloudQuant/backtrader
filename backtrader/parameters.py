@@ -13,7 +13,8 @@ Key Components:
 - Python 3.6+ __set_name__ support
 """
 
-from typing import Any, Dict, List, Optional, Union, Callable, Type
+from typing import Any, Callable, Dict, List, Optional, Type, Union
+
 from .utils.py3 import string_types
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from . import Highest, Lowest, Indicator
+from . import Highest, Indicator, Lowest
 
 
 # 日本云图指标

@@ -18,6 +18,9 @@
 #
 ###############################################################################
 
+
+import backtrader as bt
+
 import testcommon
 
 chkdatas = 1

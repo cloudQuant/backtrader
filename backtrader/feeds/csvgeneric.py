@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 from .. import feed
 from ..dataseries import TimeFrame

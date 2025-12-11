@@ -1,6 +1,5 @@
 #!/usr/bin/env python
-from . import Indicator, Max, MovAv
-from . import DivZeroByZero
+from . import DivZeroByZero, Indicator, Max, MovAv
 
 
 # 计算RSI指标

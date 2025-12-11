@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 
-import backtrader as bt
-from .. import Observer
+from ..observer import Observer
 from ..analyzers import LogReturnsRolling
-
+from ..dataseries import TimeFrame
 
 __all__ = ["LogReturns", "LogReturns2"]
 
@@ -54,14 +53,14 @@ class LogReturns(Observer):
     # 画图的标签
     def _plotlabel(self):
         return [
-            bt.TimeFrame.getname(self.p.timeframe, self.p.compression),
+            TimeFrame.getname(self.p.timeframe, self.p.compression),
             str(self.p.compression or 1),
         ]
 
     # 初始化的时候通过LogReturnsRolling计算对数收益率
     def __init__(self):
         self.logret1 = self._owner._addanalyzer_slave(
-            bt.analyzers.LogReturnsRolling, data=self.data0, **self.p._getkwargs()
+            LogReturnsRolling, data=self.data0, **self.p._getkwargs()
         )
 
     # 给logret1赋值

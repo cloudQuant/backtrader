@@ -17,8 +17,8 @@ def test_date_conversion(main=False):
 
     # Test date2num and num2date
     test_date = datetime.datetime(2006, 1, 1)
-    num_date = date2num(test_date)
-    converted_back = num2date(num_date)
+    num_date = bt.date2num(test_date)
+    converted_back = bt.num2date(num_date)
 
     if main:
         # print(f'Original date: {test_date}')  # Removed for performance
@@ -66,7 +66,7 @@ def test_utils_integration(main=False):
         def next(self):
             # Use date conversion in strategy
             dt_num = self.data.datetime[0]
-            dt = num2date(dt_num)
+            dt = bt.num2date(dt_num)
 
             # Verify conversion works
             assert dt is not None

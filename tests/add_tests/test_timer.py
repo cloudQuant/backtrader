@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+import backtrader as bt
+
 
 import os
 import sys
@@ -8,7 +10,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspa
 
 import datetime
 
-import backtrader as bt
 
 
 class TimerTestStrategy(bt.Strategy):
@@ -16,7 +17,7 @@ class TimerTestStrategy(bt.Strategy):
         self.timer_count = 0
         # Add a timer that triggers weekly
         self.add_timer(
-            when=bt.Timer.SESSION_START,
+            when=Timer.SESSION_START,
             weekdays=[1],
         )
 

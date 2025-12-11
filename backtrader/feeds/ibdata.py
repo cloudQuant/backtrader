@@ -1,15 +1,17 @@
 #!/usr/bin/env python
 import datetime
-import backtrader as bt
-from backtrader.feed import DataBase
-from ..utils import date2num, num2date, UTC
-from ..dataseries import TimeFrame
-from backtrader.utils.py3 import (
+
+from ..feed import DataBase
+from ..stores import ibstore
+from ..utils.py3 import (
     integer_types,
     queue,
     string_types,
 )
-from backtrader.stores import ibstore
+
+from ..dataseries import TimeFrame
+from ..utils import UTC, date2num, num2date
+from ..utils.date import Localizer
 
 
 class IBData(DataBase):
@@ -230,7 +232,7 @@ class IBData(DataBase):
         # 如果用户没有自己指定时区，那么就需要使用pytz通过合约详细信息来获取时区
         tzstr = isinstance(self.p.tz, string_types)
         if self.p.tz is not None and not tzstr:
-            return bt.utils.date.Localizer(self.p.tz)
+            return Localizer(self.p.tz)
 
         if self.contractdetails is None:
             return None  # nothing can be done

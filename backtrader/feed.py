@@ -5,12 +5,12 @@ import inspect
 import os.path
 
 from . import dataseries
-from .dataseries import TimeFrame, SimpleFilterWrapper
-from .utils.py3 import zip, range, string_types
-from .utils import tzparse, date2num, num2date, time2num
-from .utils.date import Localizer
-from .resamplerfilter import Resampler, Replayer
+from .dataseries import SimpleFilterWrapper, TimeFrame
+from .resamplerfilter import Replayer, Resampler
 from .tradingcal import PandasMarketCalendar
+from .utils import date2num, num2date, time2num, tzparse
+from .utils.date import Localizer
+from .utils.py3 import range, string_types, zip
 
 
 # 重构: 移除元类，使用普通类和初始化方法

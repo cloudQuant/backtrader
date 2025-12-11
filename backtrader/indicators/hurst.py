@@ -1,6 +1,7 @@
 #!/usr/bin/env python
+from numpy import asarray, isnan, log10, polyfit, sqrt, std, subtract
+
 from . import PeriodN
-from numpy import asarray, log10, polyfit, sqrt, std, subtract, isnan
 
 __all__ = ["HurstExponent", "Hurst"]
 

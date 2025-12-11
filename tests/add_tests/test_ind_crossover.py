@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
 
+
+import backtrader as bt
+
 import backtrader.indicators as btind
 
 from . import testcommon
@@ -8,7 +11,6 @@ from . import testcommon
 
 def test_run(main=False):
     """Test CrossOver indicator"""
-    import backtrader as bt
 
     # Test CrossOver functionality
     class TestCrossStrategy(bt.Strategy):

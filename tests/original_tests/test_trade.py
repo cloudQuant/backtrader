@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -18,8 +19,8 @@
 #
 ###############################################################################
 
+
 import backtrader as bt
-from backtrader import trade
 
 
 class FakeCommInfo:
@@ -49,7 +50,7 @@ class FakeData:
 
 
 def test_run(main=False):
-    tr = trade.Trade(data=FakeData())
+    tr = bt.Trade(data=FakeData())
 
     order = bt.BuyOrder(
         data=FakeData(), size=0, price=1.0, exectype=bt.Order.Market, simulated=True

@@ -12,6 +12,8 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+import backtrader as bt
+
 # Import broker modules
 from backtrader import broker as bt_broker
 from backtrader.brokers import bbroker
@@ -50,9 +52,7 @@ class TestBrokerBaseFunctionality:
         broker.setcommission(commission=0.1, margin=1000.0)
 
         # Test adding commission info
-        from backtrader.comminfo import CommInfoBase
-
-        comminfo = CommInfoBase(commission=0.05)
+        comminfo = bt.CommInfoBase(commission=0.05)
         broker.addcommissioninfo(comminfo, name="test_asset")
 
         assert "test_asset" in broker.comminfo

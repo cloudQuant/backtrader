@@ -2,13 +2,13 @@
 import collections
 import datetime
 
-from backtrader.parameters import ParameterDescriptor, Float
 from backtrader.broker import BrokerBase
 
 # from backtrader.comminfo import CommInfoBase
-from backtrader.order import Order, BuyOrder, SellOrder
+from backtrader.order import BuyOrder, Order, SellOrder
+from backtrader.parameters import Float, ParameterDescriptor
 from backtrader.position import Position
-from backtrader.utils.py3 import string_types, integer_types
+from backtrader.utils.py3 import integer_types, string_types
 
 __all__ = ["BackBroker", "BrokerBack"]
 

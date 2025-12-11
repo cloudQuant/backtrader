@@ -1,3 +1,6 @@
+
+import backtrader as bt
+
 """
 Tests for the new Parameter System
 

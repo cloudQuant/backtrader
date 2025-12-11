@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 from datetime import datetime
-import backtrader as bt
+
 from ..feed import DataBase
+from ..utils.date import Localizer
 
 
 class RollOver(DataBase):
@@ -122,7 +123,7 @@ class RollOver(DataBase):
         timezone"""
         if self._rolls:
             return self._rolls[0]._gettz()
-        return bt.utils.date.Localizer(self.p.tz)
+        return Localizer(self.p.tz)
 
     def _checkdate(self, dt, d):
         # 计算当前是否满足换月条件

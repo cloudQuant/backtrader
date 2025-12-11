@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from backtrader.utils.py3 import MAXINT
-
-from backtrader.parameters import ParameterizedBase
+from .parameters import ParameterizedBase
+from .utils.py3 import MAXINT
 
 
 # 固定大小过滤，订单执行的时候只能成交当前成交量，需要下单量和size中最小的一个，如果size是None的话，忽略size

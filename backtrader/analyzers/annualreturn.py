@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 
 from collections import OrderedDict
-from backtrader.utils.py3 import range
-from backtrader.utils.date import num2date
-from backtrader import Analyzer
+
+from ..analyzer import Analyzer
+from ..utils.date import num2date
+from ..utils.py3 import range
 
 
 # 计算每年的收益率，感觉算法实现有些复杂，后面写了一个用pandas实现的版本MyAnnualReturn，逻辑上简单了很多

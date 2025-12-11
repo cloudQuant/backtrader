@@ -1,11 +1,12 @@
 import collections
 from datetime import datetime
 
-from backtrader import BrokerBase, Order
-from backtrader.position import Position
-from backtrader.utils.py3 import queue
-from backtrader.stores.cryptostore import CryptoStore
-from backtrader.utils.log_message import SpdLogManager
+from ..broker import BrokerBase
+from ..order import Order
+from ..position import Position
+from ..stores.cryptostore import CryptoStore
+from ..utils.log_message import SpdLogManager
+from ..utils.py3 import queue
 
 
 class CryptoOrder(Order):

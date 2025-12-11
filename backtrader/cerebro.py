@@ -1,28 +1,25 @@
 #!/usr/bin/env python
-import datetime
 import collections
+import datetime
 import itertools
-import traceback
 import multiprocessing
+import traceback
 from datetime import UTC
 
 try:  # For new Python versions
     collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
 except AttributeError:  # For old Python versions
     collectionsAbc = collections  # collections.Iterable
-import backtrader as bt
-from .utils.py3 import map, range, zip, string_types, integer_types
 
-from . import linebuffer
-from . import indicator
+from . import errors, feeds, indicator, linebuffer, observers
 from .brokers import BackBroker
-from .parameters import ParameterizedBase, ParameterDescriptor
-from . import observers
-from .writer import WriterFile
-from .utils import OrderedDict, tzparse, num2date, date2num
-from .strategy import Strategy, SignalStrategy
-from .tradingcal import TradingCalendarBase, PandasMarketCalendar
+from .parameters import ParameterDescriptor, ParameterizedBase
+from .strategy import SignalStrategy, Strategy
 from .timer import Timer
+from .tradingcal import PandasMarketCalendar, TradingCalendarBase
+from .utils import OrderedDict, date2num, num2date, tzparse
+from .utils.py3 import integer_types, map, range, string_types, zip
+from .writer import WriterFile
 
 
 # Defined here to make it pickable. Ideally it could be defined inside Cerebro
@@ -953,7 +950,7 @@ class Cerebro(ParameterizedBase):
         dname = kwargs.pop("name", None)
         if dname is None:
             dname = args[0]._dataname
-        d = bt.feeds.Chainer(dataname=dname, *args)
+        d = feeds.Chainer(dataname=dname, *args)
         self.adddata(d, name=dname)
 
         return d
@@ -973,7 +970,7 @@ class Cerebro(ParameterizedBase):
         dname = kwargs.pop("name", None)
         if dname is None:
             dname = args[0]._dataname
-        d = bt.feeds.RollOver(dataname=dname, *args, **kwargs)
+        d = feeds.RollOver(dataname=dname, *args, **kwargs)
         self.adddata(d, name=dname)
 
         return d
@@ -1458,7 +1455,7 @@ class Cerebro(ParameterizedBase):
                 else:
                     # Fallback to direct instantiation
                     strat = stratcls(*sargs, **skwargs)
-            except bt.errors.StrategySkipError:
+            except errors.StrategySkipError:
                 continue  # do not add strategy to the mix
             # 旧的数据同步方法
             if self.p.oldsync:

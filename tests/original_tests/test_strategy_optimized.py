@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 ###############################################################################
 #
 # Copyright (C) 2015-2023 Daniel Rodriguez
@@ -18,6 +19,9 @@
 #
 ###############################################################################
 
+
+import backtrader as bt
+
 import itertools
 import time
 
@@ -28,7 +32,6 @@ except:
 
 import testcommon
 
-import backtrader as bt
 import backtrader.indicators as btind
 from backtrader.utils.py3 import range
 

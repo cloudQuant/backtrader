@@ -1,12 +1,14 @@
 #!/usr/bin/env python
 
 
+
+import backtrader as bt
+
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-import backtrader as bt
 
 
 def test_store(main=False):

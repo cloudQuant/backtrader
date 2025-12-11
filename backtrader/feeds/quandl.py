@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 import collections
-from datetime import date, datetime
 import io
 import itertools
+from datetime import date, datetime
 
 from .. import feed
 from ..utils import date2num
 from ..utils.py3 import urlquote
-
 
 __all__ = ["QuandlCSV", "Quandl"]
 
@@ -190,7 +189,7 @@ class Quandl(QuandlCSV):
         if urlargs:
             url += "?" + "&".join(urlargs)
 
-        from ..utils.py3 import urlopen, ProxyHandler, build_opener, install_opener
+        from ..utils.py3 import ProxyHandler, build_opener, install_opener, urlopen
 
         if self.p.proxies:
             proxy = ProxyHandler(self.p.proxies)

@@ -2,21 +2,22 @@
 
 import math
 
-# import os
-import backtrader as bt
+# from multiprocessing import Pool
+import time
+
 import numpy as np
 
 # import numpy as np
 import pandas as pd
 
+# import os
+import backtrader as bt
+
 # from itertools import product
 # from backtrader.vectors.cal_functions import get_symbol
-from backtrader.comminfo import (
+from backtrader.comminfo import (  # 期货交易的手续费用，按照比例或者按照金额
     ComminfoFuturesPercent,
-)  # 期货交易的手续费用，按照比例或者按照金额
-
-# from multiprocessing import Pool
-import time
+)
 
 
 # 编写backtrader策略

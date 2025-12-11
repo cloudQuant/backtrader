@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-from datetime import datetime, timedelta, time
+from datetime import datetime, time, timedelta
+
+from backtrader.utils import UTC
+from backtrader.utils.py3 import string_types
 
 from .parameters import ParameterizedBase
-from backtrader.utils.py3 import string_types
-from backtrader.utils import UTC
 
 # from tradingcal import * 可以import到的所有的类
 __all__ = ["TradingCalendarBase", "TradingCalendar", "PandasMarketCalendar"]

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
+
+import backtrader as bt
 import os
 import sys
 
 sys.path.insert(0, ".")
 
-import backtrader as bt
 
 
 def test_param_manager():
@@ -12,14 +13,14 @@ def test_param_manager():
     print("=== 测试参数管理器 ===")
 
     # 检查类级别的参数描述符
-    print(f"CommInfoBase类描述符: {list(bt.CommInfoBase._parameter_descriptors.keys())}")
+    print(f"bt.CommInfoBase类描述符: {list(bt.CommInfoBase._parameter_descriptors.keys())}")
 
     # 检查每个描述符的详细信息
     for name, descriptor in bt.CommInfoBase._parameter_descriptors.items():
         print(f"  {name}: default={descriptor.default}, type={descriptor.type_}")
 
     # 创建CommInfo对象并观察参数设置过程
-    print("\n创建CommInfo对象: CommInfoBase(margin=1000.0)")
+    print("\n创建CommInfo对象: bt.CommInfoBase(margin=1000.0)")
 
     comminfo = bt.CommInfoBase(margin=1000.0)
 

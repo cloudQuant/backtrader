@@ -1,9 +1,10 @@
 import collections
-from backtrader import BrokerBase
-from backtrader.position import Position
-from ..parameters import BoolParam
 
-from backtrader.stores.ctpstore import CTPStore
+from ..broker import BrokerBase
+from ..position import Position
+from ..stores.ctpstore import CTPStore
+
+from ..parameters import BoolParam
 
 
 # 注册机制，在导入模块时自动注册broker类

@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
+from ..feed import DataBase
 from ..utils import date2num
-import backtrader.feed as feed
 
 
 # 这个类是backtrader对接Blaze数据的类
 # blaze介绍可以看这个：https://blaze.readthedocs.io/en/latest/index.html
-class BlazeData(feed.DataBase):
+class BlazeData(DataBase):
     """
     Support for `Blaze <blaze.pydata.org>`_ ``Data`` objects.
 

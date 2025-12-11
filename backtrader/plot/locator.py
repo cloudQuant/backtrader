@@ -6,24 +6,26 @@ which can be converted from/to dates
 """
 
 import datetime
+import traceback
+import warnings
 
-from matplotlib.dates import AutoDateLocator as ADLocator
-from matplotlib.dates import RRuleLocator as RRLocator
-from matplotlib.dates import AutoDateFormatter as ADFormatter
-
+import numpy as np
+from dateutil.relativedelta import relativedelta
 from matplotlib.dates import (
     HOURS_PER_DAY,
     MIN_PER_HOUR,
     MONTHS_PER_YEAR,
-    num2date,
-    rrulewrapper,
+)
+from matplotlib.dates import AutoDateFormatter as ADFormatter
+from matplotlib.dates import AutoDateLocator as ADLocator
+from matplotlib.dates import (
     MicrosecondLocator,
 )
-
-from dateutil.relativedelta import relativedelta
-import numpy as np
-import warnings
-import traceback
+from matplotlib.dates import RRuleLocator as RRLocator
+from matplotlib.dates import (
+    num2date,
+    rrulewrapper,
+)
 
 
 def _idx2dt(idx, dates, tz):
