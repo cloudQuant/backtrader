@@ -111,23 +111,23 @@ class Analyzer(ParameterizedBase):
             # analyzer的data就是第一个数据
             self.data = data = self.datas[0]
             # 对于数据里面的每条line
-            for l, line in enumerate(data.lines):
+            for line_index, line in enumerate(data.lines):
                 # 获取line的名字
-                linealias = data._getlinealias(l)
+                linealias = data._getlinealias(line_index)
                 # 如果line的名字不是None的话，设置属性
                 if linealias:
                     setattr(self, "data_%s" % linealias, line)
                 # 根据index设置line的名称
-                setattr(self, "data_%d" % l, line)
+                setattr(self, "data_%d" % line_index, line)
             # 循环数据，给数据设置不同的名称，可以通过data_d访问
             for d, data in enumerate(self.datas):
                 setattr(self, "data%d" % d, data)
                 # 对不同的数据设置具体的属性名，可以通过属性名访问line
-                for l, line in enumerate(data.lines):
-                    linealias = data._getlinealias(l)
+                for line_index, line in enumerate(data.lines):
+                    linealias = data._getlinealias(line_index)
                     if linealias:
                         setattr(self, "data%d_%s" % (d, linealias), line)
-                    setattr(self, "data%d_%d" % (d, l), line)
+                    setattr(self, "data%d_%d" % (d, line_index), line)
 
         # 调用create_analysis方法
         self.create_analysis()

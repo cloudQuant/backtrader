@@ -38,7 +38,6 @@ from .multicursor import MultiCursor
 from .scheme import PlotScheme
 from .utils import tag_box_style
 
-import plotly as py
 import plotly.graph_objs as go
 import plotly.offline as py
 import plotly.figure_factory as ff
@@ -85,13 +84,9 @@ def get_up_scatter(df):
     first_swing = None
     pre_index = None
     pre_low = None
-    pre_high = None
     for index, row in df.iterrows():
         up_bar = row["up_bar"]
         dn_bar = row["dn_bar"]
-        out_bar = row["out_bar"]
-        in_bar = row["in_bar"]
-        high = row["high"]
         low = row["low"]
         if first_swing is None:
             if up_bar == 1:
@@ -106,7 +101,6 @@ def get_up_scatter(df):
             first_swing = "up"
         pre_index = index
         pre_low = low
-        pre_high = high
         # print(mark_line_data[:10])
     return mark_line_data
 
@@ -116,15 +110,11 @@ def get_dn_scatter(df):
     mark_line_data = []
     first_swing = None
     pre_index = None
-    pre_low = None
     pre_high = None
     for index, row in df.iterrows():
         up_bar = row["up_bar"]
         dn_bar = row["dn_bar"]
-        out_bar = row["out_bar"]
-        in_bar = row["in_bar"]
         high = row["high"]
-        low = row["low"]
         if first_swing is None:
             if up_bar == 1:
                 first_swing = "up"
@@ -137,7 +127,6 @@ def get_dn_scatter(df):
             # mark_line_data.append([index, low])
             first_swing = "up"
         pre_index = index
-        pre_low = low
         pre_high = high
     # print(mark_line_data[:10])
     return mark_line_data
@@ -415,10 +404,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         # print(bk,bk)
         try:
             bk_df = df[df.index >= bk]
-            new_bk = list(bk_df.index)[1]
             bk_price = list(bk_df["open"])[1]
             bp_df = df[df.index >= bp]
-            new_bp = list(bp_df.index)[1]
             bp_price = list(bp_df["open"])[1]
             # print("做多信号", [bk, new_bk, bp, new_bp], [bk_price, bp_price])  # Removed for performance
             # 测试
@@ -722,7 +709,7 @@ class Plot_OldSync(ParameterizedBase):
             setattr(self.p.scheme, pname, pvalue)
 
     def drawtag(self, ax, x, y, facecolor, edgecolor, alpha=0.9, **kwargs):
-        txt = ax.text(
+        ax.text(
             x,
             y,
             "%.2f" % y,
@@ -906,7 +893,6 @@ class Plot_OldSync(ParameterizedBase):
         return figs
 
     def setlocators(self, ax):
-        comp = getattr(self.pinf.clock, "_compression", 1)
         tframe = getattr(self.pinf.clock, "_timeframe", TimeFrame.Days)
 
         if self.pinf.sch.fmt_x_data is None:
@@ -1008,8 +994,6 @@ class Plot_OldSync(ParameterizedBase):
         return ax
 
     def plotind(self, iref, ind, subinds=None, upinds=None, downinds=None, masterax=None):
-        sch = self.p.scheme
-
         # check subind
         subinds = subinds or []
         upinds = upinds or []
@@ -1117,7 +1101,7 @@ class Plot_OldSync(ParameterizedBase):
             plottedline = pltmethod(xdata, lplotarray, **plotkwargs)
             try:
                 plottedline = plottedline[0]
-            except:
+            except (TypeError, IndexError):
                 # Possibly a container of artists (when plotting bars)
                 pass
 
@@ -1284,7 +1268,7 @@ class Plot_OldSync(ParameterizedBase):
                     loc = data.plotinfo.legendloc or self.pinf.sch.legendindloc
 
                     # Legend done here to ensure it includes all plots
-                    legend = ax.legend(
+                    ax.legend(
                         loc=loc,
                         numpoints=1,
                         frameon=False,
@@ -1467,13 +1451,13 @@ class Plot_OldSync(ParameterizedBase):
                 # self.pinf.labels[axdatamaster].extend(labels)
 
             h = self.pinf.handles[a]
-            l = self.pinf.labels[a]
+            labels = self.pinf.labels[a]
 
             axlegend = a
             loc = data.plotinfo.legendloc or self.pinf.sch.legenddataloc
             legend = axlegend.legend(
                 h,
-                l,
+                labels,
                 loc=loc,
                 frameon=False,
                 shadow=False,
@@ -1548,7 +1532,6 @@ class Plot_OldSync(ParameterizedBase):
 
             if getattr(x.plotinfo, "plotforce", False):
                 if key not in strategy.datas:
-                    datas = strategy.datas
                     while True:
                         if key not in strategy.datas:
                             key = key._clock
@@ -1714,7 +1697,6 @@ def run_cerebro_and_plot(
     cerebro, strategy, params, score=90, port=8050, optimize=True, auto_open=True, result_path=""
 ):
     strategy_name = strategy.__name__
-    author = strategy.author
     params_str = ""
     for key in params:
         if key != "symbol_list" and key != "datas":

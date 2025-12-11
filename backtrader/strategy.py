@@ -70,7 +70,7 @@ class Strategy(StrategyBase):
             # Create parameter instance
             try:
                 instance._params_instance = params_cls()
-            except:
+            except Exception:
                 # If instantiation fails, create a simple object
                 instance._params_instance = type("ParamsInstance", (), {})()
 
@@ -142,7 +142,7 @@ class Strategy(StrategyBase):
         """Initialize with functionality from MetaStrategy methods"""
         # Critical attributes already initialized in __new__
         # Use stored kwargs for parameter processing
-        original_kwargs = getattr(self, "_strategy_init_kwargs", {})
+        getattr(self, "_strategy_init_kwargs", {})
 
         # Handle the functionality that was in MetaStrategy.dopostinit
         self._sizer.set(self, self.broker)
@@ -404,9 +404,9 @@ class Strategy(StrategyBase):
             # 数据产生指标的line的时候需要的最小周期
             dlminperiods = _dminperiods[data]
             # 循环数据的每条line,如果line在_dminperiods中，dlminperiods需要增加一定的值
-            for l in data.lines:  # search each line for min periods
-                if l in _dminperiods:
-                    dlminperiods += _dminperiods[l]  # found, add it
+            for line in data.lines:  # search each line for min periods
+                if line in _dminperiods:
+                    dlminperiods += _dminperiods[line]  # found, add it
 
             # keep the reference to the line if any was found
             # 如果dlminperiods不是空列表，就计算最大的值最为_dminperiods[data]的值，否则就是空的列表
@@ -481,14 +481,14 @@ class Strategy(StrategyBase):
             return
 
         setattr(self.stats, obsname, list())
-        l = getattr(self.stats, obsname)
+        obs_list = getattr(self.stats, obsname)
 
         for data in self.datas:
             obs = obscls(data, *obsargs, **obskwargs)
             # PERFORMANCE FIX: Explicitly set observer's owner to ensure it has access to strategy
             obs._parent = self
             obs._owner = self
-            l.append(obs)
+            obs_list.append(obs)
 
     # 检查最小周期是否满足，返回的是最小周期减去每个数据长度的最大值
     def _getminperstatus(self):
@@ -567,7 +567,7 @@ class Strategy(StrategyBase):
                                 # Set lencount to match strategy length (which equals data length)
                                 # Use the maximum of current lencount and strategy_len to ensure we don't decrease it
                                 line.lencount = max(line.lencount, strategy_len)
-        except:
+        except Exception:
             pass
 
         # 获取当前最小周期状态，如果所有数据都满足了，调用next
@@ -620,7 +620,7 @@ class Strategy(StrategyBase):
         # 当前最新的数据长度
         newdlens = [len(d) for d in self.datas]
         # 如果新的数据长度大于旧的数据长度，就forward
-        if any(nl > l for l, nl in zip(self._dlens, newdlens)):
+        if any(nl > old_len for old_len, nl in zip(self._dlens, newdlens)):
             self.forward()
         # 设置时间，当前数据中的最大的时间 - only update if we have valid datetimes
         if self.datas:
@@ -766,7 +766,7 @@ class Strategy(StrategyBase):
             values.append(lio)
             # 如果长度大于0,就获取每一个值
             if lio:
-                values.extend(map(lambda l: l[0], iocsv.lines.itersize()))
+                values.extend(map(lambda line: line[0], iocsv.lines.itersize()))
             else:
                 values.extend([""] * iocsv.lines.size())
 
@@ -821,7 +821,7 @@ class Strategy(StrategyBase):
                                 # In runonce mode, set lencount to match strategy length (which equals data length)
                                 # This ensures len(indicator) == len(strategy) for test assertions
                                 line.lencount = strategy_len
-        except:
+        except Exception:
             pass
 
         # CRITICAL FIX: Restore last valid datetime before calling user's stop()

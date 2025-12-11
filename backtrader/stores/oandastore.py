@@ -554,7 +554,7 @@ class OandaStore(ParameterizedSingletonMixin):
             if oid is None:
                 continue  # the order is no longer there
             try:
-                o = self.oapi.close_order(self.p.account, oid)
+                self.oapi.close_order(self.p.account, oid)
             except Exception as e:
                 traceback.format_exception(e)
                 continue  # not cancelled - FIXME: notify
@@ -619,7 +619,7 @@ class OandaStore(ParameterizedSingletonMixin):
             return
 
         try:
-            oref = self._ordersrev[oid]
+            self._ordersrev[oid]
             self._process_transaction(oid, trans)
         except KeyError:  # not yet seen, keep as pending
             self._transpend[oid].append(trans)

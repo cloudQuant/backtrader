@@ -93,7 +93,7 @@ def PumpEvents(timeout=-1, hevt=None, cb=None):
         tmout = int(tmout)
 
         try:
-            res = ctypes.oledll.ole32.CoWaitForMultipleHandles(
+            ctypes.oledll.ole32.CoWaitForMultipleHandles(
                 0,  # COWAIT_FLAGS
                 int(tmout),  # dwtimeout
                 len(handles),  # number of handles in handles
@@ -393,7 +393,7 @@ class VCStore(ParameterizedSingletonMixin):
         self.comtypes.CoInitialize()  # running in another thread
         vcrt = self.CreateObject(self.vcrtmod.RealTime)
         sink = RTEventSink(self)
-        conn = self.GetEvents(vcrt, sink)
+        self.GetEvents(vcrt, sink)
         PumpEvents()
         self.comtypes.CoUninitialize()
 

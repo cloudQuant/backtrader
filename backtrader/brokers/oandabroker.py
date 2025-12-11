@@ -74,7 +74,7 @@ class OandaBroker(BrokerBase):
     def start(self):
         super().start()
         self.o.start(broker=self)
-        self.startingcash = self.cash = cash = self.o.get_cash()
+        self.startingcash = self.cash = self.o.get_cash()
         self.startingvalue = self.value = self.o.get_value()
 
         if self.get_param("use_positions"):
@@ -146,8 +146,8 @@ class OandaBroker(BrokerBase):
 
     def getcash(self):
         # This call cannot block if no answer is available from oanda
-        self.cash = cash = self.o.get_cash()
-        return cash
+        self.cash = self.o.get_cash()
+        return self.cash
 
     def getvalue(self, datas=None):
         self.value = self.o.get_value()
@@ -260,7 +260,7 @@ class OandaBroker(BrokerBase):
         pos = self.getposition(data, clone=False)
         psize, pprice, opened, closed = pos.update(size, price)
 
-        comminfo = self.getcommissioninfo(data)
+        _comminfo = self.getcommissioninfo(data)
 
         closedvalue = closedcomm = 0.0
         openedvalue = openedcomm = 0.0
@@ -388,7 +388,7 @@ class OandaBroker(BrokerBase):
         return self._transmit(order)
 
     def cancel(self, order):
-        o = self.orders[order.ref]
+        _o = self.orders[order.ref]
         if order.status == Order.Cancelled:  # already cancelled
             return
 

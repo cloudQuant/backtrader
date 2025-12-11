@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, tzinfo
 from ..utils import date2num
 from ..dataseries import TimeFrame
 from backtrader.feed import DataBase
+import backtrader as bt
 from backtrader.utils.py3 import (
     integer_types,
     queue,

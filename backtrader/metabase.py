@@ -133,9 +133,9 @@ def patch_strategy_clk_update():
                 newdlens
                 and hasattr(self, "_dlens")
                 and any(
-                    nl > l
-                    for l, nl in zip(self._dlens, newdlens)
-                    if l is not None and nl is not None
+                    nl > old_len
+                    for old_len, nl in zip(self._dlens, newdlens)
+                    if old_len is not None and nl is not None
                 )
             ):
                 try:
@@ -447,8 +447,10 @@ class AutoInfoClass(object):
 
     def _getkwargs(self, skip_=False):
         # 获取cls的key,value并保存为有序字典
-        l = [(x, getattr(self, x)) for x in self._getkeys() if not skip_ or not x.startswith("_")]
-        return OrderedDict(l)
+        pairs = [
+            (x, getattr(self, x)) for x in self._getkeys() if not skip_ or not x.startswith("_")
+        ]
+        return OrderedDict(pairs)
 
     def _getvalues(self):
         # 获取cls的value并保存为列表
@@ -849,8 +851,6 @@ class ParamsMixin(BaseMixin):
                             # Search the call stack for an object with data
                             import inspect
 
-                            found_data = False
-
                             for frame_info in inspect.stack():
                                 frame_locals = frame_info.frame.f_locals
                                 # Look for 'self' in the frame
@@ -865,7 +865,6 @@ class ParamsMixin(BaseMixin):
                                         self.data = potential_owner.datas[0]
                                         for d, data in enumerate(potential_owner.datas):
                                             setattr(self, f"data{d}", data)
-                                        found_data = True
                                         break
                                     # Or just data
                                     elif (
@@ -875,7 +874,6 @@ class ParamsMixin(BaseMixin):
                                         self.datas = [potential_owner.data]
                                         self.data = potential_owner.data
                                         self.data0 = potential_owner.data
-                                        found_data = True
                                         break
 
                 # CRITICAL FIX: Restore kwargs from __new__ if they were lost
@@ -1193,7 +1191,7 @@ class ParamsMixin(BaseMixin):
             # Create parameter instance
             try:
                 instance._params_instance = params_cls()
-            except:
+            except Exception:
                 # If instantiation fails, create a simple object
                 instance._params_instance = type("ParamsInstance", (), {})()
 

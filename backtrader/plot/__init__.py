@@ -17,5 +17,5 @@ else:
         pass
 
 
-from .plot import Plot, Plot_OldSync
-from .scheme import PlotScheme
+from .plot import Plot as Plot, Plot_OldSync as Plot_OldSync
+from .scheme import PlotScheme as PlotScheme

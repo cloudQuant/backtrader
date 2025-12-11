@@ -3,22 +3,22 @@
 # or prepend an "_" (underscore) to private classes/variables
 
 try:
-    from .ibstore import IBStore
+    from .ibstore import IBStore as IBStore
 except ImportError:
     pass  # The user may not have ibpy installed
 
 try:
-    from .vcstore import VCStore
+    from .vcstore import VCStore as VCStore
 except ImportError:
     pass  # The user may not have a module installed
 
 try:
-    from .oandastore import OandaStore
+    from .oandastore import OandaStore as OandaStore
 except ImportError:
     pass  # The user may not have a module installed
 
 
-from .vchartfile import VChartFile
+from .vchartfile import VChartFile as VChartFile
 
 # 增加ctp的引用
 # from backtrader.stores.ctpstore import *

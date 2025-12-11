@@ -68,13 +68,13 @@ def shade_color(color, percent):
 
     rgb = mplcolors.colorConverter.to_rgb(color)
 
-    h, l, s = rgb2hls(*rgb)
+    h, lightness, s = rgb2hls(*rgb)
 
-    l *= 1 + float(percent) / 100
+    lightness *= 1 + float(percent) / 100
 
-    l = min(1, l)
-    l = max(0, l)
+    lightness = min(1, lightness)
+    lightness = max(0, lightness)
 
-    r, g, b = hls2rgb(h, l, s)
+    r, g, b = hls2rgb(h, lightness, s)
 
     return r, g, b

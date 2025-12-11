@@ -84,10 +84,10 @@ class DataSeries(LineSeries):
 
     # 获取values
     def getwritervalues(self):
-        l = len(self)
-        values = [self._name, l]
+        length = len(self)
+        values = [self._name, length]
 
-        if l:
+        if length:
             values.append(self.datetime.datetime(0))
             for line in self.LineOrder[1:]:
                 values.append(self.lines[line][0])

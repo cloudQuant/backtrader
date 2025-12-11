@@ -161,6 +161,9 @@ class PandasData(feed.DataBase):
         cstrings = filter(lambda x: isinstance(x, string_types), colnames)
         # 如果有一个是字符串，那么colsnumeric就是False，只有全部是数字的情况下，才会返回True
         colsnumeric = not len(list(cstrings))
+        if colsnumeric:
+            # 所有列名都是数字的情况下，这个标志为True，这里保持行为不变
+            pass
 
         # Where each datafield find its value
         # 定义一个字典

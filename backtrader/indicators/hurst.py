@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from . import PeriodN
-from numpy import *
+from numpy import asarray, log10, polyfit, sqrt, std, subtract, isnan
 
 __all__ = ["HurstExponent", "Hurst"]
 
@@ -77,8 +77,6 @@ class HurstExponent(PeriodN):
         dst = self.lines[0].array
         src = self.data.array
         period = self.p.period
-        lag_start = self._lag_start
-        lag_end = self._lag_end
         lags = self.lags
         log10lags = self.log10lags
 
@@ -112,7 +110,7 @@ class HurstExponent(PeriodN):
                             poly = polyfit(log10lags, log10tau, 1)
                             hurst = poly[0] * 2.0
                             dst[i] = float(hurst) if not isnan(hurst) else float("nan")
-                        except:
+                        except Exception:
                             dst[i] = float("nan")
                     else:
                         dst[i] = float("nan")

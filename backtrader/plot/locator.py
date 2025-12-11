@@ -238,6 +238,4 @@ class AutoDateFormatter(ADFormatter):
         if x < 0:
             x = 0
 
-        ix = self._dates[x]
-
         return super()

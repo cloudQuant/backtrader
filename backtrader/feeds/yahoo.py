@@ -120,7 +120,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         # 获取开高低收持仓量
         o = float(linetokens[next(i)])
         h = float(linetokens[next(i)])
-        l = float(linetokens[next(i)])
+        low = float(linetokens[next(i)])
         c = float(linetokens[next(i)])
         self.lines.openinterest[0] = 0.0
 
@@ -145,7 +145,7 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         if self.params.adjclose:
             o /= adjfactor
             h /= adjfactor
-            l /= adjfactor
+            low /= adjfactor
             c = adjustedclose
             # If the price goes down, volume must go up and viceversa
             # 如果调整成交量的话，这里逻辑略有问题，但是应该不影响使用，因为可能存在某些股票合并的情况
@@ -157,14 +157,14 @@ class YahooFinanceCSVData(feed.CSVDataBase):
             decimals = self.p.decimals
             o = round(o, decimals)
             h = round(h, decimals)
-            l = round(l, decimals)
+            low = round(low, decimals)
             c = round(c, decimals)
         # 对成交量进行四舍五入
         v = round(v, self.p.roundvolume)
         # 把计算得到的数据赋值给相应的line
         self.lines.open[0] = o
         self.lines.high[0] = h
-        self.lines.low[0] = l
+        self.lines.low[0] = low
         self.lines.close[0] = c
         self.lines.volume[0] = v
         self.lines.adjclose[0] = adjustedclose

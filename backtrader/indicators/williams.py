@@ -34,10 +34,10 @@ class WilliamsR(Indicator):
 
     def __init__(self):
         h = Highest(self.data.high, period=self.p.period)
-        l = Lowest(self.data.low, period=self.p.period)
+        low = Lowest(self.data.low, period=self.p.period)
         c = self.data.close
 
-        self.lines.percR = -100.0 * (h - c) / (h - l)
+        self.lines.percR = -100.0 * (h - c) / (h - low)
 
         super().__init__()
 

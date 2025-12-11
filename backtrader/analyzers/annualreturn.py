@@ -65,7 +65,7 @@ class AnnualReturn(Analyzer):
             # 转换日期
             try:
                 dt = num2date(dt_val)
-            except:
+            except Exception:
                 continue
 
             # 如果i的时候的年份大于当前年份，如果当前年份大于0，计算收益率，并保存到self.ret中，并且开始价值等于结束价值

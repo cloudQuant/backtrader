@@ -7,6 +7,7 @@ from backtrader.utils.py3 import queue
 from backtrader.stores.cryptostore import CryptoStore
 from bt_api_py.functions.log_message import SpdLogManager
 from ..dataseries import TimeFrame
+from ..utils import date2num
 
 
 class CryptoFeed(DataBase):
@@ -232,7 +233,7 @@ class CryptoFeed(DataBase):
             # print("bar_datetime", bar_data['high_price'], bar_data['low_price'], bar_data['close_price'], bar_data["volume"])
             return None
         self.bar_time = timestamp
-        num_time = bt.date2num(dtime_utc)
+        num_time = date2num(dtime_utc)
         self.lines.datetime[0] = num_time
         self.lines.open[0] = bar_data["open_price"]
         self.lines.high[0] = bar_data["high_price"]

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from .. import Filter
+from .. import Filter as Filter
 from .datafilter import *
 from .datafiller import *
 from .session import *

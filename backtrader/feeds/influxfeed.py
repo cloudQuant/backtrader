@@ -5,6 +5,15 @@ from ..utils import date2num
 from ..dataseries import TimeFrame
 import datetime as dt
 
+try:
+    from influxdb import InfluxDBClient as idbclient
+    from influxdb.exceptions import InfluxDBClientError
+except Exception:  # pragma: no cover - optional dependency, handled at runtime
+    idbclient = None
+
+    class InfluxDBClientError(Exception):
+        pass
+
 # 时间周期的对应
 TIMEFRAMES = dict(
     (

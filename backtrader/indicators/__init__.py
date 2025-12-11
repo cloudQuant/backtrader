@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-from backtrader import Indicator
+from backtrader import Indicator as Indicator
 from backtrader.functions import *
 
 # The modules below should/must define __all__ with the Indicator objects

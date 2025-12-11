@@ -68,11 +68,11 @@ class Renko(Filter):
     def next(self, data):
         c = data.close[0]
         h = data.high[0]
-        l = data.low[0]
+        low = data.low[0]
 
         if self.p.hilo:
             hiprice = h
-            loprice = l
+            loprice = low
         else:
             hiprice = loprice = c
 

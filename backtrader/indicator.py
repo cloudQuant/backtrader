@@ -256,22 +256,22 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
             if hasattr(self, "_clock") and self._clock:
                 try:
                     actual_data_len = self._clock.buflen()
-                except:
+                except Exception:
                     try:
                         actual_data_len = len(self._clock)
-                    except:
+                    except Exception:
                         pass
             elif hasattr(self, "datas") and self.datas and len(self.datas) > 0:
                 try:
                     actual_data_len = self.datas[0].buflen()
-                except:
+                except Exception:
                     try:
                         actual_data_len = len(self.datas[0])
-                    except:
+                    except Exception:
                         pass
             # Use the maximum of end and actual_data_len to ensure we don't truncate
             final_len = max(end, actual_data_len) if actual_data_len > 0 else end
-        except:
+        except Exception:
             final_len = end
 
         if hasattr(self, "lines") and hasattr(self.lines, "lines") and self.lines.lines:

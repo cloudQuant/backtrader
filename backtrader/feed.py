@@ -82,7 +82,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 for line in self.lines:
                     if hasattr(line, "__dict__"):
                         line._is_data_feed_line = True
-            except:
+            except Exception:
                 pass
 
         # CRITICAL FIX: Also explicitly mark the datetime line
@@ -92,7 +92,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             try:
                 if hasattr(self.datetime, "__dict__"):
                     self.datetime._is_data_feed_line = True
-            except:
+            except Exception:
                 pass
 
         # 原来__init__中的内容
@@ -475,7 +475,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     # If accessing datetime[1] fails, we're at the end
                     return float("inf")
             return float("inf")  # max date else
-        except:
+        except Exception:
             return float("inf")
 
     # 把数据向前移动size
@@ -583,7 +583,6 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # 判断是否需要进行检查
     def _check(self, forcedata=None):
-        ret = 0
         for ff, fargs, fkwargs in self._filters:
             if not hasattr(ff, "check"):
                 continue

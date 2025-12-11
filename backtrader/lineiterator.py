@@ -76,16 +76,16 @@ class LineIteratorMixin:
                 else:
                     try:
                         datas.append(LineSeriesMaker(LineNum(arg)))
-                    except:
+                    except Exception:
                         # Not a LineNum and is not a LineSeries - bail out
                         break
-            except:
+            except Exception:
                 # If anything fails in type checking, try to treat as numeric
                 if not mindatas:
                     break
                 try:
                     datas.append(LineSeriesMaker(LineNum(arg)))
-                except:
+                except Exception:
                     break
 
             mindatas = max(0, mindatas - 1)
@@ -150,7 +150,8 @@ class LineIteratorMixin:
 
                 # Set line aliases if the data has them (PERFORMANCE: use try-except)
                 try:
-                    data_lines = data.lines
+                    # Access data.lines to ensure the attribute exists
+                    data.lines
                     # Try to get _getlinealias method once (PERFORMANCE: avoid repeated hasattr)
                     try:
                         getlinealias_method = data._getlinealias
@@ -159,11 +160,11 @@ class LineIteratorMixin:
                         has_getlinealias = False
 
                     try:
-                        for l, line in enumerate(data.lines):
+                        for line_index, line in enumerate(data.lines):
                             # Use the cached result instead of hasattr
                             if has_getlinealias:
                                 try:
-                                    linealias = getlinealias_method(l)
+                                    linealias = getlinealias_method(line_index)
                                     if linealias:
                                         setattr(_obj, f"data{d}_{linealias}", line)
                                         # Also set without the data prefix for the first data
@@ -171,10 +172,10 @@ class LineIteratorMixin:
                                             setattr(_obj, f"data_{linealias}", line)
                                 except (IndexError, AttributeError, TypeError):
                                     pass  # Skip if alias retrieval fails
-                            setattr(_obj, f"data{d}_{l}", line)
+                            setattr(_obj, f"data{d}_{line_index}", line)
                             # Also set without the data prefix for the first data
                             if d == 0:
-                                setattr(_obj, f"data_{l}", line)
+                                setattr(_obj, f"data_{line_index}", line)
                     except (TypeError, AttributeError, IndexError):
                         # If lines iteration fails, skip line alias setup
                         pass
@@ -217,7 +218,7 @@ class LineIteratorMixin:
         """Handle pre-initialization setup"""
         # PERFORMANCE: Use try-except instead of hasattr
         try:
-            datas = _obj.datas
+            _obj.datas
         except AttributeError:
             _obj.datas = []
 
@@ -554,7 +555,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 self.dnames = DotDict(
                     [(d._name, d) for d in self.datas if d is not None and getattr(d, "_name", "")]
                 )
-            except:
+            except Exception:
                 self.dnames = {}
 
         # CRITICAL FIX: Pass kwargs to parent for parameter processing
@@ -978,9 +979,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if newdlens and hasattr(self, "_dlens"):
             try:
                 if any(
-                    nl > l
-                    for l, nl in zip(self._dlens, newdlens)
-                    if l is not None and nl is not None
+                    nl > old_len
+                    for old_len, nl in zip(self._dlens, newdlens)
+                    if old_len is not None and nl is not None
                 ):
                     if hasattr(self, "forward"):
                         self.forward()
@@ -1057,7 +1058,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
             # Try to get end from clock update
             try:
                 end = self._clk_update()
-            except:
+            except Exception:
                 end = 0
 
             # If end is 0, try to get from data sources
@@ -1071,7 +1072,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     except AttributeError:
                         # Fallback to len()
                         end = len(data0)
-                except:
+                except Exception:
                     # Try _clock as last resort
                     try:
                         clock = self._clock
@@ -1079,7 +1080,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                             end = clock.buflen()
                         except AttributeError:
                             end = len(clock)
-                    except:
+                    except Exception:
                         pass  # Give up, use 0
 
         # OPTIMIZATION: Process lineiterators with minimal overhead
@@ -1090,7 +1091,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 for lineiterator in lineiter_list:
                     try:
                         lineiterator._once(start, end)
-                    except:
+                    except Exception:
                         pass  # Skip failed indicators
         except AttributeError:
             pass  # No _lineiterators
@@ -1098,12 +1099,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # Call oncestart and once methods
         try:
             self.oncestart(start, end)
-        except:
+        except Exception:
             pass
 
         try:
             self.once(start, end)
-        except:
+        except Exception:
             pass
 
         # OPTIMIZATION: Reset data sources - use EAFP
@@ -1112,7 +1113,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
             for data in datas:
                 try:
                     data.home()
-                except:
+                except Exception:
                     pass
         except AttributeError:
             pass  # No datas attribute
@@ -1167,7 +1168,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # Get the length of the indicator (number of bars processed)
         try:
             current_len = len(self)
-        except:
+        except Exception:
             current_len = 0
 
         # Return negative if we have enough data, positive/zero otherwise
@@ -1311,7 +1312,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                         # Fallback to array length if lencount not available
                         try:
                             return len(first_line.array)
-                        except:
+                        except Exception:
                             pass
                 except (IndexError, AttributeError, TypeError):
                     pass
@@ -1773,7 +1774,7 @@ class StrategyBase(DataAccessor):
                             ):
                                 try:
                                     return len(self._owner.data)
-                                except:
+                                except Exception:
                                     pass
                             return 0
 
@@ -1804,7 +1805,7 @@ class StrategyBase(DataAccessor):
                             ):
                                 try:
                                     return len(self._owner.data)
-                                except:
+                                except Exception:
                                     pass
                             return 0
 
@@ -1995,5 +1996,5 @@ try:
 
     if "backtrader.indicators" in sys.modules:
         IndicatorBase._register_indicator_aliases()
-except:
+except Exception:
     pass

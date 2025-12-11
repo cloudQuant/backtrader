@@ -187,7 +187,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                         if array_len > 0:
                             preserve_array = True
                             saved_lencount = array_len
-        except:
+        except Exception:
             pass
 
         if preserve_array:
@@ -761,7 +761,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
                 default_dt = datetime.datetime(2000, 1, 1, 0, 0, 0)
                 return default_dt if naive else default_dt.replace(tzinfo=tz or self._tz)
-            except:
+            except Exception:
                 # If datetime import fails or tzinfo cannot be set, return datetime.min
                 try:
                     import datetime
@@ -771,7 +771,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                         if naive
                         else datetime.datetime.min.replace(tzinfo=tz or self._tz)
                     )
-                except:
+                except Exception:
                     # Last resort - create a minimal valid datetime-like object with needed methods
                     class MinimalDateTime:
                         def __init__(self):
@@ -808,7 +808,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
                 default_dt = datetime.datetime(2000, 1, 1, 0, 0, 0)
                 return default_dt if naive else default_dt.replace(tzinfo=tz or self._tz)
-            except:
+            except Exception:
                 # Create a minimal valid datetime-like object with needed methods
                 class MinimalDateTime:
                     def __init__(self):
@@ -1237,7 +1237,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             instance.dnames = DotDict(
                 [(d._name, d) for d in instance.datas if getattr(d, "_name", "")]
             )
-        except:
+        except Exception:
             instance.dnames = {}
 
         return instance
@@ -1266,7 +1266,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             import backtrader as bt
 
             self._owner = metabase.findowner(self, bt.Strategy)
-        except:
+        except Exception:
             pass
 
         # If no Strategy found, try LineIterator
@@ -1275,7 +1275,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 from .lineiterator import LineIterator
 
                 self._owner = metabase.findowner(self, LineIterator)
-            except:
+            except Exception:
                 pass
 
         # If still no owner, try a broader search
@@ -1461,22 +1461,22 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
             if hasattr(self, "_clock") and self._clock:
                 try:
                     actual_data_len = self._clock.buflen()
-                except:
+                except Exception:
                     try:
                         actual_data_len = len(self._clock)
-                    except:
+                    except Exception:
                         pass
             elif hasattr(self, "datas") and self.datas and len(self.datas) > 0:
                 try:
                     actual_data_len = self.datas[0].buflen()
-                except:
+                except Exception:
                     try:
                         actual_data_len = len(self.datas[0])
-                    except:
+                    except Exception:
                         pass
             # Use the maximum of end and actual_data_len to ensure we don't truncate
             final_len = max(end, actual_data_len) if actual_data_len > 0 else end
-        except:
+        except Exception:
             final_len = end
 
         if hasattr(self, "lines") and hasattr(self.lines, "lines") and self.lines.lines:

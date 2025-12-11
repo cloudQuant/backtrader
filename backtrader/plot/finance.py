@@ -175,7 +175,7 @@ class CandlestickPlotHandler:
 
             return (i, high), (i, max(open_, close))
 
-        tickrangesup = [tup(i, o, h, c) for i, o, h, l, c in iohlc()]
+        tickrangesup = [tup(i, o, h, c) for i, o, h, low, c in iohlc()]
 
         def tdown(i, open_, low, close):
             low = low * scaling + bot
@@ -184,7 +184,7 @@ class CandlestickPlotHandler:
 
             return (i, low), (i, min(open_, close))
 
-        tickrangesdown = [tdown(i, o, l, c) for i, o, h, l, c in iohlc()]
+        tickrangesdown = [tdown(i, o, low, c) for i, o, h, low, c in iohlc()]
 
         # Extra variables for the collections
         useaa = (0,)  # use tuple here

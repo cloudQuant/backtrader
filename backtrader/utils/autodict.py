@@ -111,31 +111,31 @@ class AutoOrderedDict(OrderedDict):
     # 定义的数学操作，暂时还没明白是什么意思，但是看起来只有__iadd__和__isub__是正常的
     # Define math operations
     def __iadd__(self, other):
-        if type(self) != type(other):
+        if not isinstance(other, type(self)):
             return type(other)() + other
 
         return self + other
 
     def __isub__(self, other):
-        if type(self) != type(other):
+        if not isinstance(other, type(self)):
             return type(other)() - other
 
         return self - other
 
     def __imul__(self, other):
-        if type(self) != type(other):
+        if not isinstance(other, type(self)):
             return type(other)() * other
 
         return self + other
 
     def __idiv__(self, other):
-        if type(self) != type(other):
+        if not isinstance(other, type(self)):
             return type(other)() // other
 
         return self + other
 
     def __itruediv__(self, other):
-        if type(self) != type(other):
+        if not isinstance(other, type(self)):
             return type(other)() / other
 
         return self + other

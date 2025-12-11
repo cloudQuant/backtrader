@@ -87,7 +87,7 @@ class DrawDown(Analyzer):
 
         # maxximum drawdown values
         r.max.moneydown = max(r.max.moneydown, moneydown)
-        r.max.drawdown = maxdrawdown = max(r.max.drawdown, drawdown)
+        r.max.drawdown = max(r.max.drawdown, drawdown)
 
         r.len = r.len + 1 if drawdown else 0
         r.max.len = max(r.max.len, r.len)

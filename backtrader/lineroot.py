@@ -200,16 +200,16 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                     return operation(other, 0)  # Use 0 as default value
                 else:
                     return operation(0, other)  # Use 0 as default value
-            except:
+            except Exception:
                 # If operation fails, return False for bool operations
-                if operation == bool:
+                if operation is bool:
                     return False
                 return 0
 
     # 做自身操作
     def _makeoperationown(self, operation, _ownerskip=None):
         # CRITICAL FIX: For bool operations, return a simple boolean result instead of creating objects
-        if operation == bool:
+        if operation is bool:
             # For bool operations, check if we have any lines and if they have data
             if hasattr(self, "lines") and self.lines:
                 try:
@@ -231,7 +231,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                                 else:
                                     return bool(value)
                     return False
-                except:
+                except Exception:
                     return False
             elif hasattr(self, "__getitem__") and hasattr(self, "__len__"):
                 # For LineSingle objects, check the current value directly
@@ -249,7 +249,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                         else:
                             return bool(value)
                     return False
-                except:
+                except Exception:
                     return False
             else:
                 return False
@@ -264,7 +264,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             # If no lines, return a simple operation result
             try:
                 return operation(0)  # Use 0 as default value
-            except:
+            except Exception:
                 # If operation fails, return 0 for most operations
                 return 0
 
@@ -678,15 +678,15 @@ class LineMultiple(LineRoot):
                     return operation(other, 0)  # Use 0 as default value
                 else:
                     return operation(0, other)  # Use 0 as default value
-            except:
+            except Exception:
                 # If operation fails, return False for bool operations
-                if operation == bool:
+                if operation is bool:
                     return False
                 return 0
 
     def _makeoperationown(self, operation, _ownerskip=None):
         # CRITICAL FIX: For bool operations, return a simple boolean result instead of creating objects
-        if operation == bool:
+        if operation is bool:
             # For bool operations, check if we have any lines and if they have data
             if hasattr(self, "lines") and self.lines:
                 try:
@@ -698,7 +698,7 @@ class LineMultiple(LineRoot):
                     if isinstance(value, float) and math.isnan(value):
                         return False
                     return bool(value)
-                except:
+                except Exception:
                     return False
             else:
                 return False
@@ -713,7 +713,7 @@ class LineMultiple(LineRoot):
             # If no lines, return a simple operation result
             try:
                 return operation(0)  # Use 0 as default value
-            except:
+            except Exception:
                 # If operation fails, return 0 for most operations
                 return 0
 
@@ -823,9 +823,9 @@ def _apply_strategy_patch():
                 newdlens
                 and hasattr(self, "_dlens")
                 and any(
-                    nl > l
-                    for l, nl in zip(self._dlens, newdlens)
-                    if l is not None and nl is not None
+                    nl > old_len
+                    for old_len, nl in zip(self._dlens, newdlens)
+                    if old_len is not None and nl is not None
                 )
             ):
                 try:

@@ -2,6 +2,7 @@
 import datetime
 from .. import feed
 from ..dataseries import TimeFrame
+from ..utils import date2num
 
 
 # 处理vc chart csv文件

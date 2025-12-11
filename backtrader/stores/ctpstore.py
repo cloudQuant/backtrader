@@ -6,14 +6,7 @@ from backtrader.mixins import ParameterizedSingletonMixin
 from backtrader.utils.py3 import queue
 from time import sleep
 import numpy as np
-from backtrader.utils.date import (
-    get_last_timeframe_timestamp,
-    datetime2timestamp,
-    timestamp2datetime,
-)
 from ctpbee import CtpbeeApi, CtpBee
-from ctpbee.constant import *
-from ctpbee.api import CtpbeeApi
 from ctpbee.constant import (
     BarData,
     TickData,

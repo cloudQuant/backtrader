@@ -308,7 +308,7 @@ class CryptoStore:
                     new_data = feed.get_kline(
                         "BTC-USDT", "15m", 2, start_time=begin_stamp, end_time=end_stamp
                     )
-                    new_bar_list = new_data.get_data()
+                    new_data.get_data()
                     # print("new_bar_data", type(new_bar_list), new_bar_list)  # Removed for performance
                     assert 0
                     time.sleep(0.2)

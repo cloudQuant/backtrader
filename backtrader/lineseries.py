@@ -436,7 +436,8 @@ class Lines(object):
             if isinstance(line, string_types):
                 # line is a line name - convert to line object
                 try:
-                    target_line = getattr(self, line)
+                    # Trigger attribute resolution to ensure the line exists
+                    getattr(self, line)
                     setattr(self, line, value)
                 except AttributeError:
                     # Line name doesn't exist - skip or create it
@@ -993,7 +994,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         # 2. hasattr might trigger value.__getattr__ twice (once for check, once for access)
         try:
             # Direct access - if this succeeds, it's an indicator/line object
-            minperiod = value._minperiod
+            # The access itself is enough; the value is not used directly
+            value._minperiod
 
             # Set the attribute first
             object.__setattr__(self, name, value)
@@ -1011,7 +1013,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 # _owner doesn't exist, try to set it
                 try:
                     value._owner = self
-                except:
+                except Exception:
                     pass  # Can't set owner, skip
 
             # Add to lineiterators if applicable
@@ -1023,9 +1025,9 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                     try:
                         ltype = value._ltype
                         lineiterators[ltype].append(value)
-                    except:
+                    except Exception:
                         pass  # No _ltype or append failed
-            except:
+            except Exception:
                 pass
 
             return
@@ -1073,7 +1075,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 line0 = self.lines[0]
                 object.__setattr__(self, "_line0_cache", line0)
                 return len(line0)
-            except:
+            except Exception:
                 return 0
 
     def __getitem__(self, key):
@@ -1095,7 +1097,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 line0 = self.lines[0]
                 # Cache it for next time
                 object.__setattr__(self, "_line0_cache", line0)
-            except:
+            except Exception:
                 return 0.0
 
         try:
@@ -1405,9 +1407,9 @@ def _patch_strategy_clk_update():
                 newdlens
                 and hasattr(self, "_dlens")
                 and any(
-                    nl > l
-                    for l, nl in zip(self._dlens, newdlens)
-                    if l is not None and nl is not None
+                    nl > old_len
+                    for old_len, nl in zip(self._dlens, newdlens)
+                    if old_len is not None and nl is not None
                 )
             ):
                 try:
@@ -1444,9 +1446,7 @@ def _patch_strategy_clk_update():
         try:
             from .strategy import Strategy
 
-            original_clk_update = Strategy._clk_update
             Strategy._clk_update = safe_clk_update
-            pass
             return True
         except ImportError:
             # Strategy module not loaded yet

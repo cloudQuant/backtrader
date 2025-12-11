@@ -69,21 +69,21 @@ class PivotPoint(Indicator):
     def __init__(self):
         o = self.data.open
         h = self.data.high  # current high
-        l = self.data.low  # current low
+        low = self.data.low  # current low
         c = self.data.close  # current close
 
         if self.p.close:
-            self.lines.p = p = (h + l + 2.0 * c) / 4.0
+            self.lines.p = p = (h + low + 2.0 * c) / 4.0
         elif self.p.open:
-            self.lines.p = p = (h + l + c + o) / 4.0
+            self.lines.p = p = (h + low + c + o) / 4.0
         else:
-            self.lines.p = p = (h + l + c) / 3.0
+            self.lines.p = p = (h + low + c) / 3.0
 
         self.lines.s1 = 2.0 * p - h
-        self.lines.r1 = 2.0 * p - l
+        self.lines.r1 = 2.0 * p - low
 
-        self.lines.s2 = p - (h - l)
-        self.lines.r2 = p + (h - l)
+        self.lines.s2 = p - (h - low)
+        self.lines.r2 = p + (h - low)
 
         super().__init__()  # enable coopertive inheritance
 
@@ -157,23 +157,23 @@ class FibonacciPivotPoint(Indicator):
     def __init__(self):
         o = self.data.open
         h = self.data.high  # current high
-        l = self.data.low  # current high
+        low = self.data.low  # current low
         c = self.data.close  # current high
 
         if self.p.close:
-            self.lines.p = p = (h + l + 2.0 * c) / 4.0
+            self.lines.p = p = (h + low + 2.0 * c) / 4.0
         elif self.p.open:
-            self.lines.p = p = (h + l + c + o) / 4.0
+            self.lines.p = p = (h + low + c + o) / 4.0
         else:
-            self.lines.p = p = (h + l + c) / 3.0
+            self.lines.p = p = (h + low + c) / 3.0
 
-        self.lines.s1 = p - self.p.level1 * (h - l)
-        self.lines.s2 = p - self.p.level2 * (h - l)
-        self.lines.s3 = p - self.p.level3 * (h - l)
+        self.lines.s1 = p - self.p.level1 * (h - low)
+        self.lines.s2 = p - self.p.level2 * (h - low)
+        self.lines.s3 = p - self.p.level3 * (h - low)
 
-        self.lines.r1 = p + self.p.level1 * (h - l)
-        self.lines.r2 = p + self.p.level2 * (h - l)
-        self.lines.r3 = p + self.p.level3 * (h - l)
+        self.lines.r1 = p + self.p.level1 * (h - low)
+        self.lines.r2 = p + self.p.level2 * (h - low)
+        self.lines.r3 = p + self.p.level3 * (h - low)
 
         super().__init__()
 

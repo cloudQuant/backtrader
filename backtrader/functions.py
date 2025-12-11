@@ -194,7 +194,7 @@ class If(Logic):
                     # Try to process the source object manually
                     self.a._once(start, end)
                     srca = self.a.array
-                except:
+                except Exception:
                     pass
         except (AttributeError, TypeError):
             srca = []
@@ -209,7 +209,7 @@ class If(Logic):
                     # Try to process the source object manually
                     self.b._once(start, end)
                     srcb = self.b.array
-                except:
+                except Exception:
                     pass
         except (AttributeError, TypeError):
             srcb = []
@@ -237,7 +237,7 @@ class If(Logic):
                 # Fallback: try to get value directly from cond object
                 try:
                     cond_val = self.cond[i] if hasattr(self.cond, "__getitem__") else 0.0
-                except:
+                except Exception:
                     cond_val = 0.0
 
             # Convert to boolean: non-zero values are True, zero is False
@@ -271,7 +271,7 @@ class If(Logic):
                         if isinstance(wrapped, itertools.repeat):
                             a_val = next(iter(wrapped))
                             a_val_set = True
-                except:
+                except Exception:
                     pass
             if a_val is None:
                 a_val = 0.0
@@ -301,7 +301,7 @@ class If(Logic):
                         if isinstance(wrapped, itertools.repeat):
                             b_val = next(iter(wrapped))
                             b_val_set = True
-                except:
+                except Exception:
                     pass
             if b_val is None:
                 b_val = 0.0

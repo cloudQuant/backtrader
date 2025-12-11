@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import backtrader as bt
 from .. import Observer
 from ..analyzers import DrawDown as DrawDownAnalyzer
 

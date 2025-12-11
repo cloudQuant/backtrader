@@ -21,12 +21,12 @@ except ImportError:
     pass  # The user may not have something installed
 
 try:
-    from .oanda import OandaData
+    from .oanda import OandaData as OandaData
 except ImportError:
     pass  # The user may not have something installed
 
 
-from .vchartfile import VChartFile
+from .vchartfile import VChartFile as VChartFile
 
-from .rollover import RollOver
-from .chainer import Chainer
+from .rollover import RollOver as RollOver
+from .chainer import Chainer as Chainer

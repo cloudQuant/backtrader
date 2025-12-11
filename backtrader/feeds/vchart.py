@@ -100,10 +100,10 @@ class VChartData(feed.DataBase):
 
         self.lines.datetime[0] = date2num(dt)
 
-        o, h, l, c, v, oi = bdata[self.dtsize :]
+        o, h, low, c, v, oi = bdata[self.dtsize :]
         self.lines.open[0] = o
         self.lines.high[0] = h
-        self.lines.low[0] = l
+        self.lines.low[0] = low
         self.lines.close[0] = c
         self.lines.volume[0] = v
         self.lines.openinterest[0] = oi

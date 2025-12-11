@@ -134,21 +134,21 @@ class ParameterDescriptor:
 
             # Type check - be more flexible with numeric types
             if self.type_ is not None and value is not None:
-                if self.type_ == float:
+                if self.type_ is float:
                     # For float, accept int, float, and convertible strings
                     if not isinstance(value, (int, float)):
                         try:
                             float(value)  # Test conversion
                         except (ValueError, TypeError):
                             return False
-                elif self.type_ == int:
+                elif self.type_ is int:
                     # For int, accept int and convertible values
                     if not isinstance(value, int):
                         try:
                             int(value)  # Test conversion
                         except (ValueError, TypeError):
                             return False
-                elif self.type_ == bool:
+                elif self.type_ is bool:
                     # For bool, be flexible with boolean-like values
                     if not isinstance(value, bool) and value not in (
                         0,
@@ -1149,7 +1149,6 @@ class ParameterizedBase:
 
         # Create a completely new _parameter_descriptors for this class
         # Each class must have its own independent dictionary
-        computed_descriptors = {}
 
         # STEP 1: Collect all parameters from the inheritance hierarchy
         # Process base classes in reverse MRO order to respect inheritance precedence

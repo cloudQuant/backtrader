@@ -69,6 +69,25 @@ else:
     except ImportError:
         winreg = None
 
+    # Python 3 URL helpers, used by some feeds (for example Quandl)
+    from urllib.parse import quote as _urlquote
+    import urllib.request as _urllib_request
+
+    def urlquote(s, *args, **kwargs):
+        return _urlquote(s, *args, **kwargs)
+
+    def urlopen(*args, **kwargs):
+        return _urllib_request.urlopen(*args, **kwargs)
+
+    def ProxyHandler(*args, **kwargs):  # noqa: N802 - keep legacy name
+        return _urllib_request.ProxyHandler(*args, **kwargs)
+
+    def build_opener(*args, **kwargs):
+        return _urllib_request.build_opener(*args, **kwargs)
+
+    def install_opener(*args, **kwargs):
+        return _urllib_request.install_opener(*args, **kwargs)
+
     MAXINT = sys.maxsize
     MININT = -sys.maxsize - 1
 

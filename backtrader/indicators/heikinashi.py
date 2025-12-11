@@ -54,13 +54,13 @@ class HeikinAshi(Indicator):
     def __init__(self):
         o = self.data.open
         h = self.data.high
-        l = self.data.low
+        low = self.data.low
         c = self.data.close
 
-        self.l.ha_close = ha_close = (o + h + l + c) / 4.0
+        self.l.ha_close = ha_close = (o + h + low + c) / 4.0
         self.l.ha_open = ha_open = (self.l.ha_open(-1) + ha_close(-1)) / 2.0
         self.l.ha_high = Max(h, ha_open, ha_close)
-        self.l.ha_low = Min(l, ha_open, ha_close)
+        self.l.ha_low = Min(low, ha_open, ha_close)
 
         super().__init__()
 

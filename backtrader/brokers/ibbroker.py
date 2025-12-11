@@ -8,7 +8,7 @@ import uuid
 import ib.ext.Order
 
 from backtrader import num2date, date2num, BrokerBase, Order, OrderBase
-from backtrader.utils.py3 import bytes, bstr, queue
+from backtrader.utils.py3 import bstr, queue
 from backtrader.comminfo import CommInfoBase
 from backtrader.stores import ibstore
 
@@ -314,9 +314,9 @@ class IBBroker(BrokerBase):
     # 取消订单
     def cancel(self, order):
         try:
-            o = self.orderbyid[order.m_orderId]
+            _order = self.orderbyid[order.m_orderId]
         except (ValueError, KeyError):
-            return  # not found ... not cancellable
+            return  # not found, it was not an order
 
         if order.status == Order.Cancelled:  # already cancelled
             return

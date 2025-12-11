@@ -69,13 +69,13 @@ class TradeAnalyzer(Analyzer):
             res = AutoDict()
             # Trade just closed
             # 盈利
-            won = res.won = int(trade.pnlcomm >= 0.0)
+            res.won = int(trade.pnlcomm >= 0.0)
             # 亏损
-            lost = res.lost = int(not won)
+            res.lost = int(not res.won)
             # 多头
-            tlong = res.tlong = trade.long
+            res.tlong = trade.long
             # 空头
-            tshort = res.tshort = not trade.long
+            res.tshort = not trade.long
             # 开仓的交易
             trades.total.open -= 1
             # 关闭的交易

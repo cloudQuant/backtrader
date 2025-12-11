@@ -244,10 +244,10 @@ def run(n_rows=10000, n_data=1000):
         my_results[0].analyzers.my_trade_analyzer.get_analysis().get("won", {}).get("total", 0)
     )
     if trade_num == 0:
-        profit_percent = 0
+        _profit_percent = 0
     else:
-        profit_percent = round(won_num / trade_num, 3)
-    # profit_percent is used in the print statement below
+        _profit_percent = round(won_num / trade_num, 3)
+
     value_df = pd.DataFrame([my_results[0].analyzers.my_value.get_analysis()]).T
     value_df.columns = ["value"]
     value_df["datetime"] = pd.to_datetime(value_df.index)

@@ -19,14 +19,14 @@ class HeikinAshi:
         pass
 
     def __call__(self, data):
-        o, h, l, c = data.open[0], data.high[0], data.low[0], data.close[0]
+        o, h, low, c = data.open[0], data.high[0], data.low[0], data.close[0]
 
-        data.close[0] = ha_close0 = (o + h + l + c) / 4.0
+        data.close[0] = ha_close0 = (o + h + low + c) / 4.0
 
         if len(data) > 1:
             data.open[0] = ha_open0 = (data.open[-1] + data.close[-1]) / 2.0
             data.high[0] = max(ha_open0, ha_close0, h)
-            data.low[0] = min(ha_open0, ha_close0, l)
+            data.low[0] = min(ha_open0, ha_close0, low)
 
         else:  # len is 1, no lookback is possible
             data.open[0] = ha_open0 = (o + c) / 2.0

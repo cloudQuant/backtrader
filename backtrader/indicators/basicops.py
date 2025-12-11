@@ -468,7 +468,7 @@ class ExponentialSmoothing(Average):
     def oncestart(self, start, end):
         # Calculate seed value using parent's once method (SMA of first period values)
         # Call parent's once method to populate seed at index period-1
-        if start == period - 1:
+        if start == self.p.period - 1:
             super().once(start, end)
 
     def once(self, start, end):

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import bisect
 import collections
 from copy import copy
 from datetime import datetime, timedelta
@@ -16,7 +17,7 @@ from backtrader import TimeFrame, Position
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
 from backtrader.mixins import ParameterizedSingletonMixin
-from backtrader.utils.py3 import bytes, bstr, queue, long
+from backtrader.utils.py3 import bstr, queue, long
 from backtrader.utils import AutoDict, UTC
 
 bytes = bstr  # py2/3 need for ibpy

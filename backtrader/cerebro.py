@@ -1777,9 +1777,9 @@ class Cerebro(ParameterizedBase):
             d0ret = True
             # todo rs 和 rp 并没有使用到，进行注释掉
             # resample的index
-            rs = [i for i, x in enumerate(datas) if x.resampling]
+            _rs = [i for i, x in enumerate(datas) if x.resampling]
             # replaying的index
-            rp = [i for i, x in enumerate(datas) if x.replaying]
+            _rp = [i for i, x in enumerate(datas) if x.replaying]
             # 仅仅只做resample,不做replay得index
             rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
             # 判断是否仅仅做resample
@@ -1961,8 +1961,8 @@ class Cerebro(ParameterizedBase):
             if self._event_stop:  # stop if requested
                 return
         except Exception as e:
-            error_info = traceback.format_exception(e)
-            # print(error_info)  # Removed for performance - can be re-enabled for debugging
+            _error_info = traceback.format_exception(e)
+            # print(_error_info)  # Removed for performance - can be re-enabled for debugging
 
     # runonce
     def _runonce(self, runstrats):
@@ -2067,9 +2067,9 @@ class Cerebro(ParameterizedBase):
                                                         if i < len(line.array):
                                                             line._idx = i
                                             break
-                        except:
+                        except Exception:
                             pass
-        except:
+        except Exception:
             pass
 
         # Now call _brokernotify() to process pending orders

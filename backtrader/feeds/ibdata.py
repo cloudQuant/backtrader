@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 import datetime
+import backtrader as bt
 from backtrader.feed import DataBase
-from ..utils import date2num, num2date
+from ..utils import date2num, num2date, UTC
 from ..dataseries import TimeFrame
 from backtrader.utils.py3 import (
     integer_types,

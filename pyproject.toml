@@ -81,3 +81,20 @@ force_grid_wrap = 0
 use_parentheses = true
 ensure_newline_before_comments = true
 line_length = 100 
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+select = ["E", "F"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+"backtrader/observers/__init__.py" = ["F403"]
+"backtrader/sizers/__init__.py" = ["F403"]
+"backtrader/utils/__init__.py" = ["F403"]
+"backtrader/lineseries.py" = ["E743"]
+"backtrader/indicators/__init__.py" = ["F403"]
+"backtrader/filters/__init__.py" = ["F403"]
+"backtrader/analyzers/__init__.py" = ["F403"]
+"backtrader/feeds/__init__.py" = ["F403"]
+"backtrader/__init__.py" = ["F401", "F403"]
