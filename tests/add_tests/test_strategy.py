@@ -11,7 +11,7 @@ import datetime
 import backtrader as bt
 
 
-class TestStrategy1(bt.Strategy):
+class SampleStrategy1(bt.Strategy):
     params = (
         ("period", 15),
         ("printlog", False),
@@ -65,7 +65,7 @@ def test_strategy_basic(main=False):
     )
 
     cerebro.adddata(data)
-    cerebro.addstrategy(TestStrategy1, printlog=main)
+    cerebro.addstrategy(SampleStrategy1, printlog=main)
     cerebro.broker.setcash(10000.0)
 
     if main:
@@ -106,7 +106,7 @@ def test_strategy_multiple_datas(main=False):
         )
         cerebro.adddata(data)
 
-    cerebro.addstrategy(TestStrategy1)
+    cerebro.addstrategy(SampleStrategy1)
     results = cerebro.run()
 
     # Verify strategy handled multiple data feeds
@@ -133,7 +133,7 @@ def test_strategy_optimization(main=False):
     )
 
     cerebro.adddata(data)
-    cerebro.optstrategy(TestStrategy1, period=range(10, 20, 5))
+    cerebro.optstrategy(SampleStrategy1, period=range(10, 20, 5))
 
     results = cerebro.run()
 

@@ -579,7 +579,7 @@ def test_strategy(max_bonds=None, stdstats=True):
     # annual_return: 0.056615798284517765
     # max_drawdown: 0.24142378277185714
     # trade_num: 1750
-    return results, value_df
+    # 注意：测试函数不应返回值，否则pytest会警告
 
 
 if __name__ == "__main__":
@@ -599,7 +599,7 @@ if __name__ == "__main__":
 
     # 运行回测 - 添加所有可转债
     # 注意：由于有958只可转债，运行可能需要较长时间
-    results, value_df = test_strategy(max_bonds=None)
+    test_strategy(max_bonds=None)
     # value_df = value_df[(value_df.index>pd.to_datetime("2025-01-01"))&(value_df.index<pd.to_datetime("2025-07-31"))]
     print("\n" + "=" * 60)
     print("回测结束")

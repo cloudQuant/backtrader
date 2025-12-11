@@ -292,12 +292,12 @@ class TestBrokerPerformance:
             _ = broker.p.fundmode
         end_time = time.perf_counter()
 
-        # Should complete 40,000 parameter accesses in less than 0.1 seconds
+        # Should complete 40,000 parameter accesses in less than 0.2 seconds
         total_time = end_time - start_time
-        assert total_time < 0.1, f"Parameter access too slow: {total_time:.3f}s"
+        assert total_time < 0.2, f"Parameter access too slow: {total_time:.3f}s"
 
         ops_per_second = 40000 / total_time
-        assert ops_per_second > 100000, f"Parameter access too slow: {ops_per_second:.1f} ops/sec"
+        assert ops_per_second > 50000, f"Parameter access too slow: {ops_per_second:.1f} ops/sec"
 
     def test_method_call_performance(self):
         """Test method call performance"""

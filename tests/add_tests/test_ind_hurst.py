@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
 
+import warnings
 
 import backtrader as bt
+
+# 忽略HurstExponent计算时的numpy警告（自由度不足）
+warnings.filterwarnings("ignore", message="Degrees of freedom <= 0 for slice")
+warnings.filterwarnings("ignore", message="invalid value encountered in")
 
 import backtrader.indicators as btind
 

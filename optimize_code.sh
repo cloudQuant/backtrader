@@ -23,10 +23,10 @@ check_tool() {
 
 echo "📋 检查依赖工具..."
 check_tool "python" "python3"
-python -m pip list | grep -q "pyupgrade" || (echo "❌ 缺少 pyupgrade"; exit 1)
-python -m pip list | grep -q "ruff" || (echo "❌ 缺少 ruff"; exit 1)
-python -m pip list | grep -q "black" || (echo "❌ 缺少 black"; exit 1)
-python -m pip list | grep -q "isort" || (echo "❌ 缺少 isort"; exit 1)
+python -c "import pyupgrade" 2>/dev/null || (echo "❌ 缺少 pyupgrade"; exit 1)
+python -c "import ruff" 2>/dev/null || (echo "❌ 缺少 ruff"; exit 1)
+python -c "import black" 2>/dev/null || (echo "❌ 缺少 black"; exit 1)
+python -c "import isort" 2>/dev/null || (echo "❌ 缺少 isort"; exit 1)
 echo "✅ 所有依赖工具已安装"
 echo ""
 
@@ -54,10 +54,16 @@ python -m ruff check backtrader/ --fix
 echo "✅ ruff check 完成"
 echo ""
 
-# 步骤 5: 运行测试验证
-echo "🧪 步骤 5: 运行测试验证代码完整性..."
-if [ -d "tests/add_tests" ]; then
-    python -m pytest tests/add_tests/ -x --tb=short -q
+# 步骤 5: 更新安装 backtrader
+echo "📦 步骤 5: 更新安装 backtrader..."
+pip install -U .
+echo "✅ backtrader 更新完成"
+echo ""
+
+# 步骤 6: 运行全部测试验证
+echo "🧪 步骤 6: 运行全部测试验证代码完整性..."
+if [ -d "tests" ]; then
+    python -m pytest tests -n 8 --tb=short -q
     echo "✅ 所有测试通过"
 else
     echo "⚠️  未找到测试目录"
