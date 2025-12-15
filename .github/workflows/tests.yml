@@ -89,7 +89,7 @@ jobs:
         
     - name: Upload test results on failure
       if: failure()
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: test-failure-${{ matrix.os }}-py${{ matrix.python-version }}
         path: |
@@ -256,7 +256,7 @@ jobs:
         ls -la dist/
         
     - name: Upload artifacts
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: dist
         path: dist/
