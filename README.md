@@ -30,4 +30,41 @@ pytest ./backtrader/tests -n 4
 3. ts和cs的使用说明：https://yunjinqi.blog.csdn.net/article/details/130507409
 4. 网络上也有很多的backtrader的学习资源，大家可以百度
 
+#### Plotly绑图（高性能交互式图表）
+
+针对大数据量场景，新增了Plotly绑图后端，相比matplotlib有以下优势：
+- **高性能**: 支持10万+数据点，不卡顿
+- **交互式**: 支持缩放、平移、Hover显示数据
+- **联动**: 多子图共享X轴，联动操作
+
+##### 基本使用
+```python
+import backtrader as bt
+
+cerebro = bt.Cerebro()
+# ... 添加策略和数据 ...
+cerebro.run()
+
+# 使用Plotly后端绑图（推荐大数据量使用）
+cerebro.plot(backend="plotly", style="candle")
+
+# 使用原有matplotlib后端（默认）
+cerebro.plot(backend="matplotlib")
+```
+
+##### 保存为HTML文件
+```python
+from backtrader.plot import PlotlyPlot
+
+plotter = PlotlyPlot(style='candle')
+figs = plotter.plot(results[0])
+figs[0].write_html("backtrader_chart.html")
+```
+
+##### 支持的功能
+- **图表类型**: K线图(`candle`)、OHLC(`bar`)、折线图(`line`)
+- **成交量**: 支持overlay或独立子图
+- **技术指标**: SMA, RSI, MACD等自动绘制
+- **范围滑块**: 底部导航条方便浏览
+
 

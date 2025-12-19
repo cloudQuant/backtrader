@@ -19,4 +19,5 @@ else:
 
 from .plot import Plot as Plot
 from .plot import Plot_OldSync as Plot_OldSync
+from .plot_plotly import PlotlyPlot as PlotlyPlot
 from .scheme import PlotScheme as PlotScheme

@@ -1125,6 +1125,7 @@ class Cerebro(ParameterizedBase):
         dpi=300,
         tight=True,
         use=None,
+        backend="matplotlib",
         **kwargs,
     ):
         """
@@ -1141,6 +1142,10 @@ class Cerebro(ParameterizedBase):
 
         ``use``: set it to the name of the desired matplotlib backend. It will
         take precedence over ``iplot``
+
+        ``backend``: plotting backend to use. Options:
+            - 'matplotlib': traditional matplotlib plotting (default)
+            - 'plotly': interactive Plotly charts (better for large data)
 
         ``start``: An index to the datetime line array of the strategy or a
         ``datetime.date``, ``datetime.datetime`` instance indicating the start
@@ -1161,10 +1166,26 @@ class Cerebro(ParameterizedBase):
         if self._exactbars > 0:
             return
 
+        # For plotly backend, ensure Transactions analyzer exists for buy/sell signals
+        if backend == "plotly":
+            for stratlist in self.runstrats:
+                for strat in stratlist:
+                    # Check if Transactions analyzer already exists
+                    has_txn = any(
+                        a.__class__.__name__ == "Transactions" 
+                        for a in strat.analyzers
+                    )
+                    if not has_txn:
+                        # Add Transactions analyzer retroactively is not possible
+                        # So we'll rely on broker.orders instead
+                        pass
+
         if not plotter:
             from . import plot
 
-            if self.p.oldsync:
+            if backend == "plotly":
+                plotter = plot.PlotlyPlot(**kwargs)
+            elif self.p.oldsync:
                 plotter = plot.Plot_OldSync(**kwargs)
             else:
                 plotter = plot.Plot(**kwargs)
