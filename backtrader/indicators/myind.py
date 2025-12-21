@@ -28,7 +28,7 @@ class BarsLast(Indicator):
 
     def __init__(self):
         self.target = self.p.func(self.data, period=self.p.period)
-        self.num = np.NaN
+        self.num = np.nan
 
     def next(self):
         if self.target[0]:
