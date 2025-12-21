@@ -405,9 +405,9 @@ class BondConvertTwoFactor(bt.Strategy):
         # # 对溢价率进行排序并打分（从低到高，排名越靠前分数越低）
         # df['rate_score'] = df['rate'].rank(method='min')
         # 对价格进行排序并打分（从低到高，排名越靠前分数越低）
-        df["close_score"] = df["close"].rank(method="min")
+        df["close_score"] = df["close"].rank(method="first")
         # 对溢价率进行排序并打分（从低到高，排名越靠前分数越低）
-        df["rate_score"] = df["rate"].rank(method="min")
+        df["rate_score"] = df["rate"].rank(method="first")
         # 计算综合得分（使用权重）
         df["total_score"] = (
             df["close_score"] * self.p.first_factor_weight
