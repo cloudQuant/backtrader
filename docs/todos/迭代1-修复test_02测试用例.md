@@ -1,0 +1,3 @@
+现在测试用例在mac上，master分支和remove-metaprogramming分支的测试结果都是通过的，但是在ubuntu上remove-metaprogramming分支的测试结果是失败的，分析研究下为什么通不过，并给出修复建议。
+
+logs里面是在mac上和ubuntu上运行test_02_multi_extend_data.py的输出日志。

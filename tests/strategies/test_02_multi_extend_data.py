@@ -1,7 +1,8 @@
+# 修复跨平台排序不一致后的预期值 (Mac和Ubuntu一致)
 # 2025-10-13T00:00:00, self.bar_num = 1885
-# sharpe_ratio: 0.46882103593170665
-# annual_return: 0.056615798284517765
-# max_drawdown: 0.24142378277185714
+# sharpe_ratio: 0.4187872467646802
+# annual_return: 0.05008539876865753
+# max_drawdown: 0.24836705811129722
 # trade_num: 1750
 
 
@@ -199,7 +200,7 @@ def clean_data():
     df = df[df["datetime"] > pd.to_datetime("2018-01-01")]
 
     datas = {}
-    for symbol, data in df.groupby("symbol"):
+    for symbol, data in df.groupby("symbol", sort=True):
         data = data.set_index("datetime")
         data = data.drop(["symbol", "bond_symbol"], axis=1)
         data = data.dropna()
@@ -388,7 +389,7 @@ class BondConvertTwoFactor(bt.Strategy):
         close_list = []
         rate_list = []
         # for data in self.datas[1:]:
-        for asset in self.stock_dict:
+        for asset in sorted(self.stock_dict):
             data = self.getdatabyname(asset)
             close = data.close[0]
             rate = data.convert_premium_rate[0]
@@ -405,15 +406,15 @@ class BondConvertTwoFactor(bt.Strategy):
         # # 对溢价率进行排序并打分（从低到高，排名越靠前分数越低）
         # df['rate_score'] = df['rate'].rank(method='min')
         # 对价格进行排序并打分（从低到高，排名越靠前分数越低）
-        df["close_score"] = df["close"].rank(method="first")
+        df["close_score"] = df["close"].rank(method="average")
         # 对溢价率进行排序并打分（从低到高，排名越靠前分数越低）
-        df["rate_score"] = df["rate"].rank(method="first")
+        df["rate_score"] = df["rate"].rank(method="average")
         # 计算综合得分（使用权重）
         df["total_score"] = (
             df["close_score"] * self.p.first_factor_weight
             + df["rate_score"] * self.p.second_factor_weight
         )
-        df = df.sort_values(by=["total_score"], ascending=False)
+        df = df.sort_values(by=["total_score", "data_name"], ascending=[False, True])
         # print(df)
         # 转换成需要的结果格式 [[data, score], ...]
         result = []
@@ -564,21 +565,12 @@ def test_strategy(max_bonds=None, stdstats=True):
     print("annual_return:", annual_return)
     print("max_drawdown:", max_drawdown)
     print("trade_num:", trade_num)
-    # assert trade_num == 1750
+    # 修复跨平台排序不一致后的预期值（Mac和Ubuntu应一致）
     assert results[0].bar_num == 1885
-    assert trade_num == 1749
-    # assert sharpe_ratio == 0.46882103593170665
-    # assert annual_return == 0.056615798284517765
-    # assert max_drawdown == 0.24142378277185714
-    assert sharpe_ratio == 0.4613345781810348
-    assert annual_return == 0.055969750235917486
-    assert max_drawdown == 0.23776639938068544
-    # assert trade_num == 1749
-    # 2025-10-13T00:00:00, self.bar_num = 1885
-    # sharpe_ratio: 0.46882103593170665
-    # annual_return: 0.056615798284517765
-    # max_drawdown: 0.24142378277185714
-    # trade_num: 1750
+    assert trade_num == 1750
+    assert sharpe_ratio == 0.4187872467646802
+    assert annual_return == 0.05008539876865753
+    assert max_drawdown == 0.24836705811129722
     # 注意：测试函数不应返回值，否则pytest会警告
 
 
