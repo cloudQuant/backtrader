@@ -779,6 +779,24 @@ class LineSeriesMixin:
 
 
 class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
+    def __new__(cls, *args, **kwargs):
+        """Instantiate lines class when creating LineSeries instances.
+        
+        CRITICAL FIX: The lines attribute is set as a class by __init_subclass__,
+        but it needs to be instantiated for each object instance.
+        """
+        instance = super(LineSeries, cls).__new__(cls)
+        
+        # CRITICAL FIX: Instantiate the lines class if it's a type (class)
+        # This fixes the "Lines.reset() missing 1 required positional argument: 'self'" error
+        if hasattr(cls, "lines") and isinstance(cls.lines, type):
+            instance.lines = cls.lines()
+            # Set owner reference
+            if hasattr(instance.lines, "__dict__"):
+                object.__setattr__(instance.lines, "_owner_ref", instance)
+        
+        return instance
+
     # CRITICAL FIX: Convert plotinfo from dict to object with _get method for plotting compatibility
     class PlotInfoObj:
         def __init__(self):

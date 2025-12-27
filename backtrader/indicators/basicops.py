@@ -482,6 +482,11 @@ class ExponentialSmoothing(Average):
         while len(larray) < end:
             larray.append(0.0)
 
+        # CRITICAL FIX: Pre-fill warmup period with NaN to match expected behavior
+        # This prevents invalid comparisons during prenext when strategy calls next()
+        for i in range(0, min(period - 1, len(darray))):
+            larray[i] = float("nan")
+
         # CRITICAL FIX: Calculate seed value (SMA of first period values)
         # EMA starts at index period-1 with seed = SMA of first period values
         seed_idx = period - 1

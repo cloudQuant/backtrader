@@ -252,8 +252,14 @@ def num2date(x, tz=None, naive=True):
     If *x* is a sequence, a sequence of: class:`datetime` objects will
     be returned.
     """
+    # CRITICAL FIX: Handle invalid datetime values (0, NaN, negative)
+    # ordinal must be >= 1 for datetime.fromordinal()
+    if x != x or x <= 0:  # NaN check (NaN != NaN) or invalid value
+        return datetime.datetime(1970, 1, 1)  # Return epoch as fallback
 
     ix = int(x)  # 对x进行取整数
+    if ix < 1:
+        ix = 1  # Minimum valid ordinal
     dt = datetime.datetime.fromordinal(ix)  # 返回对应 Gregorian 日历时间对应的 datetime 对象
     remainder = float(x) - ix  # x的小数部分
     hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)  # 小时

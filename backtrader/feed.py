@@ -130,18 +130,20 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         self._timeframe = getattr(self.p, "timeframe", TimeFrame.Days)
 
         # Only set sessionstart/sessionend defaults if they weren't explicitly passed
-        # 开始的时间如果是datetime格式，就等于从sessionstart获取具体的时间，如果是None的话，只在未明确传入时等于最小的时间
+        # 开始的时间如果是datetime格式，就等于从sessionstart获取具体的时间，如果是None的话，等于最小的时间
         sessionstart = getattr(self.p, "sessionstart", None)
         if isinstance(sessionstart, datetime.datetime):
             self.p.sessionstart = sessionstart.time()
-        elif sessionstart is None and "sessionstart" not in kwargs:
+        elif sessionstart is None:
+            # CRITICAL FIX: Always set default if None (kwargs check was unreliable)
             self.p.sessionstart = datetime.time.min
 
-        # 结束的时间如果是datetime格式，就等于从sessionend获取具体的时间，如果是None的话，只在未明确传入时等于23：59：59.999990
+        # 结束的时间如果是datetime格式，就等于从sessionend获取具体的时间，如果是None的话，等于23：59：59.999990
         sessionend = getattr(self.p, "sessionend", None)
         if isinstance(sessionend, datetime.datetime):
             self.p.sessionend = sessionend.time()
-        elif sessionend is None and "sessionend" not in kwargs:
+        elif sessionend is None:
+            # CRITICAL FIX: Always set default if None (kwargs check was unreliable)
             # remove 9 to avoid precision rounding errors
             self.p.sessionend = datetime.time(23, 59, 59, 999990)
 

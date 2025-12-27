@@ -259,6 +259,11 @@ class MovingAverageSimple(MovingAverageBase):
             while len(dst) < end:
                 dst.append(0.0)
 
+            # CRITICAL FIX: Pre-fill warmup period with NaN to match expected behavior
+            # This prevents ZeroDivisionError when strategy calls next() from prenext()
+            for i in range(0, min(start, len(src))):
+                dst[i] = float("nan")
+
             # Calculate SMA for each index
             for i in range(start, end):
                 if i >= period - 1:

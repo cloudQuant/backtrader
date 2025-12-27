@@ -37,6 +37,7 @@ class PandasDirectData(DataBase):
 
     # 开始，把dataframe数据转化成可以迭代的元组，每一行一个元组
     def __init__(self):
+        super().__init__()  # CRITICAL FIX: Must call parent __init__
         self._rows = None
 
     def start(self):
