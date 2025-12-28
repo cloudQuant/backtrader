@@ -347,14 +347,30 @@ class Strategy(StrategyBase):
             # 获取指标的_clock属性
             clk = getattr(lineiter, "_clock", None)
 
-            # CRITICAL FIX: If clock is MinimalClock, use data instead
+            # CRITICAL FIX: If clock is MinimalClock, use the indicator's actual data source
             if (
                 clk is not None
                 and hasattr(clk, "__class__")
                 and "MinimalClock" in clk.__class__.__name__
             ):
                 if self.datas:
-                    clk = self.datas[0]
+                    # Find which data feed the indicator's data source belongs to
+                    clock_set = False
+                    if hasattr(lineiter, "datas") and lineiter.datas:
+                        ind_data = lineiter.datas[0]
+                        for data_feed in self.datas:
+                            # Check if ind_data is the data feed itself
+                            if ind_data is data_feed:
+                                clk = data_feed
+                                clock_set = True
+                                break
+                            # Check if ind_data is one of the lines of this data feed
+                            if hasattr(data_feed, "lines") and ind_data in data_feed.lines:
+                                clk = data_feed
+                                clock_set = True
+                                break
+                    if not clock_set:
+                        clk = self.datas[0]
                     lineiter._clock = clk  # Update indicator's clock
                 else:
                     clk = None

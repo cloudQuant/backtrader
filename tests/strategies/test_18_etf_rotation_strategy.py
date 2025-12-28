@@ -275,12 +275,12 @@ def test_etf_rotation_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）
-    assert strat.bar_num == 2600, f"Expected bar_num=2638, got {strat.bar_num}"
+    assert strat.bar_num == 2600, f"Expected bar_num=2600, got {strat.bar_num}"
     assert strat.buy_count == 266, f"Expected buy_count=266, got {strat.buy_count}"
     assert strat.sell_count == 129, f"Expected sell_count=129, got {strat.sell_count}"
     assert total_trades == 265, f"Expected total_trades=265, got {total_trades}"
     assert sharpe_ratio == 0.5429576897026931, f"Expected sharpe_ratio=0.5429576897026931, got {sharpe_ratio}"
-    assert annual_return == 0.16189795444232807, f"Expected annual_return=0.15938920375171883, got {annual_return}"
+    assert annual_return == 0.16189795444232807, f"Expected annual_return=0.16189795444232807, got {annual_return}"
     assert max_drawdown == 0.3202798124215756, f"Expected max_drawdown=0.3202798124215756, got {max_drawdown}"
     assert final_value == 235146.28691140004, f"Expected final_value=235146.28691140004, got {final_value}"
 
