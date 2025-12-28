@@ -313,76 +313,68 @@ class TimeFrameAnalyzerBase(Analyzer):
     def _start(self):
         # Override to add specific attributes
         # 设置交易周期，比如分钟
+        # 设置交易周期 - use data's timeframe if not specified
+        self.timeframe = self.p.timeframe or self.data._timeframe
+        # 设置压缩 - use data's compression if not specified
+        self.compression = self.p.compression or self.data._compression
+        # CRITICAL FIX: Initialize dtcmp with datetime.min to match master branch behavior
+        # This ensures first _dt_over() call detects a change and counts correctly
+        self.dtcmp, self.dtkey = self._get_dt_cmpkey(datetime.datetime.min)
         super()._start()
-        # 设置交易周期
-        self.timeframe = self.p.timeframe
-        # 设置压缩
-        self.compression = self.p.compression
-        # 当前的时间 - 检查datetime数组是否有数据
-        if len(self.strategy.datetime) > 0:
-            self.dtcmp, self.dtkey = self._get_dt_cmpkey(self.strategy.datetime[0])
-        else:
-            # 如果没有数据，使用默认值
-            self.dtcmp = 0
-            self.dtkey = datetime.datetime.min
 
     def _prenext(self):
-        # 如果dopprenext是true的话
+        # Match master branch: call children, check _dt_over, then prenext
+        for child in self._children:
+            child._prenext()
+
+        if self._dt_over():
+            self.on_dt_over()
+
         if self.p._doprenext:
-            # 保存当前的状态
-            self._save_dtcmp()
-            # 做prenext分析
-            self._dt_prenext()
-            super()._prenext()
+            self.prenext()
 
     def _nextstart(self):
-        # 保存当前状态
-        self._save_dtcmp()
-        # next分析
-        self._dt_next()
-        super()._nextstart()
+        # Match master branch: call children, check _dt_over or not doprenext, then nextstart
+        for child in self._children:
+            child._nextstart()
+
+        if self._dt_over() or not self.p._doprenext:
+            self.on_dt_over()
+
+        self.nextstart()
 
     def _next(self):
-        # 保存当前状态
-        self._save_dtcmp()
-        # next分析
-        self._dt_next()
-        super()._next()
+        # Match master branch: call children, check _dt_over, then next
+        for child in self._children:
+            child._next()
+
+        if self._dt_over():
+            self.on_dt_over()
+
+        self.next()
 
     # 这个方法子类一般需要重写
     def on_dt_over(self):
         pass
 
-    # 如果_dt_over，就设置dt_over是True，调用on_dt_over
+    # CRITICAL FIX: Match master branch - return boolean and update dtcmp atomically
     def _dt_over(self):
         # 如果交易周期等于没有时间周期，dtcmp等于最大整数，dtkey等于最大时间
         if self.timeframe == TimeFrame.NoTimeFrame:
-            self.dtcmp = MAXINT
-            self.dtkey = datetime.datetime.max
+            dtcmp, dtkey = MAXINT, datetime.datetime.max
         else:
-            # 设置dtcmp和dtkey
-            self.dtcmp, self.dtkey = self._get_dt_cmpkey(self.strategy.datetime[0])
-        # 如果子类重写了这个方法，调用这个方法
-        self.on_dt_over()
+            # Get current datetime from strategy
+            dt = self.strategy.datetime.datetime()
+            dtcmp, dtkey = self._get_dt_cmpkey(dt)
 
-    # 保存dtcmp
-    def _save_dtcmp(self):
-        # 保存之前的dtcmp
-        self.dtcmp_prev = self.dtcmp
-
-    # prenext的时候调用
-    def _dt_prenext(self):
-        # 获取dtcmp和dtkey
-        dtcmp, dtkey = self._get_dt_cmpkey(self.strategy.datetime[0])
-        # 如果当前的dtcmp不等于dtcmp，调用dt_over
-        if self.dtcmp != dtcmp:
-            self._dt_over()
-
-    # next的时候调用，和prenext逻辑一样
-    def _dt_next(self):
-        dtcmp, dtkey = self._get_dt_cmpkey(self.strategy.datetime[0])
-        if self.dtcmp != dtcmp:
-            self._dt_over()
+        # 如果dtcmp是None，或者dtcmp大于self.dtcmp的话
+        if self.dtcmp is None or dtcmp > self.dtcmp:
+            # 设置dtkey，dtkey1，dtcmp，dtcmp1返回True
+            self.dtkey, self.dtkey1 = dtkey, self.dtkey
+            self.dtcmp, self.dtcmp1 = dtcmp, self.dtcmp
+            return True
+        # 返回False
+        return False
 
     # 获取dtcmp和dtkey
     def _get_dt_cmpkey(self, dt):
