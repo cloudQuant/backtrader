@@ -476,6 +476,7 @@ class Lines(object):
                         or hasattr(value, "__call__")
                     ):
                         # Line-like object or indicator - assign directly
+                        # The indicator's __getitem__ will handle value access
                         self.lines[line] = value
                     elif hasattr(value, "__iter__") and not isinstance(value, string_types):
                         # Iterable (but not string) - create a line from it

@@ -79,6 +79,16 @@ class MovingAverageBase(Indicator):
     def __init__(self):
         """Initialize moving average and set minimum period"""
         super().__init__()
+        
+        # CRITICAL FIX: Inherit minperiod from data source BEFORE adding own period
+        # This ensures nested indicators (like EMA applied to MACD line) properly accumulate minperiods
+        if hasattr(self, 'datas') and self.datas:
+            data_minperiods = [getattr(d, '_minperiod', 1) for d in self.datas if d is not None]
+            if data_minperiods:
+                data_max = max(data_minperiods)
+                if data_max > self._minperiod:
+                    self._minperiod = data_max
+        
         # CRITICAL FIX: Set the minimum period based on the period parameter
         # This ensures the indicator doesn't start calculating until enough data is available
         self.addminperiod(self.p.period)

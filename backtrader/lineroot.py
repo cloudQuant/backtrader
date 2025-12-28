@@ -651,7 +651,8 @@ class LineMultiple(LineRoot):
         """
         The passed minperiod is fed to the lines
         """
-        # CRITICAL FIX: Also update self._minperiod
+        # Update self._minperiod using max (not add) to avoid double-counting
+        # The actual period accumulation happens in the individual lines via addminperiod
         self._minperiod = max(self._minperiod, minperiod)
 
         for line in self.lines:

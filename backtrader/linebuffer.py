@@ -306,7 +306,13 @@ class LineBuffer(LineSingle, LineRootMixin):
                 raise IndexError("array index out of range")
 
         try:
-            return self.array[self._idx + ago]
+            # CRITICAL FIX: In runonce mode, _idx points to end of data after once() completes.
+            # Use lencount-1 as the current position when _idx exceeds lencount
+            # This ensures indicator values are accessed at the correct bar during next() calls
+            current_idx = self._idx
+            if self.lencount > 0 and self._idx >= self.lencount:
+                current_idx = self.lencount - 1
+            return self.array[current_idx + ago]
         except IndexError:
             # CRITICAL FIX: Simplified logic - check if this line is marked as data feed line
             # Lines belonging to data feeds are marked with _is_data_feed_line = True in feed.py
@@ -985,10 +991,11 @@ class LineActionsMixin:
         if _obj._clock is None and hasattr(_obj, "datas") and _obj.datas:
             _obj._clock = _obj.datas[0]
 
-        # CRITICAL FIX: Initialize minperiod to 1 for indicators
-        # The actual minperiod will be set by addminperiod() calls in __init__
-        # Don't inherit minperiod from lines to avoid double-counting
-        _obj._minperiod = 1
+        # CRITICAL FIX: Only initialize minperiod to 1 if not already set from data sources
+        # The _minperiod might have been set in __new__ from data sources for nested indicators
+        # (e.g., EMA applied to another indicator's output)
+        if not hasattr(_obj, "_minperiod") or _obj._minperiod is None:
+            _obj._minperiod = 1
 
         return _obj, args, kwargs
 
@@ -1752,8 +1759,10 @@ class LinesOperation(LineActions):
         a_minperiod = getattr(a, "_minperiod", 1) if hasattr(a, "_minperiod") else 1
         b_minperiod = getattr(b, "_minperiod", 1) if hasattr(b, "_minperiod") else 1
 
-        self.addminperiod(a_minperiod)
-        self.addminperiod(b_minperiod)
+        # Use updateminperiod to take max of operand minperiods
+        # For me1 - me2, minperiod = max(me1._minperiod, me2._minperiod)
+        max_minperiod = max(a_minperiod, b_minperiod)
+        self.updateminperiod(max_minperiod)
 
     def next(self):
         # operation(float, other) ... expecting other to be a float

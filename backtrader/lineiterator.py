@@ -146,6 +146,13 @@ class LineIteratorMixin:
             # CRITICAL: Set data0, data1, etc. BEFORE any indicator __init__ methods run
             for d, data in enumerate(_obj.datas):
                 setattr(_obj, f"data{d}", data)
+            
+            # CRITICAL FIX: Initialize _minperiod from data sources BEFORE indicator __init__ runs
+            # This ensures that when indicator calls addminperiod(period), it adds to the
+            # data source's minperiod, not to 1
+            data_minperiods = [getattr(d, "_minperiod", 1) for d in _obj.datas if d is not None]
+            if data_minperiods:
+                _obj._minperiod = max(data_minperiods)
 
                 # Set line aliases if the data has them (PERFORMANCE: use try-except)
                 try:
@@ -437,8 +444,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
         instance._init_kwargs = kwargs.copy()
         instance._init_args = args
 
-        # Initialize basic attributes first - DON'T process data here, let donew handle it
+        # Initialize basic attributes first
         instance._lineiterators = collections.defaultdict(list)
+        
+        # NOTE: Data source extraction and minperiod initialization removed from __new__
+        # to avoid interfering with normal donew/dopreinit flow. 
+        # Minperiod is now handled explicitly in indicators that need it (like MACD).
 
         # OPTIMIZED: Check if this is a strategy using cached type check
         is_strategy = (
@@ -541,6 +552,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 # CRITICAL: Set data0, data1 etc. immediately
                 for d, data in enumerate(datas):
                     setattr(self, f"data{d}", data)
+                
+                # CRITICAL FIX: Initialize _minperiod from data sources BEFORE indicator __init__ runs
+                # This ensures that when indicator calls addminperiod(period), it adds to the
+                # data source's minperiod, not to 1
+                data_minperiods = [getattr(d, "_minperiod", 1) for d in datas if d is not None]
+                if data_minperiods:
+                    self._minperiod = max(data_minperiods)
             else:
                 self.data = None
 

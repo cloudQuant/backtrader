@@ -98,16 +98,9 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
             cls.lines = Lines._derive("lines", lines, extralines, ())
             pass
 
-        # CRITICAL FIX: Do NOT patch __init__ here - it's already patched by metabase.py
-        # The metabase.py patched_init handles both parameters and data0/data1 setup
-        # Patching here would override the metabase.py patching and break parameter handling
-
-        # Patch __init__ methods of indicator subclasses to handle arguments
-        # DISABLED: This is now handled in metabase.py
-        # if '__init__' in cls.__dict__:
-        #     original_init = cls.__init__
-        #     ...
-        #     cls.__init__ = patched_init
+        # NOTE: __init__ patching for _finalize_minperiod disabled as it's handled elsewhere
+        # The minperiod calculation is now done explicitly in indicators that need it (like MACD)
+        pass
 
         # Register subclasses automatically
         if not cls.aliased and cls.__name__ != "Indicator" and not cls.__name__.startswith("_"):
@@ -166,6 +159,62 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
     def usecache(cls, onoff):
         """Enable or disable caching"""
         IndicatorRegistry.usecache(onoff)
+
+    def _finalize_minperiod(self):
+        """CRITICAL FIX: Finalize minimum period calculation after indicator __init__ completes.
+        
+        This method is called after the subclass's __init__ has finished creating
+        sub-indicators and line bindings. It ensures that the minimum periods from
+        all data sources, lines and sub-indicators are properly propagated to this 
+        indicator's _minperiod.
+        """
+        # Step 0: Calculate minperiod from data sources first
+        # This is critical for indicators applied to other indicators/lines
+        try:
+            if hasattr(self, "datas") and self.datas:
+                data_minperiods = [getattr(d, "_minperiod", 1) for d in self.datas if d is not None]
+                if data_minperiods:
+                    data_max = max(data_minperiods)
+                    if data_max > self._minperiod:
+                        self._minperiod = data_max
+        except (AttributeError, TypeError):
+            pass
+        
+        # Step 1: Calculate minperiod from lines
+        try:
+            if hasattr(self, "lines") and self.lines is not None:
+                line_minperiods = []
+                for line in self.lines:
+                    mp = getattr(line, "_minperiod", 1)
+                    line_minperiods.append(mp)
+                if line_minperiods:
+                    lines_max = max(line_minperiods)
+                    if lines_max > self._minperiod:
+                        self._minperiod = lines_max
+        except (AttributeError, TypeError):
+            pass
+        
+        # Step 2: Calculate minperiod from sub-indicators
+        try:
+            if hasattr(self, "_lineiterators"):
+                indicators = self._lineiterators.get(LineIterator.IndType, [])
+                if indicators:
+                    ind_minperiods = [getattr(ind, "_minperiod", 1) for ind in indicators]
+                    if ind_minperiods:
+                        ind_max = max(ind_minperiods)
+                        if ind_max > self._minperiod:
+                            self._minperiod = ind_max
+        except (AttributeError, TypeError):
+            pass
+        
+        # Step 3: Update minperiod on all lines
+        try:
+            if hasattr(self, "lines") and self.lines is not None:
+                for line in self.lines:
+                    if hasattr(line, "updateminperiod"):
+                        line.updateminperiod(self._minperiod)
+        except (AttributeError, TypeError):
+            pass
 
     # 当数据小于当前时间的时候，数据向前移动size
     def advance(self, size=1):

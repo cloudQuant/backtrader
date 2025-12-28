@@ -46,7 +46,18 @@ class MACD(Indicator):
         me1 = self.p.movav(self.data, period=self.p.period_me1)
         me2 = self.p.movav(self.data, period=self.p.period_me2)
         self.lines.macd = me1 - me2
-        self.lines.signal = self.p.movav(self.lines.macd, period=self.p.period_signal)
+        signal_ema = self.p.movav(self.lines.macd, period=self.p.period_signal)
+        self.lines.signal = signal_ema
+        
+        # CRITICAL FIX: Calculate correct minperiod for MACD
+        # The signal line requires max(me1, me2) + signal_period - 1 bars
+        # macd_minperiod = max(period_me1, period_me2)
+        # signal_minperiod = macd_minperiod + period_signal - 1
+        signal_minperiod = max(self.p.period_me1, self.p.period_me2) + self.p.period_signal - 1
+        self._minperiod = max(self._minperiod, signal_minperiod)
+        # Also update the signal line's minperiod
+        if hasattr(self.lines.signal, 'updateminperiod'):
+            self.lines.signal.updateminperiod(signal_minperiod)
 
 
 class MACDHisto(MACD):
