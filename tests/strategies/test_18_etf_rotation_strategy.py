@@ -275,7 +275,7 @@ def test_etf_rotation_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）
-    assert strat.bar_num == 2600, f"Expected bar_num=2638, got {strat.bar_num}"
+    assert strat.bar_num == 2600, f"Expected bar_num=2600, got {strat.bar_num}"
     assert strat.buy_count == 266, f"Expected buy_count=266, got {strat.buy_count}"
     assert strat.sell_count == 129, f"Expected sell_count=129, got {strat.sell_count}"
     assert total_trades == 265, f"Expected total_trades=265, got {total_trades}"
