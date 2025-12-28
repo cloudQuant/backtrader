@@ -165,8 +165,8 @@ class MovingAverageSimple(MovingAverageBase):
                 if len(self._price_window) >= period:
                     return self._sum / period
                 else:
-                    # Not enough data yet
-                    return sum(self._price_window) / len(self._price_window)
+                    # Not enough data yet - return NaN to prevent premature trading
+                    return float("nan")
 
         except (IndexError, ValueError, TypeError):
             return float("nan")
@@ -190,10 +190,9 @@ class MovingAverageSimple(MovingAverageBase):
             # Calculate first SMA value
             if len(self._price_window) >= period:
                 sma_value = self._sum / period
-            elif len(self._price_window) > 0:
-                sma_value = sum(self._price_window) / len(self._price_window)
             else:
-                sma_value = 0.0
+                # Not enough data yet - return NaN to prevent premature trading
+                sma_value = float("nan")
 
             # Set the value
             if hasattr(self, "lines") and hasattr(self.lines, "sma"):
@@ -202,9 +201,9 @@ class MovingAverageSimple(MovingAverageBase):
                 self.lines.lines[0][0] = sma_value
 
         except Exception:
-            # Fallback to safe default
+            # Fallback to NaN to prevent premature trading
             if hasattr(self, "lines") and hasattr(self.lines, "sma"):
-                self.lines.sma[0] = 0.0
+                self.lines.sma[0] = float("nan")
 
     def next(self):
         """Phase 2 Optimized next() method with vectorized calculations"""
@@ -225,12 +224,12 @@ class MovingAverageSimple(MovingAverageBase):
                 # Try one more time with direct manual calculation
                 sma_value = self._calculate_sma_manual(period)
 
-            # CRITICAL FIX: If still NaN or None, set to 0.0 as a fallback
-            if sma_value is None or (
-                isinstance(sma_value, float)
-                and (sma_value != sma_value or sma_value == float("nan"))
-            ):
-                sma_value = 0.0
+            # CRITICAL FIX: Keep NaN when there's insufficient data
+            # This is important because strategies may use prenext() to call next()
+            # and we don't want to trigger trades when indicators aren't ready
+            # NaN comparisons always return False, preventing premature trading
+            if sma_value is None:
+                sma_value = float("nan")
 
             # Set the SMA line value
             # CRITICAL FIX: Always use line assignment to ensure lencount is managed correctly
@@ -241,11 +240,11 @@ class MovingAverageSimple(MovingAverageBase):
                 self.lines.lines[0][0] = sma_value
 
         except Exception:
-            # Fallback to safe default
+            # Fallback to NaN to prevent premature trading
             if hasattr(self, "lines") and hasattr(self.lines, "sma"):
-                self.lines.sma[0] = 0.0
+                self.lines.sma[0] = float("nan")
             elif hasattr(self, "lines") and len(self.lines.lines) > 0:
-                self.lines.lines[0][0] = 0.0
+                self.lines.lines[0][0] = float("nan")
 
     def once(self, start, end):
         """Optimized batch calculation for runonce mode"""
@@ -255,24 +254,38 @@ class MovingAverageSimple(MovingAverageBase):
             src = self.data.array
             period = self.p.period
 
-            # Ensure destination array is large enough
+            # CRITICAL FIX: Use the actual data source length, not the passed end parameter
+            # This is important when multiple data feeds have different lengths
+            # The indicator should only calculate up to its own data source's length
+            actual_end = min(end, len(src))
+
+            # Ensure destination array is large enough for full end
+            # Fill with NaN for positions beyond data source length
             while len(dst) < end:
-                dst.append(0.0)
+                dst.append(float("nan"))
 
             # CRITICAL FIX: Pre-fill warmup period with NaN to match expected behavior
             # This prevents ZeroDivisionError when strategy calls next() from prenext()
             for i in range(0, min(start, len(src))):
                 dst[i] = float("nan")
 
-            # Calculate SMA for each index
-            for i in range(start, end):
+            # Calculate SMA for each index up to actual data length
+            for i in range(start, actual_end):
                 if i >= period - 1:
                     # Calculate SMA: average of last 'period' values
                     start_idx = i - period + 1
                     end_idx = i + 1
                     if end_idx <= len(src):
-                        window_sum = sum(src[start_idx:end_idx])
-                        dst[i] = window_sum / period
+                        window = src[start_idx:end_idx]
+                        # CRITICAL FIX: Check for NaN values in the window
+                        # If any value is NaN (e.g., from misaligned data feeds),
+                        # the result should be NaN to match master branch behavior
+                        import math
+                        if any(math.isnan(v) if isinstance(v, float) else False for v in window):
+                            dst[i] = float("nan")
+                        else:
+                            window_sum = sum(window)
+                            dst[i] = window_sum / period
                     else:
                         dst[i] = float("nan")
                 else:
