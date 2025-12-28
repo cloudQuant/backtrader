@@ -67,29 +67,67 @@ class PivotPoint(Indicator):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
-        o = self.data.open
-        h = self.data.high  # current high
-        low = self.data.low  # current low
-        c = self.data.close  # current close
-
-        if self.p.close:
-            self.lines.p = p = (h + low + 2.0 * c) / 4.0
-        elif self.p.open:
-            self.lines.p = p = (h + low + c + o) / 4.0
-        else:
-            self.lines.p = p = (h + low + c) / 3.0
-
-        self.lines.s1 = 2.0 * p - h
-        self.lines.r1 = 2.0 * p - low
-
-        self.lines.s2 = p - (h - low)
-        self.lines.r2 = p + (h - low)
-
         super().__init__()  # enable coopertive inheritance
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
             self()  # Coupler to follow a real object
+
+    def next(self):
+        o = self.data.open[0]
+        h = self.data.high[0]
+        low = self.data.low[0]
+        c = self.data.close[0]
+
+        if self.p.close:
+            p = (h + low + 2.0 * c) / 4.0
+        elif self.p.open:
+            p = (h + low + c + o) / 4.0
+        else:
+            p = (h + low + c) / 3.0
+
+        self.lines.p[0] = p
+        self.lines.s1[0] = 2.0 * p - h
+        self.lines.r1[0] = 2.0 * p - low
+        self.lines.s2[0] = p - (h - low)
+        self.lines.r2[0] = p + (h - low)
+
+    def once(self, start, end):
+        o_array = self.data.open.array
+        h_array = self.data.high.array
+        l_array = self.data.low.array
+        c_array = self.data.close.array
+        p_array = self.lines.p.array
+        s1_array = self.lines.s1.array
+        s2_array = self.lines.s2.array
+        r1_array = self.lines.r1.array
+        r2_array = self.lines.r2.array
+        
+        for arr in [p_array, s1_array, s2_array, r1_array, r2_array]:
+            while len(arr) < end:
+                arr.append(0.0)
+        
+        use_close = self.p.close
+        use_open = self.p.open
+        
+        for i in range(start, min(end, len(h_array), len(l_array), len(c_array))):
+            o = o_array[i] if i < len(o_array) else 0.0
+            h = h_array[i] if i < len(h_array) else 0.0
+            low = l_array[i] if i < len(l_array) else 0.0
+            c = c_array[i] if i < len(c_array) else 0.0
+            
+            if use_close:
+                p = (h + low + 2.0 * c) / 4.0
+            elif use_open:
+                p = (h + low + c + o) / 4.0
+            else:
+                p = (h + low + c) / 3.0
+            
+            p_array[i] = p
+            s1_array[i] = 2.0 * p - h
+            r1_array[i] = 2.0 * p - low
+            s2_array[i] = p - (h - low)
+            r2_array[i] = p + (h - low)
 
 
 class FibonacciPivotPoint(Indicator):
@@ -155,31 +193,78 @@ class FibonacciPivotPoint(Indicator):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
-        o = self.data.open
-        h = self.data.high  # current high
-        low = self.data.low  # current low
-        c = self.data.close  # current high
-
-        if self.p.close:
-            self.lines.p = p = (h + low + 2.0 * c) / 4.0
-        elif self.p.open:
-            self.lines.p = p = (h + low + c + o) / 4.0
-        else:
-            self.lines.p = p = (h + low + c) / 3.0
-
-        self.lines.s1 = p - self.p.level1 * (h - low)
-        self.lines.s2 = p - self.p.level2 * (h - low)
-        self.lines.s3 = p - self.p.level3 * (h - low)
-
-        self.lines.r1 = p + self.p.level1 * (h - low)
-        self.lines.r2 = p + self.p.level2 * (h - low)
-        self.lines.r3 = p + self.p.level3 * (h - low)
-
         super().__init__()
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
             self()  # Coupler to follow a real object
+
+    def next(self):
+        o = self.data.open[0]
+        h = self.data.high[0]
+        low = self.data.low[0]
+        c = self.data.close[0]
+
+        if self.p.close:
+            p = (h + low + 2.0 * c) / 4.0
+        elif self.p.open:
+            p = (h + low + c + o) / 4.0
+        else:
+            p = (h + low + c) / 3.0
+
+        hl_range = h - low
+        self.lines.p[0] = p
+        self.lines.s1[0] = p - self.p.level1 * hl_range
+        self.lines.s2[0] = p - self.p.level2 * hl_range
+        self.lines.s3[0] = p - self.p.level3 * hl_range
+        self.lines.r1[0] = p + self.p.level1 * hl_range
+        self.lines.r2[0] = p + self.p.level2 * hl_range
+        self.lines.r3[0] = p + self.p.level3 * hl_range
+
+    def once(self, start, end):
+        o_array = self.data.open.array
+        h_array = self.data.high.array
+        l_array = self.data.low.array
+        c_array = self.data.close.array
+        p_array = self.lines.p.array
+        s1_array = self.lines.s1.array
+        s2_array = self.lines.s2.array
+        s3_array = self.lines.s3.array
+        r1_array = self.lines.r1.array
+        r2_array = self.lines.r2.array
+        r3_array = self.lines.r3.array
+        
+        for arr in [p_array, s1_array, s2_array, s3_array, r1_array, r2_array, r3_array]:
+            while len(arr) < end:
+                arr.append(0.0)
+        
+        use_close = self.p.close
+        use_open = self.p.open
+        level1 = self.p.level1
+        level2 = self.p.level2
+        level3 = self.p.level3
+        
+        for i in range(start, min(end, len(h_array), len(l_array), len(c_array))):
+            o = o_array[i] if i < len(o_array) else 0.0
+            h = h_array[i] if i < len(h_array) else 0.0
+            low = l_array[i] if i < len(l_array) else 0.0
+            c = c_array[i] if i < len(c_array) else 0.0
+            
+            if use_close:
+                p = (h + low + 2.0 * c) / 4.0
+            elif use_open:
+                p = (h + low + c + o) / 4.0
+            else:
+                p = (h + low + c) / 3.0
+            
+            hl_range = h - low
+            p_array[i] = p
+            s1_array[i] = p - level1 * hl_range
+            s2_array[i] = p - level2 * hl_range
+            s3_array[i] = p - level3 * hl_range
+            r1_array[i] = p + level1 * hl_range
+            r2_array[i] = p + level2 * hl_range
+            r3_array[i] = p + level3 * hl_range
 
 
 class DemarkPivotPoint(Indicator):
@@ -250,18 +335,55 @@ class DemarkPivotPoint(Indicator):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
-        x1 = self.data.high + 2.0 * self.data.low + self.data.close
-        x2 = 2.0 * self.data.high + self.data.low + self.data.close
-        x3 = self.data.high + self.data.low + 2.0 * self.data.close
-
-        x = CmpEx(self.data.close, self.data.open, x1, x2, x3)
-        self.lines.p = x / 4.0
-
-        self.lines.s1 = x / 2.0 - self.data.high
-        self.lines.r1 = x / 2.0 - self.data.low
-
         super().__init__()
 
         if self.p._autoplot:
             self.plotinfo.plot = False  # disable own plotting
             self()  # Coupler to follow a real object
+
+    def next(self):
+        h = self.data.high[0]
+        low = self.data.low[0]
+        o = self.data.open[0]
+        c = self.data.close[0]
+        
+        if c < o:
+            x = h + 2.0 * low + c
+        elif c > o:
+            x = 2.0 * h + low + c
+        else:
+            x = h + low + 2.0 * c
+        
+        self.lines.p[0] = x / 4.0
+        self.lines.s1[0] = x / 2.0 - h
+        self.lines.r1[0] = x / 2.0 - low
+
+    def once(self, start, end):
+        o_array = self.data.open.array
+        h_array = self.data.high.array
+        l_array = self.data.low.array
+        c_array = self.data.close.array
+        p_array = self.lines.p.array
+        s1_array = self.lines.s1.array
+        r1_array = self.lines.r1.array
+        
+        for arr in [p_array, s1_array, r1_array]:
+            while len(arr) < end:
+                arr.append(0.0)
+        
+        for i in range(start, min(end, len(h_array), len(l_array), len(c_array), len(o_array))):
+            o = o_array[i] if i < len(o_array) else 0.0
+            h = h_array[i] if i < len(h_array) else 0.0
+            low = l_array[i] if i < len(l_array) else 0.0
+            c = c_array[i] if i < len(c_array) else 0.0
+            
+            if c < o:
+                x = h + 2.0 * low + c
+            elif c > o:
+                x = 2.0 * h + low + c
+            else:
+                x = h + low + 2.0 * c
+            
+            p_array[i] = x / 4.0
+            s1_array[i] = x / 2.0 - h
+            r1_array[i] = x / 2.0 - low

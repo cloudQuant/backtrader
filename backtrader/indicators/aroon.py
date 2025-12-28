@@ -79,7 +79,18 @@ class AroonUp(_AroonBase):
     def __init__(self):
         super().__init__()
 
-        self.lines.aroonup = self.up
+    def next(self):
+        self.lines.aroonup[0] = self.up[0]
+
+    def once(self, start, end):
+        up_array = self.up.lines[0].array
+        aroonup_array = self.lines.aroonup.array
+        
+        while len(aroonup_array) < end:
+            aroonup_array.append(0.0)
+        
+        for i in range(start, min(end, len(up_array))):
+            aroonup_array[i] = up_array[i] if i < len(up_array) else 0.0
 
 
 class AroonDown(_AroonBase):
@@ -111,7 +122,18 @@ class AroonDown(_AroonBase):
     def __init__(self):
         super().__init__()
 
-        self.lines.aroondown = self.down
+    def next(self):
+        self.lines.aroondown[0] = self.down[0]
+
+    def once(self, start, end):
+        down_array = self.down.lines[0].array
+        aroondown_array = self.lines.aroondown.array
+        
+        while len(aroondown_array) < end:
+            aroondown_array.append(0.0)
+        
+        for i in range(start, min(end, len(down_array))):
+            aroondown_array[i] = down_array[i] if i < len(down_array) else 0.0
 
 
 class AroonUpDown(AroonUp, AroonDown):
@@ -172,7 +194,28 @@ class AroonOscillator(_AroonBase):
     def __init__(self):
         super().__init__()
 
-        self.lines.aroonosc = self.up - self.down
+    def next(self):
+        self.lines.aroonosc[0] = self.up[0] - self.down[0]
+
+    def once(self, start, end):
+        import math
+        up_array = self.up.lines[0].array
+        down_array = self.down.lines[0].array
+        aroonosc_array = self.lines.aroonosc.array
+        
+        while len(aroonosc_array) < end:
+            aroonosc_array.append(0.0)
+        
+        for i in range(start, min(end, len(up_array), len(down_array))):
+            up_val = up_array[i] if i < len(up_array) else 0.0
+            down_val = down_array[i] if i < len(down_array) else 0.0
+            
+            if isinstance(up_val, float) and math.isnan(up_val):
+                aroonosc_array[i] = float("nan")
+            elif isinstance(down_val, float) and math.isnan(down_val):
+                aroonosc_array[i] = float("nan")
+            else:
+                aroonosc_array[i] = up_val - down_val
 
 
 class AroonUpDownOscillator(AroonUpDown, AroonOscillator):

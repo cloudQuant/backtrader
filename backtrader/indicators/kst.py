@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import ROC100, SMA, Indicator
 
 
@@ -54,15 +55,69 @@ class KnowSureThing(Indicator):
     plotinfo = dict(plothlines=[0.0])
 
     def __init__(self):
-        # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
         super().__init__()
+        self.rcma1 = self.p._rmovav(ROC100(self.data, period=self.p.rp1), period=self.p.rma1)
+        self.rcma2 = self.p._rmovav(ROC100(self.data, period=self.p.rp2), period=self.p.rma2)
+        self.rcma3 = self.p._rmovav(ROC100(self.data, period=self.p.rp3), period=self.p.rma3)
+        self.rcma4 = self.p._rmovav(ROC100(self.data, period=self.p.rp4), period=self.p.rma4)
 
-        rcma1 = self.p._rmovav(ROC100(self.data, period=self.p.rp1), period=self.p.rma1)
-        rcma2 = self.p._rmovav(ROC100(self.data, period=self.p.rp2), period=self.p.rma2)
-        rcma3 = self.p._rmovav(ROC100(self.data, period=self.p.rp3), period=self.p.rma3)
-        rcma4 = self.p._rmovav(ROC100(self.data, period=self.p.rp4), period=self.p.rma4)
-        self.l.kst = sum(
-            [rfi * rci for rfi, rci in zip(self.p.rfactors, [rcma1, rcma2, rcma3, rcma4])]
-        )
+    def next(self):
+        rf = self.p.rfactors
+        kst_val = rf[0] * self.rcma1[0] + rf[1] * self.rcma2[0] + rf[2] * self.rcma3[0] + rf[3] * self.rcma4[0]
+        self.lines.kst[0] = kst_val
+        
+        # Calculate signal (SMA of KST)
+        rsignal = self.p.rsignal
+        kst_sum = kst_val
+        for i in range(1, rsignal):
+            kst_sum += self.lines.kst[-i]
+        self.lines.signal[0] = kst_sum / rsignal
 
-        self.l.signal = self.p._smovav(self.l.kst, period=self.p.rsignal)
+    def once(self, start, end):
+        rcma1_array = self.rcma1.lines[0].array
+        rcma2_array = self.rcma2.lines[0].array
+        rcma3_array = self.rcma3.lines[0].array
+        rcma4_array = self.rcma4.lines[0].array
+        kst_array = self.lines.kst.array
+        signal_array = self.lines.signal.array
+        rf = self.p.rfactors
+        rsignal = self.p.rsignal
+        
+        for arr in [kst_array, signal_array]:
+            while len(arr) < end:
+                arr.append(0.0)
+        
+        # Calculate KST
+        for i in range(start, min(end, len(rcma1_array), len(rcma2_array), len(rcma3_array), len(rcma4_array))):
+            v1 = rcma1_array[i] if i < len(rcma1_array) else 0.0
+            v2 = rcma2_array[i] if i < len(rcma2_array) else 0.0
+            v3 = rcma3_array[i] if i < len(rcma3_array) else 0.0
+            v4 = rcma4_array[i] if i < len(rcma4_array) else 0.0
+            
+            if any(isinstance(v, float) and math.isnan(v) for v in [v1, v2, v3, v4]):
+                kst_array[i] = float("nan")
+            else:
+                kst_array[i] = rf[0] * v1 + rf[1] * v2 + rf[2] * v3 + rf[3] * v4
+        
+        # Calculate signal (SMA of KST)
+        for i in range(start, min(end, len(kst_array))):
+            kst_val = kst_array[i]
+            if isinstance(kst_val, float) and math.isnan(kst_val):
+                signal_array[i] = float("nan")
+            elif i < rsignal - 1:
+                signal_array[i] = float("nan")
+            else:
+                kst_sum = 0.0
+                valid = True
+                for j in range(rsignal):
+                    idx = i - j
+                    if idx >= 0 and idx < len(kst_array):
+                        val = kst_array[idx]
+                        if isinstance(val, float) and math.isnan(val):
+                            valid = False
+                            break
+                        kst_sum += val
+                if valid:
+                    signal_array[i] = kst_sum / rsignal
+                else:
+                    signal_array[i] = float("nan")

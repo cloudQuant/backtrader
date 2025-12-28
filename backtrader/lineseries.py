@@ -470,13 +470,47 @@ class Lines(object):
                                 self.lines[line][0] = value
                             else:
                                 self.lines[line] = value
-                    elif (
-                        hasattr(value, "lines")
-                        or hasattr(value, "_name")
-                        or hasattr(value, "__call__")
-                    ):
-                        # Line-like object or indicator - assign directly
-                        # The indicator's __getitem__ will handle value access
+                    elif hasattr(value, "lines"):
+                        # Indicator or line-like object with lines attribute
+                        # CRITICAL FIX: Instead of assigning the indicator directly,
+                        # we need to bind the indicator's output line to the parent's line
+                        # so that values propagate correctly during calculation
+                        
+                        # Get the indicator's output line (usually lines[0])
+                        try:
+                            indicator_line = value.lines[0]
+                        except (IndexError, TypeError, AttributeError):
+                            indicator_line = None
+                        
+                        if indicator_line is not None and hasattr(indicator_line, "addbinding"):
+                            # Get the parent's line buffer at this index
+                            parent_line = self.lines[line]
+                            
+                            # Set up binding: indicator's output -> parent's line
+                            # This makes the indicator's values propagate to the parent
+                            indicator_line.addbinding(parent_line)
+                            
+                            # CRITICAL FIX: Register the indicator as a sub-indicator
+                            # so its oncebinding() method gets called after once() processing
+                            if hasattr(self, "_obj") and self._obj is not None:
+                                obj = self._obj
+                                # Propagate minperiod from indicator to parent
+                                if hasattr(value, "_minperiod") and hasattr(obj, "_minperiod"):
+                                    if value._minperiod > obj._minperiod:
+                                        obj._minperiod = value._minperiod
+                                
+                                # Register as sub-indicator for proper once() processing
+                                if hasattr(obj, "_lineiterators"):
+                                    from .lineiterator import LineIterator
+                                    if LineIterator.IndType in obj._lineiterators:
+                                        if value not in obj._lineiterators[LineIterator.IndType]:
+                                            obj._lineiterators[LineIterator.IndType].append(value)
+                                            value._owner = obj
+                        else:
+                            # Fallback: assign directly if binding not possible
+                            self.lines[line] = value
+                    elif hasattr(value, "_name") or hasattr(value, "__call__"):
+                        # Other line-like objects without lines attribute
                         self.lines[line] = value
                     elif hasattr(value, "__iter__") and not isinstance(value, string_types):
                         # Iterable (but not string) - create a line from it

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import Indicator, MovAv
 
 
@@ -40,18 +41,65 @@ class StandardDeviation(Indicator):
         return plabels
 
     def __init__(self):
-        if len(self.datas) > 1:
-            mean = self.data1
-        else:
-            mean = self.p.movav(self.data, period=self.p.period)
+        super().__init__()
+        self.addminperiod(self.p.period)
+        # Store mean indicator if provided as second data
+        self._use_external_mean = len(self.datas) > 1
 
-        meansq = self.p.movav(pow(self.data, 2), period=self.p.period)
-        sqmean = pow(mean, 2)
-
+    def next(self):
+        period = self.p.period
+        data_sum = 0.0
+        data_sq_sum = 0.0
+        for i in range(period):
+            val = self.data[-i]
+            data_sum += val
+            data_sq_sum += val * val
+        
+        mean = data_sum / period
+        meansq = data_sq_sum / period
+        sqmean = mean * mean
+        
+        diff = meansq - sqmean
         if self.p.safepow:
-            self.lines.stddev = pow(abs(meansq - sqmean), 0.5)
-        else:
-            self.lines.stddev = pow(meansq - sqmean, 0.5)
+            diff = abs(diff)
+        
+        self.lines.stddev[0] = math.sqrt(max(0, diff))
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.stddev.array
+        period = self.p.period
+        safepow = self.p.safepow
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        # Pre-fill warmup with NaN
+        for i in range(min(period - 1, len(darray))):
+            if i < len(larray):
+                larray[i] = float("nan")
+        
+        for i in range(period - 1, min(end, len(darray))):
+            data_sum = 0.0
+            data_sq_sum = 0.0
+            for j in range(period):
+                idx = i - j
+                if idx >= 0 and idx < len(darray):
+                    val = darray[idx]
+                    if not (isinstance(val, float) and math.isnan(val)):
+                        data_sum += val
+                        data_sq_sum += val * val
+            
+            mean = data_sum / period
+            meansq = data_sq_sum / period
+            sqmean = mean * mean
+            
+            diff = meansq - sqmean
+            if safepow:
+                diff = abs(diff)
+            
+            if i < len(larray):
+                larray[i] = math.sqrt(max(0, diff))
 
 
 # 平均偏差
@@ -87,13 +135,53 @@ class MeanDeviation(Indicator):
         return plabels
 
     def __init__(self):
-        if len(self.datas) > 1:
-            mean = self.data1
-        else:
-            mean = self.p.movav(self.data, period=self.p.period)
+        super().__init__()
+        self.addminperiod(self.p.period)
 
-        absdev = abs(self.data - mean)
-        self.lines.meandev = self.p.movav(absdev, period=self.p.period)
+    def next(self):
+        period = self.p.period
+        # Calculate mean (SMA)
+        data_sum = sum(self.data[-i] for i in range(period))
+        mean = data_sum / period
+        # Calculate mean absolute deviation
+        absdev_sum = sum(abs(self.data[-i] - mean) for i in range(period))
+        self.lines.meandev[0] = absdev_sum / period
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.meandev.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        # Pre-fill warmup with NaN
+        for i in range(min(period - 1, len(darray))):
+            if i < len(larray):
+                larray[i] = float("nan")
+        
+        for i in range(period - 1, min(end, len(darray))):
+            # Calculate mean
+            data_sum = 0.0
+            for j in range(period):
+                idx = i - j
+                if idx >= 0 and idx < len(darray):
+                    val = darray[idx]
+                    if not (isinstance(val, float) and math.isnan(val)):
+                        data_sum += val
+            mean = data_sum / period
+            
+            # Calculate mean absolute deviation
+            absdev_sum = 0.0
+            for j in range(period):
+                idx = i - j
+                if idx >= 0 and idx < len(darray):
+                    val = darray[idx]
+                    if not (isinstance(val, float) and math.isnan(val)):
+                        absdev_sum += abs(val - mean)
+            
+            if i < len(larray):
+                larray[i] = absdev_sum / period
 
 
 StdDev = StandardDeviation

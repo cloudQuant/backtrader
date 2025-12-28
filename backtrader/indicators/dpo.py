@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import Indicator, MovAv
 
 
@@ -38,10 +39,31 @@ class DetrendedPriceOscillator(Indicator):
         return plabels
 
     def __init__(self):
-        # Create the Moving Average
-        ma = self.p.movav(self.data, period=self.p.period)
-
-        # Calculate value (look back period/2 + 1 in MA) and bind to 'dpo' line
-        self.lines.dpo = self.data - ma(-self.p.period // 2 + 1)
-
         super().__init__()
+        self.ma = self.p.movav(self.data, period=self.p.period)
+        self.lookback = self.p.period // 2 - 1
+
+    def next(self):
+        self.lines.dpo[0] = self.data[0] - self.ma[-self.lookback]
+
+    def once(self, start, end):
+        darray = self.data.array
+        ma_array = self.ma.lines[0].array
+        larray = self.lines.dpo.array
+        lookback = self.lookback
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(start, min(end, len(darray), len(ma_array))):
+            data_val = darray[i] if i < len(darray) else 0.0
+            ma_idx = i - lookback
+            if ma_idx >= 0 and ma_idx < len(ma_array):
+                ma_val = ma_array[ma_idx]
+            else:
+                ma_val = float("nan")
+            
+            if isinstance(ma_val, float) and math.isnan(ma_val):
+                larray[i] = float("nan")
+            else:
+                larray[i] = data_val - ma_val

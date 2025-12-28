@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import DivZeroByZero, Indicator, Max, MovAv
 
 
@@ -22,8 +23,24 @@ class UpDay(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
-        self.lines.upday = Max(self.data - self.data(-self.p.period), 0.0)
         super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        diff = self.data[0] - self.data[-self.p.period]
+        self.lines.upday[0] = max(diff, 0.0)
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.upday.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(period, min(end, len(darray))):
+            diff = darray[i] - darray[i - period]
+            larray[i] = max(diff, 0.0)
 
 
 class DownDay(Indicator):
@@ -45,8 +62,24 @@ class DownDay(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
-        self.lines.downday = Max(self.data(-self.p.period) - self.data, 0.0)
         super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        diff = self.data[-self.p.period] - self.data[0]
+        self.lines.downday[0] = max(diff, 0.0)
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.downday.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(period, min(end, len(darray))):
+            diff = darray[i - period] - darray[i]
+            larray[i] = max(diff, 0.0)
 
 
 class UpDayBool(Indicator):
@@ -71,8 +104,22 @@ class UpDayBool(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
-        self.lines.upday = self.data > self.data(-self.p.period)
         super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        self.lines.upday[0] = 1.0 if self.data[0] > self.data[-self.p.period] else 0.0
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.upday.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(period, min(end, len(darray))):
+            larray[i] = 1.0 if darray[i] > darray[i - period] else 0.0
 
 
 class DownDayBool(Indicator):
@@ -97,8 +144,22 @@ class DownDayBool(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
-        self.lines.downday = self.data(-self.p.period) > self.data
         super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        self.lines.downday[0] = 1.0 if self.data[-self.p.period] > self.data[0] else 0.0
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.downday.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(period, min(end, len(darray))):
+            larray[i] = 1.0 if darray[i - period] > darray[i] else 0.0
 
 
 class RelativeStrengthIndex(Indicator):
@@ -163,27 +224,70 @@ class RelativeStrengthIndex(Indicator):
         self.plotinfo.plotyhlines = [self.p.upperband, self.p.lowerband]
 
     def __init__(self):
-        upday = UpDay(self.data, period=self.p.lookback)
-        downday = DownDay(self.data, period=self.p.lookback)
-        maup = self.p.movav(upday, period=self.p.period)
-        madown = self.p.movav(downday, period=self.p.period)
-        if not self.p.safediv:
-            rs = maup / madown
-        else:
-            highrs = self._rscalc(self.p.safehigh)
-            lowrs = self._rscalc(self.p.safelow)
-            rs = DivZeroByZero(maup, madown, highrs, lowrs)
-
-        self.lines.rsi = 100.0 - 100.0 / (1.0 + rs)
         super().__init__()
+        self.upday = UpDay(self.data, period=self.p.lookback)
+        self.downday = DownDay(self.data, period=self.p.lookback)
+        self.maup = self.p.movav(self.upday, period=self.p.period)
+        self.madown = self.p.movav(self.downday, period=self.p.period)
 
     def _rscalc(self, rsi):
         try:
             rs = (-100.0 / (rsi - 100.0)) - 1.0
         except ZeroDivisionError:
             return float("inf")
-
         return rs
+
+    def _calc_rsi(self, maup_val, madown_val):
+        """Calculate RSI from maup and madown values"""
+        if self.p.safediv:
+            if madown_val == 0.0:
+                if maup_val == 0.0:
+                    return self.p.safelow  # 0/0 case
+                else:
+                    return self.p.safehigh  # x/0 case
+        
+        if madown_val == 0.0:
+            return 100.0  # Avoid division by zero
+        
+        rs = maup_val / madown_val
+        return 100.0 - 100.0 / (1.0 + rs)
+
+    def next(self):
+        self.lines.rsi[0] = self._calc_rsi(self.maup[0], self.madown[0])
+
+    def once(self, start, end):
+        maup_array = self.maup.lines[0].array
+        madown_array = self.madown.lines[0].array
+        larray = self.lines.rsi.array
+        safediv = self.p.safediv
+        safehigh = self.p.safehigh
+        safelow = self.p.safelow
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(start, min(end, len(maup_array), len(madown_array))):
+            maup_val = maup_array[i] if i < len(maup_array) else 0.0
+            madown_val = madown_array[i] if i < len(madown_array) else 0.0
+            
+            if isinstance(maup_val, float) and math.isnan(maup_val):
+                larray[i] = float("nan")
+            elif isinstance(madown_val, float) and math.isnan(madown_val):
+                larray[i] = float("nan")
+            else:
+                if safediv:
+                    if madown_val == 0.0:
+                        if maup_val == 0.0:
+                            larray[i] = safelow
+                        else:
+                            larray[i] = safehigh
+                        continue
+                
+                if madown_val == 0.0:
+                    larray[i] = 100.0
+                else:
+                    rs = maup_val / madown_val
+                    larray[i] = 100.0 - 100.0 / (1.0 + rs)
 
 
 RSI = RelativeStrengthIndex

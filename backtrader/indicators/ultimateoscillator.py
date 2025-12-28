@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import Indicator, SumN, TrueLow, TrueRange
 
 
@@ -44,16 +45,76 @@ class UltimateOscillator(Indicator):
         self.plotinfo.plotyticks = baseticks + hlines
 
     def __init__(self):
-        bp = self.data.close - TrueLow(self.data)
-        tr = TrueRange(self.data)
-
-        av7 = SumN(bp, period=self.p.p1) / SumN(tr, period=self.p.p1)
-        av14 = SumN(bp, period=self.p.p2) / SumN(tr, period=self.p.p2)
-        av28 = SumN(bp, period=self.p.p3) / SumN(tr, period=self.p.p3)
-
-        # Multiply/divide floats outside of formula to reduce line objects
-        factor = 100.0 / (4.0 + 2.0 + 1.0)
-        uo = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28
-        self.lines.uo = uo
-
         super().__init__()
+        self.truelow = TrueLow(self.data)
+        self.truerange = TrueRange(self.data)
+        self.addminperiod(self.p.p3)
+
+    def next(self):
+        p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3
+        
+        # Calculate BP and TR sums for each period
+        bp_sum1 = tr_sum1 = 0.0
+        bp_sum2 = tr_sum2 = 0.0
+        bp_sum3 = tr_sum3 = 0.0
+        
+        for i in range(p3):
+            bp = self.data.close[-i] - self.truelow[-i]
+            tr = self.truerange[-i]
+            
+            if i < p1:
+                bp_sum1 += bp
+                tr_sum1 += tr
+            if i < p2:
+                bp_sum2 += bp
+                tr_sum2 += tr
+            bp_sum3 += bp
+            tr_sum3 += tr
+        
+        av7 = bp_sum1 / tr_sum1 if tr_sum1 != 0 else 0.0
+        av14 = bp_sum2 / tr_sum2 if tr_sum2 != 0 else 0.0
+        av28 = bp_sum3 / tr_sum3 if tr_sum3 != 0 else 0.0
+        
+        factor = 100.0 / 7.0
+        self.lines.uo[0] = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28
+
+    def once(self, start, end):
+        close_array = self.data.close.array
+        tl_array = self.truelow.lines[0].array
+        tr_array = self.truerange.lines[0].array
+        larray = self.lines.uo.array
+        p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(min(p3 - 1, len(close_array))):
+            if i < len(larray):
+                larray[i] = float("nan")
+        
+        for i in range(p3 - 1, min(end, len(close_array), len(tl_array), len(tr_array))):
+            bp_sum1 = tr_sum1 = 0.0
+            bp_sum2 = tr_sum2 = 0.0
+            bp_sum3 = tr_sum3 = 0.0
+            
+            for j in range(p3):
+                idx = i - j
+                if idx >= 0 and idx < len(close_array) and idx < len(tl_array) and idx < len(tr_array):
+                    bp = close_array[idx] - tl_array[idx]
+                    tr = tr_array[idx]
+                    
+                    if j < p1:
+                        bp_sum1 += bp
+                        tr_sum1 += tr
+                    if j < p2:
+                        bp_sum2 += bp
+                        tr_sum2 += tr
+                    bp_sum3 += bp
+                    tr_sum3 += tr
+            
+            av7 = bp_sum1 / tr_sum1 if tr_sum1 != 0 else 0.0
+            av14 = bp_sum2 / tr_sum2 if tr_sum2 != 0 else 0.0
+            av28 = bp_sum3 / tr_sum3 if tr_sum3 != 0 else 0.0
+            
+            factor = 100.0 / 7.0
+            larray[i] = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28

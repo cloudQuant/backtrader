@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import Indicator
 
 
@@ -21,8 +22,22 @@ class Momentum(Indicator):
     plotinfo = dict(plothlines=[0.0])
 
     def __init__(self):
-        self.l.momentum = self.data - self.data(-self.p.period)
         super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        self.lines.momentum[0] = self.data[0] - self.data[-self.p.period]
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.momentum.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(period, min(end, len(darray))):
+            larray[i] = darray[i] - darray[i - period]
 
 
 class MomentumOscillator(Indicator):
@@ -52,8 +67,30 @@ class MomentumOscillator(Indicator):
         self.plotinfo.plothlines = [self.p.band]
 
     def __init__(self):
-        self.l.momosc = 100.0 * (self.data / self.data(-self.p.period))
         super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        prev_val = self.data[-self.p.period]
+        if prev_val != 0:
+            self.lines.momosc[0] = 100.0 * (self.data[0] / prev_val)
+        else:
+            self.lines.momosc[0] = 0.0
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.momosc.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(period, min(end, len(darray))):
+            prev_val = darray[i - period]
+            if prev_val != 0:
+                larray[i] = 100.0 * (darray[i] / prev_val)
+            else:
+                larray[i] = 0.0
 
 
 class RateOfChange(Indicator):
@@ -76,9 +113,30 @@ class RateOfChange(Indicator):
     params = (("period", 12),)
 
     def __init__(self):
-        dperiod = self.data(-self.p.period)
-        self.l.roc = (self.data - dperiod) / dperiod
         super().__init__()
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        prev_val = self.data[-self.p.period]
+        if prev_val != 0:
+            self.lines.roc[0] = (self.data[0] - prev_val) / prev_val
+        else:
+            self.lines.roc[0] = 0.0
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.roc.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(period, min(end, len(darray))):
+            prev_val = darray[i - period]
+            if prev_val != 0:
+                larray[i] = (darray[i] - prev_val) / prev_val
+            else:
+                larray[i] = 0.0
 
 
 class RateOfChange100(Indicator):
@@ -104,9 +162,30 @@ class RateOfChange100(Indicator):
     params = (("period", 12),)
 
     def __init__(self):
-        # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
         super().__init__()
-        self.l.roc100 = 100.0 * ROC(self.data, period=self.p.period)
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        prev_val = self.data[-self.p.period]
+        if prev_val != 0:
+            self.lines.roc100[0] = 100.0 * (self.data[0] - prev_val) / prev_val
+        else:
+            self.lines.roc100[0] = 0.0
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.roc100.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(period, min(end, len(darray))):
+            prev_val = darray[i - period]
+            if prev_val != 0:
+                larray[i] = 100.0 * (darray[i] - prev_val) / prev_val
+            else:
+                larray[i] = 0.0
 
 
 ROC = RateOfChange

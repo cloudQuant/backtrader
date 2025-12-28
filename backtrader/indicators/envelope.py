@@ -108,10 +108,32 @@ class EnvelopeMixIn:
         perc_value = getattr(self.p, "perc", 2.5)
         if perc_value is None:
             perc_value = 2.5
-        perc = perc_value / 100.0
+        self._perc = perc_value / 100.0
 
-        self.lines.top = self.lines[0] * (1.0 + perc)
-        self.lines.bot = self.lines[0] * (1.0 - perc)
+    def next(self):
+        base_val = self.lines[0][0]
+        self.lines.top[0] = base_val * (1.0 + self._perc)
+        self.lines.bot[0] = base_val * (1.0 - self._perc)
+
+    def once(self, start, end):
+        import math
+        base_array = self.lines[0].array
+        top_array = self.lines.top.array
+        bot_array = self.lines.bot.array
+        perc = self._perc
+        
+        for arr in [top_array, bot_array]:
+            while len(arr) < end:
+                arr.append(0.0)
+        
+        for i in range(start, min(end, len(base_array))):
+            base_val = base_array[i] if i < len(base_array) else 0.0
+            if isinstance(base_val, float) and math.isnan(base_val):
+                top_array[i] = float("nan")
+                bot_array[i] = float("nan")
+            else:
+                top_array[i] = base_val * (1.0 + perc)
+                bot_array[i] = base_val * (1.0 - perc)
 
 
 # 基础类
@@ -170,8 +192,20 @@ class _EnvelopeBase(Indicator):
     plotlines = PlotLinesObjBase()
 
     def __init__(self):
-        self.lines.src = self.data
         super().__init__()
+
+    def next(self):
+        self.lines.src[0] = self.data[0]
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.src.array
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(start, min(end, len(darray))):
+            larray[i] = darray[i] if i < len(darray) else 0.0
 
 
 class Envelope(_EnvelopeBase, EnvelopeMixIn):

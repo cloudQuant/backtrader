@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import Accum, DownDay, Highest, If, Indicator, Lowest, TrueHigh, TrueLow, UpDay
 
 
@@ -33,13 +34,44 @@ class WilliamsR(Indicator):
         self.plotinfo.plotyhlines = [self.p.upperband, self.p.lowerband]
 
     def __init__(self):
-        h = Highest(self.data.high, period=self.p.period)
-        low = Lowest(self.data.low, period=self.p.period)
-        c = self.data.close
-
-        self.lines.percR = -100.0 * (h - c) / (h - low)
-
         super().__init__()
+        self.highest = Highest(self.data.high, period=self.p.period)
+        self.lowest = Lowest(self.data.low, period=self.p.period)
+
+    def next(self):
+        h = self.highest[0]
+        low = self.lowest[0]
+        c = self.data.close[0]
+        den = h - low
+        if den != 0:
+            self.lines.percR[0] = -100.0 * (h - c) / den
+        else:
+            self.lines.percR[0] = 0.0
+
+    def once(self, start, end):
+        h_array = self.highest.lines[0].array
+        l_array = self.lowest.lines[0].array
+        c_array = self.data.close.array
+        larray = self.lines.percR.array
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(start, min(end, len(h_array), len(l_array), len(c_array))):
+            h = h_array[i] if i < len(h_array) else 0.0
+            low = l_array[i] if i < len(l_array) else 0.0
+            c = c_array[i] if i < len(c_array) else 0.0
+            
+            if isinstance(h, float) and math.isnan(h):
+                larray[i] = float("nan")
+            elif isinstance(low, float) and math.isnan(low):
+                larray[i] = float("nan")
+            else:
+                den = h - low
+                if den != 0:
+                    larray[i] = -100.0 * (h - c) / den
+                else:
+                    larray[i] = 0.0
 
 
 class WilliamsAD(Indicator):
@@ -60,12 +92,58 @@ class WilliamsAD(Indicator):
     lines = ("ad",)
 
     def __init__(self):
-        upday = UpDay(self.data.close)
-        downday = DownDay(self.data.close)
-
-        adup = If(upday, self.data.close - TrueLow(self.data), 0.0)
-        addown = If(downday, self.data.close - TrueHigh(self.data), 0.0)
-
-        self.lines.ad = Accum(adup + addown)
-
         super().__init__()
+        self.upday = UpDay(self.data.close)
+        self.downday = DownDay(self.data.close)
+        self.truelow = TrueLow(self.data)
+        self.truehigh = TrueHigh(self.data)
+        self._accum = 0.0
+
+    def next(self):
+        upday_val = self.upday[0]
+        downday_val = self.downday[0]
+        
+        if upday_val > 0:
+            adup = self.data.close[0] - self.truelow[0]
+        else:
+            adup = 0.0
+        
+        if downday_val > 0:
+            addown = self.data.close[0] - self.truehigh[0]
+        else:
+            addown = 0.0
+        
+        self._accum += adup + addown
+        self.lines.ad[0] = self._accum
+
+    def once(self, start, end):
+        upday_array = self.upday.lines[0].array
+        downday_array = self.downday.lines[0].array
+        truelow_array = self.truelow.lines[0].array
+        truehigh_array = self.truehigh.lines[0].array
+        c_array = self.data.close.array
+        larray = self.lines.ad.array
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        accum = 0.0
+        for i in range(start, min(end, len(upday_array), len(downday_array), len(c_array))):
+            upday_val = upday_array[i] if i < len(upday_array) else 0.0
+            downday_val = downday_array[i] if i < len(downday_array) else 0.0
+            close = c_array[i] if i < len(c_array) else 0.0
+            tl = truelow_array[i] if i < len(truelow_array) else 0.0
+            th = truehigh_array[i] if i < len(truehigh_array) else 0.0
+            
+            if upday_val > 0:
+                adup = close - tl
+            else:
+                adup = 0.0
+            
+            if downday_val > 0:
+                addown = close - th
+            else:
+                addown = 0.0
+            
+            accum += adup + addown
+            larray[i] = accum

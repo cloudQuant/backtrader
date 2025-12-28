@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import Indicator
 from .sma import SMA
 
@@ -9,7 +10,7 @@ __all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
 class AwesomeOscillator(Indicator):
     """
     Awesome Oscillator (AO) is a momentum indicator reflecting the precise
-    changes in the market driving force, which helps to identify the trend’s
+    changes in the market driving force, which helps to identify the trend's
     strength up to the points of formation and reversal.
 
 
@@ -38,17 +39,59 @@ class AwesomeOscillator(Indicator):
 
     # 初始化的时候，创建指标
     def __init__(self):
-        # CRITICAL FIX: Call super().__init__() first to ensure self.data is set
         super().__init__()
+        self.addminperiod(self.p.slow)
 
-        # 最高价和最低价的平均值
-        median_price = (self.data.high + self.data.low) / 2.0
-        # 计算平均值的fast个周期的平均值
-        sma1 = self.p.movav(median_price, period=self.p.fast)
-        # 计算平均值的slow个周期的平均值
-        sma2 = self.p.movav(median_price, period=self.p.slow)
-        # 计算两者的差
-        self.l.ao = sma1 - sma2
+    def next(self):
+        fast = self.p.fast
+        slow = self.p.slow
+        
+        # Calculate median price SMA for fast period
+        fast_sum = 0.0
+        for i in range(fast):
+            fast_sum += (self.data.high[-i] + self.data.low[-i]) / 2.0
+        sma_fast = fast_sum / fast
+        
+        # Calculate median price SMA for slow period
+        slow_sum = 0.0
+        for i in range(slow):
+            slow_sum += (self.data.high[-i] + self.data.low[-i]) / 2.0
+        sma_slow = slow_sum / slow
+        
+        self.lines.ao[0] = sma_fast - sma_slow
+
+    def once(self, start, end):
+        high_array = self.data.high.array
+        low_array = self.data.low.array
+        larray = self.lines.ao.array
+        fast = self.p.fast
+        slow = self.p.slow
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(min(slow - 1, len(high_array))):
+            if i < len(larray):
+                larray[i] = float("nan")
+        
+        for i in range(slow - 1, min(end, len(high_array), len(low_array))):
+            # Calculate fast SMA
+            fast_sum = 0.0
+            for j in range(fast):
+                idx = i - j
+                if idx >= 0:
+                    fast_sum += (high_array[idx] + low_array[idx]) / 2.0
+            sma_fast = fast_sum / fast
+            
+            # Calculate slow SMA
+            slow_sum = 0.0
+            for j in range(slow):
+                idx = i - j
+                if idx >= 0:
+                    slow_sum += (high_array[idx] + low_array[idx]) / 2.0
+            sma_slow = slow_sum / slow
+            
+            larray[i] = sma_fast - sma_slow
 
 
 AwesomeOsc = AO = AwesomeOscillator

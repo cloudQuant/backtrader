@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import Indicator
 from .sma import SMA
 
@@ -43,16 +44,60 @@ class HaDelta(Indicator):
 
     def __init__(self):
         from . import HeikinAshi
-
-        d = HeikinAshi(self.data) if self.p.autoheikin else self.data
-
-        # Use lines.ha_close and lines.ha_open for HeikinAshi, close and open for regular data
-        if self.p.autoheikin:
-            self.lines.haDelta = hd = d.lines.ha_close - d.lines.ha_open
-        else:
-            self.lines.haDelta = hd = d.close - d.open
-        self.lines.smoothed = self.p.movav(hd, period=self.p.period)
         super().__init__()
+
+        self._autoheikin = self.p.autoheikin
+        if self.p.autoheikin:
+            self._ha = HeikinAshi(self.data)
+        else:
+            self._ha = None
+        
+        self._ma = self.p.movav(period=self.p.period)
+
+    def next(self):
+        if self._autoheikin:
+            hd = self._ha.lines.ha_close[0] - self._ha.lines.ha_open[0]
+        else:
+            hd = self.data.close[0] - self.data.open[0]
+        
+        self.lines.haDelta[0] = hd
+        
+        # Calculate SMA of haDelta
+        period = self.p.period
+        hd_sum = hd
+        for i in range(1, period):
+            hd_sum += self.lines.haDelta[-i]
+        self.lines.smoothed[0] = hd_sum / period
+
+    def once(self, start, end):
+        if self._autoheikin:
+            ha_close_array = self._ha.lines.ha_close.array
+            ha_open_array = self._ha.lines.ha_open.array
+        else:
+            ha_close_array = self.data.close.array
+            ha_open_array = self.data.open.array
+        
+        hd_array = self.lines.haDelta.array
+        sm_array = self.lines.smoothed.array
+        period = self.p.period
+        
+        for arr in [hd_array, sm_array]:
+            while len(arr) < end:
+                arr.append(0.0)
+        
+        # Calculate haDelta
+        for i in range(start, min(end, len(ha_close_array), len(ha_open_array))):
+            hd_array[i] = ha_close_array[i] - ha_open_array[i]
+        
+        # Calculate smoothed (SMA of haDelta)
+        for i in range(start, min(end, len(hd_array))):
+            if i < period - 1:
+                sm_array[i] = float("nan")
+            else:
+                hd_sum = 0.0
+                for j in range(period):
+                    hd_sum += hd_array[i - j]
+                sm_array[i] = hd_sum / period
 
 
 haD = HaDelta

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import ATR, Indicator, MovAv
 
 
@@ -38,8 +39,36 @@ class PrettyGoodOscillator(Indicator):
     )
 
     def __init__(self):
-        movav = self.p._movav(self.data, period=self.p.period)
-        atr = ATR(self.data, period=self.p.period)
-
-        self.lines.pgo = (self.data - movav) / atr
         super().__init__()
+        self.movav = self.p._movav(self.data, period=self.p.period)
+        self.atr = ATR(self.data, period=self.p.period)
+
+    def next(self):
+        atr_val = self.atr[0]
+        if atr_val != 0:
+            self.lines.pgo[0] = (self.data[0] - self.movav[0]) / atr_val
+        else:
+            self.lines.pgo[0] = 0.0
+
+    def once(self, start, end):
+        darray = self.data.array
+        ma_array = self.movav.lines[0].array
+        atr_array = self.atr.lines[0].array
+        larray = self.lines.pgo.array
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(start, min(end, len(darray), len(ma_array), len(atr_array))):
+            data_val = darray[i] if i < len(darray) else 0.0
+            ma_val = ma_array[i] if i < len(ma_array) else 0.0
+            atr_val = atr_array[i] if i < len(atr_array) else 0.0
+            
+            if isinstance(ma_val, float) and math.isnan(ma_val):
+                larray[i] = float("nan")
+            elif isinstance(atr_val, float) and math.isnan(atr_val):
+                larray[i] = float("nan")
+            elif atr_val != 0:
+                larray[i] = (data_val - ma_val) / atr_val
+            else:
+                larray[i] = 0.0

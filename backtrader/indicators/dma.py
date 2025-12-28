@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import MovingAverageBase, ZeroLagIndicator
 from .ema import EMA
 from .hma import HMA
@@ -50,13 +51,30 @@ class DicksonMovingAverage(MovingAverageBase):
         return plabels
 
     def __init__(self):
-        ec = ZeroLagIndicator(
+        super().__init__()
+        self.ec = ZeroLagIndicator(
             period=self.p.period, gainlimit=self.p.gainlimit, _movav=self.p._movav
         )
+        self.hull = self.p._hma(period=self.p.hperiod)
 
-        hull = self.p._hma(period=self.p.hperiod)
+    def next(self):
+        self.lines.dma[0] = (self.ec[0] + self.hull[0]) / 2.0
 
-        self.lines.dma = (ec + hull) / 2.0
-
-        # To make mixins work - super at the end for cooperative inheritance
-        super().__init__()
+    def once(self, start, end):
+        ec_array = self.ec.lines[0].array
+        hull_array = self.hull.lines[0].array
+        larray = self.lines.dma.array
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(start, min(end, len(ec_array), len(hull_array))):
+            ec_val = ec_array[i] if i < len(ec_array) else 0.0
+            hull_val = hull_array[i] if i < len(hull_array) else 0.0
+            
+            if isinstance(ec_val, float) and math.isnan(ec_val):
+                larray[i] = float("nan")
+            elif isinstance(hull_val, float) and math.isnan(hull_val):
+                larray[i] = float("nan")
+            else:
+                larray[i] = (ec_val + hull_val) / 2.0

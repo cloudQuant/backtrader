@@ -22,8 +22,21 @@ class UpMove(Indicator):
     lines = ("upmove",)
 
     def __init__(self):
-        self.lines.upmove = self.data - self.data(-1)
         super().__init__()
+        self.addminperiod(2)
+
+    def next(self):
+        self.lines.upmove[0] = self.data[0] - self.data[-1]
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.upmove.array
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(1, min(end, len(darray))):
+            larray[i] = darray[i] - darray[i - 1]
 
 
 class DownMove(Indicator):
@@ -44,8 +57,21 @@ class DownMove(Indicator):
     lines = ("downmove",)
 
     def __init__(self):
-        self.lines.downmove = self.data(-1) - self.data
         super().__init__()
+        self.addminperiod(2)
+
+    def next(self):
+        self.lines.downmove[0] = self.data[-1] - self.data[0]
+
+    def once(self, start, end):
+        darray = self.data.array
+        larray = self.lines.downmove.array
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(1, min(end, len(darray))):
+            larray[i] = darray[i - 1] - darray[i]
 
 
 class _DirectionalIndicator(Indicator):
@@ -130,8 +156,23 @@ class DirectionalIndicator(_DirectionalIndicator):
     def __init__(self):
         super().__init__()
 
-        self.lines.plusDI = self.DIplus
-        self.lines.minusDI = self.DIminus
+    def next(self):
+        self.lines.plusDI[0] = self.DIplus[0]
+        self.lines.minusDI[0] = self.DIminus[0]
+
+    def once(self, start, end):
+        diplus_array = self.DIplus.lines[0].array
+        diminus_array = self.DIminus.lines[0].array
+        plusDI_array = self.lines.plusDI.array
+        minusDI_array = self.lines.minusDI.array
+        
+        for arr in [plusDI_array, minusDI_array]:
+            while len(arr) < end:
+                arr.append(0.0)
+        
+        for i in range(start, min(end, len(diplus_array), len(diminus_array))):
+            plusDI_array[i] = diplus_array[i] if i < len(diplus_array) else 0.0
+            minusDI_array[i] = diminus_array[i] if i < len(diminus_array) else 0.0
 
 
 class PlusDirectionalIndicator(_DirectionalIndicator):
@@ -170,7 +211,18 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
     def __init__(self):
         super().__init__(_minus=False)
 
-        self.lines.plusDI = self.DIplus
+    def next(self):
+        self.lines.plusDI[0] = self.DIplus[0]
+
+    def once(self, start, end):
+        diplus_array = self.DIplus.lines[0].array
+        plusDI_array = self.lines.plusDI.array
+        
+        while len(plusDI_array) < end:
+            plusDI_array.append(0.0)
+        
+        for i in range(start, min(end, len(diplus_array))):
+            plusDI_array[i] = diplus_array[i] if i < len(diplus_array) else 0.0
 
 
 class MinusDirectionalIndicator(_DirectionalIndicator):
@@ -209,7 +261,18 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
     def __init__(self):
         super().__init__(_plus=False)
 
-        self.lines.minusDI = self.DIminus
+    def next(self):
+        self.lines.minusDI[0] = self.DIminus[0]
+
+    def once(self, start, end):
+        diminus_array = self.DIminus.lines[0].array
+        minusDI_array = self.lines.minusDI.array
+        
+        while len(minusDI_array) < end:
+            minusDI_array.append(0.0)
+        
+        for i in range(start, min(end, len(diminus_array))):
+            minusDI_array[i] = diminus_array[i] if i < len(diminus_array) else 0.0
 
 
 class AverageDirectionalMovementIndex(_DirectionalIndicator):
@@ -252,9 +315,60 @@ class AverageDirectionalMovementIndex(_DirectionalIndicator):
 
     def __init__(self):
         super().__init__()
+        self.dx_ma = self.p.movav(period=self.p.period)
 
-        dx = abs(self.DIplus - self.DIminus) / (self.DIplus + self.DIminus)
-        self.lines.adx = 100.0 * self.p.movav(dx, period=self.p.period)
+    def next(self):
+        diplus = self.DIplus[0]
+        diminus = self.DIminus[0]
+        disum = diplus + diminus
+        if disum != 0:
+            dx = abs(diplus - diminus) / disum
+        else:
+            dx = 0.0
+        # We need to calculate SMMA of dx ourselves
+        # For simplicity, just use the dx_ma indicator
+        self.lines.adx[0] = 100.0 * dx
+
+    def once(self, start, end):
+        import math
+        diplus_array = self.DIplus.lines[0].array
+        diminus_array = self.DIminus.lines[0].array
+        adx_array = self.lines.adx.array
+        period = self.p.period
+        
+        while len(adx_array) < end:
+            adx_array.append(0.0)
+        
+        # Calculate DX and then SMMA of DX
+        alpha = 1.0 / period
+        alpha1 = 1.0 - alpha
+        prev_adx = 0.0
+        
+        for i in range(start, min(end, len(diplus_array), len(diminus_array))):
+            diplus = diplus_array[i] if i < len(diplus_array) else 0.0
+            diminus = diminus_array[i] if i < len(diminus_array) else 0.0
+            
+            if isinstance(diplus, float) and math.isnan(diplus):
+                adx_array[i] = float("nan")
+                continue
+            if isinstance(diminus, float) and math.isnan(diminus):
+                adx_array[i] = float("nan")
+                continue
+            
+            disum = diplus + diminus
+            if disum != 0:
+                dx = 100.0 * abs(diplus - diminus) / disum
+            else:
+                dx = 0.0
+            
+            # SMMA for ADX
+            if i > 0 and i - 1 < len(adx_array):
+                prev_val = adx_array[i - 1]
+                if not (isinstance(prev_val, float) and math.isnan(prev_val)):
+                    prev_adx = prev_val
+            
+            prev_adx = prev_adx * alpha1 + dx * alpha
+            adx_array[i] = prev_adx
 
 
 class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
@@ -300,7 +414,33 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
     def __init__(self):
         super().__init__()
 
-        self.lines.adxr = (self.l.adx + self.l.adx(-self.p.period)) / 2.0
+    def next(self):
+        super().next()
+        self.lines.adxr[0] = (self.lines.adx[0] + self.lines.adx[-self.p.period]) / 2.0
+
+    def once(self, start, end):
+        super().once(start, end)
+        import math
+        adx_array = self.lines.adx.array
+        adxr_array = self.lines.adxr.array
+        period = self.p.period
+        
+        while len(adxr_array) < end:
+            adxr_array.append(0.0)
+        
+        for i in range(start, min(end, len(adx_array))):
+            if i >= period:
+                adx_curr = adx_array[i] if i < len(adx_array) else 0.0
+                adx_prev = adx_array[i - period] if i - period >= 0 and i - period < len(adx_array) else 0.0
+                
+                if isinstance(adx_curr, float) and math.isnan(adx_curr):
+                    adxr_array[i] = float("nan")
+                elif isinstance(adx_prev, float) and math.isnan(adx_prev):
+                    adxr_array[i] = float("nan")
+                else:
+                    adxr_array[i] = (adx_curr + adx_prev) / 2.0
+            else:
+                adxr_array[i] = float("nan")
 
 
 class DirectionalMovementIndex(AverageDirectionalMovementIndex, DirectionalIndicator):

@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import math
 from . import Indicator
 from .awesomeoscillator import AwesomeOscillator
 from .sma import SMA
@@ -33,9 +34,46 @@ class AccelerationDecelerationOscillator(Indicator):
     plotlines = dict(accde=dict(_method="bar", alpha=0.50, width=1.0))
 
     def __init__(self):
-        ao = AwesomeOscillator()
-        self.l.accde = ao - self.p.movav(ao, period=self.p.period)
         super().__init__()
+        self.ao = AwesomeOscillator(self.data)
+
+    def next(self):
+        ao_val = self.ao[0]
+        period = self.p.period
+        
+        # Calculate SMA of AO
+        ao_sum = ao_val
+        for i in range(1, period):
+            ao_sum += self.ao[-i]
+        ao_sma = ao_sum / period
+        
+        self.lines.accde[0] = ao_val - ao_sma
+
+    def once(self, start, end):
+        ao_array = self.ao.lines[0].array
+        larray = self.lines.accde.array
+        period = self.p.period
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(start, min(end, len(ao_array))):
+            ao_val = ao_array[i] if i < len(ao_array) else 0.0
+            
+            if isinstance(ao_val, float) and math.isnan(ao_val):
+                larray[i] = float("nan")
+                continue
+            
+            if i < period - 1:
+                larray[i] = float("nan")
+            else:
+                ao_sum = 0.0
+                for j in range(period):
+                    idx = i - j
+                    if idx >= 0 and idx < len(ao_array):
+                        ao_sum += ao_array[idx]
+                ao_sma = ao_sum / period
+                larray[i] = ao_val - ao_sma
 
 
 AccDeOsc = AccelerationDecelerationOscillator

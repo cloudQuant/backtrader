@@ -13,12 +13,33 @@ class MaBetweenHighAndLow(Indicator):
     params = (("period", 5),)
 
     def __init__(self):
+        super().__init__()
         self.ma = SMA(self.data.close, period=self.p.period)
-        self.high = self.data.high
-        self.low = self.data.low
-        self.ma_less_high = self.ma < self.high
-        self.ma_more_low = self.ma > self.low
-        self.lines.target = And(self.ma_more_low, self.ma_less_high)
+
+    def next(self):
+        ma_val = self.ma[0]
+        high_val = self.data.high[0]
+        low_val = self.data.low[0]
+        self.lines.target[0] = 1.0 if (ma_val < high_val and ma_val > low_val) else 0.0
+
+    def once(self, start, end):
+        ma_array = self.ma.lines[0].array
+        high_array = self.data.high.array
+        low_array = self.data.low.array
+        larray = self.lines.target.array
+        
+        while len(larray) < end:
+            larray.append(0.0)
+        
+        for i in range(start, min(end, len(ma_array), len(high_array), len(low_array))):
+            ma_val = ma_array[i] if i < len(ma_array) else 0.0
+            high_val = high_array[i] if i < len(high_array) else 0.0
+            low_val = low_array[i] if i < len(low_array) else 0.0
+            
+            if isinstance(ma_val, float) and math.isnan(ma_val):
+                larray[i] = float("nan")
+            else:
+                larray[i] = 1.0 if (ma_val < high_val and ma_val > low_val) else 0.0
 
 
 class BarsLast(Indicator):
