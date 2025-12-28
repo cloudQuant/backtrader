@@ -8,19 +8,18 @@
     
 参数:
     test_script: 要测试的脚本路径
-    --both: 在master和remove-metaprogramming两个分支上都运行测试，并对比结果
+    --both: 在master和remove-metaprogramming两个分支上都运行测试
             如果不指定，则只在当前分支运行测试
             
 示例:
     # 只在当前分支运行
     python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py
     
-    # 在两个分支上运行并对比
+    # 在两个分支上运行
     python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
 """
 
 import argparse
-import difflib
 import glob
 import os
 import subprocess
@@ -47,6 +46,60 @@ def get_git_branch():
         return branch if branch else "unknown"
     except (subprocess.CalledProcessError, FileNotFoundError):
         return "unknown"
+
+
+def git_stash():
+    """暂存未提交的更改"""
+    try:
+        # 检查是否有需要暂存的更改
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        if result.stdout.strip():
+            print("发现未提交的更改，执行 git stash...")
+            result = subprocess.run(
+                ["git", "stash", "push", "-m", "auto-stash-by-run_test_with_log"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            print("暂存成功")
+            return True
+        else:
+            print("没有需要暂存的更改")
+            return False
+    except subprocess.CalledProcessError as e:
+        print(f"暂存失败: {e.stderr}")
+        return False
+
+
+def git_stash_pop():
+    """恢复暂存的更改"""
+    try:
+        # 检查是否有暂存
+        result = subprocess.run(
+            ["git", "stash", "list"],
+            capture_output=True,
+            text=True,
+            check=True
+        )
+        if "auto-stash-by-run_test_with_log" in result.stdout:
+            print("恢复暂存的更改...")
+            result = subprocess.run(
+                ["git", "stash", "pop"],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            print("恢复成功")
+            return True
+        return False
+    except subprocess.CalledProcessError as e:
+        print(f"恢复暂存失败: {e.stderr}")
+        return False
 
 
 def switch_branch(branch_name):
@@ -214,147 +267,9 @@ def run_with_logging(script_path, log_dir="logs", branch_name=None):
             return 1, log_path
 
 
-def compare_logs(log1_path, log2_path, output_path=None):
-    """
-    对比两个日志文件的差异
-    
-    Args:
-        log1_path: 第一个日志文件路径 (master分支)
-        log2_path: 第二个日志文件路径 (remove-metaprogramming分支)
-        output_path: 差异输出文件路径（可选）
-    """
-    print(f"\n{'='*60}")
-    print("对比日志文件差异")
-    print(f"{'='*60}\n")
-    
-    try:
-        with open(log1_path, 'r', encoding='utf-8') as f1:
-            log1_lines = f1.readlines()
-        with open(log2_path, 'r', encoding='utf-8') as f2:
-            log2_lines = f2.readlines()
-    except Exception as e:
-        print(f"读取日志文件失败: {e}")
-        return
-    
-    # 过滤掉时间戳相关的行，因为它们肯定不同
-    def filter_lines(lines):
-        filtered = []
-        for line in lines:
-            # 跳过时间戳行和分隔线
-            if "运行时间:" in line or "结束时间:" in line:
-                continue
-            if line.strip().startswith("====="):
-                continue
-            filtered.append(line)
-        return filtered
-    
-    log1_filtered = filter_lines(log1_lines)
-    log2_filtered = filter_lines(log2_lines)
-    
-    # 生成差异
-    diff = list(difflib.unified_diff(
-        log1_filtered, 
-        log2_filtered,
-        fromfile=f"master: {os.path.basename(log1_path)}",
-        tofile=f"remove-metaprogramming: {os.path.basename(log2_path)}",
-        lineterm=""
-    ))
-    
-    if not diff:
-        print("✓ 两个日志文件内容一致（忽略时间戳）")
-        diff_content = "两个日志文件内容一致（忽略时间戳）\n"
-    else:
-        print("✗ 发现差异:")
-        print("-" * 40)
-        diff_content = "\n".join(diff)
-        print(diff_content)
-        print("-" * 40)
-    
-    # 保存差异到文件
-    if output_path is None:
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        script_name = os.path.basename(log1_path).split("_master_")[0]
-        output_path = os.path.join("logs", f"{script_name}_diff_{timestamp}.log")
-    
-    with open(output_path, 'w', encoding='utf-8') as f:
-        f.write(f"日志对比结果\n")
-        f.write(f"{'='*60}\n")
-        f.write(f"Master日志: {log1_path}\n")
-        f.write(f"Remove-metaprogramming日志: {log2_path}\n")
-        f.write(f"对比时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-        f.write(f"{'='*60}\n\n")
-        f.write(diff_content)
-    
-    print(f"\n差异已保存到: {output_path}")
-    
-    # 分析可能的bug
-    analyze_differences(log1_filtered, log2_filtered)
-
-
-def analyze_differences(master_lines, refactor_lines):
-    """分析两个分支日志的差异，推测可能的bug"""
-    print(f"\n{'='*60}")
-    print("差异分析")
-    print(f"{'='*60}\n")
-    
-    # 提取关键信息
-    def extract_metrics(lines):
-        metrics = {
-            'buy_count': None,
-            'sell_count': None,
-            'final_value': None,
-            'errors': [],
-            'warnings': []
-        }
-        for line in lines:
-            line_lower = line.lower()
-            if 'buy_count' in line_lower or '买入次数' in line_lower:
-                metrics['buy_count'] = line.strip()
-            if 'sell_count' in line_lower or '卖出次数' in line_lower:
-                metrics['sell_count'] = line.strip()
-            if 'final_value' in line_lower or '最终资金' in line_lower:
-                metrics['final_value'] = line.strip()
-            if 'error' in line_lower or '错误' in line_lower:
-                metrics['errors'].append(line.strip())
-            if 'warning' in line_lower or '警告' in line_lower:
-                metrics['warnings'].append(line.strip())
-        return metrics
-    
-    master_metrics = extract_metrics(master_lines)
-    refactor_metrics = extract_metrics(refactor_lines)
-    
-    print("Master分支指标:")
-    print(f"  买入: {master_metrics['buy_count']}")
-    print(f"  卖出: {master_metrics['sell_count']}")
-    print(f"  最终资金: {master_metrics['final_value']}")
-    if master_metrics['errors']:
-        print(f"  错误数: {len(master_metrics['errors'])}")
-    
-    print("\nRemove-metaprogramming分支指标:")
-    print(f"  买入: {refactor_metrics['buy_count']}")
-    print(f"  卖出: {refactor_metrics['sell_count']}")
-    print(f"  最终资金: {refactor_metrics['final_value']}")
-    if refactor_metrics['errors']:
-        print(f"  错误数: {len(refactor_metrics['errors'])}")
-        print("  错误详情:")
-        for err in refactor_metrics['errors'][:5]:  # 只显示前5个错误
-            print(f"    - {err}")
-    
-    # 分析差异原因
-    print("\n可能的问题分析:")
-    if master_metrics['buy_count'] != refactor_metrics['buy_count']:
-        print("  - 买入次数不一致，可能是订单执行逻辑或信号生成有差异")
-    if master_metrics['sell_count'] != refactor_metrics['sell_count']:
-        print("  - 卖出次数不一致，可能是平仓逻辑或止损止盈有差异")
-    if master_metrics['final_value'] != refactor_metrics['final_value']:
-        print("  - 最终资金不一致，可能是交易计算或手续费计算有差异")
-    if len(refactor_metrics['errors']) > len(master_metrics['errors']):
-        print("  - 重构分支有更多错误，请检查错误日志")
-
-
 def run_on_both_branches(script_path, log_dir="logs"):
     """
-    在master和remove-metaprogramming两个分支上运行测试并对比结果
+    在master和remove-metaprogramming两个分支上运行测试
     
     Args:
         script_path: 要运行的脚本路径
@@ -362,6 +277,9 @@ def run_on_both_branches(script_path, log_dir="logs"):
     """
     original_branch = get_git_branch()
     print(f"当前分支: {original_branch}")
+    
+    # 先暂存未提交的更改
+    stashed = git_stash()
     
     master_log = None
     refactor_log = None
@@ -399,14 +317,23 @@ def run_on_both_branches(script_path, log_dir="logs"):
         return_code2, refactor_log = run_with_logging(script_path, log_dir, "remove-metaprogramming")
         print(f"Remove-metaprogramming分支测试完成，返回码: {return_code2}")
         
-        # 3. 对比日志
-        if master_log and refactor_log:
-            compare_logs(master_log, refactor_log)
+        # 3. 输出日志文件路径
+        print("\n" + "="*60)
+        print("测试完成，日志文件:")
+        print("="*60)
+        if master_log:
+            print(f"  Master: {master_log}")
+        if refactor_log:
+            print(f"  Remove-metaprogramming: {refactor_log}")
         
     finally:
         # 切回原分支
         print(f"\n切回原分支: {original_branch}")
         switch_branch(original_branch)
+        
+        # 恢复暂存的更改
+        if stashed:
+            git_stash_pop()
 
 
 def main():
