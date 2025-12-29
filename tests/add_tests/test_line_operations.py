@@ -590,6 +590,14 @@ def collect_baseline_values():
     print("=" * 80)
 
 
+def test_run():
+    """pytest入口 - 运行所有line操作测试"""
+    test_macd_ema_line_operations()
+    test_keltner_line_operations()
+    test_timeline_sma_line_operations()
+    test_highest_lowest_line_operations()
+
+
 if __name__ == '__main__':
     import sys
     
