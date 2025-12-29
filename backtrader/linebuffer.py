@@ -736,11 +736,29 @@ class LineBuffer(LineSingle, LineRootMixin):
             return self[0]
         return LineDelay(self, ago)
 
-    def _makeoperation(self, other, operation, r=False, _ownerskip=None):
-        return LinesOperation(self, other, operation, r=r)
+    def _makeoperation(self, other, operation, r=False, _ownerskip=None, original_other=None):
+        # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
+        parent_a = None
+        if hasattr(self, '_owner') and self._owner is not None:
+            owner = self._owner
+            if hasattr(owner, '_owner_ref') and owner._owner_ref is not None:
+                parent_a = owner._owner_ref
+            elif hasattr(owner, '_once'):
+                parent_a = owner
+        parent_b_candidate = original_other if original_other is not None else other
+        parent_b = parent_b_candidate if hasattr(parent_b_candidate, '_once') else None
+        return LinesOperation(self, other, operation, r=r, parent_a=parent_a, parent_b=parent_b)
 
     def _makeoperationown(self, operation, _ownerskip=None):
-        return LineOwnOperation(self, operation)
+        # CRITICAL FIX: Pass parent indicator so LineOwnOperation can call its _once
+        parent_a = None
+        if hasattr(self, '_owner') and self._owner is not None:
+            owner = self._owner
+            if hasattr(owner, '_owner_ref') and owner._owner_ref is not None:
+                parent_a = owner._owner_ref
+            elif hasattr(owner, '_once'):
+                parent_a = owner
+        return LineOwnOperation(self, operation, parent_a=parent_a)
 
     def _settz(self, tz):
         self._tz = tz
@@ -1531,6 +1549,17 @@ class _LineDelay(LineActions):
             # If 'a' doesn't have _minperiod, set a default
             self.addminperiod(max(1, abs(ago)))
 
+    def __getitem__(self, idx):
+        """CRITICAL FIX: Override __getitem__ to compute delayed value dynamically.
+        
+        This handles constants wrapped in PseudoArray correctly.
+        """
+        try:
+            # For delay operations, get value from source with delay applied
+            return self.a[idx - self.ago]
+        except (IndexError, TypeError):
+            return 0.0
+
     def next(self):
         # CRITICAL FIX: Proper delay operation
         try:
@@ -1746,12 +1775,18 @@ class _LineForward(LineActions):
 
 
 class LinesOperation(LineActions):
-    def __init__(self, a, b, operation, r=False):
+    def __init__(self, a, b, operation, r=False, parent_a=None, parent_b=None):
         super(LinesOperation, self).__init__()
+        
         self.operation = operation
         self.a = a  # always a linebuffer-like object
         self.b = self.arrayize(b)
         self.r = r
+        
+        # CRITICAL FIX: Store references to parent indicators for _once processing
+        # Use passed parent references if available, otherwise try to find them
+        self._parent_a = parent_a if parent_a is not None else self._find_parent_indicator(a)
+        self._parent_b = parent_b if parent_b is not None else self._find_parent_indicator(b)
 
         # ensure a is added if it's a lineiterator-like object
         # self.addminperiod(1) already done by the base class
@@ -1763,6 +1798,47 @@ class LinesOperation(LineActions):
         # For me1 - me2, minperiod = max(me1._minperiod, me2._minperiod)
         max_minperiod = max(a_minperiod, b_minperiod)
         self.updateminperiod(max_minperiod)
+    
+    def _find_parent_indicator(self, operand):
+        """Find the parent indicator that owns this operand (LineBuffer)"""
+        # If operand is already an indicator (has _once method), return it
+        if hasattr(operand, '_once') and hasattr(operand, '_lineiterators'):
+            return operand
+        # If operand is a LineBuffer, try to find its owner indicator
+        if hasattr(operand, '_owner') and operand._owner is not None:
+            owner = operand._owner
+            # Check if owner has _owner_ref pointing to the indicator
+            if hasattr(owner, '_owner_ref') and owner._owner_ref is not None:
+                return owner._owner_ref
+            # Check if owner itself is an indicator
+            if hasattr(owner, '_once') and hasattr(owner, '_lineiterators'):
+                return owner
+        return None
+
+    def __getitem__(self, ago):
+        """CRITICAL FIX: Override __getitem__ to compute value dynamically from source operands.
+        
+        This ensures correct values in runonce mode where LinesOperation's _idx may not be
+        properly advanced because it's not registered as IndType.
+        """
+        try:
+            # Get values from source operands at the same relative position
+            a_val = self.a[ago] if hasattr(self.a, '__getitem__') else self.a
+            b_val = self.b[ago] if hasattr(self.b, '__getitem__') else self.b
+            
+            # Handle None/NaN values
+            if a_val is None or (isinstance(a_val, float) and a_val != a_val):
+                return float('nan')
+            if b_val is None or (isinstance(b_val, float) and b_val != b_val):
+                return float('nan')
+            
+            # Compute and return the operation result
+            if self.r:
+                return self.operation(b_val, a_val)
+            else:
+                return self.operation(a_val, b_val)
+        except (IndexError, TypeError):
+            return float('nan')
 
     def next(self):
         # operation(float, other) ... expecting other to be a float
@@ -1842,6 +1918,38 @@ class LinesOperation(LineActions):
             self[0] = 0.0
 
     def once(self, start, end):
+        # Check if array is already populated (avoid redundant work)
+        if len(self.array) >= end:
+            return
+        
+        # CRITICAL FIX: Call parent indicators' once() methods to populate their arrays
+        # This is needed for cases like dif = ema_1 - ema_2 where ema_1/ema_2 must be computed first
+        if self._parent_a is not None and hasattr(self._parent_a, 'once'):
+            try:
+                self._parent_a.once(start, end)
+            except Exception:
+                pass
+        
+        if self._parent_b is not None and hasattr(self._parent_b, 'once'):
+            try:
+                self._parent_b.once(start, end)
+            except Exception:
+                pass
+        
+        # CRITICAL FIX: For nested LinesOperations, call once() on immediate operands
+        # This ensures the cascade works for expressions like (high + low + close) / 3
+        if hasattr(self.a, 'once') and hasattr(self.a, 'operation'):
+            try:
+                self.a.once(start, end)
+            except Exception:
+                pass
+        
+        if hasattr(self.b, 'once') and hasattr(self.b, 'operation'):
+            try:
+                self.b.once(start, end)
+            except Exception:
+                pass
+        
         if hasattr(self.b, "array"):
             self._once_op(start, end)
         else:
@@ -1851,6 +1959,13 @@ class LinesOperation(LineActions):
                 self._once_time_op(start, end)
 
     def _once_op(self, start, end):
+        # CRITICAL FIX: Ensure b's array is populated if b is a _LineDelay or similar
+        if hasattr(self.b, 'once') and len(self.b.array) < end:
+            try:
+                self.b.once(start, end)
+            except Exception:
+                pass
+        
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
@@ -1862,12 +1977,27 @@ class LinesOperation(LineActions):
             dst.append(float('nan'))
 
         # Clip processing range to available source data
-        end = min(end, len(srca), len(srcb))
+        # If srcb is empty but b is a constant, use srca length
+        if len(srcb) == 0 and hasattr(self.b, 'a') and hasattr(self.b.a, 'wrapped'):
+            # b is a _LineDelay wrapping a constant - use dynamic access
+            end = min(end, len(srca))
+        else:
+            end = min(end, len(srca), len(srcb))
 
-        for i in range(start, end):
+        # CRITICAL FIX: If srcb is empty, use dynamic access for constant values
+        use_dynamic_b = len(srcb) == 0
+        
+        # CRITICAL FIX: Always process from 0 to ensure historical values are available
+        # This is needed for indicators like SMA that need historical values for their calculations
+        actual_start = 0
+        
+        for i in range(actual_start, end):
             try:
                 a_val = srca[i]
-                b_val = srcb[i]
+                if use_dynamic_b:
+                    b_val = self.b[i]  # Use __getitem__ for constants
+                else:
+                    b_val = srcb[i]
 
                 # Preserve NaN semantics for indicators: if any operand is None/NaN -> NaN
                 if a_val is None or a_val != a_val or b_val is None or b_val != b_val:
@@ -1987,19 +2117,52 @@ class LinesOperation(LineActions):
 
 
 class LineOwnOperation(LineActions):
-    def __init__(self, a, operation):
+    def __init__(self, a, operation, parent_a=None):
         super(LineOwnOperation, self).__init__()
+        
         self.operation = operation
         self.a = a
+        
+        # CRITICAL FIX: Store reference to parent indicator for _once processing
+        self._parent_a = parent_a if parent_a is not None else self._find_parent_indicator(a)
 
         # CRITICAL FIX: Handle _minperiod attribute access more safely
         a_minperiod = getattr(a, "_minperiod", 1) if hasattr(a, "_minperiod") else 1
         self.addminperiod(a_minperiod)
+    
+    def _find_parent_indicator(self, operand):
+        """Find the parent indicator that owns this operand (LineBuffer)"""
+        if hasattr(operand, '_once') and hasattr(operand, '_lineiterators'):
+            return operand
+        if hasattr(operand, '_owner') and operand._owner is not None:
+            owner = operand._owner
+            if hasattr(owner, '_owner_ref') and owner._owner_ref is not None:
+                return owner._owner_ref
+            if hasattr(owner, '_once') and hasattr(owner, '_lineiterators'):
+                return owner
+        return None
+
+    def __getitem__(self, ago):
+        """CRITICAL FIX: Override __getitem__ to compute value dynamically from source operand."""
+        try:
+            a_val = self.a[ago] if hasattr(self.a, '__getitem__') else self.a
+            if a_val is None or (isinstance(a_val, float) and a_val != a_val):
+                return float('nan')
+            return self.operation(a_val)
+        except (IndexError, TypeError):
+            return float('nan')
 
     def next(self):
         self[0] = self.operation(self.a[0])
 
     def once(self, start, end):
+        # CRITICAL FIX: Ensure source operand is processed first
+        if self._parent_a is not None and hasattr(self._parent_a, '_once'):
+            try:
+                self._parent_a._once(start, end)
+            except Exception:
+                pass
+        
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
@@ -2007,7 +2170,7 @@ class LineOwnOperation(LineActions):
 
         # CRITICAL FIX: Ensure destination array is properly sized
         while len(dst) < end:
-            dst.append(0.0)
+            dst.append(float('nan'))
 
         # CRITICAL FIX: Ensure source array has required data
         if len(srca) < end:

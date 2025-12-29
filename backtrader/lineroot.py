@@ -186,14 +186,20 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
 
     # Arithmetic operators
     # 一些算术操作
-    def _makeoperation(self, other, operation, r=False, _ownerskip=None):
+    def _makeoperation(self, other, operation, r=False, _ownerskip=None, original_other=None):
         # For LineMultiple, we can implement a basic operation using the first line
         # This provides a fallback when operations are needed
         if hasattr(self, "lines") and self.lines:
             # Use the first line for operations
             from .linebuffer import LinesOperation
 
-            return LinesOperation(self.lines[0], other, operation, r=r)
+            # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
+            parent_a = self if hasattr(self, '_once') else None
+            # Use original_other (before lines[0] extraction) to get the indicator reference
+            parent_b_candidate = original_other if original_other is not None else other
+            parent_b = parent_b_candidate if hasattr(parent_b_candidate, '_once') else None
+            return LinesOperation(self.lines[0], other, operation, r=r,
+                                  parent_a=parent_a, parent_b=parent_b)
         else:
             # If no lines, return a simple operation result
             try:
@@ -294,10 +300,12 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         Two operands' operations.Scanning of other happens to understand
         if other must be directly an operand or rather a subitem thereof
         """
+        # CRITICAL FIX: Preserve original indicator reference before extracting lines[0]
+        original_other = other
         if isinstance(other, LineMultiple):
             other = other.lines[0]
 
-        return self._makeoperation(other, operation, r, self)
+        return self._makeoperation(other, operation, r, self, original_other=original_other)
 
     # 阶段2操作，如果other是一个line，就取出当前值，然后进行操作
     def _operation_stage2(self, other, operation, r=False):
@@ -651,9 +659,10 @@ class LineMultiple(LineRoot):
         """
         The passed minperiod is fed to the lines
         """
-        # Update self._minperiod using max (not add) to avoid double-counting
-        # The actual period accumulation happens in the individual lines via addminperiod
-        self._minperiod = max(self._minperiod, minperiod)
+        # CRITICAL FIX: Use the same accumulation logic as LineSingle
+        # This ensures nested indicators properly accumulate minperiods
+        # minperiod is added with -1 to account for overlapping
+        self._minperiod += minperiod - 1
 
         for line in self.lines:
             line.addminperiod(minperiod)
@@ -665,14 +674,19 @@ class LineMultiple(LineRoot):
         for line in self.lines:
             line.incminperiod(minperiod)
 
-    def _makeoperation(self, other, operation, r=False, _ownerskip=None):
+    def _makeoperation(self, other, operation, r=False, _ownerskip=None, original_other=None):
         # For LineMultiple, we can implement a basic operation using the first line
         # This provides a fallback when operations are needed
         if hasattr(self, "lines") and self.lines:
             # Use the first line for operations
             from .linebuffer import LinesOperation
 
-            return LinesOperation(self.lines[0], other, operation, r=r)
+            # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
+            parent_a = self if hasattr(self, '_once') else None
+            parent_b_candidate = original_other if original_other is not None else other
+            parent_b = parent_b_candidate if hasattr(parent_b_candidate, '_once') else None
+            return LinesOperation(self.lines[0], other, operation, r=r,
+                                  parent_a=parent_a, parent_b=parent_b)
         else:
             # If no lines, return a simple operation result
             try:

@@ -45,17 +45,6 @@ class ExponentialMovingAverage(MovingAverageBase):
 
     def once(self, start, end):
         """Calculate EMA in runonce mode"""
-        # CRITICAL FIX: If data source is a LinesOperation (or similar),
-        # ensure its once() is called first to populate its array
-        if hasattr(self.data, 'once') and len(self.data.array) > 0:
-            # Check if data array has valid values (not all zeros or empty)
-            if all(v == 0.0 for v in self.data.array[:min(10, len(self.data.array))]):
-                try:
-                    self.data.once(start, end)
-                except Exception:
-                    pass
-        
-        darray = self.data.array
         larray = self.lines[0].array
         alpha = self.alpha
         alpha1 = self.alpha1
@@ -65,17 +54,25 @@ class ExponentialMovingAverage(MovingAverageBase):
         while len(larray) < end:
             larray.append(0.0)
 
-        # Check if we have valid data
-        if len(darray) == 0:
+        # CRITICAL FIX: For LinesOperation data sources, call their once() to populate array
+        if hasattr(self.data, 'once') and hasattr(self.data, 'operation'):
+            try:
+                self.data.once(start, end)
+            except Exception:
+                pass
+        
+        darray = self.data.array
+        data_len = len(darray)
+        if data_len == 0:
             return
 
         # Pre-fill warmup period with NaN
-        for i in range(min(period - 1, len(darray))):
+        for i in range(min(period - 1, data_len)):
             larray[i] = float("nan")
 
         # Find first valid (non-NaN) index for seed calculation
         first_valid = 0
-        for i in range(len(darray)):
+        for i in range(data_len):
             val = darray[i]
             if not (isinstance(val, float) and math.isnan(val)):
                 first_valid = i
@@ -83,7 +80,7 @@ class ExponentialMovingAverage(MovingAverageBase):
 
         # Calculate seed value (SMA of first period values starting from first valid)
         seed_idx = first_valid + period - 1
-        if seed_idx < len(darray):
+        if seed_idx < data_len:
             seed_sum = 0.0
             valid_count = 0
             for i in range(first_valid, seed_idx + 1):
@@ -100,7 +97,7 @@ class ExponentialMovingAverage(MovingAverageBase):
             return  # Not enough data
 
         # EMA is recursive - must calculate ALL values from seed onwards
-        for i in range(seed_idx + 1, min(end, len(darray))):
+        for i in range(seed_idx + 1, min(end, data_len)):
             current_val = darray[i]
             if isinstance(current_val, float) and math.isnan(current_val):
                 larray[i] = float("nan")

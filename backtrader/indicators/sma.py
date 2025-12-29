@@ -249,6 +249,14 @@ class MovingAverageSimple(MovingAverageBase):
     def once(self, start, end):
         """Optimized batch calculation for runonce mode"""
         try:
+            # CRITICAL FIX: If data source is a LinesOperation, ensure its once() is called first
+            # to populate its array before we access it
+            if hasattr(self.data, 'once') and hasattr(self.data, 'operation'):
+                try:
+                    self.data.once(start, end)
+                except Exception:
+                    pass
+            
             # Get arrays for efficient calculation
             dst = self.lines[0].array
             src = self.data.array
@@ -264,13 +272,15 @@ class MovingAverageSimple(MovingAverageBase):
             while len(dst) < end:
                 dst.append(float("nan"))
 
-            # CRITICAL FIX: Pre-fill warmup period with NaN to match expected behavior
-            # This prevents ZeroDivisionError when strategy calls next() from prenext()
-            for i in range(0, min(start, len(src))):
+            # CRITICAL FIX: Pre-fill only the true warmup period (period-1) with NaN
+            # Don't pre-fill based on start parameter as that may skip valid calculation range
+            for i in range(0, min(period - 1, len(src))):
                 dst[i] = float("nan")
 
             # Calculate SMA for each index up to actual data length
-            for i in range(start, actual_end):
+            # Start from period-1 (first valid SMA) or start, whichever is later
+            calc_start = max(period - 1, start)
+            for i in range(calc_start, actual_end):
                 if i >= period - 1:
                     # Calculate SMA: average of last 'period' values
                     start_idx = i - period + 1
