@@ -66,10 +66,6 @@ class ExponentialMovingAverage(MovingAverageBase):
         if data_len == 0:
             return
 
-        # Pre-fill warmup period with NaN
-        for i in range(min(period - 1, data_len)):
-            larray[i] = float("nan")
-
         # Find first valid (non-NaN) index for seed calculation
         first_valid = 0
         for i in range(data_len):
@@ -78,8 +74,14 @@ class ExponentialMovingAverage(MovingAverageBase):
                 first_valid = i
                 break
 
-        # Calculate seed value (SMA of first period values starting from first valid)
+        # Calculate seed index
         seed_idx = first_valid + period - 1
+        
+        # CRITICAL FIX: Pre-fill warmup period with NaN up to seed_idx
+        # This ensures indices before the seed are NaN, not 0.0
+        for i in range(min(seed_idx, data_len)):
+            larray[i] = float("nan")
+
         if seed_idx < data_len:
             seed_sum = 0.0
             valid_count = 0

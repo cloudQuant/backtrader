@@ -60,6 +60,21 @@ class TimeLine(bt.Indicator):
         if self.current_hour == day_end_hour and self.current_minute == day_end_minute:
             self.day_close_price_list = []
 
+    def once(self, start, end):
+        """Vectorized calculation for runonce mode"""
+        close_array = self.data.close.array
+        dst = self.lines.day_avg_price.array
+        
+        # Ensure destination array is sized
+        while len(dst) < end:
+            dst.append(0.0)
+        
+        # Calculate running average for each bar
+        price_sum = 0.0
+        for i in range(min(end, len(close_array))):
+            price_sum += close_array[i]
+            dst[i] = price_sum / (i + 1)
+
 
 class TimeLineMaStrategy(bt.Strategy):
     """分时均线策略
