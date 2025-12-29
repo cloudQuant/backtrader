@@ -1857,31 +1857,36 @@ class LinesOperation(LineActions):
         srcb = self.b.array
         op = self.operation
 
+        # Ensure destination array is sized for direct index assignment
+        while len(dst) < end:
+            dst.append(float('nan'))
+
+        # Clip processing range to available source data
+        end = min(end, len(srca), len(srcb))
+
         for i in range(start, end):
             try:
-                # CRITICAL FIX: Bounds checking for source arrays
-                a_val = srca[i] if i < len(srca) else 0.0
-                b_val = srcb[i] if i < len(srcb) else 0.0
+                a_val = srca[i]
+                b_val = srcb[i]
 
-                # Ensure values are numeric
-                if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
-                    a_val = 0.0
-                if b_val is None or (isinstance(b_val, float) and math.isnan(b_val)):
-                    b_val = 0.0
+                # Preserve NaN semantics for indicators: if any operand is None/NaN -> NaN
+                if a_val is None or a_val != a_val or b_val is None or b_val != b_val:
+                    dst[i] = float('nan')
+                    continue
 
                 if self.r:
                     result = op(b_val, a_val)
                 else:
                     result = op(a_val, b_val)
 
-                # Ensure result is valid
-                if result is None or (isinstance(result, float) and math.isnan(result)):
-                    result = 0.0
+                # Preserve NaN semantics
+                if result is None or result != result:
+                    result = float('nan')
 
                 dst[i] = result
             except Exception:
-                # If operation fails, store 0.0
-                dst[i] = 0.0
+                # If operation fails, store NaN for indicator semantics
+                dst[i] = float('nan')
 
     def _once_time_op(self, start, end):
         # cache python dictionary lookups
@@ -1890,30 +1895,33 @@ class LinesOperation(LineActions):
         srcb = self.b[0]
         op = self.operation
 
+        # Ensure destination array is sized for direct index assignment
+        while len(dst) < end:
+            dst.append(float('nan'))
+
+        # Clip processing range to available source data
+        end = min(end, len(srca))
+
         for i in range(start, end):
             try:
-                # CRITICAL FIX: Bounds checking for source array
-                a_val = srca[i] if i < len(srca) else 0.0
+                a_val = srca[i]
 
-                # Ensure values are numeric
-                if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
-                    a_val = 0.0
-                if srcb is None or (isinstance(srcb, float) and math.isnan(srcb)):
-                    srcb = 0.0
+                # Preserve NaN semantics
+                if a_val is None or a_val != a_val or srcb is None or srcb != srcb:
+                    dst[i] = float('nan')
+                    continue
 
                 if self.r:
                     result = op(srcb, a_val)
                 else:
                     result = op(a_val, srcb)
 
-                # Ensure result is valid
-                if result is None or (isinstance(result, float) and math.isnan(result)):
-                    result = 0.0
+                if result is None or result != result:
+                    result = float('nan')
 
                 dst[i] = result
             except Exception:
-                # If operation fails, store 0.0
-                dst[i] = 0.0
+                dst[i] = float('nan')
 
     def _once_val_op(self, start, end):
         # cache python dictionary lookups
@@ -1922,27 +1930,29 @@ class LinesOperation(LineActions):
         srcb = self.b
         op = self.operation
 
+        # Ensure destination array is sized for direct index assignment
+        while len(dst) < end:
+            dst.append(float('nan'))
+
+        # Clip processing range to available source data
+        end = min(end, len(srca))
+
         for i in range(start, end):
             try:
-                # CRITICAL FIX: Bounds checking for source array
-                a_val = srca[i] if i < len(srca) else 0.0
+                a_val = srca[i]
 
-                # Ensure values are numeric
-                if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
-                    a_val = 0.0
-                if srcb is None or (isinstance(srcb, float) and math.isnan(srcb)):
-                    srcb = 0.0
+                if a_val is None or a_val != a_val or srcb is None or srcb != srcb:
+                    dst[i] = float('nan')
+                    continue
 
                 result = op(a_val, srcb)
 
-                # Ensure result is valid
-                if result is None or (isinstance(result, float) and math.isnan(result)):
-                    result = 0.0
+                if result is None or result != result:
+                    result = float('nan')
 
                 dst[i] = result
             except Exception:
-                # If operation fails, store 0.0
-                dst[i] = 0.0
+                dst[i] = float('nan')
 
     def _once_val_op_r(self, start, end):
         # cache python dictionary lookups
@@ -1951,27 +1961,29 @@ class LinesOperation(LineActions):
         srcb = self.b
         op = self.operation
 
+        # Ensure destination array is sized for direct index assignment
+        while len(dst) < end:
+            dst.append(float('nan'))
+
+        # Clip processing range to available source data
+        end = min(end, len(srca))
+
         for i in range(start, end):
             try:
-                # CRITICAL FIX: Bounds checking for source array
-                a_val = srca[i] if i < len(srca) else 0.0
+                a_val = srca[i]
 
-                # Ensure values are numeric
-                if a_val is None or (isinstance(a_val, float) and math.isnan(a_val)):
-                    a_val = 0.0
-                if srcb is None or (isinstance(srcb, float) and math.isnan(srcb)):
-                    srcb = 0.0
+                if a_val is None or a_val != a_val or srcb is None or srcb != srcb:
+                    dst[i] = float('nan')
+                    continue
 
                 result = op(srcb, a_val)
 
-                # Ensure result is valid
-                if result is None or (isinstance(result, float) and math.isnan(result)):
-                    result = 0.0
+                if result is None or result != result:
+                    result = float('nan')
 
                 dst[i] = result
             except Exception:
-                # If operation fails, store 0.0
-                dst[i] = 0.0
+                dst[i] = float('nan')
 
 
 class LineOwnOperation(LineActions):

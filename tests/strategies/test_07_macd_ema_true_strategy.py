@@ -61,7 +61,7 @@ class MacdEmaTrueStrategy(bt.Strategy):
         self.current_date = None
         self.buy_count = 0
         self.sell_count = 0
-        # 计算macd指标
+        # 计算macd指标 - 使用原始行操作方式
         self.ema_1 = bt.indicators.ExponentialMovingAverage(self.datas[0].close, period=self.p.period_me1)
         self.ema_2 = bt.indicators.ExponentialMovingAverage(self.datas[0].close, period=self.p.period_me2)
         self.dif = self.ema_1 - self.ema_2
@@ -80,7 +80,6 @@ class MacdEmaTrueStrategy(bt.Strategy):
         self.current_date = bt.num2date(self.datas[0].datetime[0])
         self.bar_num += 1
         data = self.datas[0]
-        
         # 开仓，先平后开
         # 平多
         if self.holding_contract_name is not None and self.getpositionbyname(self.holding_contract_name).size > 0 and data.close[0] < self.ema_1[0]:
