@@ -338,15 +338,14 @@ def test_macd_ema_line_operations():
     assert len(strategy.recorded_values) > 0, "No valid indicator values recorded"
     
     # 预期值 (从master版本获取) - 验证特定bar的关键指标值
-    # 这些值需要在master版本运行后填入
-    EXPECTED_BAR_NUM = 81  # master版本的bar数量
+    EXPECTED_BAR_NUM = 73
     EXPECTED_FIRST_RECORD = {
-        'bar_num': 1, 'ema_1': 99.878382, 'ema_2': 99.716478, 
-        'dif': 0.161904, 'dea': None, 'macd': None
+        'bar_num': 1, 'ema_1': 103.716294, 'ema_2': 102.189275, 
+        'dif': 1.527019, 'dea': 0.819102, 'macd': 1.415833
     }
     EXPECTED_LAST_RECORD = {
-        'bar_num': 81, 'ema_1': 98.559498, 'ema_2': 98.839731,
-        'dif': -0.280233, 'dea': -0.177055, 'macd': -0.206356
+        'bar_num': 73, 'ema_1': 102.306701, 'ema_2': 101.658218,
+        'dif': 0.648483, 'dea': 0.388373, 'macd': 0.520219
     }
     
     # 获取实际记录
@@ -397,15 +396,15 @@ def test_keltner_line_operations():
     # 验证有记录的值
     assert len(strategy.recorded_values) > 0, "No valid indicator values recorded"
     
-    # 预期值 (从master版本获取) - 需要在master版本运行后填入
-    EXPECTED_BAR_NUM = 81  # master版本的bar数量
+    # 预期值 (从master版本获取)
+    EXPECTED_BAR_NUM = 80
     EXPECTED_FIRST_RECORD = {
-        'bar_num': 1, 'middle_price': 99.5, 'middle_line': 99.5,
-        'atr': 2.0, 'upper_line': 103.5, 'lower_line': 95.5
+        'bar_num': 1, 'middle_price': 102.743291, 'middle_line': 99.783775,
+        'atr': 3.04598, 'upper_line': 105.875734, 'lower_line': 93.691816
     }
     EXPECTED_LAST_RECORD = {
-        'bar_num': 81, 'middle_price': 98.0, 'middle_line': 98.5,
-        'atr': 2.5, 'upper_line': 103.5, 'lower_line': 93.5
+        'bar_num': 80, 'middle_price': 104.871328, 'middle_line': 101.915361,
+        'atr': 2.951128, 'upper_line': 107.817617, 'lower_line': 96.013105
     }
     
     # 获取实际记录
@@ -449,13 +448,13 @@ def test_timeline_sma_line_operations():
     # 验证有记录的值
     assert len(strategy.recorded_values) > 0, "No valid indicator values recorded"
     
-    # 预期值 (从master版本获取) - 需要在master版本运行后填入
-    EXPECTED_BAR_NUM = 81  # master版本的bar数量
+    # 预期值 (从master版本获取)
+    EXPECTED_BAR_NUM = 81
     EXPECTED_FIRST_RECORD = {
-        'bar_num': 1, 'close': 100.0, 'day_avg_price': 100.0, 'ma_value': 100.0
+        'bar_num': 1, 'close': 100.964345, 'day_avg_price': 99.517016, 'ma_value': 99.517016
     }
     EXPECTED_LAST_RECORD = {
-        'bar_num': 81, 'close': 98.0, 'day_avg_price': 99.0, 'ma_value': 98.5
+        'bar_num': 81, 'close': 104.674652, 'day_avg_price': 100.662885, 'ma_value': 101.992377
     }
     
     # 获取实际记录
@@ -495,15 +494,15 @@ def test_highest_lowest_line_operations():
     # 验证有记录的值
     assert len(strategy.recorded_values) > 0, "No valid indicator values recorded"
     
-    # 预期值 (从master版本获取) - 需要在master版本运行后填入
-    EXPECTED_BAR_NUM = 81  # master版本的bar数量
+    # 预期值 (从master版本获取)
+    EXPECTED_BAR_NUM = 81
     EXPECTED_FIRST_RECORD = {
-        'bar_num': 1, 'high': 102.0, 'low': 98.0, 
-        'highest_high': 102.0, 'lowest_low': 98.0
+        'bar_num': 1, 'high': 102.885526, 'low': 100.605869, 
+        'highest_high': 102.885526, 'lowest_low': 95.794978
     }
     EXPECTED_LAST_RECORD = {
-        'bar_num': 81, 'high': 100.0, 'low': 96.0,
-        'highest_high': 105.0, 'lowest_low': 94.0
+        'bar_num': 81, 'high': 106.508498, 'low': 103.430834,
+        'highest_high': 106.609724, 'lowest_low': 95.691099
     }
     
     # 获取实际记录
