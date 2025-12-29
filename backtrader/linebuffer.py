@@ -1922,17 +1922,21 @@ class LinesOperation(LineActions):
         if len(self.array) >= end:
             return
         
+        # CRITICAL FIX: Always use start=0 for nested operations
+        # This ensures historical values are available for indicators like SMA
+        nested_start = 0
+        
         # CRITICAL FIX: Call parent indicators' once() methods to populate their arrays
         # This is needed for cases like dif = ema_1 - ema_2 where ema_1/ema_2 must be computed first
         if self._parent_a is not None and hasattr(self._parent_a, 'once'):
             try:
-                self._parent_a.once(start, end)
+                self._parent_a.once(nested_start, end)
             except Exception:
                 pass
         
         if self._parent_b is not None and hasattr(self._parent_b, 'once'):
             try:
-                self._parent_b.once(start, end)
+                self._parent_b.once(nested_start, end)
             except Exception:
                 pass
         
@@ -1940,23 +1944,24 @@ class LinesOperation(LineActions):
         # This ensures the cascade works for expressions like (high + low + close) / 3
         if hasattr(self.a, 'once') and hasattr(self.a, 'operation'):
             try:
-                self.a.once(start, end)
+                self.a.once(nested_start, end)
             except Exception:
                 pass
         
         if hasattr(self.b, 'once') and hasattr(self.b, 'operation'):
             try:
-                self.b.once(start, end)
+                self.b.once(nested_start, end)
             except Exception:
                 pass
         
+        # CRITICAL FIX: Always process from 0 to populate historical values
         if hasattr(self.b, "array"):
-            self._once_op(start, end)
+            self._once_op(nested_start, end)
         else:
             if isinstance(self.b, float):
-                self._once_val_op_r(start, end) if self.r else self._once_val_op(start, end)
+                self._once_val_op_r(nested_start, end) if self.r else self._once_val_op(nested_start, end)
             else:
-                self._once_time_op(start, end)
+                self._once_time_op(nested_start, end)
 
     def _once_op(self, start, end):
         # CRITICAL FIX: Ensure b's array is populated if b is a _LineDelay or similar
@@ -1977,15 +1982,18 @@ class LinesOperation(LineActions):
             dst.append(float('nan'))
 
         # Clip processing range to available source data
-        # If srcb is empty but b is a constant, use srca length
-        if len(srcb) == 0 and hasattr(self.b, 'a') and hasattr(self.b.a, 'wrapped'):
-            # b is a _LineDelay wrapping a constant - use dynamic access
+        # CRITICAL FIX: Check if b is a _LineDelay wrapping a constant (PseudoArray)
+        # In this case, srcb will be empty but b[i] will return the constant
+        is_constant_b = len(srcb) == 0 and hasattr(self.b, 'a') and type(self.b.a).__name__ == 'PseudoArray'
+        
+        if is_constant_b:
+            # b is a _LineDelay wrapping a constant - use srca length only
             end = min(end, len(srca))
         else:
             end = min(end, len(srca), len(srcb))
 
-        # CRITICAL FIX: If srcb is empty, use dynamic access for constant values
-        use_dynamic_b = len(srcb) == 0
+        # Use dynamic access for constant values wrapped in _LineDelay
+        use_dynamic_b = is_constant_b
         
         # CRITICAL FIX: Always process from 0 to ensure historical values are available
         # This is needed for indicators like SMA that need historical values for their calculations

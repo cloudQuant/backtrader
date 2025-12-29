@@ -215,12 +215,14 @@ class AverageTrueRange(Indicator):
             if i < len(larray):
                 larray[i] = float("nan")
         
-        # Calculate seed value (SMA of first period TR values)
-        seed_idx = period
-        if seed_idx < len(high_array) and seed_idx < len(low_array) and seed_idx < len(close_array):
+        # CRITICAL FIX: Calculate seed at the start index (matching strategy's first bar)
+        # The seed should use the period TR values ending at start, not starting from 0
+        seed_idx = start
+        if seed_idx >= period and seed_idx < len(high_array) and seed_idx < len(low_array) and seed_idx < len(close_array):
             tr_sum = 0.0
             for j in range(period):
-                idx = seed_idx - period + j
+                # Use TR values from (start - period + 1) to start
+                idx = seed_idx - period + 1 + j
                 if idx >= 0:
                     if idx == 0:
                         tr = high_array[idx] - low_array[idx]
@@ -233,7 +235,24 @@ class AverageTrueRange(Indicator):
             if seed_idx < len(larray):
                 larray[seed_idx] = prev_atr
         else:
-            prev_atr = 0.0
+            # Fallback to original behavior for edge cases
+            seed_idx = period
+            if seed_idx < len(high_array):
+                tr_sum = 0.0
+                for j in range(period):
+                    idx = j
+                    if idx == 0:
+                        tr = high_array[idx] - low_array[idx]
+                    else:
+                        truehigh = max(high_array[idx], close_array[idx - 1])
+                        truelow = min(low_array[idx], close_array[idx - 1])
+                        tr = truehigh - truelow
+                    tr_sum += tr
+                prev_atr = tr_sum / period
+                if seed_idx < len(larray):
+                    larray[seed_idx] = prev_atr
+            else:
+                prev_atr = 0.0
         
         # Calculate ATR using SMMA
         for i in range(seed_idx + 1, min(end, len(high_array), len(low_array), len(close_array))):

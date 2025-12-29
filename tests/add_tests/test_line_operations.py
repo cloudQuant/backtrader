@@ -232,6 +232,27 @@ class TimeLine(bt.Indicator):
         self.price_count += 1
         self.price_sum += self.data.close[0]
         self.lines.day_avg_price[0] = self.price_sum / self.price_count
+        self.current_datetime = bt.num2date(self.data.datetime[0])
+        self.current_hour = self.current_datetime.hour
+        self.current_minute = self.current_datetime.minute
+        day_end_hour, day_end_minute, _ = self.p.day_end_time
+        if self.current_hour == day_end_hour and self.current_minute == day_end_minute:
+            self.day_close_price_list = []
+            
+    def once(self, start, end):
+        """Vectorized calculation for runonce mode"""
+        close_array = self.data.close.array
+        dst = self.lines.day_avg_price.array
+        
+        # Ensure destination array is sized
+        while len(dst) < end:
+            dst.append(0.0)
+        
+        # Calculate running average for each bar
+        price_sum = 0.0
+        for i in range(min(end, len(close_array))):
+            price_sum += close_array[i]
+            dst[i] = price_sum / (i + 1)
 
 
 class TimeLineSmaTestStrategy(bt.Strategy):
