@@ -820,8 +820,10 @@ class Order(OrderBase):
         else:
             adjsize = 0.0
 
-        # 如果是买单，用price减去adjsize；如果是卖单，用price加上adjsize
-        price_new = price + adjsize * (1 - 2 * self.isbuy())
+        # CRITICAL FIX: BUY stop is ABOVE market (+adjsize), SELL stop is BELOW market (-adjsize)
+        # Original formula was backwards: (1 - 2*isbuy) gave -1 for buy, +1 for sell
+        # Correct formula: (2*isbuy - 1) gives +1 for buy, -1 for sell
+        price_new = price + adjsize * (2 * self.isbuy() - 1)
 
         # If price_new surpasses self.created.price -> readjust
         # 如果新的价格超过了原来创建的价格，进行重新调整.

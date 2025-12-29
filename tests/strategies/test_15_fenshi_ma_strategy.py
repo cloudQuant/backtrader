@@ -61,19 +61,29 @@ class TimeLine(bt.Indicator):
             self.day_close_price_list = []
 
     def once(self, start, end):
-        """Vectorized calculation for runonce mode"""
+        """Vectorized calculation for runonce mode with daily reset"""
         close_array = self.data.close.array
+        datetime_array = self.data.datetime.array
         dst = self.lines.day_avg_price.array
+        day_end_hour, day_end_minute, _ = self.p.day_end_time
         
         # Ensure destination array is sized
         while len(dst) < end:
             dst.append(0.0)
         
-        # Calculate running average for each bar
+        # Calculate running average for each bar, reset at day end
         price_sum = 0.0
+        count = 0
         for i in range(min(end, len(close_array))):
             price_sum += close_array[i]
-            dst[i] = price_sum / (i + 1)
+            count += 1
+            dst[i] = price_sum / count
+            
+            # Check if this is day end time - reset for next day
+            dt = bt.num2date(datetime_array[i])
+            if dt.hour == day_end_hour and dt.minute == day_end_minute:
+                price_sum = 0.0
+                count = 0
 
 
 class TimeLineMaStrategy(bt.Strategy):
