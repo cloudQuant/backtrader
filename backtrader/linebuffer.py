@@ -609,18 +609,13 @@ class LineBuffer(LineSingle, LineRootMixin):
             force (bool): Whether to force the reduction of the logical buffer
                           regardless of the minperiod
         """
-        # CRITICAL FIX: Ensure we have a valid idx
-        if not hasattr(self, "idx") or self.idx is None:
-            self.idx = -1
-            return
-
-        # Limit the size to avoid going negative
-        actual_size = min(size, self.idx + 1)
-        if actual_size <= 0:
-            return
-
-        self.idx -= actual_size
-        self.lencount -= actual_size
+        # CRITICAL FIX: Match master behavior - use set_idx for force support and pop array elements
+        self.set_idx(self._idx - size, force=force)
+        self.lencount -= size
+        # Pop array elements like master does - this removes trailing unfilled elements
+        for i in range(size):
+            if len(self.array) > 0:
+                self.array.pop()
 
     # 向后移动一位 (original backwards was overridden)
     def safe_backwards(self, size=1):
