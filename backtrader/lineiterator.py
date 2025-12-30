@@ -232,7 +232,9 @@ class LineIteratorMixin:
         if not _obj.datas:
             try:
                 owner = _obj._owner
-                if owner is not None:
+                # CRITICAL FIX: Don't add MinimalOwner to datas - it's just a placeholder
+                # and doesn't have the required methods like _stage2()
+                if owner is not None and owner.__class__.__name__ != 'MinimalOwner':
                     _obj.datas = [owner]
             except AttributeError:
                 _obj.datas = []
@@ -339,16 +341,59 @@ class LineIteratorMixin:
         _obj._periodrecalc()
 
         # Register self as indicator to owner
-        # PERFORMANCE: Use try-except instead of hasattr
+        # CRITICAL FIX: Handle indicators created in dict comprehensions
+        # When indicators are created in dict comprehensions, findowner() fails because
+        # 'self' is not in f_locals of the dict comprehension's frame. In this case,
+        # _owner gets lazily set to MinimalOwner which doesn't have addindicator().
+        # Solution: Try to find the real owner through the data source's owner chain.
+        owner = None
         try:
             owner = _obj._owner
-            if owner is not None:
-                try:
-                    owner.addindicator(_obj)
-                except AttributeError:
-                    pass
+            # Check if owner is valid (has addindicator method)
+            if owner is not None and not hasattr(owner, 'addindicator'):
+                owner = None  # MinimalOwner or invalid owner
         except AttributeError:
             pass
+
+        # If no valid owner found, try to find through call stack using inspect
+        # This is specifically for indicators created in dict/list comprehensions
+        # where findowner() fails because 'self' is not in f_locals of the comprehension frame
+        # CRITICAL: Only do this for indicators (objects with _ltype == IndType)
+        if owner is None:
+            try:
+                # Only apply this fix for indicators, not for all LineIterators
+                is_indicator = getattr(_obj, '_ltype', None) == LineIterator.IndType
+            except:
+                is_indicator = False
+            
+            if is_indicator:
+                try:
+                    import inspect
+                    from .strategy import Strategy
+                except ImportError:
+                    Strategy = None
+                
+                if Strategy is not None:
+                    try:
+                        for frame_info in inspect.stack():
+                            frame_locals = frame_info.frame.f_locals
+                            # Look for 'self' in the frame
+                            self_obj = frame_locals.get("self")
+                            if self_obj is not None and self_obj is not _obj:
+                                # Check if this is a Strategy instance
+                                if isinstance(self_obj, Strategy):
+                                    owner = self_obj
+                                    _obj._owner = owner
+                                    break
+                    except Exception:
+                        pass
+
+        # Register with owner if found
+        if owner is not None:
+            try:
+                owner.addindicator(_obj)
+            except (AttributeError, Exception):
+                pass
 
         return _obj, args, kwargs
 

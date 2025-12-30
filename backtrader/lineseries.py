@@ -1153,17 +1153,14 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
         try:
             value = line0[key]
-            # None check
+            # None check - convert None to NaN for consistent behavior
             if value is None:
-                return 0.0
-            # NaN check using self-inequality (NaN != NaN is True)
-            # This is much faster than isinstance + math.isnan
-            try:
-                if value != value:  # NaN detection without isnan()
-                    return 0.0
-            except (TypeError, ValueError):
-                # If comparison fails, value is not a number, return as-is
-                pass
+                return float('nan')
+            # CRITICAL FIX: Return NaN as-is, don't convert to 0.0
+            # NaN values are important for indicator calculations:
+            # - Comparisons with NaN always return False (e.g., close > nan is False)
+            # - This prevents premature trading when indicators haven't warmed up
+            # Converting NaN to 0.0 breaks this behavior
             return value
         except (IndexError, TypeError, AttributeError) as e:
             # CRITICAL FIX: Simplified logic - check if line0 is marked as data feed line

@@ -296,14 +296,17 @@ def test_cb_intraday_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）
+    # NOTE: Metric values updated after fixing NaN handling bug in lineseries.py
+    # The fix ensures NaN is returned (not 0.0) for indicator warm-up period,
+    # which affects comparison behavior (close > nan = False, close > 0.0 = True)
     assert strat.bar_num == 1885, f"Expected bar_num=1885, got {strat.bar_num}"
     assert strat.buy_count == 300, f"Expected buy_count=300, got {strat.buy_count}"
     assert strat.sell_count == 294, f"Expected sell_count=294, got {strat.sell_count}"
     assert total_trades == 299, f"Expected total_trades=299, got {total_trades}"
-    assert sharpe_ratio == 0.23032590904888126, f"Expected sharpe_ratio=0.23032590904888126, got {sharpe_ratio}"
-    assert annual_return == 0.030084430622900046, f"Expected annual_return=0.030084430622900046, got {annual_return}"
-    assert max_drawdown == 0.17750189678557882, f"Expected max_drawdown=0.17750189678557882, got {max_drawdown}"
-    assert final_value == 1248218.9149463978, f"Expected final_value=1248218.9149463978, got {final_value}"
+    assert sharpe_ratio == 0.27156584864948274, f"Expected sharpe_ratio=0.27156584864948274, got {sharpe_ratio}"
+    assert annual_return == 0.04234096237399044, f"Expected annual_return=0.04234096237399044, got {annual_return}"
+    assert max_drawdown == 0.17958862533859993, f"Expected max_drawdown=0.17958862533859993, got {max_drawdown}"
+    assert final_value == 1363691.7137118, f"Expected final_value=1363691.7137118, got {final_value}"
 
     print("\n所有测试通过!")
 
