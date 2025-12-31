@@ -81,6 +81,10 @@ class CrossOver(Indicator):
         super().__init__()
         # For next() mode: track last non-zero difference
         self._last_nzd = None
+        # CRITICAL FIX: Add +1 to minperiod because crossover needs to compare
+        # current bar with previous bar (master uses nzd(-1) which auto-adds +1)
+        # Directly increment _minperiod since indicator base class may not have incminperiod
+        self._minperiod = getattr(self, '_minperiod', 1) + 1
 
     def nextstart(self):
         # First bar: initialize and no cross

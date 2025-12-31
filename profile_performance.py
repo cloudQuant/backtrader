@@ -32,8 +32,6 @@ sys.path.insert(0, PROJECT_ROOT)
 
 # Strategy configuration: (module_path, test_function_name)
 STRATEGY_CONFIGS = {
-    # Original test strategies
-    0: ("tests.original_tests.test_strategy_optimized", "test_run"),
     # Strategy tests from tests/strategies (21 strategies total including #0)
     1: ("tests.strategies.test_01_premium_rate_strategy", "test_strategy_final_value"),
     2: ("tests.strategies.test_02_multi_extend_data", "test_strategy"),
