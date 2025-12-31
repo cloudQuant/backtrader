@@ -407,17 +407,19 @@ def test_simple_ma_multi_data_strategy():
     print(f"  max_drawdown: {metrics['max_drawdown']:.4f}%")
     print("=" * 60)
 
-    # 基本验证
-    assert metrics["bonds_loaded"] > 0, "应该加载了可转债数据"
-    assert metrics["bar_num"] > 0, "应该有交易日"
-    assert metrics["final_value"] > 0, "最终价值应该大于0"
+    # 断言测试结果
+    # 整数值使用精确比较
+    assert metrics["bonds_loaded"] == 100, f"Expected bonds_loaded=100, got {metrics['bonds_loaded']}"
+    assert metrics["bar_num"] == 4434, f"Expected bar_num=4434, got {metrics['bar_num']}"
+    assert metrics["buy_count"] == 2268, f"Expected buy_count=2268, got {metrics['buy_count']}"
+    assert metrics["sell_count"] == 2214, f"Expected sell_count=2214, got {metrics['sell_count']}"
+    assert metrics["total_trades"] == 2264, f"Expected total_trades=2264, got {metrics['total_trades']}"
+    # 浮点值使用近似比较（允许小误差）
+    assert abs(metrics["sharpe_ratio"] - 0.1747254604592) < 1e-6, f"Expected sharpe_ratio≈0.1747, got {metrics['sharpe_ratio']}"
+    assert abs(metrics["max_drawdown"] - 19.4344) < 0.01, f"Expected max_drawdown≈19.4344%, got {metrics['max_drawdown']}"
+    assert abs(metrics["final_value"] - 14828473.52) < 1.0, f"Expected final_value≈14828473.52, got {metrics['final_value']}"
 
-    # TODO: 首次运行后，用实际值替换以下断言
-    # assert metrics['bar_num'] == EXPECTED_BAR_NUM
-    # assert metrics['buy_count'] == EXPECTED_BUY_COUNT
-    # assert metrics['sell_count'] == EXPECTED_SELL_COUNT
-
-    print("\n测试通过!")
+    print("\n所有测试通过!")
 
 
 if __name__ == "__main__":
