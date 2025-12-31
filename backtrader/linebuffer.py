@@ -1015,27 +1015,9 @@ class LineActionsMixin:
     @classmethod
     def dopostinit(cls, _obj, *args, **kwargs):
         """Post-initialization processing for LineActions"""
-
-        # Register with owner if available
-        if hasattr(_obj, "_owner") and _obj._owner is not None:
-            # Check if the owner has the addindicator method
-            if hasattr(_obj._owner, "addindicator"):
-                _obj._owner.addindicator(_obj)
-
-            # Also ensure the indicator has access to owner's clock and data
-            if not hasattr(_obj, "_clock") or _obj._clock is None:
-                if hasattr(_obj._owner, "_clock") and _obj._owner._clock is not None:
-                    _obj._clock = _obj._owner._clock
-                elif hasattr(_obj._owner, "datas") and _obj._owner.datas:
-                    _obj._clock = _obj._owner.datas[0]
-                elif hasattr(_obj._owner, "data") and _obj._owner.data is not None:
-                    _obj._clock = _obj._owner.data
-
-        # CRITICAL FIX: Initialize _lineiterators if not present
-        if not hasattr(_obj, "_lineiterators"):
-            import collections
-
-            _obj._lineiterators = collections.defaultdict(list)
+        # NOTE: Indicator registration is now handled in lineiterator.py dopostinit
+        # with proper duplicate checking. No registration needed here.
+        pass
 
 
 class PseudoArray(object):

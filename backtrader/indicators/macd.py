@@ -59,14 +59,22 @@ class MACD(Indicator):
 
     def nextstart(self):
         # Calculate MACD = me1 - me2
-        macd_val = self.me1[0] - self.me2[0]
+        # Use direct array access to avoid dependency on indicator processing order
+        idx = self.lines[0].idx
+        me1_val = self.me1.lines[0].array[idx]
+        me2_val = self.me2.lines[0].array[idx]
+        macd_val = me1_val - me2_val
         self.lines.macd[0] = macd_val
         # Seed signal with MACD value
         self.lines.signal[0] = macd_val
 
     def next(self):
         # Calculate MACD = me1 - me2
-        macd_val = self.me1[0] - self.me2[0]
+        # Use direct array access to avoid dependency on indicator processing order
+        idx = self.lines[0].idx
+        me1_val = self.me1.lines[0].array[idx]
+        me2_val = self.me2.lines[0].array[idx]
+        macd_val = me1_val - me2_val
         self.lines.macd[0] = macd_val
         # Calculate signal = EMA of MACD
         self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + macd_val * self.signal_alpha

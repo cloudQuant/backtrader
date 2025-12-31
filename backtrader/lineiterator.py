@@ -355,10 +355,11 @@ class LineIteratorMixin:
         except AttributeError:
             pass
 
-        # If no valid owner found, try to find through call stack using inspect
+        # If no valid owner found, try to find through call stack using sys._getframe
         # This is specifically for indicators created in dict/list comprehensions
         # where findowner() fails because 'self' is not in f_locals of the comprehension frame
         # CRITICAL: Only do this for indicators (objects with _ltype == IndType)
+        # PERFORMANCE: Use sys._getframe() instead of inspect.stack() - much faster
         if owner is None:
             try:
                 # Only apply this fix for indicators, not for all LineIterators
@@ -368,30 +369,31 @@ class LineIteratorMixin:
             
             if is_indicator:
                 try:
-                    import inspect
                     from .strategy import Strategy
-                except ImportError:
-                    Strategy = None
-                
-                if Strategy is not None:
-                    try:
-                        for frame_info in inspect.stack():
-                            frame_locals = frame_info.frame.f_locals
-                            # Look for 'self' in the frame
-                            self_obj = frame_locals.get("self")
-                            if self_obj is not None and self_obj is not _obj:
-                                # Check if this is a Strategy instance
-                                if isinstance(self_obj, Strategy):
-                                    owner = self_obj
-                                    _obj._owner = owner
-                                    break
-                    except Exception:
-                        pass
+                    import sys
+                    # Walk up the call stack using sys._getframe (fast)
+                    # Start at frame 2 to skip this function and dopostinit
+                    for depth in range(2, 20):  # Max 20 frames to avoid infinite loop
+                        try:
+                            frame = sys._getframe(depth)
+                        except ValueError:
+                            break
+                        self_obj = frame.f_locals.get("self")
+                        if self_obj is not None and self_obj is not _obj:
+                            if isinstance(self_obj, Strategy):
+                                owner = self_obj
+                                _obj._owner = owner
+                                break
+                except Exception:
+                    pass
 
         # Register with owner if found
+        # CRITICAL FIX: Check if already registered to avoid duplicates
         if owner is not None:
             try:
-                owner.addindicator(_obj)
+                ind_list = owner._lineiterators.get(LineIterator.IndType, [])
+                if _obj not in ind_list:
+                    owner.addindicator(_obj)
             except (AttributeError, Exception):
                 pass
 
@@ -883,7 +885,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
     def addindicator(self, indicator):
         # store in right queue
         # 增加指标
-        self._lineiterators[indicator._ltype].append(indicator)
+        # CRITICAL FIX: Check for duplicates before adding
+        if indicator not in self._lineiterators[indicator._ltype]:
+            self._lineiterators[indicator._ltype].append(indicator)
 
         # Set up the indicator's owner and clock if not already set
         if not hasattr(indicator, "_owner") or indicator._owner is None:
@@ -1258,11 +1262,13 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
     def _next(self):
         """Default _next implementation for indicators"""
-        # CRITICAL FIX: Advance the buffer first
+        # Advance buffer FIRST, then calculate
+        # The forward() call advances the internal index so len(self) returns the correct value
+        # This is needed for _getminperstatus() to work correctly
         if hasattr(self, "forward") and callable(self.forward):
             self.forward()
 
-        # Get minperiod status
+        # Get minperiod status (uses len(self) which is now correct after forward())
         minperstatus = self._getminperstatus()
 
         # Call appropriate next method based on minperiod status
@@ -1729,7 +1735,6 @@ class StrategyBase(DataAccessor):
                     if hasattr(indicator, "_next") and callable(indicator._next):
                         indicator._next()
                 except Exception:
-                    # Skip indicators that fail to update
                     pass
 
         # Get minperiod status

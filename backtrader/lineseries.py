@@ -1069,13 +1069,15 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
             # Add to lineiterators if applicable
             # OPTIMIZATION: Use object.__getattribute__ to access __dict__ directly
+            # CRITICAL FIX: Check for duplicates before appending
             try:
                 self_dict = object.__getattribute__(self, "__dict__")
                 lineiterators = self_dict.get("_lineiterators")
                 if lineiterators is not None:
                     try:
                         ltype = value._ltype
-                        lineiterators[ltype].append(value)
+                        if value not in lineiterators[ltype]:
+                            lineiterators[ltype].append(value)
                     except Exception:
                         pass  # No _ltype or append failed
             except Exception:
