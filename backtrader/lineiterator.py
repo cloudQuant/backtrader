@@ -1131,14 +1131,21 @@ class LineIterator(LineIteratorMixin, LineSeries):
         - Removed excessive hasattr() calls - use EAFP (try/except) instead
         - Direct attribute access where possible
         - Minimize conditional checks in hot path
+        
+        CRITICAL: Follow original backtrader's _once sequence:
+        - preonce(0, minperiod - 1)
+        - oncestart(minperiod - 1, minperiod)
+        - once(minperiod, buflen)
         """
-        # OPTIMIZATION: Calculate start/end parameters with minimal checking
+        # Get minperiod
+        try:
+            minperiod = self._minperiod
+        except AttributeError:
+            minperiod = 1
+
+        # CRITICAL FIX: Ensure start is not None
         if start is None:
-            # EAFP: Try to access _minperiod directly
-            try:
-                start = self._minperiod - 1
-            except AttributeError:
-                start = 0
+            start = 0
 
         if end is None:
             # Try to get end from clock update
@@ -1182,14 +1189,24 @@ class LineIterator(LineIteratorMixin, LineSeries):
         except AttributeError:
             pass  # No _lineiterators
 
-        # Call oncestart and once methods
+        # CRITICAL FIX: Follow original backtrader's _once sequence exactly
+        # preonce processes bars 0 to minperiod-2
         try:
-            self.oncestart(start, end)
+            self.preonce(0, minperiod - 1)
         except Exception:
             pass
 
+        # oncestart processes bar minperiod-1 (transition point)
         try:
-            self.once(start, end)
+            self.oncestart(minperiod - 1, minperiod)
+        except Exception:
+            pass
+
+        # CRITICAL FIX: once processes bars from minperiod-1 to end
+        # Bar minperiod-1 is the first bar where indicators have valid data
+        # For period=20, bar 19 (index 19) is the first valid bar
+        try:
+            self.once(minperiod - 1, end)
         except Exception:
             pass
 
@@ -1236,14 +1253,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
         self.next()
 
     def once(self, start, end):
-        # Default implementation - process each step
-        for i in range(start, end):
-            try:
-                self.forward()
-                if hasattr(self, "next"):
-                    self.next()
-            except Exception:
-                pass
+        # Default implementation - do nothing
+        # Indicators without custom once() are processed via _oncepost
+        pass
 
     def _getminperstatus(self):
         """Get minimum period status for indicators"""

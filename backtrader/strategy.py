@@ -598,8 +598,29 @@ class Strategy(StrategyBase):
 
         # 循环指标，如果指标数据的长度大于指标的长度了，继续运行指标
         for indicator in self._lineiterators[LineIterator.IndType]:
-            if len(indicator._clock) > len(indicator):
-                indicator.advance()
+            # Check if indicator has REAL custom once() defined (not auto-generated once_via_next)
+            # The metaclass adds once_via_next to indicators without custom once(),
+            # so we need to check if once() is NOT once_via_next
+            has_real_custom_once = False
+            ind_once = getattr(indicator.__class__, 'once', None)
+            if ind_once is not None:
+                # Check if it's the auto-generated once_via_next (which calls next())
+                once_name = getattr(ind_once, '__name__', '')
+                if once_name != 'once_via_next':
+                    has_real_custom_once = True
+            
+            if has_real_custom_once:
+                # Indicator has real custom once() - was processed during _once(), just advance
+                if len(indicator._clock) > len(indicator):
+                    indicator.advance()
+            else:
+                # No real custom once() - call _next() to process bar-by-bar
+                try:
+                    indicator._next()
+                except Exception:
+                    # Fallback to advance if _next() fails
+                    if len(indicator._clock) > len(indicator):
+                        indicator.advance()
         # 如果是旧的数据处理方式，调用advance;如果不是旧的数据处理方式，代表策略已经初始化了，调用advance
         if self._oldsync:
             # Strategy has not been reset, the line is there

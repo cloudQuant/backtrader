@@ -1994,6 +1994,33 @@ class Cerebro(ParameterizedBase):
         for strat in runstrats:
             strat._once()
             strat.reset()  # strat called next by next - reset lines
+            
+            # CRITICAL FIX: Reset indicators without custom once() so they can be processed bar-by-bar
+            # Indicators without custom once() had their arrays pre-filled incorrectly during _once()
+            # Reset them so _oncepost can properly call _next() for each bar
+            from .lineiterator import LineIterator
+            for indicator in strat._lineiterators.get(LineIterator.IndType, []):
+                # Check if indicator has REAL custom once() (not auto-generated once_via_next)
+                has_real_custom_once = False
+                ind_once = getattr(indicator.__class__, 'once', None)
+                if ind_once is not None:
+                    once_name = getattr(ind_once, '__name__', '')
+                    if once_name != 'once_via_next':
+                        has_real_custom_once = True
+                
+                if not has_real_custom_once:
+                    # Reset this indicator so it can be processed bar-by-bar
+                    try:
+                        indicator.home()
+                        # Reset the lencount for all lines
+                        if hasattr(indicator, 'lines') and hasattr(indicator.lines, 'lines'):
+                            for line in indicator.lines.lines:
+                                if hasattr(line, 'lencount'):
+                                    line.lencount = 0
+                                if hasattr(line, '_idx'):
+                                    line._idx = -1
+                    except Exception:
+                        pass
 
         # The default once for strategies does nothing and therefore
         # has not moved forward all datas/indicators/observers that

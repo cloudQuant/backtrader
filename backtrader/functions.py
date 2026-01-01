@@ -20,6 +20,17 @@ class Logic(LineActions):
     def __init__(self, *args):
         super(Logic, self).__init__()
         self.args = [self.arrayize(arg) for arg in args]
+        
+        # CRITICAL FIX: Collect minperiods from args and update own minperiod
+        # This ensures functions like And, Or, etc. inherit the max minperiod from their operands
+        _minperiods = []
+        for arg in self.args:
+            mp = getattr(arg, '_minperiod', 1)
+            _minperiods.append(mp)
+        
+        if _minperiods:
+            max_minperiod = max(_minperiods)
+            self.updateminperiod(max_minperiod)
 
 
 # 避免两个line想除的时候有值是0，如果分母是0,除以得到的值是0
@@ -183,41 +194,56 @@ class If(Logic):
         while len(dst) < end:
             dst.append(0.0)
 
-        # CRITICAL FIX: Try to get arrays, but also prepare fallback to direct access
-        # Also, if arrays are empty, try to manually process the source objects
+        # CRITICAL FIX: Check if a and b are LineNum constants (scalar values)
+        # LineNum creates _LineDelay(PseudoArray(repeat(num)), 0) which has empty array
+        # but supports __getitem__ access that returns the constant value
+        a_is_constant = False
+        a_constant_val = None
         try:
             srca = self.a.array
-            a_has_array = True
-            # If array is empty, try to manually process the source object
-            if len(srca) == 0 and hasattr(self.a, "_once"):
+            a_has_array = len(srca) > 0
+            if not a_has_array:
+                # Empty array - might be a LineNum constant, try direct access
                 try:
-                    # Try to process the source object manually
-                    self.a._once(start, end)
-                    srca = self.a.array
+                    a_constant_val = self.a[0]
+                    a_is_constant = True
                 except Exception:
                     pass
         except (AttributeError, TypeError):
             srca = []
             a_has_array = False
+            # Try direct access for constants
+            try:
+                a_constant_val = self.a[0]
+                a_is_constant = True
+            except Exception:
+                pass
 
+        b_is_constant = False
+        b_constant_val = None
         try:
             srcb = self.b.array
-            b_has_array = True
-            # If array is empty, try to manually process the source object
-            if len(srcb) == 0 and hasattr(self.b, "_once"):
+            b_has_array = len(srcb) > 0
+            if not b_has_array:
+                # Empty array - might be a LineNum constant, try direct access
                 try:
-                    # Try to process the source object manually
-                    self.b._once(start, end)
-                    srcb = self.b.array
+                    b_constant_val = self.b[0]
+                    b_is_constant = True
                 except Exception:
                     pass
         except (AttributeError, TypeError):
             srcb = []
             b_has_array = False
+            # Try direct access for constants
+            try:
+                b_constant_val = self.b[0]
+                b_is_constant = True
+            except Exception:
+                pass
 
         try:
             cond = self.cond.array
-            cond_has_array = True
+            cond_has_array = len(cond) > 0
         except (AttributeError, TypeError):
             cond = []
             cond_has_array = False
@@ -246,64 +272,36 @@ class If(Logic):
                 not (isinstance(cond_val, float) and math.isnan(cond_val))
             )
 
-            # Get a value
-            a_val = None
-            a_val_set = False
-            if a_has_array:
+            # Get a value - use constant if detected, otherwise array
+            if a_is_constant:
+                a_val = a_constant_val
+            elif a_has_array:
                 try:
                     if i < len(srca):
                         a_val = srca[i]
-                        a_val_set = True
                     elif len(srca) > 0:
-                        a_val = srca[-1]  # Use last value if index out of bounds
-                        a_val_set = True
+                        a_val = srca[-1]
+                    else:
+                        a_val = 0.0
                 except (IndexError, TypeError):
-                    pass
-            # Fallback: try to get value directly from a object if array didn't work
-            if not a_val_set:
-                try:
-                    if hasattr(self.a, "__getitem__"):
-                        a_val = self.a[0]  # Try to get current value
-                        a_val_set = True
-                    elif hasattr(self.a, "a") and hasattr(self.a.a, "wrapped"):
-                        # Try to extract constant from PseudoArray
-                        wrapped = self.a.a.wrapped
-                        if isinstance(wrapped, itertools.repeat):
-                            a_val = next(iter(wrapped))
-                            a_val_set = True
-                except Exception:
-                    pass
-            if a_val is None:
+                    a_val = 0.0
+            else:
                 a_val = 0.0
 
-            # Get b value
-            b_val = None
-            b_val_set = False
-            if b_has_array:
+            # Get b value - use constant if detected, otherwise array
+            if b_is_constant:
+                b_val = b_constant_val
+            elif b_has_array:
                 try:
                     if i < len(srcb):
                         b_val = srcb[i]
-                        b_val_set = True
                     elif len(srcb) > 0:
-                        b_val = srcb[-1]  # Use last value if index out of bounds
-                        b_val_set = True
+                        b_val = srcb[-1]
+                    else:
+                        b_val = 0.0
                 except (IndexError, TypeError):
-                    pass
-            # Fallback: try to get value directly from b object if array didn't work
-            if not b_val_set:
-                try:
-                    if hasattr(self.b, "__getitem__"):
-                        b_val = self.b[0]  # Try to get current value
-                        b_val_set = True
-                    elif hasattr(self.b, "a") and hasattr(self.b.a, "wrapped"):
-                        # Try to extract constant from PseudoArray
-                        wrapped = self.b.a.wrapped
-                        if isinstance(wrapped, itertools.repeat):
-                            b_val = next(iter(wrapped))
-                            b_val_set = True
-                except Exception:
-                    pass
-            if b_val is None:
+                    b_val = 0.0
+            else:
                 b_val = 0.0
 
             # Ensure values are not None or NaN

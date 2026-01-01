@@ -1010,6 +1010,30 @@ class LineActionsMixin:
         if not hasattr(_obj, "_minperiod") or _obj._minperiod is None:
             _obj._minperiod = 1
 
+        # CRITICAL FIX: Calculate minperiod from args (like original metaclass did)
+        # This ensures that indicators applied to other indicators inherit their minperiod
+        from .lineroot import LineSingle, LineMultiple
+        
+        _minperiods = []
+        # Collect minperiods from LineSingle args
+        for arg in args:
+            if isinstance(arg, LineSingle):
+                _minperiods.append(getattr(arg, '_minperiod', 1))
+        
+        # Collect minperiods from LineMultiple args (get their first line)
+        for arg in args:
+            if isinstance(arg, LineMultiple) and hasattr(arg, 'lines') and arg.lines:
+                try:
+                    first_line = arg.lines[0]
+                    _minperiods.append(getattr(first_line, '_minperiod', 1))
+                except (IndexError, TypeError):
+                    pass
+        
+        # Update minperiod with max from args
+        if _minperiods:
+            _minperiod = max(_minperiods)
+            _obj.updateminperiod(_minperiod)
+
         return _obj, args, kwargs
 
     @classmethod
@@ -1518,13 +1542,31 @@ class _LineDelay(LineActions):
         self.a = self.arrayize(a)
         self.ago = ago
 
-        # Need to add the delay to the period
-        # CRITICAL FIX: Handle _minperiod more safely for any type of object
-        if hasattr(a, "_minperiod"):
-            self.addminperiod(abs(ago))
-        else:
-            # If 'a' doesn't have _minperiod, set a default
-            self.addminperiod(max(1, abs(ago)))
+        # CRITICAL FIX: Inherit minperiod from source's owner (indicator) if available
+        # When called as nzd(-1), 'a' is nzd.lines[0] which has minperiod=1,
+        # but the indicator nzd has minperiod=20. We need to use the indicator's minperiod.
+        source_minperiod = getattr(a, '_minperiod', 1)
+        
+        # Check if source has an owner with a higher minperiod
+        if hasattr(a, '_owner') and a._owner is not None:
+            owner = a._owner
+            # Check for _owner_ref (Lines object pointing to indicator)
+            if hasattr(owner, '_owner_ref') and owner._owner_ref is not None:
+                owner_minperiod = getattr(owner._owner_ref, '_minperiod', 1)
+                source_minperiod = max(source_minperiod, owner_minperiod)
+            else:
+                owner_minperiod = getattr(owner, '_minperiod', 1)
+                source_minperiod = max(source_minperiod, owner_minperiod)
+        
+        # Update our minperiod with the source's minperiod
+        if source_minperiod > 1:
+            self.updateminperiod(source_minperiod)
+
+        # Need to add the delay to the period. "ago" is 0 based and therefore
+        # we need to pass an extra 1 which is the minimum defined period for
+        # any data (which will be subtracted inside addminperiod)
+        # CRITICAL FIX: Must add abs(ago) + 1, NOT just abs(ago)
+        self.addminperiod(abs(ago) + 1)
 
     def __getitem__(self, idx):
         """CRITICAL FIX: Override __getitem__ to compute delayed value dynamically.

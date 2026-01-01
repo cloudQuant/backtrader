@@ -762,11 +762,79 @@ class Lines(object):
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name, value):
-        """Handle attribute setting, especially _owner"""
+        """Handle attribute setting, especially _owner and line bindings"""
         if name == "_owner":
             # Store _owner as _owner_ref to avoid recursion
             object.__setattr__(self, "_owner_ref", value)
+        elif name.startswith("_") or name in ("lines", "size"):
+            # Internal attributes - set directly
+            object.__setattr__(self, name, value)
         else:
+            # CRITICAL FIX: Check if this is a line assignment that needs binding
+            # When doing self.lines.cross = And(before, after), we need to:
+            # 1. Set up binding from value's output line to parent's line
+            # 2. Propagate minperiod from value to parent indicator
+            
+            # Check if we have a lines array and this is a known line name
+            lines_list = object.__getattribute__(self, "__dict__").get("lines")
+            line_names = self._getlines() if hasattr(self, "_getlines") else ()
+            
+            if lines_list is not None and name in line_names:
+                # This is a line assignment - find the line index
+                try:
+                    line_idx = line_names.index(name)
+                    if line_idx < len(lines_list):
+                        parent_line = lines_list[line_idx]
+                        
+                        # Handle indicator/line-like objects with binding
+                        if hasattr(value, "lines") and hasattr(value, "_minperiod"):
+                            # Get the indicator's output line
+                            try:
+                                indicator_line = value.lines[0]
+                            except (IndexError, TypeError, AttributeError):
+                                indicator_line = None
+                            
+                            if indicator_line is not None and hasattr(indicator_line, "addbinding"):
+                                # Set up binding: indicator's output -> parent's line
+                                indicator_line.addbinding(parent_line)
+                                
+                                # CRITICAL FIX: Propagate minperiod to parent indicator
+                                try:
+                                    owner_ref = object.__getattribute__(self, "_owner_ref")
+                                except AttributeError:
+                                    owner_ref = None
+                                
+                                if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
+                                    if value._minperiod > owner_ref._minperiod:
+                                        owner_ref._minperiod = value._minperiod
+                                
+                                # Register as sub-indicator
+                                if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
+                                    from .lineiterator import LineIterator
+                                    if LineIterator.IndType in owner_ref._lineiterators:
+                                        if value not in owner_ref._lineiterators[LineIterator.IndType]:
+                                            owner_ref._lineiterators[LineIterator.IndType].append(value)
+                                            value._owner = owner_ref
+                                return  # Don't set the attribute directly
+                            
+                        elif hasattr(value, "_minperiod") and hasattr(value, "addbinding"):
+                            # Value is a LineBuffer-like object (e.g., LinesOperation)
+                            value.addbinding(parent_line)
+                            
+                            # Propagate minperiod
+                            try:
+                                owner_ref = object.__getattribute__(self, "_owner_ref")
+                            except AttributeError:
+                                owner_ref = None
+                            
+                            if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
+                                if value._minperiod > owner_ref._minperiod:
+                                    owner_ref._minperiod = value._minperiod
+                            return  # Don't set the attribute directly
+                except (ValueError, IndexError):
+                    pass
+            
+            # Default: set attribute directly
             object.__setattr__(self, name, value)
 
 
@@ -1256,7 +1324,21 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
         # Return a delayed version of the line
         lineobj = self._getline(line, minusall=False)
-        return LineDelay(lineobj, ago)
+        delayed = LineDelay(lineobj, ago)
+        
+        # CRITICAL FIX: Propagate indicator's minperiod to the delayed line
+        # When nzd(-1) is called, the lineobj has minperiod=1 but the indicator (self)
+        # has minperiod=20. The delayed line should be: indicator_minperiod + delay
+        # _LineDelay already adds abs(ago)+1 via addminperiod (which adds minperiod-1)
+        # So delayed._minperiod = 1 + (abs(ago)+1-1) = 1 + abs(ago) = 2 for ago=-1
+        # We need: indicator_minperiod + abs(ago) = 20 + 1 = 21 for ago=-1
+        # So we need to add (indicator_minperiod - 1) to account for the indicator's contribution
+        indicator_minperiod = getattr(self, '_minperiod', 1)
+        if indicator_minperiod > 1:
+            # Add the indicator's minperiod contribution (minus the base 1 already counted)
+            delayed.addminperiod(indicator_minperiod)
+        
+        return delayed
 
     def forward(self, value=0.0, size=1):
         self.lines.forward(value, size)
