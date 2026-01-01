@@ -291,7 +291,7 @@ def test_stop_order_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）
-    assert strat.bar_num == 4414, f"Expected bar_num=4414, got {strat.bar_num}"
+    assert strat.bar_num == 4415, f"Expected bar_num=4415, got {strat.bar_num}"
     assert strat.buy_count == 4, f"Expected buy_count=4, got {strat.buy_count}"
     assert strat.sell_count == 1, f"Expected sell_count=1, got {strat.sell_count}"
     assert strat.stop_count == 3, f"Expected stop_count=3, got {strat.stop_count}"

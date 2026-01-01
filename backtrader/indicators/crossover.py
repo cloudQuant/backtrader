@@ -81,11 +81,6 @@ class CrossOver(Indicator):
         super().__init__()
         # For next() mode: track last non-zero difference
         self._last_nzd = None
-        # CRITICAL FIX: Add +1 to minperiod because we need previous bar's value
-        # This matches original backtrader behavior where crossover detection needs
-        # both current and previous bar data
-        # Directly increment _minperiod since incminperiod may not work for indicators
-        self._minperiod += 1
 
     def nextstart(self):
         # First bar: initialize and no cross

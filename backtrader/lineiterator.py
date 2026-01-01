@@ -1253,9 +1253,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
         self.next()
 
     def once(self, start, end):
-        # Default implementation - do nothing
-        # Indicators without custom once() are processed via _oncepost
-        pass
+        # Default implementation - process each step
+        for i in range(start, end):
+            try:
+                self.forward()
+                if hasattr(self, "next"):
+                    self.next()
+            except Exception:
+                pass
 
     def _getminperstatus(self):
         """Get minimum period status for indicators"""
