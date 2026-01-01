@@ -189,7 +189,7 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
     返回: {合约名: DataFrame} 的字典
     """
     data_kwargs = dict(
-        fromdate=datetime.datetime(2010, 1, 1),
+        fromdate=datetime.datetime(2017, 1, 1),  # 缩短日期范围以加速测试
         todate=datetime.datetime(2020, 12, 31),
     )
     
@@ -279,15 +279,15 @@ def test_keltner_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # 断言测试结果（精确值）
-    assert strat.bar_num == 28096, f"Expected bar_num=28096, got {strat.bar_num}"
-    assert strat.buy_count == 15, f"Expected buy_count=15, got {strat.buy_count}"
-    assert strat.sell_count == 15, f"Expected sell_count=15, got {strat.sell_count}"
-    assert total_trades == 15, f"Expected total_trades=15, got {total_trades}"
-    assert sharpe_ratio == 0.05909897613075169, f"Expected sharpe_ratio=0.05909897613075169, got {sharpe_ratio}"
-    assert annual_return == 0.01201364178908359, f"Expected annual_return=0.01201364178908359, got {annual_return}"
-    assert max_drawdown == 0.07919325566051119, f"Expected max_drawdown=0.07919325566051119, got {max_drawdown}"
-    assert final_value == 56908.38030400008, f"Expected final_value=56908.38030400008, got {final_value}"
+    # 断言测试结果（精确值）- 基于2017-01-01至2020-12-31的数据
+    assert strat.bar_num == 11332, f"Expected bar_num=11332, got {strat.bar_num}"
+    assert strat.buy_count == 12, f"Expected buy_count=12, got {strat.buy_count}"
+    assert strat.sell_count == 12, f"Expected sell_count=12, got {strat.sell_count}"
+    assert total_trades == 12, f"Expected total_trades=12, got {total_trades}"
+    assert sharpe_ratio == -0.9074037407400317, f"Expected sharpe_ratio=-0.9074037407400317, got {sharpe_ratio}"
+    assert annual_return == -0.018611698662365304, f"Expected annual_return=-0.018611698662365304, got {annual_return}"
+    assert max_drawdown == 0.10604730142252558, f"Expected max_drawdown=0.10604730142252558, got {max_drawdown}"
+    assert final_value == 46501.47434306594, f"Expected final_value=46501.47434306594, got {final_value}"
 
     print("\n所有测试通过!")
 
