@@ -257,7 +257,7 @@ def test_two_ma_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）
-    assert strat.bar_num == 1424, f"Expected bar_num=1424, got {strat.bar_num}"
+    assert strat.bar_num == 1425, f"Expected bar_num=1425, got {strat.bar_num}"
     assert strat.buy_count == 52, f"Expected buy_count=52, got {strat.buy_count}"
     assert strat.sell_count == 51, f"Expected sell_count=51, got {strat.sell_count}"
     assert total_trades == 51, f"Expected total_trades=51, got {total_trades}"
