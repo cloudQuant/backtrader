@@ -81,10 +81,6 @@ class CrossOver(Indicator):
         super().__init__()
         # For next() mode: track last non-zero difference
         self._last_nzd = None
-        # CRITICAL FIX: Add +1 to minperiod because crossover needs to compare
-        # current bar with previous bar (master uses nzd(-1) which auto-adds +1)
-        # Directly increment _minperiod since indicator base class may not have incminperiod
-        self._minperiod = getattr(self, '_minperiod', 1) + 1
 
     def nextstart(self):
         # First bar: initialize and no cross
@@ -112,42 +108,33 @@ class CrossOver(Indicator):
         # Combine
         self.lines.crossover[0] = up_cross - down_cross
 
-    def oncestart(self, start, end):
-        # Seed: first bar has no cross
-        self.line.array[start] = 0.0
-
     def once(self, start, end):
-        # Get arrays for fast access
+        # Vectorized once() implementation matching next() behavior
         d0array = self.data0.array
         d1array = self.data1.array
-        crossarray = self.line.array  # Use self.line for single line indicator
+        crossarray = self.line.array
 
-        # CRITICAL: Ensure array is large enough
+        # Ensure array is large enough
         while len(crossarray) < end:
             crossarray.append(0.0)
 
-        # Track last non-zero difference
-        prev_nzd = d0array[start] - d1array[start] if start > 0 else 0.0
+        # Initialize: first bar has no cross, set _last_nzd
+        if start < len(d0array):
+            crossarray[start] = 0.0
+            prev_nzd = d0array[start] - d1array[start]
+        else:
+            prev_nzd = 0.0
 
+        # Process remaining bars (same logic as next())
         for i in range(start + 1, end):
-            # Current values
             d0_val = d0array[i]
             d1_val = d1array[i]
             diff = d0_val - d1_val
 
-            # Update nzd (memorize non-zero)
-            current_nzd = diff if diff != 0.0 else prev_nzd
-
-            # Check for crossover using STRICT inequalities
-            # Upward: prev < 0 and now d0 > d1
+            # Check crossover using prev_nzd (from previous bar)
             up_cross = 1.0 if (prev_nzd < 0.0 and d0_val > d1_val) else 0.0
-
-            # Downward: prev > 0 and now d0 < d1
             down_cross = 1.0 if (prev_nzd > 0.0 and d0_val < d1_val) else 0.0
+            crossarray[i] = up_cross - down_cross
 
-            # Store result
-            result = up_cross - down_cross
-            crossarray[i] = result
-
-            # Update prev_nzd for next iteration
-            prev_nzd = current_nzd
+            # Update prev_nzd for next iteration (memorize non-zero)
+            prev_nzd = diff if diff != 0.0 else prev_nzd
