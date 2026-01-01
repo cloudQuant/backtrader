@@ -8,7 +8,7 @@
     
 参数:
     test_script: 要测试的脚本路径
-    --both: 在master和remove-metaprogramming两个分支上都运行测试
+    --both: 在master和origin两个分支上都运行测试
             如果不指定，则只在当前分支运行测试
             
 示例:
@@ -16,6 +16,9 @@
     python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py
     
     # 在两个分支上运行
+    python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
+    
+    # 在master和origin两个分支上运行
     python run_test_with_log.py tests/strategies/test_18_etf_rotation_strategy.py --both
 """
 
@@ -269,7 +272,7 @@ def run_with_logging(script_path, log_dir="logs", branch_name=None):
 
 def run_on_both_branches(script_path, log_dir="logs"):
     """
-    在master和remove-metaprogramming两个分支上运行测试
+    在master和origin两个分支上运行测试，最后切回原分支
     
     Args:
         script_path: 要运行的脚本路径
@@ -282,7 +285,7 @@ def run_on_both_branches(script_path, log_dir="logs"):
     stashed = git_stash()
     
     master_log = None
-    refactor_log = None
+    origin_log = None
     
     try:
         # 1. 切换到master分支并运行测试
@@ -300,13 +303,13 @@ def run_on_both_branches(script_path, log_dir="logs"):
         return_code1, master_log = run_with_logging(script_path, log_dir, "master")
         print(f"Master分支测试完成，返回码: {return_code1}")
         
-        # 2. 切换到remove-metaprogramming分支并运行测试
+        # 2. 切换到origin分支并运行测试
         print("\n" + "="*60)
-        print("第二步: 在 remove-metaprogramming 分支上运行测试")
+        print("第二步: 在 origin 分支上运行测试")
         print("="*60)
         
-        if not switch_branch("remove-metaprogramming"):
-            print("无法切换到remove-metaprogramming分支，终止测试")
+        if not switch_branch("origin"):
+            print("无法切换到origin分支，终止测试")
             # 尝试切回原分支
             switch_branch(original_branch)
             return
@@ -314,8 +317,8 @@ def run_on_both_branches(script_path, log_dir="logs"):
         if not pip_install():
             print("pip install 失败，继续尝试运行测试...")
         
-        return_code2, refactor_log = run_with_logging(script_path, log_dir, "remove-metaprogramming")
-        print(f"Remove-metaprogramming分支测试完成，返回码: {return_code2}")
+        return_code2, origin_log = run_with_logging(script_path, log_dir, "origin")
+        print(f"Origin分支测试完成，返回码: {return_code2}")
         
         # 3. 输出日志文件路径
         print("\n" + "="*60)
@@ -323,13 +326,17 @@ def run_on_both_branches(script_path, log_dir="logs"):
         print("="*60)
         if master_log:
             print(f"  Master: {master_log}")
-        if refactor_log:
-            print(f"  Remove-metaprogramming: {refactor_log}")
+        if origin_log:
+            print(f"  Origin: {origin_log}")
         
     finally:
         # 切回原分支
         print(f"\n切回原分支: {original_branch}")
         switch_branch(original_branch)
+        
+        # 重新安装原分支的代码
+        print("\n重新安装原分支代码...")
+        pip_install()
         
         # 恢复暂存的更改
         if stashed:
@@ -361,7 +368,7 @@ def main():
     parser.add_argument(
         "--both",
         action="store_true",
-        help="在master和remove-metaprogramming两个分支上运行测试并对比结果"
+        help="在master和origin两个分支上运行测试并对比结果"
     )
     
     args = parser.parse_args()

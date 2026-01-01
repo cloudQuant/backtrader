@@ -294,8 +294,8 @@ class MovingAverageSimple(MovingAverageBase):
                         if any(math.isnan(v) if isinstance(v, float) else False for v in window):
                             dst[i] = float("nan")
                         else:
-                            window_sum = sum(window)
-                            dst[i] = window_sum / period
+                            # Use math.fsum for accurate floating-point summation (matches master)
+                            dst[i] = math.fsum(window) / period
                     else:
                         dst[i] = float("nan")
                 else:
