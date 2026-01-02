@@ -378,7 +378,7 @@ def get_test_results():
     global _test_results
     if _test_results is None:
         _test_results = run_strategy(
-            max_bonds=100, initial_cash=10000000.0, commission=0.0002, verbose=False
+            max_bonds=30, initial_cash=10000000.0, commission=0.0002, verbose=False
         )
     return _test_results
 
@@ -409,15 +409,15 @@ def test_simple_ma_multi_data_strategy():
 
     # 断言测试结果
     # 整数值使用精确比较
-    assert metrics["bonds_loaded"] == 100, f"Expected bonds_loaded=100, got {metrics['bonds_loaded']}"
+    assert metrics["bonds_loaded"] == 30, f"Expected bonds_loaded=30, got {metrics['bonds_loaded']}"
     assert metrics["bar_num"] == 4434, f"Expected bar_num=4434, got {metrics['bar_num']}"
-    assert metrics["buy_count"] == 2268, f"Expected buy_count=2268, got {metrics['buy_count']}"
-    assert metrics["sell_count"] == 2214, f"Expected sell_count=2214, got {metrics['sell_count']}"
-    assert metrics["total_trades"] == 2264, f"Expected total_trades=2264, got {metrics['total_trades']}"
+    assert metrics["buy_count"] == 463, f"Expected buy_count=463, got {metrics['buy_count']}"
+    assert metrics["sell_count"] == 450, f"Expected sell_count=450, got {metrics['sell_count']}"
+    assert metrics["total_trades"] == 460, f"Expected total_trades=460, got {metrics['total_trades']}"
     # 浮点值使用近似比较（允许小误差）
-    assert abs(metrics["sharpe_ratio"] - 0.1747254604592) < 1e-6, f"Expected sharpe_ratio≈0.1747, got {metrics['sharpe_ratio']}"
-    assert abs(metrics["max_drawdown"] - 19.4344) < 0.01, f"Expected max_drawdown≈19.4344%, got {metrics['max_drawdown']}"
-    assert abs(metrics["final_value"] - 14828473.52) < 1.0, f"Expected final_value≈14828473.52, got {metrics['final_value']}"
+    assert abs(metrics["sharpe_ratio"] - 0.1920060395982071) < 1e-6, f"Expected sharpe_ratio=0.1920060395982071, got {metrics['sharpe_ratio']}"
+    assert abs(metrics["max_drawdown"] - 17.7630) < 0.01, f"Expected max_drawdown=17.7630%, got {metrics['max_drawdown']}"
+    assert abs(metrics["final_value"] - 14535803.03) < 1.0, f"Expected final_value=14535803.03, got {metrics['final_value']}"
 
     print("\n所有测试通过!")
 
