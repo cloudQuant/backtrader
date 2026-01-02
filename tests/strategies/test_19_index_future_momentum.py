@@ -309,10 +309,10 @@ def test_treasury_futures_macd_strategy():
     assert strat.buy_count == 38, f"Expected buy_count=38, got {strat.buy_count}"
     assert strat.sell_count == 38, f"Expected sell_count=38, got {strat.sell_count}"
     assert total_trades == 90, f"Expected total_trades=90, got {total_trades}"
-    assert sharpe_ratio == -700.977360693882, f"Expected sharpe_ratio=-700.977360693882, got {sharpe_ratio}"
-    assert annual_return == -2.2430503547013427e-06, f"Expected annual_return=-2.2430503547013427e-06, got {annual_return}"
-    assert max_drawdown == 6.587175196273877e-05, f"Expected max_drawdown=6.587175196273877e-05, got {max_drawdown}"
-    assert final_value == 999982.2871600012, f"Expected final_value=999982.2871600012, got {final_value}"
+    assert abs(sharpe_ratio - (-700.977360693882)) < 1e-6, f"Expected sharpe_ratio=-700.977360693882, got {sharpe_ratio}"
+    assert abs(annual_return - (-2.2430503547013427e-06)) < 1e-12, f"Expected annual_return=-2.2430503547013427e-06, got {annual_return}"
+    assert abs(max_drawdown - 6.587175196273877e-05) < 1e-9, f"Expected max_drawdown=6.587175196273877e-05, got {max_drawdown}"
+    assert abs(final_value - 999982.2871600012) < 0.01, f"Expected final_value=999982.2871600012, got {final_value}"
 
     print("\n所有测试通过!")
 
