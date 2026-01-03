@@ -297,9 +297,9 @@ class Analyzer(ParameterizedBase):
 class TimeFrameAnalyzerBase(Analyzer):
     # 参数
     params = (
-        ("timeframe", TimeFrame.Days),
-        ("compression", 1),
-        ("_doprenext", True),  # override default behavior
+        ("timeframe", None),
+        ("compression", None),
+        ("_doprenext", True),
     )
 
     def __init__(self, *args, **kwargs):
@@ -376,113 +376,106 @@ class TimeFrameAnalyzerBase(Analyzer):
         # 返回False
         return False
 
-    # 获取dtcmp和dtkey
+    # 获取dtcmp, dtkey
     def _get_dt_cmpkey(self, dt):
         # 如果当前的交易周期是没有时间周期的话，返回两个None
         if self.timeframe == TimeFrame.NoTimeFrame:
-            return MAXINT, datetime.datetime.max
-
-        # Convert float timestamp to datetime if necessary
-        if isinstance(dt, float):
-            # CRITICAL FIX: Prevent ValueError for ordinal < 1
-            dt_int = int(dt)
-            if dt_int < 1:
-                # Use Jan 1, year 1 as minimum valid date
-                dt_int = 1
-                dt = 1.0
-
-            # Convert from ordinal to datetime
-            point = datetime.datetime.fromordinal(dt_int)
-            # Handle fractional part for intraday
-            fractional = dt - dt_int
-            if fractional > 0:
-                seconds = fractional * 86400  # 24 * 60 * 60
-                point = point.replace(
-                    hour=int(seconds // 3600),
-                    minute=int((seconds % 3600) // 60),
-                    second=int(seconds % 60),
-                    microsecond=int((seconds % 1) * 1000000),
-                )
-        else:
-            point = dt
-
-        # Calculate intraday position
-        if self.timeframe < TimeFrame.Days:
-            return self._get_subday_cmpkey(point)
-
-        # Day or above
-        # 如果周期是周的话，计算周
-        if self.timeframe == TimeFrame.Weeks:
-            # iso calendar 返回Year, week of year, weekday
-            isoyear, isoweek, isoweekday = point.isocalendar()
-            # 获取年
-            point = point.replace(month=1, day=1)  # 1st of Jan
-            # 获取天
-            point = point.replace(year=isoyear)  # year
-            # 获取周，通过加天数
-            point += datetime.timedelta(weeks=isoweek - 1)
-            # Get end of period -> Weekdays start at 1
-            point += datetime.timedelta(days=7 - 1)
-        # 如果是月的话
+            return None, None
+        # 如果当前的交易周期是年的话
+        if self.timeframe == TimeFrame.Years:
+            dtcmp = dt.year
+            dtkey = datetime.date(dt.year, 12, 31)
+        # 如果交易周期是月的话
         elif self.timeframe == TimeFrame.Months:
-            # 月的最后一天
-            _, lastday = calendar.monthrange(point.year, point.month)
-            point = point.replace(day=lastday)
-        # 如果是年的话
-        elif self.timeframe == TimeFrame.Years:
-            # 12月31号
-            point = point.replace(month=12, day=31)
-        # 返回时间戳和point
-        return point.toordinal(), point
+            dtcmp = dt.year * 100 + dt.month
+            # 获取最后一天
+            _, lastday = calendar.monthrange(dt.year, dt.month)
+            # 获取每月最后一天
+            dtkey = datetime.datetime(dt.year, dt.month, lastday)
+        # 如果交易周期是星期的话
+        elif self.timeframe == TimeFrame.Weeks:
+            # 对日期返回年、周数和周几
+            isoyear, isoweek, isoweekday = dt.isocalendar()
+            dtcmp = isoyear * 1000 + isoweek
+            # 周末
+            sunday = dt + datetime.timedelta(days=7 - isoweekday)
+            # 获取每周的最后一天
+            dtkey = datetime.datetime(sunday.year, sunday.month, sunday.day)
+        # 如果交易周期是天的话，计算具体的dtcmp，dtkey
+        elif self.timeframe == TimeFrame.Days:
+            dtcmp = dt.year * 10000 + dt.month * 100 + dt.day
+            dtkey = datetime.datetime(dt.year, dt.month, dt.day)
+        # 如果交易周期小于天的话，调用_get_subday_cmpkey来获取
+        else:
+            dtcmp, dtkey = self._get_subday_cmpkey(dt)
 
-    # 获取分钟内的时间
+        return dtcmp, dtkey
+
+    # 如果交易周期小于天
     def _get_subday_cmpkey(self, dt):
         # Calculate intraday position
-        # 确保dt是datetime对象
-        if isinstance(dt, float):
-            # CRITICAL FIX: Prevent ValueError for ordinal < 1
-            dt_int = int(dt)
-            if dt_int < 1:
-                # Use Jan 1, year 1 as minimum valid date
-                dt_int = 1
-                dt = 1.0
-
-            # Convert from ordinal to datetime
-            point = datetime.datetime.fromordinal(dt_int)
-            # Handle fractional part for intraday
-            fractional = dt - dt_int
-            if fractional > 0:
-                seconds = fractional * 86400  # 24 * 60 * 60
-                point = point.replace(
-                    hour=int(seconds // 3600),
-                    minute=int((seconds % 3600) // 60),
-                    second=int(seconds % 60),
-                    microsecond=int((seconds % 1) * 1000000),
-                )
-        else:
-            point = dt
-
         # 计算当前的分钟数目
-        point = point.replace(second=0, microsecond=0)
-        # 如果周期是分钟的话
+        point = dt.hour * 60 + dt.minute
+        # 如果当前的交易周期小于分钟，point转换成秒
+        if self.timeframe < TimeFrame.Minutes:
+            point = point * 60 + dt.second
+        # 如果当前的交易周期小于秒，point转变为毫秒
+        if self.timeframe < TimeFrame.Seconds:
+            point = point * 1e6 + dt.microsecond
+
+        # Apply compression to update point position (comp 5 -> 200 // 5)
+        # 根据周期的数目，计算当前的point
+        point = point // self.compression
+
+        # Move to next boundary
+        # 移动到下个
+        point += 1
+
+        # Restore point to the timeframe units by de-applying compression
+        # 计算下个point结束的点位
+        point *= self.compression
+
+        # Get hours, minutes, seconds and microseconds
+        # 如果交易周期等于分钟，得到ph,pm
         if self.timeframe == TimeFrame.Minutes:
-            # Get current minute and compress
-            # 当前分钟，compression表示压缩比例，默认是1，即1分钟
-            minute = point.minute
-            # 压缩之后的分钟数
-            point = point.replace(minute=minute - minute % self.compression)
-            # 加compression分钟
-            point += datetime.timedelta(minutes=self.compression - 1)
-        # 如果周期等于秒的话
+            ph, pm = divmod(point, 60)
+            ps = 0
+            pus = 0
+        # 如果交易周期等于秒，得到ph,pm,ps
         elif self.timeframe == TimeFrame.Seconds:
-            second = point.second
-            point = point.replace(second=second - second % self.compression)
-            point += datetime.timedelta(seconds=self.compression - 1)
-        # 如果是毫秒的话
+            ph, pm = divmod(point, 60 * 60)
+            pm, ps = divmod(pm, 60)
+            pus = 0
+        # 如果是毫秒，得到ph,pm,ps,pus
         elif self.timeframe == TimeFrame.MicroSeconds:
-            # 微妙的话
-            microsecond = point.microsecond
-            point = point.replace(microsecond=microsecond - microsecond % self.compression)
-            point += datetime.timedelta(microseconds=self.compression - 1)
-        # 返回时间戳和point
-        return point.timestamp(), point
+            ph, pm = divmod(point, 60 * 60 * 1e6)
+            pm, psec = divmod(pm, 60 * 1e6)
+            ps, pus = divmod(psec, 1e6)
+        # 是否是下一天
+        extradays = 0
+        #  小时大于23，整除，计算是不是下一天了
+        if ph > 23:  # went over midnight:
+            extradays = ph // 24
+            ph %= 24
+
+        # moving 1 minor unit to the left to be in the boundary
+        # 需要调整的时间
+        tadjust = datetime.timedelta(
+            minutes=self.timeframe == TimeFrame.Minutes,
+            seconds=self.timeframe == TimeFrame.Seconds,
+            microseconds=self.timeframe == TimeFrame.MicroSeconds)
+
+        # Add extra day if present
+        # 如果下一天是True的话，把时间调整到下一天
+        if extradays:
+            dt += datetime.timedelta(days=extradays)
+
+        # Replace intraday parts with the calculated ones and update it
+        # 计算dtcmp
+        dtcmp = dt.replace(hour=int(ph), minute=int(pm), second=int(ps), microsecond=int(pus))
+        # 对dtcmp进行调整
+        dtcmp -= tadjust
+        # dtkey等于dtcmp
+        dtkey = dtcmp
+
+        return dtcmp, dtkey

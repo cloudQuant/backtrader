@@ -93,9 +93,10 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-        # 比较特殊的地方在于self._values设置成了一个队列，这里面self.p.compression这个参数用于控制队列保存多少个元素
+        # 比较特殊的地方在于self._values设置成了一个队列，这里面self.compression这个参数用于控制队列保存多少个元素
+        # Note: use self.compression (set in _start from data) not self.p.compression (which may be None)
         self._values = collections.deque(
-            [float("Nan")] * self.p.compression, maxlen=self.p.compression
+            [float("Nan")] * self.compression, maxlen=self.compression
         )
 
         if self.p.data is None:

@@ -459,39 +459,11 @@ class Strategy(StrategyBase):
             self._minperiods.append(dminperiod)
 
         # Set the minperiod
-        # CRITICAL FIX: Recursively collect minperiods from all indicators and their sub-indicators
-        # This ensures nested indicators (like MACD's internal signal EMA) are properly considered
-        def get_all_minperiods(ind, visited=None):
-            """Recursively get all minperiods from an indicator and its sub-indicators"""
-            if visited is None:
-                visited = set()
-            if id(ind) in visited:
-                return []
-            visited.add(id(ind))
-            
-            result = [ind._minperiod]
-            
-            # Check lines for their minperiods
-            if hasattr(ind, 'lines') and ind.lines:
-                for line in ind.lines:
-                    mp = getattr(line, '_minperiod', 1)
-                    result.append(mp)
-            
-            # Check sub-indicators
-            if hasattr(ind, '_lineiterators'):
-                for ltype_inds in ind._lineiterators.values():
-                    for sub_ind in ltype_inds:
-                        result.extend(get_all_minperiods(sub_ind, visited))
-            
-            return result
-        
-        # 指标的最小周期 - recursively collect from all indicators
-        all_minperiods = []
-        for ind in self._lineiterators[LineIterator.IndType]:
-            all_minperiods.extend(get_all_minperiods(ind))
-        
+        # 指标的最小周期
+        minperiods = \
+            [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
         # 把指标的最小周期和数据的最小周期的最大值作为策略运行需要的最小周期
-        self._minperiod = max(all_minperiods or [self._minperiod])
+        self._minperiod = max(minperiods or [self._minperiod])
 
     # 增加writer
     def _addwriter(self, writer):
@@ -715,10 +687,6 @@ class Strategy(StrategyBase):
 
     # _next方法,获取最小数据周期状态，并且添加给analyzer和observer中，然后clear
     def _next(self):
-        # CRITICAL FIX: Call _notify() to deliver order/trade notifications
-        # This was missing in _next() mode, causing notify_order() to never be called
-        self._notify()
-
         super(Strategy, self)._next()
 
         minperstatus = self._getminperstatus()

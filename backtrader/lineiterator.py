@@ -987,141 +987,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
     bind2line = bind2lines
 
     def _clk_update(self):
-        """CRITICAL FIX: Override the problematic _clk_update method from strategy.py"""
+        # 更新当前的时间的line，并返回长度
+        clock_len = len(self._clock)
+        if clock_len != len(self):
+            self.forward()
 
-        # CRITICAL FIX: Ensure data is available before clock operations
-        if getattr(self, "_data_assignment_pending", True) and (
-            not hasattr(self, "datas") or not self.datas
-        ):
-            # Try to get data assignment from cerebro if not already done
-            if hasattr(self, "_ensure_data_available"):
-                self._ensure_data_available()
-
-        # If no datas after attempting to get them, return 0
-        if not hasattr(self, "datas") or not self.datas:
-            return 0
-
-        # CRITICAL FIX: Handle the old sync method safely
-        if hasattr(self, "_oldsync") and self._oldsync:
-            # Call parent class _clk_update if available
-            clk_len = 1
-            try:
-                if hasattr(super(), "_clk_update"):
-                    clk_len = super()._clk_update()
-            except Exception:
-                pass
-
-            # CRITICAL FIX: Only set datetime if we have valid data sources with length
-            if hasattr(self, "datas") and self.datas:
-                valid_data_times = []
-                for d in self.datas:
-                    try:
-                        if (
-                            hasattr(d, "__len__")
-                            and len(d) > 0
-                            and hasattr(d, "datetime")
-                            and hasattr(d.datetime, "__getitem__")
-                        ):
-                            dt_val = d.datetime[0]
-                            # Only add valid datetime values (not None or NaN)
-                            if dt_val is not None and not (
-                                isinstance(dt_val, float) and math.isnan(dt_val)
-                            ):
-                                valid_data_times.append(dt_val)
-                    except (IndexError, AttributeError, TypeError):
-                        continue
-
-                if hasattr(self, "lines") and hasattr(self.lines, "datetime"):
-                    if valid_data_times:
-                        try:
-                            self.lines.datetime[0] = max(valid_data_times)
-                        except (ValueError, IndexError, AttributeError):
-                            # If setting datetime fails, use a default valid ordinal (1 = Jan 1, Year 1)
-                            self.lines.datetime[0] = 1.0
-                    else:
-                        # No valid times, use default valid ordinal (1 = Jan 1, Year 1)
-                        self.lines.datetime[0] = 1.0
-
-            return clk_len
-
-        # CRITICAL FIX: Handle the normal (non-oldsync) path
-        # Initialize _dlens if not present
-        if not hasattr(self, "_dlens"):
-            self._dlens = [
-                len(d) if hasattr(d, "__len__") else 0
-                for d in (self.datas if hasattr(self, "datas") else [])
-            ]
-
-        # Get current data lengths safely
-        newdlens = []
-        if hasattr(self, "datas") and self.datas:
-            for d in self.datas:
-                try:
-                    newdlens.append(len(d) if hasattr(d, "__len__") else 0)
-                except Exception:
-                    newdlens.append(0)
-
-        # Forward if any data source has grown
-        if newdlens and hasattr(self, "_dlens"):
-            try:
-                if any(
-                    nl > old_len
-                    for old_len, nl in zip(self._dlens, newdlens)
-                    if old_len is not None and nl is not None
-                ):
-                    if hasattr(self, "forward"):
-                        self.forward()
-            except Exception:
-                pass
-
-        # Update _dlens
-        self._dlens = newdlens if newdlens else self._dlens
-
-        # CRITICAL FIX: Set datetime safely - only use data sources that have valid data
-        if (
-            hasattr(self, "datas")
-            and self.datas
-            and hasattr(self, "lines")
-            and hasattr(self.lines, "datetime")
-        ):
-            valid_data_times = []
-            for d in self.datas:
-                try:
-                    if (
-                        hasattr(d, "__len__")
-                        and len(d) > 0
-                        and hasattr(d, "datetime")
-                        and hasattr(d.datetime, "__getitem__")
-                    ):
-                        dt_val = d.datetime[0]
-                        # Only add valid datetime values (not None or NaN)
-                        if dt_val is not None and not (
-                            isinstance(dt_val, float) and math.isnan(dt_val)
-                        ):
-                            valid_data_times.append(dt_val)
-                except (IndexError, AttributeError, TypeError):
-                    continue
-
-            # CRITICAL FIX: Only call max() if we have data
-            if valid_data_times:
-                try:
-                    self.lines.datetime[0] = max(valid_data_times)
-                except (ValueError, IndexError, AttributeError):
-                    # If setting datetime fails, use a default valid ordinal (1 = Jan 1, Year 1)
-                    self.lines.datetime[0] = 1.0
-            else:
-                # This is the fix - instead of calling max() on empty list, use default valid ordinal
-                self.lines.datetime[0] = 1.0
-
-        # Return the length of this strategy (number of processed bars)
-        try:
-            if hasattr(self, "_clock") and self._clock is not None:
-                return len(self._clock)
-            elif self.datas and len(self.datas) > 0:
-                return len(self.datas[0])
-            return 0
-        except Exception:
-            return 0
+        return clock_len
 
     def _once(self, start=None, end=None):
         """
@@ -1262,58 +1133,50 @@ class LineIterator(LineIteratorMixin, LineSeries):
             except Exception:
                 pass
 
-    def _getminperstatus(self):
-        """Get minimum period status for indicators"""
-        # For indicators, check if we have enough data based on minperiod
-        if not hasattr(self, "_minperiod"):
-            return -1  # No minperiod set, assume ready
-
-        # Get the length of the indicator (number of bars processed)
-        try:
-            current_len = len(self)
-        except Exception:
-            current_len = 0
-
-        # Return negative if we have enough data, positive/zero otherwise
-        return self._minperiod - current_len
-
     def _next(self):
-        """Default _next implementation for indicators"""
-        # Advance buffer FIRST, then calculate
-        # The forward() call advances the internal index so len(self) returns the correct value
-        # This is needed for _getminperstatus() to work correctly
-        if hasattr(self, "forward") and callable(self.forward):
-            self.forward()
+        # _next方法
+        # 当前时间数据的长度
+        clock_len = self._clk_update()
+        # indicator调用_next
+        for indicator in self._lineiterators[LineIterator.IndType]:
+            indicator._next()
 
-        # Get minperiod status (uses len(self) which is now correct after forward())
-        minperstatus = self._getminperstatus()
+        # 调用_notify函数
+        self._notify()
 
-        # Call appropriate next method based on minperiod status
-        if minperstatus < 0:
-            self.next()
-        elif minperstatus == 0:
-            self.nextstart()
+        # 如果这个_ltype是策略类型
+        if self._ltype == LineIterator.StratType:
+            # supporting datas with different lengths
+            # 获取minperstatus，如果小于0,就调用next,如果等于0,就调用nextstart,如果大于0,就调用prenext
+            minperstatus = self._getminperstatus()
+            if minperstatus < 0:
+                self.next()
+            elif minperstatus == 0:
+                self.nextstart()  # only called for the 1st value
+            else:
+                self.prenext()
+        # 如果line类型不是策略，那么就通过clock_len和self._minperiod来判断
         else:
-            self.prenext()
+            # assume indicators and others operate on same length datas
+            if clock_len > self._minperiod:
+                self.next()
+            elif clock_len == self._minperiod:
+                self.nextstart()  # only called for the 1st value
+            elif clock_len:
+                self.prenext()
 
     def prenext(self):
         # Default implementation - do nothing
         pass
 
     def nextstart(self):
-        # Check if this class has its own nextstart method defined
-        for cls in self.__class__.__mro__:
-            if cls != LineIterator and "nextstart" in cls.__dict__:
-                # Call the class's own nextstart method
-                original_nextstart = cls.__dict__["nextstart"]
-                try:
-                    original_nextstart(self)
-                    return
-                except Exception:
-                    # Continue to prevent total failure
-                    pass
+        """
+        This method will be called once, exactly when the minimum period for
+        all datas/indicators have been meet. The default behavior is to call
+        next
+        """
 
-        # Default behavior - call next()
+        # Called once for 1st full calculation - defaults to regular next
         self.next()
 
     def _addnotification(self, *args, **kwargs):
@@ -1728,53 +1591,6 @@ class StrategyBase(DataAccessor):
         once in _oncepost).
         """
         pass
-
-    def _next(self):
-        """Override _next for strategy-specific processing
-
-        CRITICAL: This method is ONLY called in runonce=False mode.
-        In runonce=True mode, _oncepost() is called instead.
-
-        NOTE: Strategy._next() overrides this to add analyzers/observers,
-        but it should NOT duplicate the next() call.
-        """
-        # Update the clock first
-        self._clk_update()
-
-        # NOTE: _notify() is called in Strategy._next(), not here
-        # to avoid double notification when Strategy subclasses StrategyBase
-
-        # CRITICAL FIX: Update indicators BEFORE calling user's next()
-        # In runonce=False mode, indicators must be updated manually
-        if hasattr(self, "_lineiterators"):
-            for indicator in self._lineiterators.get(LineIterator.IndType, []):
-                try:
-                    if hasattr(indicator, "_next") and callable(indicator._next):
-                        indicator._next()
-                except Exception:
-                    pass
-
-        # Get minperiod status
-        minperstatus = -1
-        if hasattr(self, "_getminperstatus"):
-            minperstatus = self._getminperstatus()
-
-        # Call appropriate next method based on minperiod status
-        if minperstatus < 0:
-            if hasattr(self, "next") and callable(self.next):
-                self.next()
-        elif minperstatus == 0:
-            if hasattr(self, "nextstart") and callable(self.nextstart):
-                self.nextstart()
-        else:
-            if hasattr(self, "prenext") and callable(self.prenext):
-                self.prenext()
-
-        # NOTE: _next_analyzers and _next_observers are called in Strategy._next()
-        # to avoid double processing when Strategy subclasses StrategyBase
-
-        # NOTE: clear() is called in Strategy._next()
-        # to avoid double clearing when Strategy subclasses StrategyBase
 
     def __init__(self, *args, **kwargs):
         """Initialize strategy and handle delayed data assignment from cerebro"""
