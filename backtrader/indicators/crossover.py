@@ -79,14 +79,41 @@ class CrossOver(Indicator):
 
     def __init__(self):
         super().__init__()
+        # CRITICAL FIX: Inherit minperiod from data sources first
+        # This is needed because the framework's automatic inheritance isn't working
+        if hasattr(self, 'datas') and self.datas:
+            data_minperiods = [getattr(d, '_minperiod', 1) for d in self.datas]
+            self._minperiod = max([self._minperiod] + data_minperiods)
+        # CRITICAL FIX: Add minperiod for lookback requirement (nzd(-1) in master)
+        # addminperiod(n) adds n-1 to minperiod, so addminperiod(2) adds 1
+        self.addminperiod(2)
         # For next() mode: track last non-zero difference
         self._last_nzd = None
 
-    def nextstart(self):
-        # First bar: initialize and no cross
+    def prenext(self):
+        # Track difference during warmup period so _last_nzd is available in nextstart
+        # This is similar to MACD's prenext that calculates MACD values during warmup
         diff = self.data0[0] - self.data1[0]
-        self._last_nzd = diff
-        self.lines.crossover[0] = 0.0
+        # Update _last_nzd (memorize non-zero)
+        if self._last_nzd is None:
+            self._last_nzd = diff
+        else:
+            self._last_nzd = diff if diff != 0.0 else self._last_nzd
+
+    def nextstart(self):
+        # First bar after minperiod: check for cross using _last_nzd from prenext
+        diff = self.data0[0] - self.data1[0]
+        
+        # Get previous non-zero difference (set during prenext)
+        prev_nzd = self._last_nzd if self._last_nzd is not None else diff
+        
+        # Check for crossover
+        up_cross = 1.0 if (prev_nzd < 0.0 and self.data0[0] > self.data1[0]) else 0.0
+        down_cross = 1.0 if (prev_nzd > 0.0 and self.data0[0] < self.data1[0]) else 0.0
+        self.lines.crossover[0] = up_cross - down_cross
+        
+        # Update _last_nzd for next()
+        self._last_nzd = diff if diff != 0.0 else prev_nzd
 
     def next(self):
         # Current difference
@@ -118,15 +145,21 @@ class CrossOver(Indicator):
         while len(crossarray) < end:
             crossarray.append(0.0)
 
-        # Initialize: first bar has no cross, set _last_nzd
-        if start < len(d0array):
-            crossarray[start] = 0.0
-            prev_nzd = d0array[start] - d1array[start]
+        # Initialize prev_nzd from prenext period (bar before start)
+        # This matches next() which uses _last_nzd set during prenext
+        if start > 0 and start - 1 < len(d0array):
+            prev_nzd = d0array[start - 1] - d1array[start - 1]
+            # Scan backwards to find last non-zero difference (like prenext does)
+            for j in range(start - 1, -1, -1):
+                diff_j = d0array[j] - d1array[j]
+                if diff_j != 0.0:
+                    prev_nzd = diff_j
+                    break
         else:
             prev_nzd = 0.0
 
-        # Process remaining bars (same logic as next())
-        for i in range(start + 1, end):
+        # Process ALL bars from start (including first bar which may have cross)
+        for i in range(start, end):
             d0_val = d0array[i]
             d1_val = d1array[i]
             diff = d0_val - d1_val

@@ -462,8 +462,51 @@ class Strategy(StrategyBase):
         # 指标的最小周期
         minperiods = \
             [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
+        
+        # CRITICAL FIX: Also scan strategy attributes for LineActions objects
+        # (like LinesOperation from sma - sma(-10)) that aren't registered as indicators
+        # but still need their minperiod considered
+        from .linebuffer import LineActions
+        for attr_name in dir(self):
+            if attr_name.startswith('_'):
+                continue
+            try:
+                attr = getattr(self, attr_name)
+                # Check if it's a LineActions but not already in _lineiterators
+                if isinstance(attr, LineActions) and hasattr(attr, '_minperiod'):
+                    if attr not in self._lineiterators[LineIterator.IndType]:
+                        minperiods.append(attr._minperiod)
+            except (AttributeError, TypeError):
+                pass
+        
         # 把指标的最小周期和数据的最小周期的最大值作为策略运行需要的最小周期
         self._minperiod = max(minperiods or [self._minperiod])
+        
+        # CRITICAL FIX: Update _minperiods for LineActions, but only for their associated data
+        # For single-data strategies, apply LineActions minperiod to data[0]
+        # For multi-data strategies, LineActions minperiod should only affect its source data
+        from .linebuffer import LineActions
+        if self._minperiods:
+            for attr_name in dir(self):
+                if attr_name.startswith('_'):
+                    continue
+                try:
+                    attr = getattr(self, attr_name)
+                    if isinstance(attr, LineActions) and hasattr(attr, '_minperiod'):
+                        if attr not in self._lineiterators[LineIterator.IndType]:
+                            # Try to determine which data this LineActions is associated with
+                            # by checking its _clock or data sources
+                            data_idx = 0  # Default to data[0]
+                            if hasattr(attr, '_clock') and attr._clock is not None:
+                                for i, d in enumerate(self.datas):
+                                    if attr._clock is d or attr._clock in d.lines:
+                                        data_idx = i
+                                        break
+                            # Only update minperiod for the specific data
+                            if data_idx < len(self._minperiods):
+                                self._minperiods[data_idx] = max(self._minperiods[data_idx], attr._minperiod)
+                except (AttributeError, TypeError):
+                    pass
 
     # 增加writer
     def _addwriter(self, writer):

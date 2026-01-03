@@ -53,6 +53,11 @@ class MACD(Indicator):
         signal_minperiod = self.macd_minperiod + self.p.period_signal - 1
         self._minperiod = max(self._minperiod, signal_minperiod)
         
+        # CRITICAL FIX: Propagate minperiod to lines so that other indicators
+        # using these lines as data sources will inherit the correct minperiod
+        for line in self.lines:
+            line.updateminperiod(self._minperiod)
+        
         # Signal line alpha for EMA calculation
         self.signal_alpha = 2.0 / (1.0 + self.p.period_signal)
         self.signal_alpha1 = 1.0 - self.signal_alpha

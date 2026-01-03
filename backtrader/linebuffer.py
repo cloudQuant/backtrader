@@ -1572,18 +1572,23 @@ class _LineDelay(LineActions):
         """CRITICAL FIX: Override __getitem__ to compute delayed value dynamically.
         
         This handles constants wrapped in PseudoArray correctly.
+        For ago=-10 (lookback), accessing [0] should return self.a[-10] (10 bars back).
+        Formula: self.a[idx + ago] where ago is negative for lookback.
         """
         try:
             # For delay operations, get value from source with delay applied
-            return self.a[idx - self.ago]
+            # ago is negative for lookback, so idx + ago gives historical index
+            return self.a[idx + self.ago]
         except (IndexError, TypeError):
             return 0.0
 
     def next(self):
         # CRITICAL FIX: Proper delay operation
+        # ago is negative for lookback (e.g., ago=-10 means 10 bars back)
+        # We need self.a[ago] to get the historical value
         try:
-            # Get the delayed value
-            delayed_val = self.a[-self.ago]
+            # Get the delayed value - ago is already negative for lookback
+            delayed_val = self.a[self.ago]
 
             # Ensure value is never None or NaN
             if delayed_val is None:

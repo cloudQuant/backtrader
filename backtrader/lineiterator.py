@@ -337,6 +337,18 @@ class LineIteratorMixin:
         except AttributeError:
             pass
 
+        # CRITICAL FIX: After indicator's __init__ has set its minperiod,
+        # propagate this minperiod to all its lines so that other indicators
+        # using these lines as data sources will inherit the correct minperiod.
+        # This matches master branch behavior in MetaLineIterator.dopostinit.
+        try:
+            for line in _obj.lines:
+                if line is not None:
+                    # Update each line's minperiod to match the indicator's minperiod
+                    line.updateminperiod(_obj._minperiod)
+        except (AttributeError, TypeError):
+            pass
+
         # Recalculate period
         _obj._periodrecalc()
 

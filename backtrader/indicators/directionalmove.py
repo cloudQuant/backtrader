@@ -316,6 +316,17 @@ class AverageDirectionalMovementIndex(_DirectionalIndicator):
     def __init__(self):
         super().__init__()
         self.dx_ma = self.p.movav(period=self.p.period)
+        
+        # CRITICAL FIX: Calculate and set minperiod for ADX
+        # ADX needs: ATR(period) + SMMA(period) for DI calculation + SMMA(period) for ADX
+        # In master branch, ADX with period=14 has minperiod around 28
+        # The formula: period (for ATR) + period (for DX smoothing) = 2*period
+        adx_minperiod = 2 * self.p.period
+        self._minperiod = max(self._minperiod, adx_minperiod)
+        
+        # Propagate minperiod to lines
+        for line in self.lines:
+            line.updateminperiod(self._minperiod)
 
     def next(self):
         diplus = self.DIplus[0]

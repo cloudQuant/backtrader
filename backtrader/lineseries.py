@@ -1326,17 +1326,10 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         lineobj = self._getline(line, minusall=False)
         delayed = LineDelay(lineobj, ago)
         
-        # CRITICAL FIX: Propagate indicator's minperiod to the delayed line
-        # When nzd(-1) is called, the lineobj has minperiod=1 but the indicator (self)
-        # has minperiod=20. The delayed line should be: indicator_minperiod + delay
-        # _LineDelay already adds abs(ago)+1 via addminperiod (which adds minperiod-1)
-        # So delayed._minperiod = 1 + (abs(ago)+1-1) = 1 + abs(ago) = 2 for ago=-1
-        # We need: indicator_minperiod + abs(ago) = 20 + 1 = 21 for ago=-1
-        # So we need to add (indicator_minperiod - 1) to account for the indicator's contribution
-        indicator_minperiod = getattr(self, '_minperiod', 1)
-        if indicator_minperiod > 1:
-            # Add the indicator's minperiod contribution (minus the base 1 already counted)
-            delayed.addminperiod(indicator_minperiod)
+        # NOTE: _LineDelay already handles minperiod inheritance from the source line
+        # in its __init__ method. It gets the source's _minperiod and adds the delay.
+        # No additional minperiod adjustment is needed here since the source line
+        # (lineobj) already has the indicator's minperiod propagated to it.
         
         return delayed
 
