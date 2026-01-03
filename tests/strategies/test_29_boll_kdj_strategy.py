@@ -40,7 +40,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class KDJ(bt.Indicator):
-    """KDJ 指标"""
+    """KDJ 指标
+    
+    重构说明：使用 next() 方法替代 line binding (self.l.K = self.kd.percD)
+    因为 line binding 在当前架构中存在 idx 不同步问题
+    """
     lines = ('K', 'D', 'J')
 
     params = (
@@ -56,9 +60,11 @@ class KDJ(bt.Indicator):
             period_dfast=self.p.period_dfast,
             period_dslow=self.p.period_dslow,
         )
-        self.l.K = self.kd.percD
-        self.l.D = self.kd.percDSlow
-        self.l.J = self.K * 3 - self.D * 2
+
+    def next(self):
+        self.l.K[0] = self.kd.percD[0]
+        self.l.D[0] = self.kd.percDSlow[0]
+        self.l.J[0] = self.l.K[0] * 3 - self.l.D[0] * 2
 
 
 class BOLLKDJStrategy(bt.Strategy):
