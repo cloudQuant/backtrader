@@ -245,10 +245,10 @@ def test_cb_friday_rotation_strategy():
     assert strat.buy_count == 1119, f"Expected buy_count=1119, got {strat.buy_count}"
     assert strat.sell_count == 1116, f"Expected sell_count=1116, got {strat.sell_count}"
     assert total_trades == 1117, f"Expected total_trades=1117, got {total_trades}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=-0.13455036625145442, got {sharpe_ratio}"
-    assert annual_return == 0.005213988514988448, f"Expected annual_return=0.005213988514988448, got {annual_return}"
-    assert max_drawdown == 0.134336302193658, f"Expected max_drawdown=0.134336302193658, got {max_drawdown}"
-    assert final_value == 1039666.6544150009, f"Expected final_value=1039666.6544150009, got {final_value}"
+    assert abs(sharpe_ratio-(-0.13455036625145408))<1e-6, f"Expected sharpe_ratio=-0.13455036625145442, got {sharpe_ratio}"
+    assert abs(annual_return-0.005213988514988448)<1e-6, f"Expected annual_return=0.005213988514988448, got {annual_return}"
+    assert abs(max_drawdown-0.134336302193658)<1e-6, f"Expected max_drawdown=0.134336302193658, got {max_drawdown}"
+    assert abs(final_value - 1039666.6544150009)<1e-6, f"Expected final_value=1039666.6544150009, got {final_value}"
 
     print("\n所有测试通过!")
 

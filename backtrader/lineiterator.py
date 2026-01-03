@@ -1104,6 +1104,19 @@ class LineIterator(LineIteratorMixin, LineSeries):
         except AttributeError:
             pass  # No datas attribute
 
+        # CRITICAL FIX: Also reset indicators after once() completes
+        # After once_via_next fills indicator arrays, the idx is at the end
+        # Reset them so the main loop can advance bar-by-bar from the beginning
+        try:
+            for lineiter_list in self._lineiterators.values():
+                for lineiterator in lineiter_list:
+                    try:
+                        lineiterator.home()
+                    except Exception:
+                        pass
+        except AttributeError:
+            pass
+
     def preonce(self, start, end):
         # Default implementation - do nothing
         pass

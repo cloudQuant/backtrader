@@ -256,104 +256,16 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
     # next重写了，但是once没有重写，需要的操作
     def once_via_next(self, start, end):
         # Not overridden, next must be there ...
+        # Simple implementation matching master branch - just advance and call next
         for i in range(start, end):
-            # CRITICAL FIX: Set _idx for runonce mode before calling next()
-            # This allows indicators to access data at the correct position
-            if hasattr(self, "_idx"):
-                self._idx = i
-
             for data in self.datas:
-                # Call advance first
                 data.advance()
-                # CRITICAL FIX: Set _idx for data AND all its lines AFTER advance()
-                # This ensures data.get() uses the correct index during next()
-                if hasattr(data, "_idx"):
-                    data._idx = i
-                # CRITICAL FIX: Also set _idx for all lines in the data
-                if hasattr(data, "lines") and hasattr(data.lines, "lines"):
-                    for line in data.lines.lines:
-                        if hasattr(line, "_idx"):
-                            line._idx = i
 
             for indicator in self._lineiterators[LineIterator.IndType]:
-                # CRITICAL FIX: Set sub-indicator's _idx as well
-                if hasattr(indicator, "_idx"):
-                    indicator._idx = i
                 indicator.advance()
-                # CRITICAL FIX: Set _idx for all lines AFTER advance()
-                # This ensures lines have the correct _idx during next()
-                if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
-                    for line in indicator.lines.lines:
-                        if hasattr(line, "_idx"):
-                            line._idx = i
 
             self.advance()
-            # CRITICAL FIX: Set _idx for own lines AFTER advance()
-            if hasattr(self, "lines") and hasattr(self.lines, "lines"):
-                for line in self.lines.lines:
-                    if hasattr(line, "_idx"):
-                        line._idx = i
             self.next()
-
-        # CRITICAL FIX: Update lencount after once_via_next processing
-        # This ensures len(indicator) == len(strategy) in runonce mode
-        # Get the actual data length from the clock or data source
-        actual_data_len = end
-        try:
-            # Try to get the actual data length from clock or data sources
-            if hasattr(self, "_clock") and self._clock:
-                try:
-                    actual_data_len = self._clock.buflen()
-                except Exception:
-                    try:
-                        actual_data_len = len(self._clock)
-                    except Exception:
-                        pass
-            elif hasattr(self, "datas") and self.datas and len(self.datas) > 0:
-                try:
-                    actual_data_len = self.datas[0].buflen()
-                except Exception:
-                    try:
-                        actual_data_len = len(self.datas[0])
-                    except Exception:
-                        pass
-            # Use the maximum of end and actual_data_len to ensure we don't truncate
-            final_len = max(end, actual_data_len) if actual_data_len > 0 else end
-        except Exception:
-            final_len = end
-
-        if hasattr(self, "lines") and hasattr(self.lines, "lines") and self.lines.lines:
-            for line in self.lines.lines:
-                if hasattr(line, "lencount"):
-                    # Set lencount to final_len (actual data length)
-                    line.lencount = final_len
-                if hasattr(line, "_idx"):
-                    # Set _idx to the last processed position
-                    line._idx = final_len - 1 if final_len > 0 else -1
-
-        # CRITICAL FIX: Execute bindings after once processing
-        # For line bindings like: self.lines.crossover = upcross - downcross
-        # Call oncebinding() on sub-indicators first (they may have bindings too)
-        if hasattr(self, "_lineiterators"):
-            for indicator in self._lineiterators.get(LineIterator.IndType, []):
-                if hasattr(indicator, "lines") and hasattr(indicator.lines, "lines"):
-                    for line in indicator.lines.lines:
-                        if hasattr(line, "oncebinding"):
-                            try:
-                                line.oncebinding()
-                            except Exception:
-                                pass
-
-        # Then call oncebinding() on this indicator's own lines
-        if hasattr(self, "lines") and hasattr(self.lines, "lines"):
-            for line in self.lines.lines:
-                if hasattr(line, "oncebinding"):
-                    try:
-                        line.oncebinding()
-                    except Exception:
-                        pass
-
-        # Data reset is now handled in LineIterator._once()
 
 
 # 指标画出多条line的类，下面这两个类，在整个项目中并没有使用到
