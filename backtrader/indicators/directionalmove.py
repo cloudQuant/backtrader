@@ -275,20 +275,13 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
             minusDI_array[i] = diminus_array[i] if i < len(diminus_array) else 0.0
 
 
-class AverageDirectionalMovementIndex(_DirectionalIndicator):
+class AverageDirectionalMovementIndex(Indicator):
     """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
     Technical Trading Systems"*.
 
-    Intended to measure trend strength
-
-    This indicator only shows ADX:
-      - Use PlusDirectionalIndicator (PlusDI) to get +DI
-      - Use MinusDirectionalIndicator (MinusDI) to get -DI
-      - Use Directional Indicator (DI) to get +DI, -DI
-      - Use AverageDirectionalIndexRating (ADXR) to get ADX, ADXR
-      - Use DirectionalMovementIndex (DMI) to get ADX, +DI, -DI
-      - Use DirectionalMovement (DM) to get ADX, ADXR, +DI, -DI
+    Intended to measure trend strength. Rewritten following MACD pattern
+    with explicit next()/once() methods for reliable calculation.
 
     Formula:
       - upmove = high - high(-1)
@@ -299,87 +292,168 @@ class AverageDirectionalMovementIndex(_DirectionalIndicator):
       - -di = 100 * MovingAverage(-dm, period) / atr(period)
       - dx = 100 * abs(+di - -di) / (+di + -di)
       - adx = MovingAverage(dx, period)
-
-    The moving average used is the one originally defined by Wilder,
-    the SmoothedMovingAverage
-
-    See:
-      - https://en.wikipedia.org/wiki/Average_directional_movement_index
     """
 
     alias = ("ADX",)
-
     lines = ("adx",)
-
+    params = (("period", 14), ("movav", MovAv.Smoothed))
     plotlines = dict(adx=dict(_name="ADX"))
 
     def __init__(self):
         super().__init__()
-        self.dx_ma = self.p.movav(period=self.p.period)
+        period = self.p.period
         
-        # CRITICAL FIX: Calculate and set minperiod for ADX
-        # ADX needs: ATR(period) + SMMA(period) for DI calculation + SMMA(period) for ADX
-        # In master branch, ADX with period=14 has minperiod around 28
-        # The formula: period (for ATR) + period (for DX smoothing) = 2*period
-        adx_minperiod = 2 * self.p.period
+        # Store sub-indicators for direct array access (like MACD)
+        self.atr = ATR(self.data, period=period, movav=self.p.movav)
+        self.plusDMav = self.p.movav(period=period)
+        self.minusDMav = self.p.movav(period=period)
+        
+        # Calculate minperiod: ATR needs period, then DI smoothing needs period, then ADX smoothing needs period
+        # Total: approximately 2*period for DI + period for ADX smoothing
+        adx_minperiod = 2 * period
         self._minperiod = max(self._minperiod, adx_minperiod)
         
         # Propagate minperiod to lines
         for line in self.lines:
             line.updateminperiod(self._minperiod)
+        
+        # For SMMA calculation
+        self.alpha = 1.0 / period
+        self.alpha1 = 1.0 - self.alpha
+        
+        # State for smoothed values
+        self._plusDMav_val = 0.0
+        self._minusDMav_val = 0.0
+        self._adx_val = 0.0
+        self._prev_high = None
+        self._prev_low = None
+
+    def prenext(self):
+        # Track previous high/low for directional move calculation
+        self._prev_high = self.data.high[0]
+        self._prev_low = self.data.low[0]
+
+    def nextstart(self):
+        period = self.p.period
+        idx = self.lines[0].idx
+        
+        # Get ATR value
+        atr_val = self.atr.lines[0].array[idx] if idx < len(self.atr.lines[0].array) else 0.0
+        if atr_val == 0:
+            atr_val = 0.0001  # Avoid division by zero
+        
+        # Calculate +DM and -DM
+        upmove = self.data.high[0] - (self._prev_high if self._prev_high else self.data.high[-1])
+        downmove = (self._prev_low if self._prev_low else self.data.low[-1]) - self.data.low[0]
+        
+        plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
+        minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
+        
+        # Seed smoothed DM values
+        self._plusDMav_val = plusDM
+        self._minusDMav_val = minusDM
+        
+        # Calculate DI
+        diplus = 100.0 * self._plusDMav_val / atr_val
+        diminus = 100.0 * self._minusDMav_val / atr_val
+        
+        # Calculate DX
+        disum = diplus + diminus
+        dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
+        
+        # Seed ADX
+        self._adx_val = dx
+        self.lines.adx[0] = self._adx_val
+        
+        self._prev_high = self.data.high[0]
+        self._prev_low = self.data.low[0]
 
     def next(self):
-        diplus = self.DIplus[0]
-        diminus = self.DIminus[0]
+        idx = self.lines[0].idx
+        
+        # Get ATR value
+        atr_val = self.atr.lines[0].array[idx] if idx < len(self.atr.lines[0].array) else 0.0
+        if atr_val == 0:
+            atr_val = 0.0001
+        
+        # Calculate +DM and -DM
+        upmove = self.data.high[0] - self.data.high[-1]
+        downmove = self.data.low[-1] - self.data.low[0]
+        
+        plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
+        minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
+        
+        # Smooth DM values (SMMA)
+        self._plusDMav_val = self._plusDMav_val * self.alpha1 + plusDM * self.alpha
+        self._minusDMav_val = self._minusDMav_val * self.alpha1 + minusDM * self.alpha
+        
+        # Calculate DI
+        diplus = 100.0 * self._plusDMav_val / atr_val
+        diminus = 100.0 * self._minusDMav_val / atr_val
+        
+        # Calculate DX
         disum = diplus + diminus
-        if disum != 0:
-            dx = abs(diplus - diminus) / disum
-        else:
-            dx = 0.0
-        # We need to calculate SMMA of dx ourselves
-        # For simplicity, just use the dx_ma indicator
-        self.lines.adx[0] = 100.0 * dx
+        dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
+        
+        # Smooth ADX (SMMA of DX)
+        self._adx_val = self._adx_val * self.alpha1 + dx * self.alpha
+        self.lines.adx[0] = self._adx_val
 
     def once(self, start, end):
+        """Calculate ADX in runonce mode"""
         import math
-        diplus_array = self.DIplus.lines[0].array
-        diminus_array = self.DIminus.lines[0].array
-        adx_array = self.lines.adx.array
-        period = self.p.period
         
+        # Get source arrays
+        high_array = self.data.high.array
+        low_array = self.data.low.array
+        atr_array = self.atr.lines[0].array
+        adx_array = self.lines.adx.array
+        
+        period = self.p.period
+        alpha = self.alpha
+        alpha1 = self.alpha1
+        
+        # Ensure arrays are sized
         while len(adx_array) < end:
             adx_array.append(0.0)
         
-        # Calculate DX and then SMMA of DX
-        alpha = 1.0 / period
-        alpha1 = 1.0 - alpha
-        prev_adx = 0.0
+        # Initialize smoothed values
+        plusDMav = 0.0
+        minusDMav = 0.0
+        adx_val = 0.0
         
-        for i in range(start, min(end, len(diplus_array), len(diminus_array))):
-            diplus = diplus_array[i] if i < len(diplus_array) else 0.0
-            diminus = diminus_array[i] if i < len(diminus_array) else 0.0
-            
-            if isinstance(diplus, float) and math.isnan(diplus):
-                adx_array[i] = float("nan")
-                continue
-            if isinstance(diminus, float) and math.isnan(diminus):
-                adx_array[i] = float("nan")
+        for i in range(start, min(end, len(high_array), len(low_array))):
+            if i < 1:
+                adx_array[i] = 0.0
                 continue
             
+            # Get ATR
+            atr_val = atr_array[i] if i < len(atr_array) else 0.0
+            if atr_val == 0 or (isinstance(atr_val, float) and math.isnan(atr_val)):
+                atr_val = 0.0001
+            
+            # Calculate directional moves
+            upmove = high_array[i] - high_array[i - 1]
+            downmove = low_array[i - 1] - low_array[i]
+            
+            plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
+            minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
+            
+            # Smooth DM values
+            plusDMav = plusDMav * alpha1 + plusDM * alpha
+            minusDMav = minusDMav * alpha1 + minusDM * alpha
+            
+            # Calculate DI
+            diplus = 100.0 * plusDMav / atr_val
+            diminus = 100.0 * minusDMav / atr_val
+            
+            # Calculate DX
             disum = diplus + diminus
-            if disum != 0:
-                dx = 100.0 * abs(diplus - diminus) / disum
-            else:
-                dx = 0.0
+            dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
             
-            # SMMA for ADX
-            if i > 0 and i - 1 < len(adx_array):
-                prev_val = adx_array[i - 1]
-                if not (isinstance(prev_val, float) and math.isnan(prev_val)):
-                    prev_adx = prev_val
-            
-            prev_adx = prev_adx * alpha1 + dx * alpha
-            adx_array[i] = prev_adx
+            # Smooth ADX
+            adx_val = adx_val * alpha1 + dx * alpha
+            adx_array[i] = adx_val
 
 
 class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
