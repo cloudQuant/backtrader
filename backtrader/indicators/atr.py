@@ -210,51 +210,32 @@ class AverageTrueRange(Indicator):
         while len(larray) < end:
             larray.append(0.0)
         
-        # Pre-fill warmup with NaN
+        # Pre-fill warmup with NaN (indices 0 to period-1)
         for i in range(min(period, len(high_array))):
             if i < len(larray):
                 larray[i] = float("nan")
         
-        # CRITICAL FIX: Calculate seed at the start index (matching strategy's first bar)
-        # The seed should use the period TR values ending at start, not starting from 0
-        seed_idx = start
-        if seed_idx >= period and seed_idx < len(high_array) and seed_idx < len(low_array) and seed_idx < len(close_array):
+        # CRITICAL FIX: Always seed at index `period` (first valid ATR position)
+        # regardless of the `start` parameter. The ATR needs `period` TR values,
+        # and TR starts from index 1 (needs close[-1]), so first valid ATR is at index `period`.
+        seed_idx = period
+        if seed_idx < len(high_array) and seed_idx < len(low_array) and seed_idx < len(close_array):
             tr_sum = 0.0
             for j in range(period):
-                # Use TR values from (start - period + 1) to start
-                idx = seed_idx - period + 1 + j
-                if idx >= 0:
-                    if idx == 0:
-                        tr = high_array[idx] - low_array[idx]
-                    else:
-                        truehigh = max(high_array[idx], close_array[idx - 1])
-                        truelow = min(low_array[idx], close_array[idx - 1])
-                        tr = truehigh - truelow
+                # Use TR values from indices 1 to period (inclusive)
+                idx = j + 1  # Start from index 1 (first valid TR)
+                if idx < len(high_array) and idx < len(low_array) and idx - 1 < len(close_array):
+                    truehigh = max(high_array[idx], close_array[idx - 1])
+                    truelow = min(low_array[idx], close_array[idx - 1])
+                    tr = truehigh - truelow
                     tr_sum += tr
             prev_atr = tr_sum / period
             if seed_idx < len(larray):
                 larray[seed_idx] = prev_atr
         else:
-            # Fallback to original behavior for edge cases
-            seed_idx = period
-            if seed_idx < len(high_array):
-                tr_sum = 0.0
-                for j in range(period):
-                    idx = j
-                    if idx == 0:
-                        tr = high_array[idx] - low_array[idx]
-                    else:
-                        truehigh = max(high_array[idx], close_array[idx - 1])
-                        truelow = min(low_array[idx], close_array[idx - 1])
-                        tr = truehigh - truelow
-                    tr_sum += tr
-                prev_atr = tr_sum / period
-                if seed_idx < len(larray):
-                    larray[seed_idx] = prev_atr
-            else:
-                prev_atr = 0.0
+            prev_atr = 0.0
         
-        # Calculate ATR using SMMA
+        # Calculate ATR using SMMA for all subsequent bars
         for i in range(seed_idx + 1, min(end, len(high_array), len(low_array), len(close_array))):
             truehigh = max(high_array[i], close_array[i - 1])
             truelow = min(low_array[i], close_array[i - 1])

@@ -176,6 +176,12 @@ class MovingAverageSimple(MovingAverageBase):
         try:
             period = self.p.period if hasattr(self, "p") else 30
 
+            # CRITICAL FIX: Clear any state accumulated during prenext
+            # In runonce=False mode, prenext might have called next() which added to _price_window and _sum
+            # We need to reset and re-initialize cleanly with historical prices
+            self._price_window.clear()
+            self._sum = 0.0
+
             # Initialize _price_window with historical prices
             # At this point, we have exactly 'period' bars of data
             # Use range(1-period, 1) to get the last 'period' bars including current
