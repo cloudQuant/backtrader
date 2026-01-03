@@ -1964,15 +1964,15 @@ class LinesOperation(LineActions):
             except Exception:
                 pass
         
-        # CRITICAL FIX: For nested LinesOperations, call once() on immediate operands
-        # This ensures the cascade works for expressions like (high + low + close) / 3
-        if hasattr(self.a, 'once') and hasattr(self.a, 'operation'):
+        # CRITICAL FIX: Call once() on ALL operands that have it (not just LinesOperations)
+        # This ensures LineBuffer operands (like indicator outputs) are also computed
+        if hasattr(self.a, 'once'):
             try:
                 self.a.once(nested_start, end)
             except Exception:
                 pass
         
-        if hasattr(self.b, 'once') and hasattr(self.b, 'operation'):
+        if hasattr(self.b, 'once'):
             try:
                 self.b.once(nested_start, end)
             except Exception:
