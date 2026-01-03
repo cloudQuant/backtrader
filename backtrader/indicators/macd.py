@@ -57,6 +57,13 @@ class MACD(Indicator):
         self.signal_alpha = 2.0 / (1.0 + self.p.period_signal)
         self.signal_alpha1 = 1.0 - self.signal_alpha
 
+    def prenext(self):
+        # Calculate MACD during warmup period so values are available for signal seeding
+        idx = self.lines[0].idx
+        me1_val = self.me1.lines[0].array[idx]
+        me2_val = self.me2.lines[0].array[idx]
+        self.lines.macd[0] = me1_val - me2_val
+
     def nextstart(self):
         # Calculate MACD = me1 - me2
         # Use direct array access to avoid dependency on indicator processing order
@@ -65,8 +72,13 @@ class MACD(Indicator):
         me2_val = self.me2.lines[0].array[idx]
         macd_val = me1_val - me2_val
         self.lines.macd[0] = macd_val
-        # Seed signal with MACD value
-        self.lines.signal[0] = macd_val
+        # # Seed signal with MACD value
+        # self.lines.signal[0] = macd_val
+        signal_period = self.p.period_signal
+        macd_sum = 0.0
+        for i in range(signal_period):
+            macd_sum += self.lines.macd[-i]
+        self.lines.signal[0] = macd_sum / signal_period
 
     def next(self):
         # Calculate MACD = me1 - me2
