@@ -807,6 +807,10 @@ class ParamsMixin(BaseMixin):
         # CRITICAL FIX: Auto-patch __init__ methods of indicators to ensure proper parameter handling
         if hasattr(cls, "__init__") and "__init__" in cls.__dict__:
             original_init = cls.__init__
+            
+            # CRITICAL FIX: Store the original __init__ so Strategy can call it directly
+            # This prevents infinite recursion when Strategy.user_init tries to call cls.__init__
+            cls._original_init = original_init
 
             def patched_init(self, *args, **kwargs):
                 # CRITICAL FIX: For indicators, set up data0/data1 BEFORE anything else

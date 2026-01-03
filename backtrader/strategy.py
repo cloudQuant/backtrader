@@ -235,21 +235,31 @@ class Strategy(StrategyBase):
             # CRITICAL FIX: Exclude StrategyBase to prevent infinite recursion
             from backtrader.lineiterator import StrategyBase
 
-            for cls in self.__class__.__mro__:
-                if (
-                    cls not in (Strategy, StrategyBase)
-                    and hasattr(cls, "__init__")
-                    and "__init__" in cls.__dict__
-                ):
-                    user_init = cls.__dict__["__init__"]
-                    try:
-                        user_init(self)
-                        break
-                    except Exception:
-                        # If user init fails, try with filtered_kwargs
-                        if filtered_kwargs:
-                            user_init(self, **filtered_kwargs)
-                        break
+            # CRITICAL FIX: Add guard to prevent recursive user_init calls
+            # When user's __init__ calls super().__init__(), we must not call user_init again
+            if not getattr(self, "_user_init_called", False):
+                self._user_init_called = True
+                
+                for cls in self.__class__.__mro__:
+                    if (
+                        cls not in (Strategy, StrategyBase)
+                        and hasattr(cls, "__init__")
+                        and "__init__" in cls.__dict__
+                    ):
+                        # CRITICAL FIX: Use _original_init if available to avoid calling patched_init
+                        # This prevents infinite recursion when ParamsMixin patches __init__
+                        if hasattr(cls, "_original_init"):
+                            user_init = cls._original_init
+                        else:
+                            user_init = cls.__dict__["__init__"]
+                        try:
+                            user_init(self)
+                            break
+                        except Exception:
+                            # If user init fails, try with filtered_kwargs
+                            if filtered_kwargs:
+                                user_init(self, **filtered_kwargs)
+                            break
 
         # Initialize critical attributes that are expected by strategy execution
         # These should be available before any user code runs
