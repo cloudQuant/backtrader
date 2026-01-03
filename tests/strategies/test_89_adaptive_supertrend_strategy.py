@@ -58,7 +58,8 @@ class AdaptiveSuperTrendIndicator(bt.Indicator):
         
         self.addminperiod(max(self.p.period, self.p.vol_lookback) + 1)
 
-    def next(self):
+    def _calc_bands(self):
+        """计算上下轨并返回 (upper, lower)"""
         atr_val = float(self.atr[0])
         avg_atr_val = float(self.avg_atr[0])
         
@@ -80,15 +81,76 @@ class AdaptiveSuperTrendIndicator(bt.Indicator):
         upper = hl2 + dyn_mult * atr_val
         lower = hl2 - dyn_mult * atr_val
         
+        return upper, lower
+
+    def nextstart(self):
+        """首次调用时种子化SuperTrend值（替代原来的len(self)==1检查）"""
+        upper, lower = self._calc_bands()
+        # 使用UPPER band作为初始值，与master分支行为一致
+        self.l.st[0] = upper
+
+    def next(self):
+        upper, lower = self._calc_bands()
+        
         # 递归SuperTrend逻辑
-        if len(self) == 1:
-            self.l.st[0] = lower
+        prev_st = self.l.st[-1]
+        if self.data.close[0] > prev_st:
+            self.l.st[0] = max(lower, prev_st)
         else:
-            prev_st = self.l.st[-1]
-            if self.data.close[0] > prev_st:
-                self.l.st[0] = max(lower, prev_st)
+            self.l.st[0] = min(upper, prev_st)
+
+    def preonce(self, start, end):
+        """runonce模式预处理 - 不执行任何操作，由once()统一处理"""
+        pass
+
+    def oncestart(self, start, end):
+        """runonce模式首次处理 - 不执行任何操作，由once()统一处理"""
+        pass
+
+    def once(self, start, end):
+        """runonce模式下直接填充数组，确保与nextstart/next逻辑一致"""
+        atr_array = self.atr.lines[0].array
+        avg_atr_array = self.avg_atr.lines[0].array
+        hl2_array = self.hl2.array
+        close_array = self.data.close.array
+        st_array = self.lines.st.array
+        
+        # 使用EMA的minperiod，因为EMA是最后一个准备好的子指标
+        minperiod = self.avg_atr._minperiod
+        actual_end = min(end, len(atr_array), len(avg_atr_array), len(hl2_array), len(close_array))
+        
+        # 确保数组大小足够
+        while len(st_array) < actual_end:
+            st_array.append(0.0)
+        
+        # 从EMA minperiod-1开始计算（对应nextstart被调用的时刻）
+        for i in range(minperiod - 1, actual_end):
+            atr_val = float(atr_array[i])
+            avg_atr_val = float(avg_atr_array[i])
+            
+            if atr_val <= 0:
+                atr_val = 0.0001
+            
+            base_mult = self.p.a_coef + self.p.b_coef * avg_atr_val
+            base_mult = max(self.p.min_mult, min(self.p.max_mult, base_mult))
+            dyn_mult = base_mult * (avg_atr_val / atr_val) if atr_val > 0 else base_mult
+            dyn_mult = max(self.p.min_mult, min(self.p.max_mult, dyn_mult))
+            
+            hl2 = float(hl2_array[i])
+            upper = hl2 + dyn_mult * atr_val
+            lower = hl2 - dyn_mult * atr_val
+            
+            if i == minperiod - 1:
+                # 首个值种子化（使用UPPER band，与master分支一致）
+                st_array[i] = upper
             else:
-                self.l.st[0] = min(upper, prev_st)
+                # 递归逻辑（对应next）
+                prev_st = st_array[i - 1]
+                close_val = float(close_array[i])
+                if close_val > prev_st:
+                    st_array[i] = max(lower, prev_st)
+                else:
+                    st_array[i] = min(upper, prev_st)
 
 
 class AdaptiveSuperTrendStrategy(bt.Strategy):
