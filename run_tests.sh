@@ -1,115 +1,99 @@
 #!/bin/bash
-# Unix shell script to install package and run pytest
-# Output is logged to test_results.log
+# =============================================================================
+# Test Runner Script for Backtrader
+# =============================================================================
+# Description: Run pytest with parallel execution and per-test timeout
+# Usage: ./run_tests.sh [options]
+# Options:
+#   -n NUM    Number of parallel workers (default: 8)
+#   -t SEC    Timeout per test in seconds (default: 45)
+#   -p PATH   Test path (default: tests)
+#   -k EXPR   Only run tests matching expression
+#   -v        Verbose output
+#   -h        Show this help
+# =============================================================================
 
 set -o pipefail
 
-# Set UTF-8 locale to prevent encoding issues
-export LANG=C.UTF-8
-export LC_ALL=C.UTF-8
-export PYTHONIOENCODING=utf-8
+# Default configuration
+WORKERS=8
+TIMEOUT=45
+TEST_PATH="tests"
+VERBOSE=""
+FILTER=""
+EXTRA_ARGS=""
 
-LOG_FILE="test_results.log"
-TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
+# Parse command line arguments
+while getopts "n:t:p:k:vh" opt; do
+    case $opt in
+        n) WORKERS="$OPTARG" ;;
+        t) TIMEOUT="$OPTARG" ;;
+        p) TEST_PATH="$OPTARG" ;;
+        k) FILTER="-k $OPTARG" ;;
+        v) VERBOSE="-v" ;;
+        h)
+            head -15 "$0" | tail -12
+            exit 0
+            ;;
+        \?) echo "Invalid option: -$OPTARG" >&2; exit 1 ;;
+    esac
+done
 
-# Initialize log file
-{
-    echo "============================================"
-    echo "Test Run Started at: $TIMESTAMP"
-    echo "============================================"
-    echo ""
-} > "$LOG_FILE"
+# Ensure we're in the correct directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR" || exit 1
 
-echo "Installing package..."
-{
-    echo "[INSTALL] pip install -U ."
-    echo ""
-} >> "$LOG_FILE"
+# Print configuration
+echo "============================================================"
+echo "Backtrader Test Runner"
+echo "============================================================"
+echo "Test Path:    $TEST_PATH"
+echo "Workers:      $WORKERS"
+echo "Timeout:      ${TIMEOUT}s per test"
+echo "Filter:       ${FILTER:-none}"
+echo "============================================================"
 
-# Install package
-if ! pip install -U . >> "$LOG_FILE" 2>&1; then
-    echo "ERROR: Package installation failed!" | tee -a "$LOG_FILE"
-    exit 1
-fi
+# Build pytest command
+PYTEST_CMD="python -m pytest $TEST_PATH \
+    -n $WORKERS \
+    --timeout=$TIMEOUT \
+    --timeout-method=thread \
+    --tb=short \
+    --strict-markers \
+    -q \
+    $VERBOSE \
+    $FILTER \
+    $EXTRA_ARGS"
 
-{
-    echo ""
-    echo "============================================"
-    echo "Running pytest tests -n 12"
-    echo "============================================"
-    echo ""
-} >> "$LOG_FILE"
+echo "Running: $PYTEST_CMD"
+echo "============================================================"
 
-echo "Running tests..."
+# Execute tests
+START_TIME=$(date +%s)
+eval "$PYTEST_CMD"
+EXIT_CODE=$?
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
 
-# Run pytest with verbose output and capture results
-pytest tests -n 12 -v --tb=short >> "$LOG_FILE" 2>&1
-PYTEST_EXIT_CODE=$?
-
-{
-    echo ""
-    echo "============================================"
-    echo "Test Summary"
-    echo "============================================"
-} >> "$LOG_FILE"
-
-# Extract failed count from pytest summary line
-FAILED_COUNT=0
-SUMMARY_LINE=$(grep -E "[0-9]+ failed.*[0-9]+ passed" "$LOG_FILE" | tail -1 || echo "")
-
-if [ -n "$SUMMARY_LINE" ]; then
-    # Extract number before "failed" using sed
-    FAILED_COUNT=$(echo "$SUMMARY_LINE" | sed -n 's/.*[^0-9]\([0-9]\+\) failed.*/\1/p')
-    # If extraction failed, try another pattern
-    if [ -z "$FAILED_COUNT" ]; then
-        FAILED_COUNT=$(echo "$SUMMARY_LINE" | sed -n 's/^.*=\+ \([0-9]\+\) failed.*/\1/p')
-    fi
-    # Default to 0 if still empty
-    if [ -z "$FAILED_COUNT" ]; then
-        FAILED_COUNT=0
-    fi
-fi
-
-# Extract unique failed test case names
-FAILED_TESTS=$(grep "FAILED tests.*::" "$LOG_FILE" | sed -n 's/.*FAILED \(tests[^ ]*\).*/\1/p' | sort -u || true)
-
-{
-    echo ""
-    echo "Total Failed Tests: $FAILED_COUNT"
-    echo ""
-} >> "$LOG_FILE"
-
-if [ "$FAILED_COUNT" -gt 0 ] && [ -n "$FAILED_TESTS" ]; then
-    {
-        echo "Failed Test Cases:"
-        echo "-------------------"
-        echo "$FAILED_TESTS"
-        echo ""
-    } >> "$LOG_FILE"
-fi
-
-END_TIMESTAMP=$(date '+%Y-%m-%d %H:%M:%S')
-{
-    echo "============================================"
-    echo "Test Run Ended at: $END_TIMESTAMP"
-    echo "============================================"
-} >> "$LOG_FILE"
-
-# Output results to console
+# Print summary
 echo ""
-echo "============================================"
-echo "Test Execution Complete"
-echo "============================================"
-echo "Log file: $LOG_FILE"
-echo "Failed Tests: $FAILED_COUNT"
-echo ""
+echo "============================================================"
+echo "Test Summary"
+echo "============================================================"
+echo "Duration:     ${DURATION}s"
+echo "Exit Code:    $EXIT_CODE"
 
-if [ "$FAILED_COUNT" -gt 0 ] && [ -n "$FAILED_TESTS" ]; then
-    echo "Failed Test Cases:"
-    echo "-------------------"
-    echo "$FAILED_TESTS"
-    echo ""
+if [ $EXIT_CODE -eq 0 ]; then
+    echo "Status:       ✅ ALL TESTS PASSED"
+elif [ $EXIT_CODE -eq 1 ]; then
+    echo "Status:       ❌ SOME TESTS FAILED"
+elif [ $EXIT_CODE -eq 2 ]; then
+    echo "Status:       ⚠️  TEST EXECUTION INTERRUPTED"
+elif [ $EXIT_CODE -eq 5 ]; then
+    echo "Status:       ⚠️  NO TESTS COLLECTED"
+else
+    echo "Status:       ❌ ERROR (code: $EXIT_CODE)"
 fi
 
-# Exit with pytest exit code
-exit $PYTEST_EXIT_CODE
+echo "============================================================"
+exit $EXIT_CODE
