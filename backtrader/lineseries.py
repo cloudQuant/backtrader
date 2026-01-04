@@ -786,8 +786,37 @@ class Lines(object):
                     if line_idx < len(lines_list):
                         parent_line = lines_list[line_idx]
                         
+                        # CRITICAL FIX: Check for LinesOperation first (it has 'lines' but stores values differently)
+                        # LinesOperation inherits from LineBuffer and stores values in its own array
+                        from .linebuffer import LinesOperation
+                        if isinstance(value, LinesOperation):
+                            # LinesOperation stores values in itself (LineBuffer), not in its .lines[0]
+                            value.addbinding(parent_line)
+                            
+                            # Propagate minperiod
+                            try:
+                                owner_ref = object.__getattribute__(self, "_owner_ref")
+                            except AttributeError:
+                                owner_ref = None
+                            
+                            if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
+                                if value._minperiod > owner_ref._minperiod:
+                                    owner_ref._minperiod = value._minperiod
+                            
+                            # Register LinesOperation as sub-indicator so its _next() gets called
+                            if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
+                                from .lineiterator import LineIterator
+                                # CRITICAL FIX: Use 0 directly as key since _lineiterators may be 
+                                # initialized with different keys depending on how it was created
+                                ind_type = LineIterator.IndType  # This is 0
+                                # Ensure the key exists (defaultdict will create it)
+                                if value not in owner_ref._lineiterators[ind_type]:
+                                    owner_ref._lineiterators[ind_type].append(value)
+                                    value._owner = owner_ref
+                            return  # Don't set the attribute directly
+                        
                         # Handle indicator/line-like objects with binding
-                        if hasattr(value, "lines") and hasattr(value, "_minperiod"):
+                        elif hasattr(value, "lines") and hasattr(value, "_minperiod"):
                             # Get the indicator's output line
                             try:
                                 indicator_line = value.lines[0]
@@ -830,6 +859,14 @@ class Lines(object):
                             if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
                                 if value._minperiod > owner_ref._minperiod:
                                     owner_ref._minperiod = value._minperiod
+                            
+                            # CRITICAL FIX: Register LinesOperation as sub-indicator so its next() gets called
+                            if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
+                                from .lineiterator import LineIterator
+                                if LineIterator.IndType in owner_ref._lineiterators:
+                                    if value not in owner_ref._lineiterators[LineIterator.IndType]:
+                                        owner_ref._lineiterators[LineIterator.IndType].append(value)
+                                        value._owner = owner_ref
                             return  # Don't set the attribute directly
                 except (ValueError, IndexError):
                     pass

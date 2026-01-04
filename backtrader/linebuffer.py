@@ -1864,6 +1864,18 @@ class LinesOperation(LineActions):
         except (IndexError, TypeError):
             return float('nan')
 
+    def _next(self):
+        """CRITICAL FIX: _next() method for compatibility with LineIterator processing loop.
+        This method is called by LineIterator._next() for items in _lineiterators[IndType].
+        """
+        # Advance the line buffer
+        self.advance()
+        # Call next() to compute the value
+        self.next()
+        # Update bindings so bound lines get the computed value
+        for binding in self.bindings:
+            binding[0] = self[0]
+
     def next(self):
         # operation(float, other) ... expecting other to be a float
         # CRITICAL FIX: Ensure we get valid numeric values for indicator calculations
@@ -1986,6 +1998,10 @@ class LinesOperation(LineActions):
                 self._once_val_op_r(nested_start, end) if self.r else self._once_val_op(nested_start, end)
             else:
                 self._once_time_op(nested_start, end)
+        
+        # CRITICAL FIX: Call oncebinding to copy computed values to bound lines
+        # This is needed in runonce mode where once() computes all values at once
+        self.oncebinding()
 
     def _once_op(self, start, end):
         # CRITICAL FIX: Ensure b's array is populated if b is a _LineDelay or similar

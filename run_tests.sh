@@ -1,9 +1,9 @@
 #!/bin/bash
 # =============================================================================
-# Test Runner Script for Backtrader
+# Enhanced Test Runner Script for Backtrader
 # =============================================================================
-# Description: Run pytest with parallel execution and per-test timeout
-# Usage: ./run_tests.sh [options]
+# Description: Run pytest with parallel execution, timeout, and colored output
+# Usage: ./run_tests_clean.sh [options]
 # Options:
 #   -n NUM    Number of parallel workers (default: 8)
 #   -t SEC    Timeout per test in seconds (default: 45)
@@ -15,13 +15,20 @@
 
 set -o pipefail
 
+# Colors
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+NC='\033[0m'
+
 # Default configuration
 WORKERS=8
 TIMEOUT=45
 TEST_PATH="tests"
 VERBOSE=""
 FILTER=""
-EXTRA_ARGS=""
 
 # Parse command line arguments
 while getopts "n:t:p:k:vh" opt; do
@@ -43,21 +50,21 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR" || exit 1
 
-# Print configuration
-echo "============================================================"
-echo "Backtrader Test Runner"
-echo "============================================================"
-echo "Test Path:    $TEST_PATH"
-echo "Workers:      $WORKERS"
-echo "Timeout:      ${TIMEOUT}s per test"
-echo "Filter:       ${FILTER:-none}"
-echo "============================================================"
+# Print header
+echo -e "${BLUE}============================================================${NC}"
+echo -e "${CYAN}Backtrader Test Runner${NC}"
+echo -e "${BLUE}============================================================${NC}"
+echo -e "Test Path:    ${YELLOW}$TEST_PATH${NC}"
+echo -e "Workers:      ${YELLOW}$WORKERS${NC}"
+echo -e "Timeout:      ${YELLOW}${TIMEOUT}s${NC} per test"
+echo -e "Filter:       ${YELLOW}${FILTER:-none}${NC}"
+echo -e "${BLUE}============================================================${NC}"
 
 # Create temp file to capture output
 TEMP_OUTPUT=$(mktemp)
 trap "rm -f $TEMP_OUTPUT" EXIT
 
-# Execute tests and capture output
+# Execute tests
 START_TIME=$(date +%s)
 
 python -m pytest "$TEST_PATH" \
@@ -66,10 +73,11 @@ python -m pytest "$TEST_PATH" \
     --timeout-method=thread \
     --tb=short \
     --strict-markers \
+    --disable-warnings \
+    --color=yes \
     -q \
     $VERBOSE \
-    $FILTER \
-    $EXTRA_ARGS 2>&1 | tee "$TEMP_OUTPUT"
+    $FILTER 2>&1 | tee "$TEMP_OUTPUT"
 
 EXIT_CODE=${PIPESTATUS[0]}
 END_TIME=$(date +%s)
@@ -85,46 +93,46 @@ PASSED_TESTS=${PASSED_TESTS:-0}
 
 # Print summary
 echo ""
-echo "============================================================"
-echo "Test Summary"
-echo "============================================================"
-echo "Duration:     ${DURATION}s"
-echo "Exit Code:    $EXIT_CODE"
-echo "------------------------------------------------------------"
-echo "Passed:       $PASSED_TESTS"
-echo "Failed:       $FAILED_TESTS"
-echo "Timeout:      $TIMEOUT_TESTS"
-echo "------------------------------------------------------------"
+echo -e "${BLUE}============================================================${NC}"
+echo -e "${CYAN}Test Summary${NC}"
+echo -e "${BLUE}============================================================${NC}"
+echo -e "Duration:     ${YELLOW}${DURATION}s${NC}"
+echo -e "Exit Code:    ${YELLOW}$EXIT_CODE${NC}"
+echo -e "${BLUE}------------------------------------------------------------${NC}"
+echo -e "Passed:       ${GREEN}$PASSED_TESTS${NC}"
+echo -e "Failed:       ${RED}$FAILED_TESTS${NC}"
+echo -e "Timeout:      ${YELLOW}$TIMEOUT_TESTS${NC}"
+echo -e "${BLUE}------------------------------------------------------------${NC}"
 
 if [ $EXIT_CODE -eq 0 ]; then
-    echo "Status:       ✅ ALL TESTS PASSED"
+    echo -e "Status:       ${GREEN}✅ ALL TESTS PASSED${NC}"
 elif [ $EXIT_CODE -eq 1 ]; then
-    echo "Status:       ❌ SOME TESTS FAILED"
+    echo -e "Status:       ${RED}❌ SOME TESTS FAILED${NC}"
 elif [ $EXIT_CODE -eq 2 ]; then
-    echo "Status:       ⚠️  TEST EXECUTION INTERRUPTED"
+    echo -e "Status:       ${YELLOW}⚠️  TEST EXECUTION INTERRUPTED${NC}"
 elif [ $EXIT_CODE -eq 5 ]; then
-    echo "Status:       ⚠️  NO TESTS COLLECTED"
+    echo -e "Status:       ${YELLOW}⚠️  NO TESTS COLLECTED${NC}"
 else
-    echo "Status:       ❌ ERROR (code: $EXIT_CODE)"
+    echo -e "Status:       ${RED}❌ ERROR (code: $EXIT_CODE)${NC}"
 fi
 
 # Show failed tests if any
 if [ "$FAILED_TESTS" -gt 0 ]; then
     echo ""
-    echo "============================================================"
-    echo "Failed Tests:"
-    echo "============================================================"
+    echo -e "${BLUE}============================================================${NC}"
+    echo -e "${RED}Failed Tests:${NC}"
+    echo -e "${BLUE}============================================================${NC}"
     grep -E "FAILED.*::" "$TEMP_OUTPUT" | sed 's/^/  /'
 fi
 
 # Show timeout tests if any
 if [ "$TIMEOUT_TESTS" -gt 0 ]; then
     echo ""
-    echo "============================================================"
-    echo "Timeout Tests (>${TIMEOUT}s):"
-    echo "============================================================"
+    echo -e "${BLUE}============================================================${NC}"
+    echo -e "${YELLOW}Timeout Tests (>${TIMEOUT}s):${NC}"
+    echo -e "${BLUE}============================================================${NC}"
     grep -B5 "Timeout >" "$TEMP_OUTPUT" | grep -E "::test_" | sed 's/^/  /' | sort -u
 fi
 
-echo "============================================================"
+echo -e "${BLUE}============================================================${NC}"
 exit $EXIT_CODE

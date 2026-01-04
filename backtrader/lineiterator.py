@@ -1067,6 +1067,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 for lineiterator in lineiter_list:
                     try:
                         lineiterator._once(start, end)
+                        # CRITICAL FIX: Call oncebinding on indicator's lines to propagate
+                        # values to any bound lines (e.g., when self.l.mid = bt.ind.EMA(...))
+                        if hasattr(lineiterator, 'lines'):
+                            lines_obj = lineiterator.lines
+                            if hasattr(lines_obj, '__iter__'):
+                                for line in lines_obj:
+                                    if hasattr(line, 'oncebinding'):
+                                        line.oncebinding()
                     except Exception:
                         pass  # Skip failed indicators
         except AttributeError:

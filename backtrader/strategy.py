@@ -2355,8 +2355,18 @@ class SignalStrategy(Strategy):
 
         # Handle the functionality that was in MetaSigStrategy.dopostinit
         # Add signals from params
+        # CRITICAL FIX: Pass self._dtarget as data source for signal indicators
+        # and register them with the strategy so they get processed
         for sigtype, sigcls, sigargs, sigkwargs in self.p.signals:
-            self._signals[sigtype].append(sigcls(*sigargs, **sigkwargs))
+            sig_indicator = sigcls(self._dtarget, *sigargs, **sigkwargs)
+            self._signals[sigtype].append(sig_indicator)
+            # CRITICAL FIX: Register signal indicator with strategy's _lineiterators
+            # so its once()/next() methods get called during processing
+            if hasattr(sig_indicator, '_ltype'):
+                ltype = sig_indicator._ltype
+                if sig_indicator not in self._lineiterators[ltype]:
+                    self._lineiterators[ltype].append(sig_indicator)
+                    sig_indicator._owner = self
 
         # Record types of signals
         self._longshort = bool(self._signals[SIGNAL_LONGSHORT])
