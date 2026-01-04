@@ -4,7 +4,7 @@
 测试用例: Data Resample 数据重采样
 
 参考来源: backtrader-master2/samples/data-resample/data-resample.py
-测试数据重采样功能
+测试数据重采样功能，使用简单双均线交叉策略
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -29,16 +29,44 @@ def resolve_data_path(filename: str) -> Path:
     raise FileNotFoundError(f"Cannot find data file: {filename}")
 
 
-class ResampleTestStrategy(bt.Strategy):
-    """测试数据重采样的策略"""
+class SimpleMAStrategy(bt.Strategy):
+    """简单双均线交叉策略 - 用于测试数据重采样
+
+    策略逻辑:
+    - 快线上穿慢线时买入
+    - 快线下穿慢线时卖出平仓
+    """
+    params = (('fast_period', 5), ('slow_period', 15))
+
     def __init__(self):
+        self.fast_ma = bt.ind.SMA(period=self.p.fast_period)
+        self.slow_ma = bt.ind.SMA(period=self.p.slow_period)
+        self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
+        self.order = None
         self.bar_num = 0
+        self.buy_count = 0
+        self.sell_count = 0
+
+    def notify_order(self, order):
+        if not order.alive():
+            self.order = None
+        if order.status == order.Completed:
+            if order.isbuy():
+                self.buy_count += 1
+            else:
+                self.sell_count += 1
 
     def next(self):
         self.bar_num += 1
-
-    def stop(self):
-        print(f"ResampleTest: bar_num={self.bar_num}")
+        if self.order:
+            return
+        if self.crossover > 0:
+            if self.position:
+                self.order = self.close()
+            self.order = self.buy()
+        elif self.crossover < 0:
+            if self.position:
+                self.order = self.close()
 
 
 def test_data_resample():
@@ -57,37 +85,50 @@ def test_data_resample():
         compression=1
     )
 
-    cerebro.addstrategy(ResampleTestStrategy)
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
+    # 添加简单双均线交叉策略
+    cerebro.addstrategy(SimpleMAStrategy, fast_period=5, slow_period=15)
+
+    # 添加完整分析器 - 使用周线级别计算夏普率
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
+                        timeframe=bt.TimeFrame.Weeks, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("开始运行回测...")
     results = cerebro.run()
     strat = results[0]
+
+    # 获取分析结果
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
+    trade_analysis = strat.analyzers.trades.get_analysis()
+    total_trades = trade_analysis.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    print("=" * 50)
-    print("Data Resample 数据重采样回测结果:")
-    print(f"  bar_num (周线): {strat.bar_num}")
+    # 打印标准格式的结果
+    print("\n" + "=" * 50)
+    print("Data Resample 数据重采样回测结果 (周线):")
+    print(f"  bar_num: {strat.bar_num}")
+    print(f"  buy_count: {strat.buy_count}")
+    print(f"  sell_count: {strat.sell_count}")
+    print(f"  total_trades: {total_trades}")
     print(f"  sharpe_ratio: {sharpe_ratio}")
     print(f"  annual_return: {annual_return}")
     print(f"  max_drawdown: {max_drawdown}")
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert strat.bar_num < 200  # 周线应该比日线少
-    assert 40000 < final_value < 200000, f"Expected final_value=100000.00, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # 断言测试结果
+    assert strat.bar_num == 89, f"Expected bar_num=89, got {strat.bar_num}"
+    assert abs(final_value - 100765.01) < 0.01, f"Expected final_value=100765.01, got {final_value}"
+    assert abs(sharpe_ratio - 1.0787422654055023) < 1e-6, f"Expected sharpe_ratio=1.0787422654055023, got {sharpe_ratio}"
+    assert abs(annual_return - 0.003817762345337259) < 1e-6, f"Expected annual_return=0.003817762345337259, got {annual_return}"
+    assert abs(max_drawdown - 0.3038892199564355) < 1e-6, f"Expected max_drawdown=0.3038892199564355, got {max_drawdown}"
+    assert total_trades == 3, f"Expected total_trades=3, got {total_trades}"
 
     print("\n测试通过!")
-    return strat
 
 
 if __name__ == "__main__":

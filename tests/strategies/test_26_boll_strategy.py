@@ -246,7 +246,7 @@ def test_boll_strategy():
     assert total_trades == 20, f"Expected total_trades=20, got {total_trades}"
     assert abs(final_value - 325630.39) < 0.01, f"Expected final_value=325630.39, got {final_value}"
     assert abs(sharpe_ratio - 0.23478555305294077) < 1e-6, f"Expected sharpe_ratio=0.23478555305294077, got {sharpe_ratio}"
-    assert abs(annual_return - 0.05647903475651481) < 1e-6, f"Expected annual_return=0.05647903475651481, got {annual_return}"
+    assert abs(annual_return - (0.05647903475651481)) < 1e-6, f"Expected annual_return=0.05647903475651481, got {annual_return}"
     assert abs(max_drawdown - 0.45736836540827375) < 1e-6, f"Expected max_drawdown=0.45736836540827375, got {max_drawdown}"
 
     print("\n测试通过!")

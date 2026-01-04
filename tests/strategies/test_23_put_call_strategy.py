@@ -223,7 +223,7 @@ def test_put_call_strategy():
     assert strat.loss_count == 0, f"Expected loss_count=0, got {strat.loss_count}"
     assert total_trades == 3, f"Expected total_trades=3, got {total_trades}"
     assert abs(sharpe_ratio - 0.8266766851573092) < 1e-6, f"Expected sharpe_ratio=0.8266766851573092, got {sharpe_ratio}"
-    assert abs(annual_return - 0.09446114583761168) < 1e-6, f"Expected annual_return=0.09446114583761168, got {annual_return}"
+    assert abs(annual_return - (0.09446114583761168)) < 1e-6, f"Expected annual_return=0.09446114583761168, got {annual_return}"
     assert abs(max_drawdown - 0.24769723055528914) < 1e-6, f"Expected max_drawdown=0.24769723055528914, got {max_drawdown}"
     assert abs(final_value - 240069.35) < 0.01, f"Expected final_value=240069.35, got {final_value}"
 

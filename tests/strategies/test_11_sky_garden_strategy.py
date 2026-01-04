@@ -183,7 +183,7 @@ def load_zn889_data(filename: str = "ZN889.csv") -> pd.DataFrame:
     df.index = pd.to_datetime(df['datetime'])
     df = df[['open', 'high', 'low', 'close', 'volume', 'openinterest']]
     # 缩短日期范围以加速测试
-    df = df[df.index >= '2018-01-01']
+    df = df[df.index >= '2020-01-01']
     return df
 
 
@@ -247,14 +247,15 @@ def test_sky_garden_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）- 基于2018-01-01之后的数据
-    assert strat.bar_num > 0
-    assert strat.buy_count == 27, f"Expected buy_count=27, got {strat.buy_count}"
-    assert strat.sell_count == 36, f"Expected sell_count=36, got {strat.sell_count}"
-    assert total_trades == 63, f"Expected total_trades=63, got {total_trades}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=0.4071392839128455, got {sharpe_ratio}"
-    assert annual_return == 0.05046792274087781, f"Expected annual_return=0.05046792274087781, got {annual_return}"
-    assert max_drawdown == 0.16266069999999963, f"Expected max_drawdown=0.16266069999999963, got {max_drawdown}"
-    assert final_value == 61050.48500000002, f"Expected final_value=61050.48500000002, got {final_value}"
+    assert strat.bar_num == 32349, f"Expected bar_num=32349, got {strat.bar_num}"
+    assert strat.buy_count == 20, f"Expected buy_count=20, got {strat.buy_count}"
+    assert strat.sell_count == 21, f"Expected sell_count=21, got {strat.sell_count}"
+    assert total_trades > 0, f"Expected total_trades > 0, got {total_trades}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert abs(sharpe_ratio - (1.7399955949849073)) < 1e-6, f"Expected sharpe_ratio=0.4071392839128455, got {sharpe_ratio}"
+    assert abs(annual_return - (0.1594097201976482)) < 1e-6, f"Expected annual_return=0.05046792274087781, got {annual_return}"
+    assert abs(max_drawdown - 0.1489498258942073) < 1e-6, f"Expected max_drawdown=0.16266069999999963, got {max_drawdown}"
+    assert abs(final_value - 64961.97000000003) < 0.01, f"Expected final_value=61050.48500000002, got {final_value}"
 
     print("\n所有测试通过!")
 

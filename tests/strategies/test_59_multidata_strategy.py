@@ -118,11 +118,12 @@ def test_multidata_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=99847.01, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 488, f"Expected bar_num=488, got {strat.bar_num}"
+    assert abs(final_value - 99847.01) < 0.01, f"Expected final_value=99847.01, got {final_value}"
     assert abs(sharpe_ratio - (-56.94920781443037)) < 1e-6, f"Expected sharpe_ratio=-56.94920781443037, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0007667861342752088)) < 1e-6, f"Expected annual_return=-0.0007667861342752088, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 0.1646592612119436) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

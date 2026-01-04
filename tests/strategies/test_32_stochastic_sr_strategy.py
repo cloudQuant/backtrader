@@ -202,16 +202,17 @@ def test_stochastic_sr_strategy():
     print("=" * 50)
 
     # 断言 - 确保策略正常运行
-    assert strat.bar_num > 0
+    assert strat.bar_num == 5398, f"Expected bar_num=5398, got {strat.bar_num}"
     assert strat.buy_count == 309, f"Expected buy_count=309, got {strat.buy_count}"
     assert strat.sell_count == 309, f"Expected sell_count=309, got {strat.sell_count}"
     assert strat.win_count == 112, f"Expected win_count=112, got {strat.win_count}"
     assert strat.loss_count == 197, f"Expected loss_count=197, got {strat.loss_count}"
     assert total_trades == 309, f"Expected total_trades=309, got {total_trades}"
-    assert 40000 < final_value < 200000, f"Expected final_value=99989.23, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert abs(final_value - 99989.23) < 0.01, f"Expected final_value=99989.23, got {final_value}"
     assert abs(sharpe_ratio - (-493.17567594903824)) < 1e-6, f"Expected sharpe_ratio=-493.17567594903824, got {sharpe_ratio}"
     assert abs(annual_return - (-5.012334920267567e-06)) < 1e-10, f"Expected annual_return=-5.012334920267567e-06, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 0.02176998911502407) < 1e-6, f"Expected max_drawdown=0.02176998911502407, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

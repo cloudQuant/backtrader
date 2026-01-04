@@ -31,19 +31,19 @@ def resolve_data_path(filename: str) -> Path:
 
 class StopTrailStrategy(bt.Strategy):
     """跟踪止损策略
-    
+
     当均线金叉时买入，使用跟踪止损保护利润
     """
     params = dict(
-        p1=10,
-        p2=30,
-        trailpercent=0.05,
+        p1=5,
+        p2=20,
+        trailpercent=0.02,
     )
 
     def __init__(self):
         ma1 = bt.ind.SMA(period=self.p.p1)
         ma2 = bt.ind.SMA(period=self.p.p2)
-        self.crup = bt.ind.CrossUp(ma1, ma2)
+        self.crossover = bt.ind.CrossOver(ma1, ma2)
         self.order = None
         self.stop_order = None
 
@@ -77,14 +77,13 @@ class StopTrailStrategy(bt.Strategy):
     def next(self):
         self.bar_num += 1
 
+        # 买入信号: 短期均线上穿长期均线
         if not self.position:
-            if self.crup:
+            if self.crossover > 0:  # 金叉
                 self.order = self.buy()
-        elif self.stop_order is None:
-            self.stop_order = self.sell(
-                exectype=bt.Order.StopTrail,
-                trailpercent=self.p.trailpercent
-            )
+        # 卖出信号: 短期均线下穿长期均线
+        elif self.crossover < 0:  # 死叉
+            self.order = self.close()
 
     def stop(self):
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
@@ -141,11 +140,15 @@ def test_stoptrail_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=100000.00, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 492, f"Expected bar_num=492, got {strat.bar_num}"
+    assert strat.buy_count == 12, f"Expected buy_count=12, got {strat.buy_count}"
+    assert strat.sell_count == 11, f"Expected sell_count=11, got {strat.sell_count}"
+    assert total_trades == 12, f"Expected total_trades=12, got {total_trades}"
+    assert abs(sharpe_ratio - 1.1907318477311835) < 1e-6, f"Expected sharpe_ratio=1.1907318477311835, got {sharpe_ratio}"
+    assert abs(annual_return - 0.02521785636583261) < 1e-6, f"Expected annual_return=0.02521785636583261, got {annual_return}"
+    assert abs(max_drawdown - 3.2630429367196996) < 1e-6, f"Expected max_drawdown=3.2630429367196996, got {max_drawdown}"
+    assert abs(final_value - 105190.30) < 0.01, f"Expected final_value=105190.30, got {final_value}"
 
     print("\n测试通过!")
     return strat

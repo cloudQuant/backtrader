@@ -117,13 +117,15 @@ class ATRMomentumStrategy(bt.Strategy):
                          self.dataclose[0] < self.sma200[0])
 
             if cond_long:
-                size = max(1, int(self.p.bet / (self.p.stop_atr_multiplier * self.atr[0])))
+                atr_val = self.atr[0] if self.atr[0] > 0 else 0.01
+                size = max(1, int(self.p.bet / (self.p.stop_atr_multiplier * atr_val)))
                 self.buy(size=size)
                 self.stop_loss = self.dataclose[0] - (self.p.stop_atr_multiplier * self.atr[0])
                 self.take_profit = self.dataclose[0] + (self.p.target_atr_multiplier * self.atr[0])
 
             elif cond_short:
-                size = max(1, int(self.p.bet / (self.p.stop_atr_multiplier * self.atr[0])))
+                atr_val = self.atr[0] if self.atr[0] > 0 else 0.01
+                size = max(1, int(self.p.bet / (self.p.stop_atr_multiplier * atr_val)))
                 self.sell(size=size)
                 self.stop_loss = self.dataclose[0] + (self.p.stop_atr_multiplier * self.atr[0])
                 self.take_profit = self.dataclose[0] - (self.p.target_atr_multiplier * self.atr[0])
@@ -186,11 +188,12 @@ def test_atr_momentum_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=99399.52, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1311, f"Expected bar_num=1311, got {strat.bar_num}"
+    assert abs(final_value - 99399.52) < 0.01, f"Expected final_value=99399.52, got {final_value}"
     assert abs(sharpe_ratio - (-0.32367458244300346)) < 1e-6, f"Expected sharpe_ratio=-0.32367458244300346, got {sharpe_ratio}"
     assert abs(annual_return - (-0.001004641690653692)) < 1e-6, f"Expected annual_return=-0.001004641690653692, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 0.9986173826924808) < 1e-6, f"Expected max_drawdown=0.9986173826924808, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

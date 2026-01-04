@@ -140,11 +140,12 @@ def test_macd_dmi_simple_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 90000 < final_value < 200000, f"final_value={final_value} out of range"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1223, f"Expected bar_num=1223, got {strat.bar_num}"
+    assert abs(final_value - 99948.71) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (-0.20797152972748584)) < 1e-6, f"Expected sharpe_ratio=-0.20797152972748584, got {sharpe_ratio}"
     assert abs(annual_return - (-0.00010284209965205515)) < 1e-12, f"Expected annual_return=-0.00010284209965205515, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 0.12263737758169839) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

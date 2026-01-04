@@ -198,11 +198,12 @@ def test_pair_trade_bollinger_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=99998.89, got {final_value}"
+    assert strat.bar_num == 1257, f"Expected bar_num=1257, got {strat.bar_num}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert abs(final_value - 99998.89) < 0.01, f"Expected final_value=99998.89, got {final_value}"
     assert abs(sharpe_ratio - (-0.5)) < 1e-6, f"Expected sharpe_ratio=-0.5, got {sharpe_ratio}"
-    assert abs(annual_return - (-2.220897623467464e-06)) < 1e-12, f"Expected annual_return=-2.220897623467464e-06, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(annual_return - (-2.220897623467464e-06)) < 1e-6, f"Expected annual_return=-2.220897623467464e-06, got {annual_return}"
+    assert abs(max_drawdown - 0.0011077999800036195) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

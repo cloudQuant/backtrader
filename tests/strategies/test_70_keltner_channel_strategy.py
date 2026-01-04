@@ -3,24 +3,19 @@
 """
 测试用例: Keltner Channel 肯特纳通道策略
 
-参考来源: https://github.com/backtrader/backhacker
-基于肯特纳通道的突破策略
+使用肯特纳通道的突破判断趋势
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
 
 import datetime
-import os
 from pathlib import Path
-
-import pandas as pd
 import backtrader as bt
 
 BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,47 +29,38 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class KeltnerChannelIndicator(bt.Indicator):
-    """肯特纳通道指标"""
-    lines = ('upper', 'mid', 'lower')
-    params = dict(
-        period=20,
-        atr_period=10,
-        multiplier=2.0,
-    )
+    """Keltner Channel 肯特纳通道指标"""
+    lines = ('mid', 'top', 'bot')
+    params = dict(period=20, atr_mult=2.0, atr_period=14)
 
     def __init__(self):
-        self.lines.mid = bt.indicators.EMA(self.data.close, period=self.p.period)
+        self.l.mid = bt.indicators.EMA(self.data.close, period=self.p.period)
         atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
-        self.lines.upper = self.lines.mid + (atr * self.p.multiplier)
-        self.lines.lower = self.lines.mid - (atr * self.p.multiplier)
+        self.l.top = self.l.mid + self.p.atr_mult * atr
+        self.l.bot = self.l.mid - self.p.atr_mult * atr
 
 
 class KeltnerChannelStrategy(bt.Strategy):
-    """肯特纳通道策略
-    
-    - 价格跌破下轨时买入
-    - 价格突破上轨时卖出
+    """Keltner Channel 肯特纳通道策略
+
+    入场条件:
+    - 多头: 价格突破上轨
+
+    出场条件:
+    - 价格跌破中轨
     """
     params = dict(
         stake=10,
-        kc_period=20,
-        atr_period=10,
-        multiplier=2.0,
+        period=20,
+        atr_mult=2.0,
     )
 
     def __init__(self):
-        self.dataclose = self.datas[0].close
-        self.indicator = KeltnerChannelIndicator(
-            self.datas[0], 
-            period=self.p.kc_period,
-            atr_period=self.p.atr_period,
-            multiplier=self.p.multiplier
+        self.kc = KeltnerChannelIndicator(
+            self.data, period=self.p.period, atr_mult=self.p.atr_mult
         )
-        
+
         self.order = None
-        self.last_operation = "SELL"
-        
-        # 统计变量
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -82,15 +68,11 @@ class KeltnerChannelStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
-
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
-                self.last_operation = "BUY"
             else:
                 self.sell_count += 1
-                self.last_operation = "SELL"
-
         self.order = None
 
     def next(self):
@@ -99,43 +81,31 @@ class KeltnerChannelStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 买入条件: 价格跌破下轨
-        if self.dataclose[0] < self.indicator.lower[0] and self.last_operation != "BUY":
-            self.order = self.buy(size=self.p.stake)
-        
-        # 卖出条件: 价格突破上轨
-        elif self.dataclose[0] > self.indicator.upper[0] and self.last_operation != "SELL":
-            self.order = self.sell(size=self.p.stake)
-
-    def stop(self):
-        pass
+        if not self.position:
+            # 价格突破上轨
+            if self.data.close[0] > self.kc.top[0]:
+                self.order = self.buy(size=self.p.stake)
+        else:
+            # 价格跌破中轨
+            if self.data.close[0] < self.kc.mid[0]:
+                self.order = self.close()
 
 
 def test_keltner_channel_strategy():
     """测试肯特纳通道策略"""
     cerebro = bt.Cerebro()
-
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
         dataname=str(data_path),
         dtformat='%Y-%m-%d',
-        datetime=0,
-        open=1,
-        high=2,
-        low=3,
-        close=4,
-        volume=5,
-        openinterest=-1,
+        datetime=0, open=1, high=2, low=3, close=4, volume=5, openinterest=-1,
         fromdate=datetime.datetime(2010, 1, 1),
         todate=datetime.datetime(2014, 12, 31),
     )
-
     cerebro.adddata(data)
     cerebro.addstrategy(KeltnerChannelStrategy)
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
-
-    # 添加分析器
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -143,8 +113,6 @@ def test_keltner_channel_strategy():
 
     results = cerebro.run()
     strat = results[0]
-
-    # 获取分析结果
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -164,11 +132,13 @@ def test_keltner_channel_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=100000.00, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # 断言 - 使用精确断言
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
+    assert abs(final_value - 100039.51) < 0.01, f"Expected final_value=100039.51, got {final_value}"
+    assert abs(sharpe_ratio - 0.2795635163868808) < 1e-6, f"Expected sharpe_ratio=0.2795635163868808, got {sharpe_ratio}"
+    assert abs(annual_return - (7.919528281735741e-05)) < 1e-6, f"Expected annual_return=7.919528281735741e-05, got {annual_return}"
+    assert abs(max_drawdown - 0.05497965839460319) < 1e-6, f"Expected max_drawdown=0.05497965839460319, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

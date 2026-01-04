@@ -220,17 +220,18 @@ def test_turtle_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 确保策略正常运行
-    assert strat.bar_num > 0
+    # 断言 - 使用精确断言
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 5216, f"Expected bar_num=5216, got {strat.bar_num}"
     assert strat.buy_count == 46, f"Expected buy_count=46, got {strat.buy_count}"
     assert strat.sell_count == 46, f"Expected sell_count=46, got {strat.sell_count}"
     assert strat.win_count == 17, f"Expected win_count=17, got {strat.win_count}"
     assert strat.loss_count == 29, f"Expected loss_count=29, got {strat.loss_count}"
     assert total_trades == 46, f"Expected total_trades=46, got {total_trades}"
-    assert 40000 < final_value < 200000, f"Expected final_value=100008.96, got {final_value}"
+    assert abs(final_value - 100008.96) < 0.01, f"Expected final_value=100008.96, got {final_value}"
     assert abs(sharpe_ratio - (-248.19599467327285)) < 1e-6, f"Expected sharpe_ratio=-248.19599467327285, got {sharpe_ratio}"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(annual_return - (4.1691151679622e-06)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 0.02450295600930705) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

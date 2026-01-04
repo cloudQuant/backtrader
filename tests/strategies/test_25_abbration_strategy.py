@@ -243,7 +243,7 @@ def test_abbration_strategy():
     assert total_trades == 16, f"Expected total_trades=16, got {total_trades}"
     assert abs(final_value - 423916.71) < 0.01, f"Expected final_value=423916.71, got {final_value}"
     assert abs(sharpe_ratio - 0.2701748176643007) < 1e-6, f"Expected sharpe_ratio=0.2701748176643007, got {sharpe_ratio}"
-    assert abs(annual_return - 0.06952761581010602) < 1e-6, f"Expected annual_return=0.06952761581010602, got {annual_return}"
+    assert abs(annual_return - (0.06952761581010602)) < 1e-6, f"Expected annual_return=0.06952761581010602, got {annual_return}"
     assert abs(max_drawdown - 0.46515816375898594) < 1e-6, f"Expected max_drawdown=0.46515816375898594, got {max_drawdown}"
 
     print("\n测试通过!")

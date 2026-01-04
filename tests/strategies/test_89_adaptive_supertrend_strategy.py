@@ -256,10 +256,10 @@ def test_adaptive_supertrend_strategy():
     print("=" * 50)
 
     assert strat.bar_num == 1218, f"Expected bar_num=1218, got {strat.bar_num}"
-    assert abs(final_value - 99936.86) < 0.01, f"Expected final_value near 99936.86, got {final_value}"
-    assert abs(sharpe_ratio - (-0.356364776287922)) < 0.001, f"Expected sharpe_ratio near -0.356, got {sharpe_ratio}"
-    assert abs(annual_return) < 0.001, f"Expected annual_return near 0, got {annual_return}"
-    assert abs(max_drawdown - 0.175419779371468) < 0.001, f"Expected max_drawdown near 0.175, got {max_drawdown}"
+    assert abs(final_value - 99936.86) < 0.01, f"Expected final_value=99936.86, got {final_value}"
+    assert abs(sharpe_ratio - (-0.356364776287922)) < 1e-6, f"Expected sharpe_ratio=-0.356364776287922, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.0001266055644252899)) < 1e-6, f"Expected annual_return=-0.0001266055644252899, got {annual_return}"
+    assert abs(max_drawdown - 0.175419779371468) < 1e-6, f"Expected max_drawdown=0.175419779371468, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

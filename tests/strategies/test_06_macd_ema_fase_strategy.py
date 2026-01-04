@@ -220,14 +220,15 @@ def test_macd_ema_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）
-    assert strat.bar_num > 0
+    assert strat.bar_num == 28069, f"Expected bar_num=28069, got {strat.bar_num}"
     assert strat.buy_count == 1008, f"Expected buy_count=1008, got {strat.buy_count}"
     assert strat.sell_count == 1008, f"Expected sell_count=1008, got {strat.sell_count}"
     assert total_trades == 1008, f"Expected total_trades=1008, got {total_trades}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=-0.4094093376341401, got {sharpe_ratio}"
-    assert annual_return == -0.016850037618788616, f"Expected annual_return=-0.016850037618788616, got {annual_return}"
-    assert max_drawdown == 0.3294344677230617, f"Expected max_drawdown=0.3294344677230617, got {max_drawdown}"
-    assert final_value == 41589.93032683378, f"Expected final_value=41589.93032683378, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert abs(sharpe_ratio - (-0.4094093376341401)) < 1e-6, f"Expected sharpe_ratio=-0.4094093376341401, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.016850037618788616)) < 1e-6, f"Expected annual_return=-0.016850037618788616, got {annual_return}"
+    assert abs(max_drawdown - 0.3294344677230617) < 1e-6, f"Expected max_drawdown=0.3294344677230617, got {max_drawdown}"
+    assert abs(final_value - 41589.93032683378) < 0.01, f"Expected final_value=41589.93032683378, got {final_value}"
 
     print("\n所有测试通过!")
 

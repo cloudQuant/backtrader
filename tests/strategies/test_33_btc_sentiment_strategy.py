@@ -200,7 +200,7 @@ def test_btc_sentiment_strategy():
     assert total_trades == 16, f"Expected total_trades=16, got {total_trades}"
     assert abs(final_value - 15301.43) < 0.01, f"Expected final_value=15301.43, got {final_value}"
     assert abs(sharpe_ratio - 0.8009805278904287) < 1e-6, f"Expected sharpe_ratio=0.8009805278904287, got {sharpe_ratio}"
-    assert abs(annual_return - 0.2369894360907055) < 1e-6, f"Expected annual_return=0.2369894360907055, got {annual_return}"
+    assert abs(annual_return - (0.2369894360907055)) < 1e-6, f"Expected annual_return=0.2369894360907055, got {annual_return}"
     assert abs(max_drawdown - 17.49122338684014) < 1e-6, f"Expected max_drawdown=17.49122338684014, got {max_drawdown}"
 
     print("\n测试通过!")

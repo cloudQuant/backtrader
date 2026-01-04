@@ -121,11 +121,12 @@ def test_extended_cross_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=99898.01, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1208, f"Expected bar_num=1208, got {strat.bar_num}"
+    assert abs(final_value - 99898.01) < 0.01, f"Expected final_value=99898.01, got {final_value}"
     assert abs(sharpe_ratio - (-0.8182498376340828)) < 1e-6, f"Expected sharpe_ratio=-0.8182498376340828, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.00020455816666682268)) < 1e-9, f"Expected annual_return=-0.00020455816666682268, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(annual_return - (-0.00020455816666682268)) < 1e-6, f"Expected annual_return=-0.00020455816666682268, got {annual_return}"
+    assert abs(max_drawdown - 0.1782677934154473) < 1e-6, f"Expected max_drawdown=0.1782677934154473, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

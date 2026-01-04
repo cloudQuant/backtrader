@@ -241,7 +241,7 @@ def test_cb_friday_rotation_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）
-    assert strat.bar_num > 0
+    assert strat.bar_num == 1885, f"Expected bar_num=1885, got {strat.bar_num}"
     assert strat.buy_count == 1119, f"Expected buy_count=1119, got {strat.buy_count}"
     assert strat.sell_count == 1116, f"Expected sell_count=1116, got {strat.sell_count}"
     assert total_trades == 1117, f"Expected total_trades=1117, got {total_trades}"

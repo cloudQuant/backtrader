@@ -183,16 +183,17 @@ def test_bracket_order_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
+    assert strat.bar_num == 497, f"Expected bar_num=497, got {strat.bar_num}"
     assert strat.buy_count == 8, f"Expected buy_count=8, got {strat.buy_count}"
     assert strat.sell_count == 8, f"Expected sell_count=8, got {strat.sell_count}"
     assert strat.win_count == 4, f"Expected win_count=4, got {strat.win_count}"
     assert strat.loss_count == 4, f"Expected loss_count=4, got {strat.loss_count}"
     assert total_trades == 8, f"Expected total_trades=8, got {total_trades}"
-    assert 40000 < final_value < 200000, f"Expected final_value=99875.56, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert abs(final_value - 99875.56) < 0.01, f"Expected final_value=99875.56, got {final_value}"
     assert abs(sharpe_ratio - (-1.4294780971098613)) < 1e-6, f"Expected sharpe_ratio=-1.4294780971098613, got {sharpe_ratio}"
     assert abs(annual_return - (-0.00061268161526827)) < 1e-6, f"Expected annual_return=-0.00061268161526827, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 2.5691583906006734) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

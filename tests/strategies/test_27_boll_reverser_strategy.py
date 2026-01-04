@@ -220,7 +220,7 @@ def test_boll_reverser_strategy():
     assert abs(final_value - 19875.22) < 0.01, f"Expected final_value=19875.22, got {final_value}"
     assert abs(sharpe_ratio-0.21162837519058628)<1e-6, f"sharpe_ratio={sharpe_ratio} out of range"
     assert abs(annual_return - (-0.07243305202540544)) < 1e-6, f"Expected annual_return=-0.07243305202540544, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 3.9763680700930992) < 1e-6, f"Expected max_drawdown=0.8679098802262411, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

@@ -256,15 +256,16 @@ def test_two_ma_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # 断言测试结果（精确值）
-    assert strat.bar_num > 0
+    # 断言测试结果 - 使用精确断言
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1424, f"Expected bar_num=1424, got {strat.bar_num}"
     assert strat.buy_count == 52, f"Expected buy_count=52, got {strat.buy_count}"
     assert strat.sell_count == 51, f"Expected sell_count=51, got {strat.sell_count}"
     assert total_trades == 51, f"Expected total_trades=51, got {total_trades}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=-0.4876104524755018, got {sharpe_ratio}"
-    assert annual_return == -0.02770615921670656, f"Expected annual_return=-0.02770615921670656, got {annual_return}"
-    assert max_drawdown == 0.23265126671771275, f"Expected max_drawdown=0.23265126671771275, got {max_drawdown}"
-    assert final_value == 85129.07932299998, f"Expected final_value=85129.07932299998, got {final_value}"
+    assert abs(sharpe_ratio - (-0.4876104524755018)) < 1e-6, f"Expected sharpe_ratio=-0.4876104524755018, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.02770615921670656)) < 1e-6, f"Expected annual_return=-0.02770615921670656, got {annual_return}"
+    assert abs(max_drawdown - 0.23265126671771275) < 1e-6, f"Expected max_drawdown=0.23265126671771275, got {max_drawdown}"
+    assert abs(final_value - 85129.07932299998) < 0.01, f"Expected final_value=85129.07932299998, got {final_value}"
 
     print("\n所有测试通过!")
 

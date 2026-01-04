@@ -291,15 +291,16 @@ def test_stop_order_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）
-    assert strat.bar_num > 0
+    assert strat.bar_num == 4414, f"Expected bar_num=4414, got {strat.bar_num}"
     assert strat.buy_count == 4, f"Expected buy_count=4, got {strat.buy_count}"
     assert strat.sell_count == 1, f"Expected sell_count=1, got {strat.sell_count}"
     assert strat.stop_count == 3, f"Expected stop_count=3, got {strat.stop_count}"
     assert total_trades == 5, f"Expected total_trades=5, got {total_trades}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=-0.11532400124757156, got {sharpe_ratio}"
-    assert annual_return == -0.02594445655033843, f"Expected annual_return=-0.02594445655033843, got {annual_return}"
-    assert max_drawdown == 0.75241098463008, f"Expected max_drawdown=0.75241098463008, got {max_drawdown}"
-    assert final_value == 62969.156504940926, f"Expected final_value=62969.156504940926, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert abs(sharpe_ratio - (-0.11532400124757156)) < 1e-6, f"Expected sharpe_ratio=-0.11532400124757156, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.02594445655033843)) < 1e-6, f"Expected annual_return=-0.02594445655033843, got {annual_return}"
+    assert abs(max_drawdown - 0.75241098463008) < 1e-6, f"Expected max_drawdown=0.75241098463008, got {max_drawdown}"
+    assert abs(final_value - 62969.156504940926) < 0.01, f"Expected final_value=62969.156504940926, got {final_value}"
 
     print("\n所有测试通过!")
 

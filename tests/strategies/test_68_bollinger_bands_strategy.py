@@ -162,11 +162,12 @@ def test_bollinger_bands_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=100275.98, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
+    assert abs(final_value - 100275.98) < 0.01, f"Expected final_value=100275.98, got {final_value}"
+    assert abs(sharpe_ratio - (1.2477776453402647)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
+    assert abs(annual_return - (0.0005526698863482884)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 0.08517200936602952) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

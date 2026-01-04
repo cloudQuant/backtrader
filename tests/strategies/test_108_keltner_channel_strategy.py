@@ -127,11 +127,13 @@ def test_keltner_channel_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 90000 < final_value < 200000, f"final_value={final_value} out of range"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # 断言 - 使用精确断言
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
+    assert abs(final_value - 100039.51) < 0.01, f"Expected final_value=100039.51, got {final_value}"
+    assert abs(sharpe_ratio - (0.2795635163868808)) < 1e-6, f"Expected sharpe_ratio=0.2795635163868808, got {sharpe_ratio}"
+    assert abs(annual_return - (7.919528281735741e-05)) < 1e-6, f"Expected annual_return=7.919528281735741e-05, got {annual_return}"
+    assert abs(max_drawdown - 0.05497965839460319) < 1e-6, f"Expected max_drawdown=0.05497965839460319, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

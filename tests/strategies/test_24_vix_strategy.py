@@ -223,9 +223,9 @@ def test_vix_strategy():
     assert strat.loss_count == 0, f"Expected loss_count=0, got {strat.loss_count}"
     assert total_trades == 2, f"Expected total_trades=2, got {total_trades}"
     assert abs(sharpe_ratio - 0.918186863324403) < 1e-6, f"Expected sharpe_ratio=0.918186863324403, got {sharpe_ratio}"
-    assert abs(annual_return - 0.1040505783834931) < 1e-6, f"Expected annual_return=0.1040505783834931, got {annual_return}"
+    assert abs(annual_return - (0.1040505783834931)) < 1e-6, f"Expected annual_return=0.1040505783834931, got {annual_return}"
     assert abs(max_drawdown - 0.3367517000981378) < 1e-6, f"Expected max_drawdown=0.3367517000981378, got {max_drawdown}"
-    assert abs(final_value - 261273.50) < 0.01, f"Expected final_value=261273.50, got {final_value}"
+    assert abs(final_value - 261273.5) < 0.01, f"Expected final_value=261273.50, got {final_value}"
 
     print("\n测试通过!")
     return strat

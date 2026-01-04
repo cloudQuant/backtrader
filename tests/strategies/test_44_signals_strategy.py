@@ -82,10 +82,12 @@ def test_signals_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert 40000 < final_value < 200000, f"Expected final_value=50000.00, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert total_trades == 21, f"Expected total_trades=21, got {total_trades}"
+    assert abs(final_value - 50607.58) < 0.01, f"Expected final_value=50607.58, got {final_value}"
+    assert abs(sharpe_ratio - (-12.583680955595796)) < 1e-6, f"Expected sharpe_ratio=-12.58, got {sharpe_ratio}"
+    assert abs(annual_return - 0.005962524308781271) < 1e-6, f"Expected annual_return=0.00596, got {annual_return}"
+    assert abs(max_drawdown - 0.6401411217499897) < 1e-6, f"Expected max_drawdown=0.64, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

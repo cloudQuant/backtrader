@@ -223,9 +223,9 @@ def test_fear_greed_strategy():
     assert strat.loss_count == 0, f"Expected loss_count=0, got {strat.loss_count}"
     assert total_trades == 3, f"Expected total_trades=3, got {total_trades}"
     assert abs(sharpe_ratio - 0.8915453296028274) < 1e-6, f"Expected sharpe_ratio=0.8915453296028274, got {sharpe_ratio}"
-    assert abs(annual_return - 0.11230697705249652) < 1e-6, f"Expected annual_return=0.11230697705249652, got {annual_return}"
+    assert abs(annual_return - (0.11230697705249652)) < 1e-6, f"Expected annual_return=0.11230697705249652, got {annual_return}"
     assert abs(max_drawdown - 0.2428350846476322) < 1e-6, f"Expected max_drawdown=0.2428350846476322, got {max_drawdown}"
-    assert abs(final_value - 280859.60) < 0.01, f"Expected final_value=280859.60, got {final_value}"
+    assert abs(final_value - 280859.6) < 0.01, f"Expected final_value=280859.60, got {final_value}"
 
     print("\n测试通过!")
     return strat

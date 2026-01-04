@@ -260,14 +260,15 @@ def test_dual_thrust_strategy():
     print("=" * 50)
 
     # 断言测试结果（精确值）- 基于2020-01-01至2021-07-31的数据
-    assert strat.bar_num > 0
+    assert strat.bar_num == 123960, f"Expected bar_num=123960, got {strat.bar_num}"
     assert strat.buy_count == 14, f"Expected buy_count=14, got {strat.buy_count}"
     assert strat.sell_count == 7, f"Expected sell_count=7, got {strat.sell_count}"
     assert total_trades == 21, f"Expected total_trades=21, got {total_trades}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=-16.73034120003273, got {sharpe_ratio}"
-    assert annual_return == -0.016015877679295135, f"Expected annual_return=-0.016015877679295135, got {annual_return}"
-    assert max_drawdown == 0.04545908283255804, f"Expected max_drawdown=0.04545908283255804, got {max_drawdown}"
-    assert final_value == 48788.0, f"Expected final_value=48788.0, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert abs(sharpe_ratio - (-16.73034120003273)) < 1e-6, f"Expected sharpe_ratio=-16.73034120003273, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.016015877679295135)) < 1e-6, f"Expected annual_return=-0.016015877679295135, got {annual_return}"
+    assert abs(max_drawdown - 0.04545908283255804) < 1e-6, f"Expected max_drawdown=0.04545908283255804, got {max_drawdown}"
+    assert abs(final_value - 48788.0) < 0.01, f"Expected final_value=48788.0, got {final_value}"
 
     print("\n所有测试通过!")
 

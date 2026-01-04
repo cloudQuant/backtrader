@@ -216,7 +216,9 @@ def test_ema_cross_strategy():
 
     # 添加分析器
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
+    # 使用日线级别计算夏普率，因为分钟数据不在RATEFACTORS中会导致计算失败
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe",
+                        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")

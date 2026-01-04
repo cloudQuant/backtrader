@@ -484,8 +484,8 @@ def test_strategy(max_bonds=None, stdstats=True):
     # 添加策略
     cerebro.addstrategy(BondConvertTwoFactor)
     params = dict(
-        fromdate=datetime.datetime(2018, 1, 1),
-        todate=datetime.datetime(2025, 10, 10),
+        fromdate=datetime.datetime(2023, 1, 1),
+        todate=datetime.datetime(2024, 12, 31),
         timeframe=bt.TimeFrame.Days,
         dtformat="%Y-%m-%d",
     )
@@ -561,16 +561,18 @@ def test_strategy(max_bonds=None, stdstats=True):
     annual_return = results[0].analyzers.my_returns.get_analysis()["rnorm"]
     max_drawdown = results[0].analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
     trade_num = results[0].analyzers.my_trade_analyzer.get_analysis()["total"]["total"]
+    print("bar_num:", results[0].bar_num)
     print("sharpe_ratio:", sharpe_ratio)
     print("annual_return:", annual_return)
     print("max_drawdown:", max_drawdown)
+    print("final_value:", cerebro.broker.getvalue())
     print("trade_num:", trade_num)
     # assert trade_num == 1750
     assert results[0].bar_num == 1885, f"Expected bar_num=1885, got {results[0].bar_num}"
     assert trade_num == 12, f"Expected trade_num=12, got {trade_num}"
     assert abs(sharpe_ratio - (-6.232087920949364)) < 1e-6, f"Expected sharpe_ratio=-6.232087920949364, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0006854281197833842)) < 1e-6, f"Expected annual_return=-0.0006854281197833842, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 0.005450401808403724) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
     # 注意：测试函数不应返回值，否则pytest会警告
 
 

@@ -120,11 +120,12 @@ def test_rsi_dip_buy_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=99893.93, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1247, f"Expected bar_num=1247, got {strat.bar_num}"
+    assert abs(final_value - 99893.93) < 0.01, f"Expected final_value=99893.93, got {final_value}"
     assert abs(sharpe_ratio - (-0.6332718772573606)) < 1e-6, f"Expected sharpe_ratio=-0.6332718772573606, got {sharpe_ratio}"
     assert abs(annual_return - (-0.00021274294674960664)) < 1e-9, f"Expected annual_return=-0.00021274294674960664, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 0.16146151315165563) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

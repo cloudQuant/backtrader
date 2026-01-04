@@ -136,7 +136,7 @@ def test_order_target_strategy():
     assert abs(final_value - 935260.98) < 0.01, f"Expected final_value=935260.98, got {final_value}"
     assert abs(sharpe_ratio - (-0.7774908309117542)) < 1e-6, f"Expected sharpe_ratio=-0.7774908309117542, got {sharpe_ratio}"
     assert abs(annual_return - (-0.03297541833201616)) < 1e-6, f"Expected annual_return=-0.03297541833201616, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 9.591524052078132) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

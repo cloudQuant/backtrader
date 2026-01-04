@@ -218,11 +218,12 @@ def test_pairs_trading_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=99699.43, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 451, f"Expected bar_num=451, got {strat.bar_num}"
+    assert abs(final_value - 99699.43) < 0.01, f"Expected final_value=99699.43, got {final_value}"
     assert abs(sharpe_ratio - (-0.3156462969633222)) < 1e-6, f"Expected sharpe_ratio=-0.3156462969633222, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0015160238352949257)) < 1e-6, f"Expected annual_return=-0.0015160238352949257, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 1.1570119745556364) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

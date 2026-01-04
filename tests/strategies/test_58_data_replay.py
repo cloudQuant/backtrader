@@ -4,7 +4,7 @@
 测试用例: Data Replay 数据回放
 
 参考来源: backtrader-master2/samples/data-replay/data-replay.py
-测试数据回放功能
+测试数据回放功能，使用双均线交叉策略
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -29,19 +29,44 @@ def resolve_data_path(filename: str) -> Path:
     raise FileNotFoundError(f"Cannot find data file: {filename}")
 
 
-class ReplayTestStrategy(bt.Strategy):
-    """测试数据回放的策略"""
-    params = (('period', 10),)
+class ReplayMAStrategy(bt.Strategy):
+    """测试数据回放的策略 - 双均线交叉
+
+    策略逻辑:
+    - 快线上穿慢线时买入
+    - 快线下穿慢线时卖出平仓
+    """
+    params = (('fast_period', 5), ('slow_period', 15))
 
     def __init__(self):
-        self.sma = bt.ind.SMA(self.data, period=self.p.period)
-        self.counter = 0
+        self.fast_ma = bt.ind.SMA(period=self.p.fast_period)
+        self.slow_ma = bt.ind.SMA(period=self.p.slow_period)
+        self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
+        self.order = None
+        self.bar_num = 0
+        self.buy_count = 0
+        self.sell_count = 0
+
+    def notify_order(self, order):
+        if not order.alive():
+            self.order = None
+        if order.status == order.Completed:
+            if order.isbuy():
+                self.buy_count += 1
+            else:
+                self.sell_count += 1
 
     def next(self):
-        self.counter += 1
-
-    def stop(self):
-        print(f"ReplayTest: counter={self.counter}")
+        self.bar_num += 1
+        if self.order:
+            return
+        if self.crossover > 0:
+            if self.position:
+                self.order = self.close()
+            self.order = self.buy()
+        elif self.crossover < 0:
+            if self.position:
+                self.order = self.close()
 
 
 def test_data_replay():
@@ -60,36 +85,54 @@ def test_data_replay():
         compression=1
     )
 
-    cerebro.addstrategy(ReplayTestStrategy, period=5)
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
+    cerebro.addstrategy(ReplayMAStrategy, fast_period=5, slow_period=15)
+    cerebro.addsizer(bt.sizers.FixedSize, stake=10)
+
+    # 添加完整分析器 - 使用周线级别计算夏普率
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
+                        timeframe=bt.TimeFrame.Weeks, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("开始运行回测...")
     results = cerebro.run(preload=False)
     strat = results[0]
-    sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
-    annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
-    max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
+
+    # 获取分析结果
+    sharpe = strat.analyzers.sharpe.get_analysis()
+    ret = strat.analyzers.returns.get_analysis()
+    drawdown = strat.analyzers.drawdown.get_analysis()
+    trades = strat.analyzers.trades.get_analysis()
+
+    sharpe_ratio = sharpe.get('sharperatio', None)
+    annual_return = ret.get('rnorm', 0)
+    max_drawdown = drawdown.get('max', {}).get('drawdown', 0)
+    total_trades = trades.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    print("=" * 50)
-    print("Data Replay 数据回放回测结果:")
-    print(f"  counter: {strat.counter}")
+    # 打印标准格式的结果
+    print("\n" + "=" * 50)
+    print("Data Replay 数据回放回测结果 (周线):")
+    print(f"  bar_num: {strat.bar_num}")
+    print(f"  buy_count: {strat.buy_count}")
+    print(f"  sell_count: {strat.sell_count}")
+    print(f"  total_trades: {total_trades}")
     print(f"  sharpe_ratio: {sharpe_ratio}")
     print(f"  annual_return: {annual_return}")
     print(f"  max_drawdown: {max_drawdown}")
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.counter > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=100000.00, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # 断言测试结果
+    assert strat.bar_num == 439, f"Expected bar_num=439, got {strat.bar_num}"
+    assert abs(final_value - 108263.90) < 0.01, f"Expected final_value=108263.90, got {final_value}"
+    assert abs(sharpe_ratio - 1.17880670695321) < 1e-6, f"Expected sharpe_ratio=1.17880670695321, got {sharpe_ratio}"
+    assert abs(annual_return - 0.04049939932707298) < 1e-6, f"Expected annual_return=0.04049939932707298, got {annual_return}"
+    assert abs(max_drawdown - 2.668267546216064) < 1e-6, f"Expected max_drawdown=2.668267546216064, got {max_drawdown}"
+    assert total_trades == 13, f"Expected total_trades=13, got {total_trades}"
 
     print("\n测试通过!")
-    return strat
 
 
 if __name__ == "__main__":

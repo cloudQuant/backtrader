@@ -116,11 +116,12 @@ def test_macd_gradient_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=99975.90, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1224, f"Expected bar_num=1224, got {strat.bar_num}"
+    assert abs(final_value - 99975.9) < 0.01, f"Expected final_value=99975.90, got {final_value}"
     assert abs(sharpe_ratio - (-0.13853775963605322)) < 1e-6, f"Expected sharpe_ratio=-0.13853775963605322, got {sharpe_ratio}"
     assert abs(annual_return - (-4.8324864374536716e-05)) < 1e-9, f"Expected annual_return=-4.8324864374536716e-05, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 0.13844628396097686) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

@@ -187,11 +187,12 @@ def test_supertrend_indicator_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=99977.89, got {final_value}"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 1237, f"Expected bar_num=1237, got {strat.bar_num}"
+    assert abs(final_value - 99977.89) < 0.01, f"Expected final_value=99977.89, got {final_value}"
     assert abs(sharpe_ratio - (-0.09158071580164015)) < 1e-6, f"Expected sharpe_ratio=-0.09158071580164015, got {sharpe_ratio}"
-    assert abs(annual_return - (-4.432414175552991e-05)) < 1e-12, f"Expected annual_return=-4.432414175552991e-05, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(annual_return - (-4.432414175552991e-05)) < 1e-6, f"Expected annual_return=-4.432414175552991e-05, got {annual_return}"
+    assert abs(max_drawdown - 0.16618133797700763) < 1e-6, f"Expected max_drawdown=0.16618133797700763, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

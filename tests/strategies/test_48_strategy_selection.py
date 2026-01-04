@@ -42,7 +42,6 @@ class StrategyA(bt.Strategy):
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
-        self.sum_profit = 0.0
 
     def notify_order(self, order):
         if order.status == order.Completed:
@@ -52,10 +51,6 @@ class StrategyA(bt.Strategy):
                 self.sell_count += 1
         if not order.alive():
             self.order = None
-
-    def notify_trade(self, trade):
-        if trade.isclosed:
-            self.sum_profit += trade.pnlcomm
 
     def next(self):
         self.bar_num += 1
@@ -68,9 +63,6 @@ class StrategyA(bt.Strategy):
         elif self.crossover < 0:
             if self.position:
                 self.order = self.close()
-
-    def stop(self):
-        print(f"StrategyA: bar_num={self.bar_num}, buy={self.buy_count}, sell={self.sell_count}, profit={self.sum_profit:.2f}")
 
 
 class StrategyB(bt.Strategy):
@@ -85,7 +77,6 @@ class StrategyB(bt.Strategy):
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
-        self.sum_profit = 0.0
 
     def notify_order(self, order):
         if order.status == order.Completed:
@@ -95,10 +86,6 @@ class StrategyB(bt.Strategy):
                 self.sell_count += 1
         if not order.alive():
             self.order = None
-
-    def notify_trade(self, trade):
-        if trade.isclosed:
-            self.sum_profit += trade.pnlcomm
 
     def next(self):
         self.bar_num += 1
@@ -112,8 +99,59 @@ class StrategyB(bt.Strategy):
             if self.position:
                 self.order = self.close()
 
-    def stop(self):
-        print(f"StrategyB: bar_num={self.bar_num}, buy={self.buy_count}, sell={self.sell_count}, profit={self.sum_profit:.2f}")
+
+def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
+    """运行单个策略并返回结果"""
+    cerebro = bt.Cerebro(stdstats=True)
+    cerebro.broker.setcash(100000.0)
+
+    data = bt.feeds.BacktraderCSVData(dataname=str(data_path))
+    cerebro.adddata(data)
+    cerebro.addstrategy(strategy_class)
+    cerebro.addsizer(bt.sizers.FixedSize, stake=10)
+
+    # 添加分析器 - 使用日线级别计算夏普率
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
+                        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
+    cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
+
+    results = cerebro.run()
+    strat = results[0]
+
+    # 获取分析结果
+    sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
+    annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
+    max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
+    trade_analysis = strat.analyzers.trades.get_analysis()
+    total_trades = trade_analysis.get('total', {}).get('total', 0)
+    final_value = cerebro.broker.getvalue()
+
+    # 打印标准格式的结果
+    print("=" * 50)
+    print(f"{strategy_name} 回测结果:")
+    print(f"  bar_num: {strat.bar_num}")
+    print(f"  buy_count: {strat.buy_count}")
+    print(f"  sell_count: {strat.sell_count}")
+    print(f"  total_trades: {total_trades}")
+    print(f"  sharpe_ratio: {sharpe_ratio}")
+    print(f"  annual_return: {annual_return}")
+    print(f"  max_drawdown: {max_drawdown}")
+    print(f"  final_value: {final_value:.2f}")
+    print("=" * 50)
+
+    return {
+        'strat': strat,
+        'bar_num': strat.bar_num,
+        'buy_count': strat.buy_count,
+        'sell_count': strat.sell_count,
+        'sharpe_ratio': sharpe_ratio,
+        'annual_return': annual_return,
+        'max_drawdown': max_drawdown,
+        'total_trades': total_trades,
+        'final_value': final_value,
+    }
 
 
 def test_strategy_selection():
@@ -123,57 +161,28 @@ def test_strategy_selection():
 
     # 测试策略A
     print("\n--- 测试策略A ---")
-    cerebro_a = bt.Cerebro(stdstats=True)
-    cerebro_a.broker.setcash(100000.0)
-    data_a = bt.feeds.BacktraderCSVData(dataname=str(data_path))
-    cerebro_a.adddata(data_a)
-    cerebro_a.addstrategy(StrategyA)
-    cerebro_a.addsizer(bt.sizers.FixedSize, stake=10)
-    cerebro_a.addanalyzer(bt.analyzers.Returns, _name="returns")
-    cerebro_a.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
-    cerebro_a.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
-    results_a = cerebro_a.run()
-    strat_a = results_a[0]
-    final_value_a = cerebro_a.broker.getvalue()
-    sharpe_a = strat_a.analyzers.sharpe.get_analysis().get('sharperatio', None)
-    annual_a = strat_a.analyzers.returns.get_analysis().get('rnorm', 0)
-    maxdd_a = strat_a.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
+    result_a = run_strategy_with_analyzer(StrategyA, data_path, "StrategyA")
 
     # 测试策略B
     print("\n--- 测试策略B ---")
-    cerebro_b = bt.Cerebro(stdstats=True)
-    cerebro_b.broker.setcash(100000.0)
-    data_b = bt.feeds.BacktraderCSVData(dataname=str(data_path))
-    cerebro_b.adddata(data_b)
-    cerebro_b.addstrategy(StrategyB)
-    cerebro_b.addsizer(bt.sizers.FixedSize, stake=10)
-    cerebro_b.addanalyzer(bt.analyzers.Returns, _name="returns")
-    cerebro_b.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
-    cerebro_b.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
-    results_b = cerebro_b.run()
-    strat_b = results_b[0]
-    final_value_b = cerebro_b.broker.getvalue()
-    sharpe_b = strat_b.analyzers.sharpe.get_analysis().get('sharperatio', None)
-    annual_b = strat_b.analyzers.returns.get_analysis().get('rnorm', 0)
-    maxdd_b = strat_b.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
+    result_b = run_strategy_with_analyzer(StrategyB, data_path, "StrategyB")
 
-    print("=" * 50)
-    print("Strategy Selection 策略选择回测结果:")
-    print(f"  策略A: sharpe={sharpe_a}, annual={annual_a}, maxdd={maxdd_a}, final={final_value_a:.2f}")
-    print(f"  策略B: sharpe={sharpe_b}, annual={annual_b}, maxdd={maxdd_b}, final={final_value_b:.2f}")
-    print("=" * 50)
+    # 断言测试结果
+    assert result_a['bar_num'] == 482, f"Expected bar_num=482, got {result_a['bar_num']}"
+    assert abs(result_a['final_value'] - 104966.80) < 0.01, f"Expected final_value=104966.80, got {result_a['final_value']}"
+    assert abs(result_a['sharpe_ratio'] - 0.7210685207398165) < 1e-6, f"Expected sharpe=0.7210685207398165, got {result_a['sharpe_ratio']}"
+    assert abs(result_a['annual_return'] - 0.024145144571516192) < 1e-6, f"Expected annual=0.024145144571516192, got {result_a['annual_return']}"
+    assert abs(result_a['max_drawdown'] - 3.430658473286522) < 1e-6, f"Expected maxdd=3.430658473286522, got {result_a['max_drawdown']}"
+    assert result_a['total_trades'] == 9, f"Expected total_trades=9, got {result_a['total_trades']}"
 
-    assert abs(final_value_a - 104966.80) < 0.01, f"Expected final_value_a=104966.80, got {final_value_a}"
-    assert abs(final_value_b - 105258.30) < 0.01, f"Expected final_value_b=105258.30, got {final_value_b}"
-    assert abs(sharpe_a - 11.647332609673429) < 1e-6, f"Expected sharpe_a=11.647332609673429, got {sharpe_a}"
-    assert abs(sharpe_b - 1.5914771127325362) < 1e-6, f"Expected sharpe_b=1.5914771127325362, got {sharpe_b}"
-    assert abs(annual_a - 0.024145144571516192) < 1e-6, f"Expected annual_a=0.024145144571516192, got {annual_a}"
-    assert abs(annual_b - 0.025543999840699848) < 1e-6, f"Expected annual_b=0.025543999840699848, got {annual_b}"
-    assert abs(maxdd_a - 3.430658473286522) < 1e-6, f"Expected maxdd_a=3.430658473286522, got {maxdd_a}"
-    assert abs(maxdd_b - 3.474930243071327) < 1e-6, f"Expected maxdd_b=3.474930243071327, got {maxdd_b}"
+    assert result_b['bar_num'] == 502, f"Expected bar_num=502, got {result_b['bar_num']}"
+    assert abs(result_b['final_value'] - 105258.30) < 0.01, f"Expected final_value=105258.30, got {result_b['final_value']}"
+    assert abs(result_b['sharpe_ratio'] - 0.8804632119159153) < 1e-6, f"Expected sharpe=0.8804632119159153, got {result_b['sharpe_ratio']}"
+    assert abs(result_b['annual_return'] - 0.025543999840699848) < 1e-6, f"Expected annual=0.025543999840699848, got {result_b['annual_return']}"
+    assert abs(result_b['max_drawdown'] - 3.474930243071327) < 1e-6, f"Expected maxdd=3.474930243071327, got {result_b['max_drawdown']}"
+    assert result_b['total_trades'] == 43, f"Expected total_trades=43, got {result_b['total_trades']}"
 
     print("\n测试通过!")
-    return results_a, results_b
 
 
 if __name__ == "__main__":

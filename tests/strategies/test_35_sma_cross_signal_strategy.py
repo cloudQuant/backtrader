@@ -148,16 +148,17 @@ def test_sma_cross_signal_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
+    assert strat.bar_num == 492, f"Expected bar_num=492, got {strat.bar_num}"
     assert strat.buy_count == 14, f"Expected buy_count=14, got {strat.buy_count}"
     assert strat.sell_count == 13, f"Expected sell_count=13, got {strat.sell_count}"
     assert strat.win_count == 6, f"Expected win_count=6, got {strat.win_count}"
     assert strat.loss_count == 7, f"Expected loss_count=7, got {strat.loss_count}"
     assert total_trades == 14, f"Expected total_trades=14, got {total_trades}"
-    assert 40000 < final_value < 200000, f"Expected final_value=105288.60, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert abs(final_value - 105288.6) < 0.01, f"Expected final_value=105288.60, got {final_value}"
+    assert abs(sharpe_ratio - (1.6727759789938865)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
+    assert abs(annual_return - (0.02568929107574943)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 3.1366613257893725) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

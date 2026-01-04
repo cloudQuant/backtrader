@@ -345,6 +345,7 @@ def run_strategy(max_bonds=100, initial_cash=10000000.0, commission=0.0002, verb
 
     total_trades = trades_analysis.get("total", {}).get("total", 0)
     sharpe_ratio = sharpe_analysis.get("sharperatio")
+    annual_return = returns_analysis.get("rnorm")
     max_drawdown = (
         drawdown_analysis["max"]["drawdown"] if drawdown_analysis["max"]["drawdown"] else 0
     )
@@ -357,6 +358,7 @@ def run_strategy(max_bonds=100, initial_cash=10000000.0, commission=0.0002, verb
         "total_profit": final_value - initial_cash,
         "return_rate": (final_value / initial_cash - 1) * 100,
         "sharpe_ratio": sharpe_ratio,
+        "annual_return": annual_return,
         "max_drawdown": max_drawdown,
         "total_trades": total_trades,
         "initial_cash": initial_cash,
@@ -404,6 +406,7 @@ def test_simple_ma_multi_data_strategy():
     print(f"  total_profit: {metrics['total_profit']:.2f}")
     print(f"  return_rate: {metrics['return_rate']:.4f}%")
     print(f"  sharpe_ratio: {metrics['sharpe_ratio']}")
+    print(f"  annual_return: {metrics['annual_return']}")
     print(f"  max_drawdown: {metrics['max_drawdown']:.4f}%")
     print("=" * 60)
 

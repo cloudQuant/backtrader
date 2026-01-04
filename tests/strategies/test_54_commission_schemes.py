@@ -4,7 +4,7 @@
 测试用例: Commission Schemes 佣金方案
 
 参考来源: backtrader-master2/samples/commission-schemes/commission-schemes.py
-测试不同佣金计算方案
+测试不同佣金计算方案，使用双均线交叉策略
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,68 +30,82 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class CommissionStrategy(bt.Strategy):
-    """测试佣金方案的策略"""
-    params = (('stake', 10), ('period', 30))
+    """测试佣金方案的策略 - 双均线交叉"""
+    params = (('stake', 10), ('fast_period', 10), ('slow_period', 30))
 
     def __init__(self):
-        sma = bt.ind.SMA(self.data, period=self.p.period)
-        self.signal = bt.ind.CrossOver(self.data, sma)
+        self.fast_ma = bt.ind.SMA(period=self.p.fast_period)
+        self.slow_ma = bt.ind.SMA(period=self.p.slow_period)
+        self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
         self.bar_num = 0
+        self.buy_count = 0
+        self.sell_count = 0
         self.total_commission = 0.0
 
     def notify_order(self, order):
         if order.status == order.Completed:
+            if order.isbuy():
+                self.buy_count += 1
+            else:
+                self.sell_count += 1
             self.total_commission += order.executed.comm
 
     def next(self):
         self.bar_num += 1
-        if self.signal > 0:
-            self.buy(size=self.p.stake)
-        elif self.position and self.signal < 0:
-            self.sell(size=self.p.stake)
-
-    def stop(self):
-        print(f"CommissionTest: bar_num={self.bar_num}, total_commission={self.total_commission:.2f}")
+        if self.crossover > 0:
+            if self.position:
+                self.order = self.close()
+            self.order = self.buy(size=self.p.stake)
+        elif self.crossover < 0:
+            if self.position:
+                self.order = self.close()
 
 
 def test_commission_schemes():
     """测试 Commission Schemes 佣金方案"""
     cerebro = bt.Cerebro(stdstats=True)
-    cerebro.broker.setcash(10000.0)
+    cerebro.broker.setcash(100000.0)
 
     print("正在加载数据...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
-    data = bt.feeds.BacktraderCSVData(
-        dataname=str(data_path),
-        fromdate=datetime.datetime(2006, 1, 1),
-        todate=datetime.datetime(2006, 12, 31)
-    )
+    data = bt.feeds.BacktraderCSVData(dataname=str(data_path))
     cerebro.adddata(data)
 
-    cerebro.addstrategy(CommissionStrategy, stake=10, period=30)
+    cerebro.addstrategy(CommissionStrategy, stake=10, fast_period=10, slow_period=30)
 
-    # 设置百分比佣金
+    # 设置百分比佣金 0.1%
     cerebro.broker.setcommission(
-        commission=0.001,  # 0.1%
+        commission=0.001,
         commtype=bt.CommInfoBase.COMM_PERC,
         stocklike=True
     )
 
-    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
+    # 添加完整分析器 - 使用日线级别计算夏普率
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
+                        timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
     print("开始运行回测...")
     results = cerebro.run()
     strat = results[0]
+
+    # 获取分析结果
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
+    trade_analysis = strat.analyzers.trades.get_analysis()
+    total_trades = trade_analysis.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    print("=" * 50)
+    # 打印标准格式的结果
+    print("\n" + "=" * 50)
     print("Commission Schemes 佣金方案回测结果:")
     print(f"  bar_num: {strat.bar_num}")
+    print(f"  buy_count: {strat.buy_count}")
+    print(f"  sell_count: {strat.sell_count}")
+    print(f"  total_trades: {total_trades}")
     print(f"  sharpe_ratio: {sharpe_ratio}")
     print(f"  annual_return: {annual_return}")
     print(f"  max_drawdown: {max_drawdown}")
@@ -99,14 +113,16 @@ def test_commission_schemes():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num == 225, f"Expected bar_num=225, got {strat.bar_num}"
-    assert abs(final_value - 10000.00) < 0.01, f"Expected final_value=10000.00, got {final_value}"
-    assert sharpe_ratio is None, f"Expected sharpe_ratio=None, got {sharpe_ratio}"
-    assert abs(annual_return - 0.0) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
-    assert abs(max_drawdown - 0.0) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
+    # 断言测试结果
+    assert strat.bar_num == 482, f"Expected bar_num=482, got {strat.bar_num}"
+    assert abs(final_value - 104365.90) < 0.01, f"Expected final_value=104365.90, got {final_value}"
+    assert abs(sharpe_ratio - 0.6357284100176122) < 1e-6, f"Expected sharpe_ratio=0.6357284100176122, got {sharpe_ratio}"
+    assert abs(annual_return - 0.021255309375668045) < 1e-6, f"Expected annual_return=0.021255309375668045, got {annual_return}"
+    assert abs(max_drawdown - 3.584955980213795) < 1e-6, f"Expected max_drawdown=3.584955980213795, got {max_drawdown}"
+    assert total_trades == 9, f"Expected total_trades=9, got {total_trades}"
+    assert abs(strat.total_commission - 600.90) < 0.01, f"Expected total_commission=600.90, got {strat.total_commission}"
 
     print("\n测试通过!")
-    return strat
 
 
 if __name__ == "__main__":

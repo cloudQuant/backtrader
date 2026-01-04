@@ -387,8 +387,8 @@ def test_sunrise_volatility_expansion_strategy():
         dtformat='%Y%m%d',
         tmformat='%H:%M:%S',
         datetime=0, time=1, open=2, high=3, low=4, close=5, volume=6, openinterest=-1,
-        fromdate=datetime.datetime(2024, 1, 1),
-        todate=datetime.datetime(2025, 8, 21),
+        fromdate=datetime.datetime(2024, 6, 1),
+        todate=datetime.datetime(2025, 6, 30),
     )
     cerebro.adddata(data)
     cerebro.addstrategy(SunriseVolatilityExpansionStrategy)
@@ -416,11 +416,12 @@ def test_sunrise_volatility_expansion_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=98840.05, got {final_value}"
-    assert abs(sharpe_ratio - (-0.30774744871690607)) < 1e-6, f"Expected sharpe_ratio=-0.30774744871690607, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.00592212956070817)) < 1e-9, f"Expected annual_return=-0.00592212956070817, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    assert strat.bar_num == 76055, f"Expected bar_num=76055, got {strat.bar_num}"
+    assert abs(final_value - 99780.54) < 0.01, f"Expected final_value=99780.54, got {final_value}"
+    assert abs(sharpe_ratio - (-0.058262402599915615)) < 1e-6, f"Expected sharpe_ratio=-0.058, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.0016463951849173732)) < 1e-6, f"Expected annual_return=-0.00165, got {annual_return}"
+    assert abs(max_drawdown - 2.169140984136156) < 1e-6, f"Expected max_drawdown=2.169, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat

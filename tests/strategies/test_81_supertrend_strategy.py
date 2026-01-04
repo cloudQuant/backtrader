@@ -161,10 +161,10 @@ def test_supertrend_strategy():
     print("=" * 50)
 
     assert strat.bar_num == 1247, f"Expected bar_num=1247, got {strat.bar_num}"
-    assert abs(final_value - 99999.23) < 1.0, f"Expected final_value near 99999.23, got {final_value}"
-    assert abs(sharpe_ratio - (-0.003753826957851812)) < 0.1, f"Expected sharpe_ratio near -0.003, got {sharpe_ratio}"
-    assert abs(annual_return) < 0.001, f"Expected annual_return near 0, got {annual_return}"
-    assert abs(max_drawdown - 0.11218870744432227) < 0.001, f"Expected max_drawdown near 0.112, got {max_drawdown}"
+    assert abs(final_value - 99999.23) < 0.01, f"Expected final_value=99999.23, got {final_value}"
+    assert abs(sharpe_ratio - (-0.003753826957851812)) < 1e-6, f"Expected sharpe_ratio=-0.003753826957851812, got {sharpe_ratio}"
+    assert abs(annual_return - (-1.5389488753206686e-06)) < 1e-6, f"Expected annual_return=-1.5389488753206686e-06, got {annual_return}"
+    assert abs(max_drawdown - 0.11218870744432227) < 1e-6, f"Expected max_drawdown=0.11218870744432227, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat
