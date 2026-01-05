@@ -47,6 +47,12 @@ class ReplayMAStrategy(bt.Strategy):
         self.buy_count = 0
         self.sell_count = 0
 
+     # log相应的信息
+    def log(self, txt, dt=None):
+        ''' Logging function fot this strategy'''
+        dt = dt or bt.num2date(self.datas[0].datetime[0])
+        print('{}, {}'.format(dt.isoformat(), txt))
+
     def notify_order(self, order):
         if not order.alive():
             self.order = None
