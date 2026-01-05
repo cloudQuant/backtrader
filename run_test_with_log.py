@@ -91,17 +91,37 @@ def git_stash_pop():
         )
         if "auto-stash-by-run_test_with_log" in result.stdout:
             print("恢复暂存的更改...")
+            # 使用 stash apply 而不是 pop，这样如果失败不会删除 stash
             result = subprocess.run(
-                ["git", "stash", "pop"],
+                ["git", "stash", "apply", "stash@{0}"],
+                capture_output=True,
+                text=True,
+                check=False  # 不自动抛异常，我们自己检查
+            )
+            if result.returncode != 0:
+                print(f"警告: 恢复暂存时出现冲突或错误")
+                print(f"stderr: {result.stderr}")
+                print(f"stdout: {result.stdout}")
+                print("请手动解决冲突后运行: git stash drop")
+                return False
+
+            # apply 成功后删除 stash
+            result = subprocess.run(
+                ["git", "stash", "drop", "stash@{0}"],
                 capture_output=True,
                 text=True,
                 check=True
             )
             print("恢复成功")
             return True
-        return False
+        else:
+            print("警告: 没有找到自动暂存的更改")
+            return False
     except subprocess.CalledProcessError as e:
         print(f"恢复暂存失败: {e.stderr}")
+        return False
+    except Exception as e:
+        print(f"恢复暂存时发生异常: {e}")
         return False
 
 
@@ -223,33 +243,28 @@ def run_with_logging(script_path, log_dir="logs", branch_name=None):
 
         # 运行脚本
         try:
-            # 使用Popen以便实时获取输出
-            # Windows下使用utf-8编码，避免gbk编码问题
-            import locale
-
-            system_encoding = locale.getpreferredencoding()
-
+            # 使用Popen + communicate 以便获取完整输出
+            # 使用 -u 参数禁用输出缓冲
             process = subprocess.Popen(
-                [sys.executable, script_path],
+                [sys.executable, "-u", script_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 text=True,
                 encoding="utf-8",
-                errors="replace",  # 遇到无法解码的字符时替换为?
-                bufsize=1,  # 行缓冲
-                env={**os.environ, "PYTHONIOENCODING": "utf-8"},  # 强制Python使用UTF-8
+                errors="replace",
+                bufsize=0,  # 无缓冲
+                env={**os.environ, "PYTHONUNBUFFERED": "1", "PYTHONIOENCODING": "utf-8"},
             )
 
-            # 实时读取输出并同时写入终端和日志文件
-            for line in process.stdout:
-                # 输出到终端
-                print(line, end="")
-                # 写入日志文件
-                log_file.write(line)
-                log_file.flush()
+            # 使用 communicate 获取所有输出，避免缓冲区溢出导致输出丢失
+            output, _ = process.communicate()
 
-            # 等待进程结束
-            return_code = process.wait()
+            # 输出到终端和日志文件
+            print(output, end="")
+            log_file.write(output)
+            log_file.flush()
+
+            return_code = process.returncode
 
             # 写入结束信息
             end_msg = f"\n{'='*60}\n"
@@ -332,15 +347,25 @@ def run_on_both_branches(script_path, log_dir="logs"):
     finally:
         # 切回原分支
         print(f"\n切回原分支: {original_branch}")
-        switch_branch(original_branch)
-        
+        if not switch_branch(original_branch):
+            print("警告: 切回原分支失败，请手动处理！")
+
         # 重新安装原分支的代码
         print("\n重新安装原分支代码...")
-        pip_install()
-        
+        if not pip_install():
+            print("警告: pip install 失败，请手动检查！")
+
         # 恢复暂存的更改
         if stashed:
-            git_stash_pop()
+            restore_ok = git_stash_pop()
+            if not restore_ok:
+                print("\n" + "="*60)
+                print("警告: 暂存恢复可能失败或不完整！")
+                print("请检查当前工作区状态，必要时手动运行:")
+                print("  git stash list      # 查看待恢复的暂存")
+                print("  git stash show      # 查看暂存内容")
+                print("  git stash apply     # 手动应用暂存")
+                print("="*60)
 
 
 def main():
