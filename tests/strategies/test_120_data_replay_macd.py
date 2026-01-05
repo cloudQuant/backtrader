@@ -96,6 +96,7 @@ class ReplayMACDStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
+        self.log(f"bar_num: {self.bar_num}, close: {self.data.close[0]}, len: {len(self.data)}, crossover: {self.crossover[0]}")
         if self.order:
             return
         if self.crossover > 0:
