@@ -34,6 +34,9 @@ class MovingAverageSimple(MovingAverageBase):
         self._price_window = deque(maxlen=self.p.period)
         self._sum = 0.0  # Running sum for O(1) SMA updates
 
+        # Track last data length to detect replay mode updates
+        self._last_data_len = 0
+
         # Before super to ensure mixins (right-hand side in subclassing)
         # can see the assignment operation and operate on the line
         super().__init__()
@@ -43,8 +46,12 @@ class MovingAverageSimple(MovingAverageBase):
 
         # CRITICAL FIX: Don't use cache in runonce mode as it breaks with index changes
         # Check cache first only if we're not in runonce mode
+        # CRITICAL FIX: Also don't use cache during replay as the same bar is updated
         cache_key = f"sma_{period}_{len(self.data)}"
-        if not (hasattr(self, "_idx") and self._idx >= 0) and cache_key in self._result_cache:
+        current_data_len = len(self.data) if hasattr(self.data, '__len__') else 0
+        is_replay_update = (current_data_len == self._last_data_len and current_data_len > 0)
+        
+        if not is_replay_update and not (hasattr(self, "_idx") and self._idx >= 0) and cache_key in self._result_cache:
             return self._result_cache[cache_key]
 
         # Phase 2: Use vectorized calculation when enough data is available
@@ -62,9 +69,12 @@ class MovingAverageSimple(MovingAverageBase):
                     # Vectorized mean calculation
                     result = np.mean(recent_prices) if np else sum(recent_prices) / period
 
-                    # Cache result if within size limit
-                    if len(self._result_cache) < self._cache_size_limit:
+                    # CRITICAL FIX: Don't cache during replay updates
+                    if not is_replay_update and len(self._result_cache) < self._cache_size_limit:
                         self._result_cache[cache_key] = result
+                    
+                    # Update last data length
+                    self._last_data_len = current_data_len
 
                     return result
             except (IndexError, ValueError, TypeError):

@@ -119,10 +119,22 @@ class CrossOver(Indicator):
         # Current difference
         diff = self.data0[0] - self.data1[0]
 
-        # Get previous non-zero difference
-        prev_nzd = self._last_nzd if self._last_nzd is not None else diff
+        # CRITICAL FIX: For replay mode, we need to get the previous bar's difference
+        # using line indexing, not the cached _last_nzd which tracks intermediate updates.
+        # This ensures we compare current values against the PREVIOUS COMPLETED BAR.
+        try:
+            prev_diff = self.data0[-1] - self.data1[-1]
+            # Find last non-zero difference by looking at line values
+            if prev_diff == 0.0:
+                # Fall back to cached value
+                prev_nzd = self._last_nzd if self._last_nzd is not None else diff
+            else:
+                prev_nzd = prev_diff
+        except (IndexError, TypeError):
+            # Fall back to cached value
+            prev_nzd = self._last_nzd if self._last_nzd is not None else diff
 
-        # Update last_nzd (memorize non-zero)
+        # Update last_nzd (memorize non-zero) for fallback cases
         self._last_nzd = diff if diff != 0.0 else prev_nzd
 
         # Check for crossover using STRICT inequalities
