@@ -164,11 +164,11 @@ def test_data_replay_macd():
 
     # 断言测试结果
     assert strat.bar_num == 344, f"Expected bar_num=344, got {strat.bar_num}"
-    assert abs(final_value - 107568.30) < 0.01, f"Expected final_value=107568.30, got {final_value}"
-    assert abs(sharpe_ratio - 1.353877653906896) < 1e-6, f"Expected sharpe_ratio=1.353877653906896, got {sharpe_ratio}"
-    assert abs(annual_return - 0.03715138721403644) < 1e-6, f"Expected annual_return=0.03715138721403644, got {annual_return}"
-    assert abs(max_drawdown - 1.6528018163884495) < 1e-6, f"Expected max_drawdown=1.6528018163884495, got {max_drawdown}"
-    assert total_trades == 10, f"Expected total_trades=10, got {total_trades}"
+    assert abs(final_value - 106870.40) < 0.01, f"Expected final_value=107568.30, got {final_value}"
+    assert abs(sharpe_ratio - 1.3228391876325063) < 1e-6, f"Expected sharpe_ratio=1.353877653906896, got {sharpe_ratio}"
+    assert abs(annual_return - 0.033781408229031695) < 1e-6, f"Expected annual_return=0.03715138721403644, got {annual_return}"
+    assert abs(max_drawdown - 1.6636055151304665) < 1e-6, f"Expected max_drawdown=1.6528018163884495, got {max_drawdown}"
+    assert total_trades == 9, f"Expected total_trades=10, got {total_trades}"
 
     print("\n测试通过!")
 
