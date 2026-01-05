@@ -96,7 +96,12 @@ class ReplayMACDStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        self.log(f"bar_num: {self.bar_num}, close: {self.data.close[0]}, len: {len(self.data)}, crossover: {self.crossover[0]}")
+        # 在前10个bar和关键位置打印详细的MACD值用于调试
+        macd_val = self.macd.macd[0] if len(self.macd.macd) > 0 else 'N/A'
+        signal_val = self.macd.signal[0] if len(self.macd.signal) > 0 else 'N/A'
+        me1_val = self.macd.me1[0] if len(self.macd.me1) > 0 else 'N/A'
+        me2_val = self.macd.me2[0] if len(self.macd.me2) > 0 else 'N/A'
+        self.log(f"bar_num: {self.bar_num}, close: {self.data.close[0]}, len: {len(self.data)}, me1: {me1_val}, me2: {me2_val}, MACD: {macd_val}, signal: {signal_val}, crossover: {self.crossover[0]}")
         if self.order:
             return
         if self.crossover > 0:
