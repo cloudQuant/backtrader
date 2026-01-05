@@ -50,43 +50,11 @@ class ReplayMAStrategy(bt.Strategy):
     def notify_order(self, order):
         if not order.alive():
             self.order = None
-
-        if order.status in [order.Submitted, order.Accepted]:
-            return
-
-        if order.status == order.Rejected:
-            self.log(f"Rejected : order_ref:{order.ref}  data_name:{order.p.data._name}")
-
-        if order.status == order.Margin:
-            self.log(f"Margin : order_ref:{order.ref}  data_name:{order.p.data._name}")
-
-        if order.status == order.Cancelled:
-            self.log(f"Concelled : order_ref:{order.ref}  data_name:{order.p.data._name}")
-
-        if order.status == order.Partial:
-            self.log(f"Partial : order_ref:{order.ref}  data_name:{order.p.data._name}")
-
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
-                self.log(
-                    f" BUY : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
-
-            else:  # Sell
+            else:
                 self.sell_count += 1
-                self.log(
-                    f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
-
-    def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
-        if trade.isclosed:
-            self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
-                trade.getdataname(), trade.pnl, trade.pnlcomm))
-            # self.trade_list.append([self.datas[0].datetime.date(0),trade.getdataname(),trade.pnl,trade.pnlcomm])
-
-        if trade.isopen:
-            self.log('open symbol is : {} , price : {} '.format(
-                trade.getdataname(), trade.price))
 
     def next(self):
         self.bar_num += 1
