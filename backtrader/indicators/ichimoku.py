@@ -48,6 +48,9 @@ class Ichimoku(Indicator):
     )
 
     def __init__(self):
+        # CRITICAL FIX: Call super().__init__() FIRST for proper initialization
+        super().__init__()
+        
         hi_tenkan = Highest(self.data.high, period=self.p.tenkan)
         lo_tenkan = Lowest(self.data.low, period=self.p.tenkan)
         self.l.tenkan_sen = (hi_tenkan + lo_tenkan) / 2.0
@@ -65,5 +68,3 @@ class Ichimoku(Indicator):
         self.l.senkou_span_b = senkou_span_b(-self.p.senkou_lead)
 
         self.l.chikou_span = self.data.close(self.p.chikou)
-
-        super().__init__()

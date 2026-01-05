@@ -48,7 +48,9 @@ class UltimateOscillator(Indicator):
         super().__init__()
         self.truelow = TrueLow(self.data)
         self.truerange = TrueRange(self.data)
-        self.addminperiod(self.p.p3)
+        # CRITICAL FIX: TrueRange/TrueLow need 1 extra bar (they use close[-1])
+        # Total minperiod = p3 + 1 for the TrueRange dependency
+        self.addminperiod(self.p.p3 + 1)
 
     def next(self):
         p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3

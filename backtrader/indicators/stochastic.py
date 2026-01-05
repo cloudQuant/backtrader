@@ -33,6 +33,9 @@ class _StochasticBase(Indicator):
         super().__init__()
         self.highesthigh = Highest(self.data.high, period=self.p.period)
         self.lowestlow = Lowest(self.data.low, period=self.p.period)
+        # CRITICAL FIX: Set minperiod based on period and period_dfast
+        # Stochastic needs 'period' bars for Highest/Lowest, plus period_dfast for %D smoothing
+        self.addminperiod(self.p.period + self.p.period_dfast)
 
     def _calc_k(self):
         """Calculate %K value"""
@@ -171,6 +174,8 @@ class Stochastic(_StochasticBase):
     def __init__(self):
         super().__init__()
         self._fast_d_vals = []
+        # CRITICAL FIX: Add minperiod for period_dslow smoothing
+        self.addminperiod(self.p.period_dslow - 1)
 
     def next(self):
         k_val = self._calc_k()

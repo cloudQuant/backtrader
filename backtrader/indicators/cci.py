@@ -43,7 +43,8 @@ class CommodityChannelIndex(Indicator):
 
     def __init__(self):
         super().__init__()
-        self.addminperiod(self.p.period)
+        # CCI needs 2*period-1 bars for proper warmup
+        self.addminperiod(2 * self.p.period - 1)
 
     def next(self):
         period = self.p.period
@@ -81,16 +82,17 @@ class CommodityChannelIndex(Indicator):
         larray = self.lines.cci.array
         period = self.p.period
         factor = self.p.factor
+        minperiod = 2 * period - 1  # Match __init__
         
         while len(larray) < end:
             larray.append(0.0)
         
         # Pre-fill warmup with NaN
-        for i in range(min(period - 1, len(high_array))):
+        for i in range(min(minperiod - 1, len(high_array))):
             if i < len(larray):
                 larray[i] = float("nan")
         
-        for i in range(period - 1, min(end, len(high_array), len(low_array), len(close_array))):
+        for i in range(minperiod - 1, min(end, len(high_array), len(low_array), len(close_array))):
             # Calculate typical price
             tp = (high_array[i] + low_array[i] + close_array[i]) / 3.0
             

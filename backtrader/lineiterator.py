@@ -330,10 +330,13 @@ class LineIteratorMixin:
         """Handle post-initialization setup"""
         # Calculate minperiod from lines
         # PERFORMANCE: Use try-except instead of hasattr
+        # CRITICAL FIX: Take max of existing _minperiod (from data sources) and line minperiods
+        # Don't overwrite the data source's minperiod that was set in donew()
         try:
             line_minperiods = [getattr(x, "_minperiod", 1) for x in _obj.lines]
             if line_minperiods:
-                _obj._minperiod = max(line_minperiods)
+                existing_minperiod = getattr(_obj, "_minperiod", 1)
+                _obj._minperiod = max(existing_minperiod, max(line_minperiods))
         except AttributeError:
             pass
 
