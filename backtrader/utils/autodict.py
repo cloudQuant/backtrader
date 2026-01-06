@@ -3,18 +3,18 @@
 from collections import OrderedDict, defaultdict
 
 # from .py3 import values as py3lvalues
-from backtrader.utils.py3 import values as py3lvalues  # 修改相对引用为绝对引用
+from backtrader.utils.py3 import values as py3lvalues  # Changed relative import to absolute import
 
 
 def Tree():
-    # 不知道定义这个函数有什么用，其他地方没有用到过，忽略
-    # 可以考虑删除
+    # Not sure what this function is for, not used elsewhere, ignore
+    # Consider deleting
     return defaultdict(Tree)
 
 
 class AutoDictList(dict):
-    # 继承字典，当访问缺失的的key的时候，将会自动生成一个key值，对应的value值是一个空的列表
-    # 这个新创建的类仅仅用在了collections.defaultdict(AutoDictList)这一行代码中。
+    # Inherits dict, when accessing missing key, will automatically generate a key value, corresponding value is an empty list
+    # This newly created class is only used in collections.defaultdict(AutoDictList) line
     def __missing__(self, key):
         value = self[key] = list()
         return value
@@ -22,7 +22,7 @@ class AutoDictList(dict):
 
 class DotDict(dict):
     # If the attribute is not found in the usual places, try the dict itself
-    # 这个类仅仅用于了下面一行代码, 当访问属性的时候，如果没有这个属性，将会调用__getattr__
+    # This class is only used in the following line, when accessing attributes, if attribute doesn't exist, __getattr__ will be called
     # _obj.dnames = DotDict([(d._name, d) for d in _obj.datas if getattr(d, '_name', '')])
     def __getattr__(self, key):
         if key.startswith("__"):
@@ -30,26 +30,26 @@ class DotDict(dict):
         return self[key]
 
 
-# 这个函数用途稍微广泛一些，主要在tradeanalyzer和ibstore里面调用了，是对python字典的扩展
-# 相比于python内置的dict，额外增加了一个属性：_closed,增加了函数_close,_open,__missing__,__getattr__,重写了__setattr__
+# This function has slightly wider usage, mainly called in tradeanalyzer and ibstore, is an extension of Python dict
+# Compared to Python built-in dict, added an attribute: _closed, added functions _close, _open, __missing__, __getattr__, overrode __setattr__
 class AutoDict(dict):
-    # 初始化默认属性 _closed设置成False
+    # Initialize default attribute _closed to False
     _closed = False
 
-    # _close方法
+    # _close method
     def _close(self):
-        # 类的属性修改为True
+        # Change class attribute to True
         self._closed = True
-        # 对于字典中的值，如果这些值是AutoDict或者AutoOrderedDict的实例，就调用_close方法设置属性_closed为True
+        # For values in dict, if they are instances of AutoDict or AutoOrderedDict, call _close method to set attribute _closed to True
         for key, val in self.items():
             if isinstance(val, (AutoDict, AutoOrderedDict)):
                 val._close()
 
-    # _open方法，设置_closed属性为False
+    # _open method, set _closed attribute to False
     def _open(self):
         self._closed = False
 
-    # __missing__方法处理当key不存在的情况，如果是_closed,就返回KeyError,如果不是，就给这个key创建一个AutoDict()实例
+    # __missing__ method handles case when key doesn't exist, if _closed, return KeyError, if not, create an AutoDict() instance for this key
     def __missing__(self, key):
         if self._closed:
             raise KeyError
@@ -57,14 +57,14 @@ class AutoDict(dict):
         value = self[key] = AutoDict()
         return value
 
-    # __getattr__ 这个方法很多余，if永远访问不到，可以删除if语句，甚至这个方法都可以删除
+    # __getattr__ method is redundant, if will never be reached, can delete if statement, even this method can be deleted
     def __getattr__(self, key):
         if False and key.startswith("_"):
             raise AttributeError
 
         return self[key]
 
-    # __setattr__ 这个方法也比较多余，可以考虑删除
+    # __setattr__ method is also redundant, can consider deleting
     def __setattr__(self, key, value):
         if False and key.startswith("_"):
             self.__dict__[key] = value
@@ -73,7 +73,7 @@ class AutoDict(dict):
         self[key] = value
 
 
-# 创建的一个新的有序的字典，增加了一些函数，和AutoDict有些类似
+# Created a new ordered dict, added some functions, similar to AutoDict
 class AutoOrderedDict(OrderedDict):
     _closed = False
 
@@ -94,7 +94,7 @@ class AutoOrderedDict(OrderedDict):
         value = self[key] = AutoOrderedDict()
         return value
 
-    # __getattr__和__setattr__这两个函数相比于AutoDict的正常了很多
+    # __getattr__ and __setattr__ functions are much more normal compared to AutoDict
     def __getattr__(self, key):
         if key.startswith("_"):
             raise AttributeError
@@ -108,7 +108,7 @@ class AutoOrderedDict(OrderedDict):
 
         self[key] = value
 
-    # 定义的数学操作，暂时还没明白是什么意思，但是看起来只有__iadd__和__isub__是正常的
+    # Defined math operations, not sure what they mean for now, but it seems only __iadd__ and __isub__ are normal
     # Define math operations
     def __iadd__(self, other):
         if not isinstance(other, type(self)):
