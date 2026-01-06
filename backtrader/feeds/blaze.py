@@ -4,8 +4,8 @@ from ..feed import DataBase
 from ..utils import date2num
 
 
-# 这个类是backtrader对接Blaze数据的类
-# blaze介绍可以看这个：https://blaze.readthedocs.io/en/latest/index.html
+# This class is for backtrader to interface with Blaze data
+# blaze introduction: https://blaze.readthedocs.io/en/latest/index.html
 class BlazeData(DataBase):
     """
     Support for `Blaze <blaze.pydata.org>`_ ``Data`` objects.
@@ -21,7 +21,7 @@ class BlazeData(DataBase):
         it is
     """
 
-    # 参数
+    # Parameters
     params = (
         # datetime must be present
         ("datetime", 0),
@@ -34,10 +34,10 @@ class BlazeData(DataBase):
         ("openinterest", 6),
     )
 
-    # 列名称
+    # Column names
     datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
-    # 开始，直接把数据文件使用iter迭代，接下来_load的时候每次读取一行
+    # Start, directly iterate data file, next time _load reads one row each time
     def __init__(self):
         self._rows = None
 
@@ -47,16 +47,16 @@ class BlazeData(DataBase):
         # reset the iterator on each start
         self._rows = iter(self.p.dataname)
 
-    # load数据
+    # Load data
     def _load(self):
-        # 尝试获取下一行的数据，如果不存在，那么报错，返回False，代表数据已经load完毕
+        # Try to get next row data, if doesn't exist, raise error, return False, indicating data loading finished
         try:
             row = next(self._rows)
         except StopIteration:
             return False
 
         # Set the standard datafields - except for datetime
-        # 设置除了时间之外的其他数据，这个跟CSV操作差不多
+        # Set other data except time, similar to CSV operations
         for datafield in self.datafields[1:]:
             # get the column index
             colidx = getattr(self.params, datafield)
@@ -70,16 +70,16 @@ class BlazeData(DataBase):
             line[0] = row[colidx]
 
         # datetime - assumed blaze always serves a native datetime.datetime
-        # 处理时间部分，这部分操作相比于CSV部分的操作简单了很多，效率上应该也比较高，理论上会比CSV快一些
-        # 获取数据第一列的index
+        # Process time part, this operation is much simpler compared to CSV part, efficiency should also be higher, theoretically faster than CSV
+        # Get index of first column of data
         colidx = getattr(self.params, self.datafields[0])
-        # 获取时间数据
+        # Get time data
         dt = row[colidx]
-        # 把时间转化为数字
+        # Convert time to number
         dtnum = date2num(dt)
 
         # get the line to be set
-        # 获取该列的line，然后添加数据
+        # Get the line for this column, then add data
         line = getattr(self.lines, self.datafields[0])
         line[0] = dtnum
 

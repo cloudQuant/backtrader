@@ -103,8 +103,8 @@ class VCBroker(BrokerBase):
         orders are reported as canceled.
     """
 
-    # 参数描述符定义
-    account = StringParam(default="", doc="账户名称")
+    # Parameter descriptor definition
+    account = StringParam(default="", doc="Account name")
     commission = ParameterDescriptor(
         default=lambda: CommInfoBase(percabs=True),
         doc="Default commission scheme which applies to all assets",

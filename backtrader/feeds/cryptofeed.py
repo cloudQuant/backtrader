@@ -217,7 +217,7 @@ class CryptoFeed(DataBase):
             # self.log("self._bar_data initialized")
         try:
             # self.log("try to fetch data from queue")
-            data = self._bar_data.get(block=False)  # 不阻塞
+            data = self._bar_data.get(block=False)  # non-blocking
         except queue.Empty:
             # self.log(f"cannot get data")
             return None
@@ -229,7 +229,7 @@ class CryptoFeed(DataBase):
         bar_data = data.get_all_data()
         timestamp = bar_data["open_time"]
         # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
-        # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
+        # Convert timestamp to UTC time (ensure it is UTC time)
         dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
         bar_status = bar_data["bar_status"]
         if bar_status is False:

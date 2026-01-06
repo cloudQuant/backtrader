@@ -42,16 +42,16 @@ class StoreParams(object):
                 setattr(self.p, param, None)
 
 
-# Store基类
+# Store base class
 class Store(SingletonMixin, StoreParams):
     """Base class for all Stores"""
 
-    # 开始，默认是False
+    # Started, defaults to False
     _started = False
-    # 参数
+    # Parameters
     params = ()
 
-    # 获取数据
+    # Get data
     def __init__(self):
         super(Store, self).__init__()
         self.broker = None
@@ -66,7 +66,7 @@ class Store(SingletonMixin, StoreParams):
         data._store = self
         return data
 
-    # 获取broker
+    # Get broker
     @classmethod
     def getbroker(cls, *args, **kwargs):
         """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
@@ -77,35 +77,35 @@ class Store(SingletonMixin, StoreParams):
     BrokerCls = None  # broker class will autoregister
     DataCls = None  # data class will auto register
 
-    # 开始
+    # Start
     def start(self, data=None, broker=None):
-        # 如果还没有开始，就初始化
+        # If not started yet, initialize
         if not self._started:
             self._started = True
             self.notifs = collections.deque()
             self.datas = list()
             self.broker = None
-        # 如果数据不是None
+        # If data is not None
         if data is not None:
             self._cerebro = self._env = data._env
             self.datas.append(data)
-            # 如果self.broker不是None的话
+            # If self.broker is not None
             if self.broker is not None:
                 if hasattr(self.broker, "data_started"):
                     self.broker.data_started(data)
-        # 如果broker不是None的话
+        # If broker is not None
         elif broker is not None:
             self.broker = broker
 
-    # 结束
+    # End
     def stop(self):
         pass
 
-    # 把信息添加到通知
+    # Add message to notifications
     def put_notification(self, msg, *args, **kwargs):
         self.notifs.append((msg, args, kwargs))
 
-    # 获取通知的信息
+    # Get notification message
     def get_notifications(self):
         """Return the pending "store" notifications"""
         self.notifs.append(None)  # put a mark / threads could still append
