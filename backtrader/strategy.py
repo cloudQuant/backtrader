@@ -1,5 +1,40 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Strategy module - Base class for user-defined trading strategies.
+
+This module provides the Strategy class which serves as the foundation for
+all user-defined trading strategies in Backtrader. It handles order management,
+position tracking, indicator integration, and the event-driven execution model.
+
+Key Features:
+    - Order creation and management (buy, sell, close, cancel)
+    - Position tracking per data feed
+    - Integration with indicators and analyzers
+    - Event notifications (order, trade, data, timer)
+    - Support for multiple data feeds and timeframes
+    - Signal-based trading via SignalStrategy
+
+Example:
+    Basic strategy implementation::
+
+        import backtrader as bt
+
+        class MyStrategy(bt.Strategy):
+            params = (('period', 20),)
+
+            def __init__(self):
+                self.sma = bt.indicators.SMA(period=self.p.period)
+
+            def next(self):
+                if self.data.close[0] > self.sma[0]:
+                    self.buy()
+                elif self.data.close[0] < self.sma[0]:
+                    self.sell()
+
+Classes:
+    Strategy: Main base class for trading strategies.
+    SignalStrategy: Strategy subclass that responds to signal indicators.
+"""
 import collections
 import copy
 import datetime
@@ -33,10 +68,49 @@ from .utils.log_message import SpdLogManager
 from .utils.py3 import MAXINT, filter, integer_types, iteritems, keys, map, string_types
 
 
-# Strategy类，用户编写策略的时候可以继承这个类
 class Strategy(StrategyBase):
-    """
-    Base class to be subclassed for user defined strategies.
+    """Base class for user-defined trading strategies.
+
+    This class provides the core functionality for implementing trading
+    strategies including order management, position tracking, and event
+    handling. Users should subclass this to create custom strategies.
+
+    Attributes:
+        env: Reference to the Cerebro environment.
+        cerebro: Alias for env.
+        broker: Reference to the broker for order execution.
+        datas: List of data feeds available to the strategy.
+        data: Shortcut to the first data feed (datas[0]).
+        position: Current position for the main data feed.
+        stats: Collection of observer instances.
+        analyzers: Collection of analyzer instances.
+
+    Methods to Override:
+        __init__: Initialize indicators and strategy state.
+        start: Called when the strategy starts running.
+        prenext: Called before minimum period is reached.
+        nextstart: Called once when minimum period is first reached.
+        next: Main strategy logic, called on each bar.
+        stop: Called when the strategy stops running.
+        notify_order: Receive order status notifications.
+        notify_trade: Receive trade notifications.
+        notify_data: Receive data feed notifications.
+        notify_timer: Receive timer notifications.
+
+    Example:
+        class MyStrategy(bt.Strategy):
+            params = (('period', 20),)
+
+            def __init__(self):
+                self.sma = bt.indicators.SMA(period=self.p.period)
+
+            def next(self):
+                if not self.position:
+                    if self.data.close[0] > self.sma[0]:
+                        self.buy()
+                else:
+                    if self.data.close[0] < self.sma[0]:
+                        self.close()
     """
 
     # Class-level storage for strategies

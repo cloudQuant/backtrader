@@ -1,4 +1,50 @@
 #!/usr/bin/env python
+"""Backtrader - Python Trading Framework.
+
+A feature-rich Python framework for backtesting and trading with support for
+multiple data feeds, brokers, and analysis tools.
+
+This module serves as the main entry point for the backtrader package,
+exposing all public APIs through a unified namespace.
+
+Example:
+    Basic usage::
+
+        import backtrader as bt
+
+        cerebro = bt.Cerebro()
+        data = bt.feeds.GenericCSVData(dataname='data.csv')
+        cerebro.adddata(data)
+        cerebro.addstrategy(MyStrategy)
+        results = cerebro.run()
+        cerebro.plot()
+
+Core Components:
+    - **Cerebro**: Main engine that orchestrates backtesting
+    - **Strategy**: Base class for trading strategies
+    - **Indicator**: Base class for technical indicators
+    - **Analyzer**: Base class for performance analyzers
+    - **Broker**: Simulated broker for order execution
+    - **Feed**: Data feed classes for market data input
+
+Subpackages:
+    - analyzers: Performance analysis tools (Sharpe, Drawdown, etc.)
+    - brokers: Broker implementations (IB, OANDA, etc.)
+    - feeds: Data feed implementations (CSV, Pandas, Yahoo, etc.)
+    - indicators: Technical indicators (SMA, RSI, MACD, etc.)
+    - observers: Chart observers for visualization
+    - sizers: Position sizing algorithms
+    - stores: Data store implementations
+    - filters: Data filtering utilities
+
+Attributes:
+    __version__ (str): Package version string
+    __btversion__ (tuple): Package version as tuple
+
+See Also:
+    - Documentation: https://www.backtrader.com/docu/
+    - GitHub: https://github.com/mementum/backtrader
+"""
 # Load contributed indicators and studies
 from .indicators import contrib as _indicators_contrib
 

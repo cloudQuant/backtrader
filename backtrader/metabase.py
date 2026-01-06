@@ -1,5 +1,38 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Base classes and mixins for the Backtrader framework.
+
+This module provides the foundational infrastructure that replaces the original
+metaclass-based design. It includes parameter management, object factories,
+and various mixin classes used throughout the framework.
+
+Key Components:
+    - **ObjectFactory**: Factory class for creating objects with lifecycle hooks
+    - **BaseMixin**: Base mixin providing factory-based object creation
+    - **ParamsMixin**: Mixin for parameter management without metaclasses
+    - **AutoInfoClass**: Dynamic class for parameter/info storage
+    - **ParameterManager**: Static utility for handling parameter operations
+    - **ItemCollection**: Collection class with index and name-based access
+
+Utility Functions:
+    - findbases: Recursively find base classes of a given type
+    - findowner: Search call stack for owner objects
+    - is_class_type: Cached type checking via MRO inspection
+    - patch_strategy_clk_update: Runtime patch for Strategy clock updates
+
+Example:
+    Creating a class with parameters::
+
+        class MyIndicator(ParamsMixin):
+            params = (('period', 20), ('multiplier', 2.0))
+
+            def __init__(self):
+                print(f"Period: {self.p.period}")
+
+Note:
+    This module was created during the metaclass removal refactoring to provide
+    equivalent functionality using explicit initialization patterns.
+"""
 import itertools
 import math
 import sys
@@ -199,16 +232,25 @@ def patch_strategy_clk_update():
         pass
 
 
-# 寻找基类，这个python函数主要使用了四个python小技巧：
-# 第一个是class.__bases__这个会包含class的基类(父类)
-# 第二个是issubclass用于判断base是否是topclass的子类
-# 第三个是在函数中直接调用这个函数，使用了递归，python中的递归是有限的，在这个包里面，寻找子类与父类之间的继承关系，不大可能超过递归限制
-# 第四个是list的操作，extend和append，没啥需要讲解的，python基础
-# 这个函数看起来似乎也没有使用cython优化的需要。但是基于对python性能的理解，这个函数代码并没有发挥到最佳的效率，其中retval创建列表的时候
-# 调用list()函数其实并没有最大化python的效率，其实应该直接使用retval = [],这样效率更高一些，但是整体上提升的效率也是微乎其微，这个函数看起来
-# 不算是高频率使用的函数。关于改写list()的原因可以参考这篇文章：https://blog.csdn.net/weixin_44799217/article/details/119877699
-# 查找这个函数的时候，发现backtrader几乎没有使用到。忽略就好。
 def findbases(kls, topclass):
+    """Recursively find all base classes that inherit from topclass.
+
+    This function traverses the class hierarchy using __bases__ and recursively
+    collects all base classes that are subclasses of the specified topclass.
+
+    Args:
+        kls: The class to search bases for.
+        topclass: The top-level class to filter by (only bases that are
+            subclasses of this class are included).
+
+    Returns:
+        list: A list of base classes in order from most ancestral to most
+            immediate parent.
+
+    Note:
+        This function uses recursion, but the depth is limited by Python's
+        recursion limit. In practice, class hierarchies rarely exceed this.
+    """
     retval = []
     for base in kls.__bases__:
         if issubclass(base, topclass):
@@ -217,49 +259,84 @@ def findbases(kls, topclass):
     return retval
 
 
-# 这个函数看起来还是不太容易理解的。虽然已经阅读过几遍了，但是看起来还是有点头大。这个函数比前一个函数用到的地方比较多，重点分析这个函数的意义。
-# itertools.count(start=0,step=1)用于生成从0开始的步长为1的无界限序列，需要使用break停止循环，在这个使用中，默认是从2开始的，每次步长为1
-# sys._getframe([depth])：从调用堆栈返回帧对象。如果可选参数depth是一个整数，返回在最顶级堆栈下多少层的调用的帧对象，如果这个depth高于调用的层数
-#       - 会抛出一个ValueError.默认参数depth是0,会返回最顶层堆栈的帧对象。从这个函数的使用来看，获取到的frame(帧对象)是最底层调用的帧对象
-#       - Return a frame object from the call stack.
-#       - If optional integer depth is given, return the frame object that many calls below the top of the stack.
-#       - If that is deeper than the call stack, ValueError is raised. The default for depth is zero,
-#       - returning the frame at the top of the call stack.
-# sys._getframe().f_locals返回的是帧对象的本地的变量，字典形式，使用get("self",None)是查看本地变量中有没有frame，如果有的话，返回相应的值，如果没有，返回值是None
-# 总结一下这个函数的用法：findowner用于发现owned的父类，这个类是cls的实例，但是同时这个类不能是skip，如果不能满足这些条件，就返回一个None.
 def findowner(owned, cls, startlevel=2, skip=None):
-    # skip this frame and the caller's -> start at 2
+    """Find the owner object in the call stack.
+
+    This function traverses the call stack to find an object that:
+    1. Is an instance of the specified class (cls)
+    2. Is not the owned object itself
+    3. Is not the skip object (if provided)
+
+    This is commonly used to find parent containers (e.g., Strategy finding
+    its Cerebro, or Indicator finding its Strategy).
+
+    Args:
+        owned: The object looking for its owner.
+        cls: The class type the owner must be an instance of.
+        startlevel: Stack frame level to start searching from (default: 2,
+            skips this function and the caller).
+        skip: Optional object to skip during the search.
+
+    Returns:
+        The owner object if found, None otherwise.
+
+    Note:
+        Uses sys._getframe() to inspect the call stack. The search examines
+        both 'self' (regular method calls) and '_obj' (metaclass-style calls)
+        in each frame's local variables.
+    """
+    # Skip this frame and the caller's -> start at 2
     for framelevel in itertools.count(startlevel):
         try:
             frame = sys._getframe(framelevel)
         except ValueError:
-            # Frame depth exceeded ... no owner ... break away
+            # Frame depth exceeded - no owner found
             break
 
-        # 'self' in regular code
+        # Check 'self' in regular code
         self_ = frame.f_locals.get("self", None)
-        # 如果skip和self_不一样，如果self_不是owned并且self_是cls的实例,就返回self_
+        # If not skip, not owned, and is instance of cls, return it
         if skip is not self_:
             if self_ is not owned and cls is not None and isinstance(self_, cls):
                 return self_
 
-        # '_obj' in metaclasses
-        # 如果"_obj"在帧对象本地变量中
+        # Check '_obj' in metaclass-style code
         obj_ = frame.f_locals.get("_obj", None)
-        # 如果obj_不是skip，并且obj_不是owned，并且obj_是class的实例，返回obj_
+        # If not skip, not owned, and is instance of cls, return it
         if skip is not obj_:
             if obj_ is not owned and cls is not None and isinstance(obj_, cls):
                 return obj_
-    # 前两种情况都不是的话，返回None
+
+    # No owner found in call stack
     return None
 
 
 class ObjectFactory:
-    """Factory class to replace MetaBase functionality"""
+    """Factory class to replace MetaBase functionality.
+
+    This class provides a static method for creating objects with lifecycle
+    hooks similar to the original metaclass implementation.
+
+    The creation process follows these steps:
+        1. doprenew: Pre-new processing (class modification)
+        2. donew: Object creation
+        3. dopreinit: Pre-initialization processing
+        4. doinit: Main initialization
+        5. dopostinit: Post-initialization processing
+    """
 
     @staticmethod
     def create(cls, *args, **kwargs):
-        """Create an object with the old metaclass-style lifecycle hooks"""
+        """Create an object with lifecycle hooks.
+
+        Args:
+            cls: The class to instantiate.
+            *args: Positional arguments for initialization.
+            **kwargs: Keyword arguments for initialization.
+
+        Returns:
+            The created and initialized object.
+        """
         # Pre-new processing
         if hasattr(cls, "doprenew"):
             cls, args, kwargs = cls.doprenew(*args, **kwargs)
@@ -288,7 +365,20 @@ class ObjectFactory:
 
 
 class BaseMixin:
-    """Mixin to provide factory-based object creation without metaclass"""
+    """Mixin providing factory-based object creation without metaclass.
+
+    This mixin provides default implementations for the lifecycle hooks
+    used by ObjectFactory. Subclasses can override these methods to
+    customize object creation and initialization.
+
+    Methods:
+        doprenew: Called before object creation (class-level).
+        donew: Creates the object instance.
+        dopreinit: Called before __init__.
+        doinit: Calls __init__ on the object.
+        dopostinit: Called after __init__.
+        create: Factory method for instance creation.
+    """
 
     @classmethod
     def doprenew(cls, *args, **kwargs):
@@ -319,62 +409,78 @@ class BaseMixin:
 
 
 class AutoInfoClass(object):
-    #
-    # 下面的三个函数应该等价于类似的结构.这个结论是推测的
-    # @classmethod
-    # def _getpairsbase(cls)
-    #     return OrderedDict()
-    # @classmethod
-    # def _getpairs(cls)
-    #     return OrderedDict()
-    # @classmethod
-    # def _getrecurse(cls)
-    #     return False
-    #
+    """Dynamic class for storing parameter and info key-value pairs.
 
+    This class provides a flexible mechanism for storing and retrieving
+    configuration data (parameters, plot info, etc.) with support for
+    inheritance and derivation.
+
+    Class Methods:
+        _getpairsbase: Get base class pairs as OrderedDict.
+        _getpairs: Get all pairs (including inherited) as OrderedDict.
+        _getrecurse: Check if recursive derivation is enabled.
+        _derive: Create a derived class with additional parameters.
+        _getkeys: Get all parameter keys.
+        _getdefaults: Get all default values.
+        _getitems: Get all key-value pairs.
+        _gettuple: Get pairs as tuple of tuples.
+
+    Instance Methods:
+        isdefault: Check if a parameter has its default value.
+        notdefault: Check if a parameter differs from default.
+        get/_get: Get a parameter value with optional default.
+    """
+
+    # Class methods returning empty defaults - equivalent to:
+    # @classmethod
+    # def _getpairsbase(cls): return OrderedDict()
     _getpairsbase = classmethod(lambda cls: OrderedDict())
     _getpairs = classmethod(lambda cls: OrderedDict())
     _getrecurse = classmethod(lambda cls: False)
 
     @classmethod
     def _derive(cls, name, info, otherbases, recurse=False):
-        """推测各个参数的意义：
-        cls:代表一个具体的类，很有可能就是AutoInfoClass的一个实例
-        info:代表参数（parameter)
-        otherBases:其他的bases
-        recurse:递归
-        举例的应用：_derive(name, newparams, morebasesparams)
+        """Create a derived class with merged parameters.
+
+        This method creates a new class that inherits from the current class
+        and includes parameters from both the base class and additional sources.
+
+        Args:
+            cls: The base class to derive from.
+            name: Name suffix for the new class.
+            info: New parameters to add (dict or tuple of tuples).
+            otherbases: Additional base classes or parameter dicts to merge.
+            recurse: If True, recursively derive nested parameter classes.
+
+        Returns:
+            A new class with merged parameters.
+
+        Example:
+            DerivedParams = BaseParams._derive('MyStrategy', newparams, morebasesparams)
         """
-        # collect the 3 set of infos
-        # info = OrderedDict(info)
-        #         # print(name,info,otherbases)  # Removed for performance
-        baseinfo = (
-            cls._getpairs().copy()
-        )  # 浅拷贝，保证有序字典一级目录下不改变,暂时没有明白为什么要copy
-        obasesinfo = OrderedDict()  # 代表其他类的info
+        # Collect the 3 sets of info: base class, other bases, and new info
+        baseinfo = cls._getpairs().copy()  # Shallow copy to preserve base class params
+        obasesinfo = OrderedDict()  # Parameters from other base classes
         for obase in otherbases:
-            # 如果传入的otherbases是已经获取过类的参数，这些参数值应该是字典或者元组，就更新到obaseinfo中；否则就是类的实例，但是如果是类的实例的话，使用_getpairs()获取的
-            # 是具体的cls.baseinfo
+            # If otherbases contains dicts/tuples, update directly
+            # Otherwise, get params from class instances via _getpairs()
             if isinstance(obase, (tuple, dict)):
                 obasesinfo.update(obase)
             else:
                 obasesinfo.update(obase._getpairs())
 
-        # update the info of this class (base) with that from the other bases
+        # Update base info with parameters from other bases
         baseinfo.update(obasesinfo)
 
-        # The info of the new class is a copy of the full base info
-        # plus and update from parameter
+        # Create final class info: base + otherbases + new params
         clsinfo = baseinfo.copy()
         clsinfo.update(info)
-        # 上面的clsinfo本质上就是把cls的信息、info和otherbases的相关信息汇总到一起
 
-        # The new items to update/set are those from the otherbase plus the new
-        # info2add保存的是info和otherbases的相关信息汇总到一起，没包含cls的信息
+        # Items to add: otherbases + new params (excluding base class params)
         info2add = obasesinfo.copy()
         info2add.update(info)
 
-        # 接下来创建一个cls的子类，并把这个类赋值给clsmodule的newclsname
+        # Create new derived class and register in module
         clsmodule = sys.modules[cls.__module__]
         newclsname = str(cls.__name__ + "_" + name)  # str - Python 2/3 compat
 
@@ -390,31 +496,32 @@ class AutoInfoClass(object):
 
         newcls = type(newclsname, (cls,), {})
         setattr(clsmodule, newclsname, newcls)
-        # 给cls的设置几个方法，分别返回baseinfo和clsinfo和recurse的值
+        # Set up class methods to return baseinfo, clsinfo, and recurse values
         setattr(newcls, "_getpairsbase", classmethod(lambda cls: baseinfo.copy()))
         setattr(newcls, "_getpairs", classmethod(lambda cls: clsinfo.copy()))
         setattr(newcls, "_getrecurse", classmethod(lambda cls: recurse))
 
         for infoname, infoval in info2add.items():
-            # 查找具体的AutoInfoClass的使用，暂时没有发现recurse是真的的语句，所以下面条件语句可能不怎么运行。推测这个是递归用的，如果递归，会把infoval下的信息加进去
+            # If recurse is True, recursively derive nested info classes
+            # This is rarely used in practice
             if recurse:
                 recursecls = getattr(newcls, infoname, AutoInfoClass)
                 infoval = recursecls._derive(name + "_" + infoname, infoval, [])
-            # 给newcls设置info和otherbases之类的信息
+            # Set the info attribute on the new class
             setattr(newcls, infoname, infoval)
 
         return newcls
 
     def isdefault(self, pname):
-        # 是默认的
+        """Check if a parameter has its default value."""
         return self._get(pname) == self._getkwargsdefault()[pname]
 
     def notdefault(self, pname):
-        # 不是默认的
+        """Check if a parameter differs from its default value."""
         return self._get(pname) != self._getkwargsdefault()[pname]
 
     def _get(self, name, default=None):
-        # 获取cls的name的属性值
+        """Get attribute value by name with optional default."""
         return getattr(self, name, default)
 
     def get(self, name, default=None):
@@ -422,42 +529,42 @@ class AutoInfoClass(object):
 
     @classmethod
     def _getkwargsdefault(cls):
-        # 获取cls的信息
+        """Get default parameter values as OrderedDict."""
         return cls._getpairs()
 
     @classmethod
     def _getkeys(cls):
-        # 获取cls的有序字典的key
+        """Get all parameter keys."""
         return cls._getpairs().keys()
 
     @classmethod
     def _getdefaults(cls):
-        # 获取cls的有序字典的value
+        """Get all default parameter values as list."""
         return list(cls._getpairs().values())
 
     @classmethod
     def _getitems(cls):
-        # 获取cls的有序字典的key和value对，是迭代对象
+        """Get all key-value pairs as items view."""
         return cls._getpairs().items()
 
     @classmethod
     def _gettuple(cls):
-        # 获取cls的有序字典的key和value对，并保存为元组
+        """Get all key-value pairs as tuple of tuples."""
         return tuple(cls._getpairs().items())
 
     def _getkwargs(self, skip_=False):
-        # 获取cls的key,value并保存为有序字典
+        """Get current parameter values as OrderedDict."""
         pairs = [
             (x, getattr(self, x)) for x in self._getkeys() if not skip_ or not x.startswith("_")
         ]
         return OrderedDict(pairs)
 
     def _getvalues(self):
-        # 获取cls的value并保存为列表
+        """Get all current parameter values as list."""
         return [getattr(self, x) for x in self._getkeys()]
 
     def __new__(cls, *args, **kwargs):
-        # 创建一个新的obj
+        """Create a new instance with recursive parameter initialization."""
         obj = super(AutoInfoClass, cls).__new__(cls, *args, **kwargs)
 
         if cls._getrecurse():
@@ -496,7 +603,16 @@ def _reconstruct_param_class(class_name, all_params, instance_values):
 
 
 class ParameterManager:
-    """Manager for handling parameter operations without metaclass"""
+    """Manager for handling parameter operations without metaclass.
+
+    This class provides static methods for setting up and deriving parameter
+    classes, handling package imports, and managing parameter inheritance.
+
+    Methods:
+        setup_class_params: Set up parameters for a class.
+        _derive_params: Create a derived parameter class.
+        _handle_packages: Handle package and module imports.
+    """
 
     @staticmethod
     def setup_class_params(cls, params=(), packages=(), frompackages=()):
@@ -1292,50 +1408,57 @@ class ParamsMixin(BaseMixin):
 ParamsBase = ParamsMixin
 
 
-# 设置了一个新的类，这个类可以通过index或者name直接获取相应的值
 class ItemCollection(object):
-    """
-    Holds a collection of items that can be reached by
+    """Collection that allows access by both index and name.
 
-      - Index
-      - Name (if set in the append operation)
+    This class holds a list of items that can be accessed either by their
+    numeric index or by a string name. Names are set as attributes on the
+    collection instance.
+
+    Attributes:
+        items (list): The underlying list of items.
+
+    Example:
+        collection = ItemCollection()
+        collection.append(my_strategy, name='mystrat')
+        collection[0]  # Access by index
+        collection.mystrat  # Access by name
     """
 
     def __init__(self):
         self.items = list()
 
-    # 长度
     def __len__(self):
+        """Return the number of items in the collection."""
         return len(self.items)
 
-    # 添加数据
     def append(self, item, name=None):
+        """Add an item to the collection with an optional name."""
         setattr(self, name or item.__name__, item)
         self.items.append(item)
 
-    # 根据index返回值
     def __getitem__(self, key):
+        """Get item by index."""
         return self.items[key]
 
-    # 获取全部的名字
     def getnames(self):
+        """Get list of all item names."""
         return [x.__name__ for x in self.items]
 
-    # 获取相应的name和value这样一对一对的值
     def getitems(self):
-        """返回(name, item)元组的列表，用于解包操作"""
+        """Return list of (name, item) tuples for unpacking."""
         result = []
         for item in self.items:
-            # 获取项目名称
+            # Get item name from _name or __name__ attribute
             name = getattr(item, "_name", None) or getattr(item, "__name__", None)
             if name is None:
-                # 尝试通过类名获取
+                # Fall back to lowercase class name
                 name = item.__class__.__name__.lower()
             result.append((name, item))
         return result
 
-    # 根据名字获取value
     def getbyname(self, name):
+        """Get item by name."""
         return getattr(self, name)
 
 

@@ -1,4 +1,35 @@
 #!/usr/bin/env python
+"""Cerebro - The main engine of the Backtrader framework.
+
+This module contains the Cerebro class, which is the central orchestrator for
+backtesting and live trading operations. Cerebro manages data feeds, strategies,
+brokers, analyzers, observers, and all other components of the trading system.
+
+Key Features:
+    - Data feed management and synchronization
+    - Strategy instantiation and execution
+    - Broker integration for order execution
+    - Multi-core optimization support
+    - Live trading and backtesting modes
+    - Plotting and analysis capabilities
+
+Example:
+    Basic backtest setup::
+
+        import backtrader as bt
+
+        cerebro = bt.Cerebro()
+        data = bt.feeds.GenericCSVData(dataname='data.csv')
+        cerebro.adddata(data)
+        cerebro.addstrategy(MyStrategy)
+        cerebro.broker.setcash(100000)
+        results = cerebro.run()
+        cerebro.plot()
+
+Classes:
+    OptReturn: Lightweight result object for optimization runs.
+    Cerebro: Main backtesting/trading engine.
+"""
 import collections
 import datetime
 import itertools
@@ -22,8 +53,22 @@ from .utils.py3 import integer_types, map, range, string_types, zip
 from .writer import WriterFile
 
 
-# Defined here to make it pickable. Ideally it could be defined inside Cerebro
 class OptReturn:
+    """Lightweight result container for optimization runs.
+
+    This class is defined at module level to make it picklable for
+    multiprocessing. It stores only essential information from strategy
+    runs during optimization to reduce memory usage.
+
+    Attributes:
+        p: Alias for params.
+        params: Strategy parameters used in this optimization run.
+        analyzers: Analyzer results (if returned during optimization).
+
+    Note:
+        Additional attributes may be set dynamically via kwargs.
+    """
+
     def __init__(self, params, **kwargs):
         self.p = self.params = params
         for k, v in kwargs.items():
@@ -38,16 +83,16 @@ class Cerebro(ParameterizedBase):
       Whether to preload the different ``data feeds`` passed to cerebro for
       the Strategies
 
-      # preload这个参数默认的是True，就意味着，在回测的时候，默认是先把数据加载之后传给cerebro，在内存中调用，
-      # 这个步骤导致的结果就是，加载数据会浪费一部分时间，但是，在回测的时候，速度会快一些，总体上的速度还是有所提高的
-      # 所以，建议这个值，使用默认值。
+      Note: When True (default), data is loaded into memory before backtesting,
+      which uses more memory but significantly improves execution speed.
 
     - ``runonce`` (default: ``True``)
 
       Run `Indicators` in vectorized mode to speed up the entire system.
       Strategies and Observers will always be run on an event-based basis
 
-       # 如果runonce设置为True，在计算指标的时候，将会按照向量的方式进行.策略和observers将会按照事件驱动的模式进行
+      Note: When True, indicators are calculated using vectorized operations
+      for better performance. Strategies and observers still run event-by-event.
 
     - ``live`` (default: ``False``)
 
@@ -58,21 +103,22 @@ class Cerebro(ParameterizedBase):
       This will simultaneously deactivate ``preload`` and ``runonce``. It
       will have no effect on memory saving schemes.
 
-      # 默认情况是False，意味着，如果我们没有给数据传入 "islive"这个方法，默认的就是回测了。
-      # 如果把live设置成True了，那么，默认就会不使用preload 和 runonce, 这样，一般回测速度就会变慢。
+      Note: Setting to True forces live mode behavior, disabling preload and
+      runonce optimizations, which slows down backtesting.
 
     - ``maxcpus`` (default: None -> all available cores)
 
        How many cores to use simultaneously for optimization
-      # 优化参数的时候使用的参数，我一般不用这个优化功能，使用的我自己写的多进程回测的模式，优化参数这个地方有bug，有的策略正常，有的策略出错
-      # 不建议使用，如果要使用的时候，建议把maxcpus设置成自己电脑的cpu数目减去一，要不然，可能容易死机。
+
+      Note: Set to number of CPU cores minus 1 to avoid system overload.
+      Use None (default) to use all available cores.
 
     - ``stdstats`` (default: ``True``)
 
       If True, default Observers will be added: Broker (Cash and Value),
       Trades and BuySell
-       # 控制是否会加载observer的参数，默认是True，加载Broker的Cash和Value，Trades and BuySell
-      # 我一般默认的都是True, 画图的时候用的，我其实可以取消，因为不怎么用cerebro.plot()画出来图形来观察买卖点
+
+      Note: These observers are used for plotting. Set to False if not needed.
 
     - ``oldbuysell`` (default: ``False``)
 
@@ -88,13 +134,9 @@ class Cerebro(ParameterizedBase):
         are plotted where the average price of the order executions for the
         given moment in time is. This will, of course, be on top of an OHLC bar
         or on a Line on Cloe bar, difficult the recognition of the plot.
-         # 如果stdstats设置成True了，那么，oldbuysell的默认值就无关紧要了，都是使用的``BuySell``
 
-      # 如果stdstats设置成True了，如果``oldbuysell``是默认值False，画图的时候，买卖点的位置就会画在K线的
-      # 最高点和最低点之外，避免画到K线上
-
-      # 如果stdstats设置成True了，如果``oldbuysell``是True, 就会把买卖信号画在成交时候的平均价的地方，会在K线上
-      # 比较难辨认。
+      Note: False (modern) plots signals outside the price bars for clarity.
+      True (old) plots signals at execution price, overlapping with bars.
 
     - ``oldtrades`` (default: ``False``)
 
@@ -108,8 +150,8 @@ class Cerebro(ParameterizedBase):
       - ``True``: use the old Trades observer which plots the trades with the
         same markers, differentiating only if they are positive or negative
 
-      # 也和画图相关，oldtrades是True的时候，同一方向的交易没有区别，oldtrades是False的时候,
-      # 不同的交易使用不同的标记
+      Note: False uses different markers for different trades.
+      True uses same markers, only distinguishing positive/negative.
 
 
     - ``exactbars`` (default: ``False``)
@@ -154,14 +196,10 @@ class Cerebro(ParameterizedBase):
 
           - ``runonce`` will be deactivated
 
-           # 储存多少个K线的数据在记忆中
-
-      # 当exactbars的值是True或者是1的时候，只保存满足最小需求的K线的数据，这会取消preload, runonce, plotting
-
-      # 当exactbars的值是-1的时候，数据、指标、运算结果会保存下来，但是指标运算内的中间变量不会保存，这个会取消掉runonce
-
-      # 当exactbars的值是-2的时候，数据、指标、运算结果会保存下来，但是指标内的，指标间的变量，如果没有使用self进行保存，就会消失
-      # 可以验证下，-2的结果是否是对的
+      Note on exactbars values:
+        - True/1: Minimum memory, disables preload/runonce/plotting
+        - -1: Keeps data/indicators but not sub-indicator internals, disables runonce
+        - -2: Keeps strategy-level data/indicators, sub-indicators not using self are discarded
 
     - ``objcache`` (default: ``False``)
 
@@ -177,24 +215,27 @@ class Cerebro(ParameterizedBase):
 
       Corner cases may happen in which this drives a line object off its
       minimum period and breaks things, and it is therefore disabled.
-       # 缓存，如果设置成True了，在指标计算的过程中，如果上面已经计算过了，形成了一个line，
-      # 下面要用到指标是同样名字的, 就不再计算，而是使用上面缓存中的指标
+
+      Note: When True, identical indicator calculations are cached and reused
+      to reduce computation. Disabled by default due to edge cases.
 
     - ``writer`` (default: ``False``)
 
       If set to ``True`` a default WriterFile will be created which will
       print to stdout. It will be added to the strategy (in addition to any
       other writers added by the user code)
-       # writer 如果设置成True，输出的信息将会保存到一个默认的文件中
-      # 没怎么用过这个功能，每次写策略，都是在strategy中，按照自己需求定制的信息
+
+      Note: Outputs trading information to stdout. Custom logging in strategy
+      is usually preferred for more control.
 
     - ``tradehistory`` (default: ``False``)
 
       If set to ``True``, it will activate update event logging in each trade
       for all strategies. This can also be achieved on a per-strategy
       basis with the strategy method ``set_tradehistory``
-       # 如果tradehistory设置成了True，这将会激活这样一个功能，在所有策略中，每次交易的信息将会被log
-      # 这个也可以在每个策略层面上，使用set_tradehistory来实现。
+
+      Note: Enables trade update logging for all strategies. Can also be
+      enabled per-strategy using set_tradehistory method.
 
     - ``optdatas`` (default: ``True``)
 
@@ -204,8 +245,9 @@ class Cerebro(ParameterizedBase):
 
       The tests show an approximate ``20%`` speed-up moving from a sample
       execution in ``83`` seconds to ``66``
-       # optdatas设置成True，如果preload和runonce也是True的话，数据的预加载将会只进行一次，在
-      # 优化参数的时候，可以节省很多的时间
+
+      Note: When True with preload/runonce, data is preloaded once in the
+      main process and shared across optimization workers (~20% speedup).
 
 
     - ``optreturn`` (default: ``True``)
@@ -225,8 +267,9 @@ class Cerebro(ParameterizedBase):
       The tests show a 13% - 15% improvement in execution time. Combined
       with `optdatas` the total gain increases to a total speed-up of
       `32%` in an optimization run.
-       # optreturn, 设置成True之后，在优化参数的时候，返回的结果中，只包含参数和analyzers, 为了提高速度，
-      # 舍弃了数据，指标，observers, 这可以提高优化的速度。
+
+      Note: Returns only params and analyzers during optimization, discarding
+      data/indicators/observers for ~15% speedup (32% combined with optdatas).
 
     - ``oldsync`` (default: ``False``)
 
@@ -236,8 +279,9 @@ class Cerebro(ParameterizedBase):
 
       If the old behavior with data0 as the master of the system is wished,
       set this parameter to true
-       # 当这个参数设置成False的时候，可以允许数据有不同的长度。如果想要返回旧版本那种，
-      # 用data0作为主数据的方式，就可以把这个参数设置成True
+
+      Note: False allows data feeds of different lengths.
+      True uses data0 as master (legacy behavior).
 
     - ``tz`` (default: ``None``)
 
@@ -254,11 +298,9 @@ class Cerebro(ParameterizedBase):
         - ``integer``. Use, for the strategy, the same timezone as the
           corresponding ``data`` in the ``self.datas`` iterable (``0`` would
           use the timezone from ``data0``)
-          # 给策略添加时区
-      # 如果忽略的话，tz就是None，就默认使用的是UTC时区
-      # 如果是pytz的实例，是一个时区的话，就会把UTC时区转变为选定的新的时区
-      # 如果是一个字符串，将会尝试转化为一个pytz实例
-      # 如果是一个整数，将会使用某个数据的时区作为时区，如0代表第一个加载进去的数据的时区
+
+      Note: None=UTC, pytz instance converts from UTC, string creates pytz,
+      integer uses timezone from corresponding data feed index.
 
     - ``cheat_on_open`` (default: ``False``)
 
@@ -273,21 +315,17 @@ class Cerebro(ParameterizedBase):
       ``BackBroker(coo=True)`` (where *coo* stands for cheat-on-open) or set
       the ``broker_coo`` parameter to ``True``. Cerebro will do it
       automatically unless disabled below.
-      # 为了方便使用开盘价计算手数设计的，默认是false，我们下单的时候不知道下个bar的open的开盘价，
-      # 如果要下特定金额的话，只能用收盘价替代，如果下个交易日开盘之后高开或者低开，成交的金额可能离
-      # 我们的目标金额很大。
-      # 如果设置成True的话，我们就可以实现这个功能。在每次next之后，在next_open中进行下单，在next_open的时候
-      # 还没有到next, 系统还没有机会执行订单，指标还未能够重新计算，但是我们已经可以获得下个bar的开盘价了，并且可以
-      # 更加精确的计算相应的手数了。
-      # 使用这个功能，同时还需要设置cerebro.broker.set_coo(True)，或者加载broker的时候使用BackBroker(coo=True)，或者
-      # cerebro的参数额外传入一个broker_coo=True
+
+      Note: Enables using next bar's open price for position sizing.
+      Useful for precise capital allocation. Requires broker_coo=True.
 
     - ``broker_coo`` (default: ``True``)
 
       This will automatically invoke the ``set_coo`` method of the broker
       with ``True`` to activate ``cheat_on_open`` execution. Will only do it
       if ``cheat_on_open`` is also ``True``
-      # 这个参数是和上个参数cheat_on_open一块使用的
+
+      Note: Works together with cheat_on_open parameter.
 
     - ``quicknotify`` (default: ``False``)
 
@@ -298,8 +336,9 @@ class Cerebro(ParameterizedBase):
       as possible (see ``qcheck`` in live feeds)
 
       Set to ``False`` for compatibility. May be changed to ``True``
-      # quicknotify，控制broker发送通知的时间，如果设置成False，那么，只有在next的时候才会发送
-      # 设置成True的时候，产生就会立刻发送。
+
+      Note: False delays notifications until next bar. True sends immediately.
+      Mainly relevant for live trading.
 
     """
 
@@ -344,12 +383,15 @@ class Cerebro(ParameterizedBase):
         default=False, type_=bool, doc="Deliver broker notifications quickly"
     )
 
-    # 初始化
     def __init__(self, **kwargs):
-        # 首先调用父类初始化
+        """Initialize Cerebro with optional parameter overrides.
+
+        Args:
+            **kwargs: Parameter overrides (preload, runonce, maxcpus, etc.)
+        """
         super().__init__(**kwargs)
 
-        # 是否实盘，初始化的时候，默认不是实盘
+        # Internal state flags
         self._timerscheat = None
         self._timers = None
         self.runningstrats = None
@@ -360,70 +402,56 @@ class Cerebro(ParameterizedBase):
         self._dorunonce = None
         self._exactbars = None
         self._event_stop = None
-        self._dolive = False
-        # 是否replay,初始化的时候，默认不replay
-        self._doreplay = False
-        # 是否优化，初始化的时候，默认不优化
-        self._dooptimize = False
-        # 保存store
-        self.stores = list()
-        # 保存feed
-        self.feeds = list()
-        # 保存data
-        self.datas = list()
-        # 默认有序字典，根据名字保存数据
-        self.datasbyname = collections.OrderedDict()
-        # 保存策略
-        self.strats = list()
-        # 保存待优化的策略
-        self.optcbs = list()  # holds a list of callbacks for optimizing strategies
-        # 保存observer
-        self.observers = list()
-        # 保存analyzer
-        self.analyzers = list()
-        # 保存indicator
-        self.indicators = list()
-        # 初始化sizer
-        self.sizers = dict()
-        # 保存writer
-        self.writers = list()
-        # 保存storecb
-        self.storecbs = list()
-        # 保存datacb
-        self.datacbs = list()
-        # 保存信号
-        self.signals = list()
-        # 信号策略
-        self._signal_strat = (None, None, None)
-        # 是否允许在有信号没有成交的时候继续执行新的信号，默认不允许
-        self._signal_concurrent = False
-        # 是否允许在有持仓的时候，继续执行信号，默认不允许
-        self._signal_accumulate = False
-        # data的标示号，dataid
-        self._dataid = itertools.count(1)
-        # 使用哪一个broker
-        self._broker = BackBroker()
-        # 给broker设置cerebro属性值
-        self._broker.cerebro = self
-        # 交易日历，默认是None
-        self._tradingcal = None  # TradingCalendar()
-        # 保存pretimer
-        self._pretimers = list()
-        # 保存历史order
-        self._ohistory = list()
-        # fund历史默认是None
-        self._fhistory = None
+        self._dolive = False  # Live trading mode flag
+        self._doreplay = False  # Data replay mode flag
+        self._dooptimize = False  # Optimization mode flag
 
-        # 用传递过来的关键字参数覆盖标准参数
+        # Component containers
+        self.stores = list()  # Data stores
+        self.feeds = list()  # Data feeds
+        self.datas = list()  # Data objects
+        self.datasbyname = collections.OrderedDict()  # Data lookup by name
+        self.strats = list()  # Strategy classes/instances
+        self.optcbs = list()  # Optimization callbacks
+        self.observers = list()  # Observer classes
+        self.analyzers = list()  # Analyzer classes
+        self.indicators = list()  # Indicator classes
+        self.sizers = dict()  # Position sizers
+        self.writers = list()  # Output writers
+        self.storecbs = list()  # Store callbacks
+        self.datacbs = list()  # Data callbacks
+        self.signals = list()  # Signal definitions
+
+        # Signal strategy configuration
+        self._signal_strat = (None, None, None)
+        self._signal_concurrent = False  # Allow concurrent signals
+        self._signal_accumulate = False  # Allow accumulating positions
+
+        # Internal counters and references
+        self._dataid = itertools.count(1)  # Data ID counter
+        self._broker = BackBroker()  # Default broker
+        self._broker.cerebro = self  # Back-reference to cerebro
+        self._tradingcal = None  # Trading calendar
+        self._pretimers = list()  # Pre-run timers
+        self._ohistory = list()  # Order history
+        self._fhistory = None  # Fund history
+
+        # Override parameters from kwargs
         pkeys = self.params._getkeys()
         for key, val in kwargs.items():
             if key in pkeys:
                 setattr(self.params, key, val)
 
-    # 这个函数会把可迭代对象中的每个元素变成都是可迭代的
     @staticmethod
     def iterize(iterable):
-        # Handy function which turns things into things that can be iterated upon including iterables
+        """Convert each element in iterable to be iterable itself.
+
+        Args:
+            iterable: Input iterable whose elements may not be iterable.
+
+        Returns:
+            list: New list where each element is guaranteed to be iterable.
+        """
         niterable = list()
         for elem in iterable:
             if isinstance(elem, string_types):
@@ -438,7 +466,6 @@ class Cerebro(ParameterizedBase):
 
         return niterable
 
-    # 设置fund历史，其中fund是一个可迭代对象，每个元素包含三个元素，时间，每份价值，净资产价值
     def set_fund_history(self, fund):
         """
         Add a history of orders to be directly executed in the broker for
@@ -463,9 +490,6 @@ class Cerebro(ParameterizedBase):
         """
         self._fhistory = fund
 
-    # 增加order历史，orders是一个可迭代对象，每个元素是包含时间、大小、价格三个变量，还可以额外加入data变量
-    # data可能是第一个数据，也可能是一个整数，代表在datas中的index,也可能是一个字符串，代表添加数据的名字
-    # notify如果设置的是True的话，cerebro中添加的第一个策略将会通知订单信息
     def add_order_history(self, orders, notify=True):
         """
         Add a history of orders to be directly executed in the broker for
@@ -507,7 +531,6 @@ class Cerebro(ParameterizedBase):
         """
         self._ohistory.append((orders, notify))
 
-    # 定时器信息通知
     def notify_timer(self, timer, when, *args, **kwargs):
         """Receives a timer notification where ``timer`` is the timer that was
         returned by ``add_timer``, and ``when`` is the calling time. ``args``
@@ -519,7 +542,6 @@ class Cerebro(ParameterizedBase):
         """
         pass
 
-    # 添加定时器
     def _add_timer(
         self,
         owner,
@@ -562,9 +584,6 @@ class Cerebro(ParameterizedBase):
         self._pretimers.append(timer)
         return timer
 
-    # 添加定时器，参数的含义可以参考：
-    # https://yunjinqi.blog.csdn.net/article/details/124560191
-    # https://yunjinqi.blog.csdn.net/article/details/124652096
     def add_timer(
         self,
         when,
@@ -681,8 +700,6 @@ class Cerebro(ParameterizedBase):
             **kwargs,
         )
 
-    # 添加时区,参数含义参考
-    # tz的参数和add_timer中比较类似
     def addtz(self, tz):
         """This can also be done with the parameter ``tz``
 
@@ -703,9 +720,6 @@ class Cerebro(ParameterizedBase):
         """
         self.p.tz = tz
 
-    # 增加日历，具体参数可以参考
-    # https://blog.csdn.net/qq_26948675/article/details/124652314
-    # cal可以是字符串，TradingCalendar的实例，pandas_market_calendars的实例，或者TradingCalendar的子类
     def addcalendar(self, cal):
         """Adds a global trading calendar to the system. Individual data feeds
         may have separate calendars which override the global one
@@ -718,64 +732,54 @@ class Cerebro(ParameterizedBase):
         If a subclass of `TradingCalendarBase` is passed (not an instance), it
         will be instantiated
         """
-        # 如果是字符串或者具有valid_days属性，使用PandasMarketCalendar实例化
+        # Handle string or pandas calendar with valid_days attribute
         if isinstance(cal, string_types):
             cal = PandasMarketCalendar(calendar=cal)
         elif hasattr(cal, "valid_days"):
             cal = PandasMarketCalendar(calendar=cal)
-        # 如果是TradingCalendarBase的子类，直接实例化，如果已经是一个实例，忽略
+        # Handle TradingCalendarBase subclass or instance
         else:
             try:
                 if issubclass(cal, TradingCalendarBase):
                     cal = cal()
             except TypeError:  # already an instance
                 pass
-        # 给_tradingcal赋值
         self._tradingcal = cal
 
-    # 增加信号，这些信号会在后面添加到SignalStrategy中
     def add_signal(self, sigtype, sigcls, *sigargs, **sigkwargs):
-        # Adds a signal to the system which will be later added to a ``SignalStrategy``
+        """Add a signal to be used with SignalStrategy."""
         self.signals.append((sigtype, sigcls, sigargs, sigkwargs))
 
-    # 信号策略及其参数
     def signal_strategy(self, stratcls, *args, **kwargs):
-        # Adds a SignalStrategy subclass which can accept signals
+        """Set a SignalStrategy subclass to receive signals."""
         self._signal_strat = (stratcls, args, kwargs)
 
-    # 是否允许在订单没有成交的时候执行新的信号或者订单
     def signal_concurrent(self, onoff):
-        # If signals are added to the system and the ``concurrent`` value is
-        # set to True, concurrent orders will be allowed
+        """Allow concurrent orders when signals are pending."""
         self._signal_concurrent = onoff
 
-    # 是否允许在有持仓的情况下执行新的订单
     def signal_accumulate(self, onoff):
         """If signals are added to the system and the `accumulate` value is
         set to True, entering the market when already in the market, will be
         allowed to increase a position"""
         self._signal_accumulate = onoff
 
-    # 增加新的store
     def addstore(self, store):
-        # Adds an ``Store`` instance to the stores if not already present
+        """Add a Store instance to the system."""
         if store not in self.stores:
             self.stores.append(store)
 
-    # 增加新的writer
     def addwriter(self, wrtcls, *args, **kwargs):
         """Adds an ``Writer`` class to the mix. Instantiation will be done at
         ``run`` time in cerebro"""
         self.writers.append((wrtcls, args, kwargs))
 
-    # 设置sizer,sizer只能有一个
     def addsizer(self, sizercls, *args, **kwargs):
         """Adds a ``Sizer`` class (and args) which is the default sizer for any
         strategy added to cerebro
         """
         self.sizers[None] = (sizercls, args, kwargs)
 
-    # 根据策略的顺序添加sizer,策略和sizer是根据idx对应的，各个sizer会应用到对应的策略中
     def addsizer_byidx(self, idx, sizercls, *args, **kwargs):
         """Adds a ``Sizer`` class by idx. This idx is a reference compatible to
         the one returned by ``addstrategy``. Only the strategy referenced by
@@ -783,17 +787,14 @@ class Cerebro(ParameterizedBase):
         """
         self.sizers[idx] = (sizercls, args, kwargs)
 
-    # 添加指标
     def addindicator(self, indcls, *args, **kwargs):
-        # Adds an ``Indicator`` class to the mix. Instantiation will be done at ``run`` time in the past strategies
+        """Add an Indicator class to be instantiated at run time."""
         self.indicators.append((indcls, args, kwargs))
 
-    # 添加analyzer
     def addanalyzer(self, ancls, *args, **kwargs):
-        # Adds an ``Analyzer`` class to the mix. Instantiation will be done at``run`` time
+        """Add an Analyzer class to be instantiated at run time."""
         self.analyzers.append((ancls, args, kwargs))
 
-    # 添加observer
     def addobserver(self, obscls, *args, **kwargs):
         """
         Adds an ``Observer`` class to the mix. Instantiation will be done at
@@ -801,7 +802,6 @@ class Cerebro(ParameterizedBase):
         """
         self.observers.append((False, obscls, args, kwargs))
 
-    # 给每个数据都增加一个observer
     def addobservermulti(self, obscls, *args, **kwargs):
         """
 
@@ -812,7 +812,6 @@ class Cerebro(ParameterizedBase):
         """
         self.observers.append((True, obscls, args, kwargs))
 
-    # 增加一个callback用于获取notify_store方法处理的信息
     def addstorecb(self, callback):
         """Adds a callback to get messages which would be handled by the
         notify_store method
@@ -828,14 +827,13 @@ class Cerebro(ParameterizedBase):
         """
         self.storecbs.append(callback)
 
-    # 通知store的信息
     def _notify_store(self, msg, *args, **kwargs):
+        """Internal method to dispatch store notifications."""
         for callback in self.storecbs:
             callback(msg, *args, **kwargs)
 
         self.notify_store(msg, *args, **kwargs)
 
-    # 通知store的信息，可以在cerebro的子类中重写
     def notify_store(self, msg, *args, **kwargs):
         """Receive store notifications in cerebro
 
@@ -848,8 +846,8 @@ class Cerebro(ParameterizedBase):
         """
         pass
 
-    # 对store中的信息进行通知，并传递到每个运行的策略中
     def _storenotify(self):
+        """Process and dispatch store notifications to strategies."""
         for store in self.stores:
             for notif in store.get_notifications():
                 msg, args, kwargs = notif
@@ -858,7 +856,6 @@ class Cerebro(ParameterizedBase):
                 for strat in self.runningstrats:
                     strat.notify_store(msg, *args, **kwargs)
 
-    # 增加一个callable用于获取notify_data通知的信息
     def adddatacb(self, callback):
         """Adds a callback to get messages which would be handled by the
         notify_data method
@@ -874,8 +871,8 @@ class Cerebro(ParameterizedBase):
         """
         self.datacbs.append(callback)
 
-    # 数据信息通知
     def _datanotify(self):
+        """Process and dispatch data notifications to strategies."""
         for data in self.datas:
             for notif in data.get_notifications():
                 status, args, kwargs = notif
@@ -883,14 +880,13 @@ class Cerebro(ParameterizedBase):
                 for strat in self.runningstrats:
                     strat.notify_data(data, status, *args, **kwargs)
 
-    # 通知数据信息
     def _notify_data(self, data, status, *args, **kwargs):
+        """Internal method to dispatch data notifications."""
         for callback in self.datacbs:
             callback(data, status, *args, **kwargs)
 
         self.notify_data(data, status, *args, **kwargs)
 
-    # 通知数据信息
     def notify_data(self, data, status, *args, **kwargs):
         """Receive data notifications in cerebro
 
@@ -903,7 +899,6 @@ class Cerebro(ParameterizedBase):
         """
         pass
 
-    # 增加数据，这个是比较常用的功能
     def adddata(self, data, name=None):
         """
         Adds a ``Data Feed`` instance to the mix.
@@ -911,33 +906,29 @@ class Cerebro(ParameterizedBase):
         If ``name`` is not None, it will be put into ``data._name`` which is
         meant for decoration/plotting purposes.
         """
-        # 如果name不是None的话，就把name赋值给data._name
+        # Set data name if provided
         if name is not None:
             data._name = name
-            # todo 下面是修改的代码，能够直接通过data.name访问data的名称
             data.name = name
-        # data._id每次增加一个数据，就会增加一个
+        # Assign unique ID to each data feed
         data._id = next(self._dataid)
-        # 设置data的环境
+        # Set data's environment to this cerebro
         data.setenvironment(self)
-        # 把data追加到self.datas
+        # Add to data list
         self.datas.append(data)
-        # 根据data._name和data分别作为字典的key和value
+        # Store in name lookup dictionary
         self.datasbyname[data._name] = data
-        # 从data中得到feed
+        # Get feed from data
         feed = data.getfeed()
-        # 如果feed不是None,并且feed没有在feeds中
+        # Add feed if not already present
         if feed and feed not in self.feeds:
-            # 把feed追加到self.feeds中
             self.feeds.append(feed)
-        # 如果data是实时数据，把_dolive的值变为True
+        # Set live mode if data is live
         if data.islive():
             self._dolive = True
 
         return data
 
-    # chaindata的使用方法，把几个数据拼接起来
-    # https://blog.csdn.net/qq_26948675/article/details/124461126
     def chaindata(self, *args, **kwargs):
         """
         Chains several data feeds into one
@@ -955,7 +946,6 @@ class Cerebro(ParameterizedBase):
 
         return d
 
-    # rollover的用法，满足一定条件之后，在不同数据之间切换
     def rolloverdata(self, *args, **kwargs):
         """Chains several data feeds into one
 
@@ -975,7 +965,6 @@ class Cerebro(ParameterizedBase):
 
         return d
 
-    # replay的使用
     def replaydata(self, dataname, name=None, **kwargs):
         """
         Adds a ``Data Feed`` to be replayed by the system
@@ -995,7 +984,6 @@ class Cerebro(ParameterizedBase):
 
         return dataname
 
-    # resample的使用
     def resampledata(self, dataname, name=None, **kwargs):
         """
         Adds a ``Data Feed`` to be resample by the system
@@ -1015,7 +1003,6 @@ class Cerebro(ParameterizedBase):
 
         return dataname
 
-    # 优化的callback
     def optcallback(self, cb):
         """
         Adds a *callback* to the list of callbacks that will be called with the
@@ -1025,7 +1012,6 @@ class Cerebro(ParameterizedBase):
         """
         self.optcbs.append(cb)
 
-    # 优化策略，不推荐使用这个方法，大家考虑忽略
     def optstrategy(self, strategy, *args, **kwargs):
         """
         Adds a ``Strategy`` class to the mix for optimization. Instantiation
@@ -1074,7 +1060,6 @@ class Cerebro(ParameterizedBase):
         it = itertools.product([strategy], optargs, optkwargs)
         self.strats.append(it)
 
-    # 添加策略
     def addstrategy(self, strategy, *args, **kwargs):
         """
         Adds a ``Strategy`` class to the mix for a single pass run.
@@ -1089,7 +1074,6 @@ class Cerebro(ParameterizedBase):
         self.strats.append([(strategy, args, kwargs)])
         return len(self.strats) - 1
 
-    # 设置broker
     def setbroker(self, broker):
         """
         Sets a specific ``broker`` instance for this strategy, replacing the
@@ -1099,7 +1083,6 @@ class Cerebro(ParameterizedBase):
         broker.cerebro = self
         return broker
 
-    # 获取broker
     def getbroker(self):
         """
         Returns the broker instance.
@@ -1110,9 +1093,6 @@ class Cerebro(ParameterizedBase):
 
     broker = property(getbroker, setbroker)
 
-    # 画图，backtrader的画图主要是基于matplotlib,需要考虑升级换代，
-    # todo 后续准备考虑使用pyqt,pyechart,plotly,boken中的一个进行升级
-    # 所以，plot部分相关的代码就不在解读
     def plot(
         self,
         plotter=None,
