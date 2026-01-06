@@ -5,7 +5,7 @@ from ..analyzer import TimeFrameAnalyzerBase
 from ..dataseries import TimeFrame
 
 
-# 使用对数方法计算总的，平均，复合和年化收益率
+# Calculate total, average, compound and annualized returns using logarithmic method
 class Returns(TimeFrameAnalyzerBase):
     """
     Total, Average, Compound and Annualized Returns calculated using a
@@ -69,12 +69,12 @@ class Returns(TimeFrameAnalyzerBase):
 
     """
 
-    # 参数
+    # Parameters
     params = (
         ("tann", None),
         ("fund", None),
     )
-    # 计算年化的时候的天数等
+    # Days etc. for calculating annualization
     _TANN = {
         TimeFrame.Days: 252.0,
         TimeFrame.Weeks: 52.0,
@@ -82,9 +82,9 @@ class Returns(TimeFrameAnalyzerBase):
         TimeFrame.Years: 1.0,
     }
 
-    # 开始
+    # Start
     def __init__(self, *args, **kwargs):
-        # 调用父类的__init__方法以支持timeframe和compression参数
+        # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
         self._value_end = None
@@ -94,30 +94,30 @@ class Returns(TimeFrameAnalyzerBase):
 
     def start(self):
         super().start()
-        # 如果fund是None的话，_fundmode是broker的fundmode，否则就等于fund
+        # If fund is None, _fundmode is broker's fundmode, otherwise equals fund
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-        # 如果fundmode是False的话，获取value,如果不是False的话，获取fundvalue
+        # If fundmode is False, get value, otherwise get fundvalue
         if not self._fundmode:
             self._value_start = self.strategy.broker.getvalue()
         else:
             self._value_start = self.strategy.broker.fundvalue
-        # 统计subperiod
+        # Count subperiods
         self._tcount = 0
 
-    # 停止的时候
+    # When stopping
     def stop(self):
         super().stop()
-        # 如果fundmode是False的话，获取value,如果不是False的话，获取fundvalue
+        # If fundmode is False, get value, otherwise get fundvalue
         if not self._fundmode:
             self._value_end = self.strategy.broker.getvalue()
         else:
             self._value_end = self.strategy.broker.fundvalue
 
         # Compound return
-        # rtot计算的是总的对数收益率
+        # rtot calculates total log returns
         try:
             nlrtot = self._value_end / self._value_start
         except ZeroDivisionError:
@@ -131,14 +131,14 @@ class Returns(TimeFrameAnalyzerBase):
         self.rets["rtot"] = rtot
 
         # Average return
-        # 计算的是平均的收益率,先计算的对数收益率，然后计算的平均的对数收益率
+        # Calculate average return, first calculate log returns, then calculate average log returns
         if self._tcount > 0:
             self.rets["ravg"] = ravg = rtot / self._tcount
         else:
             self.rets["ravg"] = ravg = 0.0
 
         # Annualized normalized return
-        # 计算的是年化的收益率
+        # Calculate annualized return
         tann = self.p.tann or self._TANN.get(self.timeframe, None)
         if tann is None:
             tann = self._TANN.get(self.data._timeframe, 1.0)  # assign default
@@ -147,7 +147,7 @@ class Returns(TimeFrameAnalyzerBase):
             self.rets["rnorm"] = rnorm = math.expm1(ravg * tann)
         else:
             self.rets["rnorm"] = rnorm = ravg
-        # 百分比形式的年化收益率
+        # Annualized return in percentage form
         self.rets["rnorm100"] = rnorm * 100.0  # human-readable %
 
     def on_dt_over(self):

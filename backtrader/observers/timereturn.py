@@ -5,7 +5,7 @@ from ..dataseries import TimeFrame
 from ..observer import Observer
 
 
-# 时间收益率的类
+# Time return class
 class TimeReturn(Observer):
     """This observer stores the *returns* of the strategy.
 
@@ -38,20 +38,20 @@ class TimeReturn(Observer):
     """
 
     _stclock = True
-    # 设置line
+    # Set lines
     lines = ("timereturn",)
-    # plotinfo信息
+    # Plot info
     plotinfo = dict(plot=True, subplot=True)
-    # 设置line
+    # Set plotlines
     plotlines = dict(timereturn=dict(_name="Return"))
-    # 参数
+    # Parameters
     params = (
         ("timeframe", None),
         ("compression", None),
         ("fund", None),
     )
 
-    # 画图时候的标签
+    # Plot labels
     def _plotlabel(self):
         return [
             # Use the final tf/comp values calculated by the return analyzer
@@ -59,10 +59,10 @@ class TimeReturn(Observer):
             str(self.treturn.compression),
         ]
 
-    # 初始化，增加analyzers中的TimeReturn
+    # Initialize, add TimeReturn from analyzers
     def __init__(self):
         self.treturn = self._owner._addanalyzer_slave(TimeReturnAnalyzer, **self.p._getkwargs())
 
-    # 每个next设置当前的收益率
+    # Set current return on each next
     def next(self):
         self.lines.timereturn[0] = self.treturn.rets.get(self.treturn.dtkey, float("NaN"))

@@ -7,7 +7,7 @@ from ..observer import Observer
 __all__ = ["LogReturns", "LogReturns2"]
 
 
-# 获取对数收益率
+# Get log returns
 class LogReturns(Observer):
     """This observer stores the *log returns* of the strategy or a
 
@@ -50,25 +50,25 @@ class LogReturns(Observer):
         ("fund", None),
     )
 
-    # 画图的标签
+    # Plot labels
     def _plotlabel(self):
         return [
             TimeFrame.getname(self.p.timeframe, self.p.compression),
             str(self.p.compression or 1),
         ]
 
-    # 初始化的时候通过LogReturnsRolling计算对数收益率
+    # Calculate log returns via LogReturnsRolling during initialization
     def __init__(self):
         self.logret1 = self._owner._addanalyzer_slave(
             LogReturnsRolling, data=self.data0, **self.p._getkwargs()
         )
 
-    # 给logret1赋值
+    # Assign value to logret1
     def next(self):
         self.lines.logret1[0] = self.logret1.rets[self.logret1.dtkey]
 
 
-# 显示第二个品种的对数收益率
+# Show log returns for the second instrument
 class LogReturns2(LogReturns):
     """Extends the observer LogReturns to show two instruments"""
 

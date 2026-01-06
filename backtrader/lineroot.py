@@ -51,47 +51,47 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         Rich Comparison operator definition
     """
 
-    # 初始化的时候类的属性
-    _OwnerCls = None  # 默认的父类实例是None
-    _minperiod = 1  # 最小周期是1
-    _opstage = 1  # 操作状态默认是1
+    # Class attributes during initialization
+    _OwnerCls = None  # Default parent instance is None
+    _minperiod = 1  # Minimum period is 1
+    _opstage = 1  # Operation state defaults to 1
 
-    # 指标类型、策略类型和观察类型的值分别是0,1,2
+    # Indicator type, strategy type, and observer type values are 0, 1, 2 respectively
     IndType, StratType, ObsType = range(3)
 
-    # 转变操作状态为1
+    # Change operation state to 1
     def _stage1(self):
         self._opstage = 1
 
-    # 转变操作状态为2
+    # Change operation state to 2
     def _stage2(self):
         self._opstage = 2
 
-    # 根据line的操作状态决定调用哪种操作算法
+    # Decide which operation algorithm to call based on line operation state
     def _operation(self, other, operation, r=False, intify=False):
         if self._opstage == 1:
             return self._operation_stage1(other, operation, r=r, intify=intify)
 
         return self._operation_stage2(other, operation, r=r)
 
-    # 自身的操作
+    # Self operation
     def _operationown(self, operation):
         if self._opstage == 1:
             return self._operationown_stage1(operation)
 
         return self._operationown_stage2(operation)
 
-    # 改变lines去实施最小缓存计划
+    # Change lines to implement minimum buffer scheme
     def qbuffer(self, savemem=0):
         """Change the lines to implement a minimum size qbuffer scheme"""
         raise NotImplementedError
 
-    # 需要达到的最小缓存
+    # Minimum buffer required
     def minbuffer(self, size):
         """Receive notification of how large the buffer must at least be"""
         raise NotImplementedError
 
-    # 可以用于在策略中设置最小的周期，可以不用等待指标产生具体的值就开始运行
+    # Can be used to set minimum period in strategy, can start running without waiting for indicators to produce specific values
     def setminperiod(self, minperiod):
         """
         Direct minperiod manipulation.It could be used, for example,
@@ -101,7 +101,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         self._minperiod = minperiod
 
-    # 更新最小周期，最小周期可能在其他地方已经计算产生，跟现有的最小周期对比，选择一个最大的作为最小周期
+    # Update minimum period, minimum period may have been calculated elsewhere, compare with existing minimum period, choose the largest one as minimum period
     def updateminperiod(self, minperiod):
         """
         Update the minperiod if needed. The minperiod will have been
@@ -110,28 +110,28 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         self._minperiod = max(self._minperiod, minperiod)
 
-    # 添加最小周期
+    # Add minimum period
     def addminperiod(self, minperiod):
         """
         Add a minperiod to own ... to be defined by subclasses
         """
         raise NotImplementedError
 
-    # 增加最小周期
+    # Increase minimum period
     def incminperiod(self, minperiod):
         """
         Increment the minperiod with no considerations
         """
         raise NotImplementedError
 
-    # 在最小周期内迭代的时候将会调用这个函数
+    # This function will be called during iteration within minimum period
     def prenext(self):
         """
         It will be called during the "minperiod" phase of an iteration.
         """
         pass
 
-    # 在最小周期迭代结束的时候，即将开始next的时候调用一次
+    # Called once when minimum period iteration ends, about to start next
     def nextstart(self):
         """
         It will be called when the minperiod phase is over for the 1st
@@ -140,21 +140,21 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         self.next()
 
-    # 最小周期迭代结束后，开始调用next
+    # Start calling next after minimum period iteration ends
     def next(self):
         """
         Called to calculate values when the minperiod is over
         """
         pass
 
-    # 在最小周期迭代的时候调用preonce
+    # Call preonce during minimum period iteration
     def preonce(self, start, end):
         """
         It will be called during the "minperiod" phase of a "once" iteration
         """
         pass
 
-    # 在最小周期结束的时候运行一次，调用once
+    # Run once when minimum period ends, call once
     def oncestart(self, start, end):
         """
         It will be called when the minperiod phase is over for the 1st
@@ -165,7 +165,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         self.once(start, end)
 
-    # 当最小周期迭代结束的时候调用用于计算结果
+    # Called to calculate results when minimum period iteration ends
     def once(self, start, end):
         """
         Called to calculate values at "once" when the minperiod is over
@@ -185,7 +185,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             return 1  # Default to 1 line if no lines object available
 
     # Arithmetic operators
-    # 一些算术操作
+    # Some arithmetic operations
     def _makeoperation(self, other, operation, r=False, _ownerskip=None, original_other=None):
         # For LineMultiple, we can implement a basic operation using the first line
         # This provides a fallback when operations are needed
@@ -213,7 +213,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                     return False
                 return 0
 
-    # 做自身操作
+    # Perform self operation
     def _makeoperationown(self, operation, _ownerskip=None):
         # CRITICAL FIX: For bool operations, return a simple boolean result instead of creating objects
         if operation is bool:
@@ -275,18 +275,18 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
                 # If operation fails, return 0 for most operations
                 return 0
 
-    # 自身操作阶段1
+    # Self operation stage 1
     def _operationown_stage1(self, operation):
         """
         Operation with single operand which is "self"
         """
         return self._makeoperationown(operation, _ownerskip=self)
 
-    # 自身操作阶段2
+    # Self operation stage 2
     def _operationown_stage2(self, operation):
         return operation(self[0])
 
-    # 右操作
+    # Right operation
     def _roperation(self, other, operation, intify=False):
         """
         Relies on self._operation to and passes "r" True to define a
@@ -294,7 +294,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
         """
         return self._operation(other, operation, r=True, intify=intify)
 
-    # 阶段1操作，判断other是不是包含多个line,如果有多个line，就取出第一个line,然后进行操作
+    # Stage 1 operation, determine if other contains multiple lines, if multiple lines, take the first line and perform operation
     def _operation_stage1(self, other, operation, r=False, intify=False):
         """
         Two operands' operations.Scanning of other happens to understand
@@ -307,7 +307,7 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
 
         return self._makeoperation(other, operation, r, self, original_other=original_other)
 
-    # 阶段2操作，如果other是一个line，就取出当前值，然后进行操作
+    # Stage 2 operation, if other is a line, take the current value and perform operation
     def _operation_stage2(self, other, operation, r=False):
         """
         Rich Comparison operators. Scans other and returns either an
@@ -360,67 +360,67 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             else:
                 return 0.0  # For arithmetic operations, return 0.0 on error
 
-    # 加
+    # Addition
     def __add__(self, other):
         return self._operation(other, operator.__add__)
 
-    # 右加
+    # Right addition
     def __radd__(self, other):
         return self._roperation(other, operator.__add__)
 
-    # 减
+    # Subtraction
     def __sub__(self, other):
         return self._operation(other, operator.__sub__)
 
-    # 右减
+    # Right subtraction
     def __rsub__(self, other):
         return self._roperation(other, operator.__sub__)
 
-    # 乘
+    # Multiplication
     def __mul__(self, other):
         return self._operation(other, operator.__mul__)
 
-    # 右乘
+    # Right multiplication
     def __rmul__(self, other):
         return self._roperation(other, operator.__mul__)
 
-    # 除
+    # Division
     def __div__(self, other):
         return self._operation(other, operator.__div__)
 
-    # 右除
+    # Right division
     def __rdiv__(self, other):
         return self._roperation(other, operator.__div__)
 
-    # 向下取整数
+    # Floor division
     def __floordiv__(self, other):
         return self._operation(other, operator.__floordiv__)
 
-    # 右向下取整
+    # Right floor division
     def __rfloordiv__(self, other):
         return self._roperation(other, operator.__floordiv__)
 
-    # 真除法
+    # True division
     def __truediv__(self, other):
         return self._operation(other, operator.__truediv__)
 
-    # 右真除法
+    # Right true division
     def __rtruediv__(self, other):
         return self._roperation(other, operator.__truediv__)
 
-    # 幂
+    # Power
     def __pow__(self, other):
         return self._operation(other, operator.__pow__)
 
-    # 右幂
+    # Right power
     def __rpow__(self, other):
         return self._roperation(other, operator.__pow__)
 
-    # 绝对值
+    # Absolute value
     def __abs__(self):
         return self._operationown(operator.__abs__)
 
-    # 取负的结果
+    # Negation result
     def __neg__(self):
         return self._operationown(operator.__neg__)
 

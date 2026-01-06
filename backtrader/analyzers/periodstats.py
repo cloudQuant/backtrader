@@ -8,7 +8,7 @@ from .timereturn import TimeReturn
 __all__ = ["PeriodStats"]
 
 
-# 阶段统计
+# Period statistics
 class PeriodStats(Analyzer):
     """Calculates basic statistics for given timeframe
 
@@ -53,7 +53,7 @@ class PeriodStats(Analyzer):
     will be counted as positive
     """
 
-    # 参数
+    # Parameters
     params = (
         ("timeframe", TimeFrame.Years),
         ("compression", 1),
@@ -61,7 +61,7 @@ class PeriodStats(Analyzer):
         ("fund", None),
     )
 
-    # 初始化，调用TimeReturn
+    # Initialize, call TimeReturn
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
@@ -69,11 +69,11 @@ class PeriodStats(Analyzer):
             timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
         )
 
-    # 停止
+    # Stop
     def stop(self):
-        # 获取收益率，默认是每年的
+        # Get returns, default is annual
         trets = self._tr.get_analysis()  # dict key = date, value = ret
-        # 统计收益率为正，为负，为0的年数
+        # Count years with positive, negative, and zero returns
         pos = nul = neg = 0
         trets = list(itervalues(trets))
         for tret in trets:
@@ -82,22 +82,22 @@ class PeriodStats(Analyzer):
             elif tret < 0.0:
                 neg += 1
             else:
-                # 0是否被看着正收益
+                # Whether 0 is considered positive return
                 if self.p.zeroispos:
                     pos += tret == 0.0
                 else:
                     nul += tret == 0.0
-        # 平均收益率
+        # Average return
         self.rets["average"] = avg = average(trets)
-        # 收益率标准差
+        # Return standard deviation
         self.rets["stddev"] = standarddev(trets, avg)
-        # 正的年数
+        # Number of positive years
         self.rets["positive"] = pos
-        # 负的年数
+        # Number of negative years
         self.rets["negative"] = neg
-        # 没有变化的年数
+        # Number of unchanged years
         self.rets["nochange"] = nul
-        # 最好的年份的收益率
+        # Best year return
         self.rets["best"] = max(trets)
-        # 最差的年份的收益率
+        # Worst year return
         self.rets["worst"] = min(trets)

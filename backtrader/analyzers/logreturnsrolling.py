@@ -70,16 +70,16 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         each return as keys
     """
 
-    # 参数
+    # Parameters
     params = (
         ("data", None),
         ("firstopen", True),
         ("fund", None),
     )
 
-    # 开始
+    # Start
     def __init__(self, *args, **kwargs):
-        # 调用父类的__init__方法以支持timeframe和compression参数
+        # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
         self._value = None
@@ -93,7 +93,7 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-        # 比较特殊的地方在于self._values设置成了一个队列，这里面self.compression这个参数用于控制队列保存多少个元素
+        # The special part is that self._values is set as a queue, where self.compression parameter controls how many elements the queue saves
         # Note: use self.compression (set in _start from data) not self.p.compression (which may be None)
         self._values = collections.deque(
             [float("Nan")] * self.compression, maxlen=self.compression
@@ -112,7 +112,7 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         else:
             self._value = fundvalue if self.p.data is None else self.p.data[0]
 
-    # 在一个新的timeframe中调用一次
+    # Called once in a new timeframe
     def on_dt_over(self):
         # next is called in a new timeframe period
         if self.p.data is None or len(self.p.data) > 1:
@@ -128,11 +128,11 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         # Calculate the return
         super().next()
         # print(self._value,self._values[0])
-        # 策略运行的时候如果亏损太多，可能导致self._value / self._values[0]的值是0,避免这种情况
+        # When the strategy is running, if there are too many losses, self._value / self._values[0] might be 0, avoid this situation
         try:
             self.rets[self.dtkey] = math.log(self._value / self._values[0])
         except Exception:
             # print(e)  # Removed for performance
             self.rets[self.dtkey] = 0
-            # print("计算对数收益率的时候,相应的值小于0")
+            # print("When calculating log returns, the corresponding value is less than 0")
         self._lastvalue = self._value  # keep last value

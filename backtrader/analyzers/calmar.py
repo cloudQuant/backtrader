@@ -9,8 +9,8 @@ from .drawdown import TimeDrawDown
 __all__ = ["Calmar"]
 
 
-# 计算calmar比例，总体上来看，这个calmar计算的并不算是太成功，或者说analyzer,observer等系列指标，使用效率并不是很高，
-# 可以考虑做一个类似pyfolio的分析模块
+# Calculate Calmar ratio. Overall, this Calmar calculation is not very successful, or the analyzer/observer series indicators are not very efficient in usage
+# Consider creating an analysis module similar to pyfolio
 class Calmar(TimeFrameAnalyzerBase):
     """This analyzer calculates the CalmarRatio
     timeframe which can be different from the one used in the underlying data
@@ -55,21 +55,21 @@ class Calmar(TimeFrameAnalyzerBase):
       - ``calmar`` the latest calculated calmar ratio
     """
 
-    # 使用到的模块
+    # Modules used
     packages = (
         "collections",
         "math",
     )
-    # 参数
+    # Parameters
     params = (
         ("timeframe", TimeFrame.Months),  # default in calmar
         ("period", 36),
         ("fund", None),
     )
 
-    # 计算最大回撤
+    # Calculate max drawdown
     def __init__(self, *args, **kwargs):
-        # 调用父类的__init__方法以支持timeframe和compression参数
+        # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
         self.calmar = None
@@ -78,36 +78,36 @@ class Calmar(TimeFrameAnalyzerBase):
         self._mdd = None
         self._maxdd = TimeDrawDown(timeframe=self.p.timeframe, compression=self.p.compression)
 
-    # 开始
+    # Start
     def start(self):
-        # 最大回撤率
+        # Max drawdown rate
         self._mdd = float("-inf")
-        # 双向队列，保存period个值，默认是36个
+        # Double-ended queue, saves period values, default is 36
         self._values = collections.deque([float("Nan")] * self.p.period, maxlen=self.p.period)
         # fundmode
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-        # 根据fundmode添加不同的值到self._values中
+        # Add different values to self._values based on fundmode
         if not self._fundmode:
             self._values.append(self.strategy.broker.getvalue())
         else:
             self._values.append(self.strategy.broker.fundvalue)
 
     def on_dt_over(self):
-        # 最大回撤率
+        # Max drawdown rate
         self._mdd = max(self._mdd, self._maxdd.maxdd)
-        # 添加值到self._values中
+        # Add value to self._values
         if not self._fundmode:
             self._values.append(self.strategy.broker.getvalue())
         else:
             self._values.append(self.strategy.broker.fundvalue)
-        # 默认情况下计算得到平均每个月的收益率
+        # Calculate average monthly return by default
         rann = math.log(self._values[-1] / self._values[0]) / len(self._values)
-        # 计算calmar指标
+        # Calculate Calmar indicator
         self.calmar = calmar = rann / (self._mdd or float("Inf"))
-        # 保存结果
+        # Save result
         self.rets[self.dtkey] = calmar
 
     def stop(self):

@@ -4,7 +4,7 @@ from ..analyzers import DrawDown as DrawDownAnalyzer
 from ..observer import Observer
 
 
-# 回撤
+# Drawdown
 class DrawDown(Observer):
     """This observer keeps track of the current drawdown level (plotted) and
     the maxdrawdown (not plotted) levels
@@ -43,13 +43,13 @@ class DrawDown(Observer):
         kwargs = self.p._getkwargs()
         self._dd = self._owner._addanalyzer_slave(DrawDownAnalyzer, **kwargs)
 
-    # 设置回撤和最大回撤的值
+    # Set drawdown and max drawdown values
     def next(self):
         self.lines.drawdown[0] = self._dd.rets.drawdown  # update drawdown
         self.lines.maxdrawdown[0] = self._dd.rets.max.drawdown  # update max
 
 
-# 回撤的长度
+# Drawdown length
 class DrawDownLength(Observer):
     """This observer keeps track of the current drawdown length (plotted) and
     the drawdown max length (not plotted)
@@ -75,13 +75,13 @@ class DrawDownLength(Observer):
     def __init__(self):
         self._dd = self._owner._addanalyzer_slave(DrawDownAnalyzer)
 
-    # 设置回撤长度和最大回撤长度
+    # Set drawdown length and max drawdown length
     def next(self):
         self.lines.len[0] = self._dd.rets.len  # update drawdown length
         self.lines.maxlen[0] = self._dd.rets.max.len  # update max length
 
 
-# 最大回撤旧的方法，通过在这个类里面计算，而不是调用analyzers中的DrawDown
+# Old method for max drawdown, calculated within this class instead of calling DrawDown from analyzers
 class DrawDownOld(Observer):
     """This observer keeps track of the current drawdown level (plotted) and
     the maxdrawdown (not plotted) levels

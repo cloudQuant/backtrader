@@ -3,7 +3,7 @@ from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 
 
-# 持仓价值
+# Position value
 class PositionsValue(Analyzer):
     """This analyzer reports the value of the positions of the current set of
     datas
@@ -40,37 +40,37 @@ class PositionsValue(Analyzer):
         each return as keys
     """
 
-    # 参数
+    # Parameters
     params = (
         ("headers", False),
         ("cash", False),
     )
 
-    # 开始
+    # Start
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         self._usedate = None
 
     def start(self):
-        # 如果headers参数是True,每个data的命字作为header
+        # If headers parameter is True, use each data's name as header
         if self.p.headers:
             headers = [d._name or "Data%d" % i for i, d in enumerate(self.datas)]
-            # 如果cash是True的话，也会保存cash
+            # If cash is True, also save cash
             self.rets["Datetime"] = headers + ["cash"] * self.p.cash
-        # 时间周期
+        # Time period
         tf = min(d._timeframe for d in self.datas)
-        # 如果时间周期大于等于日，usedate参数设置成True
+        # If time period >= Days, set usedate parameter to True
         self._usedate = tf >= TimeFrame.Days
 
-    # 每个bar调用一次
+    # Called once per bar
     def next(self):
-        # 获取每个数据的value
+        # Get value for each data
         pvals = [self.strategy.broker.get_value([d]) for d in self.datas]
-        # 如果cash是True的话，保存cash
+        # If cash is True, save cash
         if self.p.cash:
             pvals.append(self.strategy.broker.get_cash())
-        # 如果usedate是True,使用date作为key,否则使用datetime作为key
+        # If usedate is True, use date as key, otherwise use datetime as key
         if self._usedate:
             self.rets[self.strategy.datetime.date()] = pvals
         else:

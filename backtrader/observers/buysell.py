@@ -5,7 +5,7 @@ import math
 from ..observer import Observer
 
 
-# 买卖点标记
+# Buy and sell point markers
 class BuySell(Observer):
     """
     This observer keeps track of the individual buy/sell orders (individual
@@ -45,12 +45,12 @@ class BuySell(Observer):
     def next(self):
         buy = list()
         sell = list()
-        # 如果有订单存在
+        # If there are pending orders
         for order in self._owner._orderspending:
-            # 如果没有这个数据或者size是0，继续
+            # If no data or size is 0, skip
             if order.data is not self.data or not order.executed.size:
                 continue
-            # 如果是买订单，添加到buy里面价格，如果是卖订单，添加到卖里面价格
+            # If it's a buy order, add price to buy, if it's a sell order, add price to sell
             if order.isbuy():
                 buy.append(order.executed.price)
             else:
@@ -60,21 +60,21 @@ class BuySell(Observer):
         # Write down the average buy/sell price
 
         # BUY
-        # 获取buy的价格
+        # Get buy price
         curbuy = self.lines.buy[0]
-        # 如果是NaN,curbuy等于0，curbuylen=0,否则，curbuylen = self.curbuylen
+        # If NaN, curbuy equals 0, curbuylen=0, otherwise, curbuylen = self.curbuylen
         if curbuy != curbuy:  # NaN
             curbuy = 0.0
             self.curbuylen = curbuylen = 0
         else:
             curbuylen = self.curbuylen
-        # 当前总体价格
+        # Current total price
         buyops = curbuy + math.fsum(buy)
-        # 当前总体订单数
+        # Current total order count
         buylen = curbuylen + len(buy)
-        # 计算平均价格
+        # Calculate average price
         value = buyops / float(buylen or "NaN")
-        # 如果不画图，得到平均价格，如果画图，得到最低价格的一定比例，用于方便显示
+        # If not plotting, get average price, if plotting, get a percentage of lowest price for better display
         if not self.p.barplot:
             self.lines.buy[0] = value
         elif value == value:  # Not NaN
@@ -85,7 +85,7 @@ class BuySell(Observer):
         curbuy = buyops
         self.curbuylen = buylen
 
-        # 对于卖订单，还是比较类似的
+        # For sell orders, similar logic
         # SELL
         cursell = self.lines.sell[0]
         if cursell != cursell:  # NaN

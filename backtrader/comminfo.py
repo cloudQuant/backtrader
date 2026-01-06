@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """
-重构后的CommInfo系统 (Day 44)
+Refactored CommInfo system (Day 44)
 
-将CommInfo系统从MetaParams迁移到新的ParameterizedBase系统。
-保持完全向后兼容的API接口。
+Migrated CommInfo system from MetaParams to new ParameterizedBase system.
+Maintains fully backward compatible API interface.
 """
 
 from .parameters import BoolParam, Float, ParameterDescriptor, ParameterizedBase
@@ -28,81 +28,81 @@ class CommInfoBase(ParameterizedBase):
       - leverage (def: 1.0): amount of leverage for the asset
     """
 
-    # 佣金类型常量
+    # Commission type constants
     COMM_PERC, COMM_FIXED = 0, 1
 
-    # 参数描述符定义
+    # Parameter descriptor definitions
     commission = ParameterDescriptor(
         default=0.0,
         type_=float,
-        validator=Float(min_val=0.0),  # 非负验证
-        doc="基础佣金，百分比或货币单位",
+        validator=Float(min_val=0.0),  # Non-negative validation
+        doc="Base commission, percentage or monetary units",
     )
 
     mult = ParameterDescriptor(
         default=1.0,
         type_=float,
         validator=Float(min_val=0.001),
-        doc="资产乘数",  # 必须为正
+        doc="Asset multiplier",  # Must be positive
     )
 
-    margin = ParameterDescriptor(default=None, doc="保证金数量")
+    margin = ParameterDescriptor(default=None, doc="Margin amount")
 
     commtype = ParameterDescriptor(
-        default=None, type_=(int, type(None)), doc="佣金类型 (COMM_PERC/COMM_FIXED)"
+        default=None, type_=(int, type(None)), doc="Commission type (COMM_PERC/COMM_FIXED)"
     )
 
-    stocklike = BoolParam(default=False, doc="是否为股票类型")
+    stocklike = BoolParam(default=False, doc="Whether stock type")
 
-    percabs = BoolParam(default=False, doc="百分比是否为绝对值")
+    percabs = BoolParam(default=False, doc="Whether percentage is absolute value")
 
     interest = ParameterDescriptor(
         default=0.0,
         type_=float,
         validator=Float(min_val=0.0),
-        doc="年利率",  # 非负验证
+        doc="Annual interest rate",  # Non-negative validation
     )
 
-    interest_long = BoolParam(default=False, doc="多头是否收取利息")
+    interest_long = BoolParam(default=False, doc="Whether to charge interest on long positions")
 
     leverage = ParameterDescriptor(
         default=1.0,
         type_=float,
         validator=Float(min_val=0.001),
-        doc="杠杆水平",  # 必须为正
+        doc="Leverage level",  # Must be positive
     )
 
-    automargin = ParameterDescriptor(default=False, type_=(bool, float), doc="自动保证金计算")
+    automargin = ParameterDescriptor(default=False, type_=(bool, float), doc="Automatic margin calculation")
 
     def __init__(self, **kwargs):
-        """初始化CommInfo对象"""
+        """Initialize CommInfo object"""
         super().__init__()
 
-        # 特殊处理margin参数的None值验证
+        # Special handling for margin parameter None value validation
         if "margin" in kwargs:
             margin_value = kwargs["margin"]
             if margin_value is not None and margin_value < 0.0:
                 raise ValueError(f"margin must be non-negative, got {margin_value}")
 
-        # 设置传入的参数
+        # Set passed parameters
         for name, value in kwargs.items():
             if name in self._param_manager._descriptors:
-                # 跳过margin的标准验证，已在上面处理
+                # Skip margin standard validation, already handled above
                 if name == "margin":
                     self._param_manager.set(name, value, skip_validation=True)
                 else:
                     self.set_param(name, value)
 
-        # 执行参数后处理和兼容性设置
+        # Execute parameter post-processing and compatibility settings
         self._post_init_setup()
 
     def _post_init_setup(self):
-        """参数后处理和内部状态设置"""
-        # 从参数获取初始值
+        """Parameter post-processing and internal state setup"""
+        # Get initial values from parameters
         self._stocklike = self.get_param("stocklike")
         self._commtype = self.get_param("commtype")
 
-        # 兼容性逻辑：如果commtype为None，根据margin设置类型（与原始实现一致）
+        # Compatibility logic: if commtype is None, set type based on margin (consistent with original implementation)
         if self._commtype is None:
             if self.get_param("margin"):
                 self._stocklike = False
@@ -111,18 +111,18 @@ class CommInfoBase(ParameterizedBase):
                 self._stocklike = True
                 self._commtype = self.COMM_PERC
 
-        # 参数后处理（与原始实现保持一致）
+        # Parameter post-processing (consistent with original implementation)
         if not self._stocklike and not self.get_param("margin"):
-            # 直接修改参数管理器中的值，避免验证问题
+            # Directly modify value in parameter manager to avoid validation issues
             self._param_manager.set("margin", 1.0, skip_validation=True)
 
-        # 处理百分比佣金转换（重要！与原始实现保持一致）
+        # Handle percentage commission conversion (important! consistent with original implementation)
         if self._commtype == self.COMM_PERC and not self.get_param("percabs"):
             current_commission = self.get_param("commission")
-            # 直接修改参数值，避免重复转换
+            # Directly modify parameter value to avoid duplicate conversion
             self._param_manager.set("commission", current_commission / 100.0, skip_validation=True)
 
-        # 计算利率
+        # Calculate interest rate
         self._creditrate = self.get_param("interest") / 365.0
 
     def __getattribute__(self, name):
@@ -254,11 +254,11 @@ class CommissionInfo(CommInfoBase):
     The default value of ``percabs`` is also changed to ``True``
     """
 
-    percabs = BoolParam(default=True, doc="百分比是否为绝对值")
+    percabs = BoolParam(default=True, doc="Whether percentage is absolute value")
 
 
 class ComminfoDC(CommInfoBase):
-    """数字货币的佣金类"""
+    """Digital currency commission class"""
 
     stocklike = ParameterDescriptor(default=False, type_=bool)
     commtype = ParameterDescriptor(default=CommInfoBase.COMM_PERC, type_=int)
@@ -276,7 +276,7 @@ class ComminfoDC(CommInfoBase):
         return price * mult * margin
 
     def get_credit_interest(self, data, pos, dt):
-        """数字货币利息计算的简化实现"""
+        """Simplified implementation for digital currency interest calculation"""
         size, price = pos.size, pos.price
         dt0 = dt
         dt1 = pos.datetime
@@ -286,7 +286,7 @@ class ComminfoDC(CommInfoBase):
         mult = self.get_param("mult")
         position_value = size * price * mult
 
-        # 简化的利息计算逻辑
+        # Simplified interest calculation logic
         total_value = self.broker.getvalue() if hasattr(self, "broker") else abs(position_value)
         if size > 0 and position_value > total_value:
             return days * self._creditrate * (position_value - total_value)
@@ -298,7 +298,7 @@ class ComminfoDC(CommInfoBase):
 
 
 class ComminfoFuturesPercent(CommInfoBase):
-    """期货百分比佣金类"""
+    """Futures percentage commission class"""
 
     commission = ParameterDescriptor(default=0.0, type_=float)
     mult = ParameterDescriptor(default=1.0, type_=float)
@@ -319,7 +319,7 @@ class ComminfoFuturesPercent(CommInfoBase):
 
 
 class ComminfoFuturesFixed(CommInfoBase):
-    """期货固定佣金类"""
+    """Futures fixed commission class"""
 
     commission = ParameterDescriptor(default=0.0, type_=float)
     mult = ParameterDescriptor(default=1.0, type_=float)
@@ -339,7 +339,7 @@ class ComminfoFuturesFixed(CommInfoBase):
 
 
 class ComminfoFundingRate(CommInfoBase):
-    """资金费率类"""
+    """Funding rate class"""
 
     commission = ParameterDescriptor(default=0.0, type_=float)
     mult = ParameterDescriptor(default=1.0, type_=float)
@@ -360,10 +360,10 @@ class ComminfoFundingRate(CommInfoBase):
         return price * mult * margin
 
     def get_credit_interest(self, data, pos, dt):
-        """计算币安合约的资金费率"""
+        """Calculate funding rate for Binance futures"""
         size, price = pos.size, pos.price
 
-        # 计算当前的持仓价值
+        # Calculate current position value
         try:
             current_price = data.mark_price_open[1]
         except (IndexError, AttributeError):
@@ -372,7 +372,7 @@ class ComminfoFundingRate(CommInfoBase):
         mult = self.get_param("mult")
         position_value = size * current_price * mult
 
-        # 得到当前的资金费率
+        # Get current funding rate
         try:
             funding_rate = data.current_funding_rate[1]
         except (IndexError, AttributeError):

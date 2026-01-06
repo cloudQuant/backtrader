@@ -3,7 +3,7 @@
 from ..observer import Observer
 
 
-# 这个类保存所有的trade和trade关闭的时候画出来pnl
+# This class saves all trades and plots PnL when trade is closed
 class Trades(Observer):
     """This observer keeps track of full trades and plots the PnL level achieved
     when a trade is closed.
@@ -19,13 +19,13 @@ class Trades(Observer):
         it will show the result of trades before commission
     """
 
-    # 属性
+    # Attributes
     _stclock = True
-    # 两条line
+    # Two lines
     lines = ("pnlplus", "pnlminus")
-    # 参数
+    # Parameters
     params = dict(pnlcomm=True)
-    # 画图的时候的plotinfo
+    # Plot info when plotting
     plotinfo = dict(
         plot=True,
         subplot=True,
@@ -33,7 +33,7 @@ class Trades(Observer):
         plotymargin=0.10,
         plothlines=[0.0],
     )
-    # 画图的时候line的设置
+    # Line settings when plotting
     plotlines = dict(
         pnlplus=dict(
             _name="Positive", ls="", marker="o", color="blue", markersize=8.0, fillstyle="full"
@@ -43,7 +43,7 @@ class Trades(Observer):
         ),
     )
 
-    # 初始化具trades相关的值
+    # Initialize trades-related values
     def __init__(self):
         self.trades = 0
 
@@ -69,17 +69,17 @@ class Trades(Observer):
         self.trades_length_min = 0
 
     def next(self):
-        # 对于存在的trade
+        # For existing trades
         for trade in self._owner._tradespending:
-            # 如果trade的data没有数据了，忽略
+            # If trade's data has no data, skip
             if trade.data not in self.ddatas:
                 continue
-            # 如果trade并不是平仓，忽略
+            # If trade is not closed, skip
             if not trade.isclosed:
                 continue
-            # 如果是平仓，如果trade的净利润存在，pnl就等于净利润，如果不存在，pnl就等于利润
+            # If closed, if trade's net profit exists, pnl equals net profit, otherwise pnl equals profit
             pnl = trade.pnlcomm if self.p.pnlcomm else trade.pnl
-            # 如果pnl大于0，就画到pnlplus这条线上，如果小于0，就画到pnlminus这条线上
+            # If pnl > 0, plot on pnlplus line, if < 0, plot on pnlminus line
             if pnl >= 0.0:
                 self.lines.pnlplus[0] = pnl
             else:

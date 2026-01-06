@@ -5,7 +5,7 @@ from ..utils import AutoOrderedDict
 __all__ = ["DrawDown", "TimeDrawDown"]
 
 
-# 分析回撤的情况
+# Analyze drawdown situation
 class DrawDown(Analyzer):
     """This analyzer calculates trading system drawdowns stats such as drawdown
     values in %s and in dollars, max drawdown in %s and in dollars, drawdown
@@ -40,7 +40,7 @@ class DrawDown(Analyzer):
 
     params = (("fund", None),)
 
-    # 开始，获取fundmode
+    # Start, get fundmode
     def start(self):
         super().start()
         if self.p.fund is None:
@@ -50,7 +50,7 @@ class DrawDown(Analyzer):
             # self._fundmode = self.p.fund
             setattr(self, "_fundmode", self.p.fund)
 
-    # 创建需要分析的指标值
+    # Create indicator values to analyze
     def create_analysis(self):
         self.rets = AutoOrderedDict()  # dict with. notation
 
@@ -64,11 +64,11 @@ class DrawDown(Analyzer):
 
         self._maxvalue = float("-inf")  # any value will outdo it
 
-    # 停止
+    # Stop
     def stop(self):
         self.rets._close()  # . notation cannot create more keys
 
-    # 通知fund的情况
+    # Notify fund situation
     def notify_fund(self, cash, value, fundvalue, shares):
         if not self._fundmode:
             self._value = value  # record current value
@@ -92,7 +92,7 @@ class DrawDown(Analyzer):
         r.max.len = max(r.max.len, r.len)
 
 
-# 分析时间回撤情况(最大回撤)
+# Analyze time drawdown situation (max drawdown)
 class TimeDrawDown(TimeFrameAnalyzerBase):
     """This analyzer calculates trading system drawdowns on the chosen
     timeframe which can be different from the one used in the underlying data
@@ -143,7 +143,7 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
     params = (("fund", None),)
 
     def __init__(self, *args, **kwargs):
-        # 调用父类的__init__方法以支持timeframe和compression参数
+        # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
         self.ddlen = None
@@ -160,14 +160,14 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-        # 初始化参数
+        # Initialize parameters
         self.dd = 0.0
         self.maxdd = 0.0
         self.maxddlen = 0
         self.peak = float("-inf")
         self.ddlen = 0
 
-    # 统计最大回撤以及最大回撤的长度
+    # Calculate max drawdown and max drawdown length
     def on_dt_over(self):
         if not self._fundmode:
             value = self.strategy.broker.getvalue()
@@ -187,7 +187,7 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
         self.maxdd = max(self.maxdd, dd)
         self.maxddlen = max(self.maxddlen, self.ddlen)
 
-    # 停止的时候，把最大回撤和最大回撤长度添加到字典中
+    # When stopping, add max drawdown and max drawdown length to dictionary
     def stop(self):
         self.rets["maxdrawdown"] = self.maxdd
         self.rets["maxdrawdownperiod"] = self.maxddlen

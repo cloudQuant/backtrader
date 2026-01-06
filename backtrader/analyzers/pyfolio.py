@@ -11,7 +11,7 @@ from .timereturn import TimeReturn
 from .transactions import Transactions
 
 
-# pyfolio的分析模块
+# pyfolio analysis module
 class PyFolio(Analyzer):
     """This analyzer uses 4 children analyzers to collect data and transforms it
     in to a data set compatible with ``pyfolio``
@@ -61,10 +61,10 @@ class PyFolio(Analyzer):
         each return as keys
     """
 
-    # 参数
+    # Parameters
     params = (("timeframe", TimeFrame.Days), ("compression", 1))
 
-    # 初始化
+    # Initialize
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
@@ -75,7 +75,7 @@ class PyFolio(Analyzer):
         self._transactions = Transactions(headers=True)
         self._gross_lev = GrossLeverage()
 
-    # 停止的时候，获取几个分析结果
+    # When stopping, get several analysis results
     def stop(self):
         super().stop()
         self.rets["returns"] = self._returns.get_analysis()
@@ -83,7 +83,7 @@ class PyFolio(Analyzer):
         self.rets["transactions"] = self._transactions.get_analysis()
         self.rets["gross_lev"] = self._gross_lev.get_analysis()
 
-    # 对上面四个analyzer的结果进行调整，以便得到pyfolio需要的输入的信息
+    # Adjust the results of the above four analyzers to get the input information required by pyfolio
     def get_pf_items(self):
         """Returns a tuple of 4 elements which can be used for further processing with
           ``pyfolio``
@@ -99,7 +99,7 @@ class PyFolio(Analyzer):
         """
         # keep import local to avoid disturbing installations with no pandas
         # Returns
-        # 处理returns
+        # Process returns
         cols = ["index", "return"]
         returns = pd.DataFrame.from_records(
             iteritems(self.rets["returns"]), index=cols[0], columns=cols
@@ -109,7 +109,7 @@ class PyFolio(Analyzer):
         rets = returns["return"]
         #
         # Positions
-        # 处理position
+        # Process position
         pss = self.rets["positions"]
         # ps = [[k] + v[-2:] for k, v in iteritems(pss)]
         ps = [[k] + v for k, v in iteritems(pss)]
@@ -121,7 +121,7 @@ class PyFolio(Analyzer):
 
         #
         # Transactions
-        # 处理transcations
+        # Process transactions
         txss = self.rets["transactions"]
         txs = list()
         # The transactions have a common key (date) and can potentially happend
@@ -138,7 +138,7 @@ class PyFolio(Analyzer):
         transactions.index = transactions.index.tz_localize("UTC")
 
         # Gross Leverage
-        # 处理leverage
+        # Process leverage
         cols = ["index", "gross_lev"]
         gross_lev = pd.DataFrame.from_records(
             iteritems(self.rets["gross_lev"]), index=cols[0], columns=cols
@@ -149,5 +149,5 @@ class PyFolio(Analyzer):
         glev = gross_lev["gross_lev"]
 
         # Return all together
-        # 返回所有的结果
+        # Return all results
         return rets, positions, transactions, glev

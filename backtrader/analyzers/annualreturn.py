@@ -7,7 +7,7 @@ from ..utils.date import num2date
 from ..utils.py3 import range
 
 
-# 计算每年的收益率，感觉算法实现有些复杂，后面写了一个用pandas实现的版本MyAnnualReturn，逻辑上简单了很多
+# Calculate annual returns. The algorithm implementation is somewhat complex, so a pandas-based version MyAnnualReturn was written later with much simpler logic
 class AnnualReturn(Analyzer):
     """
     This analyzer calculates the AnnualReturns by looking at the beginning
@@ -30,12 +30,12 @@ class AnnualReturn(Analyzer):
 
     def __init__(self):
         super().__init__()
-        # 缓存数据
+        # Cache data
         self._dt_cache = []
         self._value_cache = []
 
     def next(self):
-        # 每次next被调用时，缓存当前的日期和账户价值
+        # Cache current date and account value each time next is called
         dt_val = self.data.datetime[0]
         value_val = self.strategy.broker.getvalue()
         self._dt_cache.append(dt_val)
@@ -43,34 +43,34 @@ class AnnualReturn(Analyzer):
 
     def stop(self):
         # Must have stats.broker
-        # 当前年份
+        # Current year
         cur_year = -1
-        # 开始value
+        # Start value
         value_start = 0.0
-        # todo 这个值没有使用到，注释掉
-        # value_cur = 0.0   # 当前value
-        # 结束value
+        # todo This value is not used, commented out
+        # value_cur = 0.0   # Current value
+        # End value
         value_end = 0.0
-        # 保存收益率数据
-        # todo 直接设置在pycharm中会警告，提示在__init__外面设置属性值, 使用hasattr和setattr设置具体的属性值
+        # Save return data
+        # todo Directly setting in PyCharm will warn about setting attribute values outside __init__, use hasattr and setattr to set specific attribute values
         # self.rets = list()  #
         # self.ret = OrderedDict()
         setattr(self, "rets", list())
         setattr(self, "ret", OrderedDict())
 
-        # 使用缓存的数据进行计算
+        # Calculate using cached data
         for i in range(len(self._dt_cache)):
             dt_val = self._dt_cache[i]
             value_cur = self._value_cache[i]
 
-            # 转换日期
+            # Convert date
             try:
                 dt = num2date(dt_val)
             except Exception:
                 continue
 
-            # 如果i的时候的年份大于当前年份，如果当前年份大于0，计算收益率，并保存到self.ret中，并且开始价值等于结束价值
-            # 当年份不等的时候，表明当前i是新的一年
+            # If the year at index i is greater than current year, if current year > 0, calculate return and save to self.ret, and start value equals end value
+            # When years are not equal, it indicates current i is a new year
             if dt.year > cur_year:
                 if cur_year >= 0:
                     if value_start != 0:
@@ -90,7 +90,7 @@ class AnnualReturn(Analyzer):
 
             # No matter what, the last value is always the last loaded value
             value_end = value_cur
-        # 如果当前年份还没有结束，收益率还没有计算，在最后即使不满足一年的条件下，也进行计算下
+        # If current year hasn't ended and return hasn't been calculated, calculate at the end even if less than a full year
         if cur_year not in self.ret:
             # finish calculating pending data
             if value_start != 0:
@@ -125,21 +125,21 @@ class MyAnnualReturn(Analyzer):
     """
 
     def stop(self):
-        # 保存数据的容器---字典
+        # Container for saving data - dictionary
         if not hasattr(self, "ret"):
             setattr(self, "ret", OrderedDict())
-        # 获取数据的时间，并转化为date
+        # Get data time and convert to date
         dt_list = self.data.datetime.get(0, size=len(self.data))
         dt_list = [num2date(i) for i in dt_list]
-        # 获取账户的资产
+        # Get account assets
         value_list = self.strategy.stats.broker.value.get(0, size=len(self.data))
-        # 转化为pandas格式
+        # Convert to pandas format
         import pandas as pd
 
         df = pd.DataFrame([dt_list, value_list]).T
         df.columns = ["datetime", "value"]
         df["pre_value"] = df["value"].shift(1)
-        # 计算每年的持有获得的简单收益率
+        # Calculate simple returns for each year
         df["year"] = [i.year for i in df["datetime"]]
         for year, data in df.groupby("year"):
             begin_value = list(data["pre_value"])[0]

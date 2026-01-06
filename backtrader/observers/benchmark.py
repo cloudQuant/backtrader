@@ -4,7 +4,7 @@ from ..analyzers.timereturn import TimeReturn as TimeReturnAnalyzer
 from .timereturn import TimeReturn
 
 
-# 基准
+# Benchmark
 class Benchmark(TimeReturn):
     """This observer stores the *returns* of the strategy and the *return* of a
     reference asset which is one of the datas passed to the system.
@@ -77,7 +77,7 @@ class Benchmark(TimeReturn):
         labels.append(self.p.data._name)
         return labels
 
-    # 初始化，如果没有设置data,用第一个data
+    # Initialize, if no data set, use first data
     def __init__(self):
         if self.p.data is None:  # use the 1st data in the system if none given
             self.p.data = self.data0
@@ -86,13 +86,13 @@ class Benchmark(TimeReturn):
         # Create a time return object without the data
         kwargs = self.p._getkwargs()
         kwargs.update(data=None)  # to create a return for the strategy
-        # 获取收益率
+        # Get return rate
         t = self._owner._addanalyzer_slave(TimeReturnAnalyzer, **kwargs)
 
         # swap for consistency
         self.treturn, self.tbench = t, self.treturn
 
-    # 设置benchmark的值
+    # Set benchmark value
     def next(self):
         super().next()
         self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey, float("NaN"))

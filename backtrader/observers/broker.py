@@ -2,7 +2,7 @@
 from ..observer import Observer
 
 
-# 获取cash
+# Get cash
 class Cash(Observer):
     """This observer keeps track the current amount of cash in the broker
 
@@ -19,7 +19,7 @@ class Cash(Observer):
         self.lines[0][0] = self._owner.broker.getcash()
 
 
-# 获取value
+# Get value
 class Value(Observer):
     """This observer keeps track of the current portfolio value in the broker
     including the cash
@@ -61,7 +61,7 @@ class Value(Observer):
             self.lines[0][0] = self._owner.broker.fundvalue
 
 
-# 同时获取cash和value
+# Get both cash and value
 class Broker(Observer):
     """This observer keeps track of the current cash amount and portfolio value in
     the broker (including the cash)
@@ -117,7 +117,7 @@ class FundValue(Observer):
         self.lines.fundval[0] = self._owner.broker.fundvalue
 
 
-# 基金份额
+# Fund shares
 class FundShares(Observer):
     """This observer keeps track of the current fund-like shares
 

@@ -9,13 +9,13 @@ from .utils.py3 import cmp, range
 
 
 # Generate a List equivalent which uses "is" for contains
-# 创建一个新的List类,改写了__contains__方法,如果list中有一个元素的哈希值等于other的哈希值，那么就返回True
+# Create a new List class, overriding __contains__ method, if any element in list has hash value equal to other's hash value, return True
 class List(list):
     def __contains__(self, other):
         return any(x.__hash__() == other.__hash__() for x in self)
 
 
-# 创建一个类，把其中的元素进行序列化
+# Create a class to serialize elements within it
 class Logic(LineActions):
     def __init__(self, *args):
         super(Logic, self).__init__()
@@ -33,7 +33,7 @@ class Logic(LineActions):
             self.updateminperiod(max_minperiod)
 
 
-# 避免两个line想除的时候有值是0，如果分母是0,除以得到的值是0
+# Avoid division by zero when dividing two lines, if denominator is 0, division result is 0
 class DivByZero(Logic):
     """This operation is a Lines object and fills it values by executing a
     division on the numerator / denominator arguments and avoiding a division
@@ -68,7 +68,7 @@ class DivByZero(Logic):
             dst[i] = srca[i] / b if b else zero
 
 
-# 考虑分母分子都可能是0的两个line的想除操作
+# Division operation for two lines considering both numerator and denominator may be 0
 class DivZeroByZero(Logic):
     """This operation is a Lines object and fills it values by executing a
     division on the numerator / denominator arguments and avoiding a division
@@ -114,7 +114,7 @@ class DivZeroByZero(Logic):
                 dst[i] = a / b
 
 
-# 对比a和b,a和b很可能是line
+# Compare a and b, a and b are likely lines
 class Cmp(Logic):
     def __init__(self, a, b):
         super(Cmp, self).__init__(a, b)
@@ -134,8 +134,8 @@ class Cmp(Logic):
             dst[i] = cmp(srca[i], srcb[i])
 
 
-# 对比两个line,a和b，a<b的时候，返回r1相应的值，a=b的时候，返回r2相应的值，a>b的时候，返回r3相应的值
-# todo 在backtrader量化交流群中有一个朋友指出了这个问题
+# Compare two lines, a and b, return corresponding r1 value when a<b, return r2 value when a=b, return r3 value when a>b
+# todo A friend in the backtrader quantitative trading group pointed out this issue
 class CmpEx(Logic):
     def __init__(self, a, b, r1, r2, r3):
         super(CmpEx, self).__init__(a, b, r1, r2, r3)
@@ -175,7 +175,7 @@ class CmpEx(Logic):
                 dst[i] = r2[i]
 
 
-# if判断，对于cond满足的时候，返回a相应的值，不满足的时候，返回b相应的值
+# If statement, return corresponding a value when cond is satisfied, return b value when not satisfied
 class If(Logic):
     def __init__(self, cond, a, b):
         super(If, self).__init__(a, b)
@@ -314,7 +314,7 @@ class If(Logic):
             dst[i] = a_val if cond_bool else b_val
 
 
-# 一个逻辑应用到多个元素上
+# Apply one logic to multiple elements
 class MultiLogic(Logic):
     def next(self):
         self[0] = self.flogic([arg[0] for arg in self.args])
@@ -329,7 +329,7 @@ class MultiLogic(Logic):
             dst[i] = flogic([arr[i] for arr in arrays])
 
 
-# 主要是调用了functools.partial生成偏函数，functools.reduce,对一个sequence迭代使用function
+# Mainly uses functools.partial to generate partial function, functools.reduce, iterates function on a sequence
 class MultiLogicReduce(MultiLogic):
     def __init__(self, *args, **kwargs):
         super(MultiLogicReduce, self).__init__(*args)
@@ -341,7 +341,7 @@ class MultiLogicReduce(MultiLogic):
             )
 
 
-# 继承类，对flogic进行处理
+# Inheritance class, process flogic
 class Reduce(MultiLogicReduce):
     def __init__(self, flogic, *args, **kwargs):
         self.flogic = flogic
@@ -352,46 +352,46 @@ class Reduce(MultiLogicReduce):
 # pickable and therefore compatible with multiprocessing
 
 
-# 判断x和y是不是都是True
+# Determine if both x and y are True
 def _andlogic(x, y):
     return bool(x and y)
 
 
-# 判断是否是所有的元素都是True的
+# Determine if all elements are True
 class And(MultiLogicReduce):
     flogic = staticmethod(_andlogic)
 
 
-# 判断x或者y中有没有一个是真的
+# Determine if either x or y is true
 def _orlogic(x, y):
     return bool(x or y)
 
 
-# 判断序列中是否有一个是真的
+# Determine if any element in the sequence is true
 class Or(MultiLogicReduce):
     flogic = staticmethod(_orlogic)
 
 
-# 求最大值
+# Find maximum value
 class Max(MultiLogic):
     flogic = max
 
 
-# 求最小值
+# Find minimum value
 class Min(MultiLogic):
     flogic = min
 
 
-# 求和
+# Calculate sum
 class Sum(MultiLogic):
     flogic = math.fsum
 
 
-# 是否有一个
+# Check if any exists
 class Any(MultiLogic):
     flogic = any
 
 
-# 是否所有的
+# Check if all
 class All(MultiLogic):
     flogic = all

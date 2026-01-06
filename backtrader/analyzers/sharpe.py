@@ -10,7 +10,7 @@ from .timereturn import TimeReturn
 
 
 class SharpeRatio(Analyzer):
-    # 相对来说，backtrader计算夏普率的方式其实蛮复杂的，考虑了很多的参数
+    # Relatively speaking, backtrader's Sharpe ratio calculation method is quite complex, considering many parameters
     """This analyzer calculates the SharpeRatio of a strategy using a risk-free
     asset, which is simply an interest rate
 
@@ -20,23 +20,23 @@ class SharpeRatio(Analyzer):
 
     Params:
 
-      - ``timeframe``: (default: ``TimeFrame.Years``) # 交易周期
+      - ``timeframe``: (default: ``TimeFrame.Years``) # Trading period
 
-      - ``compression`` (default: ``1``) # 具体的交易周期
+      - ``compression`` (default: ``1``) # Specific trading period
 
         Only used for sub-day timeframes to, for example, work on an hourly
         timeframe by specifying "TimeFrame.Minutes" and 60 as compression
 
-      - ``riskfreerate`` (default: 0.01 -> 1%) # 计算夏普率使用的无风险收益率
+      - ``riskfreerate`` (default: 0.01 -> 1%) # Risk-free rate used for Sharpe ratio calculation
 
         Expressed in annual terms (see ``convertrate`` below)
 
-      - ``convertrate`` (default: ``True``) # 是否把无风险收益率从年转化成月、周、日，不支持转化成日内
+      - ``convertrate`` (default: ``True``) # Whether to convert risk-free rate from annual to monthly, weekly, daily, no intraday support
 
         Convert the ``riskfreerate`` from annual to monthly, weekly or daily
         rate. Sub-day conversions are not supported
 
-      - ``factor`` (default: ``None``) # factor如果没有指定，将会按照指定的日期去转化，1年等于12个月等于52周等于252个交易日
+      - ``factor`` (default: ``None``) # If not specified, will convert according to specified date, 1 year = 12 months = 52 weeks = 252 trading days
 
         If ``None``, the conversion factor for the risk-free rate from *annual*
         to the chosen timeframe will be chosen from a predefined table
@@ -45,7 +45,7 @@ class SharpeRatio(Analyzer):
 
         Else the specified value will be used
 
-      - ``annualize`` (default: ``False``) # 如果参数设置成True的话，将会转化成年化的收益率
+      - ``annualize`` (default: ``False``) # If set to True, will convert to annualized return
 
         If ``convertrate`` is `True`, the *SharpeRatio* will be delivered in
         the ``timeframe`` of choice.
@@ -54,7 +54,7 @@ class SharpeRatio(Analyzer):
         Convert the ``riskfreerate`` from annual to monthly, weekly or daily
         rate. Sub-day conversions are not supported
 
-      - ``stddev_sample`` (default: ``False``) # 计算标准差的时候是否减去1
+      - ``stddev_sample`` (default: ``False``) # Whether to subtract 1 when calculating standard deviation
 
         If this is set to ``True`` the *standard deviation* will be calculated
         decreasing the denominator in the mean by ``1``. This is used when
@@ -62,18 +62,18 @@ class SharpeRatio(Analyzer):
         samples are used for the calculation. This is known as the *Bessels'
         correction*
 
-      - ``daysfactor`` (default: ``None``) # 旧的代码遗留
+      - ``daysfactor`` (default: ``None``) # Legacy code
 
         Old naming for ``factor``. If set to anything else than ``None`` and
         the ``timeframe`` is ``TimeFrame.Days`` it will be assumed this is old
         code and the value will be used
 
-      - ``legacyannual`` (default: ``False``) # 仅仅作用于年，使用年化收益率的分析器
+      - ``legacyannual`` (default: ``False``) # Only applies to years, use annualized return analyzer
 
         Use the ``AnnualReturn`` return analyzer, which as the name implies
         only works for years
 
-      - ``fund`` (default: ``None``) # 是净资产模式还是fund模式，默认情况下，将会自己判断
+      - ``fund`` (default: ``None``) # Net asset mode or fund mode, by default will auto-detect
 
         If `None`, the actual mode of the broker (fundmode - True/False) will
         be autodetected to decide if the returns are based on the total net
@@ -90,7 +90,7 @@ class SharpeRatio(Analyzer):
 
     """
 
-    # 默认的参数
+    # Default parameters
     params = (
         ("timeframe", TimeFrame.Years),
         ("compression", 1),
@@ -104,7 +104,7 @@ class SharpeRatio(Analyzer):
         ("legacyannual", False),
         ("fund", None),
     )
-    # 默认的日期转化
+    # Default date conversion
     RATEFACTORS = {
         TimeFrame.Days: 252,
         TimeFrame.Weeks: 52,
@@ -115,7 +115,7 @@ class SharpeRatio(Analyzer):
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
-        # 如果按照年的话，获取年化收益率，否则就获取每日的收益率
+        # If using years, get annualized return, otherwise get daily return
         if self.p.legacyannual:
             self.anret = AnnualReturn()
         else:
@@ -125,37 +125,37 @@ class SharpeRatio(Analyzer):
 
     def stop(self):
         super().stop()
-        # 以年为单位计算收益率和夏普率
+        # Calculate returns and Sharpe ratio in annual units
         if self.p.legacyannual:
             rate = self.p.riskfreerate
             retavg = average([r - rate for r in self.anret.rets])
             retdev = standarddev(self.anret.rets)
-            # todo 把self.ratio改成ratio
+            # TODO: change self.ratio to ratio
             # self.ratio = retavg / retdev
             ratio = retavg / retdev
-        # 如果不是以年为单位计算收益率和夏普率
+        # If not calculating returns and Sharpe ratio in annual units
         else:
             # Get the returns from the subanalyzer
-            # 获取每日的收益率
+            # Get daily returns
             returns = list(itervalues(self.timereturn.get_analysis()))
-            # 无风险收益率
+            # Risk-free rate
             rate = self.p.riskfreerate  #
-            # 日期先默认为None
+            # Date defaults to None
             factor = None
 
             # Hack to identify old code
-            # 获取具体的factor日期，如果是日周期并且daysfactor不是None的话，另factor = daysfactor
+            # Get specific factor date, if daily period and daysfactor is not None, set factor = daysfactor
             if self.p.timeframe == TimeFrame.Days and self.p.daysfactor is not None:
                 factor = self.p.daysfactor
-            # 否则，如果factor这个参数不是None的话，就等于factor这个参数的值，否则根据交易周期从定义的factors里面找
-            # 默认情况下，factor应该是252
+            # Otherwise, if factor parameter is not None, equal to factor parameter value, otherwise find from defined factors based on trading period
+            # By default, factor should be 252
             else:
                 if self.p.factor is not None:
                     factor = self.p.factor  # user specified factor
                 elif self.p.timeframe in self.RATEFACTORS:
                     # Get the conversion factor from the default table
                     factor = self.RATEFACTORS[self.p.timeframe]
-            # 如果factor不是None的话，默认情况需要把年化无风险收益率转化转化成日的无风险收益率，如果以日作为周期的话
+            # If factor is not None, need to convert annual risk-free rate to daily risk-free rate by default, if using daily period
             if factor is not None:
                 # A factor was found
 
@@ -165,35 +165,35 @@ class SharpeRatio(Analyzer):
                 else:
                     # Else upgrade returns to yearly returns
                     returns = [pow(1.0 + x, factor) - 1.0 for x in returns]
-            # 多少个交易日
+            # Number of trading days
             lrets = len(returns) - self.p.stddev_sample
             # Check if the ratio can be calculated
             if lrets:
                 # Get the excess returns - arithmetic mean - original sharpe
-                # 计算得到每日的超额收益率
+                # Calculate daily excess returns
                 ret_free = [r - rate for r in returns]
-                # 计算得到每日的超额收益率的平均值
+                # Calculate average of daily excess returns
                 ret_free_avg = average(ret_free)
-                # 计算得到每日超额收益率的波动率
+                # Calculate standard deviation of daily excess returns
                 retdev = standarddev(ret_free, avgx=ret_free_avg, bessel=self.p.stddev_sample)
                 # ret_avg = average(returns)
                 # retdev = standarddev(returns, avgx=ret_avg,bessel=self.p.stddev_sample)
 
                 try:
-                    # 计算得到夏普率
+                    # Calculate Sharpe ratio
                     ratio = ret_free_avg / retdev
-                    # 如果factor不是None,并且把年无风险收益率转化成日了，并且需要计算年化的夏普率
+                    # If factor is not None, annual risk-free rate was converted to daily, and need to calculate annualized Sharpe ratio
                     if factor is not None and self.p.convertrate and self.p.annualize:
-                        # 把夏普率从日转化成年
+                        # Convert Sharpe ratio from daily to annual
                         ratio = math.sqrt(factor) * ratio
                 except (ValueError, TypeError, ZeroDivisionError):
                     ratio = None
             else:
                 # no returns or stddev_sample was active and 1 return
                 ratio = None
-            # todo 这里面self.ratio并没有用到，赋值直接用ratio就好了，还能提高运行速度
+            # TODO: self.ratio is not used here, just use ratio for assignment, can also improve speed
             # self.ratio = ratio
-        # 保存夏普率
+        # Save Sharpe ratio
         self.rets["sharperatio"] = ratio
 
 
@@ -207,5 +207,5 @@ class SharpeRatioA(SharpeRatio):
 
     """
 
-    # 计算年化的夏普率
+    # Calculate annualized Sharpe ratio
     params = (("annualize", True),)

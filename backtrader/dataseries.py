@@ -8,9 +8,9 @@ from .utils.py3 import range
 
 
 class TimeFrame:
-    # 给TimeFrame这个类增加9个属性，用于区分交易的周期
+    # Add 9 attributes to TimeFrame class for distinguishing trading periods
     (Ticks, MicroSeconds, Seconds, Minutes, Days, Weeks, Months, Years, NoTimeFrame) = range(1, 10)
-    # 增加一个names属性值
+    # Add a names attribute
     Names = [
         "",
         "Ticks",
@@ -26,11 +26,13 @@ class TimeFrame:
 
     names = Names  # support old naming convention
 
-    # 类方法，获取Timeframe的周期类型
+    # Class method to get Timeframe period type
     @classmethod
-    def getname(cls, tframe, compression=None):  # backtrader自带
-        # 这里面compression的默认参数设置其实并不合理，如果直接传入了默认参数，在下面对比中会报错
-        # 修改默认参数为1 或者增加对compression的判断，个人感觉改为1可能更恰当一些
+    def getname(cls, tframe, compression=None):  # backtrader built-in
+        # The default parameter setting for compression is not actually reasonable here,
+        # if the default parameter is passed directly, an error will occur in the comparison below
+        # Modify the default parameter to 1 or add judgment for compression,
+        # I feel changing it to 1 might be more appropriate
         # @classmethod
         # def getname(cls, tframe, compression=1):
         tname = cls.Names[tframe]
@@ -38,39 +40,39 @@ class TimeFrame:
             return tname  # for plural or 'NoTimeFrame' return plain entry
 
         # return singular if compression is 1
-        # 如果compression是1的话，会返回一个单数的交易周期
+        # If compression is 1, return a singular trading period
         return cls.Names[tframe][:-1]
 
-    # 类方法，获取交易周期名字的值
+    # Class method to get trading period name value
     @classmethod
     def TFrame(cls, name):
         return getattr(cls, name)
 
-    # 类方法，根据交易周期的值返回交易周期的名字
+    # Class method to return trading period name based on trading period value
     @classmethod
     def TName(cls, tframe):
         return cls.Names[tframe]
 
 
 class DataSeries(LineSeries):
-    # 设置plotinfo相关的值
+    # Set plotinfo related values
     plotinfo = dict(plot=True, plotind=True, plotylimited=True)
 
-    # 设置dataseries的_name属性，通常在策略中可以直接使用data._name获取data具体的值
+    # Set dataseries _name attribute, usually can use data._name directly in strategy to get specific data value
     _name = ""
-    # todo 尝试增加一个name属性，和_name一样，便于使用data.name进行访问数据，避免pycharm提醒访问私有变量
+    # todo Try to add a name attribute, same as _name, to facilitate using data.name to access data, avoiding pycharm warning about accessing private variables
     name = _name
-    # 设置_compression属性，默认是1,意味着交易周期是单数的，比如1秒，1分钟，1天，1周这样的
+    # Set _compression attribute, default is 1, meaning trading period is singular, such as 1 second, 1 minute, 1 day, 1 week, etc.
     _compression = 1
-    # 设置_timeframe属性，默认是天
+    # Set _timeframe attribute, default is Days
     _timeframe = TimeFrame.Days
 
-    # 给dataseries设置常用的7个属性及他们的值
+    # Set 7 common attributes for dataseries and their values
     Close, Low, High, Open, Volume, OpenInterest, DateTime = range(7)
-    # dataseries中line的顺序
+    # Line order in dataseries
     LineOrder = [DateTime, Open, High, Low, Close, Volume, OpenInterest]
 
-    # 获取dataseries的header的变量名称，
+    # Get header variable names of dataseries
     def getwriterheaders(self):
         headers = [self._name, "len"]
 
@@ -82,7 +84,7 @@ class DataSeries(LineSeries):
 
         return headers
 
-    # 获取values
+    # Get values
     def getwritervalues(self):
         length = len(self)
         values = [self._name, length]
@@ -98,7 +100,7 @@ class DataSeries(LineSeries):
 
         return values
 
-    # 获取写入的信息
+    # Get written information
     def getwriterinfo(self):
         # returns dictionary with information
         info = OrderedDict()
@@ -113,7 +115,7 @@ class DataSeries(LineSeries):
 
 
 class OHLC(DataSeries):
-    # 继承DataSeries，lines剔除了datetime只剩下6条
+    # Inherit from DataSeries, lines exclude datetime leaving only 6
     lines = (
         "close",
         "low",
@@ -125,7 +127,7 @@ class OHLC(DataSeries):
 
 
 class OHLCDateTime(OHLC):
-    # 继承DataSeries，lines只保留了datetime
+    # Inherit from DataSeries, lines only keep datetime
     lines = (("datetime"),)
 
 
@@ -143,8 +145,8 @@ class SimpleFilterWrapper:
     if needed to be
     """
 
-    # 这是一个增加过滤器的类，可以根据过滤器的需要对数据进行一定的操作比如去除
-    # 这个过滤器通常是类或者是函数
+    # This is a class for adding filters, which can perform certain operations on data according to filter needs, such as removal
+    # This filter is usually a class or a function
     def __init__(self, data, ffilter, *args, **kwargs):
         if inspect.isclass(ffilter):
             ffilter = ffilter(data, *args, **kwargs)
@@ -175,7 +177,7 @@ class _Bar(AutoOrderedDict):
     definition in DataBase (which directly inherits from OHLCDateTime)
     """
 
-    # 这个bar是具有标准line的DataBase的占位符,常用于把小周期K线合成大周期K线。
+    # This bar is a placeholder for DataBase with standard lines, commonly used to combine small period candlesticks into large period candlesticks
     replaying = False
 
     # Without - 1 ... converting back to time will not work
@@ -184,7 +186,7 @@ class _Bar(AutoOrderedDict):
 
     def __init__(self, maxdate=False):
         super().__init__()
-        # todo 去掉这几行的注释会报错，需要检查一下是什么原因
+        # todo Uncommenting these lines will cause an error, need to check the reason
         # self.datetime = None
         # self.openinterest = None
         # self.volume = None
@@ -196,7 +198,7 @@ class _Bar(AutoOrderedDict):
 
     def bstart(self, maxdate=False):
         """Initializes a bar to the default not-updated vaues"""
-        # 准备开始前，先初始化
+        # Initialize before starting
         # Order is important: defined in DataSeries/OHLC/OHLCDateTime
         self.close = float("NaN")
         self.low = float("inf")
@@ -207,7 +209,7 @@ class _Bar(AutoOrderedDict):
         self.datetime = self.MAXDATE if maxdate else None
 
     def isopen(self):
-        # 判断是否已经更新过了
+        # Check if already updated
         """Returns if a bar has already been updated
 
         Uses the fact that NaN is the value which is not equal to itself
@@ -217,7 +219,7 @@ class _Bar(AutoOrderedDict):
         return o == o  # False if NaN, True in other cases
 
     def bupdate(self, data, reopen=False):
-        # 更新具体的bar
+        # Update specific bar
         """Updates a bar with the values from data
 
         Returns True if the update was the 1st on a bar (just opened)
