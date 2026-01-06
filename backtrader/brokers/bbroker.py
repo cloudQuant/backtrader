@@ -488,6 +488,25 @@ class BackBroker(BrokerBase):
 
     getcash = get_cash
 
+    # CRITICAL FIX: Override __getattribute__ to return runtime _cash value
+    # when accessing broker.cash, instead of the initial parameter value
+    def __getattribute__(self, name):
+        if name == "cash":
+            # Use object.__getattribute__ to avoid recursion
+            try:
+                _cash = object.__getattribute__(self, "_cash")
+                if _cash is not None:
+                    return _cash
+            except AttributeError:
+                pass
+            # Fall back to parameter value if _cash not set yet
+            try:
+                param_manager = object.__getattribute__(self, "_param_manager")
+                return param_manager.get("cash", 10000.0)
+            except AttributeError:
+                return 10000.0  # Default value
+        return object.__getattribute__(self, name)
+
     # 设置现金
     def set_cash(self, cash):
         # Sets the cash parameter (alias: ``setcash``)
