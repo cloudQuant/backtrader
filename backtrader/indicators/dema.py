@@ -63,7 +63,7 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
                 larray[i] = 2.0 * ema1_val - ema2_val
 
 
-# 三重指数平均值
+# Triple Exponential Moving Average
 class TripleExponentialMovingAverage(MovingAverageBase):
     """
     TEMA was first time introduced in 1994, in the article "Smoothing Data with

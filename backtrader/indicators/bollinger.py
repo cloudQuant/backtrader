@@ -116,7 +116,7 @@ class BollingerBands(Indicator):
                 bot_array[i] = mid - devfactor * stddev
 
 
-# 布林带百分比指标
+# Bollinger Bands Percentage indicator
 class BollingerBandsPct(BollingerBands):
     """
     Extends the Bollinger Bands with a Percentage line

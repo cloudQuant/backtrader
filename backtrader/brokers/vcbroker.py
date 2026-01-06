@@ -38,7 +38,7 @@ class VCCommInfo(CommInfoBase):
         return abs(size) * price
 
 
-# 注册机制，在导入模块时自动注册broker类
+# Registration mechanism, automatically register broker class when module is imported
 def _register_vc_broker_class(broker_cls):
     """Register broker class with the store when module is loaded"""
     vcstore.VCStore.BrokerCls = broker_cls

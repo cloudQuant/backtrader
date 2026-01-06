@@ -21,7 +21,7 @@ class OandaCommInfo(CommInfoBase):
         return abs(size) * price
 
 
-# 注册机制，在导入模块时自动注册broker类
+# Registration mechanism, automatically register broker class when module is imported
 def _register_oanda_broker_class(broker_cls):
     """Register broker class with the store when module is loaded"""
     oandastore.OandaStore.BrokerCls = broker_cls
@@ -44,8 +44,8 @@ class OandaBroker(BrokerBase):
         position
     """
 
-    # 参数描述符定义
-    use_positions = BoolParam(default=True, doc="使用position API")
+    # Parameter descriptor definition
+    use_positions = BoolParam(default=True, doc="Use position API")
     commission = ParameterDescriptor(
         default=lambda: CommInfoBase(percabs=True),
         doc="Default commission scheme which applies to all assets",

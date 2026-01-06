@@ -102,7 +102,7 @@ class StandardDeviation(Indicator):
                 larray[i] = math.sqrt(max(0, diff))
 
 
-# 平均偏差
+# Average deviation
 class MeanDeviation(Indicator):
     """MeanDeviation (alias MeanDev)
 

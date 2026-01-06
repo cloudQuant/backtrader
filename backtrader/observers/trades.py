@@ -86,7 +86,7 @@ class Trades(Observer):
                 self.lines.pnlminus[0] = pnl
 
 
-# DataTrades类 - 重构为不使用元类和动态类创建
+# DataTrades class - refactored to not use metaclass and dynamic class creation
 class DataTrades(Observer):
     """
     DataTrades observer that has been refactored to remove metaclass usage

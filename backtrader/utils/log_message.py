@@ -36,10 +36,10 @@ except ImportError:
 
 
 class SpdLogManager:
-    """创建一个spdlog的日志输出功能，每天一个日志文件，使用需要先pip install spdlog
-    :param: file_name:输出日志的文件
-    :logger_name:输出日志的名称
-    :rotation_hour和rotation_minute：用于控制在每天什么时间换新的日志文件
+    """Create spdlog log output functionality, one log file per day. Requires pip install spdlog first
+    :param: file_name: Output log file
+    :logger_name: Output log name
+    :rotation_hour and rotation_minute: Control when to switch to new log file each day
     """
 
     def __init__(

@@ -63,7 +63,7 @@ class PriceOscillator(_PriceOscBase):
     lines = ("po",)
 
 
-# 类似于macd的一个指标，以百分比形式表达
+# Similar to MACD indicator, expressed in percentage
 class PercentagePriceOscillator(_PriceOscBase):
     """
     Shows the difference between a short and long exponential moving

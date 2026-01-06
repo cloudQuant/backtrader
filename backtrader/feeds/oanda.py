@@ -10,7 +10,7 @@ from backtrader.utils.py3 import (
 from ..utils import date2num, num2date
 
 
-# 处理oanda数据，忽略这篇源代码s
+# Process OANDA data, ignore this source code
 class OandaData(DataBase):
     """Oanda Data Feed.
 

@@ -12,7 +12,7 @@ from ..dataseries import TimeFrame
 from .mixins import ParameterizedSingletonMixin
 
 
-# 对SymbolInfo对象进行复制，把syminfo的属性及值设置到类实例里面
+# Copy SymbolInfo object, set syminfo attributes and values to class instance
 class _SymInfo:
     # Replica of the SymbolInfo COM object to pass it over thread boundaries
     _fields = ["Type", "Description", "Decimals", "TimeOffset", "PointValue", "MinMovement"]
@@ -25,12 +25,12 @@ class _SymInfo:
 # This type is used inside 'PumpEvents', but if we create the type
 # afresh each time 'PumpEvents' is called, we end up creating cyclic
 # garbage for each call.  So we define it here instead.
-# 从上面的注释来看，这个类型是用于PumpEvents，如果我们每次都在调用的时候创建一个新的，将会
-# 导致每次都创建新的垃圾，所以在这里定义
+# From the above comment, this type is used for PumpEvents. If we create a new one each time it's called, it will
+# Cause new garbage to be created each time, so define it here
 _handles_type = ctypes.c_void_p * 1
 
 
-# todo 这个函数设计了通过COM进行请求，对ctypes了解不多，暂时忽略
+# TODO This function makes requests via COM, not familiar with ctypes, temporarily ignore
 def PumpEvents(timeout=-1, hevt=None, cb=None):
     """This following code waits for 'timeout' seconds in the way
     required for COM, internally doing the correct things depending

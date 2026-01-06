@@ -5,7 +5,7 @@ from .parameters import ParameterizedBase
 __all__ = ["Filter"]
 
 
-# Filter类 - 重构为使用新的参数系统
+# Filter class - refactored to use new parameter system
 class Filter(ParameterizedBase):
     """
     Base class for data filters in backtrader.
@@ -17,15 +17,15 @@ class Filter(ParameterizedBase):
     _firsttime = True
 
     def __init__(self, data_, **kwargs):
-        # 调用父类初始化
+        # Call parent class initialization
         super(Filter, self).__init__(**kwargs)
 
     def __call__(self, data):
-        # 如果是第一次，就调用nextstart,然后把_firsttime设置成False
+        # If first time, call nextstart, then set _firsttime to False
         if self._firsttime:
             self.nextstart(data)
             self._firsttime = False
-        # 调用next
+        # Call next
         self.next(data)
 
     def nextstart(self, data):

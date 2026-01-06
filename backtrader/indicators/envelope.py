@@ -136,7 +136,7 @@ class EnvelopeMixIn:
                 bot_array[i] = base_val * (1.0 - perc)
 
 
-# 基础类
+# Base class
 class _EnvelopeBase(Indicator):
     lines = ("src",)
 
