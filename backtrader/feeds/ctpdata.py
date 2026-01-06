@@ -29,8 +29,8 @@ class CTPData(DataBase):
         (
             "historical",
             False,
-        ),  # 是否仅仅回填历史数据，不接收实时数据。也就是下载完历史数据就结束。一般不用
-        ("num_init_backfill", 100),  # 初始回填bar的数目
+        ),  # Whether to only backfill historical data, not receive live data. End after downloading historical data. Generally not used
+        ("num_init_backfill", 100),  # Number of bars for initial backfill
     )
 
     _store = CTPStore
@@ -44,7 +44,7 @@ class CTPData(DataBase):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 处理原来元类的注册功能
+        # Handle original metaclass registration functionality
         CTPStore.DataCls = self.__class__
 
         self._state = None
@@ -54,19 +54,19 @@ class CTPData(DataBase):
     def start(self):
         """ """
         super().start()
-        # 订阅标的行情
+        # Subscribe to market data
         # self.o.subscribe(data=self)
         self.o.main_ctpbee_api.subscribe(self.p.dataname, self._timeframe, self._compression)
         self._get_backfill_data()
         self._state = self._ST_HISTORBACK
 
     def _get_backfill_data(self):
-        """获取回填数据"""
+        """Get backfill data"""
         self.put_notification(self.DELAYED)
         # print("_get_backfill_data")  # Removed for performance
         self.qhist = (
             queue.Queue()
-        )  # qhist是存放历史行情数据的队列,用于回填历史数据,未来考虑从数据库或第三方加载,可参考vnpy的处理
+        )  # qhist is queue for storing historical market data, for backfilling historical data. Future consideration: load from database or third-party, refer to vnpy handling
         #
         CHINA_TZ = pytz.timezone("Asia/Shanghai")
         #
@@ -75,15 +75,15 @@ class CTPData(DataBase):
             futures_sina_df = ak.futures_zh_minute_sina(
                 symbol=symbol, period=str(self._compression)
             ).tail(self.p.num_init_backfill)
-        # 如果是日线级别
+        # If daily timeframe
         elif self._bar_timeframe == 5:
             futures_sina_df = ak.futures_zh_daily_sina(symbol=symbol)
-        # 如果是其他周期，默认是一分钟
+        # If other timeframes, default is one minute
         else:
             futures_sina_df = ak.futures_zh_minute_sina(symbol=symbol, period="1").tail(
                 self.p.num_init_backfill
             )
-        # 改列名
+        # Rename columns
         futures_sina_df.columns = [
             "datetime",
             "OpenPrice",
@@ -93,9 +93,9 @@ class CTPData(DataBase):
             "BarVolume",
             "hold",
         ]
-        # 增加symbol列
+        # Add symbol column
         futures_sina_df["symbol"] = self.p.dataname
-        # 改数据类型
+        # Change data types
         for i in range(self.p.num_init_backfill):
             msg = futures_sina_df.iloc[i].to_dict()
             dt = datetime.strptime(msg["datetime"], "%Y-%m-%d %H:%M:%S")
@@ -108,9 +108,9 @@ class CTPData(DataBase):
             msg["BarVolume"] = int(msg["BarVolume"])
             msg["hold"] = int(msg["hold"])
             msg["OpenInterest"] = 0
-            # print('回填', msg)
+            # print('backfill', msg)
             self.qhist.put(msg)
-        # 放一个空字典,表示回填结束
+        # Put empty dict to indicate backfill finished
         self.qhist.put({})
         return True
 
@@ -124,9 +124,9 @@ class CTPData(DataBase):
 
     def _load(self):
         """
-        return True  代表从数据源获取数据成功
-        return False 代表因为某种原因(比如历史数据源全部数据已经输出完毕)数据源关闭
-        return None  代表暂时无法从数据源获取最新数据,但是以后会有(比如实时数据源中最新的bar还未生成)
+        return True means successfully got data from data source
+        return False means data source closed for some reason (e.g., historical data source finished outputting all data)
+        return None means temporarily cannot get latest data from data source, but will have later (e.g., latest bar in live data source not yet generated)
         """
         if self._state == self._ST_OVER:
             return False
@@ -151,11 +151,11 @@ class CTPData(DataBase):
                     return False  # error management cancelled the queue
                 elif msg:
                     if self._load_candle_history(msg):
-                        # print("load candle 历史回填")  # Removed for performance
+                        # print("load candle historical backfill")  # Removed for performance
                         return True  # loading worked
                     # not loaded ... date may have been seen
                     continue
-                else:  # 处理空{},注意空{}不等于None.来了空{}就意味着回填数据输出完毕
+                else:  # Handle empty {}, note empty {} is not equal to None. Empty {} means backfill data output finished
                     # End of histdata
                     if self.p.historical:  # only historical
                         self.put_notification(self.DISCONNECTED)
