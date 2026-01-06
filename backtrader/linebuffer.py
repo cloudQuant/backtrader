@@ -1610,6 +1610,11 @@ class _LineDelay(LineActions):
         while len(dst) < end:
             dst.append(0.0)
 
+        # CRITICAL FIX: Ensure source has computed its values before we access them
+        # This is necessary for LinesOperation sources that haven't run once() yet
+        if hasattr(self.a, 'once') and hasattr(self.a, 'array') and len(self.a.array) < end:
+            self.a.once(start, end)
+
         # CRITICAL FIX: Check if source is a constant value (PseudoArray with repeat)
         # We need to check the wrapped object, not just the array, because
         # PseudoArray.array returns a new list each time
@@ -1653,7 +1658,9 @@ class _LineDelay(LineActions):
                 dst[i] = constant_value
             else:
                 # CRITICAL FIX: Proper bounds checking for delayed access
-                src_index = i - ago
+                # For ago=-26 (forward shift), we need to access src[i + ago] = src[i - 26]
+                # to get the value calculated 26 bars ago
+                src_index = i + ago
                 if src_index >= 0 and src_index < len(src):
                     val = src[src_index]
                     # Ensure value is never None or NaN

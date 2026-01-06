@@ -1,13 +1,14 @@
 ### 背景
 
 现在这个测试用例失败了，需要修复，先研究定位一下具体的bug原因，然后考虑根据修复方法建议进行修复。
-  FAILED tests/strategies/test_105_donchian_channel_strategy.py::test_donchian_channel_strategy - AssertionError: Expected final_value=99965.62, got 99983.54054995005
+FAILED tests/strategies/test_96_ichimoku_cloud_strategy.py::test_ichimoku_cloud_strategy - AssertionError: Expected final_value=100088.51, got 100189.7366
 
 
 ### 修复方法建议
+0. backtrader/sync_and_test.py 这个脚本可以同步一个测试文件的更新到master分支，并调用run_test_with_log.py进行测试，输出日志，方便后续对比。
 1. backtrader/run_test_with_log.py 这个运行这个策略，然后对比master分支上的结果，看看origin分支上的结果究竟差在哪里，然后去定位。
 2. 如果必要，可以修改测试用例，增加注释，然后方便在两个分支上进行对比。
-3. 很可能是highest和lowest指标实现的问题，参考macd.py指标实现的方式，实现这个指标。
+3. 很可能是ichimoku指标实现的问题，参考macd.py指标实现的方式，实现这个指标。
 
 ### 资源
 1. 修改当前测试脚本，比如新增了debug信息之类的，可以用backtrader/sync_to_master.py同步到master分支上的对应脚本
