@@ -1,14 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Backtrader Indicator Module.
+
+This module provides the base Indicator class and related infrastructure
+for creating and managing technical analysis indicators. It replaces the
+metaclass-based approach with explicit inheritance and registration.
+
+The Indicator class serves as the foundation for all technical indicators
+in backtrader, managing line data, minimum periods, and calculation logic.
+"""
 from .lineiterator import IndicatorBase, LineIterator
 from .lineseries import Lines
 from .metabase import AutoInfoClass
 from .utils.py3 import range
 
 
-# Simple indicator registry to replace MetaIndicator functionality
 class IndicatorRegistry:
-    """Registry to manage indicator classes and provide caching functionality"""
+    """Registry to manage indicator classes and provide caching functionality.
+
+    This class replaces the metaclass-based indicator registration and
+    caching mechanism from the original backtrader implementation.
+    """
 
     _indcol = dict()
     _icache = dict()
@@ -16,27 +28,46 @@ class IndicatorRegistry:
 
     @classmethod
     def register(cls, name, indicator_cls):
-        """Register an indicator class"""
+        """Register an indicator class in the registry.
+
+        Args:
+            name: Name of the indicator class
+            indicator_cls: The indicator class to register
+        """
         if not name.startswith("_") and name != "Indicator":
             cls._indcol[name] = indicator_cls
 
     @classmethod
     def cleancache(cls):
-        """Clear the indicator cache"""
+        """Clear the indicator cache."""
         cls._icache = dict()
 
     @classmethod
     def usecache(cls, onoff):
-        """Enable or disable caching"""
+        """Enable or disable indicator caching.
+
+        Args:
+            onoff: If True, enable caching; if False, disable it
+        """
         cls._icacheuse = onoff
 
     @classmethod
     def get_cached_or_create(cls, indicator_cls, *args, **kwargs):
-        """Get cached indicator instance or create new one"""
+        """Get cached indicator instance or create new one.
+
+        Args:
+            indicator_cls: The indicator class to instantiate
+            *args: Positional arguments for the indicator
+            **kwargs: Keyword arguments for the indicator
+
+        Returns:
+            Cached indicator instance if available and caching enabled,
+            otherwise a new indicator instance
+        """
         if not cls._icacheuse:
             return indicator_cls(*args, **kwargs)
 
-        # implement a cache to avoid duplicating lines actions
+        # Implement a cache to avoid duplicating lines actions
         ckey = (indicator_cls, tuple(args), tuple(kwargs.items()))  # tuples hashable
         try:
             return cls._icache[ckey]
@@ -49,11 +80,21 @@ class IndicatorRegistry:
         return cls._icache.setdefault(ckey, _obj)
 
 
-# 指标类 - refactored to remove metaclass usage and properly inherit from IndicatorBase
-class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
-    # line的类型被设置为指标
+class Indicator(IndicatorBase):
+    """Base class for all technical indicators in Backtrader.
+
+    This class provides the foundation for creating custom indicators.
+    It manages line data, minimum periods, and calculation logic.
+    Indicators inherit from IndicatorBase and integrate with the
+    LineIterator system for data flow.
+
+    Attributes:
+        _ltype: Line type set to IndType (0) for indicators
+        csv: Whether to output this indicator to CSV (default: False)
+        aliased: Whether this indicator has an alias name
+    """
+
     _ltype = LineIterator.IndType
-    # 输出到csv文件被设置成False
     csv = False
 
     def __getitem__(self, ago):
@@ -73,7 +114,18 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
     aliased = False
 
     def __init_subclass__(cls, **kwargs):
-        """Handle subclass registration without metaclass"""
+        """Handle subclass registration and initialization.
+
+        This method is called when a subclass of Indicator is created.
+        It performs:
+        1. Lines creation using Lines infrastructure
+        2. Automatic registration in IndicatorRegistry
+        3. Alias handling for module-level access
+        4. next/once method setup for calculation modes
+
+        Args:
+            **kwargs: Additional keyword arguments
+        """
         super().__init_subclass__(**kwargs)
 
         # CRITICAL FIX: Handle lines creation for indicators like LineSeries does
@@ -179,7 +231,7 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
                         self._minperiod = data_max
         except (AttributeError, TypeError):
             pass
-        
+
         # Step 1: Calculate minperiod from lines
         try:
             if hasattr(self, "lines") and self.lines is not None:
@@ -193,7 +245,7 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
                         self._minperiod = lines_max
         except (AttributeError, TypeError):
             pass
-        
+
         # Step 2: Calculate minperiod from sub-indicators
         try:
             if hasattr(self, "_lineiterators"):
@@ -206,7 +258,7 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
                             self._minperiod = ind_max
         except (AttributeError, TypeError):
             pass
-        
+
         # Step 3: Update minperiod on all lines
         try:
             if hasattr(self, "lines") and self.lines is not None:
@@ -216,33 +268,52 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
         except (AttributeError, TypeError):
             pass
 
-    # 当数据小于当前时间的时候，数据向前移动size
     def advance(self, size=1):
-        # Need intercepting this call to support datas with
-        # different lengths (timeframes)
+        """Advance indicator lines when data length is less than clock length.
+
+        This method supports indicators with data feeds of different lengths
+        (e.g., different timeframes).
+
+        Args:
+            size: Number of steps to advance (default: 1)
+        """
+        # Need intercepting this call to support datas with different lengths (timeframes)
         if len(self) < len(self._clock):
             self.lines.advance(size=size)
 
-    # 如果prenext重写了，但是preonce没有被重写，通常的实施方法
     def preonce_via_prenext(self, start, end):
-        # generic implementation if prenext is overridden but preonce is not
-        # 从start到end进行循环
+        """Implement preonce using prenext for batch calculation.
+
+        This is a generic implementation if prenext is overridden but preonce is not.
+        It loops through the range and calls prenext for each step.
+
+        Args:
+            start: Starting index
+            end: Ending index
+        """
+        # Generic implementation if prenext is overridden but preonce is not
         for i in range(start, end):
-            # 数据每次增加
+            # Advance all data feeds
             for data in self.datas:
                 data.advance()
-            # 指标每次增加
+            # Advance all sub-indicators
             for indicator in self._lineiterators[LineIterator.IndType]:
                 indicator.advance()
-            # 自身增加
+            # Advance self
             self.advance()
-            # 每次调用下prenext
+            # Call prenext
             self.prenext()
 
-    # 如果nextstart重写了，但是oncestart没有重写，需要做的操作，和上一个比较类似
     def oncestart_via_nextstart(self, start, end):
-        # nextstart has been overriden, but oncestart has not and the code is
-        # here. call the overriden nextstart
+        """Implement oncestart using nextstart for batch calculation.
+
+        This is used when nextstart is overridden but oncestart is not.
+
+        Args:
+            start: Starting index
+            end: Ending index
+        """
+        # nextstart has been overridden, but oncestart has not - call the overridden nextstart
         for i in range(start, end):
             for data in self.datas:
                 data.advance()
@@ -253,8 +324,16 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
             self.advance()
             self.nextstart()
 
-    # next重写了，但是once没有重写，需要的操作
     def once_via_next(self, start, end):
+        """Implement once using next for batch calculation.
+
+        This is used when next is overridden but once is not.
+        It loops through the range and calls next for each step.
+
+        Args:
+            start: Starting index
+            end: Ending index
+        """
         # Not overridden, next must be there ...
         # Simple implementation matching master branch - just advance and call next
         for i in range(start, end):
@@ -268,34 +347,50 @@ class Indicator(IndicatorBase):  # Changed back to IndicatorBase for proper MRO
             self.next()
 
 
-# 指标画出多条line的类，下面这两个类，在整个项目中并没有使用到
 class LinePlotterIndicatorBase(Indicator.__class__):
+    """Base class for indicators that plot multiple lines.
+
+    Note: These classes are not currently used in the project.
+    They are kept for compatibility with the original backtrader.
+    """
+
     def donew(cls, *args, **kwargs):
-        # line的名字
+        """Create a new LinePlotterIndicator instance.
+
+        Args:
+            *args: Positional arguments
+            **kwargs: Keyword arguments, must include 'name'
+
+        Returns:
+            tuple: (created_object, args, kwargs)
+        """
+        # Get line name
         lname = kwargs.pop("name")
-        # 类的名字
+        # Get class name
         name = cls.__name__
-        # 获取cls的liens,如果没有，就返回Lines
+        # Get cls lines, or return Lines if not present
         lines = getattr(cls, "lines", Lines)
-        # 对lines进行相应的操作
+        # Derive lines with the new line
         cls.lines = lines._derive(name, (lname,), 0, [])
-        # plotlines响应的操作
+        # Derive plotlines
         plotlines = AutoInfoClass
         newplotlines = dict()
         newplotlines.setdefault(lname, dict())
         cls.plotlines = plotlines._derive(name, newplotlines, [], recurse=True)
 
         # Create the object and set the params in place
-        # 创建具体的类并设置参数
         _obj, args, kwargs = super(LinePlotterIndicatorBase, cls).donew(*args, **kwargs)
-        # 设置_obj的owner属性值
+        # Set _obj owner attribute
         _obj.owner = _obj.data.owner._clock
-        # 增加另一条linebuffer
+        # Add another linebuffer
         _obj.data.lines[0].addbinding(_obj.lines[0])
         # Return the object and arguments to the chain
         return _obj, args, kwargs
 
 
-# LinePlotterIndicator类，同样没有用到
 class LinePlotterIndicator(Indicator, LinePlotterIndicatorBase):
+    """Indicator that plots multiple lines.
+
+    Note: This class is not currently used in the project.
+    """
     pass
