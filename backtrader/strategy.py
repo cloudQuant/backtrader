@@ -1334,79 +1334,109 @@ class Strategy(StrategyBase):
             **kwargs,
         )
 
-    # 通知定时器
     def notify_timer(self, timer, when, *args, **kwargs):
-        """
-        Receives a timer notification where ``timer`` is the timer that was
+        """Receive timer notifications.
+
+        Receives a timer notification where ``timer`` is the timer instance
         returned by ``add_timer``, and ``when`` is the calling time. ``args``
-        and ``kwargs`` are any additional arguments passed to ``add_timer``
+        and ``kwargs`` are any additional arguments passed to ``add_timer``.
 
-        The actual `when` time can be later, but the system may have not been
-        able to call the timer before. This value is the timer value and no the
-        system time.
-        # 收到一个定时器的通知，这个定时器是通过add_timer添加的，并且在when的时候发出，args和kwargs是添加到add_timer的其他参数
-        # 实际的when时间可以是晚的，但是这个系统可能不能在这之前调用定时器，这个值是定时器的值而不是系统的时间
+        The actual ``when`` time can be later than expected, as the system may
+        not have been able to call the timer before. This value is the timer's
+        scheduled time, not the actual system time.
+
+        Args:
+            timer: The timer instance created by add_timer
+            when: The scheduled time when the timer was triggered
+            *args: Additional positional arguments passed to add_timer
+            **kwargs: Additional keyword arguments passed to add_timer
         """
         pass
 
-    # 通知现金价值
     def notify_cashvalue(self, cash, value):
-        """
-        Receives the current fund value, value status of the strategy's broker
+        """Notify the current cash and value of the strategy's broker.
+
+        Args:
+            cash: Current cash amount
+            value: Current portfolio value
         """
         pass
 
-    # 通知fund
     def notify_fund(self, cash, value, fundvalue, shares):
-        """
-        Receives the current cash, value, fundvalue and fund shares
+        """Notify the current cash, value, fund value, and fund shares.
+
+        Args:
+            cash: Current cash amount
+            value: Current portfolio value
+            fundvalue: Current fund value
+            shares: Current fund shares
         """
         pass
 
-    # 通知order
     def notify_order(self, order):
-        """
-        Receives an order whenever there has been a change in one
+        """Receive notification when an order status changes.
+
+        Args:
+            order: The order with changed status
         """
         pass
 
-    # 通知trade
     def notify_trade(self, trade):
-        """
-        Receives a trade whenever there has been a change in one
+        """Receive notification when a trade status changes.
+
+        Args:
+            trade: The trade with changed status
         """
         pass
 
-    # 通知store
     def notify_store(self, msg, *args, **kwargs):
-        """Receives a notification from a store provider"""
-        pass
+        """Receive notification from a store provider.
 
-    # 通知数据
-    def notify_data(self, data, status, *args, **kwargs):
-        """Receives a notification from data"""
-        pass
-
-    # 获取存在的数据名称
-    def getdatanames(self):
+        Args:
+            msg: Message from the store
+            *args: Additional positional arguments
+            **kwargs: Additional keyword arguments
         """
-        Returns a list of the existing data names
+        pass
+
+    def notify_data(self, data, status, *args, **kwargs):
+        """Receive notification from a data feed.
+
+        Args:
+            data: The data feed sending the notification
+            status: Status code
+            *args: Additional positional arguments
+            **kwargs: Additional keyword arguments
+        """
+        pass
+
+    def getdatanames(self):
+        """Get a list of all data names in the system.
+
+        Returns:
+            list: Names of all data feeds
         """
         return keys(self.env.datasbyname)
 
-    # 根据名称获取数据
     def getdatabyname(self, name):
-        """
-        Returns given data by name using the environment (cerebro)
+        """Get a data feed by its name.
+
+        Args:
+            name: Name of the data feed
+
+        Returns:
+            The data feed with the given name
         """
         return self.env.datasbyname[name]
 
-    # 取消订单
     def cancel(self, order):
-        """Cancels the order in the broker"""
+        """Cancel an order in the broker.
+
+        Args:
+            order: The order to cancel
+        """
         self.broker.cancel(order)
 
-    # 买入下单
     def buy(
         self,
         data=None,
@@ -1431,7 +1461,6 @@ class Strategy(StrategyBase):
             For which data the order has to be created. If ``None`` then the
             first data in the system, ``self.datas[0] or self.data0`` (aka
             ``self.data``) will be used
-            # 用于在那个数据上进行下单，如果是None的话，将会默认使用第一个数据
 
           - ``size`` (default: ``None``)
 
@@ -1439,7 +1468,6 @@ class Strategy(StrategyBase):
 
             If ``None`` the ``sizer`` instance retrieved via ``getsizer`` will
             be used to determine the size.
-            # size是下单的数量，如果size是None的话，就使用getsizer获取需要的下单量
 
           - ``price`` (default: ``None``)
 
@@ -1453,17 +1481,11 @@ class Strategy(StrategyBase):
             determines the trigger point (in the case of ``Limit`` the trigger
             is obviously at which price the order should be matched)
 
-            # 使用的价格（如果是实盘的时候，如果它不满足最小价格变动，可能需要对实际的格式进行限制
-            # 如果price是None的话，对于市价单和收盘价订单是有效的
-            # 对于限价单，止损单和止损限价单，这个price用于决定在那个点触发
-
           - ``plimit`` (default: ``None``)
 
             Only applicable to ``StopLimit`` orders. This is the price at which
             to set the implicit *Limit* order, once the *Stop* has been
             triggered (for which ``price`` has been used)
-
-            # 仅仅能应用于止损限价单，price已经使用了，止损已经被触发了，plimit用于设定止损价格
 
           - ``trailamount`` (default: ``None``)
 
@@ -1471,8 +1493,6 @@ class Strategy(StrategyBase):
             absolute amount which determines the distance to the price (below
             for a Sell order and above for a buy order) to keep the trailing
             stop
-            # 移动止损量，默认是None，如果这个order的类型是移动止损，移动止损限价单，这是一个完全绝对的量
-            # 用于决定在什么地方止损
 
           - ``trailpercent`` (default: ``None``)
 
@@ -1481,45 +1501,34 @@ class Strategy(StrategyBase):
             for a Sell order and above for a buy order) to keep the trailing
             stop (if ``trailamount`` is also specified it will be used)
 
-            # 移动百分比止损，默认是None,如果这个order是移动止损或者移动止损限价单，用价格的百分比来决定在哪个地方止损
-
           - ``exectype`` (default: ``None``)
-            # 不同的执行类型
+
             Possible values:
 
             - ``Order.Market`` or ``None``. A market order will be executed
               with the next available price. In backtesting it will be the
               opening price of the next bar
 
-                # 市价单，默认情况下是使用市价单，当使用市价单的时候将会在下一个可以利用的价格的时候执行
-                # 在回测的时候使用下一个bar的开盘价
-
             - ``Order.Limit``. An order which can only be executed at the given
               ``price`` or better
-                # 限价单，一个订单可以在限价执行或者更好的价格执行
 
             - ``Order.Stop``. An order which is triggered at ``price`` and
               executed like an ``Order.Market`` order
-                # 止损单，会在price的时候触发这个止损单，并且以市价单成交
 
             - ``Order.StopLimit``. An order which is triggered at ``price`` and
               executed as an implicit *Limit* order with price given by
               ``pricelimit``
-                # 止损限价单  在price的时候触发止损限价单，并且下一个pricelimit的限价单
 
             - ``Order.Close``. An order which can only be executed with the
               closing price of the session (usually during a closing auction)
-                # 收盘价订单
 
             - ``Order.StopTrail``. An order which is triggered at ``price``
               minus ``trailamount`` (or ``trailpercent``) and which is updated
               if the price moves away from the stop
-                # 移动止损单
 
             - ``Order.StopTrailLimit``. An order which is triggered at
               ``price`` minus ``trailamount`` (or ``trailpercent``) and which
               is updated if the price moves away from the stop
-                # 移动止损限价单
 
           - ``valid`` (default: ``None``)
 
@@ -1543,8 +1552,6 @@ class Strategy(StrategyBase):
                 ``backtrader``) and will used to generate an order valid until
                 that time (*good till date*)
 
-            # 有效期
-
           - ``tradeid`` (default: ``0``)
 
             This is an internal value applied by ``backtrader`` to keep track
@@ -1552,16 +1559,11 @@ class Strategy(StrategyBase):
             back to the *strategy* when notifying changes to the status of the
             orders.
 
-            # tradeid是一个backtrader内部的值用于跟踪同一个资产上的不同的trade,当通知订单的变化的时候，
-            # 这个tradeid被送到了strategy
-
           - ``oco`` (default: ``None``)
 
             Another ``order`` instance. This order will become part of an OCO
             (Order Cancel Others) group. The execution of one of the orders,
             immediately cancels all others in the same group
-
-            # oco订单，这个订单将会变为oco的一部分，其中一个订单执行，立即取消这个组里面其他的
 
           - ``parent`` (default: ``None``)
 
@@ -1572,11 +1574,6 @@ class Strategy(StrategyBase):
             canceled/expires (the children are also canceled) bracket orders
             have the same size
 
-            # parent用于控制一组订单之间的关系，比如一个一个买单，同时有一个更高价格的限价卖单，
-            # 同时有一个更低价格的止损卖单，这个止盈单和止损单只有在这个买单成交之后才会激活
-            # 或者等到这个买单到期或者取消，止盈单和止损单也会取消
-            # 这几个订单具有相同的size
-
           - ``transmit`` (default: ``True``)
 
             Indicates if the order has to be **transmitted**, ie: not only
@@ -1584,9 +1581,6 @@ class Strategy(StrategyBase):
             control bracket orders, in which one disables the transmission for
             the parent and 1st set of children and activates it for the last
             children, which triggers the full placement of all bracket orders.
-
-            # 这个订单将会被转移，用于控制一篮子订单
-            # todo 对于这个参数的含义并不是完全理解
 
           - ``**kwargs``: additional broker implementations may support extra
             parameters. ``backtrader`` will pass the *kwargs* down to the
@@ -1602,22 +1596,19 @@ class Strategy(StrategyBase):
             generate a ``LIMIT IF TOUCHED`` order with a *touched* price of 9.8
             and a *limit* price of 10.0.
 
-            # 一些其他的关键字参数，backtrader可以把这些参数传递到下面用于创建订单，可以用于创建一些
-            # 超出现有订单类型的订单
-
         Returns:
           - the submitted order
 
         """
-        # 如果data是字符串格式，获取具体的data
+        # If data is a string, get the specific data feed by name
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
-        # 如果data不是None的时候，使用data，否则就使用第一个数据
+        # Use the provided data, otherwise default to the first data feed
         data = data if data is not None else self.datas[0]
-        # 如果size不是None的时候，size等于size,否则就通过getsizing获取size
+        # Use the provided size, otherwise calculate via getsizer
         size = size if size is not None else self.getsizing(data, isbuy=True)
         # self.log(f"strategy begin to buy, {data.name}, {size}")
-        # 如果size不同于0
+        # If size is non-zero, submit the order
         if size:
             # print("broker = ", type(self.broker), self.broker)
             return self.broker.buy(
@@ -1639,7 +1630,6 @@ class Strategy(StrategyBase):
 
         return None
 
-    # 卖出订单，和买入订单比较类似
     def sell(
         self,
         data=None,
@@ -1656,12 +1646,12 @@ class Strategy(StrategyBase):
         transmit=True,
         **kwargs,
     ):
-        """
-        To create a sell (short) order and send it to the broker
+        """Create a sell (short) order and send it to the broker.
 
-        See the documentation for ``buy`` for an explanation of the parameters
+        See the documentation for ``buy`` for an explanation of the parameters.
 
-        Returns: the submitted order
+        Returns:
+            The submitted order, or None if no order was created
         """
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
@@ -1690,39 +1680,42 @@ class Strategy(StrategyBase):
 
         return None
 
-    # 关闭
     def close(self, data=None, size=None, **kwargs):
-        """
-        Counters a long/short position closing it
+        """Close a long or short position.
 
-        See the documentation for ``buy`` for an explanation of the parameters
+        Creates an order that counters the existing position to close it.
+
+        Args:
+            data: The data feed for which to close the position.
+                If None, uses the default data feed.
+            size: The size to close. If None, closes the entire position.
+            **kwargs: Additional keyword arguments passed to the order.
 
         Note:
+            If size is not provided, it is automatically calculated from the
+            existing position to fully close it.
 
-          - ``size``: automatically calculated from the existing position if
-            not provided (default: ``None``) by the caller
-
-        Returns: the submitted order
+        Returns:
+            The submitted order, or None if no position exists
         """
-        # 获取数据
+        # Get the data feed
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
-        # 获取数据的持仓大小
+        # Get the current position size
         possize = self.getposition(data, self.broker).size
-        # 如果size是None的时候，就把当前持仓全部平掉，如果size不是None的话，就会平掉size的
+        # If size is None, close the entire position; otherwise close the specified size
         size = abs(size if size is not None else possize)
-        # 如果possize大于0的话，卖出平仓
+        # If position is long (positive), sell to close
         if possize > 0:
             return self.sell(data=data, size=size, **kwargs)
-        # 如果possize小于0的话，买入平仓
+        # If position is short (negative), buy to close
         elif possize < 0:
             return self.buy(data=data, size=size, **kwargs)
 
         return None
 
-    # 买入一篮子订单
     def buy_bracket(
         self,
         data=None,
@@ -1743,156 +1736,72 @@ class Strategy(StrategyBase):
         limitargs={},
         **kwargs,
     ):
-        """
-        Create a bracket order group (low side - buy order - high side). The
-        default behavior is as follows:
+        """Create a bracket order group (buy order with stop-loss and take-profit).
 
-          - Issue a **buy** order with execution ``Limit``
+        Creates a bracket order group consisting of:
+          - A main **buy** order with the specified execution type (default: Limit)
+          - A *low side* bracket **sell** stop-loss order
+          - A *high side* bracket **sell** take-profit order
 
-          - Issue a *low side* bracket **sell** order with execution ``Stop``
+        Args:
+          - ``data`` (default: ``None``): The data feed for the order. If None,
+            uses the first data feed (self.data).
 
-          - Issue a *high side* bracket **sell** order with execution
-            ``Limit``.
-        # 创建一个一篮子订单，默认行为将会按照下面的方式：
-        # 以limit的价格发放一个限价单
-        # 以更低价格的一个止损单
-        # 更高价格的一个限价止盈单
-        See below for the different parameters
+          - ``size`` (default: ``None``): Size for the order. If None, the sizer
+            determines the size. The same size is applied to all three orders.
 
-          - ``data`` (default: ``None``)
+          - ``price`` (default: ``None``): Price for the main buy order. None
+            is valid for Market and Close orders.
 
-            For which data the order has to be created. If ``None`` then the
-            first data in the system, ``self.datas[0] or self.data0`` (aka
-            ``self.data``) will be used
+          - ``plimit`` (default: ``None``): Price limit for StopLimit orders.
 
-          - ``size`` (default: ``None``)
+          - ``trailamount`` (default: ``None``): Absolute trailing amount for
+            StopTrail/StopTrailLimit orders.
 
-            Size to use (positive) of units of data to use for the order.
+          - ``trailpercent`` (default: ``None``): Percentage trailing amount for
+            StopTrail/StopTrailLimit orders.
 
-            If ``None`` the ``sizer`` instance retrieved via ``getsizer`` will
-            be used to determine the size.
+          - ``exectype`` (default: ``bt.Order.Limit``): Execution type for the
+            main order. See buy() documentation for possible values.
 
-            **Note**: The same size is applied to all three orders of the bracket
+          - ``valid`` (default: ``None``): Order validity period. See buy()
+            documentation for possible values.
 
-          - ``price`` (default: ``None``)
+          - ``tradeid`` (default: ``0``): Trade ID for tracking overlapping trades.
 
-            Price to use (live brokers may place restrictions on the actual
-            format if it does not comply to minimum tick size requirements)
+          - ``oargs`` (default: ``{}``): Specific keyword arguments (dict) for
+            the main side order. Applied before **kwargs.
 
-            ``None`` is valid for ``Market`` and ``Close`` orders (the market
-            determines the price)
+          - ``**kwargs``: Additional keyword arguments applied to all three
+            orders. See buy() documentation for possible values.
 
-            For ``Limit``, ``Stop`` and ``StopLimit`` orders this value
-            determines the trigger point (in the case of ``Limit`` the trigger
-            is obviously at which price the order should be matched)
+          - ``stopprice`` (default: ``None``): Specific price for the stop-loss
+            order.
 
-          - ``plimit`` (default: ``None``)
+          - ``stopexec`` (default: ``bt.Order.Stop``): Execution type for the
+            stop-loss order.
 
-            Only applicable to ``StopLimit`` orders. This is the price at which
-            to set the implicit *Limit* order, once the *Stop* has been
-            triggered (for which ``price`` has been used)
+          - ``stopargs`` (default: ``{}``): Specific keyword arguments (dict)
+            for the stop-loss order.
 
-          - ``trailamount`` (default: ``None``)
+          - ``limitprice`` (default: ``None``): Specific price for the take-profit
+            order.
 
-            If the order type is StopTrail or StopTrailLimit, this is an
-            absolute amount which determines the distance to the price (below
-            for a Sell order and above for a buy order) to keep the trailing
-            stop
+          - ``limitexec`` (default: ``bt.Order.Limit``): Execution type for the
+            take-profit order.
 
-          - ``trailpercent`` (default: ``None``)
-
-            If the order type is StopTrail or StopTrailLimit, this is a
-            percentage amount which determines the distance to the price (below
-            for a Sell order and above for a buy order) to keep the trailing
-            stop (if ``trailamount`` is also specified it will be used)
-
-          - ``exectype`` (default: ``bt.Order.Limit``)
-
-            Possible values: (see the documentation for the method ``buy``
-
-          - ``valid`` (default: ``None``)
-
-            Possible values: (see the documentation for the method ``buy``
-
-          - ``tradeid`` (default: ``0``)
-
-            Possible values: (see the documentation for the method ``buy``
-
-            # 上面参数含义和buy函数比较类似
-
-          - ``oargs`` (default: ``{}``)
-
-            Specific keyword arguments (in a ``dict``) to pass to the main side
-            order. Arguments from the default ``**kwargs`` will be applied on
-            top of this.
-
-            # 给mainside设置关键字参数
-
-          - ``**kwargs``: additional broker implementations may support extra
-            parameters. ``backtrader`` will pass the *kwargs* down to the
-            created order objects
-
-            Possible values: (see the documentation for the method ``buy``
-
-            **Note**: this ``kwargs`` will be applied to the three orders of a
-            bracket. See below for specific keyword arguments for the low and
-            high side orders
-
-            # 是三个订单的关键字参数
-
-          - ``stopprice`` (default: ``None``)
-
-            Specific price for the *low side* stop order
-
-            # 用于触发止损单的止损价
-
-          - ``stopexec`` (default: ``bt.Order.Stop``)
-
-            Specific execution type for the *low side* order
-
-            # 止损单的类型，比如是限价止损，还是市价止损
-
-          - ``stopargs`` (default: ``{}``)
-
-            Specific keyword arguments (in a ``dict``) to pass to the low side
-            order. Arguments from the default ``**kwargs`` will be applied on
-            top of this.
-
-            # 止损单的关键字参数
-
-          - ``limitprice`` (default: ``None``)
-
-            Specific price for the *high side* stop order
-
-            # 止盈单的止盈价
-
-          - ``limitexec`` (default: ``bt.Order.Limit``)
-
-            Specific execution type for the *high side* order。
-            # 止盈单的类型
-
-          - ``limitargs`` (default: ``{}``)
-
-            Specific keyword arguments (in a ``dict``) to pass to the high side
-            order. Arguments from the default ``**kwargs`` will be applied on
-            top of this.
-            # 止盈单的参数
-
-        High/Low Side orders can be suppressed by using:
-
-          - ``limitexec=None`` to suppress the *high side*
-
-          - ``stopexec=None`` to suppress the *low side*
+          - ``limitargs`` (default: ``{}``): Specific keyword arguments (dict)
+            for the take-profit order.
 
         Returns:
+            A list containing the three orders [main_order, stop_order, limit_order].
+            Suppressed orders are represented as None.
 
-          - A list containing the 3 orders [order, stop side, limit side]
-
-          - If high/low orders have been suppressed the return value will still
-            contain 3 orders, but those suppressed will have a value of
-            ``None``
+        Note:
+            High/Low side orders can be suppressed by setting limitexec=None or
+            stopexec=None.
         """
-        # 参数字典
+        # Build parameter dictionary
         kargs = dict(
             size=size,
             data=data,
@@ -1904,16 +1813,16 @@ class Strategy(StrategyBase):
             trailamount=trailamount,
             trailpercent=trailpercent,
         )
-        # 更新主订单的参数
+        # Update with main side order specific arguments
         kargs.update(oargs)
-        # 更新关键字参数
+        # Update with general keyword arguments
         kargs.update(kwargs)
-        # 如果limitexec和stopexec，两个都是None的话
+        # Set transmit flag: only transmit if both stop and limit are None
         kargs["transmit"] = limitexec is None and stopexec is None
-        # 买入订单
+        # Create the main buy order
         o = self.buy(**kargs)
 
-        # 止损
+        # Create stop-loss order
         if stopexec is not None:
             # low side / stop
             kargs = dict(
@@ -1928,7 +1837,7 @@ class Strategy(StrategyBase):
         else:
             ostop = None
 
-        # 止盈
+        # Create take-profit order
         if limitexec is not None:
             # high side / limit
             kargs = dict(
@@ -1945,7 +1854,6 @@ class Strategy(StrategyBase):
 
         return [o, ostop, olimit]
 
-    # 卖出一篮子订单，和买入一篮子订单相似
     def sell_bracket(
         self,
         data=None,
@@ -1966,31 +1874,23 @@ class Strategy(StrategyBase):
         limitargs={},
         **kwargs,
     ):
-        """
-        Create a bracket order group (low side - buy order - high side). The
-        default behavior is as follows:
+        """Create a sell bracket order group (sell order with stop-loss and take-profit).
 
-          - Issue a **sell** order with execution ``Limit``
+        Creates a bracket order group consisting of:
+          - A main **sell** order with the specified execution type (default: Limit)
+          - A *high side* bracket **buy** stop-loss order
+          - A *low side* bracket **buy** take-profit order
 
-          - Issue a *high side* bracket **buy** order with execution ``Stop``
-
-          - Issue a *low side* bracket **buy** order with execution ``Limit``.
-
-        See ``bracket_buy`` for the meaning of the parameters
-
-        High/Low Side orders can be suppressed by using:
-
-          - ``stopexec=None`` to suppress the *high side*
-
-          - ``limitexec=None`` to suppress the *low side*
+        Args:
+            See buy_bracket() for parameter documentation.
 
         Returns:
+            A list containing the three orders [main_order, stop_order, limit_order].
+            Suppressed orders are represented as None.
 
-          - A list containing the three orders [order, stop side, limit side]
-
-          - If high/low orders have been suppressed the return value will still
-            contain three orders, but those suppressed will have a value of
-            ``None``
+        Note:
+            High/Low side orders can be suppressed by setting limitexec=None or
+            stopexec=None.
         """
 
         kargs = dict(
@@ -2039,95 +1939,84 @@ class Strategy(StrategyBase):
 
         return [o, ostop, olimit]
 
-    # 目标大小订单
     def order_target_size(self, data=None, target=0, **kwargs):
+        """Place an order to achieve a target position size.
+
+        Rebalances the current position to reach the specified target size.
+
+        Args:
+            data: The data feed for the order. If None, uses the default data feed.
+            target: Target position size.
+                - If target > pos.size: buy (target - pos.size)
+                - If target < pos.size: sell (pos.size - target)
+                - If target == 0: close the entire position
+            **kwargs: Additional keyword arguments passed to buy/sell.
+
+        Returns:
+            The generated order, or None if target == current position size.
         """
-
-        Place an order to rebalance a position to have final size of ``target``
-
-        The current ``position`` size is taken into account as the start point
-        to achieve ``target``
-
-          - If ``target`` > ``pos.size`` -> buy ``target - pos.size``
-
-          - If ``target`` < ``pos.size`` -> sell ``pos.size - target``
-
-        It returns either:
-
-          - The generated order
-
-          or
-          - ``None`` if no order has been issued (``target == position.size``)
-
-        # 下一个订单用于平衡现有的持仓大小，以便达到目标订单的大小
-
-        """
-        # 获取具体的data
+        # Get the specific data feed
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
 
-        # 获取现有的持仓
+        # Get the current position size
         possize = self.getposition(data, self.broker).size
-        # 如果target等于0，并且possize不等于0，平仓
+        # If target is 0 and position exists, close the position
         if not target and possize:
             return self.close(data=data, size=possize, **kwargs)
-        # 如果目标大于现有的持仓，买入
+        # If target is greater than current position, buy to increase
         elif target > possize:
             return self.buy(data=data, size=target - possize, **kwargs)
-        # 如果目标小于现有的持仓，卖出
+        # If target is less than current position, sell to decrease
         elif target < possize:
             return self.sell(data=data, size=possize - target, **kwargs)
 
         return None  # no execution target == possize
 
-    # 目标金额订单，跟目标大小订单比较类似
     def order_target_value(self, data=None, target=0.0, price=None, **kwargs):
+        """Place an order to achieve a target position value.
+
+        Rebalances the position to reach the specified target value.
+
+        Args:
+            data: The data feed for the order. If None, uses the default data feed.
+            target: Target position value in currency units.
+                - If target is 0: close position
+                - If target > value: buy to increase value
+                - If target < value: sell to decrease value
+            price: Price for size calculation. If None, uses data.close[0].
+            **kwargs: Additional keyword arguments passed to buy/sell.
+
+        Returns:
+            The generated order, or None if no order was issued.
         """
-        Place an order to rebalance a position to have final value of
-        ``target``
-
-        The current ``value`` is taken into account as the start point to
-        achieve ``target``
-
-          - If no ``target`` then close position on data
-          - If ``target`` > ``value`` then buy on data
-          - If ``target`` < ``value`` then sell on data
-
-        It returns either:
-
-          - The generated order
-
-          or
-
-          - ``None`` if no order has been issued
-        """
-        # 获取数据
+        # Get the data feed
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
-        # 获取持仓
+        # Get the current position size
         possize = self.getposition(data, self.broker).size
-        # 如果target等于0，并且possize不等于0，平仓
+        # If target is 0 and position exists, close the position
         if not target and possize:  # closing a position
             return self.close(data=data, size=possize, price=price, **kwargs)
-        # 如果是其他情况
+        # Otherwise, rebalance to target value
         else:
-            # 获取当前data的价值
+            # Get the current value of this data
             value = self.broker.getvalue(datas=[data])
-            # 获取佣金信息
+            # Get commission info for size calculation
             comminfo = self.broker.getcommissioninfo(data)
-            # 获取price，如果price不是None的话，就用price,否则就用数据的收盘价
+            # Get price: use provided price or default to close price
             # Make sure a price is there
             price = price if price is not None else data.close[0]
-            # 如果目标价值大于value，就计算需要buy的size大小，发出buy订单
+            # If target value is greater than current value, buy
             if target > value:
                 size = comminfo.getsize(price, target - value)
                 # print(f"buy: name:{data.name},size:{size}")
                 return self.buy(data=data, size=size, price=price, **kwargs)
-            # 如果目标价值小于value，就计算需要sell的size大小，发出sell订单
+            # If target value is less than current value, sell
             elif target < value:
                 size = comminfo.getsize(price, value - target)
                 # print(f"sell: name:{data.name},size:{size}")
@@ -2135,112 +2024,111 @@ class Strategy(StrategyBase):
 
         return None  # no execution size == possize
 
-    # 目标百分比订单，会下一个订单再平衡当前的仓位，以确保仓位价值占现在账户价值的target百分比
     def order_target_percent(self, data=None, target=0.0, **kwargs):
-        """
-        Place an order to rebalance a position to have final value of
-        ``target`` percentage of current portfolio ``value``
+        """Place an order to achieve a target percentage of portfolio value.
 
-        ``target`` is expressed in decimal: ``0.05`` -> ``5%``
+        Rebalances the position so its value equals the target percentage
+        of the total portfolio value.
 
-        It uses ``order_target_value`` to execute the order.
+        Args:
+            data: The data feed for the order. If None, uses the default data feed.
+            target: Target percentage as a decimal (e.g., 0.05 for 5%).
+            **kwargs: Additional keyword arguments passed to order_target_value.
+
+        Returns:
+            The generated order, or None if no order was issued.
 
         Example:
-          - ``target=0.05`` and portfolio value is ``100``
+            With target=0.05 and portfolio value of 100:
+            - Target value = 0.05 * 100 = 5
+            - Orders are placed through order_target_value
 
-          - The ``value`` to be reached is ``0.05 * 100 = 5``
-
-          - ``5`` is passed as the ``target`` value to ``order_target_value``
-
-        The current ``value`` is taken into account as the start point to
-        achieve ``target``
-
-        The ``position.size`` is used to determine if a position is ``long`` /
-        ``short``
-
-          - If ``target`` > ``value``
-            - buy if ``pos.size >= 0`` (Increase a long position)
-            - sell if ``pos.size < 0`` (Increase a short position)
-
-          - If ``target`` < ``value``
-            - sell if ``pos.size >= 0`` (Decrease a long position)
-            - buy if ``pos.size < 0`` (Decrease a short position)
-
-        It returns either:
-
-          - The generated order
-
-          or
-
-          - ``None`` if no order has been issued (``target == position.size``)
+        Note:
+            Position direction (long/short) is considered:
+            - If target > value: buy if pos.size >= 0, sell if pos.size < 0
+            - If target < value: sell if pos.size >= 0, buy if pos.size < 0
         """
-        # 获取数据
+        # Get the data feed
         if isinstance(data, string_types):
             data = self.getdatabyname(data)
         elif data is None:
             data = self.data
-        # 计算持仓和目标价值，todo 此处没有必要获取持仓的大小，可以考虑注释掉
+        # Calculate target value based on portfolio value
+        # Note: Getting position size here is not necessary
         # possize = self.getposition(data, self.broker).size
         target *= self.broker.getvalue()
 
         return self.order_target_value(data=data, target=target, **kwargs)
 
-    # 获取数据的持仓，如果数据是None的话，将会获取第一个数据的持仓，如果broker是None的话，使用默认的broker
     def getposition(self, data=None, broker=None):
-        """
-        Returns the current position for a given data in a given broker.
+        """Get the current position for a data feed.
 
-        If both are None, the main data and the default broker will be used
+        Args:
+            data: The data feed to get position for. If None, uses the first data feed.
+            broker: The broker to query. If None, uses the default broker.
 
-        A property ``position`` is also available
+        Returns:
+            The current Position object.
+
+        Note:
+            A property ``position`` is also available as a shortcut.
         """
         data = data if data is not None else self.datas[0]
         broker = broker or self.broker
         return broker.getposition(data)
 
-    # 也可以通过属性position来获取数据持仓
+    # Property to access position for the default data feed
     position = property(getposition)
 
-    # 根据数据的名字来获取持仓大小，如果数据是None的话，默认获取第一个数据的持仓，如果不是None,获取具体的数据
-    # 如果broker不是None，使用参数传递的broker，否则使用默认的broker
     def getpositionbyname(self, name=None, broker=None):
-        """
-        Returns the current position for a given name in a given broker.
+        """Get the current position for a data feed by name.
 
-        If both are None, the main data and the default broker will be used
+        Args:
+            name: Name of the data feed. If None, uses the first data feed.
+            broker: The broker to query. If None, uses the default broker.
 
-        A property ``positionbyname`` is also available
+        Returns:
+            The current Position object.
+
+        Note:
+            A property ``positionbyname`` is also available as a shortcut.
         """
         data = self.datas[0] if not name else self.getdatabyname(name)
         broker = broker or self.broker
         return broker.getposition(data)
 
-    # 设置了positionbyname属性，可以通过这个根据名字获取属性
+    # Property to access position by name
     positionbyname = property(getpositionbyname)
 
-    # 获取某个broker的持仓
     def getpositions(self, broker=None):
-        """
-        Returns the current by data positions directly from the broker
+        """Get all positions from the broker.
 
-        If the given ``broker`` is None, the default broker will be used
+        Args:
+            broker: The broker to query. If None, uses the default broker.
 
-        A property ``positions`` is also available
+        Returns:
+            Dictionary mapping data feeds to Position objects.
+
+        Note:
+            A property ``positions`` is also available as a shortcut.
         """
         broker = broker or self.broker
         return broker.positions
 
-    # 可以通过positions属性来获取broker的持仓
+    # Property to access all positions
     positions = property(getpositions)
 
-    # 返回broker中的以持仓的名字为key,position为value形成的字典
     def getpositionsbyname(self, broker=None):
-        """
-        Returns the current by name positions directly from the broker
+        """Get all positions from the broker indexed by data name.
 
-        If the given ``broker`` is None, the default broker will be used
+        Args:
+            broker: The broker to query. If None, uses the default broker.
 
-        A property ``positionsbyname`` is also available
+        Returns:
+            OrderedDict mapping data names to Position objects.
+
+        Note:
+            A property ``positionsbyname`` is also available as a shortcut.
         """
         broker = broker or self.broker
         positions = broker.positions
@@ -2251,42 +2139,63 @@ class Strategy(StrategyBase):
 
         return posbyname
 
-    # 可以通过属性访问
+    # Property to access positions by name
     positionsbyname = property(getpositionsbyname)
 
-    # 增加sizer,如果sizer是None的话，默认使用固定的sizer，如果不是None的话，就实例化sizer,并设置到broker中
     def _addsizer(self, sizer, *args, **kwargs):
+        """Add a sizer to the strategy.
+
+        If sizer is None, uses FixedSize sizer. Otherwise instantiates
+        the provided sizer class and sets it.
+
+        Args:
+            sizer: Sizer class or None
+            *args: Positional arguments for sizer instantiation
+            **kwargs: Keyword arguments for sizer instantiation
+        """
         if sizer is None:
             self.setsizer(FixedSize())
         else:
             self.setsizer(sizer(*args, **kwargs))
 
-    # 设置sizer
     def setsizer(self, sizer):
-        """
-        Replace the default (fixed stake) sizer
+        """Set the sizer for automatic stake calculation.
+
+        Args:
+            sizer: The sizer instance to use
+
+        Returns:
+            The sizer instance
         """
         self._sizer = sizer
         sizer.set(self, self.broker)
         return sizer
 
-    # 获取sizer
     def getsizer(self):
-        """
-        Returns the sizer which is in used if automatic stake calculation is
-        used
+        """Get the current sizer for automatic stake calculation.
 
-        Also, available as ``sizer``
+        Returns:
+            The current sizer instance
+
+        Note:
+            Also available as the ``sizer`` property.
         """
         return self._sizer
 
     sizer = property(getsizer, setsizer)
 
-    # 根据sizer获取要下单的大小
     def getsizing(self, data=None, isbuy=True):
-        """
-        Returns the sizer which is in used if automatic stake calculation is
-        used
+        """Get the order size from the sizer.
+
+        Uses the configured sizer to calculate the appropriate stake size
+        for the next order.
+
+        Args:
+            data: The data feed for the order. If None, uses the default data.
+            isbuy: True for buy orders, False for sell orders.
+
+        Returns:
+            The calculated stake size.
         """
         # Ensure sizer has broker reference
         if hasattr(self._sizer, "broker") and self._sizer.broker is None:
@@ -2294,92 +2203,61 @@ class Strategy(StrategyBase):
         return self._sizer.getsizing(data, isbuy)
 
 
-# 信号策略类，使用信号可以自动操作的策略的子类
 class SignalStrategy(Strategy):
-    """This subclass of ``Strategy`` is meant to to auto-operate using
-    **signals**.
+    """A strategy subclass that automatically operates using signals.
 
-    *Signals* are usually indicators and the expected output values:
+    This strategy subclass responds to signal indicators to automatically
+    enter and exit positions based on signal values.
 
-      - ``> 0`` is a ``long`` indication
+    Signal values:
+      - ``> 0`` indicates a long (buy) signal
+      - ``< 0`` indicates a short (sell) signal
 
-      - ``< 0`` is a ``short`` indication
-
-    There are five types of *Signals*, broken in two groups.
-
-    # 信号通常是指标并且具有下面的输出值：大于0代表一个多头意向，小于0代表一个空头意向，下面具有5种类型的信号，分成2组
+    There are five types of signals, broken into two groups:
 
     **Main Group**:
 
-      - ``LONGSHORT``: both ``long`` and ``short`` indications from this signal
-        are taken
-
-        # 多头意向和空头意向同时在这个信号中
+      - ``LONGSHORT``: Both long and short indications from this signal
+        are taken. The strategy will go long or short based on the sign.
 
       - ``LONG``:
-        - ``long`` indications are taken to go long
-        - ``short`` indications are taken to *close* the long position. But:
-
-          - If a ``LONGEXIT`` (see below) signal is in the system it will be
-            used to exit the long
-
-          - If a ``SHORT`` signal is available and no ``LONGEXIT`` is available
-            , it will be used to close a ``long`` before opening a ``short``
-        # 多头情况下：
-            # long意向将会开多
-            # short意向将会平多，如果有LONGEXIT，多头将会被平掉，如果没有LONGEXIT，会在开空之前平掉多头
+        - Positive (long) indications: Go long
+        - Negative (short) indications: Close long position
+          - If ``LONGEXIT`` exists, it is used to exit longs
+          - If ``SHORT`` signal exists and no ``LONGEXIT``, it will close
+            longs before opening a short
 
       - ``SHORT``:
-        - ``short`` indications are taken to go short
-        - ``long`` indications are taken to *close* the short position. But:
-
-          - If a ``SHORTEXIT`` (see below) signal is in the system it will be
-            used to exit the short
-
-          - If a ``LONG`` signal is available and no ``SHORTEXIT`` is available
-            , it will be used to close a ``short`` before opening a ``long``
-        # 空头情况
-            # 如果是short信号，将会继续开空
-            # 如果是long信号，如果是SHORTEXIT，将会结束空头，如果没有SHORTEXIT，在开多之前会先平掉空头
+        - Negative (short) indications: Go short
+        - Positive (long) indications: Close short position
+          - If ``SHORTEXIT`` exists, it is used to exit shorts
+          - If ``LONG`` signal exists and no ``SHORTEXIT``, it will close
+            shorts before opening a long
 
     **Exit Group**:
+      These signals override others to provide explicit exit criteria:
 
-      This 2 signals are meant to override others and provide criteria for
-      exitins a ``long``/``short`` position
-
-      - ``LONGEXIT``: ``short`` indications are taken to exit ``long``
-        positions
-
-      - ``SHORTEXIT``: ``long`` indications are taken to exit ``short``
-        positions
-
-     # 分别用于结束多头和空头
+      - ``LONGEXIT``: Negative indications are taken to exit long positions
+      - ``SHORTEXIT``: Positive indications are taken to exit short positions
 
     **Order Issuing**
 
-      Orders execution type is ``Market`` and validity is ``None`` (*Good until
-      Canceled*)
-
-    # 下单，将会下一个有效期直到取消前都有效的市价单
+      Orders are placed with Market execution type and Good-Until-Canceled
+      validity.
 
     Params:
 
-      - ``signals`` (default: ``[]``): a list/tuple of lists/tuples that allows
-        the instantiation of the signals and allocation to the right type
+      - ``signals`` (default: ``[]``): A list/tuple of lists/tuples for signal
+        instantiation and type allocation. This parameter is typically managed
+        through ``cerebro.add_signal``.
 
-        This parameter is expected to be managed through ``cerebro.add_signal``
-        # 信号，列表或者元组，其中的元素也是列表或者元组，可以用于信号的实例化，并且格式分配的正确
-        #这个参数是通过cerebro.add_signal来添加的
+      - ``_accumulate`` (default: ``False``): Allow entering the market even if
+        already in a position (accumulate positions).
 
-      - ``_accumulate`` (default: ``False``): allow to enter the market
-        (long/short) even if already in the market
-        # 累计，是否允许已经有持仓的情况下，仍然可以开仓，默认是不允许
+      - ``_concurrent`` (default: ``False``): Allow issuing orders even when
+        orders are already pending execution.
 
-      - ``_concurrent`` (default: ``False``): allow orders to be issued even if
-        orders are already pending execution
-        # 多个订单，在有没有成交的订单的时候是否允许开仓，默认情况下是不允许
-
-      - ``_data`` (default: ``None``): if multiple datas are present in the
+      - ``_data`` (default: ``None``): If multiple datas are present in the
         system which is the target for orders. This can be
 
         - ``None``: The first data in the system will be used
@@ -2392,15 +2270,9 @@ class SignalStrategy(Strategy):
 
         - A ``data`` instance
 
-        # 数据，默认是None，数据可以是下面的值：
-        # None，将会默认使用第一个数据
-        # int,将会获取datas[int]这个数据
-        # str，将会使用getdatabyname获取data
-        # data实例，直接使用
-
     """
 
-    # 参数
+    # Parameters for signal strategy
     params = (
         ("signals", []),
         ("_accumulate", False),
@@ -2486,17 +2358,27 @@ class SignalStrategy(Strategy):
         self._longexit = bool(self._signals[SIGNAL_LONGEXIT])
         self._shortexit = bool(self._signals[SIGNAL_SHORTEXIT])
 
-    # 开始
     def _start(self):
+        """Start the signal strategy and initialize the order sentinel."""
         self._sentinel = None  # sentinel for order concurrency
         super(SignalStrategy, self)._start()
 
-    # 增加信号
     def signal_add(self, sigtype, signal):
+        """Add a signal indicator to the strategy.
+
+        Args:
+            sigtype: Type of signal (e.g., SIGNAL_LONG, SIGNAL_SHORT)
+            signal: The signal indicator instance
+        """
         self._signals[sigtype].append(signal)
 
-    # 通知
     def _notify(self, qorders=[], qtrades=[]):
+        """Process notifications and reset sentinel when order completes.
+
+        Args:
+            qorders: Quick notify orders
+            qtrades: Quick notify trades
+        """
         # Nullify the sentinel if done
         procorders = qorders or self._orderspending
         if self._sentinel is not None:
@@ -2507,88 +2389,92 @@ class SignalStrategy(Strategy):
 
         super(SignalStrategy, self)._notify(qorders=qorders, qtrades=qtrades)
 
-    # 匹配信号
     def _next_catch(self):
+        """Catch method that routes to signal processing and custom next."""
         self._next_signal()
         if hasattr(self, "_next_custom"):
             self._next_custom()
 
-    # 下一个信号
     def _next_signal(self):
-        # 如果不允许同时下单，并且已经下过单了，返回
+        """Process signals and generate orders based on signal values.
+
+        Evaluates all signal types and generates buy/sell orders based on:
+        - Current position status
+        - Signal values (positive/negative)
+        - Accumulation and concurrency settings
+        """
+        # If concurrent orders are disabled and an order is active, return
         if self._sentinel is not None and not self.p._concurrent:
             return  # order active and more than 1 not allowed
-        # 信号
+        # Get signal collections
         sigs = self._signals
-        # 没有信号
+        # Default no-signal value
         nosig = [[0.0]]
 
         # Calculate current status of the signals
-        # 计算信号的当前状态
-        # sigs[SIGNAL_LONGSHORT]如果是空得到话，就循环nosig，返回False
-        # longshort的信号
+        # If SIGNAL_LONGSHORT is empty, loop through nosig
         ls_long = all(x[0] > 0.0 for x in sigs[SIGNAL_LONGSHORT] or nosig)
         ls_short = all(x[0] < 0.0 for x in sigs[SIGNAL_LONGSHORT] or nosig)
-        # 多头进场信号
+        # Long entry signals
         l_enter0 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONG] or nosig)
         l_enter1 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONG_INV] or nosig)
         l_enter2 = all(x[0] for x in sigs[SIGNAL_LONG_ANY] or nosig)
         l_enter = l_enter0 or l_enter1 or l_enter2
-        # 空头进场信号
+        # Short entry signals
         s_enter0 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORT] or nosig)
         s_enter1 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORT_INV] or nosig)
         s_enter2 = all(x[0] for x in sigs[SIGNAL_SHORT_ANY] or nosig)
         s_enter = s_enter0 or s_enter1 or s_enter2
-        # 多头出场信号
+        # Long exit signals
         l_ex0 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONGEXIT] or nosig)
         l_ex1 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONGEXIT_INV] or nosig)
         l_ex2 = all(x[0] for x in sigs[SIGNAL_LONGEXIT_ANY] or nosig)
         l_exit = l_ex0 or l_ex1 or l_ex2
-        # 空头出场信号
+        # Short exit signals
         s_ex0 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORTEXIT] or nosig)
         s_ex1 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORTEXIT_INV] or nosig)
         s_ex2 = all(x[0] for x in sigs[SIGNAL_SHORTEXIT_ANY] or nosig)
         s_exit = s_ex0 or s_ex1 or s_ex2
 
-        # Use oppossite signales to start reversal (by closing)
+        # Use opposite signals to start reversal (by closing)
         # but only if no "xxxExit" exists
-        # 不是多头结束并且空头信号，代表多头反转
+        # Long reversal: no long exit and short entry signal
         l_rev = not self._longexit and s_enter
-        # 不是空头结束并且多头信号，代表空头反转
+        # Short reversal: no short exit and long entry signal
         s_rev = not self._shortexit and l_enter
 
         # Opposite of individual long and short
-        # 多头离场
+        # Long leave signals
         l_leav0 = all(x[0] < 0.0 for x in sigs[SIGNAL_LONG] or nosig)
         l_leav1 = all(x[0] > 0.0 for x in sigs[SIGNAL_LONG_INV] or nosig)
         l_leav2 = all(x[0] for x in sigs[SIGNAL_LONG_ANY] or nosig)
         l_leave = l_leav0 or l_leav1 or l_leav2
-        # 空头离场
+        # Short leave signals
         s_leav0 = all(x[0] > 0.0 for x in sigs[SIGNAL_SHORT] or nosig)
         s_leav1 = all(x[0] < 0.0 for x in sigs[SIGNAL_SHORT_INV] or nosig)
         s_leav2 = all(x[0] for x in sigs[SIGNAL_SHORT_ANY] or nosig)
         s_leave = s_leav0 or s_leav1 or s_leav2
 
         # Invalidate long leave if longexit signals are available
-        # 如果longexit是False的话，l_leave，如果是True的话，l_leave是False
+        # If longexit exists, disable l_leave; otherwise keep l_leave
         l_leave = not self._longexit and l_leave
         # Invalidate short leave if shortexit signals are available
-        # 如果shortexit是False的话，返回s_leave，如果是True的话，s_leave是False
+        # If shortexit exists, disable s_leave; otherwise keep s_leave
         s_leave = not self._shortexit and s_leave
 
         # Take size and start logic
-        # 获取持仓
+        # Get current position size
         size = self.getposition(self._dtarget).size
-        # 如果没有持仓
+        # If no position
         if not size:
-            # 下单
+            # Enter new position based on signals
             if ls_long or l_enter:
                 self._sentinel = self.buy(self._dtarget)
 
             elif ls_short or s_enter:
                 self._sentinel = self.sell(self._dtarget)
 
-        # 如果当前持仓大于0
+        # If current position is long (positive)
         elif size > 0:  # current long position
             if ls_short or l_exit or l_rev or l_leave:
                 # closing position - not relevant for concurrency
@@ -2600,7 +2486,7 @@ class SignalStrategy(Strategy):
             if ls_long or l_enter:
                 if self.p._accumulate:
                     self._sentinel = self.buy(self._dtarget)
-        # 如果当前持仓小于0
+        # If current position is short (negative)
         elif size < 0:  # current short position
             if ls_long or s_exit or s_rev or s_leave:
                 # closing position - not relevant for concurrency
