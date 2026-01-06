@@ -4,7 +4,7 @@ from ..utils.py3 import range
 from . import MovingAverageBase
 
 
-# 加权平均均线
+# Weighted Moving Average
 class WeightedMovingAverage(MovingAverageBase):
     """
     A Moving Average which gives an arithmetic weighting to values with the

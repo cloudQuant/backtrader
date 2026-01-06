@@ -3,7 +3,7 @@ import math
 from . import DivByZero, Highest, Indicator, Lowest, MovAv
 
 
-# kdj随机指标
+# KDJ Stochastic indicator
 class _StochasticBase(Indicator):
     lines = (
         "percK",

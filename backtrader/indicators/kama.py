@@ -3,7 +3,7 @@ import math
 from . import MovingAverageBase
 
 
-# 自适应均线
+# Adaptive Moving Average
 class AdaptiveMovingAverage(MovingAverageBase):
     """
     Defined by Perry Kaufman in his book `"Smarter Trading"`.

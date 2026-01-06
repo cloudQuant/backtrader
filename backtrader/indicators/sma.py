@@ -6,7 +6,7 @@ import numpy as np
 from .mabase import MovingAverageBase
 
 
-# 移动平均线指标
+# Moving average indicator
 class MovingAverageSimple(MovingAverageBase):
     """
     Non-weighted average of the last n periods

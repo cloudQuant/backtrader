@@ -8,7 +8,7 @@ from . import SMA, PeriodN, StdDev
 __all__ = ["OLS_Slope_InterceptN", "OLS_TransformationN", "OLS_BetaN", "CointN"]
 
 
-# 线性回归的几个操作
+# Linear regression operations
 class OLS_Slope_InterceptN(PeriodN):
     """
     Calculates a linear regression using ``statsmodel.OLS`` (Ordinary least

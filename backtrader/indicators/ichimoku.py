@@ -3,7 +3,7 @@ import math
 from . import Highest, Indicator, Lowest
 
 
-# 日本云图指标
+# Ichimoku Cloud indicator
 class Ichimoku(Indicator):
     """
     Developed and published in his book in 1969 by journalist Goichi Hosoda

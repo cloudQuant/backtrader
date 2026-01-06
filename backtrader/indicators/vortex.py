@@ -2,7 +2,7 @@
 from . import Indicator, Max, SumN
 
 
-# vortex指标
+# Vortex indicator
 class Vortex(Indicator):
     """
     See:

@@ -3,7 +3,7 @@ import math
 from . import ATR, Indicator, MovAv
 
 
-# 价格与均线的距离除以ATR的值
+# Distance between price and moving average divided by ATR
 class PrettyGoodOscillator(Indicator):
     """
     The "Pretty Good Oscillator" (PGO) by Mark Johnson measures the distance of

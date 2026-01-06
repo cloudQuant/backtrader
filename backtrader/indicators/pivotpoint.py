@@ -2,7 +2,7 @@
 from . import CmpEx, Indicator
 
 
-# 一些价格中枢的算法
+# Algorithms for price pivot points
 class PivotPoint(Indicator):
     """
     Defines a level of significance by taking into account the average of price

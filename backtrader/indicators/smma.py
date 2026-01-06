@@ -3,7 +3,7 @@ import math
 from . import MovingAverageBase
 
 
-# 指数平滑移动平均线
+# Smoothed Moving Average (Exponential smoothing)
 class SmoothedMovingAverage(MovingAverageBase):
     """
     Smoothing Moving Average used by Wilder in his 1978 book `New Concepts in

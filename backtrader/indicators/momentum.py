@@ -3,7 +3,7 @@ import math
 from . import Indicator
 
 
-# 动量指标，动量震荡指标，ROC指标，ROC指标乘以100
+# Momentum indicator, Momentum Oscillator, ROC indicator, ROC indicator times 100
 class Momentum(Indicator):
     """
     Measures the change in price by calculating the difference between the

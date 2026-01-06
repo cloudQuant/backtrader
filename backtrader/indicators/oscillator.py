@@ -4,7 +4,7 @@ import sys
 from . import Indicator, MovingAverage
 
 
-# 创造震荡指标
+# Create oscillating indicators
 class OscillatorMixIn(Indicator):
     """
     MixIn class to create a subclass with another indicator. The main line of

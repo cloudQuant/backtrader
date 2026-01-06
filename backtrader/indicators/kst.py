@@ -3,7 +3,7 @@ import math
 from . import ROC100, SMA, Indicator
 
 
-# KnowSureThing指标
+# KnowSureThing indicator
 class KnowSureThing(Indicator):
     """
     It is a "summed" momentum indicator. Developed by Martin Pring and

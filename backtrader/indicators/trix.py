@@ -4,7 +4,7 @@ from . import Indicator
 from .ema import EMA
 
 
-# 三重指数移动平均斜率
+# Triple exponential moving average slope
 class Trix(Indicator):
     """
     Defined by Jack Hutson in the 80s and shows the Rate of Change (%) or slope

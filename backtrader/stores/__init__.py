@@ -20,7 +20,7 @@ except ImportError:
 
 from .vchartfile import VChartFile as VChartFile
 
-# 增加ctp的引用
+# Add CTP references
 # from backtrader.stores.ctpstore import *
 # from backtrader.brokers.ctpbroker import *
 # from backtrader.feeds.ctpdata import *

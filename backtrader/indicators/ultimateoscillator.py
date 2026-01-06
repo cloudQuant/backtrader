@@ -3,7 +3,7 @@ import math
 from . import Indicator, SumN, TrueLow, TrueRange
 
 
-# 最终震荡指标
+# Ultimate Oscillator
 class UltimateOscillator(Indicator):
     """
     Formula:

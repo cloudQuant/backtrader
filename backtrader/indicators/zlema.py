@@ -4,7 +4,7 @@ from . import MovingAverageBase
 from .ema import EMA
 
 
-# 零滞后指数移动平均线
+# Zero Lag Exponential Moving Average
 class ZeroLagExponentialMovingAverage(MovingAverageBase):
     """
     The zero-lag exponential moving average (ZLEMA) is a variation of the EMA

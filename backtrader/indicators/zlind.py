@@ -5,7 +5,7 @@ from . import MovingAverageBase
 from .ema import EMA
 
 
-# 零滞后均线
+# Zero Lag Moving Average
 class ZeroLagIndicator(MovingAverageBase):
     """By John Ehlers and Ric Way
 

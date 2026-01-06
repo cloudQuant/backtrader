@@ -3,7 +3,7 @@ import math
 from . import DivZeroByZero, Indicator, Max, MovAv
 
 
-# 计算RSI指标
+# Calculate RSI indicator
 class UpDay(Indicator):
     """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in

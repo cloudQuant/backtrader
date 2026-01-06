@@ -3,7 +3,7 @@ import math
 from . import Accum, DownDay, Highest, If, Indicator, Lowest, TrueHigh, TrueLow, UpDay
 
 
-# 威廉指标
+# Williams indicator
 class WilliamsR(Indicator):
     """
     Developed by Larry Williams to show the relation of closing prices to

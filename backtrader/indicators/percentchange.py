@@ -4,7 +4,7 @@ from . import Indicator
 __all__ = ["PercentChange", "PctChange"]
 
 
-# 变动百分比
+# Percentage change
 class PercentChange(Indicator):
     """
     Measures the percentage change of the current value with respect to that

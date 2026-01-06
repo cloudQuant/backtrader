@@ -2,7 +2,7 @@
 from . import RSI
 
 
-# 计算RelativeMomentumIndex指标
+# Calculate Relative Momentum Index indicator
 class RelativeMomentumIndex(RSI):
     """
     Description:

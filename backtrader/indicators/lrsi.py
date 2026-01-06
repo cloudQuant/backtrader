@@ -4,7 +4,7 @@ from . import PeriodN
 __all__ = ["LaguerreRSI", "LRSI", "LaguerreFilter", "LAGF"]
 
 
-# 交易者的火箭科学的作者的几个改造的指标
+# Modified indicators from Rocket Science for Traders author
 class LaguerreRSI(PeriodN):
     """
     Defined by John F. Ehlers in `Cybernetic Analysis for Stock and Futures`,

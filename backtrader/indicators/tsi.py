@@ -4,7 +4,7 @@ from . import Indicator
 from .ema import ExponentialMovingAverage
 
 
-# 真正强度指标
+# True Strength Indicator
 class TrueStrengthIndicator(Indicator):
     """
     The True Strength Indicators was first introduced in Stocks & Commodities
