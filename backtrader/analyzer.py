@@ -12,21 +12,21 @@ from .strategy import Strategy
 from .utils.py3 import MAXINT
 
 
-# Analyzer类 - 重构为不使用元类
+# Analyzer class - refactored to not use metaclass
 class Analyzer(ParameterizedBase):
     """Analyzer base class. All analyzers are subclass of this one
 
     An Analyzer instance operates in the frame of a strategy and provides an
     analysis for that strategy.
 
-    # analyzer类，所有的analyzer都是这个类的基类，一个analyzer在策略框架内操作，并且提供策略运行的分析
+    # Analyzer class, all analyzers are base classes of this class. An analyzer operates within the strategy framework and provides analysis of strategy execution
 
     Automagically set member attributes:
 
       - ``self.strategy`` (giving access to the *strategy* and anything
         accessible from it)
 
-        # 访问到strategy实例
+        # Access to strategy instance
 
       - ``self.datas[x]`` giving access to the array of data feeds present in
         the the system, which could also be accessed via the strategy reference
@@ -43,7 +43,7 @@ class Analyzer(ParameterizedBase):
 
       - ``self.data_Y`` -> ``self.datas[0].lines[Y]``
 
-      # 访问数据的方法
+      # Methods to access data
 
     This is not a *Lines* object, but the methods and operation follow the same
     design
@@ -67,12 +67,12 @@ class Analyzer(ParameterizedBase):
     object containing the results of the analysis (the actual format is
     implementation dependent)
 
-    # 下面的不是line对象，但是方法和操作设计方法和strategy是类似的。最重要的事情是重写get_analysis,
-    # 以返回一个字典形式的对象以保存分析的结果
+    # Below are not line objects, but methods and operation design are similar to strategy. The most important thing is to override get_analysis,
+    # to return a dict-like object to store analysis results
 
     """
 
-    # 保存结果到csv中
+    # Save results to csv
     csv = True
 
     def __new__(cls, *args, **kwargs):
@@ -94,174 +94,174 @@ class Analyzer(ParameterizedBase):
         # Initialize parent first
         super().__init__(*args, **kwargs)
 
-        # findowner用于发现_obj的父类，Strategy的实例，如果没有找到，返回None
+        # findowner is used to find _obj's parent, Strategy instance, returns None if not found
         self.strategy = strategy = findowner(self, Strategy)
-        # findowner用于发现_obj的父类，属于Analyzer的实例,如果没有找到，返回None
+        # findowner is used to find _obj's parent, belonging to Analyzer instance, returns None if not found
         self._parent = findowner(self, Analyzer)
         # Register with a master observer if created inside one
-        # findowner用于发现_obj的父类，但是属于Observer的实例,如果没有找到，返回None
+        # findowner is used to find _obj's parent, but belonging to Observer instance, returns None if not found
         masterobs = findowner(self, Observer)
-        # 如果有obs的话，就把analyzer注册到obs中
+        # If there is obs, register analyzer to obs
         if masterobs is not None:
             masterobs._register_analyzer(self)
-        # analyzer的数据
+        # analyzer's data
         self.datas = strategy.datas if strategy is not None else []
 
         # For each data add aliases: for first data: data and data0
-        # 如果analyzer的数据不是None的话
+        # If analyzer's data is not None
         if self.datas:
-            # analyzer的data就是第一个数据
+            # analyzer's data is the first data
             self.data = data = self.datas[0]
-            # 对于数据里面的每条line
+            # For each line in data
             for line_index, line in enumerate(data.lines):
-                # 获取line的名字
+                # Get line name
                 linealias = data._getlinealias(line_index)
-                # 如果line的名字不是None的话，设置属性
+                # If line name is not None, set attribute
                 if linealias:
                     setattr(self, "data_%s" % linealias, line)
-                # 根据index设置line的名称
+                # Set line name based on index
                 setattr(self, "data_%d" % line_index, line)
-            # 循环数据，给数据设置不同的名称，可以通过data_d访问
+            # Loop through data, set different names for data, can be accessed via data_d
             for d, data in enumerate(self.datas):
                 setattr(self, "data%d" % d, data)
-                # 对不同的数据设置具体的属性名，可以通过属性名访问line
+                # Set specific attribute names for different data, can access line via attribute name
                 for line_index, line in enumerate(data.lines):
                     linealias = data._getlinealias(line_index)
                     if linealias:
                         setattr(self, "data%d_%s" % (d, linealias), line)
                     setattr(self, "data%d_%d" % (d, line_index), line)
 
-        # 调用create_analysis方法
+        # Call create_analysis method
         self.create_analysis()
 
         # Handle parent registration (previously in dopostinit)
         if self._parent is not None:
             self._parent._register(self)
 
-    # 获取analyzer的长度的时候，其实是计算的策略的长度
+    # When getting analyzer's length, actually returns strategy's length
     def __len__(self):
         """Support for invoking ``len`` on analyzers by actually returning the
         current length of the strategy the analyzer operates on"""
         return len(self.strategy)
 
-    # 添加一个child到self._children
+    # Add a child to self._children
     def _register(self, child):
         self._children.append(child)
 
-    # 调用_prenext,对于每个child，调用_prenext
+    # Call _prenext, for each child, call _prenext
     def _prenext(self):
         for child in self._children:
             child._prenext()
-        # 调用prenext
+        # Call prenext
         self.prenext()
 
-    # 通知cash和value
+    # Notify cash and value
     def _notify_cashvalue(self, cash, value):
         for child in self._children:
             child._notify_cashvalue(cash, value)
 
         self.notify_cashvalue(cash, value)
 
-    # 通知cash,value,fundvalue,shares
+    # Notify cash, value, fundvalue, shares
     def _notify_fund(self, cash, value, fundvalue, shares):
         for child in self._children:
             child._notify_fund(cash, value, fundvalue, shares)
 
         self.notify_fund(cash, value, fundvalue, shares)
 
-    # 通知trade
+    # Notify trade
     def _notify_trade(self, trade):
         for child in self._children:
             child._notify_trade(trade)
 
         self.notify_trade(trade)
 
-    # 通知order
+    # Notify order
     def _notify_order(self, order):
         for child in self._children:
             child._notify_order(order)
 
         self.notify_order(order)
 
-    # 调用_nextstart
+    # Call _nextstart
     def _nextstart(self):
         for child in self._children:
             child._nextstart()
 
         self.nextstart()
 
-    # 调用_next
+    # Call _next
     def _next(self):
         for child in self._children:
             child._next()
 
         self.next()
 
-    # _start，对于所有的child进行_start调用
+    # _start, call _start for all children
     def _start(self):
         for child in self._children:
             child._start()
 
         self.start()
 
-    # _stop，对于所有的child进行_stop调用
+    # _stop, call _stop for all children
     def _stop(self):
         for child in self._children:
             child._stop()
 
         self.stop()
 
-    # 通知cash,value
+    # Notify cash, value
     def notify_cashvalue(self, cash, value):
         pass
 
-    # 通知fund
+    # Notify fund
     def notify_fund(self, cash, value, fundvalue, shares):
         pass
 
-    # 通知order，可以在子类中重写
+    # Notify order, can be overridden in subclasses
     def notify_order(self, order):
         pass
 
-    # 通知trade，可以在子类中重写
+    # Notify trade, can be overridden in subclasses
     def notify_trade(self, trade):
         pass
 
-    # next，可以在子类中重写
+    # next, can be overridden in subclasses
     def next(self):
         pass
 
-    # prenext如果等于next的话，在子类中重写prenext，
-    # 一般情况下，prenext需要和next做同样的计算或者pass
+    # prenext, if equal to next, override prenext in subclasses,
+    # generally, prenext needs to do the same calculation as next or pass
     def prenext(self):
         # prenext and next until a minimum period of total_lines has been
         # reached
-        # 默认调用next，除非是子类中特别重写了prenext，否则prenext调用next
+        # By default call next, unless prenext is specially overridden in subclass, otherwise prenext calls next
         self.next()
 
-    # nextstart，一般被下一类重写，或者调用next
+    # nextstart, generally overridden by subclasses, or call next
     def nextstart(self):
         # Called once when the minimum period for all lines has been meet
         # It's default behavior is to call next
-        # 默认调用next
+        # By default call next
         self.next()
 
-    # start，可以在子类中重写
+    # start, can be overridden in subclasses
     def start(self):
         pass
 
-    # stop，可以在子类中重写
+    # stop, can be overridden in subclasses
     def stop(self):
         pass
 
-    # 创建analysis，在子类中重写
+    # Create analysis, override in subclasses
     def create_analysis(self):
         # create a dict placeholder for the analysis
-        # 创建一个字典分析结果的占位符
-        # self.rets 可以通过get_analysis获取到
+        # Create a dict placeholder for analysis results
+        # self.rets can be accessed via get_analysis
         self.rets = OrderedDict()
 
-    # 获取analysis
+    # Get analysis
     def get_analysis(self):
         """Returns a *dict-like* object with the results of the analysis
 
@@ -274,28 +274,28 @@ class Analyzer(ParameterizedBase):
         The default implementation returns the default OrderedDict ``rets``
         created by the default ``create_analysis`` method
 
-        # 返回字典形式的结果分析，具体的格式取决于实现
+        # Return dict-like result analysis, specific format depends on implementation
         """
         return self.rets
 
-    # 打印analysis
+    # Print analysis
     def print(self, *args, **kwargs):
         """Prints the results returned by ``get_analysis`` via a standard
         ``print`` call"""
-        # print analysis 通过调用打印分析结果，这个内容可以通过get_analysis获取到
+        # print analysis, print analysis results by calling, this content can be accessed via get_analysis
         print(self.get_analysis())
 
-    # pprint analysis
+    # Pretty print analysis
     def pprint(self, *args, **kwargs):
         """Prints the results returned by ``get_analysis`` via a pretty print
         call"""
-        # pretty print analysis，和上面类似
+        # pretty print analysis, similar to above
         pp.pprint(self.get_analysis(), *args, **kwargs)
 
 
-# TimeFrameAnalyzerBase类 - 重构为不使用元类
+# TimeFrameAnalyzerBase class - refactored to not use metaclass
 class TimeFrameAnalyzerBase(Analyzer):
-    # 参数
+    # Parameters
     params = (
         ("timeframe", None),
         ("compression", None),
@@ -312,10 +312,10 @@ class TimeFrameAnalyzerBase(Analyzer):
 
     def _start(self):
         # Override to add specific attributes
-        # 设置交易周期，比如分钟
-        # 设置交易周期 - use data's timeframe if not specified
+        # Set trading period, e.g., minutes
+        # Set trading period - use data's timeframe if not specified
         self.timeframe = self.p.timeframe or self.data._timeframe
-        # 设置压缩 - use data's compression if not specified
+        # Set compression - use data's compression if not specified
         self.compression = self.p.compression or self.data._compression
         # CRITICAL FIX: Initialize dtcmp with datetime.min to match master branch behavior
         # This ensures first _dt_over() call detects a change and counts correctly
@@ -353,13 +353,13 @@ class TimeFrameAnalyzerBase(Analyzer):
 
         self.next()
 
-    # 这个方法子类一般需要重写
+    # This method generally needs to be overridden in subclasses
     def on_dt_over(self):
         pass
 
     # CRITICAL FIX: Match master branch - return boolean and update dtcmp atomically
     def _dt_over(self):
-        # 如果交易周期等于没有时间周期，dtcmp等于最大整数，dtkey等于最大时间
+        # If trading period equals NoTimeFrame, dtcmp equals maximum integer, dtkey equals maximum time
         if self.timeframe == TimeFrame.NoTimeFrame:
             dtcmp, dtkey = MAXINT, datetime.datetime.max
         else:
@@ -367,115 +367,115 @@ class TimeFrameAnalyzerBase(Analyzer):
             dt = self.strategy.datetime.datetime()
             dtcmp, dtkey = self._get_dt_cmpkey(dt)
 
-        # 如果dtcmp是None，或者dtcmp大于self.dtcmp的话
+        # If dtcmp is None, or dtcmp is greater than self.dtcmp
         if self.dtcmp is None or dtcmp > self.dtcmp:
-            # 设置dtkey，dtkey1，dtcmp，dtcmp1返回True
+            # Set dtkey, dtkey1, dtcmp, dtcmp1 return True
             self.dtkey, self.dtkey1 = dtkey, self.dtkey
             self.dtcmp, self.dtcmp1 = dtcmp, self.dtcmp
             return True
-        # 返回False
+        # Return False
         return False
 
-    # 获取dtcmp, dtkey
+    # Get dtcmp, dtkey
     def _get_dt_cmpkey(self, dt):
-        # 如果当前的交易周期是没有时间周期的话，返回两个None
+        # If current trading period has NoTimeFrame, return two Nones
         if self.timeframe == TimeFrame.NoTimeFrame:
             return None, None
-        # 如果当前的交易周期是年的话
+        # If current trading period is years
         if self.timeframe == TimeFrame.Years:
             dtcmp = dt.year
             dtkey = datetime.date(dt.year, 12, 31)
-        # 如果交易周期是月的话
+        # If trading period is months
         elif self.timeframe == TimeFrame.Months:
             dtcmp = dt.year * 100 + dt.month
-            # 获取最后一天
+            # Get last day
             _, lastday = calendar.monthrange(dt.year, dt.month)
-            # 获取每月最后一天
+            # Get last day of each month
             dtkey = datetime.datetime(dt.year, dt.month, lastday)
-        # 如果交易周期是星期的话
+        # If trading period is weeks
         elif self.timeframe == TimeFrame.Weeks:
-            # 对日期返回年、周数和周几
+            # Return year, week number and weekday for date
             isoyear, isoweek, isoweekday = dt.isocalendar()
             dtcmp = isoyear * 1000 + isoweek
-            # 周末
+            # Weekend
             sunday = dt + datetime.timedelta(days=7 - isoweekday)
-            # 获取每周的最后一天
+            # Get last day of each week
             dtkey = datetime.datetime(sunday.year, sunday.month, sunday.day)
-        # 如果交易周期是天的话，计算具体的dtcmp，dtkey
+        # If trading period is days, calculate specific dtcmp, dtkey
         elif self.timeframe == TimeFrame.Days:
             dtcmp = dt.year * 10000 + dt.month * 100 + dt.day
             dtkey = datetime.datetime(dt.year, dt.month, dt.day)
-        # 如果交易周期小于天的话，调用_get_subday_cmpkey来获取
+        # If trading period is less than days, call _get_subday_cmpkey to get
         else:
             dtcmp, dtkey = self._get_subday_cmpkey(dt)
 
         return dtcmp, dtkey
 
-    # 如果交易周期小于天
+    # If trading period is less than days
     def _get_subday_cmpkey(self, dt):
         # Calculate intraday position
-        # 计算当前的分钟数目
+        # Calculate current number of minutes
         point = dt.hour * 60 + dt.minute
-        # 如果当前的交易周期小于分钟，point转换成秒
+        # If current trading period is less than minutes, convert point to seconds
         if self.timeframe < TimeFrame.Minutes:
             point = point * 60 + dt.second
-        # 如果当前的交易周期小于秒，point转变为毫秒
+        # If current trading period is less than seconds, convert point to microseconds
         if self.timeframe < TimeFrame.Seconds:
             point = point * 1e6 + dt.microsecond
 
         # Apply compression to update point position (comp 5 -> 200 // 5)
-        # 根据周期的数目，计算当前的point
+        # Calculate current point based on number of periods
         point = point // self.compression
 
         # Move to next boundary
-        # 移动到下个
+        # Move to next
         point += 1
 
         # Restore point to the timeframe units by de-applying compression
-        # 计算下个point结束的点位
+        # Calculate end position of next point
         point *= self.compression
 
         # Get hours, minutes, seconds and microseconds
-        # 如果交易周期等于分钟，得到ph,pm
+        # If trading period equals minutes, get ph, pm
         if self.timeframe == TimeFrame.Minutes:
             ph, pm = divmod(point, 60)
             ps = 0
             pus = 0
-        # 如果交易周期等于秒，得到ph,pm,ps
+        # If trading period equals seconds, get ph, pm, ps
         elif self.timeframe == TimeFrame.Seconds:
             ph, pm = divmod(point, 60 * 60)
             pm, ps = divmod(pm, 60)
             pus = 0
-        # 如果是毫秒，得到ph,pm,ps,pus
+        # If microseconds, get ph, pm, ps, pus
         elif self.timeframe == TimeFrame.MicroSeconds:
             ph, pm = divmod(point, 60 * 60 * 1e6)
             pm, psec = divmod(pm, 60 * 1e6)
             ps, pus = divmod(psec, 1e6)
-        # 是否是下一天
+        # Whether it's the next day
         extradays = 0
-        #  小时大于23，整除，计算是不是下一天了
+        #  If hour is greater than 23, divide, calculate if it's the next day
         if ph > 23:  # went over midnight:
             extradays = ph // 24
             ph %= 24
 
         # moving 1 minor unit to the left to be in the boundary
-        # 需要调整的时间
+        # Time to adjust
         tadjust = datetime.timedelta(
             minutes=self.timeframe == TimeFrame.Minutes,
             seconds=self.timeframe == TimeFrame.Seconds,
             microseconds=self.timeframe == TimeFrame.MicroSeconds)
 
         # Add extra day if present
-        # 如果下一天是True的话，把时间调整到下一天
+        # If next day is True, adjust time to next day
         if extradays:
             dt += datetime.timedelta(days=extradays)
 
         # Replace intraday parts with the calculated ones and update it
-        # 计算dtcmp
+        # Calculate dtcmp
         dtcmp = dt.replace(hour=int(ph), minute=int(pm), second=int(ps), microsecond=int(pus))
-        # 对dtcmp进行调整
+        # Adjust dtcmp
         dtcmp -= tadjust
-        # dtkey等于dtcmp
+        # dtkey equals dtcmp
         dtkey = dtcmp
 
         return dtcmp, dtkey
