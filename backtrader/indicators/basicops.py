@@ -7,7 +7,7 @@ from ..utils.py3 import map, range
 from . import Indicator
 
 
-# PeriodN这个类给整个系统增加了需要满足的最小的周期
+# PeriodN class adds the minimum period required to be satisfied for the entire system
 class PeriodN(Indicator):
     """
     Base class for indicators which take a period (__init__ has to be called
@@ -23,7 +23,7 @@ class PeriodN(Indicator):
         self.addminperiod(self.p.period)
 
 
-# 使用func计算过去N个周期的数据，func是一个可调用的函数
+# Calculate data for past N periods using func, func is a callable function
 class OperationN(PeriodN):
     """
     Calculates "func" for a given period
@@ -95,7 +95,7 @@ class OperationN(PeriodN):
             super().once_via_next(start, end)
 
 
-# 设置计算指标的时候的可调用函数
+# Set callable function when calculating indicators
 class BaseApplyN(OperationN):
     """
     Base class for ApplyN and others which may take a ``func`` as a parameter
@@ -117,7 +117,7 @@ class BaseApplyN(OperationN):
         super().__init__()
 
 
-# 根据设置的可调用函数计算具体的line
+# Calculate specific line based on the set callable function
 class ApplyN(BaseApplyN):
     """
     Calculates ``func`` for a given period
@@ -129,7 +129,7 @@ class ApplyN(BaseApplyN):
     lines = ("apply",)
 
 
-# 计算过去N个周期的最高价
+# Calculate highest price in past N periods
 class Highest(OperationN):
     """
     Calculates the highest value for the data in a given period
@@ -145,7 +145,7 @@ class Highest(OperationN):
     func = max
 
 
-# 计算过去N个周期的最低价
+# Calculate lowest price in past N periods
 class Lowest(OperationN):
     """
     Calculates the lowest value for the data in a given period
@@ -161,7 +161,7 @@ class Lowest(OperationN):
     func = min
 
 
-# 模仿python的reduce功能
+# Mimic Python's reduce functionality
 class ReduceN(OperationN):
     """
     Calculates the Reduced value of the ``period`` data points applying
@@ -192,7 +192,7 @@ class ReduceN(OperationN):
         super().__init__()
 
 
-# 求过去N周期的和
+# Calculate sum of past N periods
 class SumN(OperationN):
     """
     Calculates the Sum of the data values over a given period
@@ -208,7 +208,7 @@ class SumN(OperationN):
     func = math.fsum
 
 
-# 如果过去N周期有一个是True，就返回True
+# Return True if any value in past N periods is True
 class AnyN(OperationN):
     """
     Has a value of ``True`` (stored as ``1.0`` in the lines) if *any* of the
@@ -224,7 +224,7 @@ class AnyN(OperationN):
     func = any
 
 
-# 如果过去N周期所有的都是True，就返回True
+# Return True only if all values in past N periods are True
 class AllN(OperationN):
     """
     Has a value of ``True`` (stored as ``1.0`` in the lines) if *all* of the
@@ -240,7 +240,7 @@ class AllN(OperationN):
     func = all
 
 
-# 返回满足条件的最早出现的数据
+# Return the first data point that satisfies the condition
 class FindFirstIndex(OperationN):
     """
     Returns the index of the last data that satisfies equality with the
@@ -262,7 +262,7 @@ class FindFirstIndex(OperationN):
         return next(i for i, v in enumerate(reversed(iterable)) if v == m)
 
 
-# 获取过去当中最早出现的最高的价格
+# Get the earliest occurrence of the highest price in the past
 class FindFirstIndexHighest(FindFirstIndex):
     """
     Returns the index of the first data that is the highest in the period
@@ -278,7 +278,7 @@ class FindFirstIndexHighest(FindFirstIndex):
     params = (("_evalfunc", max),)
 
 
-# 获取过去当中最早出现的最低的价格
+# Get the earliest occurrence of the lowest price in the past
 class FindFirstIndexLowest(FindFirstIndex):
     """
     Returns the index of the first data that is the lowest in the period
@@ -294,7 +294,7 @@ class FindFirstIndexLowest(FindFirstIndex):
     params = (("_evalfunc", min),)
 
 
-# 获取满足条件的最后一个的index
+# Get the index of the last data point that satisfies the condition
 class FindLastIndex(OperationN):
     """
     Returns the index of the last data that satisfies equality with the
@@ -320,7 +320,7 @@ class FindLastIndex(OperationN):
         return self.p.period - index - 1
 
 
-# 获取过去当中最晚出现的最高的价格
+# Get the latest occurrence of the highest price in the past
 class FindLastIndexHighest(FindLastIndex):
     """
     Returns the index of the last data that is the highest in the period
@@ -336,7 +336,7 @@ class FindLastIndexHighest(FindLastIndex):
     params = (("_evalfunc", max),)
 
 
-# 获取过去当中最晚出现的最低的价格
+# Get the latest occurrence of the lowest price in the past
 class FindLastIndexLowest(FindLastIndex):
     """
     Returns the index of the last data that is the lowest in the period
@@ -352,7 +352,7 @@ class FindLastIndexLowest(FindLastIndex):
     params = (("_evalfunc", min),)
 
 
-# 计算累计值
+# Calculate cumulative sum
 class Accum(Indicator):
     """
     Cummulative sum of the data values
@@ -395,7 +395,7 @@ class Accum(Indicator):
             dst[i] = prev = prev + src[i]
 
 
-# 计算平均值
+# Calculate arithmetic mean
 class Average(PeriodN):
     """
     Averages a given data arithmetically over a period
@@ -440,7 +440,7 @@ class Average(PeriodN):
                 dst[i] = float("nan")
 
 
-# 计算指数平均值
+# Calculate exponential moving average
 class ExponentialSmoothing(Average):
     """
     Averages a given data over a period using exponential smoothing
@@ -544,7 +544,7 @@ class ExponentialSmoothing(Average):
                 break
 
 
-# 动态指数移动平均值
+# Dynamic exponential moving average
 class ExponentialSmoothingDynamic(ExponentialSmoothing):
     """
     Averages a given data over a period using exponential smoothing
@@ -640,7 +640,7 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
                 larray[i] = prev = prev * alpha1 + darray[i] * alpha
 
 
-# 加权移动平均值
+# Calculate weighted moving average
 class WeightedAverage(PeriodN):
     """
     Calculates the weighted average of the given data over a period
