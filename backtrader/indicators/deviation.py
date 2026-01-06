@@ -135,53 +135,15 @@ class MeanDeviation(Indicator):
         return plabels
 
     def __init__(self):
-        super().__init__()
-        self.addminperiod(self.p.period)
+        # CRITICAL: Match master branch behavior
+        # If 2 datas are provided, the 2nd is considered to be the mean of the first
+        if len(self.datas) > 1:
+            mean = self.data1
+        else:
+            mean = self.p.movav(self.data, period=self.p.period)
 
-    def next(self):
-        period = self.p.period
-        # Calculate mean (SMA)
-        data_sum = sum(self.data[-i] for i in range(period))
-        mean = data_sum / period
-        # Calculate mean absolute deviation
-        absdev_sum = sum(abs(self.data[-i] - mean) for i in range(period))
-        self.lines.meandev[0] = absdev_sum / period
-
-    def once(self, start, end):
-        darray = self.data.array
-        larray = self.lines.meandev.array
-        period = self.p.period
-        
-        while len(larray) < end:
-            larray.append(0.0)
-        
-        # Pre-fill warmup with NaN
-        for i in range(min(period - 1, len(darray))):
-            if i < len(larray):
-                larray[i] = float("nan")
-        
-        for i in range(period - 1, min(end, len(darray))):
-            # Calculate mean
-            data_sum = 0.0
-            for j in range(period):
-                idx = i - j
-                if idx >= 0 and idx < len(darray):
-                    val = darray[idx]
-                    if not (isinstance(val, float) and math.isnan(val)):
-                        data_sum += val
-            mean = data_sum / period
-            
-            # Calculate mean absolute deviation
-            absdev_sum = 0.0
-            for j in range(period):
-                idx = i - j
-                if idx >= 0 and idx < len(darray):
-                    val = darray[idx]
-                    if not (isinstance(val, float) and math.isnan(val)):
-                        absdev_sum += abs(val - mean)
-            
-            if i < len(larray):
-                larray[i] = absdev_sum / period
+        absdev = abs(self.data - mean)
+        self.lines.meandev = self.p.movav(absdev, period=self.p.period)
 
 
 StdDev = StandardDeviation
