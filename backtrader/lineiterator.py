@@ -1,5 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Backtrader LineIterator Module.
+
+This module provides the LineIterator class which is the base for all
+objects that iterate over data in a time-series manner. This includes
+Indicators, Observers, Strategies, and other line-based objects.
+
+The LineIterator manages:
+1. Data feeds and their access patterns
+2. Minimum period calculations
+3. Execution phases (prenext, nextstart, next)
+4. Clock synchronization between multiple data feeds
+5. Registration of child lineiterators (indicators, observers)
+"""
 import collections
 import math
 import sys
@@ -14,10 +27,19 @@ from .utils.py3 import range, string_types, zip
 
 
 class LineIteratorMixin:
-    """Mixin for LineIterator that handles data argument processing"""
+    """Mixin for LineIterator that handles data argument processing.
+
+    This mixin provides the donew() method which processes constructor
+    arguments to extract and properly configure data feeds before instance
+    creation.
+    """
 
     def __init_subclass__(cls, **kwargs):
-        """Handle subclass initialization"""
+        """Handle subclass initialization.
+
+        Args:
+            **kwargs: Additional keyword arguments
+        """
         super().__init_subclass__(**kwargs)
 
     @classmethod
@@ -416,14 +438,34 @@ class LineIteratorMixin:
 
 
 class LineIterator(LineIteratorMixin, LineSeries):
-    # _nextforce默认是False
-    _nextforce = False  # force cerebro to run in next mode (runonce=False)
-    # 最小的数据数目是1
-    _mindatas = 1
-    # _ltype代表line的index的值，默认是None，子类会覆盖
-    _ltype = None
+    """Base class for all objects that iterate over time-series data.
 
-    # CRITICAL FIX: Convert plotinfo from dict to object with _get method for plotting compatibility
+    LineIterator is the foundation for Indicators, Strategies, Observers,
+    and other objects that process data bar-by-bar. It manages:
+
+    1. Multiple data feeds with automatic clock synchronization
+    2. Minimum period calculations before full processing begins
+    3. Execution phases: prenext -> nextstart -> next
+    4. Child lineiterator registration (indicators within strategies)
+    5. Plotting configuration via plotinfo and plotlines
+
+    Attributes:
+        _nextforce: Force cerebro to run in next mode instead of runonce
+        _mindatas: Minimum number of data feeds required (default: 1)
+        _ltype: Line type (IndType=0, StratType=1, ObsType=2)
+        plotinfo: Plotting configuration object
+        plotlines: Line-specific plotting configuration
+
+    Class Attributes:
+        IndType: Constant for indicator type (0)
+        StratType: Constant for strategy type (1)
+        ObsType: Constant for observer type (2)
+    """
+
+    _nextforce = False  # Force cerebro to run in next mode (runonce=False)
+    _mindatas = 1  # Minimum number of data feeds required
+    _ltype = None  # Line type index, overridden by subclasses
+
     class PlotInfoObj:
         def __init__(self):
             self.plot = True
