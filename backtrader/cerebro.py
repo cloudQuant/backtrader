@@ -1196,7 +1196,7 @@ class Cerebro(ParameterizedBase):
 
         return figs
 
-    # 在优化的时候传递给cerebro多进程的模块
+    # Module passed to cerebro for multiprocessing during optimization
     def __call__(self, iterstrat):
         """
         Used during optimization to pass the cerebro over the multiprocessing
@@ -1206,7 +1206,7 @@ class Cerebro(ParameterizedBase):
         predata = self.p.optdatas and self._dopreload and self._dorunonce
         return self.runstrategies(iterstrat, predata=predata)
 
-    # 删除runstrats,
+    # Delete runstrats when pickling
     def __getstate__(self):
         """
         Used during optimization to prevent optimization result `runstrats`
@@ -1218,14 +1218,14 @@ class Cerebro(ParameterizedBase):
             del rv["runstrats"]
         return rv
 
-    # 当在策略内部或者其他地方调用这个函数的时候，将会很快停止执行
+    # When called from within a strategy or elsewhere, stops execution quickly
     def runstop(self):
         """If invoked from inside a strategy or anywhere else, including other
         threads, the execution will stop as soon as possible."""
         self._event_stop = True  # signal a stop has been requested
 
-    # 执行回测的核心方法，任何传递的参数将会影响cerebro中的标准参数，如果没有添加数据，将会立即停止
-    # 根据是否是优化参数，返回的结果不同
+    # Core method for backtesting. Any passed kwargs affect cerebro standard parameters.
+    # If no data added, will stop immediately. Return value differs based on optimization.
     def run(self, **kwargs):
         """The core method to perform backtesting. Any ``kwargs`` passed to it
         will affect the value of the standard parameters ``Cerebro`` was
@@ -1242,66 +1242,66 @@ class Cerebro(ParameterizedBase):
             Strategy classes added with ``addstrategy``
         """
         self._event_stop = False  # Stop is requested
-        # 如果没有数据，直接返回空的列表
+        # If no data, return empty list immediately
         if not self.datas:
             return []  # nothing can be run
-        # 用传递过来的关键字参数覆盖标准参数
+        # Override standard parameters with passed kwargs
         pkeys = self.params._getkeys()
         for key, val in kwargs.items():
             if key in pkeys:
                 setattr(self.params, key, val)
 
         # Manage activate/deactivate object cache
-        # 管理对象的缓存
+        # Manage object cache
         linebuffer.LineActions.cleancache()  # clean cache
         indicator.Indicator.cleancache()  # clean cache
 
         linebuffer.LineActions.usecache(self.p.objcache)
         indicator.Indicator.usecache(self.p.objcache)
 
-        # 是否是_dorunonce,_dopreload,_exactbars
+        # Check if _dorunonce, _dopreload, _exactbars
         self._dorunonce = self.p.runonce
         self._dopreload = self.p.preload
         self._exactbars = int(self.p.exactbars)
-        # 如果_exactbars的值不是0的话，_dorunonce需要是False,如果_dopreload是True,并且_exactbars小于1的话，_dopreload设置成True
+        # If _exactbars is not 0, _dorunonce must be False; if _dopreload is True and _exactbars < 1, set _dopreload to True
         if self._exactbars:
             self._dorunonce = False  # something is saving memory, no runonce
             self._dopreload = self._dopreload and self._exactbars < 1
-        # 如果_doreplay是True或者数据中有任何一个具有replaying属性值是True的话，就把_doreplay设置成True
+        # If _doreplay is True or any data has replaying attribute True, set _doreplay to True
         self._doreplay = self._doreplay or any(x.replaying for x in self.datas)
-        # 如果_doreplay,需要把_dopreload设置成False
+        # If _doreplay, need to set _dopreload to False
         if self._doreplay:
             # preloading is not supported with replay. full timeframe bars
             # are constructed in realtime
             self._dopreload = False
-        # 如果_dolive或者live,需要把_dorunonce和_dopreload设置成False
+        # If _dolive or live, need to set _dorunonce and _dopreload to False
         if self._dolive or self.p.live:
             # in this case, both preload and runonce must be off
             self._dorunonce = False
             self._dopreload = False
 
-        # writer的列表
+        # Writer list
         self.runwriters = list()
 
         # Add the system default writer if requested
-        # 如果writer参数是True的话，增加默认的writer
+        # If writer parameter is True, add default writer
         if self.p.writer is True:
             wr = WriterFile()
             self.runwriters.append(wr)
 
         # Instantiate any other writers
-        # 如果具有其他的writer的话，实例化之后添加到runwriters中
+        # If there are other writers, instantiate and add to runwriters
         for wrcls, wrargs, wrkwargs in self.writers:
             wr = wrcls(*wrargs, **wrkwargs)
             self.runwriters.append(wr)
 
         # Write down if any writer wants the full csv output
-        # 如果那个writer需要全部的csv的输出，把结果保存到文件中
+        # If that writer needs full csv output, save results to file
         self.writers_csv = any(map(lambda x: x.p.csv, self.runwriters))
 
-        # 运行的策略列表
+        # Running strategy list
         self.runstrats = list()
-        # 如果signals不是None等，处理signalstrategy相关的问题
+        # If signals is not None, handle signalstrategy related issues
         if self.signals:  # allow processing of signals
             signalst, sargs, skwargs = self._signal_strat
             if signalst is None:
@@ -1329,113 +1329,113 @@ class Cerebro(ParameterizedBase):
                 *sargs,
                 **skwargs,
             )
-        # 如果策略列表是空的话，添加策略
+        # If strategy list is empty, add strategy
         if not self.strats:  # Datas are present, add a strategy
             self.addstrategy(Strategy)
-        # 迭代策略
+        # Iterate strategies
         iterstrats = itertools.product(*self.strats)
-        # 如果不是优化参数，或者使用的cpu核数是1
+        # If not optimization parameters, or using 1 cpu core
         if not self._dooptimize or self.p.maxcpus == 1:
             # If no optimmization is wished ... or 1 core is to be used
             # let's skip process "spawning"
-            # 遍历策略
+            # Iterate through strategies
             for iterstrat in iterstrats:
-                # 运行策略
+                # Run strategy
                 runstrat = self.runstrategies(iterstrat)
-                # 把运行的策略添加到运行策略的列表中
+                # Add running strategy to running strategy list
                 self.runstrats.append(runstrat)
-                # 如果是优化参数
+                # If optimization parameters
                 if self._dooptimize:
-                    # 遍历所有的optcbs，以便返回停止策略的结果
+                    # Iterate all optcbs to return stopped strategy results
                     for cb in self.optcbs:
                         cb(runstrat)  # callback receives finished strategy
-        # 如果是优化参数
+        # If optimization parameters
         else:
-            # 如果optdatas是True,并且_dopreload，并且_dorunonce
+            # If optdatas is True, and _dopreload, and _dorunonce
             if self.p.optdatas and self._dopreload and self._dorunonce:
-                # 遍历每个data,进行reset,如果_exactbars小于1，对数据进行extend处理
-                # 开始数据
-                # 如果数据_dopreload的话，对数据调用preload
+                # Iterate each data, reset, if _exactbars < 1, extend data
+                # Start data
+                # If data _dopreload, call preload on data
                 for data in self.datas:
                     data.reset()
                     if self._exactbars < 1:  # datas can be a full length
                         data.extend(size=self.params.lookahead)
                     data._start()
-                    # todo 这个里面重新判断self._dopreload好像是没有什么道理，因为前面已经保证self._dopreload是True了，尝试注释掉，提高效率
+                    # TODO: Re-checking self._dopreload here seems unnecessary since we already guaranteed it's True
                     # if self._dopreload:
                     #     data.preload()
                     data.preload()
-            # 开启进程池
+            # Start process pool
             pool = multiprocessing.Pool(self.p.maxcpus or None)
             for r in pool.imap(self, iterstrats):
                 self.runstrats.append(r)
                 for cb in self.optcbs:
                     cb(r)  # callback receives finished strategy
-            # 关闭进程词
+            # Close process pool
             pool.close()
-            # 如果optdatas是True,并且_dopreload，并且_dorunonce，遍历数据，并停止数据
+            # If optdatas is True, and _dopreload, and _dorunonce, iterate data and stop data
             if self.p.optdatas and self._dopreload and self._dorunonce:
                 for data in self.datas:
                     data.stop()
-        # 如果不是参数优化
+        # If not optimization parameters
         if not self._dooptimize:
             # avoid a list of list for regular cases
             return self.runstrats[0]
 
         return self.runstrats
 
-    # 初始化计数
+    # Initialize count
     def _init_stcount(self):
         self.stcount = itertools.count(0)
 
-    # 调用下个计数
+    # Call next count
     def _next_stid(self):
         return next(self.stcount)
 
-    # 运行策略
+    # Run strategy
     def runstrategies(self, iterstrat, predata=False):
         """
         Internal method invoked by ``run``` to run a set of strategies
         """
-        # 初始化计数
+        # Initialize count
         self._init_stcount()
-        # 初始化运行的策略为空列表
+        # Initialize running strategy as empty list
         self.runningstrats = runstrats = list()
-        # 遍历store，并开始
+        # Iterate stores and start
         for store in self.stores:
             store.start()
-        # 如果cheat_on_open和broker_coo，给broker进行相应的设置
+        # If cheat_on_open and broker_coo, set broker accordingly
         if self.p.cheat_on_open and self.p.broker_coo:
             # try to activate in broker
             if hasattr(self._broker, "set_coo"):
                 self._broker.set_coo(True)
-        # 如果fund历史不是None的话，需要设置fund history
+        # If fund history is not None, need to set fund history
         if self._fhistory is not None:
             self._broker.set_fund_history(self._fhistory)
-        # 遍历order的历史
+        # Iterate order history
         for orders, onotify in self._ohistory:
             self._broker.add_order_history(orders, onotify)
-        # broker开始
+        # Broker start
         self._broker.start()
-        # feed开始
+        # Feed start
         for feed in self.feeds:
             feed.start()
-        # 如果需要保存writer中的数据
+        # If need to save writer data
         if self.writers_csv:
             # headers
             wheaders = list()
-            # 遍历数据，如果数据的csv属性值是True的话，获取数据中的需要保存的headers
+            # Iterate data, if data csv attribute is True, get headers that need saving
             for data in self.datas:
                 if data.csv:
                     wheaders.extend(data.getwriterheaders())
-            # 保存writer中的headers
+            # Save writer headers
             for writer in self.runwriters:
                 if writer.p.csv:
                     writer.addheaders(wheaders)
 
         # self._plotfillers = [list() for d in self.datas]
         # self._plotfillers2 = [list() for d in self.datas]
-        # 如果没有predata的话，需要提前预处理数据，和run中预处理数据的方法很相似
+        # If no predata, need to pre-process data, similar to run method preprocessing
         if not predata:
             for data in self.datas:
                 data.reset()
@@ -1444,11 +1444,11 @@ class Cerebro(ParameterizedBase):
                 data._start()
                 if self._dopreload:
                     data.preload()
-        # 循环策略
+        # Loop through strategies
         for stratcls, sargs, skwargs in iterstrat:
-            # 把数据添加到策略参数
+            # Add data to strategy parameters
             sargs = self.datas + list(sargs)
-            # 实例化策略
+            # Instantiate strategy
             try:
                 # Use safe strategy creation to handle parameter filtering
                 if hasattr(stratcls, "_create_strategy_safely"):
@@ -1458,117 +1458,116 @@ class Cerebro(ParameterizedBase):
                     strat = stratcls(*sargs, **skwargs)
             except errors.StrategySkipError:
                 continue  # do not add strategy to the mix
-            # 旧的数据同步方法
+            # Old data synchronization method
             if self.p.oldsync:
                 strat._oldsync = True  # tell strategy to use old clock update
-            # 是否保存交易历史数据
+            # Whether to save trade history data
             if self.p.tradehistory:
                 strat.set_tradehistory()
-            # 添加策略
+            # Add strategy
             runstrats.append(strat)
-        # 获取时区信息，如果时区信息是整数，那么就获取该整数对应的index的时区，如果不是整数，就使用tzparse解析时区
+        # Get timezone info, if tz is integer, get tz at that index; otherwise use tzparse
         tz = self.p.tz
         if isinstance(tz, integer_types):
             tz = self.datas[tz]._tz
         else:
             tz = tzparse(tz)
-        # 如果runstrats不是空的列表的话
+        # If runstrats is not empty list
         if runstrats:
             # loop separated for clarity
-            # 获取默认的sizer
+            # Get default sizer
             defaultsizer = self.sizers.get(None, (None, None, None))
-            # 对于每个策略
+            # For each strategy
             for idx, strat in enumerate(runstrats):
-                # 如果stdstats是True的话，会增加几个observer
+                # If stdstats is True, add several observers
                 if self.p.stdstats:
-                    # 增加observer的broker
+                    # Add observer broker
                     strat._addobserver(False, observers.Broker)
-                    # 增加observers.BuySell,
+                    # Add observers.BuySell
                     if self.p.oldbuysell:
                         strat._addobserver(True, observers.BuySell)
                     else:
                         strat._addobserver(True, observers.BuySell, barplot=True)
-                    # 增加observer的trade
+                    # Add observer trade
                     if self.p.oldtrades or len(self.datas) == 1:
                         strat._addobserver(False, observers.Trades)
                     else:
                         strat._addobserver(False, observers.DataTrades)
-                # 把observers中的observer及其参数增加到策略中
+                # Add observers and their parameters to strategy
                 for multi, obscls, obsargs, obskwargs in self.observers:
                     strat._addobserver(multi, obscls, *obsargs, **obskwargs)
-                # 把indicators中的indicator增加到策略中
+                # Add indicators to strategy
                 for indcls, indargs, indkwargs in self.indicators:
                     strat._addindicator(indcls, *indargs, **indkwargs)
-                # 把analyzers中的analyzer增加到策略中
+                # Add analyzers to strategy
                 for ancls, anargs, ankwargs in self.analyzers:
                     strat._addanalyzer(ancls, *anargs, **ankwargs)
-                # 获取具体的sizer,如果sizer不是None,添加到策略中
+                # Get specific sizer, if sizer is not None, add to strategy
                 sizer, sargs, skwargs = self.sizers.get(idx, defaultsizer)
                 if sizer is not None:
                     strat._addsizer(sizer, *sargs, **skwargs)
-                # 设置时区
+                # Set timezone
                 strat._settz(tz)
-                # 策略开始
+                # Strategy start
                 strat._start()
-                # 对于正在运行的writer来说，如果csv参数是True的话，把策略中需要保存的数据保存到writer中
+                # For running writers, if csv parameter is True, save strategy data to writer
                 for writer in self.runwriters:
                     if writer.p.csv:
                         writer.addheaders(strat.getwriterheaders())
-            # 如果predata是False，没有提前加载数据
+            # If predata is False, data not preloaded
             if not predata:
-                # 循环每个策略，调用qbuffer缓存数据
+                # Loop each strategy, call qbuffer to cache data
                 for strat in runstrats:
                     strat.qbuffer(self._exactbars, replaying=self._doreplay)
-            # 循环每个writer,开始writer
+            # Loop each writer, start writer
             for writer in self.runwriters:
                 writer.start()
 
             # Prepare timers
-            # 准备timers
             self._timers = []
             self._timerscheat = []
-            # 循环timer
+            # Loop timers
             for timer in self._pretimers:
                 # preprocess tzdata if needed
-                # 启动timer
+                # Start timer
                 timer.start(self.datas[0])
-                # 如果timer的参数cheat是True的话，就把timer增加到self._timerscheat，否则就增加到self._timers
+                # If timer parameter cheat is True, add timer to self._timerscheat, otherwise add to self._timers
                 if timer.params.cheat:
                     self._timerscheat.append(timer)
                 else:
                     self._timers.append(timer)
-            # 如果_dopreload 和 _dorunonce是True的话
+            # If _dopreload and _dorunonce are True
             if self._dopreload and self._dorunonce:
-                # 如果是旧的数据对齐和同步方式，使用_runonce_old，否则使用_runonce
+                # If old data alignment and sync method, use _runonce_old, otherwise use _runonce
                 if self.p.oldsync:
                     self._runonce_old(runstrats)
                 else:
                     self._runonce(runstrats)
-            # 如果_dopreload 和 _dorunonce并不都是True的话
+            # If _dopreload and _dorunonce are not both True
             else:
-                # 如果是旧的数据对齐和同步方式，使用_runnext_old，否则使用_runnext
+                # If old data alignment and sync method, use _runnext_old, otherwise use _runnext
                 if self.p.oldsync:
                     self._runnext_old(runstrats)
                 else:
                     self._runnext(runstrats)
-            # 遍历策略并停止运行
+            # Iterate strategies and stop running
             for strat in runstrats:
                 strat._stop()
-        # 停止broker
+        # Stop broker
         self._broker.stop()
-        # 如果predata是False的话，遍历数据并停止每个数据
+        # If predata is False, iterate data and stop each data
         if not predata:
             for data in self.datas:
                 data.stop()
-        # 遍历每个feed,并停止feed
+        # Iterate each feed and stop feed
         for feed in self.feeds:
             feed.stop()
-        # 遍历每个store,并停止store
+        # Iterate each store and stop store
         for store in self.stores:
             store.stop()
-        # 停止writer
+        # Stop writer
         self.stop_writers(runstrats)
-        # 如果是做参数优化，并且optreturn是True的话，获取策略运行后的结果，并添加到results,返回该结果
+        # If doing parameter optimization and optreturn is True, get strategy results and add to results
         if self._dooptimize and self.p.optreturn:
             # Results can be optimized
             results = list()
@@ -1590,39 +1589,40 @@ class Cerebro(ParameterizedBase):
 
         return runstrats
 
-    # 停止writer
+    # Stop writer
     def stop_writers(self, runstrats):
-        # cerebro信息
+        # Cerebro info
         cerebroinfo = OrderedDict()
-        # data信息
+        # Data info
         datainfos = OrderedDict()
-        # 获取每个数据的信息，保存到datainfos中，然后保存到cerebroinfo
+        # Get info for each data, save to datainfos, then save to cerebroinfo
         for i, data in enumerate(self.datas):
             datainfos["Data%d" % i] = data.getwriterinfo()
 
         cerebroinfo["Datas"] = datainfos
-        # 获取策略信息，并保存到stratinfos和cerebroinfo
+        # Get strategy info and save to stratinfos and cerebroinfo
         stratinfos = dict()
         for strat in runstrats:
             stname = strat.__class__.__name__
             stratinfos[stname] = strat.getwriterinfo()
 
         cerebroinfo["Strategies"] = stratinfos
-        # 把cerebroinfo写入文件中
+        # Write cerebroinfo to file
         for writer in self.runwriters:
             writer.writedict(dict(Cerebro=cerebroinfo))
             writer.stop()
 
-    # 通知broker信息
+    # Notify broker info
     def _brokernotify(self):
         """
         Internal method which kicks the broker and delivers any broker
         notification to the strategy
         """
-        # 调用broker的next
+        # Call broker's next
         self._broker.next()
         while True:
-            # 获取要通知的order信息，如果order是None,跳出循环，如果不是None,获取order的owner.如果owner是None的话，默认是第一个策略
+            # Get order info to notify, if order is None break loop, otherwise get order's owner.
+            # If owner is None, default to first strategy
             order = self._broker.get_notification()
             if order is None:
                 break
@@ -1630,10 +1630,10 @@ class Cerebro(ParameterizedBase):
             owner = order.owner
             if owner is None:
                 owner = self.runningstrats[0]  # default
-            # 通过第一个策略通知order信息
+            # Notify order info through first strategy
             owner._addnotification(order, quicknotify=self.p.quicknotify)
 
-    # 就得runnext方法，和runnext很相似
+    # Old runnext method, similar to runnext
     def _runnext_old(self, runstrats):
         """
         Actual implementation of run in full next mode. All objects have its
@@ -1700,7 +1700,7 @@ class Cerebro(ParameterizedBase):
         if self._event_stop:  # stop if requested
             return
 
-    # 旧的runonce方法，和runonce差不多
+    # Old runonce method, similar to runonce
     def _runonce_old(self, runstrats):
         """
         Actual implementation of run in vector mode.
@@ -1734,7 +1734,7 @@ class Cerebro(ParameterizedBase):
 
                 self._next_writers(runstrats)
 
-    # 运行writer的next
+    # Run writer's next
     def _next_writers(self, runstrats):
         if not self.runwriters:
             return
@@ -1754,79 +1754,79 @@ class Cerebro(ParameterizedBase):
 
                     writer.next()
 
-    # 禁止runonce
+    # Disable runonce
     def _disable_runonce(self):
         """API for lineiterators to disable runonce (see HeikinAshi)"""
         self._dorunonce = False
 
-    # runnext方法,整个框架的核心,事件驱动的核心，用于驱动数据
+    # runnext method, core of the framework, event-driven core for data execution
     def _runnext(self, runstrats):
         """
         Actual implementation of run in full next mode. All objects have its
          `next` method invoked on each data arrival
         """
         try:
-            # 对数据的时间周期进行排序
+            # Sort data by time period
             datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
-            # 其他数据
+            # Other data
             datas1 = datas[1:]
-            # 主数据
+            # Main data
             data0 = datas[0]
             d0ret = True
-            # todo rs 和 rp 并没有使用到，进行注释掉
-            # resample的index
+            # TODO: rs and rp are not used, commented out
+            # resample index
             _rs = [i for i, x in enumerate(datas) if x.resampling]
-            # replaying的index
+            # replaying index
             _rp = [i for i, x in enumerate(datas) if x.replaying]
-            # 仅仅只做resample,不做replay得index
+            # index for resample only, not replay
             rsonly = [i for i, x in enumerate(datas) if x.resampling and not x.replaying]
-            # 判断是否仅仅做resample
+            # Check if only doing resample
             onlyresample = len(datas) == len(rsonly)
-            # 判断是否没有需要resample的数据
+            # Check if no data needs resample
             noresample = not rsonly
-            # 克隆的数据量
+            # Number of cloned data
             clonecount = sum(d._clone for d in datas)
-            # 数据的数量
+            # Number of data
             ldatas = len(datas)
-            # 没有克隆的数据量
+            # Number of non-cloned data
             ldatas_noclones = ldatas - clonecount
-            # todo lastqcheck 没有使用到，注释掉
+            # TODO: lastqcheck not used, commented out
             # lastqcheck = False
-            # 默认dt0在最大时间
+            # Default dt0 at max time
             dt0 = date2num(datetime.datetime.max) - 2  # default at max
-            # while循环
+            # while loop
             my_num = 0
-            # todo 修改while循环条件,避免跳出
+            # TODO: Modify while loop condition to avoid premature exit
             # while d0ret or d0ret is None:
             while True:
                 my_num += 1
                 # if any has live data in the buffer, no data will wait anything
-                # 如果有任何实时数据的话，newqcheck是False
+                # If any live data exists, newqcheck is False
                 newqcheck = not any(d.haslivedata() for d in datas)
-                # 如果存在实时数据
+                # If live data exists
                 if not newqcheck:
                     # If no data has reached the live status or all, wait for
                     # the next incoming data
-                    # livecount是实时数据的量
+                    # livecount is the number of live data
                     livecount = sum(d._laststatus == d.LIVE for d in datas)
-                    # todo 这个判断没有任何意义
+                    # TODO: This check has no meaning
                     newqcheck = not livecount or livecount == ldatas_noclones
 
                 lastret = False
                 # Notify anything from the store even before moving datas
                 # because datas may not move due to an error reported by the store
-                # 通知store相关的信息
+                # Notify store related info
                 self._storenotify()
                 if self._event_stop:  # stop if requested
                     return
-                # 通知data相关的信息
+                # Notify data related info
                 self._datanotify()
                 if self._event_stop:  # stop if requested
                     return
 
                 # record starting time and tell feeds to discount the elapsed time
                 # from the qcheck value
-                # 记录开始的时间，并且通知feed从qcheck中减去qlapse的时间
+                # Record start time and notify feed to subtract elapsed time from qcheck
                 drets = []
                 qstart = datetime.datetime.now(UTC)
                 for d in datas:
@@ -1834,45 +1834,45 @@ class Cerebro(ParameterizedBase):
                     d.do_qcheck(newqcheck, qlapse.total_seconds())
                     d_next = d.next(ticks=False)
                     drets.append(d_next)
-                    # todo 调试代码,尝试打印
+                    # TODO: Debug code, try printing
                     # if d_next:
                     #     print(drets)
-                # 遍历drets,如果d0ret是False,并且存在dret是None的话，d0ret是None
+                # Iterate drets, if d0ret is False and any dret is None, d0ret is None
                 d0ret = any(dret for dret in drets)
                 if not d0ret and any(dret is None for dret in drets):
                     d0ret = None
-                # 如果d0ret不是None的话
+                # If d0ret is not None
                 if d0ret:
-                    # 获取时间
+                    # Get time
                     dts = []
                     for i, ret in enumerate(drets):
                         dts.append(datas[i].datetime[0] if ret else None)
                     # Get index to minimum datetime
-                    # 获取最小的时间
+                    # Get minimum time
                     if onlyresample or noresample:
                         dt0 = min(d for d in dts if d is not None)
                     else:
                         dt0 = min(
                             (d for i, d in enumerate(dts) if d is not None and i not in rsonly)
                         )
-                    # todo dt0 < 1,是错误的，进行修改
+                    # TODO: dt0 < 1 is wrong, needs modification
                     if dt0 < 1:
                         return
-                    # 获取主数据，及时间
+                    # Get master data and time
                     dmaster = datas[dts.index(dt0)]  # and timemaster
                     self._dtmaster = dmaster.num2date(dt0)
                     self._udtmaster = num2date(dt0)
 
                     # slen = len(runstrats[0])
                     # Try to get something for those that didn't return
-                    # 循环drets
+                    # Loop through drets
                     for i, ret in enumerate(drets):
-                        # 如果ret不是None的话，继续下一个ret
+                        # If ret is not None, continue to next ret
                         if ret:  # dts already contains a valid datetime for this i
                             continue
 
                         # try to get data by checking with a master
-                        # 获取数据，并尝试给dts设置时间
+                        # Get data and try to set time for dts
                         d = datas[i]
                         d._check(forcedata=dmaster)  # check to force output
                         if d.next(datamaster=dmaster, ticks=False):  # retry
@@ -1883,33 +1883,33 @@ class Cerebro(ParameterizedBase):
                             pass
 
                     # make sure only those at dmaster level end up delivering
-                    # 遍历dts
+                    # Iterate dts
                     for i, dti in enumerate(dts):
-                        # 如果dti不是None
+                        # If dti is not None
                         if dti is not None:
-                            # 获取数据
+                            # Get data
                             di = datas[i]
-                            # todo 代码写的很多余，rpi一定是返回的False,可以考虑注销
+                            # TODO: Code is redundant, rpi always returns False, can be removed
                             # rpi = False and di.replaying   # to check behavior
                             if dti > dt0:
-                                # todo 此处rpi是False,not rpi是True,考虑注销，直接运行
+                                # TODO: rpi is False here, not rpi is True, consider removing and run directly
                                 # if not rpi:  # must see all ticks ...
                                 di.rewind()  # cannot deliver yet
                                 # self._plotfillers[i].append(slen)
-                            # 如果不是replay
+                            # If not replay
                             elif not di.replaying:
                                 # Replay forces tick fill, else force here
                                 di._tick_fill(force=True)
 
                             # self._plotfillers2[i].append(slen)  # mark as fill
-                # 如果d0ret是None的话，遍历每个数据，调用_check()
+                # If d0ret is None, iterate each data and call _check()
                 elif d0ret is None:
                     # meant for things like live feeds which may not produce a bar
                     # at the moment but need the loop to run for notifications and
                     # getting resample and others to produce timely bars
                     for data in datas:
                         data._check()
-                # 如果是其他情况
+                # If other case
                 else:
                     lastret = data0._last()
                     for data in datas1:
@@ -1919,11 +1919,11 @@ class Cerebro(ParameterizedBase):
                         break
 
                 # Datas may have generated a new notification after next
-                # 通知数据信息
+                # Notify data info
                 self._datanotify()
                 if self._event_stop:  # stop if requested
                     return
-                # 检查timer和遍历策略并调用_next_open()进行运行
+                # Check timer and iterate strategies, call _next_open() to run
                 if d0ret or lastret:  # if any bar, check timers before broker
                     self._check_timers(runstrats, dt0, cheat=True)
                     if self.p.cheat_on_open:
@@ -1931,12 +1931,12 @@ class Cerebro(ParameterizedBase):
                             strat._next_open()
                             if self._event_stop:  # stop if requested
                                 return
-                # 通知broker
+                # Notify broker
                 self._brokernotify()
                 if self._event_stop:  # stop if requested
                     return
 
-                # 通知timer,并且遍历策略并运行
+                # Notify timer and iterate strategies to run
                 if d0ret or lastret:  # bars produced by data or filters
                     # print("begin go to the strategy next")
                     self._check_timers(runstrats, dt0, cheat=False)
@@ -1947,14 +1947,14 @@ class Cerebro(ParameterizedBase):
 
                         self._next_writers(runstrats)
             #     if my_num % 1000000 == 0:
-            #         print("结束_runnext")
-            # print("跳出_runnext")
+            #         print("end_runnext")
+            # print("exit_runnext")
             # Last notification chance before stopping
-            # 通知数据信息
+            # Notify data info
             self._datanotify()
             if self._event_stop:  # stop if requested
                 return
-            # 通知store信息
+            # Notify store info
             self._storenotify()
             if self._event_stop:  # stop if requested
                 return
@@ -1970,7 +1970,7 @@ class Cerebro(ParameterizedBase):
         Strategies are still invoked on a pseudo-event mode in which `next`
         is called for each data arrival
         """
-        # 遍历策略，调用_once和reset
+        # Iterate strategies, call _once and reset
         for strat in runstrats:
             strat._once()
             strat.reset()  # strat called next by next - reset lines
@@ -1979,12 +1979,12 @@ class Cerebro(ParameterizedBase):
         # has not moved forward all datas/indicators/observers that
         # were homed before calling once, Hence no "need" to do it
         # here again, because pointers are at 0
-        # 对数据进行排序，从小周期开始到大周期
+        # Sort data from small period to large period
         datas = sorted(self.datas, key=lambda x: (x._timeframe, x._compression))
 
         while True:
             # Check the next incoming date in the datas
-            # 对于每个数据调用advance_peek(),取得最小的一个时间作为第一个
+            # For each data call advance_peek(), get minimum time as the first one
             dts = [d.advance_peek() for d in datas]
             dt0 = min(dts)
             if dt0 == float("inf"):
@@ -1992,10 +1992,10 @@ class Cerebro(ParameterizedBase):
 
             # Timemaster if needed be
             # dmaster = datas[dts.index(dt0)]  # and timemaster
-            # 第一个策略现在的长度slen
-            # todo 变量slen没有使用到，进行注释掉
+            # First strategy current length slen
+            # TODO: Variable slen not used, commented out
             # slen = len(runstrats[0])
-            # 对于每个数据的时间，如果时间小于即将到来的最小的时间，数据向前一位，否则，忽略
+            # For each data time, if time <= minimum time, advance data, otherwise ignore
             for i, dti in enumerate(dts):
                 if dti <= dt0:
                     datas[i].advance()
@@ -2003,21 +2003,21 @@ class Cerebro(ParameterizedBase):
                 else:
                     # self._plotfillers[i].append(slen)
                     pass
-            # 检查timer
+            # Check timer
             self._check_timers(runstrats, dt0, cheat=True)
-            # 如果是cheat_on_open，对于每个策略调用_oncepost_open()
+            # If cheat_on_open, call _oncepost_open() for each strategy
             if self.p.cheat_on_open:
                 for strat in runstrats:
                     strat._oncepost_open()
-                    # 如果调用了stop，就停止
+                    # If stop was called, stop
                     if self._event_stop:  # stop if requested
                         return
-            # 调用_brokernotify()
+            # Call _brokernotify()
             self._brokernotify()
-            # 如果调用了stop，就停止
+            # If stop was called, stop
             if self._event_stop:  # stop if requested
                 return
-            # 检查timer
+            # Check timer
             self._check_timers(runstrats, dt0, cheat=False)
 
             for strat in runstrats:
@@ -2075,23 +2075,23 @@ class Cerebro(ParameterizedBase):
         # This ensures all orders submitted during the strategy execution are processed
         self._brokernotify()
 
-        # print("结束_runonce")  # Removed for performance - called frequently during tests
+        # print("end_runonce")  # Removed for performance - called frequently during tests
 
-    # 检查timer
+    # Check timer
     def _check_timers(self, runstrats, dt0, cheat=False):
-        # 如果cheat是False的话，timers等于self._timers，否则就等于self._timerscheat
+        # If cheat is False, timers equals self._timers, otherwise equals self._timerscheat
         timers = self._timers if not cheat else self._timerscheat
-        # 对于timers中的timer
+        # For timer in timers
         for t in timers:
-            # 使用timer.check(dt0),如果返回是True,就进入下面，否则，检查下个timer
+            # Use timer.check(dt0), if returns True, enter below, otherwise check next timer
             if not t.check(dt0):
                 continue
             # CRITICAL FIX: Remove 'when' from kwargs to avoid conflict with position argument
             # when is already passed as t.lastwhen (2nd argument)
             timer_kwargs = {k: v for k, v in t.kwargs.items() if k != "when"}
-            # 通知timer
+            # Notify timer
             t.params.owner.notify_timer(t, t.lastwhen, *t.args, **timer_kwargs)
-            # 如果需要策略使用timer(t.params.strats是True）的时候，循环策略，调用notify_timer
+            # If strategy needs to use timer (t.params.strats is True), iterate strategies and call notify_timer
             if t.params.strats:
                 for strat in runstrats:
                     strat.notify_timer(t, t.lastwhen, *t.args, **timer_kwargs)
