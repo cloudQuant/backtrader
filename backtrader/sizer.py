@@ -3,7 +3,7 @@
 from .parameters import ParameterizedBase
 
 
-# Sizer类 - 重构为使用新的参数系统
+# Sizer class - Refactored to use new parameter system
 class Sizer(ParameterizedBase):
     """
     This is the base class for *Sizers*. Any *sizer* should subclass this
@@ -26,8 +26,8 @@ class Sizer(ParameterizedBase):
         Gives access to information some complex sizers may need like portfolio
         value.
 
-      # strategy 代表在使用sizer的strategy策略，可以通过strategy调用所有的strategy的api
-      # broker 代表使用strategy所在的broker，可以用于获取信息进行计算复杂的手数
+      # strategy represents the strategy using sizer, can call all strategy APIs through strategy
+      # broker represents the broker where strategy is used, can be used to get information for calculating complex position sizes
     """
 
     strategy = None
@@ -37,7 +37,7 @@ class Sizer(ParameterizedBase):
         """Initialize the Sizer with any provided parameters."""
         super(Sizer, self).__init__(**kwargs)
 
-    # 获取下单使用的具体的手数
+    # Get the specific position size for order placement
     def getsizing(self, data, isbuy):
         comminfo = self.broker.getcommissioninfo(data)
         return self._getsizing(comminfo, self.broker.getcash(), data, isbuy)
@@ -63,20 +63,20 @@ class Sizer(ParameterizedBase):
          `0` is returned, nothing will be executed.
 
         The absolute value of the returned value will be used
-        # 这个方法在使用的 时候需要被重写，传入四个参数：
-        # comminfo 代表佣金的实例，可以用于获取佣金等信息
-        # cash 代表当前可以使用的现金
-        # data 代表在那个数据上进行交易
-        # isbuy 代表在buy操作的时候是True，sell的时候代表是False
+        # This method needs to be overridden when in use, takes four parameters:
+        # comminfo represents the commission instance, can be used to get commission etc.
+        # cash represents currently available cash
+        # data represents which data to trade on
+        # isbuy represents True for buy operations, False for sell operations
 
         """
         raise NotImplementedError
 
-    # 设置策略和broker
+    # Set strategy and broker
     def set(self, strategy, broker):
         self.strategy = strategy
         self.broker = broker
 
 
-# SizerBase类
+# SizerBase class
 SizerBase = Sizer

@@ -26,7 +26,7 @@ class BackBroker(BrokerBase):
      which a price change implies in real brokers the addition/subtraction of
      cash.
       # 这个回测模拟类支持不同的订单类型，检查现在的现金是否满足提交订单的现金需求，在每个bar的时候
-      # 检查cash和value,以及不同的数据上的持仓
+      # 检查cash和value,以及不同的数据上的Position
 
     Supported order types:
 
@@ -65,7 +65,7 @@ class BackBroker(BrokerBase):
          and ``setbroker`` methods of ``Cerebro``
 
       # 通常情况下不需要设置broker的参数，如果需要设置，通常具有下面的两种方法，第一种是创建一个broker的实例，然后cerebro.broker = instance
-      # 第二种是使用cerebro.broker.set_xxx来设置不同的参数
+      # The second method is to use cerebro.broker.set_xxx to set different parameters
 
 
     Params:
@@ -349,11 +349,11 @@ class BackBroker(BrokerBase):
         self.startingcash = self._cash = cash_param
         # 未加杠杆的账户价值
         self._value = self._cash
-        # 未加杠杆的持仓价值
+        # 未加杠杆的Position价值
         self._valuemkt = 0.0  # no open position
         # 加了杠杆的账户价值
         self._valuelever = 0.0  # no open position
-        # 加了杠杆的持仓市值
+        # 加了杠杆的Position市值
         self._valuemktlever = 0.0  # no open position
         # 杠杆
         self._leverage = 1.0  # initially nothing is open
@@ -364,11 +364,11 @@ class BackBroker(BrokerBase):
         # 双向队列
         self.pending = collections.deque()  # popleft and append(right)
         self._toactivate = collections.deque()  # to activate in next cycle
-        # 持仓
+        # Position
         self.positions = collections.defaultdict(Position)
         # 利息率
         self.d_credit = collections.defaultdict(float)  # credit per data
-        # 通知信息的双向队列
+        # 通知Info的双向队列
         self.notifs = collections.deque()
         # 提交的双向队列
         self.submitted = collections.deque()
@@ -387,7 +387,7 @@ class BackBroker(BrokerBase):
         # 现金增加
         self._cash_addition = collections.deque()
 
-    # 获取通知信息
+    # 获取通知Info
     def get_notification(self):
         try:
             return self.notifs.popleft()
@@ -436,7 +436,7 @@ class BackBroker(BrokerBase):
         # Configure the shortcash parameters
         self.set_param("shortcash", shortcash)
 
-    # 设置百分比滑点相关的信息
+    # 设置百分比滑点相关的Info
     def set_slippage_perc(
         self, perc, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
     ):
@@ -448,7 +448,7 @@ class BackBroker(BrokerBase):
         self.set_param("slip_match", slip_match)
         self.set_param("slip_out", slip_out)
 
-    # 设置固定滑点相关的信息
+    # 设置固定滑点相关的Info
     def set_slippage_fixed(
         self, fixed, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
     ):
@@ -571,9 +571,9 @@ class BackBroker(BrokerBase):
 
     # 获取账户价值
     def _get_value(self, datas=None, lever=False):
-        # 持仓价值
+        # Position价值
         pos_value = 0.0
-        # 未加杠杆的持仓价值
+        # 未加杠杆的Position价值
         pos_value_unlever = 0.0
         # 未实现的利润
         unrealized = 0.0
@@ -586,9 +586,9 @@ class BackBroker(BrokerBase):
 
         # 如果datas是None的话，循环self.positions，如果datas不是None的话，循环datas
         for data in datas or self.positions:
-            # 获取佣金相关信息
+            # 获取佣金相关Info
             comminfo = self.getcommissioninfo(data)
-            # 获取data的持仓
+            # 获取data的Position
             position = self.positions[data]
             # use valuesize:  returns raw value, rather than negative adj val
             # 如果shortcash是False的话，用comminfo.getvalue获取data的value
@@ -610,11 +610,11 @@ class BackBroker(BrokerBase):
             # 如果shortcash是False的话
             if not self.get_param("shortcash"):
                 dvalue = abs(dvalue)  # short selling adds value in this case
-            # 持仓价值等于持仓价值加上数据的价值
+            # Position价值等于Position价值加上数据的价值
             pos_value += dvalue
             # 未实现的利润等于未实现的利润加上数据未实现的利润
             unrealized += dunrealized
-            # 如果dvalue大于0的话，计算出未加杠杆的持仓价值
+            # 如果dvalue大于0的话，计算出未加杠杆的Position价值
             if dvalue > 0:  # long position - unlever
                 dvalue -= dunrealized
                 # todo 为什么每次都需要重置pos_value_unlever
@@ -635,7 +635,7 @@ class BackBroker(BrokerBase):
             fval, fvalue = self._process_fund_history()
             # _value等于fvalue
             self._value = fvalue
-            # cash等于fvalue减去未加杠杆的持仓
+            # cash等于fvalue减去未加杠杆的Position
             self._cash = fvalue - pos_value_unlever
             # _fundval = fval
             self._fundval = fval
@@ -645,15 +645,15 @@ class BackBroker(BrokerBase):
             lev = pos_value / (pos_value_unlever or 1.0)
 
             # update the calculated values above to the historical values
-            # 未加杠杆的持仓价值
+            # 未加杠杆的Position价值
             pos_value_unlever = fvalue
-            # 加了杠杆的持仓价值
+            # 加了杠杆的Position价值
             pos_value = fvalue * lev
-        # 未加杠杆的持仓价值
+        # 未加杠杆的Position价值
         self._valuemkt = pos_value_unlever
         # 加了杠杆的账户价值
         self._valuelever = self._cash + pos_value
-        # 加了杠杆的持仓价值
+        # 加了杠杆的Position价值
         self._valuemktlever = pos_value
         # 杠杆率
         self._leverage = pos_value / (pos_value_unlever or 1.0)
@@ -682,7 +682,7 @@ class BackBroker(BrokerBase):
 
         return os
 
-    # 获取data的持仓
+    # 获取data的Position
     def getposition(self, data):
         """Returns the current position status (a ``Position`` instance) for
         the given ``data``"""
@@ -752,7 +752,7 @@ class BackBroker(BrokerBase):
     def check_submitted(self):
         # 当前可用资金
         cash = self._cash
-        # 持仓
+        # Position
         positions = dict()
         # 当submitted不是空的话
         while self.submitted:
@@ -761,10 +761,10 @@ class BackBroker(BrokerBase):
             # 如果调用_take_children(order)的结果是None的话，这个订单会被拒绝，继续到下个订单
             if self._take_children(order) is None:  # children not taken
                 continue
-            # 获取佣金信息类
+            # 获取佣金Info类
             # comminfo = self.getcommissioninfo(order.data)
             # todo 注释掉了没有使用的comminfo
-            # 获取持仓
+            # 获取Position
             position = positions.setdefault(order.data, self.positions[order.data].clone())
             # pseudo-execute the order to get the remaining cash after exec
             # 假设执行订单之后获取的现金
@@ -847,7 +847,7 @@ class BackBroker(BrokerBase):
         o = next(oiter, None)
         self._userhist.append([o, oiter, notify])
 
-    # 设置fund历史信息
+    # 设置fund历史Info
     def set_fund_history(self, fund):
         # iterable with the following pro item
         # [datetime, share_value, net asset value]
@@ -959,11 +959,11 @@ class BackBroker(BrokerBase):
                 size = -size
 
         # Get comminfo object for the data
-        # 获取佣金信息类
+        # 获取佣金Info类
         comminfo = self.getcommissioninfo(order.data)
 
         # Check if something has to be compensated
-        # 如果data的_compensate不是None的话，就获取_compensate的佣金信息类，否则还用data的
+        # 如果data的_compensate不是None的话，就获取_compensate的佣金Info类，否则还用data的
         if order.data._compensate is not None:
             data = order.data._compensate
             cinfocomp = self.getcommissioninfo(data)  # for actual commission
@@ -972,7 +972,7 @@ class BackBroker(BrokerBase):
             cinfocomp = comminfo
 
         # Adjust position with operation size
-        # 如果ago不是None的话，就获取持仓，持仓平均价格，更新持仓相关信息，以及计算的pnl和cash
+        # 如果ago不是None的话，就获取Position，Position平均价格，更新Position相关Info，以及计算的pnl和cash
         if ago is not None:
             # Real execution with date
             position = self.positions[data]
@@ -1070,7 +1070,7 @@ class BackBroker(BrokerBase):
 
             # 如果ago不是None
             elif ago is not None:  # real execution
-                # 如果持仓的绝对值大小大于开仓的绝对值大小
+                # 如果Position的绝对值大小大于开仓的绝对值大小
                 if abs(psize) > abs(opened):
                     # some futures were opened - adjust the cash of the
                     # previously existing futures to the operation price and
@@ -1144,7 +1144,7 @@ class BackBroker(BrokerBase):
             self._ococheck(order)
             self._bracketize(order, cancel=True)
 
-    # 通知订单信息
+    # 通知订单Info
     def notify(self, order):
         self.notifs.append(order.clone())
 
@@ -1576,7 +1576,7 @@ class BackBroker(BrokerBase):
                     self._bracketize(order)
 
         # Operations have been executed ... adjust cash end of bar
-        # 在bar结束的时候，根据持仓信息调整cash
+        # 在bar结束的时候，根据PositionInfo调整cash
         for data, pos in self.positions.items():
             # futures change cash every bar
             if pos:

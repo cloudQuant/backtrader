@@ -7,7 +7,7 @@ import sys
 
 from .indicator import Indicator
 
-# 如果import talib正常，运行else下面的代码，否则，运行except下面的代码
+# If import talib is successful, run the code below else, otherwise run the code in except
 try:
     import talib
 except ImportError:
@@ -20,7 +20,7 @@ else:
     MA_Type = talib.MA_Type
 
     # Reverse TA_FUNC_FLAGS dict
-    # 把TA_FUNC_FLAGS字典进行反转
+    # Reverse the TA_FUNC_FLAGS dictionary
     R_TA_FUNC_FLAGS = dict(
         zip(talib.abstract.TA_FUNC_FLAGS.values(), talib.abstract.TA_FUNC_FLAGS.keys())
     )
@@ -28,7 +28,7 @@ else:
     FUNC_FLAGS_SAMESCALE = 16777216
     FUNC_FLAGS_UNSTABLE = 134217728
     FUNC_FLAGS_CANDLESTICK = 268435456
-    # 把TA_OUTPUT_FLAGS字典进行反转
+    # Reverse the TA_OUTPUT_FLAGS dictionary
     R_TA_OUTPUT_FLAGS = dict(
         zip(talib.abstract.TA_OUTPUT_FLAGS.values(), talib.abstract.TA_OUTPUT_FLAGS.keys())
     )
@@ -40,7 +40,7 @@ else:
     OUT_FLAGS_UPPER = 2048
     OUT_FLAGS_LOWER = 4096
 
-    # talib指标基类 - 去掉元类，改用普通继承
+    # talib indicator base class - remove metaclass, use normal inheritance
     class _TALibIndicator(Indicator):
         CANDLEOVER = 1.02  # 2% over
         CANDLEREF = 1  # Open, High, Low, Close (0, 1, 2, 3)
@@ -48,16 +48,16 @@ else:
         _KNOWN_UNSTABLE = ["SAR"]
 
         def __init__(self, *args, **kwargs):
-            # 首先调用父类的初始化
+            # First call parent class initialization
             super(_TALibIndicator, self).__init__(*args, **kwargs)
 
-            # 执行原来在 dopostinit 中的逻辑
+            # Execute logic originally in dopostinit
             self._init_talib_indicator()
 
         def _init_talib_indicator(self):
-            """初始化 TALib 指标的特定设置"""
+            """Initialize specific settings for TALib indicator"""
             # Get the minimum period by using the abstract interface and params
-            # 通过抽象的接口和参数，获取需要的最小周期
+            # Get the required minimum period through abstract interface and parameters
             if hasattr(self, "_tabstract"):
                 self._tabstract.set_function_args(**self.p._getkwargs())
                 self._lookback = lookback = self._tabstract.lookback + 1
@@ -67,27 +67,27 @@ else:
                 elif self.__class__.__name__ in self._KNOWN_UNSTABLE:
                     self._lookback = 0
 
-                # findowner用于发现_obj的父类，但是是bt.Cerebro的实例
+                # findowner is used to discover _obj's parent class, but is an instance of bt.Cerebro
                 # cerebro = bt.metabase.findowner(self, bt.Cerebro)
                 tafuncinfo = self._tabstract.info
                 self._tafunc = getattr(talib, tafuncinfo["name"], None)
 
-        # 类方法
+        # Class method
         @classmethod
         def _subclass(cls, name):
             # Module where the class has to end (namely this one)
-            # 类模块
+            # Class module
             clsmodule = sys.modules[cls.__module__]
 
             # Create an abstract interface to get lines names
-            # 通过抽象接口获取line的名字
+            # Get line names through abstract interface
             _tabstract = talib.abstract.Function(name)
             # Variables about the info learnt from func_flags
             iscandle = False
             unstable = False
 
             # Prepare plotinfo
-            # 准备画图信息
+            # Prepare plotting information
             plotinfo = dict()
             fflags = _tabstract.function_flags or []
             for fflag in fflags:
@@ -102,7 +102,7 @@ else:
                     iscandle = True
 
             # Prepare plotlines
-            # 准备画图的line
+            # Prepare plotting lines
             lines = _tabstract.output_names
             output_flags = _tabstract.output_flags
             plotlines = dict()
@@ -136,7 +136,7 @@ else:
 
                 if pline:  # the dict has something
                     plotlines[lname] = pline
-            # 如果是K线
+            # If it is a candlestick
             if iscandle:
                 # This is the line that will be plotted when the output of the
                 # indicator is a candle. The values of a candle (100) will be
@@ -153,7 +153,7 @@ else:
                 plotlines[lname] = pline
 
             # Prepare dictionary for subclassing
-            # 准备创建子类的字典
+            # Prepare dictionary for creating subclass
             clsdict = {
                 "__module__": cls.__module__,
                 "__doc__": str(_tabstract),
@@ -172,7 +172,7 @@ else:
         def oncestart(self, start, end):
             pass  # if not ... a call with a single value to once will happen
 
-        # 运行一次
+        # Run once
         def once(self, start, end):
             import array
 
@@ -195,7 +195,7 @@ else:
                 for i, o in enumerate(output):
                     self.lines[i].array = array.array(str("d"), o)
 
-        # 每个bar运行
+        # Run for each bar
         def next(self):
             # prepare the data arrays - single shot
             size = getattr(self, "_lookback", None) or len(self)
