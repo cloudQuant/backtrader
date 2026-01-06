@@ -2,7 +2,7 @@
 # -*- coding: utf-8; py-indent-offset:4 -*-
 from .indicator import Indicator
 
-# 创建不同的SIGNAL类型
+# Create different SIGNAL types
 (
     SIGNAL_NONE,
     SIGNAL_LONGSHORT,
@@ -20,7 +20,7 @@ from .indicator import Indicator
     SIGNAL_SHORTEXIT_ANY,
 ) = range(14)
 
-# 不同的信号类型
+# Different signal types
 SignalTypes = [
     SIGNAL_NONE,
     SIGNAL_LONGSHORT,
@@ -39,14 +39,14 @@ SignalTypes = [
 ]
 
 
-# 继承指标，创建一个signal指标
+# Inherit from Indicator, create a signal indicator
 class Signal(Indicator):
-    # 信号类型
+    # Signal type
     SignalTypes = SignalTypes
-    # 创建了一个signal的line
+    # Create a signal line
     lines = ("signal",)
 
-    # 初始化
+    # Initialize
     def __init__(self):
         self.lines.signal = self.data0.lines[0]
         self.plotinfo.plotmaster = getattr(self.data0, "_clock", self.data0)

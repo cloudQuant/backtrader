@@ -4,7 +4,7 @@ from . import MovingAverageBase
 from .ema import EMA
 
 
-# 双指数平均值
+# Double Exponential Moving Average
 class DoubleExponentialMovingAverage(MovingAverageBase):
     """
     DEMA was first time introduced in 1994, in the article "Smoothing Data with

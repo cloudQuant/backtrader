@@ -6,7 +6,7 @@ from .sma import SMA
 __all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
 
 
-# AwesomeOscillator指标
+# Awesome Oscillator indicator
 class AwesomeOscillator(Indicator):
     """
     Awesome Oscillator (AO) is a momentum indicator reflecting the precise
@@ -24,20 +24,20 @@ class AwesomeOscillator(Indicator):
 
     """
 
-    # 别名
+    # Alias
     alias = ("AwesomeOsc", "AO")
-    # 要生成的line
+    # Line to generate
     lines = ("ao",)
-    # 参数
+    # Parameters
     params = (
         ("fast", 5),
         ("slow", 34),
         ("movav", SMA),
     )
-    # 画图的参数
+    # Plot parameters
     plotlines = dict(ao=dict(_method="bar", alpha=0.50, width=1.0))
 
-    # 初始化的时候，创建指标
+    # Create indicators during initialization
     def __init__(self):
         super().__init__()
         self.addminperiod(self.p.slow)

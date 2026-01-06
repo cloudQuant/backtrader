@@ -3,7 +3,7 @@ import math
 from . import Indicator, MovAv
 
 
-# 两均线差
+# Difference between two moving averages
 class _PriceOscBase(Indicator):
     params = (
         ("period1", 12),
@@ -41,7 +41,7 @@ class _PriceOscBase(Indicator):
                 larray[i] = ma1_val - ma2_val
 
 
-# 均线差
+# Moving average difference
 class PriceOscillator(_PriceOscBase):
     """
     Shows the difference between a short and long exponential moving

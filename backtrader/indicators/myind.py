@@ -4,11 +4,11 @@ import numpy as np
 
 from . import SMA, And, If, Indicator, Max, Min
 
-# 这个文件中保存一些自定义的指标算法
+# This file contains some custom indicator algorithms
 
 
 class MaBetweenHighAndLow(Indicator):
-    # 判断均线是否在最高价和最低价之间
+    # Check if moving average is between high and low prices
     lines = ("target",)
     params = (("period", 5),)
 
@@ -43,7 +43,7 @@ class MaBetweenHighAndLow(Indicator):
 
 
 class BarsLast(Indicator):
-    # 这个指标用于分析最近一次满足条件之后到现在的bar的个数
+    # This indicator analyzes the number of bars since the last condition was met
     lines = ("bar_num",)
     params = (("period", 5), ("func", MaBetweenHighAndLow))
 
@@ -59,7 +59,7 @@ class BarsLast(Indicator):
 
 
 class NewDiff(Indicator):
-    # 根据国泰君安alpha因子编写的指标
+    # Indicator based on Guotai Junan alpha factor
     # ：SUM((CLOSE=DELAY(CLOSE,1)?0:CLOSE-(CLOSE>DELAY(CLOSE,1)?MIN(LOW,DELAY(CLOSE,1)):MAX(HIGH,DELAY(CLOSE,1)))),6)
     # - e = MIN(LOW, DELAY(CLOSE, 1))
     # - f = MAX(HIGH, DELAY(CLOSE, 1))

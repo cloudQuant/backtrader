@@ -1,16 +1,16 @@
 #!/usr/bin/env python
-# 从from error import * 的时候，只导入下面两个类BacktraderError和StrategySkipError
+# When using 'from error import *', only import these two classes: BacktraderError and StrategySkipError
 __all__ = ["BacktraderError", "StrategySkipError"]
 
 
-# BacktraderError类
+# BacktraderError class
 class BacktraderError(Exception):
     """Base exception for all other exceptions"""
 
     pass
 
 
-# StrategySkipError，只有这个类在cerebro中用到了
+# StrategySkipError, only this class is used in cerebro
 class StrategySkipError(BacktraderError):
     """Requests the platform to skip this strategy for backtesting. To be
     raised during the initialization (``__init__``) phase of the instance"""
@@ -18,7 +18,7 @@ class StrategySkipError(BacktraderError):
     pass
 
 
-# ModuleImportError类
+# ModuleImportError class
 class ModuleImportError(BacktraderError):
     """Raised if a class requests a module to be present to work and it cannot
     be imported"""
@@ -28,7 +28,7 @@ class ModuleImportError(BacktraderError):
         self.args = args
 
 
-# FromModuleImportError类
+# FromModuleImportError class
 class FromModuleImportError(ModuleImportError):
     """Raised if a class requests a module to be present to work and it cannot
     be imported"""

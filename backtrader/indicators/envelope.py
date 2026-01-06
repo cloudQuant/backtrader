@@ -22,7 +22,7 @@ class PlotLineAttr:
         return hasattr(self, key)
 
 
-# 装饰其他指标，给其他指标值设定了一个百分比的上下限
+# Decorate other indicators, set upper and lower percentage limits for indicator values
 class EnvelopeMixIn:
     """
     MixIn class to create a subclass with another indicator. The main line of

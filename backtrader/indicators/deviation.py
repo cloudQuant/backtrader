@@ -3,7 +3,7 @@ import math
 from . import Indicator, MovAv
 
 
-# 计算标准差
+# Calculate standard deviation
 class StandardDeviation(Indicator):
     """
     Calculates the standard deviation of the passed data for a given period

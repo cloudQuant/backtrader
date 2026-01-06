@@ -3,7 +3,7 @@ import math
 from . import Indicator, MovAv
 
 
-# 布林带指标
+# Bollinger Bands indicator
 class BollingerBands(Indicator):
     """
     Defined by John Bollinger in the 80s. It measures volatility by defining

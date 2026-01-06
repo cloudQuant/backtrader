@@ -66,7 +66,7 @@ from .hurst import *
 from .ols import *
 from .hadelta import *
 
-# 增加一些自定义的指标
+# Add some custom indicators
 from .myind import *
 
 # # At the end of the file, after all imports
