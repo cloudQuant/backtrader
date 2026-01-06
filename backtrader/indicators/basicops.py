@@ -53,9 +53,19 @@ class OperationN(PeriodN):
             period = self.p.period
             func = self.func
 
-            # Ensure destination array is large enough
+            # CRITICAL FIX: Handle case where start >= end (not enough data for this indicator)
+            # This can happen when nested indicators have larger minperiod than available data
+            if start >= end:
+                # Still need to pre-fill the array with NaN
+                while len(dst) < end:
+                    dst.append(float("nan"))
+                return  # No data to process
+
+            # CRITICAL FIX: Pre-fill warmup period with NaN instead of 0.0
+            # This ensures that accessing indicator values before minperiod returns nan
+            # instead of 0.0, which could trigger incorrect buy/sell signals
             while len(dst) < end:
-                dst.append(0.0)
+                dst.append(float("nan"))
 
             # Calculate for each index from start to end
             for i in range(start, end):
