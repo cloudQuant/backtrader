@@ -351,15 +351,14 @@ class Strategy(StrategyBase):
 
         # print(f"Strategy.__init__: Completed initialization with {len(self.datas)} datas and clock: {type(self._clock).__name__}")
 
-    # line类型是策略类型
+    # Line type is strategy type
     _ltype = LineIterator.StratType
-    # csv默认是True
+    # CSV default is True
     csv = True
-    # 旧的更新时间的方法，默认是False
+    # Old clock update methodology, default is False
     _oldsync = False  # update the clock using old methodology: data 0
 
-    # keep the latest delivered data date in the line
-    # 保存最新的数据的日期
+    # Keep the latest delivered data date in the line
     lines = ("datetime",)
 
     def log(self, txt, dt=None):
@@ -368,7 +367,6 @@ class Strategy(StrategyBase):
         # Subclasses like BtApiStrategy override this with actual logging
         pass
 
-    # 缓存数据
     def qbuffer(self, savemem=0, replaying=False):
         """Enable the memory saving schemes. Possible values for ``savemem``:
 
@@ -383,52 +381,50 @@ class Strategy(StrategyBase):
 
           -2: Same as -1 plus activation of memory saving for any indicators
               which has declared *plotinfo.plot* as False (will not be plotted)
-        # 根据savemem的值执行不同的数据保存方案
-        # 如果savemem等于0的话，那么所有line的数据都会被保存到内存中
-        # 如果savemem等于1的话，执行保存所需要的最小的数据量，节省内存
-        # 如果savemen等于-1的话，那么策略和观察者里面的指标需要保存所有的数据，但是指标里面声明的line会节省内存
-        # 如果savemen等于-2的话，除了等于-1里面的，还要加上plotinfo.plot设置成False的也会节省内存
         """
-        # 如果savemem小于0
+        # If savemem < 0
         if savemem < 0:
             # Get any attribute that labels itself as Indicator
-            # 循环所有的指标
             for ind in self._lineiterators[self.IndType]:
-                # 判断这个ind是否是单个line
+                # Check if this ind is a single line
                 subsave = isinstance(ind, (LineSingle,))
-                # 如果不是单个line，并且savemen等于-2,如果plotinfo.plot还是False的话，这个ind就会节省内存
+                # If not a single line and savemem == -2, check plotinfo.plot
                 if not subsave and savemem < -1:
                     subsave = not ind.plotinfo.plot
-                # 根据subsave决定是否节省内存
+                # Apply memory saving based on subsave flag
                 ind.qbuffer(savemem=subsave)
-        # 如果savemem大于0
+        # If savemem > 0
         elif savemem > 0:
-            # 对所有的数据执行节省内存计划
+            # Apply memory saving to all data feeds
             for data in self.datas:
                 data.qbuffer(replaying=replaying)
-            # 对所有的line执行节省内存计划
+            # Apply memory saving to all lines
             for line in self.lines:
                 line.qbuffer(savemem=1)
-            # Save in all object types depending on the strategy
-            # 对所有的可迭代对象执行缓存计划
+            # Apply memory saving to all lineiterators based on the strategy
             for itcls in self._lineiterators:
                 for it in self._lineiterators[itcls]:
                     it.qbuffer(savemem=1)
-        # 其实应该还有一个等于0的时候，不操作，作者忽略了，写上去吧，逻辑上更严谨
+        # If savemem == 0, no action needed
         else:
             pass
 
-    # 获取并设置策略运行需要的数据的最小周期
     def _periodset(self):
-        # 数据的id
+        """Calculate and set the minimum period required for strategy execution.
+
+        This method determines the minimum number of bars needed before
+        the strategy's next() method can be called, based on the minimum
+        periods of all indicators and data feeds.
+        """
+        # Data IDs
         dataids = [id(data) for data in self.datas]
-        # 数据的最小周期
+        # Data minimum periods
         _dminperiods = collections.defaultdict(list)
-        # 循环所有的指标
+        # Loop through all indicators
         for lineiter in self._lineiterators[LineIterator.IndType]:
-            # if multiple datas are used and multiple timeframes, the larger
+            # If multiple datas are used and multiple timeframes, the larger
             # timeframe may place larger time constraints in calling next.
-            # 获取指标的_clock属性
+            # Get the indicator's _clock attribute
             clk = getattr(lineiter, "_clock", None)
 
             # CRITICAL FIX: If clock is MinimalClock, use the indicator's actual data source
@@ -459,9 +455,9 @@ class Strategy(StrategyBase):
                 else:
                     clk = None
 
-            # 如果属性值是None的话
+            # If the attribute value is None
             if clk is None:
-                # 获取指标父类的_clock属性值，如果还是None的话，循环下个指标
+                # Get the indicator's owner's _clock attribute value
                 clk = getattr(lineiter._owner, "_clock", None)
                 # CRITICAL FIX: If owner's clock is also MinimalClock, use data
                 if (
@@ -475,32 +471,32 @@ class Strategy(StrategyBase):
                         clk = None
                 if clk is None:
                     continue
-            # 如果clk不是None的话
+            # If clk is not None
             while True:
-                # 如果clk是数据的话，中断
+                # If clk is a data feed, break
                 if id(clk) in dataids:
                     break  # already top-level clock (data feed)
 
                 # See if the current clock has higher level clocks
-                # 看下当前的clk是否具有进一步的_clock属性
+                # Check if current clk has further _clock attribute
                 clk2 = getattr(clk, "_clock", None)
-                # 如果clk2是None的话，获取clk父类的_clock属性值，如果这个属性值也是None的话，中断while
+                # If clk2 is None, get clk owner's _clock attribute value
                 if clk2 is None:
                     clk2 = getattr(clk._owner, "_clock", None)
                 if clk2 is None:
                     break  # if no clock found, bail out
-                # 如果clk2不是None的话，就让clk等于clk2
+                # If clk2 is not None, set clk to clk2
                 clk = clk2  # keep the ref and try to go up the hierarchy
-            # 这个判断似乎没有用处，能够到这里，clk肯定不是None
+            # This check ensures clk is not None before proceeding
             if clk is None:
                 continue  # no clock found, go to next
 
-            # LineSeriesStup wraps a line and the clock is the wrapped line and
-            # no the wrapper itself.
-            # 如果clk是LineSeriesStub多条line对象，获取第一条line作为clk
+            # LineSeriesStub wraps a line and the clock is the wrapped line and
+            # not the wrapper itself.
+            # If clk is LineSeriesStub (multi-line object), get first line as clk
             if isinstance(clk, LineSeriesStub):
                 clk = clk.lines[0]
-            # 保存最小周期
+            # Save minimum period
             _dminperiods[clk].append(lineiter._minperiod)
 
         # DEBUG: Print _dminperiods content
@@ -508,35 +504,35 @@ class Strategy(StrategyBase):
         # for key, val in _dminperiods.items():
         #     print(f"  {type(key).__name__}: {val}")
 
-        # 最小周期设置成空列表
+        # Set minimum periods to empty list
         self._minperiods = list()
-        # 循环所有的数据
+        # Loop through all data feeds
         for data in self.datas:
             # Do not only consider the data as clock but also its lines, which
             # may have been individually passed as clock references and
             # discovered as clocks above
 
             # Initialize with a data min period if any
-            # 数据产生指标的line的时候需要的最小周期
+            # Minimum period needed for data to generate indicator lines
             dlminperiods = _dminperiods[data]
-            # 循环数据的每条line,如果line在_dminperiods中，dlminperiods需要增加一定的值
+            # Loop through each line of data, add minperiods if line is in _dminperiods
             for line in data.lines:  # search each line for min periods
                 if line in _dminperiods:
                     dlminperiods += _dminperiods[line]  # found, add it
 
-            # keep the reference to the line if any was found
-            # 如果dlminperiods不是空列表，就计算最大的值最为_dminperiods[data]的值，否则就是空的列表
+            # Keep the reference to the line if any was found
+            # If dlminperiods is not empty, calculate max value, else empty list
             _dminperiods[data] = [max(dlminperiods)] if dlminperiods else []
-            # 数据的最小周期
+            # Data minimum period
             dminperiod = max(_dminperiods[data] or [data._minperiod])
-            # 把最小周期保存到dminperiod中
+            # Save minimum period to dminperiod
             self._minperiods.append(dminperiod)
 
         # Set the minperiod
-        # 指标的最小周期
+        # Indicator minimum periods
         minperiods = \
             [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
-        
+
         # CRITICAL FIX: Also scan strategy attributes for LineActions objects
         # (like LinesOperation from sma - sma(-10)) that aren't registered as indicators
         # but still need their minperiod considered
@@ -552,10 +548,10 @@ class Strategy(StrategyBase):
                         minperiods.append(attr._minperiod)
             except (AttributeError, TypeError):
                 pass
-        
-        # 把指标的最小周期和数据的最小周期的最大值作为策略运行需要的最小周期
+
+        # Set strategy minimum period to max of indicator and data minperiods
         self._minperiod = max(minperiods or [self._minperiod])
-        
+
         # CRITICAL FIX: Update _minperiods for LineActions, but only for their associated data
         # For single-data strategies, apply LineActions minperiod to data[0]
         # For multi-data strategies, LineActions minperiod should only affect its source data
@@ -582,40 +578,60 @@ class Strategy(StrategyBase):
                 except (AttributeError, TypeError):
                     pass
 
-    # 增加writer
     def _addwriter(self, writer):
-        """
+        """Add a writer to the strategy.
+
         Unlike the other _addxxx functions, this one receives an instance
         because the writer works at cerebro level and is only passed to the
-        strategy to simplify the logic
-        # 不像其他的_addxxx的函数，这个函数直接接收的是一个实例，是在cerebro中工作的，为了简化逻辑
-        # 直接传送给了策略
+        strategy to simplify the logic.
         """
         self.writers.append(writer)
 
-    # 增加指标
     def _addindicator(self, indcls, *indargs, **indkwargs):
+        """Add an indicator to the strategy.
+
+        Args:
+            indcls: Indicator class to instantiate
+            *indargs: Positional arguments for the indicator
+            **indkwargs: Keyword arguments for the indicator
+        """
         indcls(*indargs, **indkwargs)
 
-    # 增加analyzer,主要给observers使用，这些analyzer并不是用户添加的，和用户添加的analyzer保持分离
     def _addanalyzer_slave(self, ancls, *anargs, **ankwargs):
-        """Like _addanalyzer but meant for observers (or other entities) which
+        """Add a slave analyzer for internal use.
+
+        Like _addanalyzer but meant for observers (or other entities) which
         rely on the output of an analyzer for the data. These analyzers have
         not been added by the user and are kept separate from the main
-        analyzers
+        analyzers.
 
-        Returns the created analyzer
+        Args:
+            ancls: Analyzer class to instantiate
+            *anargs: Positional arguments for the analyzer
+            **ankwargs: Keyword arguments for the analyzer
+
+        Returns:
+            The created analyzer instance
         """
         analyzer = ancls(*anargs, **ankwargs)
         self._slave_analyzers.append(analyzer)
         return analyzer
 
-    # 获取analyzer_slave，todo 感觉这个语法写的有问题
     def _getanalyzer_slave(self, idx):
+        """Get a slave analyzer by index.
+
+        Note: This appears to have a syntax bug - should use [] not append()
+        """
         return self._slave_analyzers.append[idx]
 
-    # 增加analyzer
     def _addanalyzer(self, ancls, *anargs, **ankwargs):
+        """Add an analyzer to the strategy.
+
+        Args:
+            ancls: Analyzer class to instantiate
+            *anargs: Positional arguments for the analyzer
+            **ankwargs: Keyword arguments for the analyzer, may include _name
+        """
         anname = ankwargs.pop("_name", "") or ancls.__name__.lower()
         nsuffix = next(self._alnames[anname])
         anname += str(nsuffix or "")  # 0 (first instance) gets no suffix
@@ -625,8 +641,15 @@ class Strategy(StrategyBase):
         analyzer._owner = self
         self.analyzers.append(analyzer, anname)
 
-    # 增加observer
     def _addobserver(self, multi, obscls, *obsargs, **obskwargs):
+        """Add an observer to the strategy.
+
+        Args:
+            multi: If True, create one observer per data feed; if False, create single observer
+            obscls: Observer class to instantiate
+            *obsargs: Positional arguments for the observer
+            **obskwargs: Keyword arguments for the observer, may include obsname
+        """
         obsname = obskwargs.pop("obsname", "")
         if not obsname:
             obsname = obscls.__name__.lower()
@@ -650,29 +673,50 @@ class Strategy(StrategyBase):
             obs._owner = self
             obs_list.append(obs)
 
-    # 检查最小周期是否满足，返回的是最小周期减去每个数据长度的最大值
     def _getminperstatus(self):
-        # check the min period status connected to datas
+        """Check if minimum period requirements are satisfied.
+
+        Returns the maximum difference between required minimum periods
+        and current data lengths.
+
+        Returns:
+            int: Maximum value of (minperiod - current_length) across all data feeds.
+                 Negative values indicate all minimum periods are satisfied.
+        """
         dlens = map(operator.sub, self._minperiods, map(len, self.datas))
         self._minperstatus = minperstatus = max(dlens)
         return minperstatus
 
-    # 准备开始prenext
     def prenext_open(self):
+        """Called before next() during prenext phase.
+
+        This is a hook for strategies to take action at the open of each bar
+        before minimum period is reached.
+        """
         pass
 
-    # 准备开始nextstart
     def nextstart_open(self):
+        """Called at the open of the first bar where minimum period is satisfied.
+
+        This is called only once, transitioning from prenext to next phase.
+        """
         self.next_open()
 
-    # 准备开始next
     def next_open(self):
+        """Called at the open of each bar during normal execution.
+
+        This is a hook for strategies to take action at the open of each bar.
+        """
         pass
 
-    # 准备开始_oncepost,根据数据的状态调用不同的函数，minperstatus小于0,代表所有数据都满足了最小周期，调用next_open
-    # 如果minperstatus=0,代表数据刚准备齐全，调用self.nextstart_open
-    # 如果minperstatus<0,代表数据还没有准备全，调用self.prenext_open
     def _oncepost_open(self):
+        """Prepare for _oncepost execution based on minimum period status.
+
+        Routes to appropriate method based on minperstatus:
+        - minperstatus < 0: All data satisfied, call next_open()
+        - minperstatus == 0: First bar with satisfied data, call nextstart_open()
+        - minperstatus > 0: Data not ready, call prenext_open()
+        """
         minperstatus = self._minperstatus
         if minperstatus < 0:
             self.next_open()
@@ -681,8 +725,12 @@ class Strategy(StrategyBase):
         else:
             self.prenext_open()
 
-    # _oncepost
     def _oncepost(self, dt):
+        """Execute oncepost processing for a single time step.
+
+        Args:
+            dt: Current datetime
+        """
         # CRITICAL FIX: Ensure _clock is set to actual data, not MinimalClock
         # During initialization, _clock might be set to MinimalClock if datas weren't available yet
         if hasattr(self, "_clock") and self._clock is not None:
@@ -695,22 +743,22 @@ class Strategy(StrategyBase):
             if self.datas:
                 self._clock = self.datas[0]
 
-        # 循环指标，如果指标数据的长度大于指标的长度了，继续运行指标
+        # Loop through indicators, advance if indicator clock length exceeds indicator length
         for indicator in self._lineiterators[LineIterator.IndType]:
             if len(indicator._clock) > len(indicator):
                 indicator.advance()
-        # 如果是旧的数据处理方式，调用advance;如果不是旧的数据处理方式，代表策略已经初始化了，调用advance
+        # If using old data sync method, call advance; otherwise call forward
         if self._oldsync:
             # Strategy has not been reset, the line is there
             self.advance()
         else:
             # strategy has been reset to beginning. advance step by step
             self.forward()
-        # 设置时间 - and save it as the last valid datetime for use in stop()
+        # Set datetime - and save it as the last valid datetime for use in stop()
         self.lines.datetime[0] = dt
         if dt > 0:
             self._last_valid_datetime = dt
-        # 通知
+        # Notify
         self._notify()
 
         # CRITICAL FIX: In runonce mode, ensure indicator lencount matches strategy length
@@ -730,9 +778,10 @@ class Strategy(StrategyBase):
         except Exception:
             pass
 
-        # 获取当前最小周期状态，如果所有数据都满足了，调用next
-        # 如果正好所有数据都满足了，调用nextstart
-        # 如果不是所有的数据都满足了，调用prenext
+        # Get current minimum period status and route to appropriate method
+        # If all data satisfied, call next()
+        # If first bar with all data satisfied, call nextstart()
+        # If not all data satisfied, call prenext()
         minperstatus = self._getminperstatus()
         if minperstatus < 0:
             self.next()
@@ -740,15 +789,19 @@ class Strategy(StrategyBase):
             self.nextstart()  # only called for the 1st value
         else:
             self.prenext()
-        # 对analyzer增加最小周期状态
+        # Update analyzers with minimum period status
         self._next_analyzers(minperstatus, once=True)
-        # 对observer增加最小周期状态
+        # Update observers with minimum period status
         self._next_observers(minperstatus, once=True)
-        # 清除
+        # Clear pending orders and trades
         self.clear()
 
-    # 更新数据
     def _clk_update(self):
+        """Update the clock and advance strategy state if needed.
+
+        Returns:
+            int: Current length of the strategy
+        """
         # CRITICAL FIX: Ensure data is available before clock operations
         if (
             getattr(self, "_data_assignment_pending", True)
@@ -759,41 +812,44 @@ class Strategy(StrategyBase):
             if hasattr(self, "_ensure_data_available"):
                 self._ensure_data_available()
 
-        # 如果是旧的数据管理方法
+        # If using old data sync method
         if self._oldsync:
-            # 调用策略的_clk_uddate()方法
+            # Call strategy's _clk_update() method
             clk_len = super(Strategy, self)._clk_update()
-            # 设置时间
+            # Set datetime
             if self.datas:
                 valid_datetimes = [
                     d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0
                 ]
                 if valid_datetimes:
                     self.lines.datetime[0] = max(valid_datetimes)
-            # 返回数据长度
+            # Return data length
             return clk_len
 
         # CRITICAL FIX: Initialize _dlens if not present
         if not hasattr(self, "_dlens"):
             self._dlens = [len(d) for d in self.datas]
 
-        # 当前最新的数据长度
+        # Current new data lengths
         newdlens = [len(d) for d in self.datas]
-        # 如果新的数据长度大于旧的数据长度，就forward
+        # If new data length > old data length, forward
         if any(nl > old_len for old_len, nl in zip(self._dlens, newdlens)):
             self.forward()
-        # 设置时间，当前数据中的最大的时间 - only update if we have valid datetimes
+        # Set datetime to max of current datetimes - only update if we have valid datetimes
         if self.datas:
             valid_datetimes = [d.datetime[0] for d in self.datas if len(d) and d.datetime[0] > 0]
             if valid_datetimes:
                 self.lines.datetime[0] = max(valid_datetimes)
-        # 旧的数据长度等于新的数据长度
+        # Old data length equals new data length
         self._dlens = newdlens
 
         return len(self)
 
-    # _next_open方法，这个和_once_post_open方法一样
     def _next_open(self):
+        """Execute next_open phase based on minimum period status.
+
+        Same logic as _oncepost_open().
+        """
         minperstatus = self._minperstatus
         if minperstatus < 0:
             self.next_open()
@@ -802,8 +858,12 @@ class Strategy(StrategyBase):
         else:
             self.prenext_open()
 
-    # _next方法,获取最小数据周期状态，并且添加给analyzer和observer中，然后clear
     def _next(self):
+        """Execute next() method and update analyzers and observers.
+
+        Gets minimum period status and passes it to analyzers and observers,
+        then clears pending orders and trades.
+        """
         super(Strategy, self)._next()
 
         minperstatus = self._getminperstatus()
@@ -812,41 +872,51 @@ class Strategy(StrategyBase):
 
         self.clear()
 
-    # 把最小周期状态传递给observer
     def _next_observers(self, minperstatus, once=False):
-        # 循环observer
+        """Update observers based on minimum period status.
+
+        Args:
+            minperstatus: Current minimum period status
+            once: If True, running in runonce mode; otherwise running in next() mode
+        """
+        # Loop through observers
         for observer in self._lineiterators[LineIterator.ObsType]:
-            # 对于每个observer中的每个analyzer
+            # For each analyzer in the observer
             for analyzer in observer._analyzers:
-                # 根据最小周期状态，给analyzer使用不同的方法
+                # Route to appropriate analyzer method based on minperstatus
                 if minperstatus < 0:
                     analyzer._next()
                 elif minperstatus == 0:
                     analyzer._nextstart()  # only called for the 1st value
                 else:
                     analyzer._prenext()
-            # 如果是once的话
+            # If running in once mode
             if once:
-                # 如果当前数据长度大于observer的长度
+                # If current data length > observer length
                 if len(self) > len(observer):
-                    # 如果是使用的旧的数据管理方法，调用advance，如果不是旧的，调用forward
+                    # If using old data sync method, call advance, else call forward
                     if self._oldsync:
                         observer.advance()
                     else:
                         observer.forward()
-                # 根据最小周期的状态，调用不同的方法
+                # Route to appropriate observer method based on minperstatus
                 if minperstatus < 0:
                     observer.next()
                 elif minperstatus == 0:
                     observer.nextstart()  # only called for the 1st value
                 elif len(observer):
                     observer.prenext()
-            # 如果不是once的话，调用_next方法
+            # If not in once mode, call _next()
             else:
                 observer._next()
 
-    # 把最小周期状态传递到analyzer中
     def _next_analyzers(self, minperstatus, once=False):
+        """Update analyzers based on minimum period status.
+
+        Args:
+            minperstatus: Current minimum period status
+            once: If True, running in runonce mode (unused but kept for consistency)
+        """
         for analyzer in self.analyzers:
             if minperstatus < 0:
                 analyzer._next()
@@ -855,18 +925,26 @@ class Strategy(StrategyBase):
             else:
                 analyzer._prenext()
 
-    # 给时间设置具体的时区
     def _settz(self, tz):
+        """Set timezone for strategy's datetime line.
+
+        Args:
+            tz: Timezone to set
+        """
         self.lines.datetime._settz(tz)
 
-    # 开始
     def _start(self):
-        # 获取并设置需要的最小周期
+        """Initialize strategy and start execution.
+
+        Calculates minimum periods, starts analyzers and observers,
+        and calls user's start() method.
+        """
+        # Calculate and set required minimum period
         self._periodset()
-        # analyzer开始
+        # Start analyzers
         for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
             analyzer._start()
-        # observer开始
+        # Start observers
         for obs in self.observers:
             if not isinstance(obs, list):
                 obs = [obs]  # support of multi-data observers
@@ -874,53 +952,63 @@ class Strategy(StrategyBase):
             for o in obs:
                 o._start()
 
-        # change operators to stage 2
-        # 把操作转变到第二种状态
+        # Change operators to stage 2
         self._stage2()
-        # 当前每个数据的长度
+        # Current length of each data
         self._dlens = [len(data) for data in self.datas]
-        # 当前最小周期状态默认是最大的整数
-        self._minperstatus = MAXINT  # start in prenext
-        # 调用开始
+        # Current minimum period status defaults to MAXINT (start in prenext)
+        self._minperstatus = MAXINT
+        # Call user's start()
         self.start()
 
-    # 开始方法，可以在策略实例中重写
     def start(self):
-        """Called right before the backtesting is about to be started."""
+        """Called right before the backtesting is about to be started.
+
+        This is a hook for strategies to perform initialization before
+        the backtesting loop begins.
+        """
         pass
 
-    # 获取writer的列名称
     def getwriterheaders(self):
-        # indicator和observer是否保存到csv
+        """Get the CSV headers for writer output.
+
+        Returns:
+            list: Headers including indicator/observer names and line aliases
+        """
+        # Filter indicators and observers for CSV output
         self.indobscsv = [self]
-        # 对indiicator和observer进行过滤，如果它的属性csv值是True的话，代表准备进行保存
+        # Filter indicators and observers, include only those with csv=True
         indobs = itertools.chain(self.getindicators_lines(), self.getobservers())
         self.indobscsv.extend(filter(lambda x: x.csv, indobs))
-        # 把headers初始化空列表
+        # Initialize headers as empty list
         headers = list()
 
-        # prepare the indicators/observers data headers
-        # 循环indicator和observer中需要保存的
+        # Prepare the indicators/observers data headers
+        # Loop through indicators/observers marked for CSV output
         for iocsv in self.indobscsv:
-            # 指标名称或者类名称
+            # Get indicator/observer name or class name
             name = iocsv.plotinfo.plotname or iocsv.__class__.__name__
-            # 把名称，长度，和line或者line的名称添加到headers中
+            # Add name, length, and line aliases to headers
             headers.append(name)
             headers.append("len")
             headers.extend(iocsv.getlinealiases())
-        # 返回headers
+        # Return headers
         return headers
 
-    # 获取writer的value值
     def getwritervalues(self):
+        """Get current values for writer output.
+
+        Returns:
+            list: Current values from indicators and observers
+        """
         values = list()
-        # 循环indicator或者observer
+        # Loop through indicators/observers
         for iocsv in self.indobscsv:
             name = iocsv.plotinfo.plotname or iocsv.__class__.__name__
             values.append(name)
             lio = len(iocsv)
             values.append(lio)
-            # 如果长度大于0,就获取每一个值
+            # If length > 0, get each value
             if lio:
                 values.extend(map(lambda line: line[0], iocsv.lines.itersize()))
             else:
@@ -928,37 +1016,41 @@ class Strategy(StrategyBase):
 
         return values
 
-    # 获取writerinfo的信息
     def getwriterinfo(self):
-        # 初始化writer info为一个自动有序字典
+        """Get comprehensive writer information including params and analysis.
+
+        Returns:
+            AutoOrderedDict: Nested structure containing params, indicators,
+                            observers, and analyzer results
+        """
+        # Initialize writer info as AutoOrderedDict
         wrinfo = AutoOrderedDict()
-        # 设置参数
+        # Set parameters
         wrinfo["Params"] = self.p._getkwargs()
 
         sections = [["Indicators", self.getindicators_lines()], ["Observers", self.getobservers()]]
-        # 循环indicator和observer
+        # Loop through indicators and observers
         for sectname, sectitems in sections:
-            # 设置具体的值
+            # Set specific values
             sinfo = wrinfo[sectname]
             for item in sectitems:
                 itname = item.__class__.__name__
                 sinfo[itname].Lines = item.lines.getlinealiases() or None
                 sinfo[itname].Params = item.p._getkwargs() or None
-        # 设置analyzer的值
+        # Set analyzer values
         ainfo = wrinfo.Analyzers
 
         # Internal Value Analyzer
         ainfo.Value.Begin = self.broker.startingcash
         ainfo.Value.End = self.broker.getvalue()
 
-        # no slave analyzers for a writer
+        # No slave analyzers for a writer
         for aname, analyzer in self.analyzers.getitems():
             ainfo[aname].Params = analyzer.p._getkwargs() or None
             ainfo[aname].Analysis = analyzer.get_analysis()
 
         return wrinfo
 
-    # 结束运行
     def _stop(self):
         # CRITICAL FIX: In runonce mode, ensure indicator lencount matches strategy length
         # This must be done BEFORE calling user's stop() method, as tests check len(indicator) == len(strategy)
@@ -995,65 +1087,78 @@ class Strategy(StrategyBase):
             except Exception:
                 pass
 
-        # 结束策略，可以在策略实例中重写
+        # Call user's stop() method - can be overridden in strategy subclass
         self.stop()
-        # 结束analyzer和observer的analyzer
+        # Stop analyzers (both user-added and slave analyzers for observers)
         for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
             analyzer._stop()
 
-        # change operators back to stage 1 - allows reuse of datas
-        # 把操作状态转变为状态1,允许重新使用数据
+        # Change operators back to stage 1 - allows reuse of datas
         self._stage1()
 
-    # 策略结束
     def stop(self):
-        """Called right before the backtesting is about to be stopped"""
+        """Called right before the backtesting is about to be stopped.
+
+        This is a hook for strategies to perform cleanup or final logging.
+        """
         pass
 
-    # 设置是否保存历史交易数据
     def set_tradehistory(self, onoff=True):
+        """Enable or disable trade history tracking.
+
+        Args:
+            onoff: If True, keep full trade history; if False, only track current trade
+        """
         self._tradehistoryon = onoff
 
-    # 清空_orders、_orderspending,_tradespending
     def clear(self):
+        """Clear pending orders and trades.
+
+        Moves pending orders to _orders list and clears pending trades.
+        """
         self._orders.extend(self._orderspending)
         self._orderspending = list()
         self._tradespending = list()
 
-    # 增加通知
     def _addnotification(self, order, quicknotify=False):
-        # 如果不是模拟交易，把order添加到self._orderspending中
+        """Add order notification and process trade updates.
+
+        Args:
+            order: The order that has been updated
+            quicknotify: If True, immediately process notification without queueing
+        """
+        # If not simulated trading, add order to pending orders
         if not order.p.simulated:
             self._orderspending.append(order)
-        # 如果是快速通知状态,qorders就等于[orders],qtrades等于空列表
+        # If in quick notify mode, initialize qorders and qtrades
         if quicknotify:
             qorders = [order]
             qtrades = []
-        # 如果订单成交量是0
+        # If order has no executed volume
         if not order.executed.size:
-            # 如果是快速通知模式，调用_notify传递信息
+            # If in quick notify mode, call _notify with info
             if quicknotify:
                 self._notify(qorders=qorders, qtrades=qtrades)
             return
-        # 获取交易的数据,如果order.data._compensate是None的话，那么tradedata就是order.data，否则就是order.data._compensate
+        # Get trade data - if order.data._compensate is None, use order.data; otherwise use order.data._compensate
         tradedata = order.data._compensate
         if tradedata is None:
             tradedata = order.data
-        # 获取交易数据，如果能从_trades中获取交易数据，就使用最后一个作为trade，如果不能，就创建一个trade，保存到datatrades中
+        # Get trade data - if trade exists in _trades, use the last one; otherwise create a new trade and save to datatrades
         datatrades = self._trades[tradedata][order.tradeid]
         if not datatrades:
             trade = Trade(data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon)
             datatrades.append(trade)
         else:
             trade = datatrades[-1]
-        # 对订单的执行信息进行循环
+        # Loop through order execution bits
         for exbit in order.executed.iterpending():
-            # 如果执行信息是None的话，跳出循环
+            # If execution bit is None, break loop
             if exbit is None:
                 break
-            # 如果执行信息是closed的
+            # If execution bit indicates closed position
             if exbit.closed:
-                # 更新trade
+                # Update trade
                 trade.update(
                     order,
                     exbit.closed,
@@ -1063,24 +1168,24 @@ class Strategy(StrategyBase):
                     exbit.pnl,
                     comminfo=order.comminfo,
                 )
-                # 如果trade是isclosed
+                # If trade is closed
                 if trade.isclosed:
-                    # 把trade进行复制，并添加到_tradespending
+                    # Copy trade and add to _tradespending
                     self._tradespending.append(copy.copy(trade))
-                    # 如果需要快速通知，把trade进行复制，并添加到qtrades中
+                    # If quick notify needed, copy trade and add to qtrades
                     if quicknotify:
                         qtrades.append(copy.copy(trade))
 
             # Update it if needed
-            # 如果订单执行信息是opened
+            # If order execution bit indicates opened position
             if exbit.opened:
-                # 如果trade是关闭的，初始化一个trade，并保存到datatrades中
+                # If trade is closed, create new trade and save to datatrades
                 if trade.isclosed:
                     trade = Trade(
                         data=tradedata, tradeid=order.tradeid, historyon=self._tradehistoryon
                     )
                     datatrades.append(trade)
-                # 更新trade
+                # Update trade
                 trade.update(
                     order,
                     exbit.opened,
@@ -1094,69 +1199,73 @@ class Strategy(StrategyBase):
                 # This extra check covers the case in which different tradeid
                 # orders have put the position down to 0 and the next order
                 # "opens" a position but "closes" the trade
-                # 如果trade是关闭的
+                # If trade is closed
                 if trade.isclosed:
-                    # 把trade进行复制，并添加到_tradespending
+                    # Copy trade and add to _tradespending
                     self._tradespending.append(copy.copy(trade))
-                    # 如果需要快速通知，把trade进行复制，并添加到qtrades中
+                    # If quick notify needed, copy trade and add to qtrades
                     if quicknotify:
                         qtrades.append(copy.copy(trade))
-            # 如果trade刚刚开仓
+            # If trade was just opened
             if trade.justopened:
-                # 把trade进行复制，并添加到_tradespending
+                # Copy trade and add to _tradespending
                 self._tradespending.append(copy.copy(trade))
-                # 如果需要快速通知，把trade进行复制，并添加到qtrades中
+                # If quick notify needed, copy trade and add to qtrades
                 if quicknotify:
                     qtrades.append(copy.copy(trade))
-        # 如果需要快速通知，就调用_notify
+        # If quick notify needed, call _notify
         if quicknotify:
             self._notify(qorders=qorders, qtrades=qtrades)
 
-    # 通知
     def _notify(self, qorders=[], qtrades=[]):
-        # 如果快速通知是真的话
+        """Notify order and trade events to strategy and analyzers.
+
+        Args:
+            qorders: Quick notify orders (empty list if not in quick notify mode)
+            qtrades: Quick notify trades (empty list if not in quick notify mode)
+        """
+        # If quick notify is enabled
         if self.cerebro.p.quicknotify:
-            # need to know if quicknotify is on, to not reprocess pendingorders
+            # Need to know if quicknotify is on, to not reprocess pendingorders
             # and pendingtrades, which have to exist for things like observers
             # which look into it
-            # 待处理的订单和交易就是qorders和qtrades
+            # Pending orders and trades are qorders and qtrades
             procorders = qorders
             proctrades = qtrades
-        # 否则就是保存到self._orderspending和self._tradespending中的订单和交易
+        # Otherwise use orders and trades saved in _orderspending and _tradespending
         else:
             procorders = self._orderspending
             proctrades = self._tradespending
 
-        # 循环待处理的订单
+        # Loop through pending orders
         for order in procorders:
-            # 如果订单执行类型不是历史或者histnotify，通知order
+            # If order execution type is not Historical or histnotify, notify order
             if order.exectype != order.Historical or order.histnotify:
                 self.notify_order(order)
-            # 对于analyzer和observer中的analyzer，通知order
+            # Notify order to analyzers (both user and slave analyzers)
             for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
                 analyzer._notify_order(order)
-        # 循环待处理的trade，进行通知，并对于analyzer和observer中的analyzer进行通知
+        # Loop through pending trades, notify, and notify analyzers
         for trade in proctrades:
             self.notify_trade(trade)
             for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
                 analyzer._notify_trade(trade)
-        # 如果qorders是空的话，通知结束
+        # If qorders is not empty, return after processing orders
         if qorders:
             return  # cash is notified regularly
-        # 如果qordes不是空的话，获取cash,value,fundvalue,fundshares
+        # Get cash, value, fundvalue, fundshares
         cash = self.broker.getcash()
         value = self.broker.getvalue()
         fundvalue = self.broker.fundvalue
         fundshares = self.broker.fundshares
-        # 给cashvalue通知cash和value的值，并对于analyzer和observer中的analyzer进行通知
+        # Notify cash and value values, and notify analyzers
         self.notify_cashvalue(cash, value)
-        # 给fund通知cash,value，fundvalue,fundshares，并对于analyzer和observer中的analyzer进行通知
+        # Notify fund values, and notify analyzers
         self.notify_fund(cash, value, fundvalue, fundshares)
         for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
             analyzer._notify_cashvalue(cash, value)
             analyzer._notify_fund(cash, value, fundvalue, fundshares)
 
-    # 增加计时器
     def add_timer(
         self,
         when,
@@ -1172,115 +1281,41 @@ class Strategy(StrategyBase):
         *args,
         **kwargs,
     ):
-        """
-        **Note**: can be called during ``__init__`` or ``start``
+        """Schedule a timer to invoke notify_timer or a callback.
+
+        Note: Can be called during __init__ or start
 
         Schedules a timer to invoke either a specified callback or the
-        `notify_timer` of one or more strategies.
-        # 注意：可以在__init__或者start中调用，设置一个具体的计时器用于唤醒一个特定的回调或者一个或者多个策略的notify_timer
-        Arguments:
+        notify_timer of one or more strategies.
 
-          - ``when``: can be
+        Args:
+            when: Can be:
+                - datetime.time instance (see tzdata below)
+                - bt.timer.SESSION_START to reference session start
+                - bt.timer.SESSION_END to reference session end
+            offset (datetime.timedelta): Offset the when value. Used with
+                SESSION_START/SESSION_END to trigger after session start/end.
+            repeat (datetime.timedelta): If set, timer repeats at this interval
+                within the same session. Resets to original when after session end.
+            weekdays (list): Sorted iterable with integers (Monday=1, Sunday=7)
+                indicating which days the timer can be invoked. Empty = all days.
+            weekcarry (bool): If True and weekday not seen (e.g., holiday),
+                execute on next day (even if in new week).
+            monthdays (list): Sorted iterable with integers (1-31) indicating
+                which days of month to execute. Empty = all days.
+            monthcarry (bool): If True and day not seen (weekend, holiday),
+                execute on next available day.
+            allow (callable): Callback receiving datetime.date, returns True if
+                date is allowed for timer execution.
+            tzdata: Timezone data - None, pytz instance, or data feed instance.
+                If None and when is SESSION_START/END, uses first data feed.
+            cheat (bool): If True, timer called before broker evaluates orders,
+                allowing orders based on opening price.
+            *args: Additional args passed to notify_timer
+            **kwargs: Additional kwargs passed to notify_timer
 
-            - ``datetime.time`` instance (see below ``tzdata``)
-            - ``bt.timer.SESSION_START`` to reference a session start
-            - ``bt.timer.SESSION_END`` to reference a session end
-
-          # 可以是一个时间格式，或者timer的SESSION_START或者SESSION_END
-
-         - ``offset`` which must be a ``datetime.timedelta`` instance
-
-           Used to offset the value ``when``. It has a meaningful use in
-           combination with ``SESSION_START`` and ``SESSION_END``, to indicate
-           things like a timer being called ``15 minutes`` after the session
-            starts.
-           # 时间补偿，必须是一个时间差的实例，用于对when进行时间补偿，比如想要在开盘15分钟的时候这样
-           # 的计时器，就可以结合SESSION_START和SESSION_END进行设置
-
-          - ``repeat`` which must be a ``datetime.timedelta`` instance
-
-            Indicates if after a first call, further calls will be scheduled
-            within the same session at the scheduled `repeat` delta
-
-            Once the timer goes over the end of the session, it is reset to the
-            original value for ``when``
-            # 重复，必须是一个时间差的实例；这个参数用于设置在第一次调用计时器之后，在同一个session中
-            # 将会按照设置时间差不断重复；一旦session结束了之后，会重新从when开始
-
-          - ``weekdays``: a **sorted** iterable with integers indicating on
-            which days (iso codes, Monday is 1, Sunday is 7) the timers can
-            be actually invoked
-
-            If not specified, the timer will be active on all days
-
-            # 用于设置在星期几激活，这个参数是一个排列好的可迭代的对象，用1-7的数字代表是星期几
-            # 如果没有指定，任何一天都会被激活
-
-          - ``weekcarry`` (default: ``False``). If ``True`` and the weekday was
-            not seen (ex: trading holiday), the timer will be executed on the
-            next day (even if in a new week)
-
-            # 如果设置成True了，如果weekdays因为节假日的原因导致没有，将会在下一个交易日激活
-
-          - ``monthdays``: a **sorted** iterable with integers indicating on
-            which days of the month a timer has to be executed. For example,
-            always on day *15* of the month
-
-            If not specified, the timer will be active on all days
-
-            # 用于设置在几号激活，这个参数是一个排列好的可迭代的对象，用1-31的数字代表是几号
-            # 如果没有指定，任何一天都会被激活
-
-          - ``monthcarry`` (default: ``True``). If the day was not seen
-            (weekend, trading holiday), the timer will be executed on the next
-            available day.
-
-            # 如果设置成True了，如果monthdays因为节假日的原因导致没有，将会在下一个交易日激活
-
-          - ``allow`` (default: ``None``). A callback which receives a
-            `datetime.date`` instance and returns ``True`` if the date is
-            allowed for timers or else returns ``False``
-            # 一个接收时间格式的回调在这个时间是计时器允许的时候返回True, 在计时器不允许的时候，返回False
-
-          - ``tzdata`` which can be either ``None`` (default), a ``pytz``
-            instance or a ``data feed`` instance.
-
-            ``None``: ``when`` is interpreted at face value (which translates
-            to handling it as if it is UTC even if it's not)
-
-            ``pytz`` instance: ``when`` will be interpreted as being specified
-            in the local time specified by the timezone instance.
-
-            ``data feed`` instance: ``when`` will be interpreted as being
-            specified in the local time specified by the ``tz`` parameter of
-            the data feed instance.
-
-            **Note**: If ``when`` is either ``SESSION_START`` or
-              ``SESSION_END`` and ``tzdata`` is ``None``, the first *data feed*
-              in the system (aka ``self.data0``) will be used as the reference
-              to find out the session times.
-
-            # 时区数据，可以是None，或者pytz实例，或者datafeed实例
-            # 当时区数据是None的时候，when将会按照字面意思处理，即使不是utc时间，也会当成是
-            # 当时区数据是pytz实例的时候，when将会被pytz时区处理之后转换成本地时间
-            # 当时区数据是datafeed实例的时候，when将会被datafeed的tz参数转换成本地时间
-            # 如果when是SESSION_START或者SESSION_END，并且tzdata是None的时候，将会使用系统的第一个数据
-            # 用于找到具体的时间
-
-          - ``cheat`` (default ``False``) if ``True`` the timer will be called
-            before the broker has a chance to evaluate the orders. This opens
-            the chance to issue orders based on opening price, for example, right
-            before the session starts
-            #
-
-          - ``*args``: any extra args will be passed to ``notify_timer``
-
-          - ``**kwargs``: any extra kwargs will be passed to ``notify_timer``
-
-        Return Value:
-
-          - The created timer
-
+        Returns:
+            The created timer instance
         """
         return self.cerebro._add_timer(
             owner=self,
