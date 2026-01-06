@@ -883,11 +883,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # An example is Kaufman's Adaptive Moving Average
         # indicators
         indicators = self._lineiterators[LineIterator.IndType]
-        # indicators的周期
+        # Get the minimum periods of all indicators
         indperiods = [ind._minperiod for ind in indicators]
-        # indicators需要满足的最小周期(这个是各个indicators的最小周期都能满足)
+        # Calculate the minimum period required for all indicators to be valid
         indminperiod = max(indperiods or [self._minperiod])
-        # 更新indicators的最小周期
+        # Update the minimum period for this indicator
         self.updateminperiod(indminperiod)
 
     def _stage2(self):
@@ -965,11 +965,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
             self._stage1_in_progress.discard(self_id)
 
     def getindicators(self):
-        # 获取indicators
+        # Get all indicators
         return self._lineiterators[LineIterator.IndType]
 
     def getindicators_lines(self):
-        # 获取indicators的lines
+        # Get the lines from all indicators
         return [
             x
             for x in self._lineiterators[LineIterator.IndType]
@@ -981,8 +981,8 @@ class LineIterator(LineIteratorMixin, LineSeries):
         return self._lineiterators[LineIterator.ObsType]
 
     def addindicator(self, indicator):
-        # store in right queue
-        # 增加indicators
+        # Store in right queue
+        # Add indicator to the appropriate lineiterator queue
         # CRITICAL FIX: Check for duplicates before adding
         if indicator not in self._lineiterators[indicator._ltype]:
             self._lineiterators[indicator._ltype].append(indicator)

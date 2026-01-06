@@ -58,50 +58,50 @@ class LineBuffer(LineSingle, LineRootMixin):
     it will also be set in the binding.
     """
 
-    # 给LineBuffer定义了属性，他们的值分别为0和1
+    # Define LineBuffer mode attributes: UnBounded (0) and QBuffer (1)
     UnBounded, QBuffer = (0, 1)
 
-    # 初始化操作
+    # Initialization
     def __init__(self):
-        # ===== 方案A优化: 预初始化所有属性，消除运行时hasattr检查 =====
-        # 核心属性 - 必须在最开始初始化
-        self._minperiod = 1  # 最小周期
-        self._array = array.array(str("d"))  # 内部数组存储
-        self._idx = -1  # 当前索引
-        self._size = 0  # 当前数组大小
+        # ===== Optimization A: Pre-initialize all attributes to eliminate runtime hasattr checks =====
+        # Core attributes - must be initialized first
+        self._minperiod = 1  # Minimum period
+        self._array = array.array(str("d"))  # Internal array storage
+        self._idx = -1  # Current index
+        self._size = 0  # Current array size
 
-        # 缓冲区相关属性 - 预先设置为合理的默认值
-        self.maxlen = 0  # 最大长度（QBuffer模式下使用）
-        self.extension = 0  # 扩展大小
-        self.lencount = 0  # 长度计数器
-        self.useislice = False  # 是否使用islice
-        self.extrasize = 0  # 额外大小
-        self.lenmark = 0  # 长度标记
+        # Buffer-related attributes - set to reasonable defaults
+        self.maxlen = 0  # Maximum length (used in QBuffer mode)
+        self.extension = 0  # Extension size
+        self.lencount = 0  # Length counter
+        self.useislice = False  # Whether to use islice
+        self.extrasize = 0  # Extra size
+        self.lenmark = 0  # Length mark
 
-        # 数组 - 初始化为空array（将在reset中根据mode重新设置）
+        # Array - initialize as empty array (will be reset based on mode in reset())
         self.array = array.array(str("d"))
 
-        # Lines相关 - 确保lines存在
+        # Lines-related - ensure lines exists
         if not hasattr(self, "lines"):
-            self.lines = [self]  # lines是一个包含自身的列表
+            self.lines = [self]  # lines is a list containing itself
 
-        # 模式和绑定
-        self.mode = self.UnBounded  # 默认无界模式
-        self.bindings = list()  # 绑定列表
+        # Mode and bindings
+        self.mode = self.UnBounded  # Default unbounded mode
+        self.bindings = list()  # Binding list
 
-        # 其他属性
-        self._tz = None  # 时区设置
-        self._owner = None  # 所有者对象
-        self._clock = None  # 时钟对象
-        self._ltype = None  # 行类型
-        # 预计算是否为指标行，避免在热点路径中反复判断
+        # Other attributes
+        self._tz = None  # Timezone setting
+        self._owner = None  # Owner object
+        self._clock = None  # Clock object
+        self._ltype = None  # Line type
+        # Pre-calculate whether this is an indicator line to avoid repeated checks in hot paths
         try:
             self._is_indicator = (self._ltype == 0) or ("Indicator" in str(self.__class__.__name__))
         except Exception:
             self._is_indicator = False
 
-        # 性能优化：预计算是否为datetime行，避免在__setitem__中重复检查
-        # 在初始化时检查一次，然后缓存结果
+        # Performance optimization: pre-calculate whether this is a datetime line
+        # to avoid repeated checks in __setitem__. Check once at init and cache the result.
         self._is_datetime_line = False
         try:
             if hasattr(self, "_name"):
@@ -113,26 +113,26 @@ class LineBuffer(LineSingle, LineRootMixin):
         except Exception:
             self._is_datetime_line = False
 
-        # 预计算默认值，避免在__setitem__中重复判断
+        # Pre-calculate default value to avoid repeated checks in __setitem__
         if self._is_datetime_line:
-            self._default_value = 1.0  # datetime行使用1.0（有效的ordinal值）
+            self._default_value = 1.0  # datetime lines use 1.0 (valid ordinal value)
         elif self._is_indicator:
-            self._default_value = float("nan")  # 指标使用NaN
+            self._default_value = float("nan")  # indicators use NaN
         else:
-            self._default_value = 0.0  # 其他使用0.0
+            self._default_value = 0.0  # others use 0.0
 
-        # 递归守卫相关（用于__len__）
-        self._in_len = False  # 替代全局集合的实例属性守卫
+        # Recursion guard (for __len__)
+        self._in_len = False  # Instance attribute guard replacing global set
 
-        # 调用reset完成初始化
-        self.reset()  # 重置，调用自身的reset方法
+        # Call reset to complete initialization
+        self.reset()  # Reset, call own reset method
 
-    # 获取_idx的值
+    # Get the value of _idx
     def get_idx(self):
-        # 方案A优化: 移除hasattr检查，__init__已确保_idx存在
+        # Optimization A: Removed hasattr check, __init__ ensures _idx exists
         return self._idx
 
-    # 设置_idx的值
+    # Set the value of _idx
     def set_idx(self, idx, force=False):
         # If QBuffer and the last position of the buffer were reached, keep
         # it (unless force) as index 0. This allows resampling
@@ -142,17 +142,17 @@ class LineBuffer(LineSingle, LineRootMixin):
         # forward/backwards, because the last input is read, and after a
         # "backwards" is used to update the previous data. Unless position
         # 0 was moved to the previous index, it would fail
-        # 方案A优化: 移除所有hasattr检查，__init__已确保所有属性存在
+        # Optimization A: Removed all hasattr checks, __init__ ensures all attributes exist
         if self.mode == self.QBuffer:
             if force or self._idx < self.lenmark:
                 self._idx = idx
         else:  # default: UnBounded
             self._idx = idx
 
-    # property的用法，可以用于获取idx和设置idx
+    # Property usage: can be used to get and set idx
     idx = property(get_idx, set_idx)
 
-    # 重置
+    # Reset
     def reset(self):
         """Resets the internal buffer structure and the indices"""
         # CRITICAL FIX: In runonce mode, if array is already populated (from _once()),
@@ -197,15 +197,15 @@ class LineBuffer(LineSingle, LineRootMixin):
             self.extension = 0
         else:
             # Normal reset: clear array and reset all counters
-            # 方案A优化: 移除hasattr检查，所有属性已在__init__中初始化
-            # 如果是缓存模式，保存的数据量是一定的，就会使用deque来保存数据
+            # Optimization A: Removed hasattr checks, all attributes initialized in __init__
+            # If in cache mode (QBuffer), use deque to store data with fixed size
             if self.mode == self.QBuffer:
                 # Add extrasize to ensure resample/replay work
                 deque_maxlen = max(1, self.maxlen + self.extrasize)
                 self.array = collections.deque(maxlen=deque_maxlen)
                 self.useislice = True
             else:
-                # 非缓存模式，使用array.array
+                # Non-cache mode, use array.array
                 self.array = array.array(str("d"))
                 self.useislice = False
 
@@ -213,24 +213,24 @@ class LineBuffer(LineSingle, LineRootMixin):
                 # buflen() = len(array) - extension, so pre-filling increases buflen incorrectly
                 # Instead, let forward() handle array growth naturally
 
-            # 重置计数器和索引
+            # Reset counters and indices
             self.lencount = 0
             self.idx = -1
             self.extension = 0
 
-    # 设置缓存相关的变量
+    # Set cache-related variables
     def qbuffer(self, savemem=0, extrasize=0):
-        self.mode = self.QBuffer  # 设置具体的模式
-        self.maxlen = max(1, self._minperiod)  # 设置最大的长度，确保至少为1
-        self.extrasize = max(0, extrasize)  # 设置额外的量，确保非负
-        self.lenmark = self.maxlen - (not self.extrasize)  # 最大长度减去1,如果extrasize=0的话
-        self.reset()  # 重置
+        self.mode = self.QBuffer  # Set specific mode
+        self.maxlen = max(1, self._minperiod)  # Set maximum length, ensure at least 1
+        self.extrasize = max(0, extrasize)  # Set extra size, ensure non-negative
+        self.lenmark = self.maxlen - (not self.extrasize)  # Max length minus 1 if extrasize=0
+        self.reset()  # Reset
 
-    # 获取指标值
+    # Get indicator values
     def getindicators(self):
         return []
 
-    # 最小缓存
+    # Minimum buffer
     def minbuffer(self, size):
         """The linebuffer must guarantee the minimum requested size to be
         available.
@@ -242,29 +242,29 @@ class LineBuffer(LineSingle, LineRootMixin):
         In dqbuffer mode, the buffer has to be adjusted for this if currently
         less than requested
         """
-        # 如果不是缓存模式，或者最大的长度大于size，返回None
+        # If not in cache mode or max length is already >= size, return None
         if self.mode != self.QBuffer or self.maxlen >= size:
             return
-        # 在缓存模式下，maxlen等于size
+        # In cache mode, set maxlen equal to size
         self.maxlen = size
-        # # 最大长度减去1,如果self.extrasize=0的话
+        # Max length minus 1 if self.extrasize=0
         self.lenmark = self.maxlen - (not self.extrasize)
-        # 重置
+        # Reset
         self.reset()
 
-    # 返回实际的长度
+    # Return actual length
     def __len__(self):
         """
-        返回linebuffer的长度计数器
+        Return the linebuffer's length counter.
 
-        性能优化: 恢复master分支的简单实现
-        - 直接返回self.lencount (预计算的长度值)
-        - 移除所有递归检查、hasattr调用和复杂逻辑
-        - 性能提升: 从0.611秒降低到~0.05秒 (92%改进)
+        Performance optimization: Restore master branch's simple implementation
+        - Directly return self.lencount (pre-calculated length value)
+        - Remove all recursion checks, hasattr calls and complex logic
+        - Performance improvement: from 0.611s to ~0.05s (92% improvement)
         """
         return self.lencount
 
-    # 返回line缓存的数据的长度
+    # Return the length of data in the line cache
     def buflen(self):
         """Real data that can be currently held in the internal buffer
 
@@ -277,17 +277,18 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     def __getitem__(self, ago):
         """
-        获取指定偏移量的值
+        Get the value at a specified offset.
 
         Args:
-            ago (int): 相对当前索引的偏移量 (0=当前, -1=前一个, 1=下一个)
+            ago (int): Relative offset from current index (0=current, -1=previous, 1=next)
 
         Returns:
-            指定位置的值
+            Value at the specified position
 
-        性能优化: 恢复master分支的简单实现，但添加必要的边界检查
-        - 直接数组访问（快速路径）
-        - 添加IndexError捕获返回合理默认值
+        Performance optimization: Restore master branch's simple implementation
+        with necessary boundary checks
+        - Direct array access (fast path)
+        - Add IndexError capture to return reasonable default value
         """
         # CRITICAL FIX: For data feed lines accessing FUTURE data, check if beyond real data
         # Arrays may be pre-allocated with default values (0.0 or NaN) for unloaded data
@@ -332,7 +333,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             else:
                 return 0.0
 
-    # 获取数据的值，在策略中使用还是比较广泛的
+    # Get data values, widely used in strategies
     def get(self, ago=0, size=1):
         """Returns a slice of the array relative to *ago*
 
@@ -347,16 +348,16 @@ class LineBuffer(LineSingle, LineRootMixin):
         Returns:
             A slice of the underlying buffer
         """
-        # 是否使用切片，如果使用按照下面的语法
+        # Whether to use islice, use following syntax if true
         if self.useislice:
             start = self._idx + ago - size + 1
             end = self._idx + ago + 1
             return list(islice(self.array, start, end))
 
-        # 如果不使用切片，直接截取
+        # If not using islice, directly slice the array
         return self.array[self._idx + ago - size + 1 : self._idx + ago + 1]
 
-    # 返回array真正的0处的变量值
+    # Return the value at the actual index 0 of the array
     def getzeroval(self, idx=0):
         """Returns a single value of the array relative to the real zero
         of the buffer
@@ -370,7 +371,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         """
         return self.array[idx]
 
-    # 返回array从idx开始，size个长度的数据
+    # Return data of size starting from idx in the array
     def getzero(self, idx=0, size=1):
         """Returns a slice of the array relative to the real zero of the buffer
 
@@ -386,7 +387,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
         return self.array[idx : idx + size]
 
-    # 给array相关的值
+    # Set values to the array
     def __setitem__(self, ago, value):
         """Sets a value at position "ago" and executes any associated bindings
 
@@ -395,10 +396,11 @@ class LineBuffer(LineSingle, LineRootMixin):
             the slice
             value (variable): value to be set
 
-        性能优化：使用预计算的标志避免重复的hasattr和字符串操作
+        Performance optimization: Use pre-calculated flags to avoid repeated
+        hasattr and string operations
         """
-        # 性能优化：使用try-except替代hasattr检查array存在性
-        # array在__init__中已经初始化，这里只是防御性检查
+        # Performance optimization: Use try-except instead of hasattr to check array existence
+        # array is already initialized in __init__, this is just a defensive check
         try:
             array = self.array
         except AttributeError:
@@ -407,18 +409,18 @@ class LineBuffer(LineSingle, LineRootMixin):
             array = array_module.array("d")
             self.array = array
 
-        # 性能优化：使用预计算的标志和默认值
-        # Handle None/NaN values - 使用快速路径判断
+        # Performance optimization: Use pre-calculated flags and default values
+        # Handle None/NaN values - use fast path for checking
         if value is None:
             value = self._default_value
         # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         elif value != value:  # NaN detection without isinstance + isnan
             value = self._default_value
-        # datetime行的值验证
+        # datetime line value validation
         elif self._is_datetime_line and value < 1.0:
             value = 1.0
         elif self._is_datetime_line:
-            # 非数值类型的datetime行，转换为1.0
+            # For non-numeric datetime line values, convert to 1.0
             try:
                 float_value = float(value)
                 value = 1.0 if float_value < 1.0 else float_value
@@ -428,14 +430,14 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Calculate the required index
         required_index = self.idx + ago
 
-        # Handle index out of bounds - 快速路径
+        # Handle index out of bounds - fast path
         array_len = len(array)
         if required_index >= array_len:
-            # 性能优化：使用预计算的默认值作为填充值
+            # Performance optimization: Use pre-calculated default value as fill value
             fill_value = self._default_value
             extend_size = required_index - array_len + 1
 
-            # 批量扩展数组
+            # Batch extend the array
             for _ in range(extend_size):
                 array.append(fill_value)
         elif required_index < 0:
@@ -445,16 +447,16 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Set the value at the required index
         array[required_index] = value
 
-        # Update any bindings - 只在有绑定时执行
-        # 性能优化：绝大多数情况下bindings为空，先检查再处理
+        # Update any bindings - only execute if bindings exist
+        # Performance optimization: bindings are empty in most cases, check before processing
         if self.bindings:
             for binding in self.bindings:
-                # 性能优化：使用try-except获取绑定的datetime标志
-                # 大多数绑定不是datetime行，快速路径
+                # Performance optimization: Use try-except to get binding's datetime flag
+                # Most bindings are not datetime lines, fast path
                 try:
                     binding_is_datetime = binding._is_datetime_line
                 except AttributeError:
-                    # 绑定没有预计算标志，回退到简单检查
+                    # Binding doesn't have pre-calculated flag, fall back to simple check
                     binding_is_datetime = False
 
                 binding_value = value
@@ -465,7 +467,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
                 binding[ago] = binding_value
 
-    # 给array设置具体的值
+    # Set specific value to array
     def set(self, value, ago=0):
         """Sets a value at position "ago" and executes any associated bindings
 
@@ -526,7 +528,7 @@ class LineBuffer(LineSingle, LineRootMixin):
 
             binding[ago] = binding_value
 
-    # 返回到最开始
+    # Return to the beginning
     def home(self):
         """Rewinds the logical index to the beginning
 
@@ -536,7 +538,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         self.idx = -1
         self.lencount = 0
 
-    # 向前移动一位
+    # Move forward one step
     def forward(self, value=float("nan"), size=1):
         """Moves the logical index forward and enlarges the buffer as much as needed
 
@@ -558,7 +560,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Remove getattr check from hot path
         # If array doesn't exist, we'll get AttributeError caught below
 
-        # 非指标时遵循时钟同步（直接检查已存在的 _clock 引用）
+        # For non-indicators, follow clock synchronization (directly check existing _clock reference)
         if not is_indicator:
             clock = self_dict.get("_clock")
             if clock is not None:
@@ -573,7 +575,7 @@ class LineBuffer(LineSingle, LineRootMixin):
                     if size <= 0:
                         return
                 except Exception:
-                    # 容错：时钟异常则继续按原逻辑推进
+                    # Fault tolerance: continue with original logic if clock exception occurs
                     pass
 
         # CRITICAL FIX: Ensure we have a valid size
@@ -586,21 +588,21 @@ class LineBuffer(LineSingle, LineRootMixin):
         self.idx += size
         self.lencount += size
 
-        # 追加数据：批量扩展以降低 Python 循环开销
+        # Append data: batch extend to reduce Python loop overhead
         # PERFORMANCE OPTIMIZATION: Use _is_nan_or_none instead of isinstance + math.isnan
         append_val = value if is_indicator else (0.0 if _is_nan_or_none(value) else value)
         if size == 1:
             self.array.append(append_val)
         elif size > 1:
-            # 使用 fromlist/extend 进行批量追加
+            # Use fromlist/extend for batch append
             try:
                 self.array.extend([append_val] * size)
             except TypeError:
-                # 部分实现不支持 extend list，退回逐个 append
+                # Some implementations don't support extend list, fall back to individual append
                 for _ in range(size):
                     self.array.append(append_val)
 
-    # 向后移动一位
+    # Move backward one step
     def backwards(self, size=1, force=False):
         """Moves the logical index backwards and reduces the buffer as much as needed
 
@@ -617,7 +619,7 @@ class LineBuffer(LineSingle, LineRootMixin):
             if len(self.array) > 0:
                 self.array.pop()
 
-    # 向后移动一位 (original backwards was overridden)
+    # Move backward one step (original backwards was overridden)
     def safe_backwards(self, size=1):
         # CRITICAL FIX: Safe backward navigation
         if not hasattr(self, "_idx") or self._idx is None:
@@ -627,7 +629,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         self._idx -= size
         return self._idx >= 0
 
-    # 把idx和lencount减少size
+    # Decrease idx and lencount by size
     def rewind(self, size=1):
         # CRITICAL FIX: Safe attribute access
         if hasattr(self, "idx"):
@@ -635,7 +637,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         if hasattr(self, "lencount"):
             self.lencount -= size
 
-    # 把idx和lencount增加size
+    # Increase idx and lencount by size
     def advance(self, size=1):
         """Advances the logical index without touching the underlying buffer"""
         # CRITICAL FIX: Remove hasattr checks - attributes are always initialized in __init__
@@ -643,7 +645,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         self.idx += size
         self.lencount += size
 
-    # 向前扩展
+    # Extend forward
     def extend(self, value=float("nan"), size=0):
         """Extends the underlying array with positions that the index will not reach
 
@@ -658,7 +660,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         for i in range(size):
             self.array.append(value)
 
-    # 增加另一条LineBuffer
+    # Add another LineBuffer
     def addbinding(self, binding):
         """Adds another line binding
 
@@ -671,7 +673,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         # than self)
         binding.updateminperiod(self._minperiod)
 
-    # 获取从idx开始的全部数据
+    # Get all data starting from idx
     def plot(self, idx=0, size=None):
         """Returns a slice of the array relative to the real zero of the buffer
 
@@ -688,14 +690,14 @@ class LineBuffer(LineSingle, LineRootMixin):
         """
         return self.getzero(idx, size or len(self))
 
-    # 获取array的部分数据
+    # Get partial data from array
     def plotrange(self, start, end):
         if self.useislice:
             return list(islice(self.array, start, end))
 
         return self.array[start:end]
 
-    # 在once的时候，给每个binding设置array的变量
+    # Set array values for each binding when running in once mode
     def oncebinding(self):
         """
         Executes the bindings when running in "once" mode
@@ -706,7 +708,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         for binding in self.bindings:
             binding.array[0:blen] = larray[0:blen]
 
-    # 把blinding转变成line
+    # Convert binding to line
     def bind2lines(self, binding=0):
         """
         Stores a binding to another line. "Binding" can be an index or a name
