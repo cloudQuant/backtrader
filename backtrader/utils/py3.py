@@ -3,9 +3,9 @@ import sys
 
 PY2 = (
     sys.version_info.major == 2
-)  # 获取当前python的版本，看是否是python2,如果是python2,返回值就是True,否则就是False
+)  # Get current Python version, check if it's python2, if python2, return value is True, otherwise False
 
-# 如果是python2
+# If python2
 if PY2:
     # # 尝试用于import _winreg模块，如果可以调用，就证明这个系统是windows系统，可以用于windows注册表相关的操作；
     # # 如果调用出现了错误，就说明系统不是windows系统，winreg设置成None
@@ -63,7 +63,7 @@ if PY2:
 
 
 else:
-    # python3的注释和上面的注释差不多
+    # python3 comments are similar to the comments above
     try:
         import winreg
     except ImportError:
@@ -103,7 +103,7 @@ else:
     zip = zip
     long = int
 
-    # 需要注意，这个cmp是自定义的函数，返回值是1,0,-1
+    # Note, this cmp is a custom function, return value is 1, 0, -1
     def cmp(a, b):
         return (a > b) - (a < b)
 
@@ -141,8 +141,8 @@ def with_metaclass(meta, *bases):
     # This requires a bit of explanation: the basic idea is to make a dummy
     # metaclass for one level of class instantiation that replaces itself with
     # the actual metaclass.
-    # 这个函数创建一个带有元类的基类，主要作用是兼容python2和python3的语法，现在有了一个更新的方案，是使用装饰器@six.add_metaclass(Meta)
-    # 参考文献：https://qa.1r1g.com/sf/ask/1295967501/
+    # This function creates a base class with a metaclass, main purpose is to compatible with python2 and python3 syntax, now there's a newer solution is to use decorator @six.add_metaclass(Meta)
+    # References: https://qa.1r1g.com/sf/ask/1295967501/
     # https://zhuanlan.zhihu.com/p/354828950
     # https://www.jianshu.com/p/224ffcb8e73e
     class metaclass(meta):

@@ -75,9 +75,9 @@ class CCXTFeed(DataBase):
 
     def _load(self):
         """
-        return True  代表从数据源获取数据成功
-        return False 代表因为某种原因(比如历史数据源全部数据已经输出完毕)数据源关闭
-        return None  代表暂时无法从数据源获取最新数据,但是以后会有(比如实时数据源中最新的bar还未生成)
+        return True means successfully got data from data source
+        return False means data source closed for some reason (e.g., historical data source finished outputting all data)
+        return None means temporarily cannot get latest data from data source, but will have later (e.g., latest bar in live data source not yet generated)
         """
         if self._state == self._ST_OVER:
             return False
@@ -85,23 +85,23 @@ class CCXTFeed(DataBase):
         while True:
             if self._state == self._ST_LIVE:
                 # ===========================================
-                # 其实这段代码最好放到独立的工作线程中做,这里纯粹偷懒
-                # 每隔一分钟就更新一次bar
-                # 这段代码原作者写的有一些小问题，有一些其他周期的策略并不一定是每分钟更新一次
+                # This code is best placed in an independent worker thread, purely lazy here
+                # Update bar every minute
+                # There are some small issues with the original author's code, some strategies with other timeframes don't necessarily update every minute
                 timeframe = self._timeframe
                 compression = self._compression
-                # 如果是分钟级别
+                # If minute timeframe
                 if timeframe == 4:
                     time_diff = 60 * compression
-                # 如果是日线级别
+                # If daily timeframe
                 elif timeframe == 5:
                     time_diff = 86400 * compression
-                # 如果是其他周期，默认是一分钟
+                # If other timeframes, default is one minute
                 else:
                     time_diff = 60
-                # 因为本地时间和交易所时间可能有差距，所以需要考虑增加一个功能，把本地时间和交易所时间进行对齐
-                # 我本地时间和交易所时间差70ms左右，所以，这里面我需要增加2s的延时，以方便接收到最新的bar
-                # 大家需要根据自己的实际情况进行修改
+                # Because local time and exchange time may have a gap, need to consider adding a function to align local time with exchange time
+                # My local time and exchange time differ by about 70ms, so I need to add 2s delay here to facilitate receiving the latest bar
+                # Everyone needs to modify according to their actual situation
                 nts = time.time()
                 if nts - self._last_update_bar_time / 1000 >= time_diff + 2:
                     # nts = get_last_timeframe_timestamp(int(nts), time_diff)
@@ -127,18 +127,18 @@ class CCXTFeed(DataBase):
 
     def _update_bar(self, fromdate=None, livemode=False):
         """Fetch OHLCV data into self._data queue"""
-        # 想要获取哪个时间粒度下的bar
+        # Which time granularity to get bars for
         granularity = self.store.get_granularity(self._timeframe, self._compression)
-        # 从哪个时间点开始获取bar
+        # From which time point to start getting bars
         if fromdate:
             self._last_ts = self.utc_to_ts(fromdate)
-        # 每次获取bar数目的最高限制
+        # Maximum limit on number of bars to get each time
         limit = max(
             3, self.p.ohlcv_limit
-        )  # 最少不能少于三个,原因:每次头bar时间重复要忽略,尾bar未完整要去掉,只保留中间的,所以最少三个
+        )  # Minimum cannot be less than three, reason: each time the first bar time is duplicated and needs to be ignored, the last bar is incomplete and needs to be removed, only keep the middle ones, so minimum three
         #
         while True:
-            # 先获取数据长度
+            # First get data length
             dlen = self._data.qsize()
             #
             bars = sorted(
@@ -157,27 +157,27 @@ class CCXTFeed(DataBase):
                 del bars[-1]
             #
             for bar in bars:
-                # 获取的bar不能有空值
+                # Retrieved bar cannot have empty values
                 if None in bar:
                     continue
-                # bar的时间戳
+                # Bar timestamp
                 tstamp = bar[0]
-                # 通过时间戳判断bar是否为新的bar
+                # Determine if bar is new bar through timestamp
                 if tstamp > self._last_ts:
-                    self._data.put(bar)  # 将新的bar保存到队列中
+                    self._data.put(bar)  # Save new bar to queue
                     self._last_ts = tstamp
                     self._last_update_bar_time = tstamp
                     # print(datetime.utcfromtimestamp(tstamp//1000))
-            # 如果数据长度没有增长,那证明已经是当前最后一根bar,退出
+            # If data length hasn't grown, it proves to be the current last bar, exit
             if dlen == self._data.qsize():
                 break
-            # 实时模式下,就没必须判断是否是最后一根bar,减少网络通信
+            # In live mode, no need to check if it's the last bar, reduce network communication
             if livemode:
                 break
 
     def _load_bar(self):
         try:
-            bar = self._data.get(block=False)  # 不阻塞
+            bar = self._data.get(block=False)  # non-blocking
         except queue.Empty:
             return None  # no data in the queue
         tstamp, open_, high, low, close, volume = bar
