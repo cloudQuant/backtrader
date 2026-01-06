@@ -3,7 +3,7 @@ from ..parameters import Int, ParameterDescriptor
 from ..sizer import Sizer
 
 
-# 固定手数类，如果下单的时候没有指定size,将会默认调用一个sizer
+# Fixed stake size class, if size is not specified when placing order, a sizer will be called by default
 class FixedSize(Sizer):
     """
     This sizer simply returns a fixed size for any operation.
@@ -19,7 +19,7 @@ class FixedSize(Sizer):
       - ``tranches`` (default: ``1``)
     """
 
-    # 使用新的参数描述符系统定义参数
+    # Use new parameter descriptor system to define parameters
     stake = ParameterDescriptor(
         default=1, type_=int, validator=Int(min_val=1), doc="Fixed stake size for operations"
     )
@@ -33,14 +33,14 @@ class FixedSize(Sizer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    # 返回具体的手数，如果tranches大于1，会把手数分成tranches份，否则直接返回手数
+    # Return specific stake size, if tranches > 1, will divide stake into tranches parts, otherwise return stake directly
     def _getsizing(self, comminfo, cash, data, isbuy):
         if self.get_param("tranches") > 1:
             return abs(int(self.get_param("stake") / self.get_param("tranches")))
         else:
             return self.get_param("stake")
 
-    # 设置手数
+    # Set stake size
     def setsizing(self, stake):
         if self.get_param("tranches") > 1:
             self.set_param("stake", abs(int(stake / self.get_param("tranches"))))
@@ -48,11 +48,11 @@ class FixedSize(Sizer):
             self.set_param("stake", stake)  # OLD METHOD FOR SAMPLE COMPATIBILITY
 
 
-# FixedSize的另一个名称
+# Another name for FixedSize
 SizerFix = FixedSize
 
 
-# 如果是开仓，使用stake手，如果是反手，使用两倍的stake手
+# If opening position, use stake, if reversing position, use double stake
 class FixedReverser(Sizer):
     """This sizer returns the needes fixed size to reverse an open position or
     the fixed size to open one
@@ -78,8 +78,8 @@ class FixedReverser(Sizer):
         return size
 
 
-# 固定目标手数，如果tranches大于1的话，会先把stake分成tranches份，然后计算当前持仓和每份持仓与stake的大小，选择比较小的作为下单的手数
-# 如果tranches不大于1，直接使用stake手数
+# Fixed target stake size, if tranches > 1, first divide stake into tranches parts, then calculate current position and each part vs stake, choose smaller as order size
+# If tranches <= 1, directly use stake size
 class FixedSizeTarget(Sizer):
     """
     This sizer simply returns a fixed target size, useful when coupled

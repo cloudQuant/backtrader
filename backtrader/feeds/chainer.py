@@ -11,17 +11,17 @@ from ..utils import date
 class Chainer(DataBase):
     """Class that chains datas"""
 
-    # 当数据是实时数据的时候 ，会避免preloading 和 runonce行为
+    # When data is live data, will avoid preloading and runonce behavior
     def islive(self):
         """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
         should be deactivated"""
         return True
 
-    # 初始化
+    # Initialize
     def __init__(self, *args, **kwargs):
-        # 处理timeframe和compression参数，原来由元类处理
+        # Handle timeframe and compression parameters, originally handled by metaclass
         if args:
-            # 从第一个数据源复制timeframe和compression
+            # Copy timeframe and compression from first data source
             kwargs.setdefault("timeframe", getattr(args[0], "_timeframe", None))
             kwargs.setdefault("compression", getattr(args[0], "_compression", None))
 
@@ -32,7 +32,7 @@ class Chainer(DataBase):
         self._ds = None
         self._args = args
 
-    # 开始
+    # Start
     def start(self):
         super().start()
         for d in self._args:
@@ -44,17 +44,17 @@ class Chainer(DataBase):
         self._d = self._ds.pop(0) if self._ds else None
         self._lastdt = datetime.min
 
-    # 停止
+    # Stop
     def stop(self):
         super().stop()
         for d in self._args:
             d.stop()
 
-    # 通知
+    # Notifications
     def get_notifications(self):
         return [] if self._d is None else self._d.get_notifications()
 
-    # 获取时区
+    # Get timezone
     def _gettz(self):
         """To be overriden by subclasses which may auto-calculate the
         timezone"""
@@ -62,7 +62,7 @@ class Chainer(DataBase):
             return self._args[0]._gettz()
         return date.Localizer(self.p.tz)
 
-    # load数据，这个处理看起挺巧妙的，后续准备对期货数据的换月做一个处理或者数据到期之后就剔除这个数据
+    # Load data, this processing looks quite clever, planning to handle futures contract rollover or remove data when it expires later
     def _load(self):
         while self._d is not None:
             if not self._d.next():  # no values from current data source

@@ -6,7 +6,7 @@ from ..position import Position
 from ..stores.ctpstore import CTPStore
 
 
-# 注册机制，在导入模块时自动注册broker类
+# Registration mechanism, automatically register broker class when module is imported
 def _register_ctp_broker_class(broker_cls):
     """Register broker class with the store when module is loaded"""
     CTPStore.BrokerCls = broker_cls
@@ -29,7 +29,7 @@ class CTPBroker(BrokerBase):
         position
     """
 
-    # 参数定义 - 转换为ParameterDescriptor系统
+    # Parameter definition - converted to ParameterDescriptor system
     use_positions = BoolParam(default=True, doc="Use existing positions to kickstart the broker")
 
     def __init__(self, **kwargs):
@@ -54,14 +54,14 @@ class CTPBroker(BrokerBase):
             positions = self.o.get_positions()
             if positions is None:
                 return
-            for p in positions:  # 同一标的可能来一长一短两个仓位记录
-                size = p["volume"] if p["direction"] == "long" else -p["volume"]  # 短仓为负数
-                price = p["price"]  # 以后再写，因长短仓同时存处理稍微复杂一些
+            for p in positions:  # Same symbol may have one long and one short position record
+                size = p["volume"] if p["direction"] == "long" else -p["volume"]  # Short position is negative
+                price = p["price"]  # Write later, handling long and short positions simultaneously is slightly more complex
                 final_size = (
                     self.positions[p["local_symbol"]].size + size
-                )  # 设置本地净仓位数量（循环完后就是净仓位了，因为已经把长短仓抵消了）
-                # 以下处理仓位价格，循环完毕后，如果净仓位大于0，则净仓位价格为远端长仓价格（平均价格），否则为短仓价格。
-                # 所以，如果远端同时存在长短仓，则此价格并不是长短仓的平均价格（无法定义）。但若远端不同时存在长短仓，则此价格正确，为仓位平均价格
+                )  # Set local net position size (after loop it's net position, because long and short have been offset)
+                # Below handles position price, after loop, if net position > 0, net position price is remote long position price (average price), otherwise short position price.
+                # So, if remote has both long and short positions, this price is not the average of long and short (cannot be defined). But if remote doesn't have both long and short, this price is correct, as average position price
                 final_price = 0
                 if final_size < 0:
                     if p["direction"] == "short":
@@ -73,7 +73,7 @@ class CTPBroker(BrokerBase):
                         final_price = self.positions[p["local_symbol"]].price
                     else:
                         final_price = price
-                # 循环
+                # Loop
                 self.positions[p["local_symbol"]] = Position(final_size, final_price)
 
     def stop(self):

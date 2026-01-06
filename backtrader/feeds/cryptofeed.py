@@ -64,9 +64,9 @@ class CryptoFeed(DataBase):
     }
 
     def __init__(self, store, debug=True, *args, **kwargs):
-        """feed初始化的时候,先初始化store,实现与交易所对接"""
+        """When feed initializes, first initialize store to connect to exchange"""
         super().__init__(**kwargs)
-        # 处理原来元类的注册功能
+        # Handle original metaclass registration functionality
         CryptoStore.DataCls = self.__class__
 
         self.debug = debug
@@ -81,7 +81,7 @@ class CryptoFeed(DataBase):
         self.period = self.get_granularity(self.p.timeframe, self.p.compression)
         self.subscribe_live_bars()
         self.download_history_bars()
-        self.p.todate = None  # 下载完成历史数据之后,需要把todate给充值为None, 否则next被限制
+        self.p.todate = None  # After downloading historical data, need to set todate to None, otherwise next is limited
         print(
             "CryptoFeed init success, debug = {}, data_num = {}".format(
                 self.debug, self.store.GetDataNum
@@ -169,9 +169,9 @@ class CryptoFeed(DataBase):
 
     def _load(self):
         """
-        return True 更新数据成功，历史数据或者实时数据
-        return False 代表K线是最新的，但是K线还没有闭合
-        return None 代表当前无法从消息队列中获取数据
+        return True means data update successful, historical or live data
+        return False means K-line is latest but not closed yet
+        return None means currently cannot get data from message queue
         """
         if self._state == self._ST_OVER:
             return False
@@ -193,7 +193,7 @@ class CryptoFeed(DataBase):
                         self._state = self._ST_OVER
                         return False  # end of historical
                     else:
-                        # 订阅K线
+                        # Subscribe K-line
                         # timeframe = self.p.timeframe
                         # compression = self.p.compression
                         # period = self._GRANULARITIES[(timeframe, compression)]
@@ -208,7 +208,7 @@ class CryptoFeed(DataBase):
         queues = self.store.bar_queues
         for data in self.history_bars[
             :-1
-        ]:  # 不考虑最近的一根K线,是因为请求的时候，返回的K线是能是没走完的
+        ]:  # Don't consider the most recent K-line, because when requesting, returned K-line may not be finished
             self.store.dispatch_data_to_queue(data, queues)
 
     def _load_bar(self):
