@@ -44,7 +44,20 @@ class LineIteratorMixin:
 
     @classmethod
     def donew(cls, *args, **kwargs):
-        """Process data arguments and filter them before instance creation"""
+        """Process data arguments and filter them before instance creation.
+
+    This method scans the positional arguments to identify data feeds (LineRoot,
+    LineSeries, LineBuffer objects) and separates them from regular parameters.
+    Data feeds are converted to LineSeriesMaker objects and stored in the datas
+    attribute.
+
+    Args:
+        *args: Positional arguments that may include data feeds
+        **kwargs: Keyword arguments for instance creation
+
+    Returns:
+        tuple: (created_object, remaining_args, kwargs)
+    """
         # Process data arguments before creating instance
         mindatas = getattr(cls, "_mindatas", 1)
         lastarg = 0
@@ -243,7 +256,21 @@ class LineIteratorMixin:
 
     @classmethod
     def dopreinit(cls, _obj, *args, **kwargs):
-        """Handle pre-initialization setup"""
+        """Handle pre-initialization setup.
+
+    This method performs setup after instance creation but before __init__:
+    1. Sets up datas if not already set
+    2. Configures clock from first data feed or owner
+    3. Calculates minimum period from data sources
+
+    Args:
+        _obj: The instance being initialized
+        *args: Remaining positional arguments
+        **kwargs: Remaining keyword arguments
+
+    Returns:
+        tuple: (_obj, args, kwargs)
+    """
         # PERFORMANCE: Use try-except instead of hasattr
         try:
             _obj.datas
@@ -349,7 +376,21 @@ class LineIteratorMixin:
 
     @classmethod
     def dopostinit(cls, _obj, *args, **kwargs):
-        """Handle post-initialization setup"""
+        """Handle post-initialization setup.
+
+    This method performs final setup after __init__ completes:
+    1. Recalculates minimum period from lines
+    2. Propagates minperiod to all lines
+    3. Registers indicator with owner
+
+    Args:
+        _obj: The instance being finalized
+        *args: Remaining positional arguments
+        **kwargs: Remaining keyword arguments
+
+    Returns:
+        tuple: (_obj, args, kwargs)
+    """
         # Calculate minperiod from lines
         # PERFORMANCE: Use try-except instead of hasattr
         # CRITICAL FIX: Take max of existing _minperiod (from data sources) and line minperiods
@@ -840,17 +881,17 @@ class LineIterator(LineIteratorMixin, LineSeries):
         # last check in case not all lineiterators were assigned to
         # lines (directly or indirectly after some operations)
         # An example is Kaufman's Adaptive Moving Average
-        # 指标
+        # indicators
         indicators = self._lineiterators[LineIterator.IndType]
-        # 指标的周期
+        # indicators的周期
         indperiods = [ind._minperiod for ind in indicators]
-        # 指标需要满足的最小周期(这个是各个指标的最小周期都能满足)
+        # indicators需要满足的最小周期(这个是各个indicators的最小周期都能满足)
         indminperiod = max(indperiods or [self._minperiod])
-        # 更新指标的最小周期
+        # 更新indicators的最小周期
         self.updateminperiod(indminperiod)
 
     def _stage2(self):
-        # 设置_stage2状态
+        # Set _stage2 state
         super(LineIterator, self)._stage2()
 
         # PERFORMANCE: Use class-level recursion guard to avoid creating new sets
@@ -893,7 +934,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 LineIterator._stage2_guard = set()
 
     def _stage1(self):
-        # 设置_stage1状态
+        # Set _stage1 state
         super(LineIterator, self)._stage1()
 
         # Recursion guard: track objects currently being processed to prevent infinite loops
@@ -924,11 +965,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
             self._stage1_in_progress.discard(self_id)
 
     def getindicators(self):
-        # 获取指标
+        # 获取indicators
         return self._lineiterators[LineIterator.IndType]
 
     def getindicators_lines(self):
-        # 获取指标的lines
+        # 获取indicators的lines
         return [
             x
             for x in self._lineiterators[LineIterator.IndType]
@@ -936,12 +977,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
         ]
 
     def getobservers(self):
-        # 获取观察者
+        # Get observers
         return self._lineiterators[LineIterator.ObsType]
 
     def addindicator(self, indicator):
         # store in right queue
-        # 增加指标
+        # 增加indicators
         # CRITICAL FIX: Check for duplicates before adding
         if indicator not in self._lineiterators[indicator._ltype]:
             self._lineiterators[indicator._ltype].append(indicator)
@@ -1005,7 +1046,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 o = o._owner  # move up the hierarchy
 
     def bindlines(self, owner=None, own=None):
-        # 给从own获取到的line的bindings中添加从owner获取到的line
+        # Add lines from owner to bindings of lines from own
 
         if not owner:
             owner = 0
@@ -1033,18 +1074,18 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 lownref = getattr(self.lines, lineown)
             else:
                 lownref = self.lines[lineown]
-            # lownref是从own属性获取到的line,lownerref是从owner获取到的属性
+            # lownref is the line from own attribute, lownerref is the attribute from owner
             lownref.addbinding(lownerref)
 
         return self
 
     # Alias which may be more readable
-    # 给同一个变量设置不同的变量名称，方便调用
+    # Set different variable names for the same variable for convenient access
     bind2lines = bindlines
     bind2line = bind2lines
 
     def _clk_update(self):
-        # 更新当前的时间的line，并返回长度
+        # Update current time line and return length
         clock_len = len(self._clock)
         if clock_len != len(self):
             self.forward()
@@ -1212,20 +1253,20 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 pass
 
     def _next(self):
-        # _next方法
-        # 当前时间数据的长度
+        # _next method
+        # Current clock data length
         clock_len = self._clk_update()
-        # indicator调用_next
+        # Call _next for each indicator
         for indicator in self._lineiterators[LineIterator.IndType]:
             indicator._next()
 
-        # 调用_notify函数
+        # Call _notify function
         self._notify()
 
-        # 如果这个_ltype是策略类型
+        # If _ltype is Strategy type
         if self._ltype == LineIterator.StratType:
-            # supporting datas with different lengths
-            # 获取minperstatus，如果小于0,就调用next,如果等于0,就调用nextstart,如果大于0,就调用prenext
+            # Support data feeds with different lengths
+            # Get minperstatus, if < 0 call next, if == 0 call nextstart, if > 0 call prenext
             minperstatus = self._getminperstatus()
             if minperstatus < 0:
                 self.next()
@@ -1233,9 +1274,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 self.nextstart()  # only called for the 1st value
             else:
                 self.prenext()
-        # 如果line类型不是策略，那么就通过clock_len和self._minperiod来判断
+        # If line type is not strategy, judge by clock_len and self._minperiod
         else:
-            # assume indicators and others operate on same length datas
+            # Assume indicators and others operate on same length datas
             if clock_len > self._minperiod:
                 self.next()
             elif clock_len == self._minperiod:
@@ -1313,7 +1354,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         return True
 
     def qbuffer(self, savemem=0):
-        # 缓存相关操作
+        # Buffer-related operations
         if savemem:
             for line in self.lines:
                 line.qbuffer()
@@ -1389,7 +1430,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
 
 class DataAccessor(LineIterator):
-    # 数据接口类
+    # Data accessor class
     PriceClose = DataSeries.Close
     PriceLow = DataSeries.Low
     PriceHigh = DataSeries.High
@@ -1902,7 +1943,7 @@ class StrategyBase(DataAccessor):
 
 
 class SingleCoupler(LineActions):
-    # 单条line的操作
+    # Single line operations
     def __init__(self, cdata, clock=None):
         super(SingleCoupler, self).__init__()
         self._clock = clock if clock is not None else self._owner
@@ -1920,7 +1961,7 @@ class SingleCoupler(LineActions):
 
 
 class MultiCoupler(LineIterator):
-    # 多条line的操作
+    # Multiple line operations
     _ltype = LineIterator.IndType
 
     def __init__(self):
@@ -1941,33 +1982,33 @@ class MultiCoupler(LineIterator):
 
 
 def LinesCoupler(cdata, clock=None, **kwargs):
-    # 如果是单条line，返回SingleCoupler
+    # If single line, return SingleCoupler
     if isinstance(cdata, LineSingle):
         return SingleCoupler(cdata, clock)  # return for single line
 
-    # 如果不是单条line，就进入下面
-    cdatacls = cdata.__class__  # copy important structures before creation
+    # If not single line, proceed below
+    cdatacls = cdata.__class__  # Copy important structures before creation
     try:
         LinesCoupler.counter += 1  # counter for unique class name
     except AttributeError:
         LinesCoupler.counter = 0
 
     # Prepare a MultiCoupler subclass
-    # 准备创建一个MultiCoupler的子类，并把cdatascls相关的信息转移到这个类上
+    # Prepare MultiCoupler subclass and transfer cdatacls information to it
     nclsname = str("LinesCoupler_%d" % LinesCoupler.counter)
     ncls = type(nclsname, (MultiCoupler,), {})
     thismod = sys.modules[LinesCoupler.__module__]
     setattr(thismod, ncls.__name__, ncls)
-    # Replace lines et al., to get a sensible clone
+    # Replace lines etc. to get a sensible clone
     ncls.lines = cdatacls.lines
     ncls.params = cdatacls.params
     ncls.plotinfo = cdatacls.plotinfo
     ncls.plotlines = cdatacls.plotlines
-    # 把这个MultiCoupler的子类实例化，
+    # Instantiate the MultiCoupler subclass
     obj = ncls(cdata, **kwargs)  # instantiate
     # The clock is set here to avoid it being interpreted as a data by the
     # LineIterator background scanning code
-    # 设置clock
+    # Set clock
     if clock is None:
         clock = getattr(cdata, "_clock", None)
         if clock is not None:
