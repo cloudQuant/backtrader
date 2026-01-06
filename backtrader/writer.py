@@ -14,12 +14,12 @@ from .parameters import ParameterizedBase
 from .utils.py3 import integer_types, map, string_types
 
 
-# WriterBase类 - 重构为不使用元类
+# WriterBase class - refactored to not use metaclass
 class WriterBase(ParameterizedBase):
     pass
 
 
-# WriterFile类 - 重构为不使用元类
+# WriterFile class - refactored to not use metaclass
 class WriterFile(WriterBase):
     """
     The system-wide writer class.
@@ -34,14 +34,15 @@ class WriterFile(WriterBase):
         If you wish to run with ``sys.stdout`` while doing multiprocess optimization, leave it as ``None``, which will
         automatically initiate ``sys.stdout`` on the child processes.
 
-        # out 默认是 sys.stdout 如果是在多进程参数优化的过程中，想要把结果输出到标准输出中，把这个参数设置成None, 会在每个自进程中自动设置
-        # 如果传了一个filename给out, 将会输出到这个filename中
+        # out defaults to sys.stdout. If you want to output to standard output during multiprocess parameter optimization,
+        # set this parameter to None, which will automatically set it in each subprocess
+        # If a filename is passed to out, output will be written to this filename
 
       - ``close_out`` (default: ``False``)
 
         If ``out`` is a stream whether it has to be explicitly closed by the
         writer
-        # 在out是一个数据流的情况下，是否需要writer明确的关闭
+        # When out is a data stream, whether writer needs to explicitly close it
 
       - ``csv`` (default: ``False``)
 
@@ -52,41 +53,41 @@ class WriterFile(WriterBase):
         the ``csv`` attribute of each object (defaults to ``True`` for ``data
         feeds`` and ``observers`` / False for ``indicators``)
 
-        # 数据，策略，observers和indicators的csv数据流可以在执行的时候写入到文件里面，如果csv设置的是True的话
-        # 是会被写入进去的
+        # CSV data stream of data, strategies, observers and indicators can be written to file during execution,
+        # will be written if csv is set to True
 
       - ``csv_filternan`` (default: ``True``) whether ``nan`` values have to be
         purged out of the csv stream (replaced by an empty field)
 
-        # 在写入csv文件的时候，是否清除nan的值
+        # Whether to clear nan values when writing to csv file
 
       - ``csv_counter`` (default: ``True``) if the writer shall keep and print
         out a counter of the lines actually output
 
-        # writer是否保存和打印实际上输出的那些lines, 默认是True
+        # Whether writer saves and prints actually output lines, defaults to True
 
       - ``indent`` (default: ``2``) indentation spaces for each level
-        # 行首空格，默认是2
+        # Leading spaces, defaults to 2
 
       - ``separators`` (default: ``['=', '-', '+', '*', '.', '~', '"', '^',
         '#']``)
 
         Characters used for line separators across section/sub(sub)sections
 
-        # 分隔符，默认是['=', '-', '+', '*', '.', '~', '"', '^','#']
+        # Separators, defaults to ['=', '-', '+', '*', '.', '~', '"', '^','#']
 
       - ``seplen`` (default: ``79``)
 
         Total length of a line separator including indentation
 
-        # 包括行首的分隔符的总的长度，默认是79
+        # Total length of separator including leading spaces, defaults to 79
 
       - ``rounding`` (default: ``None``)
 
         Number of decimal places to round floats down to.With `None` no
         rounding is performed
 
-        # 保存的小数是否四舍五入到某一位。默认不进行四舍五入。
+        # Whether to round stored decimals to a certain place. No rounding by default.
 
     """
 
@@ -103,171 +104,171 @@ class WriterFile(WriterBase):
         ("rounding", None),
     )
 
-    # 初始化
+    # Initialize
     def __init__(self, **kwargs):
         # Initialize parent class first
         super(WriterFile, self).__init__(**kwargs)
-        # _len是一个计数器
-        # CRITICAL FIX: 修改计数器起始值从1改为0以与测试预期匹配
-        # 这解决了test_writer.py中的断言错误: assert count == 256
+        # _len is a counter
+        # CRITICAL FIX: Change counter start value from 1 to 0 to match test expectations
+        # This fixes assertion error in test_writer.py: assert count == 256
         self._len = itertools.count(0)
         # headers
         self.headers = list()
         # values
         self.values = list()
 
-    # 开始输出
+    # Start output
     def _start_output(self):
         # open file if needed
-        # 如果没有out属性 或者 self.out是None
+        # If there's no out attribute or self.out is None
         if not hasattr(self, "out") or not self.out:
-            # 如果out参数是None,out设置成标准输出，并且close_out设置成False
+            # If out parameter is None, set out to standard output, and close_out to False
             if self.p.out is None:
                 self.out = sys.stdout
                 self.close_out = False
-            # 如果self.p.out是一个string_types,以写入方式打开文件，close_out需要设置成True
+            # If self.p.out is a string_types, open file in write mode, close_out needs to be True
             elif isinstance(self.p.out, string_types):
                 self.out = open(self.p.out, "w")
                 self.close_out = True
-            # 如果self.p.out既不是None，也不是字符串格式，那么self.out等于self.p.out,self.close_out等于self.p.close_out
+            # If self.p.out is neither None nor string format, self.out equals self.p.out, self.close_out equals self.p.close_out
             else:
                 self.out = self.p.out
                 self.close_out = self.p.close_out
 
-    # 开始
+    # Start
     def start(self):
-        # 调用_start_output，准备好开始输出
+        # Call _start_output to prepare for output
         self._start_output()
-        # 如果csv是True的话，
+        # If csv is True
         if self.p.csv:
-            # 写入line的分隔符
+            # Write line separator
             self.writelineseparator()
-            # 把列名写入到文件中，第一列默认是Id
+            # Write column names to file, first column defaults to Id
             self.writeiterable(self.headers, counter="Id")
 
-    # 结束，如果close_out是True的话，需要关闭self.out
+    # Stop, if close_out is True, close self.out
     def stop(self):
         if self.close_out:
             self.out.close()
 
-    # 如果csv是True的话，每次运行一次的时候，就values保存到self.out中，并把self.values设置成空列表
+    # If csv is True, save values to self.out each time, and set self.values to empty list
     def next(self):
         if self.p.csv:
             self.writeiterable(self.values, func=str, counter=next(self._len))
             self.values = list()
 
-    # 如果csv是True的话，增加列名
+    # If csv is True, add column names
     def addheaders(self, headers):
         if self.p.csv:
             self.headers.extend(headers)
 
-    # 如果csv是True的话，如果需要过滤nan的话，就把nan替换成''，并把values添加到self.values
+    # If csv is True and need to filter nan, replace nan with '', and add values to self.values
     def addvalues(self, values):
         if self.p.csv:
             if self.p.csv_filternan:
                 values = map(lambda x: x if x == x else "", values)
             self.values.extend(values)
 
-    # 把可迭代的对象进行处理，写入标准输出或者csv文件中
+    # Process iterable objects and write to standard output or csv file
     def writeiterable(self, iterable, func=None, counter=""):
-        # 如果保存csv的counter，在可迭代对象前加上一个counter
+        # If saving csv counter, add counter before iterable
         if self.p.csv_counter:
             iterable = itertools.chain([counter], iterable)
-        # 如果func不是None的话，把func应用与可迭代对象
+        # If func is not None, apply func to iterable
         if func is not None:
             iterable = map(lambda x: func(x), iterable)
-        # 把可迭代对象用csv分隔符进行分割，形成line
+        # Separate iterable with csv separator to form line
         line = self.p.csvsep.join(iterable)
-        # 把line写入到self.out中
+        # Write line to self.out
         self.writeline(line)
 
-    # 把line写入到self.out中
+    # Write line to self.out
     def writeline(self, line):
         self.out.write(line + "\n")
 
-    # 把多条line写入到self.out中
+    # Write multiple lines to self.out
     def writelines(self, lines):
         for line in lines:
             self.out.write(line + "\n")
 
-    # 写入line的分隔符
+    # Write line separator
     def writelineseparator(self, level=0):
-        # 决定选用哪种分隔符，默认选择的是第一个分隔符"="
+        # Decide which separator to use, default is first separator "="
         sepnum = level % len(self.p.separators)
         separator = self.p.separators[sepnum]
-        # 行首空格，默认是0
+        # Leading spaces, defaults to 0
         line = " " * (level * self.p.indent)
-        # 整个line的内容
+        # Entire line content
         line += separator * (self.p.seplen - (level * self.p.indent))
         self.writeline(line)
 
-    # 写入字典
+    # Write dictionary
     def writedict(self, dct, level=0, recurse=False):
-        # 如果没有递归的话，写入line分隔符
+        # If not recursing, write line separator
         if not recurse:
             self.writelineseparator(level)
-        # 首行缩进多少
+        # First line indentation
         indent0 = level * self.p.indent
-        # 迭代字典
+        # Iterate dictionary
         for key, val in dct.items():
-            # 首行空格
+            # First line spaces
             kline = " " * indent0
-            # 如果递归，加上一个字符'- '
+            # If recursing, add a character '- '
             if recurse:
                 kline += "- "
-            # 增加一个key :
+            # Add a key :
             kline += str(key) + ":"
-            # 判断val是不是一个lineseries的子类
+            # Check if val is a subclass of lineseries
             try:
                 sclass = issubclass(val, LineSeries)
             except TypeError:
                 sclass = False
-            # 如果是子类，加一个空格，增加val的名称
+            # If subclass, add a space, add val name
             if sclass:
                 kline += " " + val.__name__
                 self.writeline(kline)
-            # 如果是字符串
+            # If string
             elif isinstance(val, string_types):
-                # 把val添加到kline中
+                # Add val to kline
                 kline += " " + val
-                # 把kline写入到self.out中
+                # Write kline to self.out
                 self.writeline(kline)
-            # 如果是整数
+            # If integer
             elif isinstance(val, integer_types):
-                # 把val转化成字符串，添加到kline中
+                # Convert val to string, add to kline
                 kline += " " + str(val)
                 self.writeline(kline)
-            # 如果是一个浮点数
+            # If float
             elif isinstance(val, float):
-                # 如果四舍五入不是None的话，就把浮点数进行四舍五入
+                # If rounding is not None, round the float
                 if self.p.rounding is not None:
                     val = round(val, self.p.rounding)
-                # 把val转化成字符串，添加到kline中
+                # Convert val to string, add to kline
                 kline += " " + str(val)
                 self.writeline(kline)
-            # 如果val是一个字典
+            # If val is a dictionary
             elif isinstance(val, dict):
-                # 如果是递归的话，写入level
+                # If recursing, write level
                 if recurse:
                     self.writelineseparator(level=level)
                 self.writeline(kline)
-                # 写入字典
+                # Write dictionary
                 self.writedict(val, level=level + 1, recurse=True)
-            # 如果val是一个可迭代对象
+            # If val is an iterable object
             # elif isinstance(val, (list, tuple, collections.Iterable)):
             elif isinstance(val, (list, tuple, collectionsAbc.Iterable)):
-                # 形成line,并保存到self.out中
+                # Form line and save to self.out
                 line = ", ".join(map(str, val))
                 self.writeline(kline + " " + line)
-            # 其他情况下，把val转成字符串，并保存
+            # In other cases, convert val to string and save
             else:
                 kline += " " + str(val)
                 self.writeline(kline)
 
 
-# 写入StringIO - 重构为不使用元类
+# Write StringIO - refactored to not use metaclass
 class WriterStringIO(WriterFile):
-    # 参数out设置成了stringIO
+    # Parameter out set to StringIO
     params = (("out", io.StringIO),)
 
     def __init__(self, **kwargs):
