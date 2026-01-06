@@ -6,7 +6,7 @@ from .. import feed
 from ..utils import date2num
 
 
-# 解析一个自定义的csv data，主要用于测试使用。
+# Parse a custom CSV data, mainly for testing.
 class BacktraderCSVData(feed.CSVDataBase):
     """
     Parses a self-defined CSV Data used for testing.
@@ -16,20 +16,20 @@ class BacktraderCSVData(feed.CSVDataBase):
       - ``dataname``: The filename to parse or a file-like object
     """
 
-    # 对每行数据进行处理
+    # Process each row of data
     def _loadline(self, linetokens):
-        # 把每行数据进行迭代
+        # Iterate through each row of data
         itoken = iter(linetokens)
-        # 时间处理
+        # Time processing
         dttxt = next(itoken)  # The Format is YYYY-MM-DD - skip char 4 and 7
         dt = date(int(dttxt[0:4]), int(dttxt[5:7]), int(dttxt[8:10]))
-        # 如果列有8个，代表存在时间，第二列是时间，对时间进行处理，如果不是8列，代表没有时间，时间是用sessionend
+        # If there are 8 columns, time exists, second column is time, process time, if not 8 columns, no time, time uses sessionend
         if len(linetokens) == 8:
             tmtxt = next(itoken)  # Format if present HH:MM:SS, skip 3 and 6
             tm = time(int(tmtxt[0:2]), int(tmtxt[3:5]), int(tmtxt[6:8]))
         else:
             tm = self.p.sessionend  # end of the session parameter
-        # 分别设置各个line
+        # Set each line separately
         self.lines.datetime[0] = date2num(datetime.combine(dt, tm))
         self.lines.open[0] = float(next(itoken))
         self.lines.high[0] = float(next(itoken))
@@ -42,5 +42,5 @@ class BacktraderCSVData(feed.CSVDataBase):
 
 
 class BacktraderCSV(feed.CSVFeedBase):
-    # 类，DataCls设置了值为BacktraderCSVData类
+    # Class, DataCls is set to BacktraderCSVData class
     DataCls = BacktraderCSVData

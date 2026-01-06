@@ -1025,9 +1025,9 @@ class ParameterAccessor:
         """
         Initialize with a parameter manager.
 
-        NOTE: 原本尝试预创建实例属性以优化性能，但会导致参数同步问题。
-        当通过其他方式（如broker.set_cash()）修改参数时，实例属性不会更新。
-        因此保持动态查找，确保总是获取最新值。
+        NOTE: Originally attempted to pre-create instance attributes for performance, but this causes parameter synchronization issues.
+        When parameters are modified through other means (like broker.set_cash()), instance attributes won't update.
+        Therefore maintain dynamic lookup to ensure latest values are always retrieved.
         """
         # Use object.__setattr__ to avoid our custom __setattr__
         object.__setattr__(self, "_param_manager", param_manager)
@@ -1039,8 +1039,8 @@ class ParameterAccessor:
         """
         Get parameter value via attribute access.
 
-        总是从param_manager获取最新值，确保一致性。
-        所有参数访问都动态查找，保证获取最新值。
+        Always get latest value from param_manager to ensure consistency.
+        All parameter accesses are dynamically looked up to guarantee latest values.
         """
         # Use object.__getattribute__ to avoid recursion during unpickling
         param_manager = object.__getattribute__(self, "_param_manager")

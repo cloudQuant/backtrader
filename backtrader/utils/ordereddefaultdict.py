@@ -5,15 +5,15 @@ from collections import OrderedDict
 from .py3 import iteritems
 
 
-# 这是一个没有使用到的类，创建的意图应该是保持添加进orderedDict类中保持DefaultDict的特征
-# 在整个backtrader中没有找到这个类的使用，大家忽略就好，甚至可以删除，不会影响使用。
+# This is an unused class. The intention of creating it should be to maintain DefaultDict characteristics when adding to OrderedDict
+# This class is not found anywhere in backtrader, everyone can ignore it, it can even be deleted without affecting usage.
 class OrderedDefaultdict(OrderedDict):
-    # 类初始化，传入*args参数和**kwargs参数
+    # Class initialization, passing *args parameters and **kwargs parameters
     def __init__(self, *args, **kwargs):
-        # 如果没有传入*args的话，默认self.default_factory是None
+        # If no *args passed, default self.default_factory is None
         if not args:
             self.default_factory = None
-        # 如果传入了*args，如果args[0]不满足是None或者可调用，将会报错，如果满足了，默认将是atgs[0],剩下的参数将是args[1:]
+        # If *args passed, if args[0] doesn't satisfy being None or callable, will raise error, if satisfied, default will be args[0], remaining parameters will be args[1:]
         else:
             if not (args[0] is None or callable(args[0])):
                 raise TypeError("first argument must be callable or None")
@@ -21,14 +21,14 @@ class OrderedDefaultdict(OrderedDict):
             args = args[1:]
         super().__init__(*args, **kwargs)
 
-    # 当key值不存在的时候，如果self.default_factory是None的话，将会返回key error;如果不是None的话，将会返回self.default_factory()
+    # When key value doesn't exist, if self.default_factory is None, will return key error; if not None, will return self.default_factory()
     def __missing__(self, key):
         if self.default_factory is None:
             raise KeyError(key)
         self[key] = default = self.default_factory()
         return default
 
-    # 可选方法，用于支持pickle
+    # Optional method, for supporting pickle
     def __reduce__(self):  # optional, for pickle support
         args = (self.default_factory,) if self.default_factory else ()
         return self.__class__, args, None, None, iteritems(self)

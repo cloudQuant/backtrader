@@ -3,22 +3,22 @@
 from .lineiterator import LineIterator, ObserverBase, StrategyBase
 
 
-# Observer类 - 重构为不使用元类
+# Observer class - refactored to not use metaclass
 class Observer(ObserverBase):
     """
     Observer base class that has been refactored to remove metaclass usage
     while maintaining the same functionality.
     """
 
-    # _stclock设置成False
+    # Set _stclock to False
     _stclock = False
-    # 拥有的实例
+    # Owned instance
     _OwnerCls = StrategyBase
-    # line的类型
+    # Line type
     _ltype = LineIterator.ObsType
-    # 是否保存到csv等文件中
+    # Whether to save to csv and other files
     csv = True
-    # 画图设置选择
+    # Plot settings options
     plotinfo = dict(plot=False, subplot=True)
 
     def __new__(cls, *args, **kwargs):
@@ -49,7 +49,7 @@ class Observer(ObserverBase):
     def prenext(self):
         self.next()
 
-    # 注册analyzer
+    # Register analyzer
     def _register_analyzer(self, analyzer):
         self._analyzers.append(analyzer)
 
