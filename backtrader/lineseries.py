@@ -18,7 +18,7 @@ from .linebuffer import NAN, LineActions, LineBuffer, LineDelay
 from .lineroot import LineMultiple
 from .utils.py3 import range, string_types
 
-# 性能优化: 使用模块级集合来追踪递归，避免大量的 setattr/delattr 操作
+# Performance optimization: use module-level set to track recursion, avoid massive setattr/delattr operations
 _recursion_guards = set()
 _MISSING = object()
 
@@ -27,12 +27,12 @@ class MinimalData:
     """
     Minimal data replacement for missing data0, data1, etc. attributes.
 
-    性能优化: 在模块级别定义，避免在 __getattr__ 中重复创建类。
+    Performance optimization: define at module level, avoid repeatedly creating classes in __getattr__.
     """
 
     def __init__(self):
-        # 使用有效的序数而不是 0.0 来处理 datetime 数组
-        self.array = [1.0] * 1000  # 预填充数组以防止索引错误
+        # Use valid ordinals instead of 0.0 to handle datetime arrays
+        self.array = [1.0] * 1000  # Pre-fill array to prevent index errors
         self._idx = 0
         self._owner = None
         self.datas = []
@@ -48,7 +48,7 @@ class MinimalData:
         return len(self.array)
 
     def __getattr__(self, name):
-        # 对任何缺失的属性返回 None 以防止进一步错误
+        # Return None for any missing attributes to prevent further errors
         return None
 
 
@@ -56,7 +56,7 @@ class MinimalOwner:
     """
     Minimal owner implementation for observers and analyzers.
 
-    性能优化: 在模块级别定义，避免在 __getattr__ 中重复创建类。
+    Performance optimization: define at module level, avoid repeatedly creating classes in __getattr__.
     """
 
     def __init__(self):
@@ -599,11 +599,11 @@ class Lines(object):
         # This must be done before any other checks to ensure descriptors work properly
         if not name.startswith("_"):
             cls = object.__getattribute__(self, "__class__")
-            # 性能优化: 尝试直接访问，失败时使用getattr
+            # Performance optimization: try direct access, use getattr on failure
             try:
                 class_attr = cls.__dict__.get(name)
                 if class_attr is None:
-                    # 可能在父类中，使用getattr查找
+                    # May be in parent class, use getattr to find
                     try:
                         class_attr = getattr(cls, name)
                     except AttributeError:
@@ -615,7 +615,7 @@ class Lines(object):
                         get_method = class_attr.__get__
                         return get_method(self, cls)
                     except AttributeError:
-                        pass  # 不是描述符
+                        pass  # Not a descriptor
             except (AttributeError, TypeError):
                 pass
 
@@ -627,7 +627,7 @@ class Lines(object):
             except AttributeError:
                 return None
         elif name == "_clock":
-            # 性能优化: 返回owner的clock，使用EAFP模式
+            # Performance optimization: return owner's clock, use EAFP pattern
             try:
                 owner = self._owner
                 if owner is not None:
@@ -650,7 +650,7 @@ class Lines(object):
 
             return default_getlinealias
         elif name == "size":
-            # 性能优化: 提供size()方法，使用EAFP模式
+            # Performance optimization: provide size() method, use EAFP pattern
             def size():
                 """Return the number of lines in this object"""
                 try:
@@ -1098,7 +1098,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         # Not found anywhere
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-    # 类变量：预定义简单类型（使用type对象而非字符串，更快）
+    # Class variables: predefined simple types (use type objects instead of strings, faster)
     _SIMPLE_TYPES = (int, str, float, bool, list, dict, tuple, type(None))
     _CORE_ATTRS = frozenset(
         {
@@ -1160,9 +1160,9 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             try:
                 # Try to read _owner
                 existing_owner = value._owner
-                # NOTE: value._owner 可能被 LineSeries.__getattribute__ 懒加载成 MinimalOwner
-                # 这种情况下也要把 owner 改成真实的拥有者（这里的 self），否则指标不会
-                # 挂到策略的 _lineiterators 上，导致 _next 不会被调用，len(indicator)==0。
+                # NOTE: value._owner may be lazily loaded by LineSeries.__getattribute__ into MinimalOwner
+                # In this case, also change owner to the real owner (self here), otherwise indicator won't
+                # Attach to strategy's _lineiterators, causing _next not to be called, len(indicator)==0.
                 if existing_owner is None or existing_owner.__class__.__name__ == "MinimalOwner":
                     value._owner = self
             except AttributeError:
@@ -1216,7 +1216,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     def __len__(self):
         """
-        返回LineSeries的长度（数据点数量）
+        Return length of LineSeries (number of data points)
 
         OPTIMIZATION NOTES:
         - Cache lines[0] reference to avoid repeated indexing
