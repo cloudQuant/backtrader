@@ -6,7 +6,7 @@ from ..sizer import Sizer
 __all__ = ["PercentSizer", "AllInSizer", "PercentSizerInt", "AllInSizerInt"]
 
 
-# 百分比手数，根据可以利用的现金的百分比下单
+# Percentage stake size, place order based on percentage of available cash
 class PercentSizer(Sizer):
     """This sizer return percentages of available cash
 
@@ -18,7 +18,7 @@ class PercentSizer(Sizer):
       - ``retint`` (default: ``False``) return an int size or rather the float value
     """
 
-    # 使用新的参数描述符系统定义参数
+    # Use new parameter descriptor system to define parameters
     percents = ParameterDescriptor(
         default=20,
         type_=float,
@@ -32,9 +32,9 @@ class PercentSizer(Sizer):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    # 如果当前没有持仓，根据现金的百分比计算可以下单的数目
-    # 如果当前有持仓，根据，直接使用持仓的大小作为下单的手数
-    # 如果需要转化成整数，那么就转化为整数
+    # If no current position, calculate orderable quantity based on cash percentage
+    # If current position exists, directly use position size as order stake
+    # If need to convert to int, then convert to int
     def _getsizing(self, comminfo, cash, data, isbuy):
         position = self.broker.getposition(data)
         if not position:
@@ -48,7 +48,7 @@ class PercentSizer(Sizer):
         return size
 
 
-# 利用所有的现金进行下单
+# Use all available cash to place order
 class AllInSizer(PercentSizer):
     """This sizer return all available cash of broker
 
@@ -56,7 +56,7 @@ class AllInSizer(PercentSizer):
       - ``percents`` (default: ``100``)
     """
 
-    # 重新定义percents参数的默认值
+    # Redefine default value of percents parameter
     percents = ParameterDescriptor(
         default=100,
         type_=float,
@@ -65,7 +65,7 @@ class AllInSizer(PercentSizer):
     )
 
 
-# 按照百分比进行计算下单的手数，然后要取整
+# Calculate order stake by percentage, then round to integer
 class PercentSizerInt(PercentSizer):
     """This sizer return percentages of available cash in the form of size truncated
     to an int
@@ -74,13 +74,13 @@ class PercentSizerInt(PercentSizer):
       - ``percents`` (default: ``20``)
     """
 
-    # 重新定义retint参数的默认值
+    # Redefine default value of retint parameter
     retint = ParameterDescriptor(
         default=True, type_=bool, doc="Return an int size or rather the float value (True for int)"
     )
 
 
-# 根据所有的现金进行下单，手数要取整
+# Place order based on all available cash, stake must be rounded
 class AllInSizerInt(PercentSizerInt):
     """This sizer returns all available cash of broker with the
     size truncated to an int
@@ -89,7 +89,7 @@ class AllInSizerInt(PercentSizerInt):
        - ``percents`` (default: ``100``)
     """
 
-    # 重新定义percents参数的默认值
+    # Redefine default value of percents parameter
     percents = ParameterDescriptor(
         default=100,
         type_=float,

@@ -4,7 +4,7 @@
 from . import Indicator
 
 
-# 移动平均类，用于设置指标的名字
+# Moving average class, used to set indicator names
 class MovingAverage:
     """MovingAverage (alias MovAv)
 
@@ -26,22 +26,22 @@ class MovingAverage:
 
     """
 
-    # 移动平均类的保存
+    # Storage for moving average classes
     _movavs = []
 
     @classmethod
     def register(cls, regcls):
-        # 如果指标中没有_notregister或者_notregister的值是False，就继续运行，进行注册，否则直接返回
+        # If indicator doesn't have _notregister or _notregister value is False, continue to register, otherwise return directly
         if getattr(regcls, "_notregister", False):
             return
-        # 把需要计算的指标类添加进去
+        # Add indicator class to be calculated
         cls._movavs.append(regcls)
-        # 类的名称，并且把类名称设置成cls的属性，属性值为具体的类
+        # Class name, and set class name as cls attribute, attribute value is the specific class
         clsname = regcls.__name__
         setattr(cls, clsname, regcls)
 
-        # 具体指标的别名，如果指标开头是MovingAverage,那么，用后面的值作为别名，如果结尾是MovingAverage，用前面的值作为别名
-        # 如果取得的别名不是空字符串，那么就把别名也设置成属性，该属性的值为这个类
+        # Specific indicator alias, if indicator starts with MovingAverage, use latter value as alias, if ends with MovingAverage, use former value as alias
+        # If obtained alias is not empty string, then also set alias as attribute, attribute value is this class
         clsalias = ""
         if clsname.endswith("MovingAverage"):
             clsalias = clsname.split("MovingAverage")[0]
@@ -64,16 +64,16 @@ class MovingAverage:
                     setattr(cls, alias_name, regcls)
 
 
-# 移动平均的别名
+# Alias for moving average
 class MovAv(MovingAverage):
     pass  # alias
 
 
-# 移动平均的基类，增加参数和画图的设置 - refactored to remove metaclass
+# Base class for moving average, add parameters and plot settings - refactored to remove metaclass
 class MovingAverageBase(Indicator):
-    # 参数
+    # Parameters
     params = (("period", 30),)
-    # 默认画到主图上
+    # Plot on main chart by default
     plotinfo = dict(subplot=False)
 
     def __init__(self):

@@ -4,7 +4,7 @@ from .parameters import ParameterizedBase
 from .utils.py3 import MAXINT
 
 
-# 固定大小过滤，订单执行的时候只能成交当前成交量，需要下单量和size中最小的一个，如果size是None的话，忽略size
+# Fixed size filtering, when order executes can only trade current volume, need minimum of order quantity and size, if size is None, ignore size
 class FixedSize(ParameterizedBase):
     """Returns the execution size for a given order using a *percentage* of the
     volume in a bar.
@@ -29,7 +29,7 @@ class FixedSize(ParameterizedBase):
         return min((order.data.volume[ago], abs(order.executed.remsize), size))
 
 
-# 固定百分比，用当前成交量的一定的百分比和需要下单的量对比，选择最小的进行交易
+# Fixed percentage, use a certain percentage of current volume and compare with order quantity, choose minimum for trading
 class FixedBarPerc(ParameterizedBase):
     """Returns the execution size for a given order using a *percentage* of the
     volume in a bar.
@@ -52,7 +52,7 @@ class FixedBarPerc(ParameterizedBase):
         return min(maxsize, abs(order.executed.remsize))
 
 
-# 根据bar的波动幅度按照百分比分配
+# Distribute according to bar's fluctuation range by percentage
 class BarPointPerc(ParameterizedBase):
     """Returns the execution size for a given order. The volume will be
     distributed uniformly in the range *high*-*low* using ``minmov`` to
@@ -72,28 +72,28 @@ class BarPointPerc(ParameterizedBase):
 
         Percentage of the volume allocated to the order execution price to use
         for matching
-        # minmov默认是0.01，根据最高价和最低价之间的距离，看一下可以分成多少份
-        # perc默认是100，交易限制是下单只能下每一份的perc
+        # minmov defaults to 0.01, based on distance between high and low prices, see how many parts can be divided
+        # perc defaults to 100, trading limit is order can only be placed for each part's perc
     """
 
-    # 具体的参数
+    # Specific parameters
     params = (
         ("minmov", None),
         ("perc", 100.0),
     )
 
     def __call__(self, order, price, ago):
-        # 数据
+        # Data
         data = order.data
-        # 最小价格移动
+        # Minimum price movement
         minmov = self.p.minmov
-        # 计算可以分成的份数
+        # Calculate how many parts can be divided
         parts = 1
         if minmov:
             # high - low + minmov to account for open-ended minus op
             parts = (data.high[ago] - data.low[ago] + minmov) // minmov
-        # 计算每一份可以成交多少
+        # Calculate how much each part can trade
         alloc_vol = ((data.volume[ago] / parts) * self.p.perc) // 100.0
         # return max possible executable volume
-        # 返回最大的可执行的订单量
+        # Return maximum possible executable order quantity
         return min(alloc_vol, abs(order.executed.remsize))

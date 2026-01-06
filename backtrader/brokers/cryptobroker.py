@@ -23,7 +23,7 @@ class CryptoOrder(Order):
         super().__init__()
 
 
-# 注册机制，在导入模块时自动注册broker类
+# Registration mechanism, automatically register broker class when module is imported
 def _register_crypto_broker_class(broker_cls):
     """Register broker class with the store when module is loaded"""
     CryptoStore.BrokerCls = broker_cls
@@ -172,7 +172,7 @@ class CryptoBroker(BrokerBase):
 
     def next(self):
         # ===========================================
-        # 每隔3秒操作一下
+        # Operate every 3 seconds
         nts = datetime.now().timestamp()
         if nts - self._last_op_time < 1:
             return
@@ -181,10 +181,10 @@ class CryptoBroker(BrokerBase):
         self._next()
 
     def _next(self):
-        # 从store中获取order信息, trade信息, position信息, account信息,并传递给strategy
+        # Get order info, trade info, position info, account info from store, and pass to strategy
         while True:
             try:
-                data = self.store.order_queue.get(block=False)  # 不阻塞
+                data = self.store.order_queue.get(block=False)  # non-blocking
             except queue.Empty:
                 break  # no data in the queue
             order = self.convert_bt_api_order_to_backtrader_order(data)
@@ -269,11 +269,11 @@ class CryptoBroker(BrokerBase):
         ret_ord = self.store.make_order(data, size, price=price, order_type=order_type, **kwargs)
         order = CryptoOrder(owner, data, exectype, side, size, price, "order", ret_ord)
         # self.open_orders.append(order)
-        # self.notify(order.clone())  # 先发一个订单创建通知
-        # self._next()  # 然后判断订单是否已经成交,有成交就发通知
+        # self.notify(order.clone())  # Send order creation notification first
+        # self._next()  # Then check if order is executed, if executed send notification
         return order
 
-    # 买入下单
+    # Buy order
     def buy(
         self,
         owner,
@@ -295,7 +295,7 @@ class CryptoBroker(BrokerBase):
         kwargs.pop("transmit", None)
         return self._submit(owner, data, size, "buy", price, exectype=exectype, **kwargs)
 
-    # 卖出下单
+    # Sell order
     def sell(
         self,
         owner,
@@ -316,15 +316,15 @@ class CryptoBroker(BrokerBase):
         kwargs.pop("transmit", None)
         return self._submit(owner, data, size, "sell", price, exectype=exectype, **kwargs)
 
-    # 取消未成交的某个订单
+    # Cancel a specific unfilled order
     def cancel(self, order):
         self.store.cancel_order(order)
 
-    # 用于平掉所有的仓位
+    # Used to close all positions
     def close(self, owner, data):
         pass
 
-    # 用户通过这个接口获取未成交的订单信息
+    # User gets unfilled order info through this interface
     def get_open_orders(self, data=None, cache=True):
         if cache:
             return self.open_orders
