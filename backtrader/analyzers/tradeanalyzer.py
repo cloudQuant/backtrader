@@ -4,7 +4,7 @@ from ..utils import AutoDict, AutoOrderedDict
 from ..utils.py3 import MAXINT
 
 
-# 分析交易
+# Analyze trades
 class TradeAnalyzer(Analyzer):
     """
     Provides statistics on closed trades (keeps also the count of open ones)
@@ -45,99 +45,99 @@ class TradeAnalyzer(Analyzer):
 
     rets = None
 
-    # 创建分析
+    # Create analysis
     def create_analysis(self):
         self.rets = AutoOrderedDict()
         self.rets.total.total = 0
 
-    # 停止
+    # Stop
     def stop(self):
         super().stop()
         self.rets._close()
 
-    # trade通知
+    # Trade notification
     def notify_trade(self, trade):
-        # 如果trade是刚开
+        # If trade just opened
         if trade.justopened:
             # Trade just opened
             self.rets.total.total += 1
             self.rets.total.open += 1
-        # 如果trade是关闭
+        # If trade is closed
         elif trade.status == trade.Closed:
             trades = self.rets
 
             res = AutoDict()
             # Trade just closed
-            # 盈利
+            # Profit
             res.won = int(trade.pnlcomm >= 0.0)
-            # 亏损
+            # Loss
             res.lost = int(not res.won)
-            # 多头
+            # Long position
             res.tlong = trade.long
-            # 空头
+            # Short position
             res.tshort = not trade.long
-            # 开仓的交易
+            # Opened trade
             trades.total.open -= 1
-            # 关闭的交易
+            # Closed trade
             trades.total.closed += 1
 
             # Streak
-            # 计算连续盈利和亏损次数
+            # Calculate consecutive win and loss counts
             for wlname in ["won", "lost"]:
-                # 当前盈亏状况
+                # Current win/loss status
                 wl = res[wlname]
-                # 当前连续盈利或者亏损次数
+                # Current consecutive win or loss count
                 trades.streak[wlname].current *= wl
                 trades.streak[wlname].current += wl
-                # 获取最大连续盈利或者亏损的次数
+                # Get maximum consecutive win or loss count
                 ls = trades.streak[wlname].longest or 0
-                # 重新计算
+                # Recalculate
                 trades.streak[wlname].longest = max(ls, trades.streak[wlname].current)
-            # 交易的盈亏
+            # Trade profit/loss
             trpnl = trades.pnl
-            # 交易总盈亏
+            # Total trade profit/loss
             trpnl.gross.total += trade.pnl
-            # 平均盈亏
+            # Average profit/loss
             trpnl.gross.average = trades.pnl.gross.total / trades.total.closed
-            # 交易净盈亏
+            # Net trade profit/loss
             trpnl.net.total += trade.pnlcomm
-            # 平均净盈亏
+            # Average net profit/loss
             trpnl.net.average = trades.pnl.net.total / trades.total.closed
 
             # Won/Lost statistics
-            # 盈亏统计
+            # Win/loss statistics
             for wlname in ["won", "lost"]:
-                # 当前盈亏
+                # Current win/loss
                 wl = res[wlname]
-                # 历史盈亏
+                # Historical win/loss
                 trwl = trades[wlname]
-                # 盈亏次数
+                # Win/loss count
                 trwl.total += wl  # won.total / lost.total
-                # 总的盈亏和平均盈亏
+                # Total and average profit/loss
                 trwlpnl = trwl.pnl
                 pnlcomm = trade.pnlcomm * wl
 
                 trwlpnl.total += pnlcomm
                 trwlpnl.average = trwlpnl.total / (trwl.total or 1.0)
-                # 最大盈利或者最小的亏损(亏得最多的一笔)
+                # Maximum profit or minimum loss (largest losing trade)
                 wm = trwlpnl.max or 0.0
                 func = max if wlname == "won" else min
                 trwlpnl.max = func(wm, pnlcomm)
 
             # Long/Short statistics
-            # 多空的统计
+            # Long/short statistics
             for tname in ["long", "short"]:
-                # 多和空
+                # Long and short
                 trls = trades[tname]
-                # 当前交易的多和空
+                # Current trade's long and short
                 ls = res["t" + tname]
-                # 计算多和空的次数
+                # Calculate long and short counts
                 trls.total += ls  # long.total / short.total
-                # 计算多和空的总的pnl
+                # Calculate total pnl for long and short
                 trls.pnl.total += trade.pnlcomm * ls
-                # 计算多和空的平均盈利
+                # Calculate average profit for long and short
                 trls.pnl.average = trls.pnl.total / (trls.total or 1.0)
-                # 分析多、空的盈亏状况
+                # Analyze win/loss status for long and short
                 for wlname in ["won", "lost"]:
                     wl = res[wlname]
                     pnlcomm = trade.pnlcomm * wl * ls
@@ -152,19 +152,19 @@ class TradeAnalyzer(Analyzer):
                     trls.pnl[wlname].max = func(wm, pnlcomm)
 
             # Length
-            # 交易占的bar的个数
+            # Number of bars occupied by trade
             trades.len.total += trade.barlen
-            # 平均每个交易占的bar的个数
+            # Average number of bars per trade
             trades.len.average = trades.len.total / trades.total.closed
-            # 交易最长占的bar的个数
+            # Maximum number of bars occupied by trade
             ml = trades.len.max or 0
             trades.len.max = max(ml, trade.barlen)
-            # 交易最短占的bar的个数
+            # Minimum number of bars occupied by trade
             ml = trades.len.min or MAXINT
             trades.len.min = min(ml, trade.barlen)
 
             # Length Won/Lost
-            # 盈亏交易占的bar的个数，和上面类似，只是分了盈利和亏损
+            # Number of bars for winning/losing trades, similar to above but separated by profit and loss
             for wlname in ["won", "lost"]:
                 trwl = trades.len[wlname]
                 wl = res[wlname]
@@ -179,7 +179,7 @@ class TradeAnalyzer(Analyzer):
                     trwl.min = min(m, trade.barlen * wl)
 
             # Length Long/Short
-            # 区分多和空的长度
+            # Distinguish long and short lengths
             for lsname in ["long", "short"]:
                 trls = trades.len[lsname]  # trades.len.long
                 ls = res["t" + lsname]  # tlong/tshort
@@ -195,7 +195,7 @@ class TradeAnalyzer(Analyzer):
                 trls.max = max(m, barlen)
                 m = trls.min or MAXINT
                 trls.min = min(m, barlen or m)
-                # 区分多和空下盈利和亏损的长度
+                # Distinguish winning and losing lengths for long and short
                 for wlname in ["won", "lost"]:
                     wl = res[wlname]  # won/lost
 

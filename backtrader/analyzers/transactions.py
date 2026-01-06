@@ -6,7 +6,7 @@ from ..order import Order
 from ..position import Position
 
 
-# 交易
+# Transactions
 class Transactions(Analyzer):
     """This analyzer reports the transactions occurred with each every data in
     the system
@@ -37,13 +37,13 @@ class Transactions(Analyzer):
         each return as keys
     """
 
-    # 参数
+    # Parameters
     params = (
         ("headers", False),
         ("_pfheaders", ("date", "amount", "price", "sid", "symbol", "value")),
     )
 
-    # 开始
+    # Initialize
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
@@ -52,15 +52,15 @@ class Transactions(Analyzer):
 
     def start(self):
         super().start()
-        # 如果headers等于True的话，初始化rets
+        # If headers is True, initialize rets
         if self.p.headers:
             self.rets[self.p._pfheaders[0]] = [list(self.p._pfheaders[1:])]
-        # 持仓
+        # Positions
         self._positions = collections.defaultdict(Position)
-        # index和数据名字
+        # Index and data names
         self._idnames = list(enumerate(self.strategy.getdatanames()))
 
-    # 订单信息处理
+    # Order information processing
     def notify_order(self, order):
         # An order could have several partial executions per cycle (unlikely
         # but possible) and therefore: collect each new execution notification
@@ -68,35 +68,35 @@ class Transactions(Analyzer):
 
         # We use a fresh Position object for each round to get a summary of what
         # the execution bits have done in that round
-        # 如果订单没有成交，忽略
+        # If order is not executed, ignore
         if order.status not in [Order.Partial, Order.Completed]:
             return  # It's not an execution
-        # 获取产生订单的数据的持仓
+        # Get position of the data that generated the order
         pos = self._positions[order.data._name]
-        # 循环
+        # Loop
         for exbit in order.executed.iterpending():
-            # 如果执行信息是None的话，跳出
+            # If execution info is None, break
             if exbit is None:
                 break  # end of pending reached
-            # 更新仓位信息
+            # Update position information
             pos.update(exbit.size, exbit.price)
 
-    # 每个bar调用一次
+    # Called once per bar
     def next(self):
         # super(Transactions, self).next()  # let dtkey update
-        # 入场
+        # Entries
         entries = []
-        # 对于index和数据名称
+        # For index and data names
         for i, dname in self._idnames:
-            # 获取数据的持仓
+            # Get position of the data
             pos = self._positions.get(dname, None)
-            # 如果持仓不是None的话，如果持仓并且不是0，就保存持仓相关的数据
+            # If position is not None, if position is not 0, save position related data
             if pos is not None:
                 size, price = pos.size, pos.price
                 if size:
                     entries.append([size, price, i, dname, -size * price])
-        # 如果持仓不是0的话，更新当前bar的持仓数据
+        # If position is not 0, update current bar's position data
         if entries:
             self.rets[self.strategy.datetime.datetime()] = entries
-        # 清空self._positions
+        # Clear self._positions
         self._positions.clear()

@@ -9,7 +9,7 @@ from ..utils import AutoOrderedDict
 __all__ = ["SQN"]
 
 
-# 获取SQN指标
+# Get SQN indicator
 class SQN(Analyzer):
     """SQN or SystemQualityNumber. Defined by Van K. Tharp to categorize trading
     systems.
@@ -36,28 +36,28 @@ class SQN(Analyzer):
 
     """
 
-    # 系统质量数
+    # System quality number
     alias = ("SystemQualityNumber",)
 
-    # 创建分析
+    # Create analysis
     def create_analysis(self):
         """Replace default implementation to instantiate an AutoOrderedDict
         rather than an OrderedDict"""
         self.rets = AutoOrderedDict()
 
-    # 开始，初始化pnl和count
+    # Start, initialize pnl and count
     def start(self):
         super().start()
         self.pnl = list()
         self.count = 0
 
-    # 交易通知，如果trade是关闭的，添加盈亏
+    # Trade notification, if trade is closed, add profit/loss
     def notify_trade(self, trade):
         if trade.status == trade.Closed:
             self.pnl.append(trade.pnlcomm)
             self.count += 1
 
-    # 停止，计算sqn指标，如果交易次数大于0，sqn等于交易盈利的平均值*交易次数的平方根/交易盈利的标准差
+    # Stop, calculate SQN indicator, if trade count > 0, SQN equals average trade profit * sqrt(trade count) / standard deviation of trade profit
     def stop(self):
         if self.count > 1:
             pnl_av = average(self.pnl)
@@ -68,6 +68,6 @@ class SQN(Analyzer):
                 sqn = None
         else:
             sqn = 0
-        # 设置sqn的值和trades的值
+        # Set SQN value and trades value
         self.rets.sqn = sqn
         self.rets.trades = self.count

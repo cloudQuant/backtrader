@@ -47,7 +47,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
         price)
 
         Else the initial close will be used.
-        # 计算第一个period的收益率的时候，是否使用第一个开盘价计算，如果参数是False, 就会使用第一个收盘价
+        # When calculating returns for the first period, whether to use the first opening price. If parameter is False, the first closing price will be used
 
       - ``fund`` (default: ``None``)
 
@@ -66,29 +66,29 @@ class TimeReturn(TimeFrameAnalyzerBase):
         each return as keys
     """
 
-    # 参数
+    # Parameters
     params = (
         ("data", None),
         ("firstopen", True),
         ("fund", None),
     )
 
-    # __init__ 方法用于支持移除元类后的参数初始化
+    # __init__ method to support parameter initialization after metaclass removal
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-    # 开始
+    # Start
     def start(self):
         super().start()
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-        # 开始价值
+        # Start value
         self._value_start = 0.0
-        # 结束价值
+        # End value
         self._lastvalue = None
-        # 如果参数data是None的时候
+        # If parameter data is None
         if self.p.data is None:
             # keep the initial portfolio value if not tracing a data
             if not self._fundmode:
@@ -96,7 +96,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
             else:
                 self._lastvalue = self.strategy.broker.fundvalue
 
-    # 通知fund信息
+    # Notify fund information
     def notify_fund(self, cash, value, fundvalue, shares):
         if not self._fundmode:
             # Record current value
@@ -110,7 +110,7 @@ class TimeReturn(TimeFrameAnalyzerBase):
             else:
                 self._value = self.p.data[0]  # the data value if tracking data
 
-    # on_dt_over
+    # On datetime over
     def on_dt_over(self):
         # next is called in a new timeframe period
         # if self.p.data is None or len(self.p.data) > 1:
@@ -124,11 +124,11 @@ class TimeReturn(TimeFrameAnalyzerBase):
             else:
                 self._value_start = self.p.data[0]
 
-    # 调用next
+    # Call next
     def next(self):
         # Calculate the return
         super().next()
-        # self.dtkey是analyzer中设置的属性值，一般是一个period结束的日期
+        # self.dtkey is an attribute set in analyzer, usually the end date of a period
         self.rets[self.dtkey] = (self._value / self._value_start) - 1.0
         # self.rets[self.dtkey] = (float(self._value) / float(self._value_start)) - 1.0
         self._lastvalue = self._value  # keep last value

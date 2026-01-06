@@ -7,7 +7,7 @@ from ..mathsupport import standarddev
 from .returns import Returns
 
 
-# 获取VMR指标
+# Get VWR indicator
 class VWR(TimeFrameAnalyzerBase):
     """Variability-Weighted Return: Better SharpeRatio with Log Returns
 
@@ -76,7 +76,7 @@ class VWR(TimeFrameAnalyzerBase):
           - ``vwr``: Variability-Weighted Return
     """
 
-    # 参数
+    # Parameters
     params = (
         ("tann", None),
         ("tau", 0.20),
@@ -84,7 +84,7 @@ class VWR(TimeFrameAnalyzerBase):
         ("fund", None),
     )
 
-    # 一年对应的交易周期
+    # Trading periods per year
     _TANN = {
         TimeFrame.Days: 252.0,
         TimeFrame.Weeks: 52.0,
@@ -92,9 +92,9 @@ class VWR(TimeFrameAnalyzerBase):
         TimeFrame.Years: 1.0,
     }
 
-    # 初始化，获取收益率
+    # Initialize, get returns
     def __init__(self, *args, **kwargs):
-        # 调用父类的__init__方法以支持timeframe和compression参数
+        # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
         # Children log return analyzer
@@ -105,55 +105,55 @@ class VWR(TimeFrameAnalyzerBase):
             timeframe=self.p.timeframe, compression=self.p.compression, tann=self.p.tann
         )
 
-    # 开始
+    # Start
     def start(self):
         super().start()
         # Add an initial placeholder for [-1] operation
-        # 获取fundmode
+        # Get fundmode
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
             self._fundmode = self.p.fund
-        # 根据fundmode的值获取初始的值
+        # Get initial value based on fundmode
         if not self._fundmode:
             self._pis = [self.strategy.broker.getvalue()]  # keep initial value
         else:
             self._pis = [self.strategy.broker.fundvalue]  # keep initial value
-        # 初始化最终的值为None
+        # Initialize final value to None
         self._pns = [None]  # keep final prices (value)
 
-    # 停止
+    # Stop
     def stop(self):
         super().stop()
         # Check if no value has been seen after the last 'dt_over'
         # If so, there is one 'pi' out of place and a None 'pn'. Purge
-        # 如果最后一个值是None, 删除最后一个元素
+        # If the last value is None, remove the last element
         if self._pns[-1] is None:
             self._pis.pop()
             self._pns.pop()
 
         # Get results from children
-        # 获取收益率
+        # Get returns
         rs = self._returns.get_analysis()
         ravg = rs["ravg"]
         rnorm100 = rs["rnorm100"]
 
         # make n 1 based in enumerate (number of periods and not index)
         # skip initial placeholders for synchronization
-        # 计算每个period的收益率(通常是每年的, 然后保存到dts中)
+        # Calculate return for each period (usually yearly, then save to dts)
         dts = []
         for n, pipn in enumerate(zip(self._pis, self._pns), 1):
             pi, pn = pipn
             # print(n,pi,pn,pipn,ravg,rs)
             dt = pn / (pi * math.exp(ravg * n)) - 1.0
             dts.append(dt)
-        # 计算年收益率的标准差
+        # Calculate standard deviation of annual returns
         sdev_p = standarddev(dts, bessel=True)
-        # 计算vmr的值
+        # Calculate VWR value
         vwr = rnorm100 * (1.0 - pow(sdev_p / self.p.sdev_max, self.p.tau))
         self.rets["vwr"] = vwr
 
-    # fund通知
+    # Fund notification
     def notify_fund(self, cash, value, fundvalue, shares):
         if not self._fundmode:
             self._pns[-1] = value  # annotate last seen pn for the current period
