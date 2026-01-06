@@ -2,7 +2,7 @@
 from . import GenericCSVData
 
 
-#  时间格式是'%Y/%m/%d'的读取方式
+# Read format with time format '%Y/%m/%d'
 class SierraChartCSVData(GenericCSVData):
     """
     Parses a `SierraChart <http://www.sierrachart.com>`_ CSV exported file.

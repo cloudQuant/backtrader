@@ -22,7 +22,7 @@ class VChartFile(DataBase):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 处理原来元类的注册功能
+        # Handle original metaclass registration functionality
         if hasattr(stores, "VChartFile"):
             stores.VChartFile.DataCls = self.__class__
 

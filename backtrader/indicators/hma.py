@@ -5,7 +5,7 @@ from .wma import WMA
 
 
 # Inherits from MovingAverageBase to auto-register as MovingAverage type
-# HullMovingAverage指标
+# Hull Moving Average indicator
 class HullMovingAverage(MovingAverageBase):
     """By Alan Hull
 

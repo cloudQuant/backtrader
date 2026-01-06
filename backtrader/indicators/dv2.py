@@ -4,7 +4,7 @@ from . import SMA, Indicator, PercentRank
 __all__ = ["DV2"]
 
 
-# RSI指标的替代品
+# Alternative to RSI indicator
 class DV2(Indicator):
     """
     RSI(2) alternative

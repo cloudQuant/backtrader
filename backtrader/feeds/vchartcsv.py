@@ -6,7 +6,7 @@ from ..dataseries import TimeFrame
 from ..utils import date2num
 
 
-# 处理vc chart csv文件
+# Process Visual Chart CSV files
 class VChartCSVData(feed.CSVDataBase):
     """
     Parses a `VisualChart <http://www.visualchart.com>`_ CSV exported file.

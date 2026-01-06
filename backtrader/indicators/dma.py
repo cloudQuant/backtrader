@@ -5,7 +5,7 @@ from .ema import EMA
 from .hma import HMA
 
 
-# Dickson均线
+# Dickson Moving Average
 class DicksonMovingAverage(MovingAverageBase):
     """By Nathan Dickson
 

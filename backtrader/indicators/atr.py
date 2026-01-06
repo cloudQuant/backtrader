@@ -3,7 +3,7 @@ import math
 from . import Indicator, MovAv
 
 
-# 这个文件是几个计算TR、ATR指标的类
+# This file contains classes for calculating TR and ATR indicators
 class TrueHigh(Indicator):
     """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in

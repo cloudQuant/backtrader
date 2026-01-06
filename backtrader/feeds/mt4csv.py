@@ -15,7 +15,7 @@ class MT4CSVData(GenericCSVData):
       - Uses GenericCSVData and simply modifies the params
     """
 
-    # MT4数据的这个类，继承了CSV类，仅仅只是修改了参数
+    # MT4 data class inheriting from CSV, only modifies parameters
     params = (
         ("dtformat", "%Y.%m.%d"),
         ("tmformat", "%H:%M"),

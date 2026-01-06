@@ -6,7 +6,7 @@ from .sma import SMA
 __all__ = ["HaDelta", "haD", "haDelta"]
 
 
-# HaDelta指标
+# HaDelta indicator
 class HaDelta(Indicator):
     """Heikin Ashi Delta. Defined by Dan Valcu in his book "Heikin-Ashi: How to
     Trade Without Candlestick Patterns ".

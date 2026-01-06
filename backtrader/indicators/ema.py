@@ -3,7 +3,7 @@ import math
 from . import MovingAverageBase
 
 
-# 指数移动平均线
+# Exponential Moving Average
 class ExponentialMovingAverage(MovingAverageBase):
     """
     A Moving Average that smoothes data exponentially over time.

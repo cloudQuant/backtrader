@@ -11,7 +11,7 @@ from ..utils.py3 import urlquote
 __all__ = ["QuandlCSV", "Quandl"]
 
 
-#  处理quandlcsv数据
+# Process Quandl CSV data
 class QuandlCSV(feed.CSVDataBase):
     """
     Parses pre-downloaded Quandl CSV Data Feeds (or locally generated if they

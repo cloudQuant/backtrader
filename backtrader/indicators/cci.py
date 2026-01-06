@@ -3,7 +3,7 @@ import math
 from . import Indicator, MeanDev, MovAv
 
 
-# CCI指标
+# CCI (Commodity Channel Index) indicator
 class CommodityChannelIndex(Indicator):
     """
     Introduced by Donald Lambert in 1980 to measure variations of the

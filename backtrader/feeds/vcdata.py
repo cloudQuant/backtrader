@@ -312,7 +312,7 @@ class VCData(DataBase):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 处理原来元类的注册功能
+        # Handle original metaclass registration functionality
         vcstore.VCStore.DataCls = self.__class__
         self._state = None
         self.q = None

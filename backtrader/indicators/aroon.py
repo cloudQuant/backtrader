@@ -2,7 +2,7 @@
 from . import FindFirstIndexHighest, FindFirstIndexLowest, Indicator
 
 
-# 这个文件是设计了几个计算AROON相关指标的类
+# This file defines classes for calculating AROON-related indicators
 class _AroonBase(Indicator):
     """
     Base class which does the calculation of the AroonUp/AroonDown values and

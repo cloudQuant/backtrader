@@ -51,7 +51,7 @@ class SessionFiller(ParameterizedBase):
         that bar
     """
 
-    # 使用新的参数描述符系统定义参数
+    # Use new parameter descriptor system to define parameters
     fill_price = ParameterDescriptor(
         default=None,
         doc="Price to be used to fill missing bars. If None will be used the closing price of the previous bar",

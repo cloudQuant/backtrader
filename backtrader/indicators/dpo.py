@@ -3,7 +3,7 @@ import math
 from . import Indicator, MovAv
 
 
-# 去除趋势后的价格波动
+# Detrended price oscillator
 class DetrendedPriceOscillator(Indicator):
     """
     Defined by Joe DiNapoli in his book *"Trading with DiNapoli levels"*

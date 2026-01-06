@@ -4,7 +4,7 @@ from . import Indicator, Max, Min
 __all__ = ["HeikinAshi"]
 
 
-# HeikinAshi 形成另类的K线
+# HeikinAshi forms alternative candlesticks
 class HeikinAshi(Indicator):
     """
     Heikin Ashi candlesticks in the forms of lines

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from . import ATR, And, If, Indicator, MovAv
 
-# ADX相关的指标
+# ADX-related indicators
 
 
 class UpMove(Indicator):
