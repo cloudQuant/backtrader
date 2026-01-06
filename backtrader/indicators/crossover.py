@@ -89,6 +89,11 @@ class CrossOver(Indicator):
         self.addminperiod(2)
         # For next() mode: track last non-zero difference
         self._last_nzd = None
+        # CRITICAL FIX: Track owner's data length to detect replay mode
+        # In replay mode, we should only calculate crossover when the bar is complete
+        # The owner (strategy) has the actual data feed whose length changes when bars complete
+        self._last_owner_data_len = 0
+        self._owner_data = None  # Will be set to owner's data feed in next()
 
     def prenext(self):
         # Track difference during warmup period so _last_nzd is available in nextstart
@@ -101,17 +106,36 @@ class CrossOver(Indicator):
             self._last_nzd = diff if diff != 0.0 else self._last_nzd
 
     def nextstart(self):
-        # First bar after minperiod: check for cross using _last_nzd from prenext
+        # CRITICAL FIX: In replay mode, the first bar after minperiod doesn't have a valid
+        # "previous" bar in the compressed timeframe context. Skip crossover calculation
+        # on the first bar ONLY when in replay mode. For normal mode, calculate normally.
         diff = self.data0[0] - self.data1[0]
-        
+
+        # Check if we're in replay mode by checking owner's datas for replaying attribute
+        is_replay = False
+        if hasattr(self, '_owner') and hasattr(self._owner, 'datas'):
+            for data in self._owner.datas:
+                if hasattr(data, 'replaying') and data.replaying > 0:
+                    is_replay = True
+                    break
+
+        if is_replay:
+            # In replay mode, skip crossover on first bar - set to 0 and update _last_nzd
+            self.lines.crossover[0] = 0.0
+            # Update _last_nzd for next()
+            prev_nzd = self._last_nzd if self._last_nzd is not None else diff
+            self._last_nzd = diff if diff != 0.0 else prev_nzd
+            return
+
+        # Normal mode: calculate crossover normally
         # Get previous non-zero difference (set during prenext)
         prev_nzd = self._last_nzd if self._last_nzd is not None else diff
-        
+
         # Check for crossover
         up_cross = 1.0 if (prev_nzd < 0.0 and self.data0[0] > self.data1[0]) else 0.0
         down_cross = 1.0 if (prev_nzd > 0.0 and self.data0[0] < self.data1[0]) else 0.0
         self.lines.crossover[0] = up_cross - down_cross
-        
+
         # Update _last_nzd for next()
         self._last_nzd = diff if diff != 0.0 else prev_nzd
 
@@ -119,14 +143,41 @@ class CrossOver(Indicator):
         # Current difference
         diff = self.data0[0] - self.data1[0]
 
-        # CRITICAL FIX: For replay mode, we need to get the previous bar's difference
-        # using line indexing, not the cached _last_nzd which tracks intermediate updates.
-        # This ensures we compare current values against the PREVIOUS COMPLETED BAR.
+        # CRITICAL FIX: In replay mode with runonce, the same bar is updated multiple times.
+        # The key insight is that we should only calculate crossover when we're at a NEW bar
+        # (idx has advanced), not when we're updating the same bar multiple times.
+        # We detect this by checking if idx < len - 1, which means we haven't advanced yet.
+        # IMPORTANT: Only apply this logic in replay mode, not in exactbars mode!
+
+        # Check if we're in replay mode
+        is_replay = False
+        if hasattr(self, '_owner') and hasattr(self._owner, 'datas'):
+            for data in self._owner.datas:
+                if hasattr(data, 'replaying') and data.replaying > 0:
+                    is_replay = True
+                    break
+
+        # Only defer crossover calculation in replay mode
+        if is_replay and hasattr(self.lines[0], 'idx') and hasattr(self.lines[0], '__len__'):
+            current_idx = self.lines[0].idx
+            current_len = len(self.lines[0])
+            # If idx < len - 1, we're still filling the current bar, not at a new bar yet
+            # Defer crossover calculation by updating _last_nzd but setting crossover to 0
+            if current_idx < current_len - 1:
+                # Still updating current bar - defer crossover calculation
+                if self._last_nzd is None:
+                    self._last_nzd = diff
+                elif diff != 0.0:
+                    self._last_nzd = diff
+                self.lines.crossover[0] = 0.0
+                return
+
+        # At this point, we're at a new bar (idx == len - 1), calculate crossover
+        # using the previous bar's difference (stored in _last_nzd or from data[-1])
         try:
             prev_diff = self.data0[-1] - self.data1[-1]
             # Find last non-zero difference by looking at line values
             if prev_diff == 0.0:
-                # Fall back to cached value
                 prev_nzd = self._last_nzd if self._last_nzd is not None else diff
             else:
                 prev_nzd = prev_diff
@@ -134,8 +185,11 @@ class CrossOver(Indicator):
             # Fall back to cached value
             prev_nzd = self._last_nzd if self._last_nzd is not None else diff
 
-        # Update last_nzd (memorize non-zero) for fallback cases
-        self._last_nzd = diff if diff != 0.0 else prev_nzd
+        # Update _last_nzd for next bar
+        if self._last_nzd is None:
+            self._last_nzd = diff
+        elif diff != 0.0:
+            self._last_nzd = diff
 
         # Check for crossover using STRICT inequalities
         # Upward: prev < 0 and now data0 > data1
@@ -152,6 +206,13 @@ class CrossOver(Indicator):
         d0array = self.data0.array
         d1array = self.data1.array
         crossarray = self.line.array
+
+        # Handle case where data is shorter than minperiod
+        if start >= end:
+            # No bars to process - initialize all to 0
+            while len(crossarray) < len(d0array):
+                crossarray.append(0.0)
+            return
 
         # Ensure array is large enough
         while len(crossarray) < end:
@@ -170,11 +231,32 @@ class CrossOver(Indicator):
         else:
             prev_nzd = 0.0
 
-        # Process ALL bars from start (including first bar which may have cross)
+        # CRITICAL FIX: For replay mode, skip crossover on the very first bar.
+        # The first bar after minperiod doesn't have a valid "previous" bar in the
+        # compressed timeframe context. Defer crossover to the second bar.
+        # This prevents false positive crossovers at the start of replay data.
+        # ONLY apply this fix when in replay mode.
+        is_replay = False
+        if hasattr(self, '_owner') and hasattr(self._owner, 'datas'):
+            for data in self._owner.datas:
+                if hasattr(data, 'replaying') and data.replaying > 0:
+                    is_replay = True
+                    break
+
+        first_bar = start if is_replay else -1  # -1 means never skip
+
+        # Process ALL bars from start
         for i in range(start, end):
             d0_val = d0array[i]
             d1_val = d1array[i]
             diff = d0_val - d1_val
+
+            # Skip crossover calculation on first bar ONLY in replay mode
+            if i == first_bar:
+                crossarray[i] = 0.0
+                # Still update prev_nzd for next iteration
+                prev_nzd = diff if diff != 0.0 else prev_nzd
+                continue
 
             # Check crossover using prev_nzd (from previous bar)
             up_cross = 1.0 if (prev_nzd < 0.0 and d0_val > d1_val) else 0.0
