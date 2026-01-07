@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""Back Broker Module - Backtesting broker simulation.
+
+This module provides the BackBroker for simulating broker behavior
+during backtesting.
+
+Classes:
+    BackBroker: Broker simulator for backtesting (alias: BrokerBack).
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> # Uses BackBroker by default
+"""
 import collections
 import datetime
 
@@ -11,9 +23,6 @@ from backtrader.position import Position
 from backtrader.utils.py3 import integer_types, string_types
 
 __all__ = ["BackBroker", "BrokerBack"]
-
-
-# This is the class used during backtesting
 class BackBroker(BrokerBase):
     """Broker Simulator
 

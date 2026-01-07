@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Interactive Brokers Broker Module - IB trading implementation.
+
+This module provides the IBBroker for trading through Interactive
+Brokers TWS or IB Gateway.
+
+Classes:
+    IBOrderState: Wraps IB OrderState object.
+    IBOrder: IB-specific order implementation.
+    IBBroker: Broker implementation for IB trading.
+
+Example:
+    >>> store = bt.stores.IBStore(port=7497)
+    >>> cerebro.setbroker(store.getbroker())
+"""
 
 import collections
 import threading

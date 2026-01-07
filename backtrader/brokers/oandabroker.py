@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""OANDA Broker Module - OANDA broker implementation.
+
+This module provides the OandaBroker for trading through OANDA
+brokerage.
+
+Classes:
+    OandaCommInfo: Commission info for OANDA.
+    OandaBroker: Broker implementation for OANDA trading.
+
+Example:
+    >>> store = bt.stores.OandaStore(account='your_account')
+    >>> cerebro.setbroker(store.getbroker())
+"""
 
 import collections
 

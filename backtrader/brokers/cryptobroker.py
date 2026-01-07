@@ -1,3 +1,17 @@
+"""Crypto Broker Module - Cryptocurrency broker implementation.
+
+This module provides the CryptoBroker for trading through bt_api_py
+for cryptocurrency exchanges.
+
+Classes:
+    CryptoOrder: Crypto-specific order implementation.
+    CryptoBroker: Broker implementation for crypto trading.
+
+Example:
+    >>> exchange_params = {...}
+    >>> store = bt.stores.CryptoStore(exchange_params)
+    >>> cerebro.setbroker(store.getbroker())
+"""
 import collections
 from datetime import datetime
 
