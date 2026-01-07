@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Benchmark Observer Module - Strategy vs benchmark comparison.
+
+This module provides the Benchmark observer for tracking strategy returns
+against a reference asset (benchmark).
+
+Classes:
+    Benchmark: Observer that compares strategy performance to a benchmark.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> data = bt.feeds.GenericCSVData(dataname='benchmark.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addobserver(bt.observers.Benchmark, data=data)
+"""
 
 from ..analyzers.timereturn import TimeReturn as TimeReturnAnalyzer
 from .timereturn import TimeReturn
