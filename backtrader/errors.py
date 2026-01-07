@@ -1,11 +1,31 @@
 #!/usr/bin/env python
+"""Exception Classes Module - Custom exceptions for backtrader.
+
+This module defines the exception hierarchy used throughout the
+backtrader framework.
+
+Classes:
+    BacktraderError: Base exception for all backtrader exceptions.
+    StrategySkipError: Raised to skip a strategy during optimization.
+    ModuleImportError: Raised when a required module cannot be imported.
+    FromModuleImportError: Raised when a from-style import fails.
+
+Example:
+    Raising StrategySkipError during optimization:
+    >>> class MyStrategy(bt.Strategy):
+    ...     params = (('period', 20),)
+    ...
+    ...     def __init__(self):
+    ...         if self.p.period < 5:
+    ...             raise bt.errors.StrategySkipError()
+"""
 # When using 'from error import *', only import these two classes: BacktraderError and StrategySkipError
 __all__ = ["BacktraderError", "StrategySkipError"]
 
 
 # BacktraderError class
 class BacktraderError(Exception):
-    """Base exception for all other exceptions"""
+    """Base exception for all backtrader exceptions."""
 
     pass
 
