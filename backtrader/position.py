@@ -1,21 +1,39 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Position Module - Position tracking and management.
+
+This module provides the Position class for tracking the size and price
+of trading positions. It maintains position state including opening
+and closing amounts.
+
+Classes:
+    Position: Tracks position size, price, and related attributes.
+
+Example:
+    Getting position from broker:
+    >>> position = broker.getposition(data)
+    >>> print(f"Size: {position.size}, Price: {position.price}")
+"""
 
 
 # Position class, keeps and updates position size and price, has no relationship with any other assets, only keeps size and price
 class Position(object):
-    """
-    Keeps and updates the size and price of a position. The object has no
-    relationship to any asset. It only keeps size and price.
+    """Keeps and updates the size and price of a position.
 
-    Member Attributes:
-      - size (int): current size of the position
-      - price (float): current price of the position
-    # Position has two attribute values, one is size, representing current position size; one is price, representing current position price.
-    # Position instances can be tested using len(position) to see if size is not null
-    The Position instances can be tested using len(position) to see if size
-    is not null
+    The Position object has no relationship to any specific asset. It only
+    keeps size and price information.
 
+    Attributes:
+        size: Current position size (positive for long, negative for short).
+        price: Current price of the position.
+        price_orig: Original price when position was opened.
+        upopened: Amount of position opened in last update.
+        upclosed: Amount of position closed in last update.
+        adjbase: Adjustment base for position calculations.
+
+    Example:
+        >>> position = Position(size=100, price=50.0)
+        >>> print(len(position))  # Returns True if size != 0
     """
 
     # Information displayed when printing position
