@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""SMA Indicator Module - Simple Moving Average.
+
+This module provides the SMA (Simple Moving Average) indicator for
+calculating the non-weighted average of the last n periods.
+
+Classes:
+    MovingAverageSimple: SMA indicator (alias: SMA).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.SMA, period=20)
+"""
 from collections import deque
 
 import numpy as np

@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""RSI Indicator Module - Relative Strength Index.
+
+This module provides the RSI (Relative Strength Index) indicator
+developed by J. Welles Wilder, Jr.
+
+Classes:
+    RSI: RSI indicator.
+    UpDay/DownDay: Helper classes for RSI calculation.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.RSI, period=14)
+"""
 import math
 from . import DivZeroByZero, Indicator, Max, MovAv
 
