@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Rollover Data Feed Module - Futures contract rollover.
+
+This module provides the RollOver feed for automatically rolling over
+to the next futures contract when conditions are met.
+
+Classes:
+    RollOver: Rolls over to the next future when conditions are met.
+
+Example:
+    >>> data_old = bt.feeds.BacktraderCSVData(dataname='contract_old.csv')
+    >>> data_new = bt.feeds.BacktraderCSVData(dataname='contract_new.csv')
+    >>> data = bt.feeds.RollOver(data_old, data_new, checkdate=my_check_func)
+    >>> cerebro.adddata(data)
+"""
 from datetime import datetime
 
 from ..feed import DataBase

@@ -1,10 +1,22 @@
 #!/usr/bin/env python
+"""Pandas Data Feed Module - Pandas DataFrame integration.
+
+This module provides data feeds for loading market data from
+Pandas DataFrames.
+
+Classes:
+    PandasDirectData: Uses DataFrame tuples as data source.
+    PandasData: Uses DataFrame columns as data source.
+
+Example:
+    >>> import pandas as pd
+    >>> df = pd.read_csv('data.csv')
+    >>> data = bt.feeds.PandasData(dataname=df)
+    >>> cerebro.adddata(data)
+"""
 from ..feed import DataBase
 from ..utils import date2num
 from ..utils.py3 import filter, integer_types, string_types
-
-
-# backtrader loads data through pandas
 class PandasDirectData(DataBase):
     """
     Uses a Pandas DataFrame as the feed source, iterating directly over the

@@ -1,4 +1,20 @@
 #!/usr/bin/env python
+"""OANDA Data Feed Module - OANDA broker connection.
+
+This module provides the OandaData feed for connecting to OANDA
+brokerage for live and historical market data.
+
+Classes:
+    OandaData: OANDA data feed.
+
+Example:
+    >>> store = bt.stores.OandaStore(account='your_account')
+    >>> data = bt.feeds.OandaData(
+    ...     dataname='EUR_USD',
+    ...     store=store
+    ... )
+    >>> cerebro.adddata(data)
+"""
 from datetime import UTC, datetime, timedelta
 
 from backtrader.feed import DataBase
@@ -8,9 +24,6 @@ from backtrader.utils.py3 import (
 )
 
 from ..utils import date2num, num2date
-
-
-# Process OANDA data, ignore this source code
 class OandaData(DataBase):
     """Oanda Data Feed.
 

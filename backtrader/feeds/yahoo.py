@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""Yahoo Finance Data Feed Module - Yahoo CSV data parsing.
+
+This module provides the YahooFinanceCSVData feed for parsing
+pre-downloaded Yahoo Finance CSV files.
+
+Classes:
+    YahooFinanceCSVData: Parses Yahoo Finance format CSV files.
+
+Example:
+    >>> data = bt.feeds.YahooFinanceCSVData(dataname='yahoo.csv')
+    >>> cerebro.adddata(data)
+"""
 import collections
 import io
 import itertools

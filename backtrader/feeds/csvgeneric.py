@@ -1,4 +1,24 @@
 #!/usr/bin/env python
+"""Generic CSV Data Feed Module - CSV file parsing.
+
+This module provides the GenericCSVData feed for parsing CSV files
+with customizable column mappings for backtesting.
+
+Classes:
+    GenericCSVData: Parses CSV files with configurable column mappings.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(
+    ...     dataname='data.csv',
+    ...     datetime=0,
+    ...     open=1,
+    ...     high=2,
+    ...     low=3,
+    ...     close=4,
+    ...     volume=5
+    ... )
+    >>> cerebro.adddata(data)
+"""
 from datetime import UTC, datetime
 
 from .. import feed

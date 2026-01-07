@@ -1,4 +1,20 @@
 #!/usr/bin/env python
+"""Interactive Brokers Data Feed Module - IB data connection.
+
+This module provides the IBData feed for connecting to Interactive
+Brokers for live and historical market data.
+
+Classes:
+    IBData: Interactive Brokers data feed.
+
+Example:
+    >>> store = bt.stores.IBStore(port=7497)
+    >>> data = bt.feeds.IBData(
+    ...     dataname='AAPL-STK-SMART-USD',
+    ...     store=store
+    ... )
+    >>> cerebro.adddata(data)
+"""
 import datetime
 
 from ..dataseries import TimeFrame

@@ -1,4 +1,21 @@
 #!/usr/bin/env python
+"""CCXT Data Feed Module - Cryptocurrency exchange data.
+
+This module provides the CCXTFeed for connecting to cryptocurrency
+exchanges through the CCXT library.
+
+Classes:
+    CCXTFeed: Live and historical data from crypto exchanges.
+
+Example:
+    >>> store = bt.stores.CCXTStore(exchange='binance')
+    >>> data = bt.feeds.CCXT(
+    ...     symbol='BTC/USDT',
+    ...     timeframe=bt.TimeFrame.Minutes,
+    ...     store=store
+    ... )
+    >>> cerebro.adddata(data)
+"""
 
 import time
 from datetime import datetime

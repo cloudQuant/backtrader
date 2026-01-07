@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Chainer Data Feed Module - Chain multiple data feeds.
+
+This module provides the Chainer feed for chaining multiple data
+feeds together seamlessly during backtesting.
+
+Classes:
+    Chainer: Chains multiple data feeds together.
+
+Example:
+    >>> data1 = bt.feeds.BacktraderCSVData(dataname='part1.csv')
+    >>> data2 = bt.feeds.BacktraderCSVData(dataname='part2.csv')
+    >>> data = bt.feeds.Chainer(data1, data2)
+    >>> cerebro.adddata(data)
+"""
 
 from datetime import datetime
 
