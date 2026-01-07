@@ -1,12 +1,22 @@
 #!/usr/bin/env python
+"""Awesome Oscillator Module - AO momentum indicator.
+
+This module provides the Awesome Oscillator (AO) developed by
+Bill Williams to measure market momentum.
+
+Classes:
+    AwesomeOscillator: Awesome Oscillator indicator (aliases: AwesomeOsc, AO).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.AO)
+"""
 import math
 from . import Indicator
 from .sma import SMA
 
 __all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
-
-
-# Awesome Oscillator indicator
 class AwesomeOscillator(Indicator):
     """
     Awesome Oscillator (AO) is a momentum indicator reflecting the precise

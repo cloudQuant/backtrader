@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""KST Indicator Module - Know Sure Thing indicator.
+
+This module provides the KST (Know Sure Thing) momentum indicator
+developed by Martin Pring.
+
+Classes:
+    KnowSureThing: KST indicator (alias: KST).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.KST)
+"""
 import math
 from . import ROC100, SMA, Indicator
-
-
-# KnowSureThing indicator
 class KnowSureThing(Indicator):
     """
     It is a "summed" momentum indicator. Developed by Martin Pring and

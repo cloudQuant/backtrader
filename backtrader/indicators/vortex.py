@@ -1,8 +1,18 @@
 #!/usr/bin/env python
+"""Vortex Indicator Module - Vortex trend indicator.
+
+This module provides the Vortex indicator for identifying trend
+direction and strength.
+
+Classes:
+    Vortex: Vortex indicator with VI+ and VI- lines.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.Vortex, period=14)
+"""
 from . import Indicator, Max, SumN
-
-
-# Vortex indicator
 class Vortex(Indicator):
     """
     See:

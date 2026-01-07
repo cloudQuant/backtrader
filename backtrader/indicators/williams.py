@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""Williams Indicator Module - Williams %R indicator.
+
+This module provides the WilliamsR indicator developed by Larry
+Williams to show overbought/oversold conditions.
+
+Classes:
+    WilliamsR: Williams %R indicator.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.WilliamsR, period=14)
+"""
 import math
 from . import Accum, DownDay, Highest, If, Indicator, Lowest, TrueHigh, TrueLow, UpDay
-
-
-# Williams indicator
 class WilliamsR(Indicator):
     """
     Developed by Larry Williams to show the relation of closing prices to
