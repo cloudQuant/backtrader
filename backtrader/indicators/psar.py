@@ -18,12 +18,26 @@ __all__ = ["ParabolicSAR", "PSAR"]
 
 
 class _SarStatus:
+    """Internal status holder for Parabolic SAR calculations.
+
+    Attributes:
+        sar: Stop and Reverse value for the current period.
+        tr: Trend direction (True for long/up, False for short/down).
+        af: Acceleration factor, controlling how quickly SAR responds.
+        ep: Extreme point - highest high in uptrend or lowest low in downtrend.
+    """
+
     sar = None
     tr = None
     af = 0.0
     ep = 0.0
 
     def __str__(self):
+        """Return a string representation of the SAR status.
+
+        Returns:
+            str: Multi-line string containing sar, tr, af, and ep values.
+        """
         txt = []
         txt.append(f"sar: {self.sar}")
         txt.append(f"tr: {self.tr}")
@@ -33,19 +47,31 @@ class _SarStatus:
 
 
 class ParabolicSAR(PeriodN):
-    """
-    Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
-    Technical Trading Systems"* for the RSI
+    """Parabolic SAR (Stop and Reverse) indicator.
 
-    SAR stands for *Stop and Reverse*, and the indicator was meant as a signal
-    for entry (and reverse)
+    Defined by J. Welles Wilder, Jr. in 1978 in his book *New Concepts in
+    Technical Trading Systems*. SAR stands for Stop and Reverse, and the
+    indicator is meant as a signal for entry (and reverse).
 
-    How to select the first signal is left unspecified in the book and the
-    increase/decrease of bars
+    The indicator places dots above or below price bars to indicate the
+    current trend direction. When the dots flip from above to below (or
+    vice versa), it signals a potential trend reversal.
+
+    The initial trend direction is determined by comparing the close price
+    of the second bar to the first bar. The SAR value accelerates toward
+    the price as the trend extends, using the acceleration factor.
 
     See:
-      - https://en.wikipedia.org/wiki/Parabolic_SAR
-      - http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:parabolic_sar
+        https://en.wikipedia.org/wiki/Parabolic_SAR
+        http://stockcharts.com/school/doku.php?id=chart_school:technical_indicators:parabolic_sar
+
+    Attributes:
+        psar: Line containing the calculated Parabolic SAR values.
+
+    Args:
+        period: Bar number from which to start showing values (default: 2).
+        af: Acceleration factor (default: 0.02).
+        afmax: Maximum acceleration factor (default: 0.20).
     """
 
     alias = ("PSAR",)
@@ -119,6 +145,59 @@ class ParabolicSAR(PeriodN):
         Updates the stop-and-reverse point based on trend direction,
         extreme price, and acceleration factor.
         """
+        hi = self.data.high[0]
+        lo = self.data.low[0]
+
+        plenidx = (len(self) - 1) % 2  # previous length index (0 or 1)
+        status = self._status[plenidx]  # use prev status for calculations
+
+        tr = status.tr
+        sar = status.sar
+
+        # Check if the sar penetrated the price to switch the trend
+        if (tr and sar >= lo) or (not tr and sar <= hi):
+            tr = not tr  # reverse the trend
+            sar = status.ep  # new sar is prev SIP (Significant price)
+            ep = hi if tr else lo  # select new SIP / Extreme Price
+            af = self.p.af  # reset acceleration factor
+
+        else:  # use the precalculated values
+            ep = status.ep
+            af = status.af
+
+        # Update sar value for today
+        self.lines.psar[0] = sar
+
+        # Update ep and af if needed
+        if tr:  # long trade
+            if hi > ep:
+                ep = hi
+                af = min(af + self.p.af, self.p.afmax)
+
+        else:  # downtrend
+            if lo < ep:
+                ep = lo
+                af = min(af + self.p.af, self.p.afmax)
+
+        sar = sar + af * (ep - sar)  # calculate the sar for tomorrow
+
+        # make sure sar doesn't go into hi/lows
+        if tr:  # long trade
+            lo1 = self.data.low[-1]
+            if sar > lo or sar > lo1:
+                sar = min(lo, lo1)  # sar not above last 2 lows -> lower
+        else:
+            hi1 = self.data.high[-1]
+            if sar < hi or sar < hi1:
+                sar = max(hi, hi1)  # sar not below last 2 highs -> highest
+
+        # new status has been calculated, keep it in current length
+        # will be used when length moves forward
+        newstatus = self._status[not plenidx]
+        newstatus.tr = tr
+        newstatus.sar = sar
+        newstatus.ep = ep
+        newstatus.af = af
 
 
 PSAR = ParabolicSAR
