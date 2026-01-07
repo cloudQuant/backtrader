@@ -1,10 +1,20 @@
 #!/usr/bin/env python
+"""Heikin Ashi Indicator Module - Heikin Ashi candlesticks.
+
+This module provides the Heikin Ashi candlestick indicator which
+creates alternative candlestick charts for trend identification.
+
+Classes:
+    HeikinAshi: Heikin Ashi candlestick lines.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.HeikinAshi)
+"""
 from . import Indicator, Max, Min
 
 __all__ = ["HeikinAshi"]
-
-
-# HeikinAshi forms alternative candlesticks
 class HeikinAshi(Indicator):
     """
     Heikin Ashi candlesticks in the forms of lines

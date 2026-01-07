@@ -1,10 +1,20 @@
 #!/usr/bin/env python
+"""ZLEMA Indicator Module - Zero Lag Exponential Moving Average.
+
+This module provides the ZLEMA (Zero Lag Exponential Moving Average)
+indicator which aims to reduce lag in the standard EMA.
+
+Classes:
+    ZeroLagExponentialMovingAverage: ZLEMA indicator (aliases: ZLEMA, ZeroLagEma).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.ZLEMA, period=20)
+"""
 import math
 from . import MovingAverageBase
 from .ema import EMA
-
-
-# Zero Lag Exponential Moving Average
 class ZeroLagExponentialMovingAverage(MovingAverageBase):
     """
     The zero-lag exponential moving average (ZLEMA) is a variation of the EMA
