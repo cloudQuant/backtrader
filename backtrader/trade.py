@@ -1,5 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Trade Module - Position and trade tracking.
+
+This module provides the Trade class for tracking the lifecycle of trades
+including size, price, commission, and profit/loss calculations.
+
+Key Classes:
+    Trade: Tracks the life of a trade from opening to closing.
+    TradeHistory: Records status and event updates for each trade.
+
+A trade starts at 0, can be increased (adding to position) or reduced
+(closing part of position), and is considered closed when size returns to 0.
+Trades can be long (positive size) or short (negative size).
+
+Example:
+    Accessing trade information:
+    >>> trade.status  # Created, Open, or Closed
+    >>> trade.pnl  # Current profit/loss
+    >>> trade.pnlcomm  # PnL minus commission
+"""
 import itertools
 
 from .utils import AutoOrderedDict
