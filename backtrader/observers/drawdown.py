@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""DrawDown Observer Module - Drawdown tracking observer.
+
+This module provides the DrawDown observer for tracking current and maximum
+drawdown levels during backtesting.
+
+Classes:
+    DrawDown: Observer that tracks drawdown and max drawdown levels.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addobserver(bt.observers.DrawDown)
+"""
 
 from ..analyzers import DrawDown as DrawDownAnalyzer
 from ..observer import Observer
