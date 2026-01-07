@@ -1,4 +1,27 @@
 #!/usr/bin/env python
+"""Data Feed Module - Financial data feed implementations.
+
+This module provides the base classes and implementations for data feeds
+in backtrader. Data feeds are the source of price/volume data for strategies
+and indicators.
+
+Key Classes:
+    AbstractDataBase: Base class for all data feeds with core functionality.
+    DataBase: Full-featured data feed with replay/resample support.
+    CSVDataBase: Base class for CSV file data feeds.
+    FeedBase: Base for live/real-time data feeds.
+
+Data feeds provide:
+    - OHLCV (Open, High, Low, Close, Volume) data
+    - Timeline management and session handling
+    - Replay and resampling capabilities
+    - Live data support for trading
+
+Example:
+    Creating a custom data feed:
+    >>> class MyDataFeed(CSVDataBase):
+    ...     params = (('dataname', 'data.csv'),)
+"""
 import collections
 import datetime
 import inspect
@@ -13,12 +36,45 @@ from .utils.date import Localizer
 from .utils.py3 import range, string_types, zip
 
 
-# 重构: 移除元类，使用普通类和初始化方法
+# Refactor: Remove metaclass, use normal class and initialization method
 class AbstractDataBase(dataseries.OHLCDateTime):
-    # 类级别的注册字典，替代元类的_indcol功能
+    """Base class for all data feed implementations.
+
+    Provides the core functionality for data feeds including:
+    - Data loading and preprocessing
+    - Timeline management
+    - Session handling
+    - Live data support
+    - Notification system for data status changes
+
+    States:
+        CONNECTED, DISCONNECTED, CONNBROKEN, DELAYED, LIVE,
+        NOTSUBSCRIBED, NOTSUPPORTED_TF, UNKNOWN
+
+    Params:
+        dataname: Data source identifier (filename, URL, etc.).
+        name: Display name for the data feed.
+        compression: Timeframe compression factor.
+        timeframe: TimeFrame period (Days, Minutes, etc.).
+        fromdate: Start date for data filtering.
+        todate: End date for data filtering.
+        sessionstart: Session start time.
+        sessionend: Session end time.
+        filters: List of data filters to apply.
+        tz: Output timezone.
+        tzinput: Input timezone.
+        qcheck: Timeout in seconds for live event checking.
+        calendar: Trading calendar to use.
+
+    Example:
+        >>> data = AbstractDataBase(dataname='data.csv')
+        >>> cerebro.adddata(data)
+    """
+
+    # Class-level registry dictionary, replacing metaclass _indcol functionality
     _registry = {}
 
-    # 参数的初始化设置 - 使用_params_tuple保存原始定义
+    # Parameter initialization settings - use _params_tuple to save original definition
     _params_tuple = (
         ("dataname", None),
         ("name", ""),
@@ -35,10 +91,10 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         ("calendar", None),
     )
 
-    # 保留原来的params定义以兼容元类系统
+    # Keep original params definition for compatibility with metaclass system
     params = _params_tuple
 
-    # 数据的八种不同的状态
+    # Eight different states of data
     (
         CONNECTED,
         DISCONNECTED,
@@ -50,7 +106,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         UNKNOWN,
     ) = range(8)
 
-    # 通知的名字
+    # Notification names
     _NOTIFNAMES = [
         "CONNECTED",
         "DISCONNECTED",
@@ -63,13 +119,13 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     ]
 
     def __init__(self, *args, **kwargs):
-        # 执行原来元类中dopreinit的功能
+        # Execute the original metaclass dopreinit functionality
         self._init_preinit(*args, **kwargs)
 
-        # 调用父类初始化
+        # Call parent class initialization
         super().__init__(*args, **kwargs)
 
-        # 执行原来元类中dopostinit的功能
+        # Execute the original metaclass dopostinit functionality
         self._init_postinit(*args, **kwargs)
 
         # CRITICAL FIX: Mark all lines as belonging to a data feed
@@ -95,42 +151,42 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             except Exception:
                 pass
 
-        # 原来__init__中的内容
+        # Original content from __init__
         self._env = None
         self._barstash = None
         self._barstack = None
         self._laststatus = None
 
     def _init_preinit(self, *args, **kwargs):
-        """替代原来的MetaAbstractDataBase.dopreinit"""
+        """Replace the original MetaAbstractDataBase.dopreinit"""
         # Find the owner and store it
         self._feed = self._find_feed_owner()
-        # 初始化一个队列，用于存储从cerebro来的信息
+        # Initialize a queue to store notifications from cerebro
         self.notifs = collections.deque()  # store notifications for cerebro
-        # 从参数中获取_dataname的值
+        # Get _dataname value from parameters
         self._dataname = getattr(self.p, "dataname", None)
-        # 默认_name属性是空
+        # Default _name attribute is empty
         self._name = ""
 
     def _init_postinit(self, *args, **kwargs):
-        """替代原来的MetaAbstractDataBase.dopostinit"""
+        """Replace the original MetaAbstractDataBase.dopostinit"""
         # Debug: check parameter state at the beginning
         # print(f"_init_postinit start: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
         # print(f"_init_postinit kwargs: {kwargs}")
 
         # Either set by subclass or the parameter or use the dataname (ticker)
-        # 重新设置_name属性，如果_name属性不是空的，就保持，如果是空的，就让它等于参数中的name的值
+        # Reset _name attribute, if _name is not empty, keep it; if empty, set it to name parameter value
         self._name = self._name or getattr(self.p, "name", "")
-        # 如果_name属性值还是为空，并且参数dataname的值是字符串的话，就把_name设置为dataname值
+        # If _name attribute value is still empty and dataname parameter value is string, set _name to dataname value
         if not self._name and isinstance(getattr(self.p, "dataname", None), string_types):
             self._name = self.p.dataname
-        # _compression值等于参数compression的值
+        # _compression value equals the compression parameter value
         self._compression = getattr(self.p, "compression", 1)
-        # _timeframe的值等于参数timeframe的值
+        # _timeframe value equals the timeframe parameter value
         self._timeframe = getattr(self.p, "timeframe", TimeFrame.Days)
 
         # Only set sessionstart/sessionend defaults if they weren't explicitly passed
-        # 开始的时间如果是datetime格式，就等于从sessionstart获取具体的时间，如果是None的话，等于最小的时间
+        # If start time is datetime format, equals specific time from sessionstart; if None, equals minimum time
         sessionstart = getattr(self.p, "sessionstart", None)
         if isinstance(sessionstart, datetime.datetime):
             self.p.sessionstart = sessionstart.time()
@@ -138,7 +194,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             # CRITICAL FIX: Always set default if None (kwargs check was unreliable)
             self.p.sessionstart = datetime.time.min
 
-        # 结束的时间如果是datetime格式，就等于从sessionend获取具体的时间，如果是None的话，等于23：59：59.999990
+        # If end time is datetime format, equals specific time from sessionend; if None, equals 23:59:59.999990
         sessionend = getattr(self.p, "sessionend", None)
         if isinstance(sessionend, datetime.datetime):
             self.p.sessionend = sessionend.time()
@@ -150,7 +206,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # Debug: check parameter state after modification
         # print(f"_init_postinit end: self.p.dataname = {getattr(self.p, 'dataname', 'NO_P_ATTR')}")
 
-        # 如果开始日期是date格式，如果没有hour的属性的话，就增加sessionstart的时间，把开始日期变成了日期+时间的格式
+        # If start date is date format and has no hour attribute, add sessionstart time to convert start date to date+time format
         fromdate = getattr(self.p, "fromdate", None)
         if isinstance(fromdate, datetime.date):
             # push it to the end of the day, or else intraday
@@ -158,7 +214,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             if not hasattr(fromdate, "hour"):
                 self.p.fromdate = datetime.datetime.combine(fromdate, self.p.sessionstart)
 
-        # 如果结束日期是date格式，如果没有hour的属性的话，就增加sessionend的时间，把开始日期变成了日期+时间的格式
+        # If end date is date format and has no hour attribute, add sessionend time to convert start date to date+time format
         todate = getattr(self.p, "todate", None)
         if isinstance(todate, datetime.date):
             # push it to the end of the day, or else intraday
@@ -166,15 +222,15 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             if not hasattr(todate, "hour"):
                 self.p.todate = datetime.datetime.combine(todate, self.p.sessionend)
 
-        # 设置_barstack,_barstash两个属性作为队列，用于过滤操作
+        # Set _barstack and _barstash as queues for filter operations
         self._barstack = collections.deque()  # for filter operations
         self._barstash = collections.deque()  # for filter operations
-        # 设置_filters,_ffilters作为空的列表
+        # Set _filters and _ffilters as empty lists
         self._filters = list()
         self._ffilters = list()
 
-        # 遍历参数中的filters，先判断是否是类，如果是类，就先实例化，如果实例中有last属性，就把这个过滤器传入到_ffilters中
-        # 如果不是类，就直接把过滤器传入到_filters中
+        # Iterate through filters in parameters, first check if it's a class; if class, instantiate first; if instance has last attribute, add filter to _ffilters
+        # If not a class, directly add filter to _filters
         filters = getattr(self.p, "filters", [])
         for fp in filters:
             if inspect.isclass(fp):
@@ -185,16 +241,16 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             self._filters.append((fp, [], {}))
 
     def _find_feed_owner(self):
-        """替代原来的metabase.findowner功能"""
+        """Replace the original metabase.findowner functionality"""
         import sys
 
-        # 简化的owner查找逻辑，在实际的调用栈中寻找FeedBase实例
-        for frame_level in range(2, 10):  # 限制搜索深度
+        # Simplified owner lookup logic, find FeedBase instance in actual call stack
+        for frame_level in range(2, 10):  # Limit search depth
             try:
                 frame = sys._getframe(frame_level)
                 self_obj = frame.f_locals.get("self", None)
                 if self_obj is not None and hasattr(self_obj, "__class__"):
-                    # 检查是否是FeedBase的实例（这里使用字符串检查避免循环导入）
+                    # Check if it's a FeedBase instance (using string check here to avoid circular import)
                     if "FeedBase" in str(type(self_obj)):
                         return self_obj
                 obj = frame.f_locals.get("_obj", None)
@@ -209,7 +265,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     def _getstatusname(cls, status):
         return cls._NOTIFNAMES[status]
 
-    # 初始化下面的几个变量，在实盘中可能会使用到
+    # Initialize the following variables, may be used in live trading
     _compensate = None
     _feed = None
     _store = None
@@ -217,15 +273,15 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     _clone = False
     _qcheck = 0.0
 
-    # 时间偏移
+    # Time offset
     _tmoffset = datetime.timedelta()
 
     # Set to non 0 if resampling/replaying
-    # 是否抽样或者重播，如果不得话，设置成0
+    # Whether resampling or replaying, if not, set to 0
     resampling = 0
     replaying = 0
 
-    # 是否已经开始
+    # Whether started
     _started = False
 
     def _start_finish(self):
@@ -233,19 +289,19 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # timezones after the start, and that's why the date/time related
         # parameters are converted at this late stage
         # Get the output timezone (if any)
-        # 获取具体的时区
+        # Get specific timezone
         self._tz = self._gettz()
         # Lines have already been created, set the tz
-        # 给时间设置具体的时区
+        # Set specific timezone for time
         self.lines.datetime._settz(self._tz)
 
         # This should probably be also called from an override-able method
-        # 本地化输入的时区
+        # Localize input timezone
         self._tzinput = Localizer(self._gettzinput())
 
         # Convert user input times to the output timezone (or min/max)
-        # 把用户输入的开始和结束时间转化为具体的数字，如果是None的话，开始时间是无限小的数字，结束时间是无限大的数字
-        # 如果是具体的时间的话，就使用date2num转化为具体的数字
+        # Convert user input start and end times to specific numbers; if None, start time is negative infinity, end time is positive infinity
+        # If specific time, use date2num to convert to specific number
         if self.p.fromdate is None:
             self.fromdate = float("-inf")
         else:
@@ -257,30 +313,30 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             self.todate = self.date2num(self.p.todate)
 
         # FIXME: These two are never used and could be removed
-        # 这两个是不会用到的，可以删除
+        # These two are not used and can be deleted
         self.sessionstart = time2num(self.p.sessionstart)
         self.sessionend = time2num(self.p.sessionend)
 
-        # 从参数中获取日历，如果日历是None的话，就从本地环境中寻找_tradingcal，如果是字符串的话，就使用PandasMarketCalendar
+        # Get calendar from parameters; if calendar is None, look for _tradingcal in local environment; if string, use PandasMarketCalendar
         self._calendar = cal = self.p.calendar
         if cal is None:
             self._calendar = self._env._tradingcal if self._env else None
         elif isinstance(cal, string_types):
             self._calendar = PandasMarketCalendar(calendar=cal)
-        # 开始状态
+        # Start state
         self._started = True
 
     def _start(self):
         self.start()
-        # 如果还没进入到开始状态，先初始化，然后进入开始状态
+        # If not in start state yet, initialize first, then enter start state
         if not self._started:
             self._start_finish()
 
     def _timeoffset(self):
-        # 时间偏移量
+        # Time offset
         return self._tmoffset
 
-    # 返回下个交易日结束的时间格式的时间和数字格式的时间
+    # Return next trading day end time in datetime format and numeric format
     def _getnexteos(self):
         """Returns the next eos using a trading calendar if available"""
         if self._clone:
@@ -307,36 +363,36 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         return nexteos, nextdteos
 
-    # 把tzinput进行解析，并返回
+    # Parse tzinput and return
     def _gettzinput(self):
         """Can be overriden by classes to return a timezone for input"""
         return tzparse(self.p.tzinput)
 
-    # 把tz进行解析，并返回
+    # Parse tz and return
     def _gettz(self):
         """To be overriden by subclasses which may auto-calculate the
         timezone"""
         return tzparse(self.p.tz)
 
-    # 把时间转化成数字，如果时区信息不是None的话，先把时间进行本地化，然后再转化
+    # Convert time to number; if timezone info is not None, localize time first, then convert
     def date2num(self, dt):
         if self._tz is not None:
             return date2num(self._tz.localize(dt))
 
         return date2num(dt)
 
-    # 把数字转化成日期+时间
+    # Convert number to date+time
     def num2date(self, dt=None, tz=None, naive=True):
         if dt is None:
             return num2date(self.lines.datetime[0], tz or self._tz, naive)
 
         return num2date(dt, tz or self._tz, naive)
 
-    # 是否具有实时数据，默认是没有，如果有实时数据，需要重写
+    # Whether has live data; default is False; if has live data, needs override
     def haslivedata(self):
         return False  # must be overriden for those that can
 
-    # 实盘数据进行抽样的时候，等待的时间间隔
+    # Wait interval when resampling live data
     def do_qcheck(self, onoff, qlapse):
         # if onoff is True, the data will wait p.qcheck for incoming live data
         # on its queue.
@@ -344,27 +400,27 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         qwait = max(0.0, qwait - qlapse)
         self._qcheck = qwait
 
-    # 是否是实时数据，默认是没有，如果有的话，cerebro会不在使用preload和runonce，因为一个实时数据需要
-    # 一个个tick或者bar进行获取
+    # Whether is live data; default is False; if True, cerebro will not use preload and runonce, because live data needs
+    # to be fetched tick by tick or bar by bar
     def islive(self):
         """If this returns True, ``Cerebro`` will deactivate ``preload`` and
         ``runonce`` because a live data source must be fetched tick by tick (or
         bar by bar)"""
         return False
 
-    # 如果最新的状态不等于当前状态，需要把信息添加到notifs中以便更新最新状态
+    # If latest status differs from current status, need to add info to notifs to update latest status
     def put_notification(self, status, *args, **kwargs):
         """Add arguments to notification queue"""
         if self._laststatus != status:
             self.notifs.append((status, args, kwargs))
             self._laststatus = status
 
-    # 获取通知信息，保存到notifs中作为结果返回
+    # Get notification info, save to notifs and return as result
     def get_notifications(self):
         """Return the pending "store" notifications"""
         # The background thread could keep on adding notifications. The None
         # mark allows to identify which is the last notification to deliver
-        # 添加一个None，获取到None了，就代表这个队列是空的了，信息已经取完
+        # Add a None, when None is retrieved, it means the queue is empty and all info has been retrieved
         self.notifs.append(None)  # put a mark
         notifs = list()
         while True:
@@ -375,52 +431,52 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         return notifs
 
-    # 获取feed
+    # Get feed
     def getfeed(self):
         return self._feed
 
-    # 缓存数据的量
+    # Amount of cached data
     def qbuffer(self, savemem=0, replaying=False):
         extrasize = self.resampling or replaying
         for line in self.lines:
             line.qbuffer(savemem=savemem, extrasize=extrasize)
 
-    # 开始，重新设置了_barstack，_barstash
+    # Start, reset _barstack and _barstash
     def start(self):
         self._barstack = collections.deque()
         self._barstash = collections.deque()
         self._laststatus = self.CONNECTED
 
-    # 结束
+    # End
     def stop(self):
         pass
 
-    # 克隆数据
+    # Clone data
     def clone(self, **kwargs):
         return DataClone(dataname=self, **kwargs)
 
-    # 复制数据并作为另外一个名字
+    # Copy data and give it a different name
     def copyas(self, _dataname, **kwargs):
         d = DataClone(dataname=self, **kwargs)
         d._dataname = _dataname
         d._name = _dataname
         return d
 
-    # 设置环境
+    # Set environment
     def setenvironment(self, env):
         """Keep a reference to the environment"""
         self._env = env
 
-    # 获取环境
+    # Get environment
     def getenvironment(self):
         return self._env
 
-    # 添加简单的过滤器
+    # Add simple filter
     def addfilter_simple(self, f, *args, **kwargs):
         fp = SimpleFilterWrapper(self, f, *args, **kwargs)
         self._filters.append((fp, fp.args, fp.kwargs))
 
-    # 添加过滤器
+    # Add filter
     def addfilter(self, p, *args, **kwargs):
         if inspect.isclass(p):
             pobj = p(self, *args, **kwargs)
@@ -432,14 +488,14 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         else:
             self._filters.append((p, args, kwargs))
 
-    # 补偿
+    # Compensate
     def compensate(self, other):
         """Call it to let the broker know that actions on this asset will
         compensate open positions in another"""
 
         self._compensate = other
 
-    # 给非datetime的名称设置一个tick_+名称的属性为None，主要是在从高频率数据合成低频率数据的时候使用
+    # Set tick_+name attribute to None for non-datetime names, mainly used when synthesizing low-frequency data from high-frequency data
     def _tick_nullify(self):
         # These are the updating prices in case the new bar is "updated"
         # and the length doesn't change like if a replay is happening or
@@ -451,7 +507,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         self.tick_last = None
 
-    # 如果tick_xxx相关的属性值是None的话，就要考虑使用bar的数据去填充
+    # If tick_xxx related attribute value is None, need to consider using bar data to fill
     def _tick_fill(self, force=False):
         # If nothing filled the tick_xxx attributes, the bar is the tick
         alias0 = self._getlinealias(0)
@@ -462,7 +518,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
             self.tick_last = getattr(self.lines, alias0)[0]
 
-    # 获取未来一个bar的时间
+    # Get time of next bar
     def advance_peek(self):
         try:
             if len(self) < self.buflen():
@@ -480,7 +536,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         except Exception:
             return float("inf")
 
-    # 把数据向前移动size
+    # Move data forward by size
     def advance(self, size=1, datamaster=None, ticks=True):
         if ticks:
             self._tick_nullify()
@@ -506,12 +562,12 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             if ticks:
                 self._tick_fill()
 
-    # 调用next时，在数据上发生的事情
+    # What happens on data when next is called
     def next(self, datamaster=None, ticks=True):
-        # 如果数据长度大于缓存的数据长度，如果是ticks数据的话，调用_tick_nullify生成tick_xxx属性，然后调用load尝试获取下一个bar，如果获取到的ret是空的
-        # 返回ret.如果主数据是None的话，如果是ticks数据的话，需要调用_tick_fill.
-        # 如果自身的长度小于缓存的数据的长度，向前移动
-        # print("AbstractDataBase next 函数正在调用")
+        # If data length is greater than cached data length, if it's ticks data, call _tick_nullify to generate tick_xxx attributes, then call load to try getting next bar; if ret is empty
+        # return ret. If master data is None, if it's ticks data, need to call _tick_fill.
+        # If own length is less than cached data length, move forward
+        # print("AbstractDataBase next function is being called")
         if len(self) >= self.buflen():
             if ticks:
                 self._tick_nullify()
@@ -531,9 +587,9 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 return ret
         else:
             self.advance(ticks=ticks)
-        # 如果主数据不是None，如果当前数据的时间大于了主数据的时间，就需要向后调整；
-        # 如果当前数据时间没有大于主数据的时间，并且数据还是ticks数据的话，就需要对当前数据进行填充数据
-        # 如果主数据是None的话，并且数据还是ticks数据的话，就需要对当天数据进行填充数据
+        # If master data is not None, if current data time is greater than master data time, need to adjust backward;
+        # If current data time is not greater than master data time and data is ticks data, need to fill current data
+        # If master data is None and data is ticks data, need to fill current day data
         # a bar is "loaded" or was preloaded - index has been moved to it
         if datamaster is not None:
             # there is a time reference to check against
@@ -550,19 +606,19 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 self._tick_fill()
 
         # tell the world there is a bar (either the new or the previous
-        # 说明当前有一个bar
+        # Indicate current bar exists
         return True
 
-    # 预先加载数据
+    # Preload data
     def preload(self):
-        # 加载数据
+        # Load data
         while self.load():
             pass
 
         self._last()
         self.home()
 
-    # 使用过滤器的最后一个机会
+    # Last chance to use filters
     def _last(self, datamaster=None):
         # A last chance for filters to deliver something
 
@@ -583,27 +639,27 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         return bool(ret)
 
-    # 判断是否需要进行检查
+    # Check if verification is needed
     def _check(self, forcedata=None):
         for ff, fargs, fkwargs in self._filters:
             if not hasattr(ff, "check"):
                 continue
             ff.check(self, _forcedata=forcedata, *fargs, **fkwargs)
 
-    # 加载数据
+    # Load data
     def load(self):
         while True:
             # move a data pointer forward for new bar
-            # 把数据指针向前移动一位
+            # Move data pointer forward by one
             self.forward()
 
-            # 如果已经从self._barstack中获取了数据，保存到了line中，就直接返回True
+            # If data has been retrieved from self._barstack and saved to line, directly return True
             if self._fromstack():  # bar is available
                 return True
-            # 如果从self._barstash中获取不了数据，那么，就运行下面的代码
+            # If data cannot be retrieved from self._barstash, run the following code
             if not self._fromstack(stash=True):
-                # _load()返回的是False,下面的代码必然运行，但是似乎不用调用这个函数，也不用对下面进行判断，这两个语句似乎是多余的
-                ###  暂时不能100%确定，后续注释完成代码之后再回来看这个    #fix
+                # _load() returns False, following code must run, but seems unnecessary to call this function or check following result, these two statements seem redundant
+                ###  Cannot be 100% certain for now, will review after code comments are completed    #fix
                 _loadret = self._load()
                 if not _loadret:  # no bar use force to make sure in exactbars
                     # the pointer is undone this covers especially (but not
@@ -617,13 +673,13 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     # done. False means game over
                     return _loadret
 
-            # 如果既没有从self._barstack中获取到bar，但是在self._barstash中获取到了bar,就需要对bar进行处理
+            # If bar was not retrieved from self._barstack but bar was retrieved from self._barstash, need to process bar
             # Get a reference to current loaded time
-            # 获取当前的时间
+            # Get current time
             dt = self.lines.datetime[0]
 
             # A bar has been loaded, adapt the time
-            # 如果需要对输入的时间做时区的处理，那么就把数字转化成时间，然后把时间进行本地化，然后把时间转化成数字，更新当前的时间
+            # If timezone processing is needed for input time, convert number to time, localize time, convert time to number, update current time
             if self._tzinput:
                 # Input has been converted at face value, but it's not UTC in
                 # the input stream
@@ -633,49 +689,49 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                 self.lines.datetime[0] = dt = date2num(dtime)  # keep UTC val
 
             # Check standard date from/to filters
-            # 如果当前的时间小于开始的时间，向后退丢掉这个bar，然后继续
+            # If current time is less than start time, move backward to discard bar and continue
             if dt < self.fromdate:
                 # discard loaded bar and carry on
                 self.backwards()
                 continue
-            # 如果时间大于结束时间，向后退并撤销数据指针，并break
+            # If time is greater than end time, move backward and undo data pointer, then break
             if dt > self.todate:
                 # discard loaded bar and break out
                 self.backwards(force=True)
                 break
 
             # Pass through filters
-            # 遍历每个过滤器
+            # Iterate through each filter
             retff = False
             for ff, fargs, fkwargs in self._filters:
                 # previous filter may have put things onto the stack
-                # 如果self._barstack不是空的话
+                # If self._barstack is not empty
                 if self._barstack:
-                    # 进行self._barstack个长度的_fromstack函数调用，过滤器ff调用
+                    # Perform self._barstack number of _fromstack function calls, call filter ff
                     for i in range(len(self._barstack)):
                         self._fromstack(forward=True)
                         retff = ff(self, *fargs, **fkwargs)
-                # 如果self._barstack是空的话,调用一次过滤器
+                # If self._barstack is empty, call filter once
                 else:
                     retff = ff(self, *fargs, **fkwargs)
-                # 如果retff是真的话，跳出过滤器的循环
+                # If retff is True, break out of filter loop
                 if retff:  # bar removed from systemn
                     break  # out of the inner loop
-            # 如果是真的话，继续
+            # If True, continue
             if retff:  # bar removed from system - loop to get new bar
                 continue  # in the greater loop
 
             # Checks let the bar through ... notify it
             return True
-        # 结束循环，返回False,没有更多的bar或者到结束日期了
+        # End loop, return False, no more bars or reached end date
         # Out of the loop ... no more bars or past todate
         return False
 
-    # 返回False的一个函数
+    # Function that returns False
     def _load(self):
         return False
 
-    # 把bar的数据添加到self._barstack或者self._barstash中
+    # Add bar data to self._barstack or self._barstash
     def _add2stack(self, bar, stash=False):
         """Saves given bar (list of values) to the stack for later retrieval"""
         if not stash:
@@ -683,7 +739,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         else:
             self._barstash.append(bar)
 
-    # 获取bar的数据，保存到self._barstack或者self._barstash，并且提供了参数，可以删除bar
+    # Get bar data and save to self._barstack or self._barstash, provides parameter to delete bar
     def _save2stack(self, erase=False, force=False, stash=False):
         """Saves current bar to the bar stack for later retrieval
 
@@ -699,7 +755,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         if erase:  # remove bar if requested
             self.backwards(force=force)
 
-    # 这个注释有问题，这个函数是用于把bar的数据更新到具体的line上
+    # This comment has issues, this function is used to update bar data to specific lines
     def _updatebar(self, bar, forward=False, ago=0):
         """Load a value from the stack onto the lines to form the new bar
 
@@ -711,20 +767,20 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         for line, val in zip(self.itersize(), bar):
             line[0 + ago] = val
 
-    # 从self._barstack或者self._barstash获取数据，然后保存到line中，如果成功，就返回True，如果不成功，返回False
+    # Get data from self._barstack or self._barstash, then save to line; if successful return True, if not return False
     def _fromstack(self, forward=False, stash=False):
         """Load a value from the stack onto the lines to form the new bar
 
         Returns True if values are present, False otherwise
         """
-        # 当stash是False的时候，coll等于self._barstack,否则就是self._barstash
+        # When stash is False, coll equals self._barstack, otherwise it's self._barstash
         coll = self._barstack if not stash else self._barstash
-        # 如果coll是有数据的
+        # If coll has data
         if coll:
-            # 如果forward是True的话，就调用forward
+            # If forward is True, call forward
             if forward:
                 self.forward()
-            # 给line增加数据
+            # Add data to line
             for line, val in zip(self.itersize(), coll.popleft()):
                 line[0] = val
 
@@ -732,40 +788,40 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
         return False
 
-    #  增加抽样过滤器
+    # Add resample filter
     def resample(self, **kwargs):
         self.addfilter(Resampler, **kwargs)
 
-    # 增加重播过滤器
+    # Add replay filter
     def replay(self, **kwargs):
         self.addfilter(Replayer, **kwargs)
 
     @classmethod
     def _gettuple(cls):
-        """为了兼容性，提供_gettuple方法"""
+        """For compatibility, provide _gettuple method"""
         return cls._params_tuple if hasattr(cls, "_params_tuple") else cls.params
 
 
-# DataBase类，直接继承的是抽象的DataBase
+# DataBase class, directly inherits from abstract DataBase
 class DataBase(AbstractDataBase):
     pass
 
 
-# 重构: 移除MetaParams元类，使用普通的参数处理
+# Refactor: Remove MetaParams metaclass, use normal parameter processing
 class FeedBase:
-    # 参数处理，原来通过元类自动合并参数，现在手动处理
+    # Parameter processing, originally merged parameters automatically via metaclass, now manual processing
     def __init__(self, **kwargs):
-        # 手动设置参数，替代原来的元类功能
+        # Manually set parameters, replacing original metaclass functionality
         self.p = self._create_params(**kwargs)
         self.datas = list()
 
     def _create_params(self, **kwargs):
-        """手动创建参数对象，替代元类的参数处理"""
+        """Manually create parameter object, replacing metaclass parameter processing"""
 
-        # 创建一个简单的参数对象
+        # Create a simple parameter object
         class Params:
             def _getitems(self):
-                """模拟原来的_getitems方法"""
+                """Simulate original _getitems method"""
                 # OPTIMIZED: Use __dict__ instead of dir() for better performance
                 items = []
                 for attr_name, value in self.__dict__.items():
@@ -775,7 +831,7 @@ class FeedBase:
 
         params_obj = Params()
 
-        # 从DataBase获取默认参数
+        # Get default parameters from DataBase
         if hasattr(DataBase, "params"):
             base_params = DataBase.params
             if isinstance(base_params, (tuple, list)):
@@ -784,26 +840,26 @@ class FeedBase:
                         param_name, param_default = param_tuple[0], param_tuple[1]
                         setattr(params_obj, param_name, kwargs.get(param_name, param_default))
 
-        # 设置其他传入的参数
+        # Set other passed parameters
         for key, value in kwargs.items():
             if not hasattr(params_obj, key):
                 setattr(params_obj, key, value)
 
         return params_obj
 
-    # 数据开始
+    # Data start
     def start(self):
         for data in self.datas:
             data.start()
 
-    # 数据结束
+    # Data end
     def stop(self):
         for data in self.datas:
             data.stop()
 
-    # 根据dataname获取数据，并把数据添加到self.datas中
+    # Get data based on dataname and add data to self.datas
     def getdata(self, dataname, name=None, **kwargs):
-        # 合并参数
+        # Merge parameters
         final_kwargs = {}
         if hasattr(self.p, "_getitems"):
             for pname, pvalue in self.p._getitems():
@@ -820,7 +876,7 @@ class FeedBase:
         return data
 
     def _getdata(self, dataname, **kwargs):
-        # 设置关键字参数
+        # Set keyword arguments
         final_kwargs = {}
         if hasattr(self.p, "_getitems"):
             for pname, pvalue in self.p._getitems():
@@ -833,7 +889,7 @@ class FeedBase:
         return self.DataCls(**final_kwargs)
 
 
-# 重构: 移除MetaCSVDataBase元类，使用普通的初始化方法
+# Refactor: Remove MetaCSVDataBase metaclass, use normal initialization method
 class CSVDataBase(DataBase):
     """
     Base class for classes implementing CSV DataFeeds
@@ -849,31 +905,31 @@ class CSVDataBase(DataBase):
     of ``_load`` which has been overriden by this base class
     """
 
-    # 数据默认是None
+    # Data defaults to None
     f = None
-    # 设置具体的参数，合并父类参数 - 使用_params_tuple保存原始定义
+    # Set specific parameters, merge parent class parameters - use _params_tuple to save original definition
     _params_tuple = (
         ("headers", True),
         ("separator", ","),
     )
 
-    # 保留原来的params定义以兼容元类系统
+    # Keep original params definition for compatibility with metaclass system
     params = _params_tuple
 
-    # 获取数据并简单处理
+    # Get data and simple processing
     def __init__(self, *args, **kwargs):
-        # 执行原来元类MetaCSVDataBase.dopostinit的功能
+        # Execute original metaclass MetaCSVDataBase.dopostinit functionality
         self._csv_postinit(**kwargs)
 
-        # 调用父类初始化
+        # Call parent class initialization
         super().__init__(*args, **kwargs)
 
         self.separator = None
 
     def _csv_postinit(self, **kwargs):
-        """替代原来的MetaCSVDataBase.dopostinit"""
-        # 如果参数中没有名字并且_name属性是空的话，从数据文件的名称得到一个具体的名字
-        # 使用现有的参数系统
+        """Replace original MetaCSVDataBase.dopostinit"""
+        # If parameter has no name and _name attribute is empty, get specific name from data file name
+        # Use existing parameter system
         dataname = getattr(self, "p", None) and getattr(self.p, "dataname", None)
         if not dataname:
             dataname = kwargs.get("dataname", "")
@@ -887,46 +943,46 @@ class CSVDataBase(DataBase):
 
     def start(self):
         super().start()
-        # 如果数据是None的话
+        # If data is None
         if self.f is None:
-            # 如果参数中dataname具有readline属性，那么就说明dataname是一个数据，直接f等于参数中的数据
+            # If dataname parameter has readline attribute, it means dataname is a data source, directly set f to data in parameter
             if hasattr(self.p.dataname, "readline"):
                 self.f = self.p.dataname
-            # 如果没有readline属性的话，说明dataname是一个地址，那么就根据这个地址打开文件，获取数据
+            # If no readline attribute, it means dataname is a path, open file based on path to get data
             else:
                 # Let an exception propagate to let the caller know
                 self.f = open(self.p.dataname)
-        # 如果有headers的话，就读取一行，跳过headers
+        # If there are headers, read a line and skip headers
         if self.p.headers:
             self.f.readline()  # skip the headers
-        # 每一行数据的分隔符
+        # Separator for each line of data
         self.separator = self.p.separator
 
-    # 停止
+    # Stop
     def stop(self):
         super().stop()
-        # 如果数据文件不是None，就关闭文件，并设置成None
+        # If data file is not None, close file and set to None
         if self.f is not None:
             self.f.close()
             self.f = None
 
-    # 提前load数据
+    # Preload data
     def preload(self):
-        # load数据
+        # Load data
         while self.load():
             pass
-        # 结束load之后的设置
+        # Settings after load is finished
         self._last()
         self.home()
 
         # preloaded - no need to keep the object around - breaks multip in 3.x
-        # 关闭数据文件，并设置成None
+        # Close data file and set to None
         self.f.close()
         self.f = None
 
-    # 加载一行数据
+    # Load a line of data
     def _load(self):
-        # 如果数据文件是None，返回False,如果读取不到line了，返回False,对line进行处理，调用_loadline进行加载
+        # If data file is None, return False; if line cannot be read, return False; process line, call _loadline to load
         if self.f is None:
             return False
 
@@ -940,9 +996,9 @@ class CSVDataBase(DataBase):
         linetokens = line.split(self.separator)
         return self._loadline(linetokens)
 
-    # 获取下一行数据
+    # Get next line of data
     def _getnextline(self):
-        # 这个函数和上一个很类似，只是上一个函数获取了linetokens多了一个_loadline的调用
+        # This function is very similar to previous one, just previous one gets linetokens with additional _loadline call
         if self.f is None:
             return None
 
@@ -958,10 +1014,10 @@ class CSVDataBase(DataBase):
 
 
 class CSVFeedBase(FeedBase):
-    # 设置参数
+    # Set parameters
     def __init__(self, basepath="", **kwargs):
         self.basepath = basepath
-        # 合并CSVDataBase的参数
+        # Merge CSVDataBase parameters
         csv_params = {}
         if hasattr(CSVDataBase, "params"):
             csv_base_params = CSVDataBase.params
@@ -974,7 +1030,7 @@ class CSVFeedBase(FeedBase):
         kwargs.update(csv_params)
         super().__init__(**kwargs)
 
-    # 获取数据
+    # Get data
     def _getdata(self, dataname, **kwargs):
         final_kwargs = {}
         if hasattr(self.p, "_getitems"):
@@ -987,13 +1043,13 @@ class CSVFeedBase(FeedBase):
         return self.DataCls(dataname=self.basepath + dataname, **final_kwargs)
 
 
-# 数据克隆
+# Data clone
 class DataClone(AbstractDataBase):
-    # _clone属性设置为True
+    # Set _clone attribute to True
     _clone = True
 
-    # 初始化，data等于参数中的dataname的值,_datename等于data的_dataname属性值
-    # 然后copy日期、时间、交易间隔、compression的参数
+    # Initialize, data equals dataname parameter value, _datename equals data's _dataname attribute value
+    # Then copy date, time, trading interval, compression parameters
     def __init__(self, *args, **kwargs):
         # CRITICAL FIX: Initialize these attributes BEFORE calling super().__init__
         # to ensure they exist when parent class methods access them
@@ -1053,13 +1109,13 @@ class DataClone(AbstractDataBase):
         if hasattr(self.data, "sessionend"):
             self.sessionend = self.data.sessionend
 
-    # 开始
+    # Start
     def start(self):
         super().start()
         self._dlen = 0
         self._preloading = False
 
-    # preload数据
+    # Preload data
     def preload(self):
         self._preloading = True
         super().preload()
@@ -1067,43 +1123,43 @@ class DataClone(AbstractDataBase):
             self.data.home()  # preloading data was pushed forward
         self._preloading = False
 
-    # load数据
+    # Load data
     def _load(self):
         # assumption: the data is in the system
         # copy the lines
-        # 如果准备preload的话，运行下面的代码，一点点copy具体的数据
+        # If preparing to preload, run following code to copy specific data bit by bit
         if self._preloading:
             # data is preloaded, we are preloading too, can move
             # forward until have full bar or a data source is exhausted
-            # 数据向前
+            # Move data forward
             if hasattr(self.data, "advance"):
                 self.data.advance()
-            # 如果当前的数据大于了数据的缓存的长度，返回False
+            # If current data is greater than data buffer length, return False
             if len(self.data) > self.data.buflen():
                 return False
-            # 如果当前的数据长度没有大于缓存的数据长度，那么就设置line的数据为dline的数据
+            # If current data length is not greater than buffered data length, set line data to dline data
             for line, dline in zip(self.lines, self.data.lines):
                 line[0] = dline[0]
-            # 设置成功之后返回True
+            # Return True after successful setting
             return True
 
         # Not preloading
-        # 这句语法不怎么高效，换成len(self.data)<=self._dlen，可能可以少做一个判断
+        # This syntax is not very efficient, changing to len(self.data)<=self._dlen might save one comparison
         if len(self.data) <= self._dlen:
-            # if not (len(self.data) > self._dlen): # backtrader自带
+            # if not (len(self.data) > self._dlen): # backtrader built-in
             # Data not beyond last seen bar
             return False
 
-        # 数据长度加1
+        # Increase data length by 1
         self._dlen += 1
 
-        # 设置line的数据为dline的数据
+        # Set line data to dline data
         for line, dline in zip(self.lines, self.data.lines):
             line[0] = dline[0]
 
         return True
 
-    # 向前移动size的量
+    # Move forward by size
     def advance(self, size=1, datamaster=None, ticks=True):
         self._dlen += size
         super().advance(size, datamaster, ticks=ticks)
