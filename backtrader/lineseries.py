@@ -1,14 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-"""
+"""LineSeries Module - Multi-line time-series data management.
 
-Module:: lineroot
+This module defines the LineSeries class and related descriptors for
+classes that hold multiple lines at once. It provides the infrastructure
+for managing collections of line objects with named access.
 
-Defines LineSeries and Descriptors inside it for classes that hold multiple
-lines at once.
+Key Classes:
+    LineSeries: Base class for objects with multiple lines.
+    Lines: Container for multiple line objects with named access.
+    LinesManager: Manages line operations and access.
+    LineAlias: Descriptor for named line access.
+    MinimalData/MinimalOwner/MinimalClock: Minimal implementations for edge cases.
 
-Module author:: Daniel Rodriguez
-
+Example:
+    Accessing lines by name:
+    >>> obj.lines.close  # Access the 'close' line
+    >>> obj.lines[0]  # Access the first line
 """
 
 import sys
@@ -919,6 +927,23 @@ class LineSeriesMixin:
 
 
 class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
+    """Base class for objects with multiple time-series lines.
+
+    LineSeries provides the foundation for classes that manage multiple
+    line objects, such as indicators with multiple output lines. It handles
+    line creation, access, and management.
+
+    Attributes:
+        lines: Container object holding all line instances.
+        plotinfo: Plotting configuration object.
+
+    Example:
+        Accessing lines by name or index:
+        >>> obj = LineSeries()
+        >>> obj.lines.close  # Named access
+        >>> obj.lines[0]  # Index access
+    """
+
     def __new__(cls, *args, **kwargs):
         """Instantiate lines class when creating LineSeries instances.
         
