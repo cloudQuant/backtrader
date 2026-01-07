@@ -1,4 +1,21 @@
 #!/usr/bin/env python
+"""DataSeries Module - Time-series data structures for financial data.
+
+This module provides the DataSeries class and related utilities for
+handling time-series financial data. It defines common data line types
+(OHLCV) and timeframe specifications.
+
+Key Classes:
+    TimeFrame: Enumeration of time periods (Minutes, Days, Weeks, etc.).
+    DataSeries: Base class for financial data feeds with OHLCV lines.
+    OHLC: DataSeries with Open, High, Low, Close lines.
+    OHLCDateTime: OHLC with datetime line.
+
+Example:
+    Getting timeframe name:
+    >>> TimeFrame.getname(TimeFrame.Days)  # Returns 'Day'
+    >>> TimeFrame.getname(TimeFrame.Days, 5)  # Returns 'Days'
+"""
 import datetime as _datetime
 import inspect
 
@@ -8,6 +25,21 @@ from .utils.py3 import range
 
 
 class TimeFrame:
+    """Enumeration of time periods for financial data.
+
+    Defines constants for different time periods used in financial
+    data: Ticks, MicroSeconds, Seconds, Minutes, Days, Weeks, Months,
+    Years, and NoTimeFrame.
+
+    Class Methods:
+        getname(tframe, compression): Get name for timeframe.
+        TFrame(name): Get timeframe constant from name.
+        TName(tframe): Get name string from timeframe constant.
+
+    Attributes:
+        Ticks, MicroSeconds, Seconds, Minutes, Days, Weeks, Months, Years, NoTimeFrame: Timeframe constants.
+    """
+
     # Add 9 attributes to TimeFrame class for distinguishing trading periods
     (Ticks, MicroSeconds, Seconds, Minutes, Days, Weeks, Months, Years, NoTimeFrame) = range(1, 10)
     # Add a names attribute
@@ -55,6 +87,30 @@ class TimeFrame:
 
 
 class DataSeries(LineSeries):
+    """Base class for financial time-series data feeds.
+
+    DataSeries extends LineSeries to provide the standard OHLCV (Open,
+    High, Low, Close, Volume, OpenInterest) data lines plus DateTime.
+
+    Attributes:
+        _name: Name identifier for the data series.
+        _compression: Compression factor for the timeframe.
+        _timeframe: TimeFrame period (Days, Minutes, etc.).
+
+    Lines:
+        DateTime: Timestamp of the bar.
+        Open: Opening price.
+        High: Highest price.
+        Low: Lowest price.
+        Close: Closing price.
+        Volume: Trading volume.
+        OpenInterest: Open interest (for derivatives).
+
+    Example:
+        >>> data = DataSeries()
+        >>> print(data.close[0])  # Current close price
+    """
+
     # Set plotinfo related values
     plotinfo = dict(plot=True, plotind=True, plotylimited=True)
 
