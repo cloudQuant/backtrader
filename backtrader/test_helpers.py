@@ -1,5 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Test Helpers Module - Utility functions for testing.
+
+This module provides helper functions for testing backtrader,
+including registering and retrieving expected test values.
+
+Functions:
+    register_test_values: Register expected values for a test.
+    get_test_value: Get expected value for a test.
+    is_test_mode: Check if running in test context.
+
+Example:
+    Registering test values:
+    >>> from backtrader.test_helpers import register_test_values
+    >>> register_test_values('mytest', values=[100.0], cash=[10000.0])
+"""
 import os
 import sys
 import traceback
@@ -9,7 +24,13 @@ _TEST_VALUES = {}
 
 
 def register_test_values(test_name, values=None, cash=None):
-    """Register expected value and cash values for a specific test"""
+    """Register expected value and cash values for a specific test.
+
+    Args:
+        test_name: Name of the test.
+        values: Expected portfolio values.
+        cash: Expected cash values.
+    """
     _TEST_VALUES[test_name] = {"values": values, "cash": cash}
 
 
