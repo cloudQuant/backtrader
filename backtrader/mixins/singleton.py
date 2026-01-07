@@ -1,5 +1,23 @@
 #!/usr/bin/env python
+"""Singleton Mixin Module - Singleton pattern implementation.
 
+This module provides the SingletonMixin class for implementing the
+singleton pattern without using metaclasses. This is part of the
+metaprogramming removal effort in backtrader.
+
+Classes:
+    SingletonMixin: Mixin class that implements the singleton pattern.
+    ParameterizedSingletonMixin: Singleton mixin with parameter support.
+    StoreBase: Base class for store singletons.
+
+Example:
+    Creating a singleton class:
+    >>> class MyClass(SingletonMixin):
+    ...     pass
+    >>> a = MyClass()
+    >>> b = MyClass()
+    >>> assert a is b  # True - same instance
+"""
 import threading
 import weakref
 from typing import Any
