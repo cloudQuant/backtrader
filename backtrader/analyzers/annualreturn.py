@@ -1,5 +1,18 @@
 #!/usr/bin/env python
+"""Annual Return Analyzer Module - Annual return calculation.
 
+This module provides the AnnualReturn analyzer for calculating
+year-by-year returns of a strategy.
+
+Classes:
+    AnnualReturn: Analyzer that calculates annual returns.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annret')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.annret.get_analysis())
+"""
 from collections import OrderedDict
 
 from ..analyzer import Analyzer

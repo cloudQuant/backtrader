@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""SQN Analyzer Module - System Quality Number calculation.
+
+This module provides the SQN (System Quality Number) analyzer, defined
+by Van K. Tharp to categorize trading systems.
+
+Classes:
+    SQN: Analyzer that calculates System Quality Number.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.sqn.get_analysis())
+"""
 
 import math
 
