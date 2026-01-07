@@ -1,3 +1,21 @@
+"""CTP Broker Module - CTP futures broker implementation.
+
+This module provides the CTPBroker for trading through CTP (China
+Futures) for futures trading.
+
+Classes:
+    CTPBroker: Broker implementation for CTP futures trading.
+
+Functions:
+    _register_ctp_broker_class: Registers broker with store.
+
+Example:
+    >>> store = bt.stores.CTPStore(
+    ...     userid='your_id',
+    ...     password='your_password'
+    ... )
+    >>> cerebro.setbroker(store.getbroker())
+"""
 import collections
 
 from ..broker import BrokerBase

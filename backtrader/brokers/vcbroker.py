@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""VC Chart Broker Module - VisualChart broker implementation.
+
+This module provides the VCBroker for trading through VisualChart
+platform.
+
+Classes:
+    VCCommInfo: Commission info for VisualChart.
+    VCBroker: Broker implementation for VisualChart trading.
+
+Example:
+    >>> store = bt.stores.VCStore()
+    >>> cerebro.setbroker(store.getbroker())
+"""
 
 import collections
 import threading
