@@ -1,13 +1,46 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Observer Module - Strategy monitoring and data collection.
+
+This module provides the Observer base class for monitoring strategy
+execution and collecting data during backtesting. Observers track metrics
+like cash, value, drawdown, and trade statistics.
+
+Observers are similar to indicators but are used primarily for monitoring
+and recording strategy state rather than generating trading signals.
+
+Key Classes:
+    Observer: Base class for all observers.
+
+Observers receive the same notifications as strategies:
+    - prenext/nextstart/next: Called during each bar
+    - start/stop: Called at the beginning and end of backtesting
+
+Example:
+    Creating a custom observer:
+    >>> class MyObserver(Observer):
+    ...     lines = ('custom_metric',)
+    ...
+    ...     def next(self):
+    ...         self.lines.custom_metric[0] = self.data.close[0] * 2
+"""
 from .lineiterator import LineIterator, ObserverBase, StrategyBase
 
 
 # Observer class - refactored to not use metaclass
 class Observer(ObserverBase):
-    """
-    Observer base class that has been refactored to remove metaclass usage
-    while maintaining the same functionality.
+    """Base class for monitoring strategy execution.
+
+    Observers track and record strategy state during backtesting.
+    They can track metrics like cash, value, drawdown, positions, etc.
+
+    Attributes:
+        csv: Whether to save observer data to CSV (default: True).
+        plotinfo: Plotting configuration dictionary.
+
+    Example:
+        >>> observer = MyObserver()
+        >>> cerebro.addobserver(observer)
     """
 
     # Set _stclock to False
