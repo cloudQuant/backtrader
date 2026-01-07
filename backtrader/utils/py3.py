@@ -1,57 +1,72 @@
 #!/usr/bin/env python
+"""Python 2/3 Compatibility Module.
+
+This module provides compatibility shims to support both Python 2 and Python 3.
+It defines common types and functions that work across Python versions.
+
+Exports:
+    PY2: Boolean indicating if running on Python 2.
+    string_types: Tuple of string types.
+    integer_types: Tuple of integer types.
+    range: Python 3 style range function.
+    zip: Python 3 style zip function.
+    map: Python 3 style map function.
+    filter: Python 3 style filter function.
+    MAXINT: Maximum integer value.
+"""
 import sys
 
 PY2 = (
     sys.version_info.major == 2
-)  # Get current Python version, check if it's python2, if python2, return value is True, otherwise False
+)  # Get current Python version, check if it's python2
 
 # If python2
 if PY2:
-    # # 尝试用于import _winreg模块，如果可以调用，就证明这个系统是windows系统，可以用于windows注册表相关的操作；
-    # # 如果调用出现了错误，就说明系统不是windows系统，winreg设置成None
+    # # Try to import _winreg module, if callable, it proves this system is Windows, can be used for Windows registry related operations;
+    # # If import raises an error, it means the system is not Windows, set winreg to None
     # try:
     #     import _winreg as winreg
     # except ImportError:
     #     winreg = None
-    # # 系统允许的最大整数
+    # # Maximum integer allowed by the system
     # MAXINT = sys.maxint
-    # # 系统允许的最小整数
+    # # Minimum integer allowed by the system
     # MININT = -sys.maxint - 1
-    # # 系统允许的最大浮点数
+    # # Maximum float allowed by the system
     # MAXFLOAT = sys.float_info.max
-    # # 系统允许的最小浮点数
+    # # Minimum float allowed by the system
     # MINFLOAT = sys.float_info.min
-    # # 字符串类型
+    # # String types
     # string_types = str, unicode
-    # # 整数类型
+    # # Integer types
     # integer_types = int, long
-    # # 过滤函数filter
+    # # Filter function
     # filter = itertools.ifilter
-    # # 映射函数map
+    # # Map function
     # map = itertools.imap
-    # # 创建整数迭代器函数range
+    # # Create integer iterator function range
     # range = xrange
-    # # 把元素成对打包成元组的函数zip
+    # # Function to pair elements into tuples
     # zip = itertools.izip
-    # # 整数
+    # # Long integer
     # long = long
-    # # 对比函数
+    # # Comparison function
     # cmp = cmp
-    # # 生成bytes
+    # # Generate bytes
     # bytes = bytes
     # bstr = bytes
-    # # 字符串缓存
+    # # String buffer
     # from io import StringIO
-    # # 爬虫模块
+    # # Web crawler module
     # from urllib2 import urlopen, ProxyHandler, build_opener, install_opener
     # from urllib import quote as urlquote
-    # # 字典迭代
+    # # Dictionary iteration
     # def iterkeys(d): return d.iterkeys()
     #
     # def itervalues(d): return d.itervalues()
     #
     # def iteritems(d): return d.iteritems()
-    # # 字典值
+    # # Dictionary values
     # def keys(d): return d.keys()
     #
     # def values(d): return d.values()
@@ -141,7 +156,7 @@ def with_metaclass(meta, *bases):
     # This requires a bit of explanation: the basic idea is to make a dummy
     # metaclass for one level of class instantiation that replaces itself with
     # the actual metaclass.
-    # This function creates a base class with a metaclass, main purpose is to compatible with python2 and python3 syntax, now there's a newer solution is to use decorator @six.add_metaclass(Meta)
+    # This function creates a base class with a metaclass, main purpose is to be compatible with python2 and python3 syntax, now there's a newer solution is to use decorator @six.add_metaclass(Meta)
     # References: https://qa.1r1g.com/sf/ask/1295967501/
     # https://zhuanlan.zhihu.com/p/354828950
     # https://www.jianshu.com/p/224ffcb8e73e
