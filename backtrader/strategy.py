@@ -1453,152 +1453,54 @@ class Strategy(StrategyBase):
         transmit=True,
         **kwargs,
     ):
-        """
-          Create a buy (long) order and send it to the broker
+        """Create a buy (long) order and send it to the broker.
 
-          - ``data`` (default: ``None``)
-
-            For which data the order has to be created. If ``None`` then the
-            first data in the system, ``self.datas[0] or self.data0`` (aka
-            ``self.data``) will be used
-
-          - ``size`` (default: ``None``)
-
-            Size to use (positive) of units of data to use for the order.
-
-            If ``None`` the ``sizer`` instance retrieved via ``getsizer`` will
-            be used to determine the size.
-
-          - ``price`` (default: ``None``)
-
-            Price to use (live brokers may place restrictions on the actual
-            format if it does not comply to minimum tick size requirements)
-
-            ``None`` is valid for ``Market`` and ``Close`` orders (the market
-            determines the price)
-
-            For ``Limit``, ``Stop`` and ``StopLimit`` orders this value
-            determines the trigger point (in the case of ``Limit`` the trigger
-            is obviously at which price the order should be matched)
-
-          - ``plimit`` (default: ``None``)
-
-            Only applicable to ``StopLimit`` orders. This is the price at which
-            to set the implicit *Limit* order, once the *Stop* has been
-            triggered (for which ``price`` has been used)
-
-          - ``trailamount`` (default: ``None``)
-
-            If the order type is StopTrail or StopTrailLimit, this is an
-            absolute amount which determines the distance to the price (below
-            for a Sell order and above for a buy order) to keep the trailing
-            stop
-
-          - ``trailpercent`` (default: ``None``)
-
-            If the order type is StopTrail or StopTrailLimit, this is a
-            percentage amount which determines the distance to the price (below
-            for a Sell order and above for a buy order) to keep the trailing
-            stop (if ``trailamount`` is also specified it will be used)
-
-          - ``exectype`` (default: ``None``)
-
-            Possible values:
-
-            - ``Order.Market`` or ``None``. A market order will be executed
-              with the next available price. In backtesting it will be the
-              opening price of the next bar
-
-            - ``Order.Limit``. An order which can only be executed at the given
-              ``price`` or better
-
-            - ``Order.Stop``. An order which is triggered at ``price`` and
-              executed like an ``Order.Market`` order
-
-            - ``Order.StopLimit``. An order which is triggered at ``price`` and
-              executed as an implicit *Limit* order with price given by
-              ``pricelimit``
-
-            - ``Order.Close``. An order which can only be executed with the
-              closing price of the session (usually during a closing auction)
-
-            - ``Order.StopTrail``. An order which is triggered at ``price``
-              minus ``trailamount`` (or ``trailpercent``) and which is updated
-              if the price moves away from the stop
-
-            - ``Order.StopTrailLimit``. An order which is triggered at
-              ``price`` minus ``trailamount`` (or ``trailpercent``) and which
-              is updated if the price moves away from the stop
-
-          - ``valid`` (default: ``None``)
-
-            Possible values:
-
-              - ``None``: this generates an order that will not expire (aka
-                *Good till cancel*) and remain in the market until matched or
-                canceled. In reality brokers tend to impose a temporal limit,
-                but this is usually so far away in time to consider it as not
-                expiring
-
-              - ``datetime.datetime`` or ``datetime.date`` instance: the date
-                will be used to generate an order valid until the given
-                datetime (aka *good till date*)
-
-              - ``Order.DAY`` or ``0`` or ``timedelta()``: a day valid until
-                the *End of the Session* (aka *day* order) will be generated
-
-              - ``numeric value``: This is assumed to be a value corresponding
-                to a datetime in ``matplotlib`` coding (the one used by
-                ``backtrader``) and will used to generate an order valid until
-                that time (*good till date*)
-
-          - ``tradeid`` (default: ``0``)
-
-            This is an internal value applied by ``backtrader`` to keep track
-            of overlapping trades on the same asset. This ``tradeid`` is sent
-            back to the *strategy* when notifying changes to the status of the
-            orders.
-
-          - ``oco`` (default: ``None``)
-
-            Another ``order`` instance. This order will become part of an OCO
-            (Order Cancel Others) group. The execution of one of the orders,
-            immediately cancels all others in the same group
-
-          - ``parent`` (default: ``None``)
-
-            Controls the relationship of a group of orders, for example a buy
-            which is bracketed by a high-side limit sell and a low side stop
-            sell. The high/low side orders remain inactive until the parent
-            order has been either executed (they become active) or is
-            canceled/expires (the children are also canceled) bracket orders
-            have the same size
-
-          - ``transmit`` (default: ``True``)
-
-            Indicates if the order has to be **transmitted**, ie: not only
-            placed in the broker but also issued. This is meant for example to
-            control bracket orders, in which one disables the transmission for
-            the parent and 1st set of children and activates it for the last
-            children, which triggers the full placement of all bracket orders.
-
-          - ``**kwargs``: additional broker implementations may support extra
-            parameters. ``backtrader`` will pass the *kwargs* down to the
-            created order objects
-
-            Example: if the 4 order execution types directly supported by
-            ``backtrader`` are not enough, in the case of for example
-            *Interactive Brokers* the following could be passed as *kwargs*::
-
-              orderType='LIT', lmtPrice=10.0, auxPrice=9.8
-
-            This would override the settings created by ``backtrader`` and
-            generate a ``LIMIT IF TOUCHED`` order with a *touched* price of 9.8
-            and a *limit* price of 10.0.
+        Args:
+            data: The data feed for the order. If None, uses the first data feed
+                (self.data).
+            size: Size to use (positive) for the order. If None, the sizer
+                instance retrieved via getsizer will determine the size.
+            price: Price to use. None is valid for Market and Close orders.
+                For Limit, Stop and StopLimit orders this determines the
+                trigger point.
+            plimit: Only applicable to StopLimit orders. This is the price at
+                which to set the implicit Limit order, once the Stop has been
+                triggered.
+            trailamount: For StopTrail/StopTrailLimit orders, an absolute amount
+                which determines the distance to the price to keep the trailing
+                stop.
+            trailpercent: For StopTrail/StopTrailLimit orders, a percentage
+                amount which determines the distance to the price to keep the
+                trailing stop.
+            exectype: Execution type. Possible values:
+                - Order.Market or None: Market order
+                - Order.Limit: Limit order
+                - Order.Stop: Stop order
+                - Order.StopLimit: Stop-limit order
+                - Order.Close: Close order
+                - Order.StopTrail: Stop-trail order
+                - Order.StopTrailLimit: Stop-trail-limit order
+            valid: Order validity. Possible values:
+                - None: Good till cancel
+                - datetime.datetime/date: Good till date
+                - Order.DAY: Day order
+            tradeid: Internal value to track overlapping trades.
+            oco: Another order instance for OCO (Order Cancel Others) group.
+            parent: Controls the relationship of a group of orders (e.g., bracket
+                orders).
+            transmit: If True, transmit the order to the broker. Used for
+                controlling bracket orders.
+            **kwargs: Additional broker-specific parameters.
 
         Returns:
-          - the submitted order
+            The submitted order, or None if size is 0.
 
+        Example:
+            Create a market buy order:
+            >>> order = self.buy()
+
+            Create a limit buy order:
+            >>> order = self.buy(price=100.0, exectype=Order.Limit)
         """
         # If data is a string, get the specific data feed by name
         if isinstance(data, string_types):
