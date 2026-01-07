@@ -1,33 +1,49 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Position Sizer Module - Position size calculation.
+
+This module provides the base class for position sizers, which determine
+the size of orders to place based on available cash, risk parameters,
+and other factors.
+
+Classes:
+    Sizer: Base class for position sizers.
+    FixedSize: Sizer that uses a fixed size.
+    FixedReverser: Sizer that reverses positions with fixed size.
+    PercentSizer: Sizer that uses a percentage of available cash.
+    AllInSizer: Sizer that uses all available cash.
+    RiskReturnSizer: Sizer that sizes based on risk/reward ratio.
+
+Example:
+    Creating a custom sizer:
+    >>> class MySizer(bt.Sizer):
+    ...     params = (('perc', 0.1),)
+    ...
+    ...     def _getsizing(self, comminfo, cash, data, isbuy):
+    ...         return int(cash * self.p.perc / data.close[0])
+"""
 from .parameters import ParameterizedBase
 
 
 # Sizer class - Refactored to use new parameter system
 class Sizer(ParameterizedBase):
-    """
-    This is the base class for *Sizers*. Any *sizer* should subclass this
-    and override the ``_getsizing`` method.
+    """Base class for position sizers.
 
-    This class has been refactored from MetaParams to the new ParameterizedBase
-    system for Day 36-38 of the metaprogramming removal project.
+    This is the base class for sizers. Any sizer should subclass this
+    and override the ``_getsizing`` method to provide custom position
+    sizing logic.
 
-    Member Attribs:
+    Attributes:
+        strategy: The strategy using this sizer.
+        broker: The broker instance for portfolio information.
 
-      - ``strategy``: will be set by the strategy in which the sizer is working
+    Methods:
+        getsizing(data, isbuy): Get the position size for an order.
+        _getsizing(comminfo, cash, data, isbuy): Override to implement sizing logic.
+        set(strategy, broker): Set the strategy and broker references.
 
-        Gives access to the entire api of the strategy, for example, if the
-        actual data position is needed in ``_getsizing``:
-
-           Position = self.strategy.getposition(data)
-
-      - ``broker``: will be set by the strategy in which the sizer is working
-
-        Gives access to information some complex sizers may need like portfolio
-        value.
-
-      # strategy represents the strategy using sizer, can call all strategy APIs through strategy
-      # broker represents the broker where strategy is used, can be used to get information for calculating complex position sizes
+    Example:
+        >>> cerebro.addsizer(bt.sizers.FixedSize, stake=100)
     """
 
     strategy = None
