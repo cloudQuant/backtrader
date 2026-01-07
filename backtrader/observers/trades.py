@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""Trades Observer Module - Trade tracking and PnL visualization.
+
+This module provides the Trades observer for tracking completed trades
+and plotting their profit/loss.
+
+Classes:
+    Trades: Observer that tracks trades and plots PnL.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addobserver(bt.observers.Trades)
+"""
 
 from ..observer import Observer
 

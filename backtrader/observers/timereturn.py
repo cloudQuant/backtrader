@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""TimeReturn Observer Module - Time-based returns tracking.
+
+This module provides the TimeReturn observer for tracking strategy
+returns over different time periods.
+
+Classes:
+    TimeReturn: Observer that tracks returns over time periods.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addobserver(bt.observers.TimeReturn, timeframe=bt.TimeFrame.Days)
+"""
 
 from ..analyzers.timereturn import TimeReturn as TimeReturnAnalyzer
 from ..dataseries import TimeFrame
