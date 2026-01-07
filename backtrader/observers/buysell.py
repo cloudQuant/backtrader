@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""BuySell Observer Module - Buy/sell signal visualization.
+
+This module provides the BuySell observer for visualizing buy and sell
+orders on the chart.
+
+Classes:
+    BuySell: Observer that plots buy/sell markers on the chart.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addobserver(bt.observers.BuySell)
+"""
 
 import math
 
