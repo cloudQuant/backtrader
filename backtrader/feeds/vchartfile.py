@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""VChartFile Data Feed Module - VisualChart file interface.
+
+This module provides the VChartFile feed for reading VisualChart
+binary on-disk files using market codes.
+
+Classes:
+    VChartFile: VisualChart binary file feed by market code.
+
+Example:
+    >>> data = bt.feeds.VChartFile(dataname='015ES')
+    >>> cerebro.adddata(data)
+"""
 import os.path
 from datetime import datetime
 from struct import unpack

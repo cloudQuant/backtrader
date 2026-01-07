@@ -1,4 +1,20 @@
 #!/usr/bin/env python
+"""InfluxDB Data Feed Module - InfluxDB time series data.
+
+This module provides the InfluxDB data feed for reading market data
+from InfluxDB time series database.
+
+Classes:
+    InfluxDB: InfluxDB data feed.
+
+Example:
+    >>> data = bt.feeds.InfluxDB(
+    ...     host='localhost',
+    ...     port=8086,
+    ...     database='market_data'
+    ... )
+    >>> cerebro.adddata(data)
+"""
 
 import datetime as dt
 

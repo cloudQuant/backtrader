@@ -1,3 +1,23 @@
+"""CTP Data Feed Module - CTP futures data.
+
+This module provides the CTPData feed for connecting to CTP (China Futures)
+through ctpbee for futures market data.
+
+Classes:
+    CTPData: CTP futures data feed.
+
+Example:
+    >>> store = bt.stores.CTPStore(
+    ...     userid='your_id',
+    ...     password='your_password',
+    ...     brokerid='your_broker'
+    ... )
+    >>> data = bt.feeds.CTPData(
+    ...     symbol='rb2501',
+    ...     store=store
+    ... )
+    >>> cerebro.adddata(data)
+"""
 from datetime import datetime
 
 import akshare as ak

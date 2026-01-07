@@ -1,5 +1,18 @@
 #!/usr/bin/env python
+"""Blaze Data Feed Module - Blaze data interface.
 
+This module provides the BlazeData feed for interfacing with Blaze
+Data objects for out-of-core analytics.
+
+Classes:
+    BlazeData: Blaze Data object feed.
+
+Example:
+    >>> import blaze as bz
+    >>> data = bz.Data('data.csv')
+    >>> feed = bt.feeds.BlazeData(dataname=data)
+    >>> cerebro.adddata(feed)
+"""
 from ..feed import DataBase
 from ..utils import date2num
 
