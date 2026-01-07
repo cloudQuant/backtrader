@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Trade Analyzer Module - Detailed trade statistics.
+
+This module provides the TradeAnalyzer for calculating comprehensive
+trade statistics including win/loss ratios, streaks, and PnL metrics.
+
+Classes:
+    TradeAnalyzer: Analyzer that calculates detailed trade statistics.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='ta')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.ta.get_analysis())
+"""
 from ..analyzer import Analyzer
 from ..utils import AutoDict, AutoOrderedDict
 from ..utils.py3 import MAXINT

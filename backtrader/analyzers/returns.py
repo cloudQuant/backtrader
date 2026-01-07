@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Returns Analyzer Module - Return statistics calculation.
+
+This module provides the Returns analyzer for calculating total, average,
+compound, and annualized returns using a logarithmic approach.
+
+Classes:
+    Returns: Analyzer that calculates return statistics.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.Returns, _name='ret')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.ret.get_analysis())
+"""
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase
