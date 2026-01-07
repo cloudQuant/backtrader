@@ -2501,10 +2501,44 @@ class SignalStrategy(Strategy):
 
 
 class BtApiStrategy(Strategy):
+    """A Strategy subclass with built-in logging capabilities.
+
+    This strategy class extends the base Strategy class with automatic
+    logger initialization using the SpdLogManager. It provides a default
+    log() method for logging messages and custom notification handling.
+
+    Attributes:
+        logger: The configured logger instance from SpdLogManager.
+
+    Params:
+        log_file_name: Optional custom log file name. If not provided,
+            defaults to "{ClassName}.log".
+
+    Example:
+        class MyStrategy(bt.BtApiStrategy):
+            params = (('log_file_name', 'my_strategy.log'),)
+
+            def next(self):
+                self.log(f'Close price: {self.data.close[0]:.2f}')
+    """
+
     def __init__(self):
+        """Initialize the strategy with a logger instance."""
         self.logger = self.init_logger(self.p.get("log_file_name", None))
 
     def init_logger(self, log_file_name=None):
+        """Initialize and return a logger instance.
+
+        Creates a logger using SpdLogManager with the specified or default
+        log file name.
+
+        Args:
+            log_file_name: Optional custom log file name. If None, uses
+                "{ClassName}.log" as the default.
+
+        Returns:
+            A configured logger instance.
+        """
         if log_file_name is None:
             logger = SpdLogManager(
                 file_name=self.__class__.__name__ + ".log", logger_name="strategy", print_info=True
@@ -2516,9 +2550,23 @@ class BtApiStrategy(Strategy):
         return logger
 
     def log(self, txt):
+        """Log a message at INFO level.
+
+        Args:
+            txt: The message text to log.
+        """
         self.logger.info(txt)
 
     def _addnotification(self, data, quicknotify=True):
+        """Process notifications for orders and trades with logging.
+
+        This method extends the base notification handling to route
+        notifications to the appropriate handler methods.
+
+        Args:
+            data: The notification data, which can be an order or trade.
+            quicknotify: If True, immediately process notification without queueing.
+        """
         if data.data_type == "order":
             self.notify_order(data)
         if data.data_type == "trade":
