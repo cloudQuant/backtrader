@@ -1,5 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Writer Module - Output writing for strategy execution results.
+
+This module provides classes for writing strategy execution results
+to files or stdout. It supports CSV output and custom formatting.
+
+Classes:
+    WriterBase: Base class for writers.
+    WriterFile: Writes execution results to file or stdout.
+
+Example:
+    Using WriterFile with cerebro:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addwriter(bt.WriterFile, out='results.csv', csv=True)
+    >>> results = cerebro.run()
+"""
 import collections
 import io
 import itertools
@@ -16,15 +31,37 @@ from .utils.py3 import integer_types, map, string_types
 
 # WriterBase class - refactored to not use metaclass
 class WriterBase(ParameterizedBase):
+    """Base class for writers.
+
+    This is the base class for all writer implementations.
+    Subclasses should override the writing methods to provide
+    custom output formatting.
+    """
     pass
 
 
 # WriterFile class - refactored to not use metaclass
 class WriterFile(WriterBase):
-    """
-    The system-wide writer class.
+    """The system-wide writer class.
 
-    It can be parametrized with:
+    Writes strategy execution results to a file or stdout.
+
+    Params:
+        out: Output stream (default: sys.stdout). If a string is passed,
+            it's treated as a filename. Use None for multiprocess optimization.
+        close_out: If True, explicitly close the output stream (default: False).
+        csv: If True, write CSV data during execution (default: False).
+        csv_filternan: If True, replace NaN values with empty fields (default: True).
+        csvsep: CSV separator character (default: ',').
+        indent: Indentation for formatted output (default: 2).
+
+    Example:
+        >>> cerebro.addwriter(bt.WriterFile, out='results.csv', csv=True)
+    """
+
+    # The system-wide writer class.
+
+    # It can be parametrized with:
 
       - ``out`` (default: ``sys.stdout``): output stream to write to
 
