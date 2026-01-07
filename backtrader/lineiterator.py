@@ -848,7 +848,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
         self.__class__.dopostinit(self, *args, **kwargs)
 
     def stop(self):
-        """Override stop to ensure TestStrategy chkmin is handled properly"""
+        """Called when backtesting stops.
+
+        This method ensures TestStrategy chkmin is handled properly.
+        Can be overridden in subclasses for cleanup operations.
+        """
         # CRITICAL FIX: For TestStrategy classes, ensure chkmin is never None before stop() processing
         if hasattr(self, "__class__") and "TestStrategy" in self.__class__.__name__:
             if not hasattr(self, "chkmin") or self.chkmin is None:
@@ -878,7 +882,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
         pass
 
     def _periodrecalc(self):
-        # last check in case not all lineiterators were assigned to
+        """Recalculate minimum period based on child indicators.
+
+        This method checks all registered indicators and updates the
+        minimum period required for this lineiterator to be valid.
+        """
         # lines (directly or indirectly after some operations)
         # An example is Kaufman's Adaptive Moving Average
         # indicators
@@ -891,6 +899,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
         self.updateminperiod(indminperiod)
 
     def _stage2(self):
+        """Stage 2 initialization for line operators.
+
+        Sets up line operators for datas and child lineiterators.
+        Uses recursion guard to prevent infinite loops.
+        """
         # Set _stage2 state
         super(LineIterator, self)._stage2()
 
@@ -934,6 +947,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 LineIterator._stage2_guard = set()
 
     def _stage1(self):
+        """Stage 1 initialization for line operators.
+
+        Resets line operators for datas and child lineiterators.
+        Uses recursion guard to prevent infinite loops.
+        """
         # Set _stage1 state
         super(LineIterator, self)._stage1()
 
@@ -965,10 +983,20 @@ class LineIterator(LineIteratorMixin, LineSeries):
             self._stage1_in_progress.discard(self_id)
 
     def getindicators(self):
+        """Get all indicators registered with this lineiterator.
+
+        Returns:
+            list: List of all registered indicators.
+        """
         # Get all indicators
         return self._lineiterators[LineIterator.IndType]
 
     def getindicators_lines(self):
+        """Get the lines from all indicators.
+
+        Returns:
+            list: List of indicators that have line aliases.
+        """
         # Get the lines from all indicators
         return [
             x
@@ -977,11 +1005,20 @@ class LineIterator(LineIteratorMixin, LineSeries):
         ]
 
     def getobservers(self):
+        """Get all observers registered with this lineiterator.
+
+        Returns:
+            list: List of all registered observers.
+        """
         # Get observers
         return self._lineiterators[LineIterator.ObsType]
 
     def addindicator(self, indicator):
-        # Store in right queue
+        """Add an indicator to this lineiterator.
+
+        Args:
+            indicator: The indicator instance to add.
+        """
         # Add indicator to the appropriate lineiterator queue
         # CRITICAL FIX: Check for duplicates before adding
         if indicator not in self._lineiterators[indicator._ltype]:
@@ -1046,6 +1083,18 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 o = o._owner  # move up the hierarchy
 
     def bindlines(self, owner=None, own=None):
+        """Bind lines from owner to lines from own.
+
+        This creates line bindings that automatically update when the
+        source line changes.
+
+        Args:
+            owner: Index or name of the owner's line(s).
+            own: Index or name of this object's line(s).
+
+        Returns:
+            self: Returns self for method chaining.
+        """
         # Add lines from owner to bindings of lines from own
 
         if not owner:
@@ -1085,6 +1134,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
     bind2line = bind2lines
 
     def _clk_update(self):
+        """Update clock and return current length.
+
+        Advances the internal position if the clock length differs
+        from the current length.
+
+        Returns:
+            int: Current clock length.
+        """
         # Update current time line and return length
         clock_len = len(self._clock)
         if clock_len != len(self):
@@ -1212,6 +1269,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
             pass
 
     def preonce(self, start, end):
+        """Process bars before minimum period is reached in runonce mode.
+
+        Args:
+            start: Starting index.
+            end: Ending index.
+        """
         # Default implementation - do nothing
         pass
 
@@ -1243,6 +1306,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
         self.next()
 
     def once(self, start, end):
+        """Process bars in runonce mode.
+
+        Args:
+            start: Starting index.
+            end: Ending index.
+        """
         # Default implementation - process each step
         for i in range(start, end):
             try:
@@ -1253,7 +1322,10 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 pass
 
     def _next(self):
-        # _next method
+        """Internal next method called for each bar.
+
+        Updates indicators and calls notification methods.
+        """
         # Current clock data length
         clock_len = self._clk_update()
         # Call _next for each indicator
@@ -1285,6 +1357,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 self.prenext()
 
     def prenext(self):
+        """Called before minimum period is reached.
+
+        This method is called for each bar until the minimum period
+        required for all indicators is satisfied. Override this method
+        to implement custom logic during this phase.
+        """
         # Default implementation - do nothing
         pass
 
@@ -1299,9 +1377,21 @@ class LineIterator(LineIteratorMixin, LineSeries):
         self.next()
 
     def _addnotification(self, *args, **kwargs):
+        """Add a notification to be processed.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+        """
         pass
 
     def _notify(self, *args, **kwargs):
+        """Process pending notifications.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments.
+        """
         pass
 
     def _plotinit(self):
@@ -1354,6 +1444,15 @@ class LineIterator(LineIteratorMixin, LineSeries):
         return True
 
     def qbuffer(self, savemem=0):
+        """Enable memory saving mode for lines and indicators.
+
+        Args:
+            savemem: Memory saving level.
+                0: No memory saving
+                1: Save memory for all lines and indicators
+                -1: Don't save for indicators at strategy level
+                -2: Also don't save for indicators with plot=False
+        """
         # Buffer-related operations
         if savemem:
             for line in self.lines:
@@ -1412,10 +1511,19 @@ class LineIterator(LineIteratorMixin, LineSeries):
             return 0
 
     def advance(self, size=1):
+        """Advance the line position by the specified size.
+
+        Args:
+            size: Number of steps to advance (default: 1).
+        """
         self.lines.advance(size)
 
     def size(self):
-        """Return the number of lines in this LineIterator"""
+        """Return the number of lines in this LineIterator.
+
+        Returns:
+            int: Number of lines.
+        """
         if hasattr(self, "lines") and hasattr(self.lines, "size"):
             return self.lines.size()
         elif hasattr(self, "lines") and hasattr(self.lines, "__len__"):
@@ -1430,6 +1538,20 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
 
 class DataAccessor(LineIterator):
+    """Base class for accessing data feed price series.
+
+    This class provides convenient aliases for accessing different
+    price series from data feeds (open, high, low, close, volume, etc.).
+
+    Attributes:
+        PriceClose: Alias for DataSeries.Close
+        PriceLow: Alias for DataSeries.Low
+        PriceHigh: Alias for DataSeries.High
+        PriceOpen: Alias for DataSeries.Open
+        PriceVolume: Alias for DataSeries.Volume
+        PriceOpenInteres: Alias for DataSeries.OpenInterest
+        PriceDateTime: Alias for DataSeries.DateTime
+    """
     # Data accessor class
     PriceClose = DataSeries.Close
     PriceLow = DataSeries.Low
@@ -1441,7 +1563,14 @@ class DataAccessor(LineIterator):
 
 
 class IndicatorBase(DataAccessor):
-    """Base class for indicators"""
+    """Base class for all indicators.
+
+    This class provides the foundation for creating custom indicators.
+    It handles plot initialization and indicator type registration.
+
+    Attributes:
+        _ltype: Set to IndType (0) to indicate this is an indicator.
+    """
 
     _ltype = LineIterator.IndType
 
@@ -1598,6 +1727,16 @@ class IndicatorBase(DataAccessor):
 
 
 class ObserverBase(DataAccessor):
+    """Base class for all observers.
+
+    Observers are similar to indicators but are used primarily for
+    monitoring and recording strategy state rather than generating
+    trading signals.
+
+    Attributes:
+        _ltype: Set to ObsType (2) to indicate this is an observer.
+        _mindatas: Set to 0 because observers don't consume data arguments.
+    """
     _ltype = LineIterator.ObsType
     _mindatas = 0  # Observers don't consume data arguments like indicators do
 
@@ -1684,10 +1823,19 @@ class ObserverBase(DataAccessor):
 
 
 class StrategyBase(DataAccessor):
+    """Base class for all trading strategies.
+
+    This class provides the foundation for creating custom trading
+    strategies. It handles indicator registration, data management,
+    and the once() method override for proper backtesting behavior.
+
+    Attributes:
+        _ltype: Set to StratType (1) to indicate this is a strategy.
+    """
     _ltype = LineIterator.StratType
 
     def __new__(cls, *args, **kwargs):
-        """Ensure strategies get proper data setup by directly calling LineIterator.__new__"""
+        """Ensure strategies get proper data setup by directly calling LineIterator.__new__."""
         # Directly call LineIterator.__new__ to bypass inheritance issues that lose arguments
         # This ensures strategies get their data arguments properly processed
         return LineIterator.__new__(cls, *args, **kwargs)
@@ -1943,6 +2091,16 @@ class StrategyBase(DataAccessor):
 
 
 class SingleCoupler(LineActions):
+    """Coupler for single line operations.
+
+    This class couples a single line source with a clock, allowing
+    synchronization of data from different sources.
+
+    Attributes:
+        cdata: The data source being coupled.
+        dlen: Current data length.
+        val: Current value.
+    """
     # Single line operations
     def __init__(self, cdata, clock=None):
         super(SingleCoupler, self).__init__()
@@ -1961,6 +2119,16 @@ class SingleCoupler(LineActions):
 
 
 class MultiCoupler(LineIterator):
+    """Coupler for multiple line operations.
+
+    This class couples multiple line sources with a clock, allowing
+    synchronization of data from different sources.
+
+    Attributes:
+        dlen: Current data length.
+        dsize: Number of lines being coupled.
+        dvals: Current values for all lines.
+    """
     # Multiple line operations
     _ltype = LineIterator.IndType
 
@@ -1982,6 +2150,19 @@ class MultiCoupler(LineIterator):
 
 
 def LinesCoupler(cdata, clock=None, **kwargs):
+    """Create a coupler for line(s) to synchronize data from different sources.
+
+    This function creates either a SingleCoupler or MultiCoupler depending
+    on whether the input is a single line or multiple lines.
+
+    Args:
+        cdata: The data source to couple. Can be a single line or multi-line object.
+        clock: Optional clock for synchronization. If None, tries to find clock from cdata.
+        **kwargs: Additional keyword arguments passed to the coupler.
+
+    Returns:
+        SingleCoupler or MultiCoupler: A coupler instance for the data source.
+    """
     # If single line, return SingleCoupler
     if isinstance(cdata, LineSingle):
         return SingleCoupler(cdata, clock)  # return for single line
