@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""LogReturns Observer Module - Log returns tracking.
+
+This module provides observers for tracking log returns of the strategy
+or a data feed.
+
+Classes:
+    LogReturns: Observer that tracks log returns.
+    LogReturns2: Alternative log returns observer.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addobserver(bt.observers.LogReturns)
+"""
 
 from ..analyzers import LogReturnsRolling
 from ..dataseries import TimeFrame
