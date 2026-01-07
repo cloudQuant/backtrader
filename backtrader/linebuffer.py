@@ -1,13 +1,36 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-"""
-module:: linebuffer
+"""LineBuffer Module - Circular buffer storage for time-series data.
 
-Classes that hold the buffer for a *line* and can operate on it
-with appending, forwarding, rewinding, resetting and other
+This module provides the LineBuffer class which implements a circular
+buffer for storing time-series data. The buffer allows efficient
+operations like appending, forwarding, rewinding, and resetting.
 
-module author:: Daniel Rodriguez
+Key Features:
+    - Index 0 always points to the current active value
+    - Positive indices fetch past values (left-hand side)
+    - Negative indices fetch future values (right-hand side)
+    - Automatic memory management with qbuffer
+    - Line bindings for automatic value propagation
 
+Classes:
+    LineBuffer: Core circular buffer implementation.
+    LineActions: Base class for line objects with multiple lines.
+    LineActionsMixin: Mixin providing line operations.
+    LineActionsCache: Cache system for performance optimization.
+    PseudoArray: Wrapper for non-array iterables.
+    LinesOperation: Operations on multiple lines.
+    LineOwnOperation: Operations on owned lines.
+
+Example:
+    Basic buffer usage:
+    >>> buf = LineBuffer()
+    >>> buf.home()  # Reset to beginning
+    >>> buf.forward()  # Move to next position
+    >>> buf[0] = 100.0  # Set current value
+    >>> print(buf[0])  # Get current value
+    100.0
+    >>> print(buf[-1])  # Get previous value
 """
 
 import array
@@ -1047,6 +1070,23 @@ class LineActionsMixin:
 
 
 class PseudoArray(object):
+    """Wrapper for non-array iterables to provide array-like access.
+
+    This class wraps iterables (including itertools.repeat) and provides
+    array-like indexing access. It handles cases where the wrapped object
+    doesn't support direct indexing.
+
+    Attributes:
+        wrapped: The wrapped iterable object.
+        _minperiod: Minimum period inherited from the wrapped object.
+
+    Example:
+        >>> from itertools import repeat
+        >>> pseudo = PseudoArray(repeat(1.0))
+        >>> print(pseudo[0])
+        1.0
+    """
+
     def __init__(self, wrapped):
         self.wrapped = wrapped
         # CRITICAL FIX: Ensure PseudoArray has _minperiod attribute
@@ -1808,6 +1848,25 @@ class _LineForward(LineActions):
 
 
 class LinesOperation(LineActions):
+    """Operation between two line objects (binary operations).
+
+    This class represents binary operations (addition, subtraction, etc.)
+    between two line objects. The result is a new line that contains the
+    element-wise operation result.
+
+    Attributes:
+        operation: The binary function to apply (e.g., operator.add).
+        a: First operand (left-hand side).
+        b: Second operand (right-hand side).
+        r: If True, reverse operation order.
+        _parent_a: Parent indicator for operand a.
+        _parent_b: Parent indicator for operand b.
+
+    Example:
+        >>> result = LinesOperation(indicator1, indicator2, operator.sub)
+        >>> # result[0] = indicator1[0] - indicator2[0]
+    """
+
     def __init__(self, a, b, operation, r=False, parent_a=None, parent_b=None):
         super(LinesOperation, self).__init__()
         
@@ -2174,6 +2233,22 @@ class LinesOperation(LineActions):
 
 
 class LineOwnOperation(LineActions):
+    """Operation on a single line object (unary operations).
+
+    This class represents unary operations (negation, absolute value, etc.)
+    on a single line object. The result is a new line that contains the
+    element-wise operation result.
+
+    Attributes:
+        operation: The unary function to apply (e.g., operator.neg).
+        a: The operand (line object).
+        _parent_a: Parent indicator for the operand.
+
+    Example:
+        >>> result = LineOwnOperation(indicator, operator.neg)
+        >>> # result[0] = -indicator[0]
+    """
+
     def __init__(self, a, operation, parent_a=None):
         super(LineOwnOperation, self).__init__()
         
