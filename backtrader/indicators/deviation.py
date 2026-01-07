@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""Deviation Indicator Module - Standard deviation and mean deviation.
+
+This module provides deviation indicators for measuring data dispersion.
+
+Classes:
+    StandardDeviation: Standard deviation indicator (alias: StdDev).
+    MeanDeviation: Mean absolute deviation (alias: MeanDev).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.StdDev, period=20)
+"""
 import math
 from . import Indicator, MovAv
-
-
-# Calculate standard deviation
 class StandardDeviation(Indicator):
     """
     Calculates the standard deviation of the passed data for a given period

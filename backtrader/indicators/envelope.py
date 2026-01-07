@@ -1,10 +1,22 @@
 #!/usr/bin/env python
+"""Envelope Indicator Module - Envelope bands around indicators.
+
+This module provides envelope indicators that create upper and lower bands
+around an indicator at a specified percentage.
+
+Classes:
+    EnvelopeMixIn: MixIn class for creating envelope bands.
+    _EnvelopeBase: Base class for envelope indicators.
+    Envelope: Envelope bands around data source.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.SMAEnvelope, period=20, perc=2.5)
+"""
 import sys
 
 from . import Indicator, MovingAverage
-
-
-# CRITICAL FIX: Define PlotLineAttr class before using it
 class PlotLineAttr:
     def __init__(self, **kwargs):
         for k, v in kwargs.items():

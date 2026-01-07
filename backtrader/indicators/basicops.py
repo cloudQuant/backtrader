@@ -1,13 +1,43 @@
 #!/usr/bin/env python
+"""Basic Operations Indicator Module - Fundamental calculation indicators.
+
+This module provides basic mathematical operations and calculations for
+indicator development, including period-based operations and statistics.
+
+Classes:
+    PeriodN: Base class for period-based indicators.
+    OperationN: Base class for function-based period calculations.
+    BaseApplyN: Base class for applying a function over a period.
+    ApplyN: Applies a function over a period.
+    Highest: Calculates highest value (alias: MaxN).
+    Lowest: Calculates lowest value (alias: MinN).
+    ReduceN: Applies reduce function over a period.
+    SumN: Calculates sum over a period.
+    AnyN: Returns True if any value is True.
+    AllN: Returns True only if all values are True.
+    FindFirstIndex: Finds first index matching condition.
+    FindFirstIndexHighest: Index of first highest value.
+    FindFirstIndexLowest: Index of first lowest value.
+    FindLastIndex: Finds last index matching condition.
+    FindLastIndexHighest: Index of last highest value.
+    FindLastIndexLowest: Index of last lowest value.
+    Accum: Cumulative sum (aliases: CumSum, CumulativeSum).
+    Average: Arithmetic mean (aliases: ArithmeticMean, Mean).
+    ExponentialSmoothing: EMA-style smoothing (alias: ExpSmoothing).
+    ExponentialSmoothingDynamic: Dynamic alpha smoothing (alias: ExpSmoothingDynamic).
+    WeightedAverage: Weighted average (alias: AverageWeighted).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> highest = bt.indicators.Highest(data.close, period=20)
+"""
 import functools
 import math
 import operator
 
 from ..utils.py3 import map, range
 from . import Indicator
-
-
-# PeriodN class adds the minimum period required to be satisfied for the entire system
 class PeriodN(Indicator):
     """
     Base class for indicators which take a period (__init__ has to be called

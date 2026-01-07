@@ -1,4 +1,21 @@
 #!/usr/bin/env python
+"""Crossover Indicator Module - Crossover detection indicators.
+
+This module provides indicators for detecting when two data series cross
+each other (upward or downward).
+
+Classes:
+    NonZeroDifference: Tracks difference, memorizing last non-zero value (alias: NZD).
+    CrossUp: Detects upward crossover.
+    CrossDown: Detects downward crossover.
+    CrossOver: Detects both directional crossovers.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> sma = bt.indicators.SMA(period=20)
+    >>> crossover = bt.indicators.CrossOver(data.close, sma)
+"""
 from . import Indicator
 
 
