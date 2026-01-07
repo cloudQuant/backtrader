@@ -1,5 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Timer Module - Time-based event scheduling.
+
+This module provides the Timer class for scheduling time-based notifications
+during backtesting. Timers can trigger at specific times, session start/end,
+or at repeating intervals.
+
+Constants:
+    SESSION_TIME: Timer triggers at a specific time.
+    SESSION_START: Timer triggers at session start.
+    SESSION_END: Timer triggers at session end.
+
+Example:
+    Creating a timer that triggers at session start:
+    >>> timer = bt.Timer(when=bt.Timer.SESSION_START, weekdays=[0, 1, 2, 3, 4])
+    >>> cerebro.add_timer(timer)
+"""
 import bisect
 import collections
 from datetime import date, datetime, timedelta
@@ -18,11 +34,29 @@ SESSION_TIME, SESSION_START, SESSION_END = range(3)
 
 # Timer class - refactored to use new parameter system
 class Timer(ParameterizedBase):
-    """
-    Timer class for scheduling time-based notifications in backtrader.
+    """Timer class for scheduling time-based notifications in backtrader.
 
-    This class has been refactored from MetaParams to the new ParameterizedBase
-    system for Day 36-38 of the metaprogramming removal project.
+    Timers can trigger at specific times of day, session boundaries, or at
+    repeating intervals. They can filter by weekdays and monthdays.
+
+    Params:
+        tid: Timer ID for identification.
+        owner: Owner object of the timer.
+        strats: Whether to notify strategies (default: False).
+        when: When to trigger (time, SESSION_START, or SESSION_END).
+        offset: Time offset for the trigger.
+        repeat: Repeat interval for recurring timers.
+        weekdays: List of weekdays when timer is active (0=Monday, 6=Sunday).
+        weekcarry: Whether to carry over to next weekday if missed.
+        monthdays: List of month days when timer is active.
+        monthcarry: Whether to carry over to next month day if missed.
+        allow: Callback function to allow/disallow timer on specific dates.
+        tzdata: Timezone data for the timer.
+        cheat: Whether timer can execute before broker.
+
+    Example:
+        >>> timer = bt.Timer(when=datetime.time(9, 30), weekdays=[0, 1, 2, 3, 4])
+        >>> cerebro.add_timer(timer)
     """
 
     # Use new parameter descriptor system to define parameters
