@@ -162,9 +162,9 @@ def test_pair_trade_bollinger_strategy():
         fromdate=datetime.datetime(2010, 1, 1),
         todate=datetime.datetime(2014, 12, 31),
     )
-    
+    data_path_1 = resolve_data_path("nvda-1999-2014.txt")
     data1 = bt.feeds.GenericCSVData(
-        dataname=str(data_path),
+        dataname=str(data_path_1),
         dtformat='%Y-%m-%d',
         datetime=0, open=1, high=2, low=3, close=4, volume=5, openinterest=-1,
         fromdate=datetime.datetime(2010, 1, 1),
@@ -200,10 +200,10 @@ def test_pair_trade_bollinger_strategy():
 
     assert strat.bar_num == 1257, f"Expected bar_num=1257, got {strat.bar_num}"
     # final_value 容差: 0.01, 其他指标容差: 1e-6
-    assert abs(final_value - 99998.89) < 0.01, f"Expected final_value=99998.89, got {final_value}"
-    assert abs(sharpe_ratio - (-0.5)) < 1e-6, f"Expected sharpe_ratio=-0.5, got {sharpe_ratio}"
-    assert abs(annual_return - (-2.220897623467464e-06)) < 1e-6, f"Expected annual_return=-2.220897623467464e-06, got {annual_return}"
-    assert abs(max_drawdown - 0.0011077999800036195) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
+    assert abs(final_value - 99877.16) < 0.01, f"Expected final_value=99877.16, got {final_value}"
+    assert abs(sharpe_ratio - (-1.4903824617023596)) < 1e-6, f"Expected sharpe_ratio=-1.4903824617023596, got {sharpe_ratio}"
+    assert abs(annual_return - (-0.00024639413813618824)) < 1e-6, f"Expected annual_return=-0.00024639413813618824, got {annual_return}"
+    assert abs(max_drawdown - 0.14492238860330459) < 1e-6, f"Expected max_drawdown=0.14492238860330459, got {max_drawdown}"
 
     print("\n测试通过!")
     return strat
