@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""Ultimate Oscillator Module - Ultimate Oscillator indicator.
+
+This module provides the Ultimate Oscillator indicator which combines
+multiple timeframes to reduce false signals.
+
+Classes:
+    UltimateOscillator: Ultimate Oscillator indicator.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.UltimateOscillator)
+"""
 import math
 from . import Indicator, SumN, TrueLow, TrueRange
-
-
-# Ultimate Oscillator
 class UltimateOscillator(Indicator):
     """
     Formula:

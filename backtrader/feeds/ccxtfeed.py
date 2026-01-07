@@ -105,7 +105,7 @@ class CCXTFeed(DataBase):
                 nts = time.time()
                 if nts - self._last_update_bar_time / 1000 >= time_diff + 2:
                     # nts = get_last_timeframe_timestamp(int(nts), time_diff)
-                    # # print(f"上个bar结束时间为:{datetime.fromtimestamp(nts)}")
+                    # # print(f"Last bar end time is: {datetime.fromtimestamp(nts)}")
                     # self._last_update_bar_time = nts
                     self._update_bar(livemode=True)
                 # ===========================================

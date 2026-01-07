@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""Ichimoku Indicator Module - Ichimoku Cloud.
+
+This module provides the Ichimoku Kinko Hyo (Ichimoku Cloud) indicator
+developed by Goichi Hosoda in 1969 for comprehensive trend analysis.
+
+Classes:
+    Ichimoku: Ichimoku Cloud indicator with multiple lines.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.Ichimoku)
+"""
 import math
 from . import Highest, Indicator, Lowest
-
-
-# Ichimoku Cloud indicator
 class Ichimoku(Indicator):
     """
     Developed and published in his book in 1969 by journalist Goichi Hosoda

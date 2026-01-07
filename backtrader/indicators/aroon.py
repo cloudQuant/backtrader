@@ -1,8 +1,23 @@
 #!/usr/bin/env python
+"""Aroon Indicator Module - Aroon trend indicator.
+
+This module provides the Aroon indicator developed by Tushar Chande in 1995
+to identify trend strength and direction.
+
+Classes:
+    _AroonBase: Base class for Aroon indicators.
+    AroonUp: Aroon Up component.
+    AroonDown: Aroon Down component.
+    AroonUpDown: Combined Aroon Up and Down (alias: AroonIndicator).
+    AroonOscillator: Aroon Oscillator (alias: AroonOsc).
+    AroonUpDownOscillator: Combined AroonUpDown and Oscillator (alias: AroonUpDownOsc).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.AroonUpDown, period=14)
+"""
 from . import FindFirstIndexHighest, FindFirstIndexLowest, Indicator
-
-
-# This file defines classes for calculating AROON-related indicators
 class _AroonBase(Indicator):
     """
     Base class which does the calculation of the AroonUp/AroonDown values and

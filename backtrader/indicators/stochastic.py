@@ -1,9 +1,22 @@
 #!/usr/bin/env python
+"""Stochastic Indicator Module - Stochastic Oscillator.
+
+This module provides the Stochastic Oscillator indicator developed by
+Dr. George Lane in the 1950s for identifying overbought/oversold conditions.
+
+Classes:
+    _StochasticBase: Base class for Stochastic indicators.
+    StochasticFast: Fast Stochastic oscillator.
+    Stochastic: Slow Stochastic oscillator (alias: StochasticSlow).
+    StochasticFull: Full Stochastic with all 3 lines.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.Stochastic, period=14)
+"""
 import math
 from . import DivByZero, Highest, Indicator, Lowest, MovAv
-
-
-# KDJ Stochastic indicator
 class _StochasticBase(Indicator):
     lines = (
         "percK",

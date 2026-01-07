@@ -9,33 +9,33 @@ from .py3 import string_types
 
 # from numba import jit
 
-# 0的时间差
+# Time difference for 0
 ZERO = datetime.timedelta(0)
-# 使用time模块的timezone属性可以返回当地时区（未启动夏令时）距离格林威治的偏移秒数（>0，美洲<=0大部分欧洲，亚洲，非洲）
-# STDOFFSET代表非夏令时时候的偏移量
+# Use time module's timezone attribute to return local timezone's (without DST) offset seconds from Greenwich (>0 Americas, <=0 most Europe, Asia, Africa)
+# STDOFFSET represents offset when not in DST
 STDOFFSET = datetime.timedelta(seconds=-_time.timezone)
-# time.daylight为0的时候代表没有夏令时，非0代表是夏令时
+# time.daylight being 0 means no DST, non-zero means DST
 if _time.daylight:
-    # time.altzone 返回当地的DST时区的偏移，在UTC西部秒数(如果有一个定义)
-    # DSTOFFSET 夏令时时的偏移量
+    # time.altzone returns local DST timezone offset, seconds west of UTC (if one is defined)
+    # DSTOFFSET offset during DST
     DSTOFFSET = datetime.timedelta(seconds=-_time.altzone)
 else:
     DSTOFFSET = STDOFFSET
-# DSTDIFF 代表夏令时与非夏令时的偏移量的差
+# DSTDIFF represents difference between DST and non-DST offsets
 DSTDIFF = DSTOFFSET - STDOFFSET
 
 # To avoid rounding errors, taking dates to next day
-# 为了避免四舍五入偏差导致日期进入下一天，设定TIME_MAX
+# Set TIME_MAX to avoid rounding errors causing dates to enter next day
 TIME_MAX = datetime.time(23, 59, 59, 999990)
 
 # To avoid rounding errors, taking dates to next day
-# 为了避免四舍五入偏差导致日期进入下一天，设定TIME_MIN
+# Set TIME_MIN to avoid rounding errors causing dates to enter next day
 TIME_MIN = datetime.time.min
 
 
-# 获取最近的一个bar更新的时间点
+# Get the most recent bar update time point
 def get_last_timeframe_timestamp(timestamp, time_diff):
-    """根据当前时间戳，获取上一个整分钟的时间戳
+    """Get previous whole minute timestamp based on current timestamp
     :params timestamp int, calculate from int(time.time())
     :params time_diff int, e.g. 1m timeframe using 60
     :returns timestamp int
@@ -59,36 +59,36 @@ def get_string_tz_time(tz="Asia/Singapore", string_format="%Y-%m-%d %H:%M:%S.%f"
 
 
 def timestamp2datetime(timestamp):
-    """把时间戳转化成时间
-    param: timestamp 时间戳
+    """Convert timestamp to datetime
+    param: timestamp timestamp
     param: string_format (str): string format
     Return: formatted_time (Str): timestamp
     """
-    # 将时间戳转换为datetime对象
+    # Convert timestamp to datetime object
     dt_object = datetime.datetime.fromtimestamp(timestamp)
     return dt_object
 
 
 def timestamp2datestr(timestamp):
-    """把时间戳转化成字符串时间
-    param: timestamp 时间戳
+    """Convert timestamp to string time
+    param: timestamp timestamp
     param: string_format (str): string format
     Return: formatted_time (Str): timestamp
     """
-    # 将时间戳转换为datetime对象
+    # Convert timestamp to datetime object
     dt_object = datetime.datetime.fromtimestamp(timestamp)
-    # 将datetime对象格式化为字符串形式
+    # Format datetime object as string
     formatted_time = dt_object.strftime("%Y-%m-%d %H:%M:%S.%f")
     return formatted_time
 
 
 def datetime2timestamp(time_date, string_format="%Y-%m-%d %H:%M:%S.%f"):
-    """把时间转化成时间戳
+    """Convert datetime to timestamp
     param: datetime_string (str): timezone in pytz.common_timezones
     param: string_format (str): string format
     Return: timestamp
     """
-    # 将datetime对象格式化为时间戳
+    # Format datetime object as timestamp
     timestamp = time_date.timestamp()
     return timestamp
 
@@ -96,20 +96,20 @@ def datetime2timestamp(time_date, string_format="%Y-%m-%d %H:%M:%S.%f"):
 def datestr2timestamp(
     datetime_string="2023-06-01 09:30:00.0", string_format="%Y-%m-%d %H:%M:%S.%f"
 ):
-    """把时间转化成时间戳
+    """Convert datetime to timestamp
     param: datetime_string (str): timezone in pytz.common_timezones
     param: string_format (str): string format
     Return: timestamp
     """
-    # 将时间戳转换为datetime对象
+    # Convert timestamp to datetime object
     time_date = datetime.datetime.strptime(datetime_string, string_format)
-    # 将datetime对象格式化为时间戳
+    # Format datetime object as timestamp
     timestamp = time_date.timestamp()
     return timestamp
 
 
 def str2datetime(datetime_string="2023-06-01 09:30:00.0", string_format="%Y-%m-%d %H:%M:%S.%f"):
-    """把字符串格式时间转化成时间
+    """Convert string format time to datetime
     param: datetime_string (str): timezone in pytz.common_timezones
     param: string_format (str): string format
     Return: datetime
@@ -118,7 +118,7 @@ def str2datetime(datetime_string="2023-06-01 09:30:00.0", string_format="%Y-%m-%
 
 
 def datetime2str(datetime_obj, string_format="%Y-%m-%d %H:%M:%S.%f"):
-    """把时间转化成字符串格式时间
+    """Convert datetime to string format time
     param: datetime_obj (datetime): timezone in pytz.common_timezones
     param: string_format (str): string format
     Return: datetime_str
@@ -127,7 +127,7 @@ def datetime2str(datetime_obj, string_format="%Y-%m-%d %H:%M:%S.%f"):
 
 
 def tzparse(tz):
-    # 这个函数尝试对tz进行转换
+    # This function attempts to convert tz
     # If no object has been provided by the user and a timezone can be
     # found via contractdtails, then try to get it from pytz, which may or
     # may not be available.
@@ -153,8 +153,8 @@ def tzparse(tz):
 
 
 def Localizer(tz):
-    # 这个函数是给tz增加一个localize的方法，这个localize的方法是给dt添加一个时区信息
-    # tzparse和Localizer主要是实盘的时候处理不同的时区的时候考虑到的
+    # This function adds a localize method to tz, this localize method adds timezone info to dt
+    # tzparse and Localizer are mainly for handling different timezones during live trading
     import types
 
     def localize(self, dt):
@@ -171,7 +171,7 @@ def Localizer(tz):
 class _UTC(datetime.tzinfo):
     """UTC"""
 
-    # UTC 类
+    # UTC class
     def utcoffset(self, dt):
         return ZERO
 
@@ -186,27 +186,27 @@ class _UTC(datetime.tzinfo):
 
 
 class _LocalTimezone(datetime.tzinfo):
-    """本地时区相关的处理"""
+    """Local timezone related processing"""
 
-    # 时区的偏移量
+    # Timezone offset
     def utcoffset(self, dt):
         if self._isdst(dt):
             return DSTOFFSET
         else:
             return STDOFFSET
 
-    # 夏令时的偏移量，不是夏令时，偏移量为0
+    # DST offset, offset is 0 when not in DST
     def dst(self, dt):
         if self._isdst(dt):
             return DSTDIFF
         else:
             return ZERO
 
-    # 可能是时区名称
+    # Possibly timezone name
     def tzname(self, dt):
         return _time.tzname[self._isdst(dt)]
 
-    # 判断当前时间是否是夏令时
+    # Determine if current time is DST
     def _isdst(self, dt):
         tt = (dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second, dt.weekday(), 0, 0)
         try:
@@ -217,7 +217,7 @@ class _LocalTimezone(datetime.tzinfo):
         tt = _time.localtime(stamp)
         return tt.tm_isdst > 0
 
-    # 给dt增加一个时区信息
+    # Add timezone info to dt
     def localize(self, dt):
         return dt.replace(tzinfo=self)
 
@@ -225,16 +225,17 @@ class _LocalTimezone(datetime.tzinfo):
 UTC = _UTC()
 TZLocal = _LocalTimezone()
 
-HOURS_PER_DAY = 24.0  # 一天24小时
-MINUTES_PER_HOUR = 60.0  # 1小时60分钟
-SECONDS_PER_MINUTE = 60.0  # 1分钟60秒
-MUSECONDS_PER_SECOND = 1e6  # 1秒有多少微秒
-MINUTES_PER_DAY = MINUTES_PER_HOUR * HOURS_PER_DAY  # 1天有多少分钟
-SECONDS_PER_DAY = SECONDS_PER_MINUTE * MINUTES_PER_DAY  # 1天有多少秒
-MUSECONDS_PER_DAY = MUSECONDS_PER_SECOND * SECONDS_PER_DAY  # 1天有多少微秒
+HOURS_PER_DAY = 24.0  # 24 hours in a day
+MINUTES_PER_HOUR = 60.0  # 60 minutes in 1 hour
+SECONDS_PER_MINUTE = 60.0  # 60 seconds in 1 minute
+MUSECONDS_PER_SECOND = 1e6  # How many microseconds in 1 second
+MINUTES_PER_DAY = MINUTES_PER_HOUR * HOURS_PER_DAY  # How many minutes in 1 day
+SECONDS_PER_DAY = SECONDS_PER_MINUTE * MINUTES_PER_DAY  # How many seconds in 1 day
+MUSECONDS_PER_DAY = MUSECONDS_PER_SECOND * SECONDS_PER_DAY  # How many microseconds in 1 day
 
 
-# 下面这四个函数是经常使用的，注释完成之后，尝试使用cython进行改写，看能提高多少的运算速度
+# The following four functions are frequently used, after comments are completed,
+# try using cython to rewrite, see how much speed can be improved
 
 
 def num2date(x, tz=None, naive=True):
@@ -257,22 +258,22 @@ def num2date(x, tz=None, naive=True):
     if x != x or x <= 0:  # NaN check (NaN != NaN) or invalid value
         return datetime.datetime(1970, 1, 1)  # Return epoch as fallback
 
-    ix = int(x)  # 对x进行取整数
+    ix = int(x)  # Take integer of x
     if ix < 1:
         ix = 1  # Minimum valid ordinal
-    dt = datetime.datetime.fromordinal(ix)  # 返回对应 Gregorian 日历时间对应的 datetime 对象
-    remainder = float(x) - ix  # x的小数部分
-    hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)  # 小时
-    minute, remainder = divmod(MINUTES_PER_HOUR * remainder, 1)  # 分钟
-    second, remainder = divmod(SECONDS_PER_MINUTE * remainder, 1)  # 秒
-    microsecond = int(MUSECONDS_PER_SECOND * remainder)  # 微妙
-    # 如果微秒数小于10,舍去
+    dt = datetime.datetime.fromordinal(ix)  # Return datetime object corresponding to Gregorian calendar time
+    remainder = float(x) - ix  # Fractional part of x
+    hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)  # Hours
+    minute, remainder = divmod(MINUTES_PER_HOUR * remainder, 1)  # Minutes
+    second, remainder = divmod(SECONDS_PER_MINUTE * remainder, 1)  # Seconds
+    microsecond = int(MUSECONDS_PER_SECOND * remainder)  # Microseconds
+    # If microseconds less than 10, discard
     if microsecond < 10:
         microsecond = 0  # compensate for rounding errors
-    # 这个写的不怎么样，True应该去掉的，没有意义
+    # This is not well written, True should be removed, meaningless
     # if True and tz is not None:
     if tz is not None:
-        # 合成时间
+        # Compose time
         dt = datetime.datetime(
             dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond, tzinfo=UTC
         )
@@ -280,7 +281,7 @@ def num2date(x, tz=None, naive=True):
         if naive:
             dt = dt.replace(tzinfo=None)
     else:
-        # 如果没有传入tz信息，生成不包含时区信息的时间
+        # If no tz info passed, generate time without timezone info
         # If not tz has been passed return a non-timezoned dt
         dt = datetime.datetime(
             dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond
@@ -292,21 +293,21 @@ def num2date(x, tz=None, naive=True):
     return dt
 
 
-# 数字转换成日期
+# Convert number to date
 
 
 def num2dt(num, tz=None, naive=True):
     return num2date(num, tz=tz, naive=naive).date()
 
 
-# 数字转换成时间
+# Convert number to time
 
 
 def num2time(num, tz=None, naive=True):
     return num2date(num, tz=tz, naive=naive).time()
 
 
-# 日期时间转换成数字
+# Convert datetime to number
 
 
 def date2num(dt, tz=None):
@@ -342,7 +343,7 @@ def date2num(dt, tz=None):
     return base
 
 
-# 时间转成数字
+# Convert time to number
 
 
 def time2num(tm):

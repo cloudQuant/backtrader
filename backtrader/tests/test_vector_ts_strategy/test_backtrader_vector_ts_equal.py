@@ -1,4 +1,4 @@
-"""用于测试backtrader和ts在时间序列上运行的效率,以及python,numba,cython改写具体函数后提高的效率"""
+"""Test the efficiency of backtrader and ts on time series, and the performance improvement after rewriting specific functions with python, numba, and cython"""
 
 import time
 
@@ -25,8 +25,8 @@ class AlphaTs001(AlphaTs):
 
 
 def run_ts_strategy(n_rows=1000, engine="python"):
-    # 准备数据
-    # 使用numpy生成n_rows行数据
+    # Prepare data
+    # Use numpy to generate n_rows of data
     np.random.seed(1)
     data = pd.DataFrame(
         {
@@ -36,7 +36,7 @@ def run_ts_strategy(n_rows=1000, engine="python"):
     )
     data.index = pd.date_range("1/1/2012", periods=len(data), freq="5min")
     data = data + 100
-    # 设置参数
+    # Set parameters
     params = {
         "short_window": 10,
         "long_window": 60,
@@ -44,10 +44,10 @@ def run_ts_strategy(n_rows=1000, engine="python"):
         "init_value": 100000000,
         "percent": 0.01,
     }
-    # 计算均线
+    # Calculate moving averages
     data["short_ma"] = data["close"].rolling(params["short_window"]).mean()
     data["long_ma"] = data["close"].rolling(params["long_window"]).mean()
-    # 计算信号
+    # Calculate signals
     data["signal"] = np.where(data["short_ma"] >= data["long_ma"], 1.0, 0.0)
     #     print(data[data['signal']!=0])
     #     data.to_csv("d:/test/test_ts.csv")
@@ -77,37 +77,37 @@ class SmaStrategy(bt.Strategy):
         print("%s, %s" % (dt.isoformat(), txt))
 
     def __init__(self):
-        # 一般用于计算指标或者预先加载数据，定义变量使用
+        # Generally used for calculating indicators or preloading data, and defining variables
         self.short_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.short_window)
         self.long_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.long_window)
 
     def next(self):
         # Simply log the closing price of the series from the reference
-        # self.log(f"工商银行,{self.datas[0].datetime.date(0)},收盘价为：{self.datas[0].close[0]}")
-        # 得到当前的size
+        # self.log(f"ICBC,{self.datas[0].datetime.date(0)},closing price:{self.datas[0].close[0]}")
+        # Get current position size
         size = self.getposition(self.datas[0]).size
         value = self.broker.get_value()
-        #         self.log(f"short_ma:{self.short_ma[0]},long_ma:{self.long_ma[0]},size={size},当前bar收盘之后的账户价值为:{value}")
-        # 做多
+        #         self.log(f"short_ma:{self.short_ma[0]},long_ma:{self.long_ma[0]},size={size},account value after current bar closes:{value}")
+        # Go long
         if size == 0 and self.short_ma[0] > self.long_ma[0]:
-            # 开仓,计算一倍杠杆下可以交易的手数
+            # Open position, calculate the number of lots that can be traded under 1x leverage
             info = self.broker.getcommissioninfo(self.datas[0])
             symbol_multi = info.p.mult
             try:
-                # 引用下一根bar的开盘价计算具体的手数
+                # Use the next bar's opening price to calculate the specific number of lots
                 lots = 0.01 * value / (self.datas[0].open[1] * symbol_multi)
             except Exception as e:
                 print("Exception", e)
                 lots = 0.01 * value / (self.datas[0].close[0] * symbol_multi)
             self.buy(self.datas[0], size=lots)
-        # 平多
+        # Close long position
         if size > 0 and self.short_ma[0] < self.long_ma[0]:
             self.close(self.datas[0])
 
 
 #     def notify_order(self, order):
 #         if order.status in [order.Submitted, order.Accepted]:
-#             # order被提交和接受
+#             # Order has been submitted and accepted
 #             return
 #         if order.status == order.Rejected:
 #             self.log(f"order is rejected : order_ref:{order.ref}  order_info:{order.info}")
@@ -130,7 +130,7 @@ class SmaStrategy(bt.Strategy):
 
 
 #     def notify_trade(self, trade):
-#         # 一个trade结束的时候输出信息
+#         # Output information when a trade ends
 #         if trade.isclosed:
 #             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
 #                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -141,19 +141,19 @@ class SmaStrategy(bt.Strategy):
 #                 trade.getdataname(), trade.price))
 #
 # def stop(self):
-#     # 策略停止的时候输出信息
+#     # Output information when strategy stops
 #     pass
 
 
 def run_backtrader_strategy(n_rows=1000):
-    # 添加cerebro
+    # Add cerebro
     cerebro = bt.Cerebro()
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(SmaStrategy)
     cerebro.broker.setcash(100000000.0)
 
-    # 准备数据
-    # 使用numpy生成n_rows行数据,为了尽可能避免出现负数，把data+3
+    # Prepare data
+    # Use numpy to generate n_rows of data, add 100 to data to avoid negative numbers as much as possible
     np.random.seed(1)
     data = pd.DataFrame(
         {
@@ -164,14 +164,14 @@ def run_backtrader_strategy(n_rows=1000):
     data.index = pd.date_range("1/1/2012", periods=len(data), freq="5min")
     data = data + 100
     feed = bt.feeds.PandasDirectData(dataname=data)
-    # 添加合约数据
+    # Add contract data
     cerebro.adddata(feed, name="test")
-    # 设置合约属性
+    # Set contract properties
     comm = ComminfoFuturesPercent(commission=0.0002, margin=1, mult=1)
     cerebro.broker.addcommissioninfo(comm, name="test")
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="_TotalValue")
     cerebro.addanalyzer(bt.analyzers.PyFolio)
-    # 运行回测
+    # Run backtest
     results = cerebro.run()
     # cerebro.plot()
     pyfolio_result = results[0].analyzers.getbyname("pyfolio")
@@ -187,25 +187,25 @@ n_rows = 10000
 begin_time = time.perf_counter()
 backtrader_total_value = run_backtrader_strategy(n_rows=n_rows)
 end_time = time.perf_counter()
-print(f"backtrader运行耗费的时间为:{end_time - begin_time}")
+print(f"backtrader execution time:{end_time - begin_time}")
 
 begin_time = time.perf_counter()
 ts_python_total_value = run_ts_strategy(n_rows=n_rows, engine="python")
 end_time = time.perf_counter()
 ts_python_total_value.columns = ["ts_python"]
-print(f"ts_python运行耗费的时间为:{end_time - begin_time}")
+print(f"ts_python execution time:{end_time - begin_time}")
 
 begin_time = time.perf_counter()
 ts_numba_total_value = run_ts_strategy(n_rows=n_rows, engine="numba")
 end_time = time.perf_counter()
 ts_numba_total_value.columns = ["ts_numba"]
-print(f"ts_numba运行耗费的时间为:{end_time - begin_time}")
+print(f"ts_numba execution time:{end_time - begin_time}")
 
 begin_time = time.perf_counter()
 ts_cython_total_value = run_ts_strategy(n_rows=n_rows, engine="cython")
 end_time = time.perf_counter()
 ts_cython_total_value.columns = ["ts_cython"]
-print(f"ts_cython运行耗费的时间为:{end_time - begin_time}")
+print(f"ts_cython execution time:{end_time - begin_time}")
 
 df = pd.concat(
     [backtrader_total_value, ts_numba_total_value, ts_python_total_value, ts_cython_total_value],
@@ -215,10 +215,10 @@ df = pd.concat(
 # df = pd.concat([ts_numba_total_value,ts_python_total_value,ts_cython_total_value],join="outer",axis=1)
 print(df.corr())
 """
-backtrader运行耗费的时间为:218.7071305999998
-ts_python运行耗费的时间为:1.6099043001886457
-ts_numba运行耗费的时间为:0.35054199979640543
-ts_cython运行耗费的时间为:0.351795099908486
+backtrader execution time:218.7071305999998
+ts_python execution time:1.6099043001886457
+ts_numba execution time:0.35054199979640543
+ts_cython execution time:0.351795099908486
             backtrader  ts_numba  ts_python  ts_cython
 backtrader    1.000000  0.999998   0.999998   0.999998
 ts_numba      0.999998  1.000000   1.000000   1.000000

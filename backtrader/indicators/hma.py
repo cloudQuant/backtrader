@@ -1,11 +1,20 @@
 #!/usr/bin/env python
+"""HMA Indicator Module - Hull Moving Average.
+
+This module provides the HMA (Hull Moving Average) indicator developed
+by Alan Hull to reduce lag while maintaining smoothness.
+
+Classes:
+    HullMovingAverage: HMA indicator (aliases: HMA, HullMA).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.HMA, period=30)
+"""
 import math
 from . import MovingAverageBase
 from .wma import WMA
-
-
-# Inherits from MovingAverageBase to auto-register as MovingAverage type
-# Hull Moving Average indicator
 class HullMovingAverage(MovingAverageBase):
     """By Alan Hull
 

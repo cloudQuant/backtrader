@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""DPO Indicator Module - Detrended Price Oscillator.
+
+This module provides the DPO (Detrended Price Oscillator) indicator
+developed by Joe DiNapoli to identify cycles by removing trend effects.
+
+Classes:
+    DetrendedPriceOscillator: DPO indicator (alias: DPO).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.DPO, period=20)
+"""
 import math
 from . import Indicator, MovAv
-
-
-# Detrended price oscillator
 class DetrendedPriceOscillator(Indicator):
     """
     Defined by Joe DiNapoli in his book *"Trading with DiNapoli levels"*

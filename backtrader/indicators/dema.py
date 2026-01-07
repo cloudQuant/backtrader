@@ -1,10 +1,21 @@
 #!/usr/bin/env python
+"""DEMA/TEMA Indicator Module - Double/Triple Exponential Moving Average.
+
+This module provides DEMA and TEMA indicators introduced by Patrick G. Mulloy
+in 1994 to reduce the lag associated with traditional moving averages.
+
+Classes:
+    DoubleExponentialMovingAverage: DEMA indicator (alias: DEMA).
+    TripleExponentialMovingAverage: TEMA indicator (alias: TEMA).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.DEMA, period=20)
+"""
 import math
 from . import MovingAverageBase
 from .ema import EMA
-
-
-# Double Exponential Moving Average
 class DoubleExponentialMovingAverage(MovingAverageBase):
     """
     DEMA was first time introduced in 1994, in the article "Smoothing Data with

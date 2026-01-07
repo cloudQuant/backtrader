@@ -1,9 +1,22 @@
 #!/usr/bin/env python
+"""ATR Indicator Module - Average True Range.
+
+This module provides the ATR (Average True Range) indicator developed by
+J. Welles Wilder, Jr. for measuring market volatility.
+
+Classes:
+    TrueHigh: Records the true high for ATR calculation.
+    TrueLow: Records the true low for ATR calculation.
+    TrueRange: Calculates the True Range.
+    AverageTrueRange: Calculates the Average True Range (alias: ATR).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.ATR, period=14)
+"""
 import math
 from . import Indicator, MovAv
-
-
-# This file contains classes for calculating TR and ATR indicators
 class TrueHigh(Indicator):
     """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in

@@ -4,7 +4,7 @@ from ..utils import date2num
 from ..utils.py3 import filter, integer_types, string_types
 
 
-# backtrader通过pandas加载数据
+# backtrader loads data through pandas
 class PandasDirectData(DataBase):
     """
     Uses a Pandas DataFrame as the feed source, iterating directly over the
@@ -22,7 +22,7 @@ class PandasDirectData(DataBase):
         it is
     """
 
-    # 参数
+    # Parameters
     params = (
         ("datetime", 0),
         ("open", 1),
@@ -32,10 +32,10 @@ class PandasDirectData(DataBase):
         ("volume", 5),
         ("openinterest", 6),
     )
-    # 列名
+    # Column names
     datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
-    # 开始，把dataframe数据转化成可以迭代的元组，每一行一个元组
+    # Start, convert dataframe data to iterable tuples, one tuple per row
     def __init__(self):
         super().__init__()  # CRITICAL FIX: Must call parent __init__
         self._rows = None
@@ -47,14 +47,14 @@ class PandasDirectData(DataBase):
         self._rows = self.p.dataname.itertuples()
 
     def _load(self):
-        # 尝试获取下一个row，如果获取不到报错，就返回False
+        # Try to get next row, return False if error
         try:
             row = next(self._rows)
         except StopIteration:
             return False
 
         # Set the standard datafields - except for datetime
-        # 对于除了datetime之外的列，把数据根据列名添加到line中
+        # For columns other than datetime, add data to lines based on column names
         for datafield in self.getlinealiases():
             if datafield == "datetime":
                 continue
@@ -73,17 +73,17 @@ class PandasDirectData(DataBase):
             line[0] = row[colidx]
 
         # datetime
-        # 对于datetime，获取datetime所在列的index,然后获取时间
+        # For datetime, get the index of datetime column, then get time
         colidx = getattr(self.params, "datetime")
         tstamp = row[colidx]
 
         # convert to float via datetime and store it
-        # 把时间戳转化成具体的datetime格式，然后转化成数字
+        # Convert timestamp to specific datetime format, then convert to number
         dt = tstamp.to_pydatetime()
         dtnum = date2num(dt)
 
         # get the line to be set
-        # 获取datetime的line，然后保存这个数字
+        # Get datetime line, then save this number
         line = getattr(self.lines, "datetime")
         line[0] = dtnum
 
@@ -120,7 +120,7 @@ class PandasData(DataBase):
         - >= 0 or string: specific colum identifier
     """
 
-    # 参数及其含义
+    # Parameters and their meanings
     params = (
         ("nocase", True),
         # Possible values for datetime (must always be present)
@@ -141,89 +141,92 @@ class PandasData(DataBase):
         ("volume", -1),
         ("openinterest", -1),
     )
-    # 数据的列名
+    # Column names of data
     datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
-    # 类初始化
+    # Class initialization
     def __init__(self):
         super().__init__()
 
         # these "colnames" can be strings or numeric types
-        # 列的名字，列表格式
+        # Column names, list format
         self._idx = None
         colnames = list(self.p.dataname.columns.values)
-        # 如果datetime在index中
+        # If datetime is in index
         if self.p.datetime is None:
             # datetime is expected as index col and hence not returned
             pass
 
         # try to autodetect if all columns are numeric
-        # 尝试判断cstrings是不是字符串，把不是字符串的过滤掉
+        # Try to determine if cstrings are strings, filter out non-strings
         cstrings = filter(lambda x: isinstance(x, string_types), colnames)
-        # 如果有一个是字符串，那么colsnumeric就是False，只有全部是数字的情况下，才会返回True
+        # If there is a string, colsnumeric is False, only returns True when all are numbers
         colsnumeric = not len(list(cstrings))
         if colsnumeric:
-            # 所有列名都是数字的情况下，这个标志为True，这里保持行为不变
+            # If all column names are numbers, this flag is True, keep behavior unchanged here
             pass
 
         # Where each datafield find its value
-        # 定义一个字典
+        # Define a dictionary
         self._colmapping = dict()
 
         # Build the column mappings to internal fields in advance
-        # 遍历每个列
+        # Iterate through each column
         for datafield in self.getlinealiases():
-            # 列所在的index
+            # Index where column is located
             defmapping = getattr(self.params, datafield)
-            # 如果列的index是数字并且小于0,需要自动探测
+            # If column index is number and less than 0, need auto-detection
             if isinstance(defmapping, integer_types) and defmapping < 0:
                 # autodetection requested
                 for colname in colnames:
-                    # 如果列名是字符串
+                    # If column name is string
                     if isinstance(colname, string_types):
-                        # 如果没有大小写的区别，对比小写状态是否相等，如果相等就代表找到了，否则就直接对比是否相等
+                        # If case-insensitive, compare lowercase equality, if equal means found,
+                        # otherwise directly compare if equal
                         if self.p.nocase:
                             found = datafield.lower() == colname.lower()
                         else:
                             found = datafield == colname
-                        # 如果找到了，那么就把datafield和colname进行一一对应，然后退出这个循环，继续datafield
+                        # If found, map datafield to colname one-to-one, then exit this loop, continue with datafield
                         if found:
                             self._colmapping[datafield] = colname
                             break
-                # 如果找了一遍df的列没有找到，就设置成None
+                # If searched through df columns and not found, set to None
                 if datafield not in self._colmapping:
                     # autodetection requested and not found
                     self._colmapping[datafield] = None
                     continue
 
-            # 如果datafield用户自己进行了定义，那么就直接使用用户定义的
+            # If user defined datafield themselves, directly use user's definition
             else:
                 # all other cases -- used given index
                 self._colmapping[datafield] = defmapping
 
-    # 开始处理数据
+    # Start processing data
     def start(self):
         super().start()
-        # 开始之前，先重新设置_idx
+        # Before starting, reset _idx first
         # reset the length with each start
         self._idx = -1
 
         # Transform names (valid for .ix) into indices (good for .iloc)
-        # 如果大小写不敏感，就把数据的列名转化成小写，如果敏感，保持原样
+        # If case-insensitive, convert column names to lowercase, if sensitive, keep original
         if self.p.nocase:
             colnames = [x.lower() for x in self.p.dataname.columns.values]
         else:
             colnames = [x for x in self.p.dataname.columns.values]
 
-        # 对于datafield和列名进行迭代
+        # Iterate through datafield and column names
         for k, v in self._colmapping.items():
-            # 如果列名是None的话，代表这个列很可能是时间
+            # If column name is None, represents this column is likely datetime
             if v is None:
                 continue  # special marker for datetime
-            # 如果列名是字符串的话，如果大小写不敏感，就先转化成小写，如果不敏感，忽略，然后根据列名得到列所在的index
+            # If column name is string, if case-insensitive, convert to lowercase first,
+            # if sensitive, ignore, then get column index based on column name
 
             if isinstance(v, string_types):
-                # 这下面的一些代码似乎有些无效，感觉可以忽略，直接使用self._colmapping[k] = colnames.index(v)替代就好了
+                # Some code below seems ineffective, can be ignored, directly use
+                # self._colmapping[k] = colnames.index(v) as replacement
                 try:
                     if self.p.nocase:
                         v = colnames.index(v.lower())
@@ -235,26 +238,26 @@ class PandasData(DataBase):
                         v = None
                     else:
                         raise e  # let user now something failed
-            # 如果不是字符串，用户自定义了具体的整数，直接使用用户自定义的
+            # If not string, user defined specific integer, directly use user's definition
             self._colmapping[k] = v
 
     def _load(self):
-        # 每次load一行，_idx每次加1
+        # Load one row at a time, _idx increments by 1 each time
         self._idx += 1
-        # 如果_idx已经大于了数据的长度，返回False
+        # If _idx exceeds data length, return False
         if self._idx >= len(self.p.dataname):
             # exhausted all rows
             return False
 
         # Set the standard datafields
-        # 循环datafield
+        # Loop through datafield
         for datafield in self.getlinealiases():
-            # 如果是时间，继续上面的循环
+            # If datetime, continue the above loop
             if datafield == "datetime":
                 continue
 
             colindex = self._colmapping[datafield]
-            # 如果列的index是None，继续上面的循环
+            # If column index is None, continue the above loop
             if colindex is None:
                 # datafield signaled as missing in the stream: skip it
                 continue
@@ -263,12 +266,12 @@ class PandasData(DataBase):
             line = getattr(self.lines, datafield)
 
             # indexing for pandas: 1st is colum, then row
-            # 使用iloc读取dataframe的数据，感觉效率一般
+            # Use iloc to read dataframe data, efficiency seems average
             line[0] = self.p.dataname.iloc[self._idx, colindex]
 
         # datetime conversion
         coldtime = self._colmapping["datetime"]
-        # 如果datetime所在的列是None的话，直接通过index获取时间，如果不是None的话，通过iloc获取时间数据
+        # If datetime column is None, get time directly through index, if not None, get time data through iloc
         if coldtime is None:
             # standard index in the datetime
             tstamp = self.p.dataname.index[self._idx]
@@ -277,7 +280,7 @@ class PandasData(DataBase):
             tstamp = self.p.dataname.iloc[self._idx, coldtime]
 
         # convert to float via datetime and store it
-        # 转换时间数据并保存
+        # Convert time data and save
         dt = tstamp.to_pydatetime()
         dtnum = date2num(dt)
         self.lines.datetime[0] = dtnum

@@ -41,9 +41,9 @@ from .utils import tag_box_style
 
 def cal_macd_system(data, short_=26, long_=12, m=9):
     """
-    data是包含高开低收成交量的标准dataframe
-    short_,long_,m分别是macd的三个参数
-    返回值是包含原始数据和diff,dea,macd三个列的dataframe
+    data is a standard dataframe containing high, open, low, close, volume
+    short_, long_, m are the three parameters of macd
+    Return value is a dataframe containing original data and diff, dea, macd columns
     """
     data["diff"] = (
         data["close"].ewm(adjust=False, alpha=2 / (short_ + 1), ignore_na=True).mean()
@@ -73,7 +73,7 @@ def split_data(df) -> dict:
 
 
 def get_up_scatter(df):
-    # 标记出上涨的点，格式是列表，列表里面是（时间、最低价)组成的元组
+    # Mark up points, format is a list containing tuples of (time, lowest price)
     mark_line_data = []
     first_swing = None
     pre_index = None
@@ -100,7 +100,7 @@ def get_up_scatter(df):
 
 
 def get_dn_scatter(df):
-    # 标记出下跌的点，格式是列表，列表里面是（时间、最高价)组成的元组
+    # Mark down points, format is a list containing tuples of (time, highest price)
     mark_line_data = []
     first_swing = None
     pre_index = None
@@ -150,27 +150,27 @@ def get_valid_point(df):
             first_swing = "dn"
             if len(dn_point_point_list) > 1 and len(up_point_point_list) > 1:
                 pre_pre_high = dn_point_point_list[-2][1]
-                # 如果当前的最高点大于前一个最高点，那么前一个上升拐点至少是一个测试点
+                # If current highest point is greater than previous highest point, then previous up swing point is at least a test point
                 if pre_high > pre_pre_high:
-                    # 尝试获取前一个dn_point的最高价和前前一个dn_point的最高价
+                    # Try to get previous dn_point's highest price and pre-previous dn_point's highest price
                     pre_1_index, pre_1_low = up_point_point_list[-1]
                     pre_2_index, pre_2_low = up_point_point_list[-2]
-                    # 如果前一个拐点是上升的
+                    # If previous swing point is up
                     if pre_1_low < pre_2_low:
                         valid_up_point_list.append([pre_1_index, pre_1_low])
 
         if first_swing == "dn" and up_bar == 1:
             up_point_point_list.append([pre_index, pre_low])
             first_swing = "up"
-            # 获取前一个up_point
+            # Get previous up_point
             if len(dn_point_point_list) > 1 and len(up_point_point_list) > 1:
                 pre_pre_low = up_point_point_list[-2][1]
-                # 如果当前的最低点小于前一个最低点,那么前一个最高价就是测试点
+                # If current lowest point is less than previous lowest point, then previous highest price is a test point
                 if pre_low < pre_pre_low:
-                    # 尝试获取前一个dn_point的最高价和前前一个dn_point的最高价
+                    # Try to get previous dn_point's highest price and pre-previous dn_point's highest price
                     pre_1_index, pre_1_high = dn_point_point_list[-1]
                     pre_2_index, pre_2_high = dn_point_point_list[-2]
-                    # 如果前一个拐点是上升的
+                    # If previous swing point is up
                     if pre_1_high > pre_2_high:
                         valid_dn_point_list.append([pre_1_index, pre_1_high])
 
@@ -196,8 +196,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             ),
             markpoint_opts=opts.MarkPointOpts(
                 data=[
-                    opts.MarkPointItem(type_="max", name="最大值"),
-                    opts.MarkPointItem(type_="min", name="最小值"),
+                    opts.MarkPointItem(type_="max", name="Maximum"),
+                    opts.MarkPointItem(type_="min", name="Minimum"),
                 ]
             ),
             # markline_opts = opts.MarkLineOpts(
@@ -209,17 +209,17 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             # ),
         )
         .set_series_opts(
-            # 为了不影响标记点，这里把标签关掉
+            # To avoid affecting mark points, turn off labels here
             label_opts=opts.LabelOpts(is_show=False),
             markpoint_opts=opts.MarkPointOpts(
                 data=[
-                    opts.MarkPointItem(type_="min", name="y轴最小", value_index=1),
-                    opts.MarkPointItem(type_="max", name="y轴最大", value_index=1),
+                    opts.MarkPointItem(type_="min", name="y-axis minimum", value_index=1),
+                    opts.MarkPointItem(type_="max", name="y-axis maximum", value_index=1),
                 ]
             ),
         )
         .set_global_opts(
-            title_opts=opts.TitleOpts(title="K线周期图表", pos_left="0"),
+            title_opts=opts.TitleOpts(title="K-line cycle chart", pos_left="0"),
             xaxis_opts=opts.AxisOpts(
                 type_="category",
                 is_scale=True,
@@ -239,7 +239,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                 opts.DataZoomOpts(is_show=True, xaxis_index=[0, 1], pos_top="97%", range_end=100),
                 opts.DataZoomOpts(is_show=False, xaxis_index=[0, 2], range_end=100),
             ],
-            # 三个图的 axis 连在一块
+            # Connect axes of three charts together
             # axispointer_opts=opts.AxisPointerOpts(
             #     is_show=True,
             #     link=[{"xAxisIndex": "all"}],
@@ -259,7 +259,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         Line()
         .add_xaxis(xaxis_data=line_index)
         .add_yaxis(
-            series_name="波",
+            series_name="Wave",
             y_axis=line_value,
             is_smooth=False,
             # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
@@ -286,7 +286,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
     # Overlap Kline + Line
     overlap_kline_line = kline.overlap(kline_line)
 
-    # 尝试画出来支撑线
+    # Try to draw support line
     valid_dn_point_list, valid_up_point_list = get_valid_point(df)
     print(len(valid_dn_point_list), len(valid_up_point_list))
     es = (
@@ -305,14 +305,14 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
     # overlap_kline_line = kline
     overlap_kline_line = overlap_kline_line.overlap(es_dn)
 
-    # 尝试给支撑增加一些支撑线
+    # Try to add some support lines to the support
     for d1, d2 in zip(valid_dn_point_list[:-1], valid_dn_point_list[1:]):
         # print(d1,d2)
         dn_line = (
             Line()
             .add_xaxis(xaxis_data=[d1[0], d2[0]])
             .add_yaxis(
-                series_name="支撑",
+                series_name="Support",
                 y_axis=[d1[1], d2[1]],
                 is_smooth=False,
                 # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
@@ -344,7 +344,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             Line()
             .add_xaxis(xaxis_data=[d1[0], d2[0]])
             .add_yaxis(
-                series_name="支撑",
+                series_name="Support",
                 y_axis=[d1[1], d2[1]],
                 is_smooth=False,
                 # linestyle_opts=opts.LineStyleOpts(opacity=0.5),
@@ -370,30 +370,30 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         )
         overlap_kline_line = kline.overlap(dn_line)
 
-    # 添加买卖点
-    # 开多
+    # Add buy/sell points
+    # Open long
     bk_df = df[df.index.isin([str(i[0]) for i in bk_list])]
     bk_c = (
         EffectScatter()
         .add_xaxis(bk_df.index)
         .add_yaxis(
-            "", bk_df.low, color="red", symbol="image://c:/result/img/开多.png", symbol_size=10
+            "", bk_df.low, color="red", symbol="image://c:/result/img/open_long.png", symbol_size=10
         )
         .set_global_opts(title_opts=opts.TitleOpts(title="buy"))
     )
     overlap_kline_line = kline.overlap(bk_c)
-    # 平多
+    # Close long
     bp_df = df[df.index.isin([str(i[0]) for i in bp_list])]
     bp_c = (
         EffectScatter()
         .add_xaxis(bp_df.index)
         .add_yaxis(
-            "", bp_df.high, color="green", symbol="image://c:/result/img/平多.png", symbol_size=10
+            "", bp_df.high, color="green", symbol="image://c:/result/img/close_long.png", symbol_size=10
         )
         .set_global_opts(title_opts=opts.TitleOpts(title="=sell"))
     )
     overlap_kline_line = kline.overlap(bp_c)
-    # 做多的线段
+    # Long position line segment
     for bk, bp in zip([str(i[0]) for i in bk_list], [str(i[0]) for i in bp_list]):
         # print(bk,bk)
         try:
@@ -401,8 +401,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             bk_price = list(bk_df["open"])[1]
             bp_df = df[df.index >= bp]
             bp_price = list(bp_df["open"])[1]
-            # print("做多信号", [bk, new_bk, bp, new_bp], [bk_price, bp_price])  # Removed for performance
-            # 测试
+            # print("Long signal", [bk, new_bk, bp, new_bp], [bk_price, bp_price])  # Removed for performance
+            # Test
             long_line = (
                 Line()
                 .add_xaxis(xaxis_data=[bk, bp])
@@ -433,7 +433,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             )
             overlap_kline_line = kline.overlap(long_line)
         except Exception:
-            # print("有些信号没有对齐")  # Removed for performance
+            # print("Some signals are not aligned")  # Removed for performance
             pass
 
     sk_df = df[df.index.isin([str(i[0]) for i in sk_list])]
@@ -441,7 +441,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         EffectScatter()
         .add_xaxis(sk_df.index)
         .add_yaxis(
-            "", sk_df.high, color="green", symbol="image://c:/result/img/开空.png", symbol_size=10
+            "", sk_df.high, color="green", symbol="image://c:/result/img/open_short.png", symbol_size=10
         )
         .set_global_opts(title_opts=opts.TitleOpts(title="sellshort"))
     )
@@ -452,13 +452,13 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         EffectScatter()
         .add_xaxis(sp_df.index)
         .add_yaxis(
-            "", sp_df.low, color="red", symbol="image://c:/result/img/平空.png", symbol_size=10
+            "", sp_df.low, color="red", symbol="image://c:/result/img/close_short.png", symbol_size=10
         )
         .set_global_opts(title_opts=opts.TitleOpts(title="buytocover"))
     )
     overlap_kline_line = kline.overlap(sp_c)
 
-    # 做空的线段
+    # Short position line segment
     for sk, sp in zip([str(i[0]) for i in sk_list], [str(i[0]) for i in sp_list]):
         try:
             sk_df = df[df.index >= sk]
@@ -467,8 +467,8 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             sp_df = df[df.index >= sp]
             sp = list(sp_df.index)[1]
             sp_price = list(sp_df["open"])[1]
-            # print("做空信号", [sk, sp], [sk_price, sp_price])  # Removed for performance
-            # 测试
+            # print("Short signal", [sk, sp], [sk_price, sp_price])  # Removed for performance
+            # Test
             short_line = (
                 Line()
                 .add_xaxis(xaxis_data=[sk, sp])
@@ -499,7 +499,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             )
             overlap_kline_line = kline.overlap(short_line)
         except Exception:
-            # print("空头信号出错")  # Removed for performance
+            # print("Short signal error")  # Removed for performance
             pass
 
     # Bar-1
@@ -512,7 +512,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             xaxis_index=1,
             yaxis_index=1,
             label_opts=opts.LabelOpts(is_show=False),
-            # 根据 echarts demo 的原版是这么写的
+            # According to echarts demo original version, it's written like this
             # itemstyle_opts=opts.ItemStyleOpts(
             #     color=JsCode("""
             #     function(params) {
@@ -526,7 +526,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             #     }
             #     """)
             # )
-            # 改进后在 grid 中 add_js_funcs 后变成如下
+            # After improvement, after add_js_funcs in grid, it becomes as follows
             itemstyle_opts=opts.ItemStyleOpts(
                 color=JsCode(
                     """
@@ -616,22 +616,22 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         )
         .set_global_opts(legend_opts=opts.LegendOpts(is_show=False))
     )
-    # 最下面的柱状图和折线图
+    # Bottom bar chart and line chart
     overlap_bar_line = bar_2.overlap(line_2)
 
-    # 最后的 Grid
+    # Final Grid
     grid_chart = Grid(init_opts=opts.InitOpts(width="1400px", height="800px"))
 
-    # 这个是为了把 data.datas 这个数据写入到 html 中,还没想到怎么跨 series 传值
-    # demo 中的代码也是用全局变量传的
+    # This is to write data.datas into html, haven't figured out how to pass values across series
+    # Code in demo also uses global variables
     grid_chart.add_js_funcs("var barData = {}".format(data["datas"]))
 
-    # K线图和 MA5 的折线图
+    # K-line chart and MA5 line chart
     grid_chart.add(
         overlap_kline_line,
         grid_opts=opts.GridOpts(pos_left="3%", pos_right="1%", height="60%"),
     )
-    # Volumn 柱状图
+    # Volume bar chart
     grid_chart.add(
         bar_1,
         grid_opts=opts.GridOpts(pos_left="3%", pos_right="1%", pos_top="71%", height="10%"),
@@ -695,10 +695,10 @@ class Plot_OldSync(ParameterizedBase):
     scheme = ParameterDescriptor(default=PlotScheme(), doc="Plotting scheme to use")
 
     def __init__(self, **kwargs):
-        # 首先调用父类初始化，这样 self.p 才能被正确设置
+        # First call parent class initialization, so self.p can be set correctly
         super().__init__()
 
-        # 然后设置 scheme 的属性
+        # Then set scheme attributes
         for pname, pvalue in kwargs.items():
             setattr(self.p.scheme, pname, pvalue)
 
@@ -1071,12 +1071,12 @@ class Plot_OldSync(ParameterizedBase):
 
             xdata, lplotarray = self.pinf.xdata, lplot
 
-            # CRITICAL FIX: 检查数组是否为空，避免维度不匹配错误
-            # 修复维度不匹配错误：ValueError: x and y must have same first dimension
+            # CRITICAL FIX: Check if array is empty to avoid dimension mismatch error
+            # Fix dimension mismatch error: ValueError: x and y must have same first dimension
             if not lplotarray or len(lplotarray) == 0:
-                # 如果数据为空，跳过绘图
+                # If data is empty, skip plotting
                 plottedline = None
-                return  # 强制跳出此次线条绘制
+                return  # Force exit from this line drawing
 
             if lineplotinfo._get("_skipnan", False):
                 # Get the full array and a mask to skipnan
@@ -1087,10 +1087,10 @@ class Plot_OldSync(ParameterizedBase):
                 lplotarray = lplotarray[lplotmask]
                 xdata = np.array(xdata)[lplotmask]
 
-                # 再次检查数组是否为空
+                # Check again if array is empty
                 if len(lplotarray) == 0 or len(xdata) == 0 or len(lplotarray) != len(xdata):
                     plottedline = None
-                    return  # 跳过绘图
+                    return  # Skip plotting
 
             plottedline = pltmethod(xdata, lplotarray, **plotkwargs)
             try:
@@ -1549,10 +1549,10 @@ class Plot_OldSync(ParameterizedBase):
 
 def plot_results(results, file_name):
     """write by myself to plot the result, and I will update this function"""
-    # 总的杠杆
+    # Total leverage
     df1 = pd.DataFrame([results[0].analyzers._GrossLeverage.get_analysis()]).T
     df1.columns = ["GrossLeverage"]
-    # 滚动的对数收益率
+    # Rolling log returns
     df2 = pd.DataFrame([results[0].analyzers._LogReturnsRolling.get_analysis()]).T
     df2.columns = ["log_return"]
 
@@ -1595,7 +1595,7 @@ Plot = Plot_OldSync
 
 
 def create_table(df, max_rows=18):
-    """基于dataframe，设置表格格式"""
+    """Set table format based on dataframe"""
 
     table = html.Table(
         # Header
@@ -1611,9 +1611,9 @@ def create_table(df, max_rows=18):
 
 
 def get_rate_sharpe_drawdown(data):
-    # 计算夏普率，复利年化收益率，最大回撤率
-    # 对于小于日线周期的，抽取每日最后的value作为一个交易日的最终的value，
-    # 对于期货的分钟数据而言，并不是按照15：00收盘算，可能会影响一点点夏普率等指标的计算，但是影响不大。
+    # Calculate Sharpe ratio, compound annual return, maximum drawdown
+    # For periods less than daily, extract the last value of each day as the final value of a trading day,
+    # For futures minute data, it's not calculated based on 15:00 close, which may slightly affect Sharpe ratio and other indicators, but the impact is small.
     data.index = pd.to_datetime(data.index)
     data["date"] = [str(i)[:10] for i in data.index]
     data1 = data.drop_duplicates("date", keep="last")
@@ -1622,12 +1622,12 @@ def get_rate_sharpe_drawdown(data):
     if len(data1) == 0:
         return np.nan, np.nan, np.nan
     try:
-        # 假设一年的交易日为252天
+        # Assume 252 trading days in a year
         data1["rate1"] = np.log(data1["total_value"]) - np.log(data1["total_value"].shift(1))
         # data['rate2']=data['total_value'].pct_change()
         data1 = data1.dropna()
         sharpe_ratio = data1["rate1"].mean() * 252**0.5 / (data1["rate1"].std())
-        # 年化收益率为：
+        # Annualized return is:
         value_list = list(data["total_value"])
         begin_value = value_list[0]
         end_value = value_list[-1]
@@ -1635,30 +1635,30 @@ def get_rate_sharpe_drawdown(data):
         end_date = data.index[-1]
         days = (end_date - begin_date).days
         # print(begin_date,begin_value,end_date,end_value,1/(days/365))
-        # 如果计算的实际收益率为负数的话，就默认为最大为0,收益率不能为负数
+        # If the calculated actual return is negative, default to maximum of 0, return cannot be negative
         total_rate = max((end_value - begin_value) / begin_value, -0.9999)
         average_rate = (1 + total_rate) ** (1 / (days / 365)) - 1
-        # 计算最大回撤
+        # Calculate maximum drawdown
         data["rate1"] = np.log(data["total_value"]) - np.log(data["total_value"].shift(1))
         df = data["rate1"].cumsum()
         df = df.dropna()
-        # index_j = np.argmax(np.maximum.accumulate(df) - df)  # 结束位置
+        # index_j = np.argmax(np.maximum.accumulate(df) - df)  # End position
         index_j = np.argmax(np.array(np.maximum.accumulate(df) - df))
-        # print("最大回撤结束时间",index_j)
-        # index_i = np.argmax(df[:index_j])  # 开始位置
-        index_i = np.argmax(np.array(df[:index_j]))  # 开始位置
-        # print("最大回撤开始时间",index_i)
+        # print("Maximum drawdown end time",index_j)
+        # index_i = np.argmax(df[:index_j])  # Start position
+        index_i = np.argmax(np.array(df[:index_j]))  # Start position
+        # print("Maximum drawdown start time",index_i)
         max_drawdown = (np.e ** df[index_j] - np.e ** df[index_i]) / np.e ** df[index_i]
         """
         begin_max_drawdown_value = data['total_value'][index_i]
         end_max_drawdown_value = data['total_value'][index_j]
         # print("begin_max_drawdown_value",begin_max_drawdown_value)  # Removed for performance
         # print("end_max_drawdown_value",end_max_drawdown_value)  # Removed for performance
-        maxdrawdown_rate = (end_max_drawdown_value -begin_max_drawdown_value)/begin_max_drawdown_value  # 最大回撤比率
-        maxdrawdown_value = data['total_value'][index_j] -data['total_value'][index_i] #最大回撤值
-        # print("最大回撤值为",maxdrawdown_value)  # Removed for performance
-        # print("最大回撤比率为",maxdrawdown_rate)  # Removed for performance
-        # 绘制图像
+        maxdrawdown_rate = (end_max_drawdown_value -begin_max_drawdown_value)/begin_max_drawdown_value  # Maximum drawdown ratio
+        maxdrawdown_value = data['total_value'][index_j] -data['total_value'][index_i] #Maximum drawdown value
+        # print("Maximum drawdown value is",maxdrawdown_value)  # Removed for performance
+        # print("Maximum drawdown ratio is",maxdrawdown_rate)  # Removed for performance
+        # Draw chart
         plt.plot(df[1:len(df)])
         plt.plot([index_i], [df[index_i]], 'o', color="r", markersize=10)
         plt.plot([index_j], [df[index_j]], 'o', color="blue", markersize=10)
@@ -1671,7 +1671,7 @@ def get_rate_sharpe_drawdown(data):
 
 
 def get_year_return(data):
-    """计算每年的年化收益率"""
+    """Calculate annualized annual return"""
     data.index = pd.to_datetime(data.index)
     data["year"] = [i.year for i in data.index]
     last_data = data.iloc[-1:, ::]
@@ -1718,28 +1718,28 @@ def run_cerebro_and_plot(
             # plot_results(results,"/home/yun/index_000300_reverse_strategy_hold_day_90.html")
             end_time = time.time()
             print(
-                "backtest {} consume time  :{},结束时间为:{}".format(
+                "backtest {} consume time  :{}, end time is:{}".format(
                     params_str,
                     end_time - begin_time,
                     time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                 )
             )
-            # 获取关键性的账户价值，并计算三大指标
+            # Get key account value and calculate three major indicators
             df0 = pd.DataFrame([results[0].analyzers._TotalValue.get_analysis()]).T
             df0.columns = ["total_value"]
             df0["datetime"] = df0.index
             df0 = df0.sort_values("datetime")
             del df0["datetime"]
             df0.to_csv(result_path + strategy_name + params_str + "___value.csv")
-            # 根据每日净值，计算每年的收益
+            # Calculate annual return based on daily net value
             df_return = get_year_return(copy.deepcopy(df0))
-            # 计算夏普率、平均收益、最大回撤
+            # Calculate Sharpe ratio, average return, maximum drawdown
             sharpe_ratio, average_rate, max_drawdown_rate = get_rate_sharpe_drawdown(
                 copy.deepcopy(df0)
             )
-            # 分析交易绩效
+            # Analyze trading performance
             performance_dict = OrderedDict()
-            # 绩效衡量指标
+            # Performance measurement indicators
             performance_dict["sharpe_ratio"] = sharpe_ratio
             performance_dict["average_rate"] = average_rate
             performance_dict["max_drawdown_rate"] = max_drawdown_rate
@@ -1801,35 +1801,35 @@ def run_cerebro_and_plot(
             assert len(performance_dict) == len(trade_dict_2) == len(trade_dict_1)
             df00 = pd.DataFrame(index=range(18))
             df01 = pd.DataFrame([performance_dict]).T
-            df01.columns = ["绩效指标值"]
+            df01.columns = ["Performance indicator value"]
             df02 = pd.DataFrame([trade_dict_1]).T
-            df02.columns = ["普通交易指标值"]
+            df02.columns = ["General trading indicator value"]
             df03 = pd.DataFrame([trade_dict_2]).T
-            df03.columns = ["多空交易指标值"]
+            df03.columns = ["Long/short trading indicator value"]
             try:
-                df00["绩效指标"] = df01.index
-                df00["绩效指标值"] = [round(float(i), 4) for i in list(df01["绩效指标值"])]
-                df00["普通交易指标"] = df02.index
-                df00["普通交易指标值"] = [round(float(i), 4) for i in list(df02["普通交易指标值"])]
-                df00["多空交易指标"] = df03.index
-                df00["多空交易指标值"] = [round(float(i), 4) for i in list(df03["多空交易指标值"])]
+                df00["Performance indicator"] = df01.index
+                df00["Performance indicator value"] = [round(float(i), 4) for i in list(df01["Performance indicator value"])]
+                df00["General trading indicator"] = df02.index
+                df00["General trading indicator value"] = [round(float(i), 4) for i in list(df02["General trading indicator value"])]
+                df00["Long/short trading indicator"] = df03.index
+                df00["Long/short trading indicator value"] = [round(float(i), 4) for i in list(df03["Long/short trading indicator value"])]
             except Exception as e:
                 traceback.format_exception(e)
-                df00["绩效指标"] = df01.index
-                df00["绩效指标值"] = df01["绩效指标值"]
-                df00["普通交易指标"] = df02.index
-                df00["普通交易指标值"] = df02["普通交易指标值"]
-                df00["多空交易指标"] = df03.index
-                df00["多空交易指标值"] = df03["多空交易指标值"]
-                # print("绩效指标值", df01["绩效指标值"])  # Removed for performance
+                df00["Performance indicator"] = df01.index
+                df00["Performance indicator value"] = df01["Performance indicator value"]
+                df00["General trading indicator"] = df02.index
+                df00["General trading indicator value"] = df02["General trading indicator value"]
+                df00["Long/short trading indicator"] = df03.index
+                df00["Long/short trading indicator value"] = df03["Long/short trading indicator value"]
+                # print("Performance indicator value", df01["Performance indicator value"])  # Removed for performance
                 # print(performance_dict)  # Removed for performance
                 # print(strategy.__name__ + params_str)  # Removed for performance
                 # print(sharpe_ratio, average_rate, max_drawdown_rate)  # Removed for performance
 
         if not optimize:
-            # 保存需要的交易指标
+            # Save required trading indicators
             # cerebro.addanalyzer(analyzers.PyFolio, _name='pyfolio')
-            # cerebro.addanalyzer(analyzers.AnnualReturn, _name='_AnnualReturn') # 计算年化收益有问题，剔除
+            # cerebro.addanalyzer(analyzers.AnnualReturn, _name='_AnnualReturn') # Annual return calculation has issues, removed
             cerebro.addanalyzer(analyzers.Calmar, _name="_Calmar")
             cerebro.addanalyzer(analyzers.DrawDown, _name="_DrawDown")
             # cerebro.addanalyzer(analyzers.TimeDrawDown, _name='_TimeDrawDown')
@@ -1851,35 +1851,35 @@ def run_cerebro_and_plot(
             # plot_results(results,"/home/yun/index_000300_reverse_strategy_hold_day_90.html")
             end_time = time.time()
             print(
-                "backtest {} consume time  :{},结束时间为:{}".format(
+                "backtest {} consume time  :{}, end time is:{}".format(
                     params_str,
                     end_time - begin_time,
                     time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
                 )
             )
-            # 分析交易绩效
+            # Analyze trading performance
             performance_dict = OrderedDict()
             drawdown_info = results[0].analyzers._DrawDown.get_analysis()
-            # 计算阶段性指标
+            # Calculate periodic indicators
             PeriodStats_info = results[0].analyzers._PeriodStats.get_analysis()
-            # 计算sqn指标
+            # Calculate sqn indicator
             SQN_info = results[0].analyzers._SQN.get_analysis()
             sqn_ratio = SQN_info.get("sqn", np.nan)
-            # 计算vwr指标
+            # Calculate vwr indicator
             VWR_info = results[0].analyzers._VWR.get_analysis()
             vwr_ratio = VWR_info.get("vwr", np.nan)
-            # 计算calmar指标
+            # Calculate calmar indicator
             # calmar_ratio_list = list(results[0].analyzers._Calmar.get_analysis().values())
             # calmar_ratio = calmar_ratio_list[-1] if len(calmar_ratio_list) > 0 else np.nan
             calmar_ratio = np.nan
-            # 计算夏普率
+            # Calculate Sharpe ratio
             sharpe_info = results[0].analyzers._SharpeRatio.get_analysis()
             sharpe_ratio = sharpe_info.get("sharperatio", np.nan)
-            # 获得平均回撤指标
+            # Get average drawdown indicator
             average_drawdown_len = drawdown_info.get("len", np.nan)
             average_drawdown_rate = drawdown_info.get("drawdown", np.nan)
             average_drawdown_money = drawdown_info.get("moneydown", np.nan)
-            # 获得最大回撤指标
+            # Get maximum drawdown indicator
             max_drawdown_info = drawdown_info.get("max", {})
             max_drawdown_len = max_drawdown_info.get("len", np.nan)
             max_drawdown_rate = max_drawdown_info.get("drawdown", np.nan)
@@ -1893,21 +1893,21 @@ def run_cerebro_and_plot(
             best_year = PeriodStats_info.get("best", np.nan)
             worst_year = PeriodStats_info.get("worst", np.nan)
 
-            # 获取关键性的账户价值，并计算三大指标
+            # Get key account value and calculate three major indicators
             df0 = pd.DataFrame([results[0].analyzers._TotalValue.get_analysis()]).T
             df0.columns = ["total_value"]
             df0["datetime"] = df0.index
             df0 = df0.sort_values("datetime")
             del df0["datetime"]
             df0.to_csv(result_path + strategy_name + params_str + "___value.csv")
-            # 根据每日净值，计算每年的收益
+            # Calculate annual return based on daily net value
             df_return = get_year_return(copy.deepcopy(df0))
-            # 计算夏普率、平均收益、最大回撤
+            # Calculate Sharpe ratio, average return, maximum drawdown
             sharpe_ratio, average_rate, max_drawdown_rate = get_rate_sharpe_drawdown(
                 copy.deepcopy(df0)
             )
 
-            # 绩效衡量指标
+            # Performance measurement indicators
             performance_dict["sharpe_ratio"] = sharpe_ratio
             performance_dict["average_rate"] = average_rate
             performance_dict["max_drawdown_rate"] = max_drawdown_rate
@@ -2058,45 +2058,45 @@ def run_cerebro_and_plot(
             assert len(performance_dict) == len(trade_dict_2) == len(trade_dict_1)
             df00 = pd.DataFrame(index=range(18))
             df01 = pd.DataFrame([performance_dict]).T
-            df01.columns = ["绩效指标值"]
+            df01.columns = ["Performance indicator value"]
             df02 = pd.DataFrame([trade_dict_1]).T
-            df02.columns = ["普通交易指标值"]
+            df02.columns = ["General trading indicator value"]
             df03 = pd.DataFrame([trade_dict_2]).T
-            df03.columns = ["多空交易指标值"]
+            df03.columns = ["Long/short trading indicator value"]
             try:
-                df00["绩效指标"] = df01.index
-                df00["绩效指标值"] = [round(float(i), 4) for i in list(df01["绩效指标值"])]
-                df00["普通交易指标"] = df02.index
-                df00["普通交易指标值"] = [round(float(i), 4) for i in list(df02["普通交易指标值"])]
-                df00["多空交易指标"] = df03.index
-                df00["多空交易指标值"] = [round(float(i), 4) for i in list(df03["多空交易指标值"])]
+                df00["Performance indicator"] = df01.index
+                df00["Performance indicator value"] = [round(float(i), 4) for i in list(df01["Performance indicator value"])]
+                df00["General trading indicator"] = df02.index
+                df00["General trading indicator value"] = [round(float(i), 4) for i in list(df02["General trading indicator value"])]
+                df00["Long/short trading indicator"] = df03.index
+                df00["Long/short trading indicator value"] = [round(float(i), 4) for i in list(df03["Long/short trading indicator value"])]
             except Exception as e:
                 traceback.format_exception(e)
-                df00["绩效指标"] = df01.index
-                df00["绩效指标值"] = df01["绩效指标值"]
-                df00["普通交易指标"] = df02.index
-                df00["普通交易指标值"] = df02["普通交易指标值"]
-                df00["多空交易指标"] = df03.index
-                df00["多空交易指标值"] = df03["多空交易指标值"]
-                # print("绩效指标值", df01["绩效指标值"])  # Removed for performance
+                df00["Performance indicator"] = df01.index
+                df00["Performance indicator value"] = df01["Performance indicator value"]
+                df00["General trading indicator"] = df02.index
+                df00["General trading indicator value"] = df02["General trading indicator value"]
+                df00["Long/short trading indicator"] = df03.index
+                df00["Long/short trading indicator value"] = df03["Long/short trading indicator value"]
+                # print("Performance indicator value", df01["Performance indicator value"])  # Removed for performance
                 # print(performance_dict)  # Removed for performance
                 # print(strategy.__name__ + params_str)  # Removed for performance
                 # print(sharpe_ratio, average_rate, max_drawdown_rate)  # Removed for performance
 
             # Add table data
             table_data = [
-                list(df00["绩效指标"])[:9],
-                list(df00["绩效指标值"])[:9],
-                list(df00["绩效指标"])[9:],
-                list(df00["绩效指标值"])[9:],
-                list(df00["普通交易指标"])[:9],
-                list(df00["普通交易指标值"])[:9],
-                list(df00["普通交易指标"])[9:],
-                list(df00["普通交易指标值"])[9:],
-                list(df00["多空交易指标"])[:9],
-                list(df00["多空交易指标值"])[:9],
-                list(df00["多空交易指标"])[9:],
-                list(df00["多空交易指标值"])[9:],
+                list(df00["Performance indicator"])[:9],
+                list(df00["Performance indicator value"])[:9],
+                list(df00["Performance indicator"])[9:],
+                list(df00["Performance indicator value"])[9:],
+                list(df00["General trading indicator"])[:9],
+                list(df00["General trading indicator value"])[:9],
+                list(df00["General trading indicator"])[9:],
+                list(df00["General trading indicator value"])[9:],
+                list(df00["Long/short trading indicator"])[:9],
+                list(df00["Long/short trading indicator value"])[:9],
+                list(df00["Long/short trading indicator"])[9:],
+                list(df00["Long/short trading indicator value"])[9:],
             ]
             fig = ff.create_table(table_data)
             # Add graph data
@@ -2215,8 +2215,8 @@ def run_cerebro_and_plot(
 #         results = cerebro.run()
 #         # plot_results(results,"/home/yun/index_000300_reverse_strategy_hold_day_90.html")
 #         end_time=time.time()
-#         print("backtest {} consume time  :{},结束时间为:{}".format(params_str,end_time-begin_time,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
-#         # 保存交易数据
+#         print("backtest {} consume time  :{}, end time is:{}".format(params_str,end_time-begin_time,time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())))
+#         # Save trading data
 #         try:
 #             transactions=results[0].analyzers._Transactions.get_analysis()
 #             import pickle
@@ -2225,7 +2225,7 @@ def run_cerebro_and_plot(
 #                 pickle.dump(transactions,f)
 #         except:
 #             pass
-#             print("保存数据失败")
+#             print("Data save failed")
 #         try:
 #             performance_dict=OrderedDict()
 #             drawdown_info=results[0].analyzers._DrawDown.get_analysis()
@@ -2279,10 +2279,10 @@ def run_cerebro_and_plot(
 #             VWR_info=np.nan
 #             vwr_ratio=np.nan
 #         # sharpe_info=results[0].analyzers._SharpeRatio_A.get_analysis()
-#         # 计算三个关键的指标
+#         # Calculate three key indicators
 #         df0=df1=pd.DataFrame([results[0].analyzers._TotalValue.get_analysis()]).T
 #         df0.columns=['total_value']
-#         df0.to_csv("C:/result/"+strategy_name+params_str+"斜率策略总的账户价值.csv")
+#         df0.to_csv("C:/result/"+strategy_name+params_str+"Slope strategy total account value.csv")
 #         sharpe_ratio,average_rate,max_drawdown_rate = get_rate_sharpe_drawdown(df0)
 
 
@@ -2433,17 +2433,17 @@ def run_cerebro_and_plot(
 #         len(performance_dict)==len(trade_dict_2)==len(trade_dict_1)
 #         df00=pd.DataFrame(index=range(18))
 #         df01=pd.DataFrame([performance_dict]).T
-#         df01.columns=['绩效指标值']
+#         df01.columns=['Performance indicator value']
 #         df02=pd.DataFrame([trade_dict_1]).T
-#         df02.columns=['普通交易指标值']
+#         df02.columns=['General trading indicator value']
 #         df03=pd.DataFrame([trade_dict_2]).T
-#         df03.columns=['多空交易指标值']
-#         df00['绩效指标']=df01.index
-#         df00['绩效指标值']=[round(float(i),4) for i in list(df01['绩效指标值'])]
-#         df00['普通交易指标']=df02.index
-#         df00['普通交易指标值']=[round(float(i),4) for i in list(df02['普通交易指标值'])]
-#         df00['多空交易指标']=df03.index
-#         df00['多空交易指标值']=[round(float(i),4) for i in list(df03['多空交易指标值'])]
+#         df03.columns=['Long/short trading indicator value']
+#         df00['Performance indicator']=df01.index
+#         df00['Performance indicator value']=[round(float(i),4) for i in list(df01['Performance indicator value'])]
+#         df00['General trading indicator']=df02.index
+#         df00['General trading indicator value']=[round(float(i),4) for i in list(df02['General trading indicator value'])]
+#         df00['Long/short trading indicator']=df03.index
+#         df00['Long/short trading indicator value']=[round(float(i),4) for i in list(df03['Long/short trading indicator value'])]
 
 
 #         if plot is True:
@@ -2451,17 +2451,17 @@ def run_cerebro_and_plot(
 #             df00.to_csv(result_path+strategy.__name__+params_str+'.csv',encoding='gbk')
 
 #             test_time=datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-#             # 账户价值
+#             # Account value
 #             df0=df1=pd.DataFrame([results[0].analyzers._TotalValue.get_analysis()]).T
 #             df0.columns=['total_value']
-#             df0.to_csv("C:/result/"+strategy_name+params_str+"斜率策略总的账户价值.csv")
+#             df0.to_csv("C:/result/"+strategy_name+params_str+"Slope strategy total account value.csv")
 
-#             # 总的杠杆
+#             # Total leverage
 #             df1=pd.DataFrame([results[0].analyzers._GrossLeverage.get_analysis()]).T
 #             df1.columns=['GrossLeverage']
 
 
-#             # 滚动的对数收益率
+#             # Rolling log returns
 #             # df2=pd.DataFrame([results[0].analyzers._LogReturnsRolling.get_analysis()]).T
 #             # df2.columns=['log_return']
 
@@ -2469,15 +2469,15 @@ def run_cerebro_and_plot(
 #             df3=pd.DataFrame([results[0].analyzers._AnnualReturn.get_analysis()]).T
 #             df3.columns=['year_rate']
 
-#             # 总的持仓价值
+#             # Total position value
 #             df4=pd.DataFrame(results[0].analyzers._PositionsValue.get_analysis()).T
 #             df4['total_position_value']=df4.sum(axis=1)
 
-#             # 定义表格组件
+#             # Define table component
 
 
 #             app = dash.Dash()
-#             # app = JupyterDash('策略评估结果')
+#             # app = JupyterDash('Strategy evaluation result')
 #             # server = app.server
 #             colors = dict(background = 'white', text = 'black')
 
@@ -2485,21 +2485,21 @@ def run_cerebro_and_plot(
 #                 style = dict(backgroundColor = colors['background']),
 #                 children = [
 #                     html.H1(
-#                         children='{}的策略评估结果'.format(strategy_name),
+#                         children='Strategy evaluation result for {}'.format(strategy_name),
 #                         style = dict(textAlign='center', color = colors['text'])),
 #                     html.Div(
-#                         children=f'策略作者 ： {author} ___ 测试时间： {test_time} ___ 测试分数为 : {score}',
+#                         children=f'Strategy author: {author} ___ Test time: {test_time} ___ Test score is: {score}',
 #                         style = dict(textAlign = 'center', color = colors['text'])),
 
 #                     dcc.Graph(
-#                         id='账户价值',
+#                         id='Account value',
 #                         figure = dict(
 #                             data = [{'x': list(df0.index), 'y': list(df0.total_value),
 #                                     #'text':[int(i*1000)/10 for i in list(df3.year_rate)],
-#                                     'type': 'scatter', 'name': '账户价值',
+#                                     'type': 'scatter', 'name': 'Account value',
 #                                     'textposition':"outside"}],
 #                             layout = dict(
-#                                 title='账户价值',
+#                                 title='Account value',
 #                                 plot_bgcolor = colors['background'],
 #                                 paper_bgcolor = colors['background'],
 #                                 font = dict(color = colors['text'],
@@ -2509,14 +2509,14 @@ def run_cerebro_and_plot(
 #                     ),
 
 #                     dcc.Graph(
-#                         id='持仓市值',
+#                         id='Position market value',
 #                         figure = dict(
 #                             data = [{'x': list(df4.index), 'y': list(df4.total_position_value),
 #                                     #'text':[int(i*1000)/10 for i in list(df3.year_rate)],
-#                                     'type': 'scatter', 'name': '持仓市值',
+#                                     'type': 'scatter', 'name': 'Position market value',
 #                                     'textposition':"outside"}],
 #                             layout = dict(
-#                                 title='持仓市值',
+#                                 title='Position market value',
 #                                 plot_bgcolor = colors['background'],
 #                                 paper_bgcolor = colors['background'],
 #                                 font = dict(color = colors['text']),
@@ -2524,14 +2524,14 @@ def run_cerebro_and_plot(
 #                         )
 #                     ),
 #                     dcc.Graph(
-#                         id='年化收益',
+#                         id='Annualized return',
 #                         figure = dict(
 #                             data = [{'x': list(df3.index), 'y': list(df3.year_rate),
 #                                     'text':[int(i*1000)/10 for i in list(df3.year_rate)],
-#                                     'type': 'bar', 'name': '年收益率',
+#                                     'type': 'bar', 'name': 'Annual return rate',
 #                                     'textposition':"outside"}],
 #                             layout = dict(
-#                                 title='年化收益率',
+#                                 title='Annualized return rate',
 #                                 plot_bgcolor = colors['background'],
 #                                 paper_bgcolor = colors['background'],
 #                                 font = dict(color = colors['text']),

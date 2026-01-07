@@ -1,9 +1,20 @@
 #!/usr/bin/env python
+"""SMMA Indicator Module - Smoothed Moving Average.
+
+This module provides the SMMA (Smoothed Moving Average) indicator used
+by J. Welles Wilder in his 1978 book.
+
+Classes:
+    SmoothedMovingAverage: SMMA indicator (aliases: SMMA, WilderMA,
+        MovingAverageSmoothed, MovingAverageWilder, ModifiedMovingAverage).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.SMMA, period=14)
+"""
 import math
 from . import MovingAverageBase
-
-
-# Smoothed Moving Average (Exponential smoothing)
 class SmoothedMovingAverage(MovingAverageBase):
     """
     Smoothing Moving Average used by Wilder in his 1978 book `New Concepts in

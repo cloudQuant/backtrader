@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""KAMA Indicator Module - Kaufman's Adaptive Moving Average.
+
+This module provides the KAMA (Kaufman's Adaptive Moving Average) indicator
+developed by Perry Kaufman to adapt to market volatility and direction.
+
+Classes:
+    AdaptiveMovingAverage: KAMA indicator (aliases: KAMA, MovingAverageAdaptive).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.KAMA, period=30)
+"""
 import math
 from . import MovingAverageBase
-
-
-# Adaptive Moving Average
 class AdaptiveMovingAverage(MovingAverageBase):
     """
     Defined by Perry Kaufman in his book `"Smarter Trading"`.

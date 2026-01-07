@@ -13,7 +13,7 @@ from backtrader.utils.py3 import integer_types, string_types
 __all__ = ["BackBroker", "BrokerBack"]
 
 
-# 这个是回测的时候使用的类
+# This is the class used during backtesting
 class BackBroker(BrokerBase):
     """Broker Simulator
 
@@ -25,8 +25,8 @@ class BackBroker(BrokerBase):
     *cash* is adjusted on each iteration for instruments like ``futures`` for
      which a price change implies in real brokers the addition/subtraction of
      cash.
-      # 这个回测模拟类支持不同的订单类型，检查现在的现金是否满足提交订单的现金需求，在每个bar的时候
-      # 检查cash和value,以及不同的数据上的Position
+      # This backtesting simulation class supports different order types, checks if current cash meets the cash requirements for submitted orders,
+      # checks cash and value at each bar, and positions on different data feeds
 
     Supported order types:
 
@@ -44,7 +44,7 @@ class BackBroker(BrokerBase):
       - ``StopLimit``: sets a ``Limit`` order in motion if the given stop
         price is seen
 
-      # 支持的订单类型有上面的五种基本的，实际上还是有其他的订单类型支持的，可以参考以前的教程
+      # Supported order types include the five basic types above. In fact, there are other order types supported. Refer to previous tutorials
       # https://blog.csdn.net/qq_26948675/article/details/122868368
 
     Because the broker is instantiated by ``Cerebro`` and there should be
@@ -64,23 +64,23 @@ class BackBroker(BrokerBase):
          ``cerebro.broker`` is a *property* supported by the ``getbroker``
          and ``setbroker`` methods of ``Cerebro``
 
-      # 通常情况下不需要设置broker的参数，如果需要设置，通常具有下面的两种方法，第一种是创建一个broker的实例，然后cerebro.broker = instance
+      # Normally there is no need to set broker parameters. If setting is needed, there are usually two methods: first is to create a broker instance, then cerebro.broker = instance
       # The second method is to use cerebro.broker.set_xxx to set different parameters
 
 
     Params:
-          # 下面是一些参数的意义
+          # The meanings of some parameters are below
 
       - ``cash`` (default: ``10000``): starting cash
-          # cash就是开始时候的资金有多少，默认是10000
+          # cash is the starting capital amount, default is 10000
 
       - ``commission`` (default: ``CommInfoBase(percabs=True)``)
         base commission scheme which applies to all assets
-          # 佣金类，对于资产交易怎么收取佣金、保证金等设置，默认是CommInfoBase(percabs=True)
+          # Commission class for how to charge commissions, margin, etc. for asset trading. Default is CommInfoBase(percabs=True)
 
       - ``checksubmit`` (default: ``True``)
         check margin/cash before accepting an order into the system
-        # 在把一个订单传递到系统中的时候是否检查保证金和资金是否满足，默认是需要检查
+        # Whether to check if margin and cash are sufficient when passing an order to the system. Default is to check
 
       - ``eosbar`` (default: ``False``):
         With intraday bars consider a bar with the same ``time`` as the end
@@ -88,8 +88,8 @@ class BackBroker(BrokerBase):
         case, because some bars (final auction) are produced by many
         exchanges for many products for a couple of minutes after the end of
         the session
-          # 交易结束bar,默认是False,在日内bar的时候，考虑一个具有和交易结束时间相同时间的bar作为一天交易的结束。
-          # 但是通常情况下不是这样，这是因为很多资产的bar是在当天交易时间结束之后的一些分钟之后在很多交易所通过最终拍卖形成的
+          # End-of-session bar, default is False. For intraday bars, consider a bar with the same time as the end of session as the end of day's trading.
+          # However, this is usually not the case, because many assets' bars are formed through final auctions at many exchanges a few minutes after the end of the day's trading time
 
       - ``filler`` (default: ``None``)
 
@@ -122,9 +122,9 @@ class BackBroker(BrokerBase):
         With the default ``None`` orders will be completely executed in a
         single shot
 
-        # filler事一个可调用对象，默认是None,在这种情况下，所有的交易量都可以执行；如果filler不是None的话，
-        # 会根据order,price,ago具体计算出可以下单的量
-        # 参考文章：https://blog.csdn.net/qq_26948675/article/details/124566885?spm=1001.2014.3001.5501
+        # filler is a callable object, default is None. In this case, all trading volume can be executed; if filler is not None,
+        # it will calculate the executable order size based on order, price, ago
+        # Reference articles: https://blog.csdn.net/qq_26948675/article/details/124566885?spm=1001.2014.3001.5501
         # https://yunjinqi.blog.csdn.net/article/details/113445040
 
 
@@ -137,14 +137,14 @@ class BackBroker(BrokerBase):
           - ``0.01`` is ``1%``
 
           - ``0.001`` is ``0.1%``
-          # 百分比滑点形式
+          # Percentage slippage form
 
       - ``slip_fixed`` (default: ``0.0``) Percentage in units (and positive)
         that should be used to slip prices up/down for buy/sell orders
 
         Note: if ``slip_perc`` is non zero, it takes precedence over this.
 
-          # 固定滑点形式，如果百分比滑点不是0的话，只考虑百分比滑点
+          # Fixed slippage form. If percentage slippage is not 0, only percentage slippage is considered
 
       - ``slip_open`` (default: ``False``) whether to slip prices for order
         execution which would specifically used the *opening* price of the
@@ -154,7 +154,7 @@ class BackBroker(BrokerBase):
         This also applies to some of the other executions, because the logic
         tries to detect if the *opening* price would match the requested
         price/execution type when moving to a new bar.
-          # 计算滑点的时候，是否使用下个bar的开盘价
+          # Whether to use the next bar's opening price when calculating slippage
 
       - ``slip_match`` (default: ``True``)
 
@@ -163,8 +163,8 @@ class BackBroker(BrokerBase):
 
         If ``False`` the broker will not match the order with the current
         prices and will try execution during the next iteration
-          # 如果加上滑点的价格超过了最高价和最低价，如果slip_match设置成True的话，成交价将会按照最高价或者最低价计算
-          # 如果没有设置成True,将会等待下个bar去尝试成交
+          # If the price with slippage exceeds the high or low price, and if slip_match is set to True, the execution price will be calculated based on the high or low price
+          # If not set to True, it will wait for the next bar to attempt execution
 
       - ``slip_limit`` (default: ``True``)
 
@@ -178,15 +178,15 @@ class BackBroker(BrokerBase):
 
         If ``False`` and slippage exceeds the cap, then there will be no
         match
-          # 限价单将会寻求严格的匹配，即使slip_match是False的时候
-          # slip_limit设置成True的话，限价单如果在最高价和最低价之间，将会成交
-          # 如果设置成False,限价单加上滑点超过了最高价和最低价，将不会成交
+          # Limit orders will seek strict matching, even when slip_match is False
+          # If slip_limit is set to True, limit orders will be executed if they are between the high and low prices
+          # If set to False, limit orders with slippage that exceeds high and low prices will not be executed
 
       - ``slip_out`` (default: ``False``)
 
         Provide *slippage* even if the price falls outside the ``high`` -
         ``low`` range.
-          # 当slip_out设置成True的时候，即使价格超过了最高价和最低价的范围，也会提供滑点
+          # When slip_out is set to True, slippage will be provided even if the price exceeds the high-low range
 
       - ``coc`` (default: ``False``)
 
@@ -195,14 +195,14 @@ class BackBroker(BrokerBase):
          the order was issued. This is actually *cheating*, because the bar
          is *closed* and any order should first be matched against the prices
          in the next bar
-          # coc设置成True的时候，在下市价单的时候，允许在收盘价成交
+          # When coc is set to True, when placing a market order, it allows execution at the closing price
       - ``coo`` (default: ``False``)
 
         *Cheat-On-Open* Setting this to ``True`` with ``set_coo`` enables
          matching a ``Market`` order to the opening price, by for example
          using a timer with ``cheat`` set to ``True``, because such a timer
          gets executed before the broker has evaluated
-          # coo设置成True的时候，允许市价单按照开盘价成交，类似于tbquant的模式
+          # When coo is set to True, market orders are allowed to execute at the opening price, similar to tbquant mode
 
       - ``int2pnl`` (default: ``True``)
 
@@ -211,7 +211,7 @@ class BackBroker(BrokerBase):
         cases in which this is undesired, because different strategies are
         competing and the interest would be assigned on a non-deterministic
         basis to any of them.
-        # int2pnl，默认是True. todo 按照字面意思理解是把产生的利息费用转嫁到pnl上
+        # int2pnl, default is True. TODO: Understand literally as transferring generated interest costs to pnl
 
       - ``shortcash`` (default: ``True``)
 
@@ -221,8 +221,8 @@ class BackBroker(BrokerBase):
         If ``False`` then the cash will be deducted as operation cost and the
         calculated value will be positive to end up with the same amount
 
-        # 对于股票类资产，如果这个参数设置是True的话，那么当卖空的时候，将会导致可用的资金是增加的，但是这个资产的价值将是负的
-        # 如果这个参数设置的是False的话，那么在卖空的时候，可用资金是减少的，资产的价值是正的
+        # For stock-like assets, if this parameter is set to True, when short selling, the available cash will increase, but the asset value will be negative
+        # If this parameter is set to False, when short selling, the available cash decreases, and the asset value is positive
 
       - ``fundstartval`` (default: ``100.0``)
 
@@ -230,18 +230,18 @@ class BackBroker(BrokerBase):
         in a fund-like way, i.e.: cash can be added and deducted increasing
         the amount of shares. Performance is not measured using the net
         asset value of the portfolio but using the value of the fund
-        # fundstartval，将会按照fund的模式计算绩效
+        # fundstartval will calculate performance in fund mode
 
       - ``fundmode`` (default: ``False``)
 
         If this is set to ``True`` analyzers like ``TimeReturn`` can
         automatically calculate returns based on the fund value and not on
         the total net asset value
-        # 如果fundmode设置成True的话，一些analyzers，比如TimeReturn将会使用fund value计算收益
+        # If fundmode is set to True, some analyzers like TimeReturn will use fund value to calculate returns
 
     """
 
-    # 使用新的参数描述符系统
+    # Use the new parameter descriptor system
     cash = ParameterDescriptor(default=10000.0, type_=float, doc="Starting cash amount")
 
     checksubmit = ParameterDescriptor(
@@ -307,10 +307,10 @@ class BackBroker(BrokerBase):
         default=False, type_=bool, doc="Enable fund-like performance calculation"
     )
 
-    # 创建实例的时候初始化
+    # Initialize when creating instance
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 用于保存order历史记录
+        # Used to save order history records
         self._cash_addition = None
         self._ocol = None
         self._fundshares = None
@@ -330,51 +330,51 @@ class BackBroker(BrokerBase):
         self._valuelever = None
         self._valuemkt = None
         self._value = None
-        # 注释：不要直接设置 self.cash = None，这会覆盖参数系统中的值
-        # 改为使用 _cash 作为内部状态变量，在 init() 中初始化
+        # Comment: Do not directly set self.cash = None, this will override the value in the parameter system
+        # Instead use _cash as an internal state variable, initialize it in init()
         self._cash = None
         self.startingcash = None
         self._userhist = []
-        # 用于保存fund历史记录
+        # Used to save fund history records
         self._fundhist = []
         # share_value, net asset value
-        # 用于保存fund的份额和净资产价值
+        # Used to save fund shares and net asset value
         self._fhistlast = [float("NaN"), float("NaN")]
 
-    # 初始化函数
+    # Initialization function
     def init(self):
         super().init()
-        # 开始的时候的初始现金 - 从参数系统获取
+        # Initial cash at the start - obtained from parameter system
         cash_param = self.get_param("cash")
         self.startingcash = self._cash = cash_param
-        # 未加杠杆的账户价值
+        # Unleveraged account value
         self._value = self._cash
-        # 未加杠杆的Position价值
+        # Unleveraged position value
         self._valuemkt = 0.0  # no open position
-        # 加了杠杆的账户价值
+        # Leveraged account value
         self._valuelever = 0.0  # no open position
-        # 加了杠杆的Position市值
+        # Leveraged position market value
         self._valuemktlever = 0.0  # no open position
-        # 杠杆
+        # Leverage
         self._leverage = 1.0  # initially nothing is open
-        # 未实现盈利
+        # Unrealized profit
         self._unrealized = 0.0  # no open position
-        # 订单
+        # Orders
         self.orders = list()  # will only be appending
-        # 双向队列
+        # Double-ended queue
         self.pending = collections.deque()  # popleft and append(right)
         self._toactivate = collections.deque()  # to activate in next cycle
         # Position
         self.positions = collections.defaultdict(Position)
-        # 利息率
+        # Interest rate
         self.d_credit = collections.defaultdict(float)  # credit per data
-        # 通知Info的双向队列
+        # Double-ended queue for notification info
         self.notifs = collections.deque()
-        # 提交的双向队列
+        # Double-ended queue for submissions
         self.submitted = collections.deque()
 
         # to keep dependent orders if needed
-        # 如果需要保持独立的订单
+        # If independent orders need to be kept
         self._pchildren = collections.defaultdict(collections.deque)
         # ocos
         self._ocos = dict()
@@ -384,10 +384,10 @@ class BackBroker(BrokerBase):
         self._fundval = self.get_param("fundstartval")
         # fund shares
         self._fundshares = self.get_param("cash") / self._fundval
-        # 现金增加
+        # Cash addition
         self._cash_addition = collections.deque()
 
-    # 获取通知Info
+    # Get notification info
     def get_notification(self):
         try:
             return self.notifs.popleft()
@@ -396,7 +396,7 @@ class BackBroker(BrokerBase):
 
         return None
 
-    # 设置fund模式
+    # Set fund mode
     def set_fundmode(self, fundmode, fundstartval=None):
         """Set the actual fundmode (True or False)
 
@@ -406,37 +406,37 @@ class BackBroker(BrokerBase):
         if fundstartval is not None:
             self.set_fundstartval(fundstartval)
 
-    # 获取fundmode
+    # Get fundmode
     def get_fundmode(self):
         # Returns the actual fundmode (True or False)
         return self.get_param("fundmode")
 
-    # 设置fund的开始价值
+    # Set fund starting value
     def set_fundstartval(self, fundstartval):
         # Set the starting value of the fund-like performance tracker
         self.set_param("fundstartval", fundstartval)
 
-    # 把利息费用转移到pnl
+    # Transfer interest costs to pnl
     def set_int2pnl(self, int2pnl):
         # Configure assignment of interest to profit and loss
         self.set_param("int2pnl", int2pnl)
 
-    # 设置Cheat-On-Close
+    # Set Cheat-On-Close
     def set_coc(self, coc):
         # Configure the Cheat-On-Close method to buy the close on order bar
         self.set_param("coc", coc)
 
-    # 设置Cheat-On-Open
+    # Set Cheat-On-Open
     def set_coo(self, coo):
         # Configure the Cheat-On-Open method to buy the close on order bar
         self.set_param("coo", coo)
 
-    # 设置shortcash参数
+    # Set shortcash parameter
     def set_shortcash(self, shortcash):
         # Configure the shortcash parameters
         self.set_param("shortcash", shortcash)
 
-    # 设置百分比滑点相关的Info
+    # Set percentage slippage related info
     def set_slippage_perc(
         self, perc, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
     ):
@@ -448,7 +448,7 @@ class BackBroker(BrokerBase):
         self.set_param("slip_match", slip_match)
         self.set_param("slip_out", slip_out)
 
-    # 设置固定滑点相关的Info
+    # Set fixed slippage related info
     def set_slippage_fixed(
         self, fixed, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
     ):
@@ -460,27 +460,27 @@ class BackBroker(BrokerBase):
         self.set_param("slip_match", slip_match)
         self.set_param("slip_out", slip_out)
 
-    # 设置根据成交量限制决定订单成交大小的可调用对象
+    # Set callable object that determines order execution size based on volume limit
     def set_filler(self, filler):
         # Sets a volume filler for volume filling execution
         self.set_param("filler", filler)
 
-    # 设置checksubmit参数
+    # Set checksubmit parameter
     def set_checksubmit(self, checksubmit):
         # Sets the checksubmit parameter
         self.set_param("checksubmit", checksubmit)
 
-    # 设置eosbar参数
+    # Set eosbar parameter
     def set_eosbar(self, eosbar):
         # Sets the eosbar parameter (alias: ``seteosbar``
         self.set_param("eosbar", eosbar)
 
     seteosbar = set_eosbar
 
-    # 获取现金
+    # Get cash
     def get_cash(self):
         # Returns the current cash (alias: ``getcash``)
-        # 如果还没有初始化，返回参数值；否则返回当前现金状态
+        # If not yet initialized, return parameter value; otherwise return current cash status
         if hasattr(self, "_cash") and self._cash is not None:
             return self._cash
         else:
@@ -507,7 +507,7 @@ class BackBroker(BrokerBase):
                 return 10000.0  # Default value
         return object.__getattribute__(self, name)
 
-    # 设置现金
+    # Set cash
     def set_cash(self, cash):
         # Sets the cash parameter (alias: ``setcash``)
         self.startingcash = self._cash = cash
@@ -516,26 +516,26 @@ class BackBroker(BrokerBase):
 
     setcash = set_cash
 
-    # 增加现金
+    # Add cash
     def add_cash(self, cash):
         # Add/Remove cash to the system (use a negative value to remove)
         self._cash_addition.append(cash)
 
-    # 获取基金份额
+    # Get fund shares
     def get_fundshares(self):
         # Returns the current number of shares in the fund-like mode
         return self._fundshares
 
     fundshares = property(get_fundshares)
 
-    # 获取基金价值
+    # Get fund value
     def get_fundvalue(self):
         # Returns the Fund-like share value
         return self._fundval
 
     fundvalue = property(get_fundvalue)
 
-    # 取消订单
+    # Cancel order
     def cancel(self, order, bracket=False):
         try:
             self.pending.remove(order)
@@ -550,7 +550,7 @@ class BackBroker(BrokerBase):
             self._bracketize(order, cancel=True)
         return True
 
-    # 获取价值，如果没有指定data,就获取的是整个账户的价值
+    # Get value, if data is not specified, get the value of the entire account
     def get_value(self, datas=None, mkt=False, lever=False):
         """Returns the portfolio value of the given datas (if datas is ``None``, then
         the total portfolio value will be returned (alias: ``getvalue``)
@@ -565,108 +565,108 @@ class BackBroker(BrokerBase):
 
     getvalue = get_value
 
-    # todo 这个函数只在这里声明了，在其他地方都没有使用，无用函数,注释掉
+    # TODO This function is only declared here and not used anywhere else, unused function, commented out
     # def get_value_lever(self, datas=None, mkt=False):
     #     return self.get_value(datas=datas, mkt=mkt)
 
-    # 获取账户价值
+    # Get account value
     def _get_value(self, datas=None, lever=False):
-        # Position价值
+        # Position value
         pos_value = 0.0
-        # 未加杠杆的Position价值
+        # Unleveraged position value
         pos_value_unlever = 0.0
-        # 未实现的利润
+        # Unrealized profit
         unrealized = 0.0
 
-        # 如果增加了现金，把现金增加到self._cash中
+        # If cash is added, add the cash to self._cash
         while self._cash_addition:
             c = self._cash_addition.popleft()
             self._fundshares += c / self._fundval
             self._cash += c
 
-        # 如果datas是None的话，循环self.positions，如果datas不是None的话，循环datas
+        # If datas is None, loop through self.positions; if datas is not None, loop through datas
         for data in datas or self.positions:
-            # 获取佣金相关Info
+            # Get commission related info
             comminfo = self.getcommissioninfo(data)
-            # 获取data的Position
+            # Get data position
             position = self.positions[data]
             # use valuesize:  returns raw value, rather than negative adj val
-            # 如果shortcash是False的话，用comminfo.getvalue获取data的value
-            # 如果shortcash是True的话，用comminfo.getvaluesize获取data的value
+            # If shortcash is False, use comminfo.getvalue to get data value
+            # If shortcash is True, use comminfo.getvaluesize to get data value
             if not self.get_param("shortcash"):
                 dvalue = comminfo.getvalue(position, data.close[0])
             else:
                 dvalue = comminfo.getvaluesize(position.size, data.close[0])
-            # 获取data未实现的利润
+            # Get unrealized profit of data
             dunrealized = comminfo.profitandloss(position.size, position.price, data.close[0])
-            # 如果datas不是None,并且datas是一个列表，里面有一个data
+            # If datas is not None and datas is a list containing one data
             if datas and len(datas) == 1:
-                # 如果lever是True,并且dvalue大于0,计算初始的dvalue值，然后除以杠杆，加上未实现的利润，就是data的value
+                # If lever is True and dvalue is greater than 0, calculate the initial dvalue value, then divide by leverage and add unrealized profit to get data value
                 if lever and dvalue > 0:
                     dvalue -= dunrealized
                     return (dvalue / comminfo.get_leverage()) + dunrealized
-                # 如果lever是False或者因为shortcash导致dvalue<0,返回dvalue
+                # If lever is False or dvalue<0 due to shortcash, return dvalue
                 return dvalue  # raw data value requested, short selling is neg
-            # 如果shortcash是False的话
+            # If shortcash is False
             if not self.get_param("shortcash"):
                 dvalue = abs(dvalue)  # short selling adds value in this case
-            # Position价值等于Position价值加上数据的价值
+            # Position value equals position value plus data value
             pos_value += dvalue
-            # 未实现的利润等于未实现的利润加上数据未实现的利润
+            # Unrealized profit equals unrealized profit plus data unrealized profit
             unrealized += dunrealized
-            # 如果dvalue大于0的话，计算出未加杠杆的Position价值
+            # If dvalue is greater than 0, calculate unleveraged position value
             if dvalue > 0:  # long position - unlever
                 dvalue -= dunrealized
-                # todo 为什么每次都需要重置pos_value_unlever
+                # TODO Why is it necessary to reset pos_value_unlever every time
                 pos_value_unlever += dvalue / comminfo.get_leverage()
                 pos_value_unlever += dunrealized
             else:
                 pos_value_unlever += dvalue
-        # 如果不是fundhist模式，计算_value，fundval
+        # If not in fundhist mode, calculate _value and fundval
         if not self._fundhist:
-            # todo 注释掉没有使用的v
+            # TODO Commented out unused v
             # self._value = v = self._cash + pos_value_unlever
             self._value = self._cash + pos_value_unlever
             self._fundval = self._value / self._fundshares  # update fundvalue
-        # 如果是fundhist模式
+        # If in fundhist mode
         else:
             # Try to fetch a value
-            # 调用函数_process_fund_history()，获取fval,fvalue
+            # Call function _process_fund_history() to get fval and fvalue
             fval, fvalue = self._process_fund_history()
-            # _value等于fvalue
+            # _value equals fvalue
             self._value = fvalue
-            # cash等于fvalue减去未加杠杆的Position
+            # cash equals fvalue minus unleveraged position
             self._cash = fvalue - pos_value_unlever
             # _fundval = fval
             self._fundval = fval
-            # _fund的份额
+            # _fund shares
             self._fundshares = fvalue / fval
-            # 杠杆的倍数
+            # Leverage multiplier
             lev = pos_value / (pos_value_unlever or 1.0)
 
             # update the calculated values above to the historical values
-            # 未加杠杆的Position价值
+            # Unleveraged position value
             pos_value_unlever = fvalue
-            # 加了杠杆的Position价值
+            # Leveraged position value
             pos_value = fvalue * lev
-        # 未加杠杆的Position价值
+        # Unleveraged position value
         self._valuemkt = pos_value_unlever
-        # 加了杠杆的账户价值
+        # Leveraged account value
         self._valuelever = self._cash + pos_value
-        # 加了杠杆的Position价值
+        # Leveraged position value
         self._valuemktlever = pos_value
-        # 杠杆率
+        # Leverage ratio
         self._leverage = pos_value / (pos_value_unlever or 1.0)
-        # 未实现的利润
+        # Unrealized profit
         self._unrealized = unrealized
 
         return self._value if not lever else self._valuelever
 
-    # 获取杠杆
+    # Get leverage
     def get_leverage(self):
         return self._leverage
 
-    # 获取未成交的订单
+    # Get pending orders
     def get_orders_open(self, safe=False):
         """Returns an iterable with the orders which are still open (either not
         executed or partially executed)
@@ -682,13 +682,13 @@ class BackBroker(BrokerBase):
 
         return os
 
-    # 获取data的Position
+    # Get data position
     def getposition(self, data):
         """Returns the current position status (a ``Position`` instance) for
         the given ``data``"""
         return self.positions[data]
 
-    # 获取order的状态
+    # Get order status
     def orderstatus(self, order):
         try:
             o = self.orders.index(order)
@@ -699,30 +699,30 @@ class BackBroker(BrokerBase):
 
     #
     def _take_children(self, order):
-        # order的id
+        # Order ID
         oref = order.ref
-        # 获取order的父订单的id，如果获取不到买,就是自身
+        # Get parent order ID of order, if not found then it's itself
         pref = getattr(order.parent, "ref", oref)  # parent ref or self
-        # 如果子订单id和父订单id不相等
+        # If child order ID and parent order ID are not equal
         if oref != pref:
-            # 如果父订单id也不在_pchildren中，将会拒单，并且返回None
+            # If parent order ID is not in _pchildren, the order will be rejected and return None
             if pref not in self._pchildren:
                 order.reject()  # parent not there - may have been rejected
                 self.notify(order)  # reject child, notify
                 return None
-        # 如果两个相等，将会返回父订单id
+        # If they are equal, return parent order ID
         return pref
 
-    # 提交订单
+    # Submit order
     def submit(self, order, check=True):
-        # 获取order的父订单的id或者是自身的id,如果这个id是None,返回order本身
+        # Get parent order ID of order or its own ID, if this ID is None, return order itself
         pref = self._take_children(order)
         if pref is None:  # order has not been taken
             return order
-        # pc是一个deque,保存parent和children订单
+        # pc is a deque that saves parent and children orders
         pc = self._pchildren[pref]
         pc.append(order)  # store in parent/children queue
-        # 如果order是transmit的话，对于pc中的订单，调用transmit函数，并返回最后一个order
+        # If order is transmit, call transmit function for orders in pc and return the last order
         if order.transmit:  # if single order, sent and queue cleared
             # if parent-child, the parent will be sent, the other kept
             rets = [self.transmit(x, check=check) for x in pc]
@@ -730,93 +730,93 @@ class BackBroker(BrokerBase):
 
         return order
 
-    # transmit函数
+    # transmit function
     def transmit(self, order, check=True):
-        # 如果check是True,并且checksubmit是True的话
+        # If check is True and checksubmit is True
         if check and self.get_param("checksubmit"):
-            # 订单submit
+            # Orderssubmit
             order.submit()
-            # 把订单追加到submitted中
+            # Append order to submitted
             self.submitted.append(order)
-            # 把订单追加到orders中
+            # Append order to orders
             self.orders.append(order)
-            # 通知订单
+            # Notify order
             self.notify(order)
-        # 如果check或者checksubmit中有一个是False的话，把order追加到submit_accept中
+        # If either check or checksubmit is False, append order to submit_accept
         else:
             self.submit_accept(order)
-        # 返回order
+        # Return order
         return order
 
-    # 检查提交
+    # Check submission
     def check_submitted(self):
-        # 当前可用资金
+        # Currently available cash
         cash = self._cash
         # Position
         positions = dict()
-        # 当submitted不是空的话
+        # When submitted is not empty
         while self.submitted:
-            # 删除最左边的order并获取到
+            # Remove leftmost order and get it
             order = self.submitted.popleft()
-            # 如果调用_take_children(order)的结果是None的话，这个订单会被拒绝，继续到下个订单
+            # If the result of calling _take_children(order) is None, this order will be rejected, continue to next order
             if self._take_children(order) is None:  # children not taken
                 continue
-            # 获取佣金Info类
+            # Get commission info class
             # comminfo = self.getcommissioninfo(order.data)
-            # todo 注释掉了没有使用的comminfo
-            # 获取Position
+            # TODO Commented out unused comminfo
+            # Get position
             position = positions.setdefault(order.data, self.positions[order.data].clone())
             # pseudo-execute the order to get the remaining cash after exec
-            # 假设执行订单之后获取的现金
+            # Cash obtained after assuming order execution
             cash = self._execute(order, cash=cash, position=position)
-            # 如果剩余的现金大于0，调用submit_accept接受订单
+            # If remaining cash is greater than 0, call submit_accept to accept order
             if cash >= 0.0:
                 self.submit_accept(order)
                 continue
-            # 如果cash是小于0的话，保证金不足，通知order的状态，调用_ococheck和_bracketize
+            # If cash is less than 0, insufficient margin, notify order status, call _ococheck and _bracketize
             order.margin()
             self.notify(order)
             self._ococheck(order)
             self._bracketize(order, cancel=True)
 
-    # 接受这个订单
+    # Accept this order
     def submit_accept(self, order):
-        # todo 给order额外设置pannotated属性,暂时不知用处
+        # TODO Set additional pannotated attribute for order, purpose unknown for now
         order.pannotated = None
-        # 订单提交
+        # Order submit
         order.submit()
-        # 订单接受
+        # Order accept
         order.accept()
-        # 把订单添加到待成交订单里
+        # Add order to pending orders
         self.pending.append(order)
-        # 通知订单状态
+        # Notify order status
         self.notify(order)
 
-    # 删除订单或者把订单活跃状态变成不活跃
+    # Delete order or change order active status to inactive
     def _bracketize(self, order, cancel=False):
-        # 订单id
+        # Ordersid
         oref = order.ref
-        # 父订单id或者自身id
+        # Parent order ID or own ID
         pref = getattr(order.parent, "ref", oref)
-        # 如果两个id相等，parent就是True
+        # If two IDs are equal, parent is True
         parent = oref == pref
-        # 获取订单的deque
+        # Get order deque
         pc = self._pchildren[pref]  # defdict - guaranteed
-        # 如果cancel是True或者parent不是True的话，
+        # If cancel is True or parent is not True,
         if cancel or not parent:  # cancel left or child exec -> cancel other
-            # 如果pc有订单，会一直运行，取消订单
+            # If pc has orders, will keep running, cancel orders
             while pc:
                 self.cancel(pc.popleft(), bracket=True)  # idempotent
-            # 删除这个key,value
+            # Delete this key, value
             del self._pchildren[pref]  # defdict guaranteed
-        # 如果上面两个条件都不满足，即cancel是false,并且parent是True
+        # If neither of the above conditions is met, i.e., cancel is False and parent is True
         else:  # not cancel -> parent exec'd
-            # 清空parent订单，然后把子订单的状态变为不激活
+            # Clear parent order, then change child order status to inactive
             pc.popleft()  # remove parent
             for o in pc:  # activate children
                 self._toactivate.append(o)
 
-    # oco订单的检查
+    # OCO order check
     def _ococheck(self, order):
         # ocoref = self._ocos[order.ref] or order.ref  # a parent or self
         parentref = self._ocos[order.ref]
@@ -830,7 +830,7 @@ class BackBroker(BrokerBase):
                     o.cancel()
                     self.notify(o)
 
-    # oco订单的操作
+    # OCO order operation
     def _ocoize(self, order, oco):
         oref = order.ref
         if oco is None:
@@ -841,13 +841,13 @@ class BackBroker(BrokerBase):
             self._ocos[oref] = ocoref  # ref to group leader
             self._ocol[ocoref].append(oref)  # add to group
 
-    # 增加订单历史
+    # Add order history
     def add_order_history(self, orders, notify=True):
         oiter = iter(orders)
         o = next(oiter, None)
         self._userhist.append([o, oiter, notify])
 
-    # 设置fund历史Info
+    # Set fund history info
     def set_fund_history(self, fund):
         # iterable with the following pro item
         # [datetime, share_value, net asset value]
@@ -858,7 +858,7 @@ class BackBroker(BrokerBase):
 
         self.set_cash(float(f[2]))
 
-    # 买操作
+    # Buy operation
     def buy(
         self,
         owner,
@@ -899,7 +899,7 @@ class BackBroker(BrokerBase):
 
         return self.submit(order, check=_checksubmit)
 
-    # 卖操作
+    # Sell operation
     def sell(
         self,
         owner,
@@ -940,15 +940,15 @@ class BackBroker(BrokerBase):
 
         return self.submit(order, check=_checksubmit)
 
-    # 执行订单
+    # Execute order
     def _execute(self, order, ago=None, price=None, cash=None, position=None, dtcoc=None):
         # ago = None is used a flag for pseudo execution
-        # # print(f"订单的大小:{order.executed.remsize}")  # Removed for performance
-        # 如果ago不是None，并且price是None的话，不操作，返回
+        # # print(f"Order size:{order.executed.remsize}")  # Removed for performance
+        # If ago is not None and price is None, do nothing and return
         if ago is not None and price is None:
             return  # no psuedo exec no price - no execution
 
-        # 获取要执行的订单量
+        # Get the order size to execute
         if self.get_param("filler") is None or ago is None:
             # Order gets full size or pseudo-execution
             size = order.executed.remsize
@@ -959,11 +959,11 @@ class BackBroker(BrokerBase):
                 size = -size
 
         # Get comminfo object for the data
-        # 获取佣金Info类
+        # Get commission info class
         comminfo = self.getcommissioninfo(order.data)
 
         # Check if something has to be compensated
-        # 如果data的_compensate不是None的话，就获取_compensate的佣金Info类，否则还用data的
+        # If data's _compensate is not None, get _compensate's commission info class, otherwise use data's
         if order.data._compensate is not None:
             data = order.data._compensate
             cinfocomp = self.getcommissioninfo(data)  # for actual commission
@@ -972,7 +972,7 @@ class BackBroker(BrokerBase):
             cinfocomp = comminfo
 
         # Adjust position with operation size
-        # 如果ago不是None的话，就获取Position，Position平均价格，更新Position相关Info，以及计算的pnl和cash
+        # If ago is not None, get position, position average price, update position related info, and calculate pnl and cash
         if ago is not None:
             # Real execution with date
             position = self.positions[data]
@@ -984,93 +984,93 @@ class BackBroker(BrokerBase):
             # a profitandloss ... record it
             pnl = comminfo.profitandloss(-closed, pprice_orig, price)
             cash = self._cash
-        # 如果ago是None的话
+        # If ago is None
         else:
             # pnl = 0
             pnl = 0
-            # 如果cheat_on_open=False的话
+            # If cheat_on_open is False
             if not self.get_param("coo"):
-                # 价格
+                # Price
                 price = pprice_orig = order.created.price
-            # 如果cheat_on_open = True 的话
+            # If cheat_on_open = True
             else:
                 # When doing cheat on open, the price to be considered for a
                 # market order is the opening price and not the default closing
                 # price with which the order was created
-                # 如果是市价单的话，价格等于当天的开盘价，否则就等于创建的价格
+                # If it's a market order, price equals the day's opening price, otherwise equals the created price
                 if order.exectype == Order.Market:
                     price = pprice_orig = order.data.open[0]
                 else:
                     price = pprice_orig = order.created.price
-            # 更新position的size和price
+            # Update position size and price
             psize, pprice, opened, closed = position.update(size, price)
 
         # "Closing" totally or partially is possible. Cash may be re-injected
-        # 如果是closed
+        # If closed
         if closed:
             # Adjust to returned value for closed items & acquired opened items
-            # 如果shortcash是True的话，平仓的价值用comminfo.getvaluesize计算得到，
-            # 如果shortcash是False的话，用comminfo.getoperationcost计算得到平仓的价值
+            # If shortcash is True, closing value is calculated using comminfo.getvaluesize,
+            # If shortcash is False, closing value is calculated using comminfo.getoperationcost
             if self.get_param("shortcash"):
                 closedvalue = comminfo.getvaluesize(-closed, pprice_orig)
             else:
                 closedvalue = comminfo.getoperationcost(closed, pprice_orig)
 
-            # 如果closedvalue>0的话，计算调整杠杆之后的closecash
+            # If closedvalue > 0, calculate closecash after adjusting for leverage
             closecash = closedvalue
             if closedvalue > 0:  # long position closed
                 closecash /= comminfo.get_leverage()  # inc cash with lever
-            # 如果是stocklike，cash等于cash加上closecash加上pnl
-            # 如果stocklike是False的话，cash等于cash+closecash
+            # If stocklike, cash equals cash plus closecash plus pnl
+            # If stocklike is False, cash equals cash + closecash
             cash += closecash + pnl * comminfo.stocklike
-            # Calculate and substract commission
-            # 关闭仓位的时候的佣金
+            # Calculate and subtract commission
+            # Commission when closing position
             closedcomm = comminfo.getcommission(closed, price)
-            # 现金等于现金减去平仓的佣金
+            # Cash equals cash minus closing commission
             cash -= closedcomm
-            # 如果ago不是None的话
+            # If ago is not None
             if ago is not None:
                 # Cashadjust closed contracts: prev close vs exec price
                 # The operation can inject or take cash out
-                # 调整现金，并更新
+                # Adjust cash and update
                 cash += comminfo.cashadjust(-closed, position.adjbase, price)
 
                 # Update system cash
                 self._cash = cash
-        # 如果不是closed的话
+        # If not closed
         else:
             closedvalue = closedcomm = 0.0
 
-        # 如果是opened
+        # If opened
         popened = opened
         if opened:
-            # 计算开仓的价值
+            # Calculate opening value
             if self.get_param("shortcash"):
                 # # print(f"opened:{opened},price:{price}")  # Removed for performance
                 openedvalue = comminfo.getvaluesize(opened, price)
             else:
                 openedvalue = comminfo.getoperationcost(opened, price)
 
-            # 计算开仓使用的现金
+            # Calculate cash used for opening
             opencash = openedvalue
             if openedvalue > 0:  # long position being opened
                 opencash /= comminfo.get_leverage()  # dec cash with level
             # # print(f"openedvalue:{openedvalue},opencash:{opencash},cash:{cash}")  # Removed for performance
-            # 减去开仓后得到的现金
+            # Subtract cash obtained after opening
             cash -= opencash  # original behavior
-            # 开仓的佣金
+            # Commission for opening
             openedcomm = cinfocomp.getcommission(opened, price)
-            # 减去开仓佣金后得到的现金
+            # Cash obtained after subtracting opening commission
             cash -= openedcomm
-            # 如果现金小于0，不可能开仓
+            # If cash is less than 0, opening position is not possible
             if cash < 0.0:
                 # execution is not possible - nullify
                 opened = 0
                 openedvalue = openedcomm = 0.0
 
-            # 如果ago不是None
+            # If ago is not None
             elif ago is not None:  # real execution
-                # 如果Position的绝对值大小大于开仓的绝对值大小
+                # If absolute position size is greater than absolute opening size
                 if abs(psize) > abs(opened):
                     # some futures were opened - adjust the cash of the
                     # previously existing futures to the operation price and
@@ -1079,42 +1079,42 @@ class BackBroker(BrokerBase):
                     # adjustment to the close price will be done for all open
                     # futures from a common base price with regard to the
                     # close price
-                    # 需要调整的size
+                    # Size to adjust
                     adjsize = psize - opened
-                    # 调整现金
+                    # Adjust cash
                     cash += comminfo.cashadjust(adjsize, position.adjbase, price)
 
                 # record adjust price base for end of bar cash adjustment
-                # 更新position的adjbase价格
+                # Update position adjbase price
                 position.adjbase = price
 
                 # update system cash - checking if opened is still != 0
                 self._cash = cash
-        # 如果opened是False的话
+        # If opened is False
         else:
             openedvalue = openedcomm = 0.0
 
-        # 如果ago等于None的话，返回cash
+        # If ago equals None, return cash
         if ago is None:
             # return cash from pseudo-execution
             return cash
-        # 执行订单的大小
+        # Order execution size
         execsize = closed + opened
-        # 如果执行订单的大小大于0
+        # If order execution size is greater than 0
         if execsize:
             # Confimrm the operation to the comminfo object
-            # todo 确认需要的佣金，这个都没有变量接受返回值,似乎没什么用处
+            # TODO Confirm required commission, this doesn't accept return value with any variable, seems useless
             comminfo.confirmexec(execsize, price)
 
             # do a real position update if something was executed
-            # 更新position
+            # Update position
             position.update(execsize, price, data.datetime.datetime())
-            # 如果是closed并且把利息转成pnl的话，平仓的时候佣金要加上利息费用
+            # If closed and transferring interest to pnl, closing commission includes interest charges
             if closed and self.get_param("int2pnl"):  # Assign accumulated interest data
                 closedcomm += self.d_credit.pop(data, 0.0)
 
             # Execute and notify the order
-            # 执行订单并通知订单
+            # Execute order and notify order
             order.execute(
                 dtcoc or data.datetime[ago],
                 execsize,
@@ -1136,7 +1136,7 @@ class BackBroker(BrokerBase):
             self.notify(order)
             self._ococheck(order)
 
-        # 如果开仓了但是因为现金不够，会提示margin
+        # If opened but insufficient cash, will indicate margin
         if popened and not opened:
             # opened was not executed - not enough cash
             order.margin()
@@ -1144,150 +1144,150 @@ class BackBroker(BrokerBase):
             self._ococheck(order)
             self._bracketize(order, cancel=True)
 
-    # 通知订单Info
+    # Notify orderInfo
     def notify(self, order):
         self.notifs.append(order.clone())
 
-    # 尝试执行历史
+    # Try to execute historical
     def _try_exec_historical(self, order):
         self._execute(order, ago=0, price=order.created.price)
 
-    # 尝试执行市价单
+    # Try to execute market order
     def _try_exec_market(self, order, popen, phigh, plow):
         # ago = 0
-        # todo 注释掉了没有使用的ago
-        # 如果cheat_on_close是True，或者order里面cheat_on_open是True的话
+        # TODO Commented out unused ago
+        # If cheat_on_close is True or cheat_on_open in order is True
         if self.get_param("coc") and order.info.get("coc", True):
-            # 订单创建时间
+            # Order creation time
             dtcoc = order.created.dt
-            # 执行价格
+            # Execution price
             exprice = order.created.pclose
-        # 如果coc不是True的话
+        # If coc is not True
         else:
-            # 如果当前不是cheat_on_open，如果数据的时间小于等于创建时间，直接返回，不执行
+            # If current is not cheat_on_open, and data time is less than or equal to creation time, return without executing
             if not self.get_param("coo") and order.data.datetime[0] <= order.created.dt:
                 return  # can only execute after creation time
-            # dtcoc设置成None
+            # Set dtcoc to None
             dtcoc = None
-            # 执行价格等于popen
+            # Execution price equals popen
             exprice = popen
-        # 如果是买单和卖单，分别得到考虑滑点之后的价格
+        # For buy and sell orders, get prices after considering slippage respectively
         if order.isbuy():
             p = self._slip_up(phigh, exprice, doslip=self.get_param("slip_open"))
         else:
             p = self._slip_down(plow, exprice, doslip=self.get_param("slip_open"))
-        # 执行订单
+        # Execute order
         self._execute(order, ago=0, price=p, dtcoc=dtcoc)
 
-    # 尝试执行收盘价订单
+    # Try to execute close order
     def _try_exec_close(self, order, pclose):
         # pannotated allows to keep track of the closing bar if there is no
         # information which lets us know that the current bar is the closing
         # bar (like matching end of session bar)
         # The actual matching will be done one bar afterwards but using the
         # information from the actual closing bar
-        # 获取当前的时间
+        # Get current time
         dt0 = order.data.datetime[0]
         # don't use "len" -> in replay the close can be reached with same len
-        # 如果当前时间大于订单创建时间
+        # If current time is greater than order creation time
         if dt0 > order.created.dt:  # can only execute after creation time
             # or (self.get_param('eosbar') and dt0 == order.dteos):
-            # 如果当前时间大于等于订单的一天结束的时间
+            # If current time is greater than or equal to order's end of day time
             if dt0 >= order.dteos:
                 # past the end of session or right at it and eosbar is True
-                # 如果order.pannotated是一个价格，并且dt0大于了一天结束时间，ago设置成-1，执行价格等于前一个收盘价
+                # If order.pannotated is a price and dt0 is greater than end of day time, set ago to -1, execution price equals previous close price
                 if order.pannotated and dt0 > order.dteos:
                     ago = -1
                     execprice = order.pannotated
-                # 否则，ago就等于0，执行价格就等于pclose
+                # Otherwise, ago equals 0, execution price equals pclose
                 else:
                     ago = 0
                     execprice = pclose
-                # 执行订单
+                # Execute order
                 self._execute(order, ago=ago, price=execprice)
                 return
 
         # If no execution has taken place ... annotate the closing price
-        # 如果dt0小于等于订单创建时间，更新order的pannotated为价格
+        # If dt0 is less than or equal to order creation time, update order's pannotated to price
         order.pannotated = pclose
 
-    # 尝试执行限价单
+    # Try to execute limit order
     def _try_exec_limit(self, order, popen, phigh, plow, plimit):
-        # 如果是买订单
+        # If buy order
         if order.isbuy():
-            # 如果plimit大于等于popen
+            # If plimit is greater than or equal to popen
             if plimit >= popen:
                 # open smaller/equal than requested - buy cheaper
-                # 计算pmax
+                # Calculate pmax
                 pmax = min(phigh, plimit)
-                # 计算算上滑点之后的价格
+                # Calculate price after adding slippage
                 p = self._slip_up(pmax, popen, doslip=self.get_param("slip_open"), lim=True)
-                # 执行订单
+                # Execute order
                 self._execute(order, ago=0, price=p)
-            # 如果plimit大于等于plow,执行订单
+            # If plimit is greater than or equal to plow, execute order
             elif plimit >= plow:
                 # day low below req price ... match limit price
                 self._execute(order, ago=0, price=plimit)
-        # 如果是卖单
+        # Sell order
         else:  # Sell
-            # plimit小于等于popen
+            # plimit is less than or equal to popen
             if plimit <= popen:
                 # open greater/equal than requested - sell more expensive
-                # 计算pmin
-                # todo 注释掉了没有使用的pmin
+                # Calculate pmin
+                # # TODO Commented out unused pmin
                 # pmin = max(plow, plimit)
-                # 计算算上滑点之后的价格
+                # Calculate price after adding slippage
                 p = self._slip_down(plimit, popen, doslip=self.get_param("slip_open"), lim=True)
-                # 执行订单
+                # Execute order
                 self._execute(order, ago=0, price=p)
-            # plimit小于等于最高价，执行订单
+            # If plimit is less than or equal to high price, execute order
             elif plimit <= phigh:
                 # day high above req price ... match limit price
                 self._execute(order, ago=0, price=plimit)
 
-    # 尝试执行止损价
+    # Try to execute stop price
     def _try_exec_stop(self, order, popen, phigh, plow, pcreated, pclose):
-        # 买单
+        # Buy order
         if order.isbuy():
-            #  popen大于等于pcreated
+            # popen is greater than or equal to pcreated
             if popen >= pcreated:
                 # price penetrated with an open gap - use open
-                # 计算考虑过滑点的价格
+                # Calculate price considering slippage
                 p = self._slip_up(phigh, popen, doslip=self.get_param("slip_open"))
-                # 执行订单
+                # Execute order
                 self._execute(order, ago=0, price=p)
-            # 如果phigh小于等于pcreated
+            # If phigh is less than or equal to pcreated
             elif phigh >= pcreated:
                 # price penetrated during the session - use trigger price
-                # 计算考虑过滑点的价格
+                # Calculate price considering slippage
                 p = self._slip_up(phigh, pcreated)
-                # 执行订单
+                # Execute order
                 self._execute(order, ago=0, price=p)
-        # 卖单
+        # Sell order
         else:  # Sell
-            # 如果popen小于pcreated
+            # If popen is less than pcreated
             if popen <= pcreated:
                 # price penetrated with an open gap - use open
-                # 计算考虑过滑点的价格
+                # Calculate price considering slippage
                 p = self._slip_down(plow, popen, doslip=self.get_param("slip_open"))
-                # 执行订单
+                # Execute order
                 self._execute(order, ago=0, price=p)
-            # 如果plow小于等于pcreated
+            # If plow is less than or equal to pcreated
             elif plow <= pcreated:
                 # price penetrated during the session - use trigger price
-                # 计算考虑过滑点的价格
+                # Calculate price considering slippage
                 p = self._slip_down(plow, pcreated)
-                # 执行订单
+                # Execute order
                 self._execute(order, ago=0, price=p)
 
         # not (completely) executed and trailing stop
-        #  如果订单是活的，并且订单类型是StopTrail,根据pclose调整价格
+        #  If order is alive and order type is StopTrail, adjust price based on pclose
         if order.alive() and order.exectype == Order.StopTrail:
             order.trailadjust(pclose)
 
-    # 尝试执行止损限价单
+    # Try to execute stop-limit order
     def _try_exec_stoplimit(self, order, popen, phigh, plow, pclose, pcreated, plimit):
-        # 和止损单比较类似，只是止损单触发止损的时候下的是市价单，这个下的是限价单
+        # Similar to stop orders, except stop orders place market orders when stop is triggered, while this places limit orders
         if order.isbuy():
             if popen >= pcreated:
                 order.triggered = True
@@ -1333,7 +1333,7 @@ class BackBroker(BrokerBase):
         if order.alive() and order.exectype == Order.StopTrailLimit:
             order.trailadjust(pclose)
 
-    # 向上增加滑点
+    # Add upward slippage
     def _slip_up(self, pmax, price, doslip=True, lim=False):
         if not doslip:
             return price
@@ -1357,7 +1357,7 @@ class BackBroker(BrokerBase):
 
         return None  # no price can be returned
 
-    # 向下增加滑点
+    # Add downward slippage
     def _slip_down(self, pmin, price, doslip=True, lim=False):
         if not doslip:
             return price
@@ -1381,11 +1381,11 @@ class BackBroker(BrokerBase):
 
         return None  # no price can be returned
 
-    # 尝试执行订单
+    # Try to execute order
     def _try_exec(self, order):
-        # 产生订单的数据
+        # Data that generated the order
         data = order.data
-        # 分别获取开盘、最高、最低、收盘价，如果有tick数据，使用tick数据
+        # Get open, high, low, close prices respectively, use tick data if available
         popen = getattr(data, "tick_open", None)
         if popen is None:
             popen = data.open[0]
@@ -1402,7 +1402,7 @@ class BackBroker(BrokerBase):
         pcreated = order.created.price
         plimit = order.created.pricelimit
 
-        # 根据不同的订单类型分别执行
+        # Execute separately according to different order types
         if order.exectype == Order.Market:
             self._try_exec_market(order, popen, phigh, plow)
 
@@ -1424,7 +1424,7 @@ class BackBroker(BrokerBase):
         elif order.exectype == Order.Historical:
             self._try_exec_historical(order)
 
-    # 处理fund的历史
+    # Process fund history
     def _process_fund_history(self):
         fhist = self._fundhist  # [last element, iterator]
         f, funds = fhist
@@ -1458,7 +1458,7 @@ class BackBroker(BrokerBase):
 
         return self._fhistlast
 
-    # 处理order的历史
+    # Process order history
     def _process_order_history(self):
         for uhist in self._userhist:
             uhorder, uhorders, uhnotify = uhist
@@ -1534,7 +1534,7 @@ class BackBroker(BrokerBase):
             self.check_submitted()
 
         # Discount any cash for positions hold
-        # 利息费用
+        # Interest charges
         credit = 0.0
         for data, pos in self.positions.items():
             if pos:
@@ -1546,13 +1546,13 @@ class BackBroker(BrokerBase):
                 pos.datetime = dt0  # mark last credit operation
 
         self._cash -= credit
-        # 处理order历史
+        # Process order history
         self._process_order_history()
 
         # Iterate once over all elements of the pending queue
-        # 给待成交的订单增加一个None
+        # Add a None to pending orders
         self.pending.append(None)
-        # 循环待成交的订单一遍，到None的时候，会break跳出
+        # Loop through pending orders once, break when reaching None
         while True:
             order = self.pending.popleft()
             if order is None:
@@ -1576,7 +1576,7 @@ class BackBroker(BrokerBase):
                     self._bracketize(order)
 
         # Operations have been executed ... adjust cash end of bar
-        # 在bar结束的时候，根据PositionInfo调整cash
+        # At the end of bar, adjust cash based on position info
         for data, pos in self.positions.items():
             # futures change cash every bar
             if pos:

@@ -60,7 +60,7 @@ class BarsLast(Indicator):
 
 class NewDiff(Indicator):
     # Indicator based on Guotai Junan alpha factor
-    # ：SUM((CLOSE=DELAY(CLOSE,1)?0:CLOSE-(CLOSE>DELAY(CLOSE,1)?MIN(LOW,DELAY(CLOSE,1)):MAX(HIGH,DELAY(CLOSE,1)))),6)
+    # : SUM((CLOSE=DELAY(CLOSE,1)?0:CLOSE-(CLOSE>DELAY(CLOSE,1)?MIN(LOW,DELAY(CLOSE,1)):MAX(HIGH,DELAY(CLOSE,1)))),6)
     # - e = MIN(LOW, DELAY(CLOSE, 1))
     # - f = MAX(HIGH, DELAY(CLOSE, 1))
     # - h = CLOSE > DELAY(CLOSE, 1)

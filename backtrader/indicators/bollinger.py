@@ -1,9 +1,20 @@
 #!/usr/bin/env python
+"""Bollinger Bands Indicator Module - Volatility bands.
+
+This module provides the Bollinger Bands indicator developed by
+John Bollinger in the 1980s for measuring market volatility.
+
+Classes:
+    BollingerBands: Bollinger Bands indicator (alias: BBands).
+    BollingerBandsPct: Bollinger Bands with %B line.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.BBands, period=20, devfactor=2.0)
+"""
 import math
 from . import Indicator, MovAv
-
-
-# Bollinger Bands indicator
 class BollingerBands(Indicator):
     """
     Defined by John Bollinger in the 80s. It measures volatility by defining

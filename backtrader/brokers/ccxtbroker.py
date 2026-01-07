@@ -25,7 +25,7 @@ class CCXTOrder(Order):
         super().__init__()
 
 
-# 注册机制，在导入模块时自动注册broker类
+# Registration mechanism, automatically register broker class when module is imported
 def _register_ccxt_broker_class(broker_cls):
     """Register broker class with the store when module is loaded"""
     CCXTStore.BrokerCls = broker_cls
@@ -170,7 +170,7 @@ class CCXTBroker(BrokerBase):
         if self.debug:
             pass  # print("Broker next() called")  # Removed for performance
         # ===========================================
-        # 每隔3秒操作一下
+        # Perform operation every 3 seconds
         nts = datetime.now().timestamp()
         if nts - self._last_op_time < 3:
             return
@@ -180,9 +180,12 @@ class CCXTBroker(BrokerBase):
 
     def _next(self):
         """
-        1. 对于现货,不要使用市价单,只使用限价单,需要市价单时候也用限价单去模拟,因为有些交易所的市价单的size字段是金额,backtrader
-        没考虑这种情况会出错,所以这里不适配市价单
-        2. 对于期货,不支持中国期货同一标的同时开多仓和空仓,因为backtrader没考虑这种情况,所以这里我们同一标的同一时间只支持一个方向的仓位
+        1. For spot trading, don't use market orders, only use limit orders. When market orders are needed,
+           simulate with limit orders, because some exchanges' market order size field is amount, backtrader
+           doesn't consider this case and will error, so market orders are not adapted here
+        2. For futures, Chinese futures simultaneous long and short positions on same symbol are not supported,
+           because backtrader doesn't consider this case, so here we only support one-direction position
+           for same symbol at same time
         """
         for o_order in list(self.open_orders):
             oID = o_order.ccxt_order["id"]
@@ -197,19 +200,19 @@ class CCXTBroker(BrokerBase):
             status = ccxt_order["status"]
 
             # Check for new fills
-            if "trades" in ccxt_order and ccxt_order["trades"] is not None:  # 判断此订单是否有成交
-                for fill in ccxt_order["trades"]:  # 遍历此订单的所有成交
-                    if fill not in o_order.executed_fills:  # 该成交是否被处理
+            if "trades" in ccxt_order and ccxt_order["trades"] is not None:  # Check if this order has fills
+                for fill in ccxt_order["trades"]:  # Iterate through all fills of this order
+                    if fill not in o_order.executed_fills:  # Whether this fill has been processed
                         fill_id, fill_dt, fill_size, fill_price = (
                             fill["id"],
                             fill["datetime"],
                             fill["amount"],
                             fill["price"],
                         )
-                        o_order.executed_fills.append(fill_id)  # 记录该成交已经被处理
+                        o_order.executed_fills.append(fill_id)  # Record that this fill has been processed
                         fill_size = (
                             fill_size if o_order.isbuy() else -fill_size
-                        )  # 满足backtrader规范,卖单或空头仓位用负数表示
+                        )  # Meet backtrader specification, sell orders or short positions use negative numbers
                         o_order.execute(
                             fill_dt,
                             fill_size,
@@ -224,64 +227,67 @@ class CCXTBroker(BrokerBase):
                             0.0,
                             0,
                             0.0,
-                        )  # 处理该成交,内部会标注订单状态,部分成交还是完全成交
-                        # 准备通知上层策略
-                        # self.get_balance() #刷新账户余额 (余额不再更新,减少通信提高性能,可以在策略中根据需要自主去更新)
-                        pos = self.getposition(o_order.data, clone=False)  # 获取对应仓位
-                        pos.update(fill_size, fill_price)  # 刷新仓位
+                        )  # Process this fill, internally marks order status, partial or complete fill
+                        # Prepare to notify upper strategy
+                        # self.get_balance() #Refresh account balance (balance no longer updated, reduce communication to improve performance, can be updated as needed in strategy)
+                        pos = self.getposition(o_order.data, clone=False)  # Get corresponding position
+                        pos.update(fill_size, fill_price)  # Refresh position
                         # -------------------------------------------------------------------
-                        # 用order.executed.remsize判断是否全部成交在市价买单的情况下可能不靠谱,所以用如下代码判断是否部分或者全部成交
-                        if status == "open":  # 有成交的情况下状态仍然是open的话那肯定是部分成交
+                        # Using order.executed.remsize to judge if all filled may be unreliable for market buy orders,
+                        # so use following code to judge if partial or complete fill
+                        if status == "open":  # If status is still open when there are fills, it must be partially filled
                             o_order.partial()
-                        elif status == "closed":  # 有成交的情况下如果状态是closed那意味着全部成交
+                        elif status == "closed":  # If status is closed when there are fills, it means completely filled
                             o_order.completed()
                         # -------------------------------------------------------------------
-                        self.notify(o_order.clone())  # 通知策略
+                        self.notify(o_order.clone())  # Notify strategy
             else:
                 fill_dt, cum_fill_size, average_fill_price = (
                     ccxt_order["timestamp"],
                     ccxt_order["filled"],
                     ccxt_order["average"],
                 )
-                if cum_fill_size > abs(o_order.executed.size):  # 判断本次是否有新的成交
+                if cum_fill_size > abs(o_order.executed.size):  # Check if there are new fills this time
                     new_cum_fill_value = (
                         cum_fill_size * average_fill_price
-                    )  # 累计成交数量*平均成交价=累计成交总价值
+                    )  # Cumulative fill quantity * average fill price = cumulative fill total value
                     old_cum_fill_value = abs(o_order.executed.size) * o_order.executed.price
-                    fill_value = new_cum_fill_value - old_cum_fill_value  # 本次新成交的价值
-                    fill_size = cum_fill_size - abs(o_order.executed.size)  # 本次新成交的数量
-                    fill_price = fill_value / fill_size  # 本次新成交的价格
+                    fill_value = new_cum_fill_value - old_cum_fill_value  # Value of this new fill
+                    fill_size = cum_fill_size - abs(o_order.executed.size)  # Quantity of this new fill
+                    fill_price = fill_value / fill_size  # Price of this new fill
                     fill_size = (
                         fill_size if o_order.isbuy() else -fill_size
-                    )  # 满足backtrader规范,卖单或空头仓位用负数表示
+                    )  # Meet backtrader specification, sell orders or short positions use negative numbers
                     o_order.execute(
                         fill_dt, fill_size, fill_price, 0, 0.0, 0.0, 0, 0.0, 0.0, 0.0, 0.0, 0, 0.0
-                    )  # 处理该成交,内部会标注订单状态,部分成交还是完全成交
-                    # 准备通知上层策略
-                    # self.get_balance() #刷新账户余额 (余额不再更新,减少通信提高性能,可以在策略中根据需要自主去更新)
-                    pos = self.getposition(o_order.data, clone=False)  # 获取对应仓位
-                    pos.update(fill_size, fill_price)  # 刷新仓位
+                    )  # Process this fill, internally marks order status, partial or complete fill
+                    # Prepare to notify upper strategy
+                    # self.get_balance() #Refresh account balance (balance no longer updated, reduce communication to improve performance, can be updated as needed in strategy)
+                    pos = self.getposition(o_order.data, clone=False)  # Get corresponding position
+                    pos.update(fill_size, fill_price)  # Refresh position
                     # -------------------------------------------------------------------
-                    # 用order.executed.remsize判断是否全部成交在市价买单的情况下可能不靠谱,所以用如下代码判断是否部分或者全部成交
-                    if status == "open":  # 有成交的情况下状态仍然是open的话那肯定是部分成交
+                    # Using order.executed.remsize to judge if all filled may be unreliable for market buy orders,
+                    # so use following code to judge if partial or complete fill
+                    if status == "open":  # If status is still open when there are fills, it must be partially filled
                         o_order.partial()
-                    elif status == "closed":  # 有成交的情况下如果状态是closed那意味着全部成交
+                    elif status == "closed":  # If status is closed when there are fills, it means completely filled
                         o_order.completed()
                     # -------------------------------------------------------------------
-                    self.notify(o_order.clone())  # 通知策略
+                    self.notify(o_order.clone())  # Notify strategy
 
             if self.debug:
                 pass  # print(json.dumps(ccxt_order, indent=self.indent))  # Removed for performance
 
             # Check if the order is closed
             if status == "closed":
-                # 如果该订单全部成交完成就是此状态,因为上面已经通知过策略,所以这里不再重复通知
+                # If the order is completely filled, it will be in this status. Since strategy has been notified above, no need to notify again here
                 self.open_orders.remove(o_order)
             elif status == "canceled":
-                # 考虑两种情况:用户下了限价单没有成交,直接取消了,用户下了限价单部分成交,然后再取消
-                # self.get_balance() #刷新账户余额 (余额不再更新,减少通信提高性能,可以在策略中根据需要自主去更新)
-                o_order.cancel()  # 标注订单为取消状态
-                self.notify(o_order.clone())  # 通知策略
+                # Consider two cases: user placed limit order without fills and cancelled directly,
+                # user placed limit order with partial fills then cancelled
+                # self.get_balance() #Refresh account balance (balance no longer updated, reduce communication to improve performance, can be updated as needed in strategy)
+                o_order.cancel()  # Mark order as cancelled
+                self.notify(o_order.clone())  # Notify strategy
                 self.open_orders.remove(o_order)
 
     def _submit(self, owner, data, exectype, side, amount, price, params):
@@ -300,8 +306,8 @@ class CCXTBroker(BrokerBase):
         )
         order = CCXTOrder(owner, data, exectype, side, amount, price, ret_ord)
         self.open_orders.append(order)
-        self.notify(order.clone())  # 先发一个订单创建通知
-        self._next()  # 然后判断订单是否已经成交,有成交就发通知
+        self.notify(order.clone())  # Send order creation notification first
+        self._next()  # Then check if order has been filled, send notification if filled
         return order
 
     def buy(
@@ -372,7 +378,7 @@ class CCXTBroker(BrokerBase):
             print("Value Received: {}".format(ccxt_order[self.mappings["canceled_order"]["key"]]))
             print("Value Expected: {}".format(self.mappings["canceled_order"]["value"]))
 
-        # 统一在next函数中处理策略通知
+        # Unify strategy notification processing in next function
         self._next()
         if ccxt_order["status"] == "canceled":
             order.cancel()

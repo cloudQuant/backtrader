@@ -1,4 +1,4 @@
-"""用于测试backtrader在时间序列上运行的效率"""
+"""Test module for backtrader efficiency in time series mode"""
 
 import time
 
@@ -17,35 +17,35 @@ class SmaStrategy(bt.Strategy):
         print("%s, %s" % (dt.isoformat(), txt))
 
     def __init__(self):
-        # 一般用于计算指标或者预先加载数据，定义变量使用
+        # Typically used for calculating indicators or preloading data, and defining variables
         self.short_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.short_window)
         self.long_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.long_window)
 
     def next(self):
         # Simply log the closing price of the series from the reference
-        # self.log(f"工商银行,{self.datas[0].datetime.date(0)},收盘价为：{self.datas[0].close[0]}")
-        # 得到当前的size
+        # self.log(f"ICBC,{self.datas[0].datetime.date(0)},closing price:{self.datas[0].close[0]}")
+        # Get current position size
         size = self.getposition(self.datas[0]).size
         value = self.broker.get_value()
         self.log(
-            f"short_ma:{self.short_ma[0]},long_ma:{self.long_ma[0]},size={size},当前bar收盘之后的账户价值为:{value}"
+            f"short_ma:{self.short_ma[0]},long_ma:{self.long_ma[0]},size={size},account value after current bar close:{value}"
         )
-        # 做多
+        # Go long
         if size == 0 and self.short_ma[0] > self.long_ma[0]:
-            # 开仓,计算一倍杠杆下可以交易的手数
+            # Open position, calculate lots tradable under 1x leverage
             try:
-                # 引用下一根bar的开盘价计算具体的手数
+                # Use next bar's opening price to calculate specific lot size
                 lots = 0.1 * value / (self.datas[0].open[1])
             except IndexError:
                 lots = 0.1 * value / (self.datas[0].close[0])
             self.buy(self.datas[0], size=lots)
-        # 平多
+        # Close long position
         if size > 0 and self.short_ma[0] < self.long_ma[0]:
             self.close(self.datas[0])
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
-            # order被提交和接受
+            # Order has been submitted and accepted
             return
         if order.status == order.Rejected:
             self.log(f"order is rejected : order_ref:{order.ref}  order_info:{order.info}")
@@ -73,7 +73,7 @@ class SmaStrategy(bt.Strategy):
                 )
 
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        # Output information when a trade is completed
         if trade.isclosed:
             self.log(
                 "closed symbol is : {} , total_profit : {} , net_profit : {}".format(
@@ -87,19 +87,19 @@ class SmaStrategy(bt.Strategy):
 
     #
     # def stop(self):
-    #     # 策略停止的时候输出信息
+    #     # Output information when strategy stops
     #     pass
 
 
 def run_strategy(n_rows=1000):
-    # 添加cerebro
+    # Add cerebro
     cerebro = bt.Cerebro()
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(SmaStrategy)
     cerebro.broker.setcash(5000000.0)
 
-    # 准备数据
-    # 使用numpy生成n_rows行数据,为了尽可能避免出现负数，把data+3
+    # Prepare data
+    # Use numpy to generate n_rows of data, add 3 to avoid negative numbers as much as possible
     np.random.seed(1)
     data = pd.DataFrame(
         {
@@ -110,14 +110,14 @@ def run_strategy(n_rows=1000):
     data.index = pd.date_range("1/1/2012", periods=len(data), freq="5min")
     data = data + 3
     feed = bt.feeds.PandasDirectData(dataname=data)
-    # 添加合约数据
+    # Add contract data
     cerebro.adddata(feed, name="test")
-    # 设置合约属性
+    # Set contract properties
     # comm = ComminfoFuturesPercent(commission=0.0, margin=0.10, mult=10)
     # cerebro.broker.addcommissioninfo(comm, name="test")
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="_TotalValue")
     cerebro.addanalyzer(bt.analyzers.PyFolio)
-    # 运行回测
+    # Run backtest
     results = cerebro.run()
     # cerebro.plot()
     pyfoliozer = results[0].analyzers.getbyname("pyfolio")
@@ -132,5 +132,5 @@ if __name__ == "__main__":
     begin_time = time.perf_counter()
     total_value = run_strategy(n_rows=1000)
     end_time = time.perf_counter()
-    print(f"运行耗费的时间为:{end_time - begin_time}")
-    print("运行结果为:", total_value.tail())
+    print(f"Execution time:{end_time - begin_time}")
+    print("Run result:", total_value.tail())

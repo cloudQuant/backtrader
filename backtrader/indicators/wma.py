@@ -1,10 +1,20 @@
 #!/usr/bin/env python
+"""WMA Indicator Module - Weighted Moving Average.
+
+This module provides the WMA (Weighted Moving Average) indicator
+which gives more weight to recent prices.
+
+Classes:
+    WeightedMovingAverage: WMA indicator (alias: WMA).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.WMA, period=20)
+"""
 import math
 from ..utils.py3 import range
 from . import MovingAverageBase
-
-
-# Weighted Moving Average
 class WeightedMovingAverage(MovingAverageBase):
     """
     A Moving Average which gives an arithmetic weighting to values with the

@@ -1,9 +1,20 @@
 #!/usr/bin/env python
+"""MACD Indicator Module - Moving Average Convergence Divergence.
+
+This module provides the MACD (Moving Average Convergence Divergence)
+indicator developed by Gerald Appel in the 1970s for trend following.
+
+Classes:
+    MACD: MACD indicator with signal line.
+    MACDHisto: MACD with histogram (alias: MACDHistogram).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.MACD)
+"""
 import math
 from . import Indicator, MovAv
-
-
-# MACD-related indicators
 class MACD(Indicator):
     """
     Moving Average Convergence Divergence. Defined by Gerald Appel in the 70s.

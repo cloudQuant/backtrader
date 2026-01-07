@@ -17,7 +17,7 @@ from ..utils.py3 import bstr, queue
 bytes = bstr  # py2/3 need for ibpy
 
 
-# IB订单的状态
+# IB Order Status
 class IBOrderState:
     # wraps OrderState object and can print it
     _fields = [
@@ -45,7 +45,8 @@ class IBOrderState:
         return "\n".join(txt)
 
 
-# IB的 order,对于IB中的某些订单，如果backtrader不支持，可以通过关键字参数自己设置
+# IB Order, for certain IB orders that backtrader doesn't support,
+# can be set via keyword arguments
 class IBOrder(OrderBase, ib.ext.Order.Order):
     """Subclasses the IBPy order to provide the minimum extra functionality
     needed to be compatible with the internally defined orders
@@ -88,7 +89,7 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
         return "\n".join(tojoin)
 
     # Map backtrader order types to the ib specifics
-    # 在backtrader和ib的订单类型之间进行匹配
+    # Match order types between backtrader and IB
     _IBOrdTypes = {
         None: bytes("MKT"),  # default
         Order.Market: bytes("MKT"),
@@ -100,31 +101,31 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
         Order.StopTrailLimit: bytes("TRAIL LIMIT"),
     }
 
-    # 初始化，从backtrader的订单类型转到ib的订单类型
+    # Initialize, convert from backtrader order type to IB order type
     def __init__(self, action, **kwargs):
         # Marker to indicate an openOrder has been seen with
         # PendinCancel/Canceled which is an indication of an upcoming
         # cancellation
-        # 订单是否会到期
+        # Whether order will expire
         self._willexpire = False
-        # 订单方向
+        # Order direction
         self.ordtype = self.Buy if action == "BUY" else self.Sell
 
         super().__init__()
         ib.ext.Order.Order.__init__(self)  # Invoke 2nd base class
 
         # Now fill in the specific IB parameters
-        # 订单类型
+        # Order type
         self.m_orderType = self._IBOrdTypes[self.exectype]
         # todo m_permid?
         self.m_permid = 0
 
         # 'B' or 'S' should be enough
-        # 订单方向
+        # Order direction
         self.m_action = bytes(action)
 
         # Set the prices
-        # 根据订单类型和价格，设置ib订单的参数
+        # Set IB order parameters based on order type and price
         self.m_lmtPrice = 0.0
         self.m_auxPrice = 0.0
 
@@ -154,16 +155,16 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
             elif self.trailpercent is not None:
                 # value expected in % format ... multiply 100.0
                 self.m_trailingPercent = self.trailpercent * 100.0
-        # ib订单的数量
+        # IB order quantity
         self.m_totalQuantity = abs(self.size)  # ib takes only positives
-        # 是否提交到ib服务器
+        # Whether to submit to IB server
         self.m_transmit = self.transmit
-        # 父订单
+        # Parent order
         if self.parent is not None:
             self.m_parentId = self.parent.m_orderId
 
         # Time In Force: DAY, GTC, IOC, GTD
-        # 设置订单的有效期
+        # Set order validity period
         if self.valid is None:
             tif = "GTC"  # Good till canceled
         elif isinstance(self.valid, (datetime, date)):
@@ -190,12 +191,12 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
         self.m_ocaType = 1  # Cancel all remaining orders with block
 
         # pass any custom arguments to the order
-        # 传递关键字参数到ib订单中
+        # Pass keyword arguments to IB order
         for k in kwargs:
             setattr(self, (not hasattr(self, k)) * "m_" + k, kwargs[k])
 
 
-# IB佣金保证金收取方式
+# IB Commission and Margin Calculation Method
 class IBCommInfo(CommInfoBase):
     """
     Commissions are calculated by ib, but the trade calculations in the
@@ -220,7 +221,7 @@ class IBCommInfo(CommInfoBase):
         return abs(size) * price
 
 
-# 注册机制，在导入模块时自动注册broker类
+# Registration mechanism, automatically register broker class when module is imported
 def _register_broker_class(broker_cls):
     """Register broker class with the store when module is loaded"""
     from backtrader.stores import ibstore
@@ -229,7 +230,7 @@ def _register_broker_class(broker_cls):
     return broker_cls
 
 
-# IBbroker - 不再使用元类
+# IBbroker - no longer using metaclass
 @_register_broker_class
 class IBBroker(BrokerBase):
     """Broker implementation for Interactive Brokers.
@@ -254,37 +255,40 @@ class IBBroker(BrokerBase):
         loss would also be calculated locally), but could be considered to be
         defeating the purpose of working with a live broker
 
-    # 不再支持tradeid，这是因为盈亏是从IB直接获取的，tradeid的pnl是不准确的
-    # 如果在开始之前是有持仓或者订单，策略计算的交易将不会考虑实际情况。为了避免这种情况，这个broker将不得不做一个单独的仓位管理，
-    # 允许tradeid具有多个id值(盈亏在本地计算),可以看做是为了实盘broker做的妥协
+    # tradeid is no longer supported, because profit and loss are obtained directly from IB,
+    # tradeid's pnl is not accurate
+    # If there are positions or orders at the start, the trades calculated by the strategy
+    # will not consider the actual situation. To avoid this, this broker would have to do
+    # separate position management, allowing tradeid to have multiple id values (profit and
+    # loss calculated locally), can be seen as a compromise for live broker
     """
 
-    # IBBroker没有额外的参数，所以不需要定义参数
+    # IBBroker has no extra parameters, so no need to define parameters
 
     def __init__(self, **kwargs):
         super().__init__()
         # ibstore
         self.ib = ibstore.IBStore(**kwargs)
-        # 开始现金，开始价值
+        # Starting cash, starting value
         self.startingcash = self.cash = 0.0
         self.startingvalue = self.value = 0.0
-        # 创建一个订单锁
+        # Create an order lock
         self._lock_orders = threading.Lock()  # control access
-        # 根据id设置订单
+        # Set orders by id
         self.orderbyid = dict()  # orders by order id
-        # 执行信息
+        # Execution information
         self.executions = dict()  # notified executions
-        # 订单状态
+        # Order status
         self.ordstatus = collections.defaultdict(dict)
-        # 通知订单信息
+        # Notify order information
         self.notifs = queue.Queue()  # holds orders which are notified
         self.tonotify = collections.deque()  # hold oids to be notified
 
-    # 开始
+    # Start
     def start(self):
         super().start()
         self.ib.start(broker=self)
-        # 如果连接成功了，获取账户信息，更新cash和value
+        # If connection successful, get account information, update cash and value
         if self.ib.connected():
             self.ib.reqAccountUpdates()
             self.startingcash = self.cash = self.ib.get_acc_cash()
@@ -293,27 +297,27 @@ class IBBroker(BrokerBase):
             self.startingcash = self.cash = 0.0
             self.startingvalue = self.value = 0.0
 
-    # 结束
+    # Stop
     def stop(self):
         super().stop()
         self.ib.stop()
 
-    # 获取现金
+    # Get cash
     def getcash(self):
         # This call cannot block if no answer is available from ib
         self.cash = self.ib.get_acc_cash()
         return self.cash
 
-    # 获取账户价值
+    # Get account value
     def getvalue(self, datas=None):
         self.value = self.ib.get_acc_value()
         return self.value
 
-    # 获取持仓
+    # Get position
     def getposition(self, data, clone=True):
         return self.ib.getposition(data.tradecontract, clone=clone)
 
-    # 取消订单
+    # Cancel order
     def cancel(self, order):
         try:
             _order = self.orderbyid[order.m_orderId]
@@ -325,7 +329,7 @@ class IBBroker(BrokerBase):
 
         self.ib.cancelOrder(order.m_orderId)
 
-    # 订单状态
+    # Order status
     def orderstatus(self, order):
         try:
             o = self.orderbyid[order.m_orderId]
@@ -334,7 +338,7 @@ class IBBroker(BrokerBase):
 
         return o.status
 
-    # 提交订单
+    # Submit order
     def submit(self, order):
         order.submit(self)
 
@@ -350,7 +354,7 @@ class IBBroker(BrokerBase):
 
         return order
 
-    # 获取佣金保证金信息
+    # Get commission and margin information
     def getcommissioninfo(self, data):
         contract = data.tradecontract
         try:
@@ -366,7 +370,7 @@ class IBBroker(BrokerBase):
 
         return IBCommInfo(mult=mult, stocklike=stocklike)
 
-    # 创建订单
+    # Create order
     def _makeorder(
         self,
         action,
@@ -398,7 +402,7 @@ class IBBroker(BrokerBase):
         order.addcomminfo(self.getcommissioninfo(data))
         return order
 
-    # 买入
+    # Buy
     def buy(
         self,
         owner,
@@ -417,7 +421,7 @@ class IBBroker(BrokerBase):
 
         return self.submit(order)
 
-    # 卖出
+    # Sell
     def sell(
         self,
         owner,
@@ -436,11 +440,11 @@ class IBBroker(BrokerBase):
 
         return self.submit(order)
 
-    # 保存通知的信息
+    # Save notification information
     def notify(self, order):
         self.notifs.put(order.clone())
 
-    # 获取通知的信息
+    # Get notification information
     def get_notification(self):
         try:
             return self.notifs.get(False)
@@ -449,12 +453,12 @@ class IBBroker(BrokerBase):
 
         return None
 
-    # next,添加一个None，设置了一个通知的边界
+    # next, add a None, sets a notification boundary
     def next(self):
         self.notifs.put(None)  # mark notificatino boundary
 
     # Order statuses in msg
-    # 信息中的订单状态
+    # Order status in message
     (SUBMITTED, FILLED, CANCELLED, INACTIVE, PENDINGSUBMIT, PENDINGCANCEL, PRESUBMITTED) = (
         "Submitted",
         "Filled",
@@ -465,7 +469,7 @@ class IBBroker(BrokerBase):
         "PreSubmitted",
     )
 
-    # 推送订单状态
+    # Push order status
     def push_orderstatus(self, msg):
         # Cancelled and Submitted with Filled = 0 can be pushed immediately
         try:
@@ -530,11 +534,11 @@ class IBBroker(BrokerBase):
         else:  # Unknown status ...
             pass
 
-    # 推送执行
+    # Push execution
     def push_execution(self, ex):
         self.executions[ex.m_execId] = ex
 
-    # 推送订单、佣金等信息
+    # Push order, commission and other information
     def push_commissionreport(self, cr):
         with self._lock_orders:
             ex = self.executions.pop(cr.m_execId)
@@ -597,7 +601,7 @@ class IBBroker(BrokerBase):
             if oid not in self.tonotify:  # Lock needed
                 self.tonotify.append(oid)
 
-    # 推送投资组合更新信息
+    # Push portfolio update information
     def push_portupdate(self):
         # If the IBStore receives a Portfolio update, then this method will be
         # indicated. If the execution of an order is split in serveral lots,
@@ -609,7 +613,7 @@ class IBBroker(BrokerBase):
                 order = self.orderbyid[oid]
                 self.notify(order)
 
-    # 推送订单错误信息
+    # Push order error information
     def push_ordererror(self, msg):
         with self._lock_orders:
             try:
@@ -632,7 +636,7 @@ class IBBroker(BrokerBase):
 
             self.notify(order)
 
-    # 推送订单状态
+    # Push order status
     def push_orderstate(self, msg):
         with self._lock_orders:
             try:

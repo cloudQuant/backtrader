@@ -114,7 +114,7 @@ class CryptoStore:
             q.put(data)
 
     def deal_data_feed(self):
-        """处理数据并分发到相应的队列"""
+        """Process data and distribute to appropriate queues"""
         if self.subscribe_bar_num == self.GetDataNum:
             for exchange_name, data_queue in self.data_queues.items():
                 # self.log(f"deal data feed, run {exchange_name}, total_keys = {self.data_queues.keys()}")
@@ -123,7 +123,7 @@ class CryptoStore:
     def _load_cache_data(self, data_queue):
         while True:
             try:
-                data = data_queue.get(block=False)  # 不阻塞
+                data = data_queue.get(block=False)  # Non-blocking
             except queue.Empty:
                 return None  # no data in the queue
             data.init_data()
@@ -146,7 +146,7 @@ class CryptoStore:
                 #     all_data = data.get_all_data()
                 #     timestamp = all_data["open_time"]
                 #     # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
-                #     # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
+                #     # Convert timestamp to UTC time (ensure it's UTC time)
                 #     dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
                 #     # self.log(f"cryptostore subscribe test {dtime_utc}, info: {all_data}")
                 if "-" not in symbol:
@@ -164,14 +164,14 @@ class CryptoStore:
                 #     now_bar_time = crypto_feed_instance.get_bar_time()
                 #     if now_bar_time and data.get_open_time() <= now_bar_time:
                 #         continue
-                # 处理websocket推送的实时数据
+                # Process real-time data pushed by WebSocket
                 if len(self.bar_queues) > 1:
                     if bar_status:
                         if bar_timestamp not in self.cache_bar_dict:
                             self.cache_bar_dict[bar_timestamp] = {}
                         self.cache_bar_dict[bar_timestamp][key_name] = data
                         # self.log(f"cache bar info: {self.cache_bar_dict}")
-                    # 如果当前仅存在一个时间
+                    # If only one timestamp currently exists
                     if len(self.cache_bar_dict) == 1:
                         bar_timestamp_list = list(self.cache_bar_dict.keys())
                         for bar_timestamp in bar_timestamp_list:
@@ -183,7 +183,7 @@ class CryptoStore:
                                     q.put(data)
                                 self.cache_bar_dict.pop(bar_timestamp)
 
-                    # 如果存在两个以上时间的K线了，就把最小时间清除了
+                    # If there are two or more K-line timestamps, remove the earliest one
                     if len(self.cache_bar_dict) > 1:
                         min_timestamp = min(self.cache_bar_dict.keys())
                         for key_name, data in self.cache_bar_dict[min_timestamp].items():
@@ -195,7 +195,7 @@ class CryptoStore:
                     # all_data = data.get_all_data()
                     # timestamp = all_data["open_time"]
                     # # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=UTC)
-                    # # 将时间戳转换为 UTC 时间（确保它是 UTC 时间）
+                    # # Convert timestamp to UTC time (ensure it's UTC time)
                     # dtime_utc = datetime.fromtimestamp(timestamp // 1000, tz=pytz.UTC)
                     # bar_status = all_data["bar_status"]
                     # if bar_status:
@@ -208,7 +208,7 @@ class CryptoStore:
                 self.trade_queue.put(data)
             else:
                 data.init_data()
-                self.log(f"un considered info:{data.get_all_data()}")
+                self.log(f"unconsidered info:{data.get_all_data()}")
 
     def download_history_bars(
         self, dataname, granularity, count=100, start_time=None, end_time=None
@@ -219,7 +219,7 @@ class CryptoStore:
         exchange_name = exchange + "___" + asset_type
 
         def calculate_time_delta(period, count):
-            """根据 period 和 count 动态计算增量时间"""
+            """Dynamically calculate time delta based on period and count"""
             period_to_minutes = {
                 "1m": 1,
                 "3m": 3,
@@ -227,18 +227,18 @@ class CryptoStore:
                 "15m": 15,
                 "30m": 30,
                 "1H": 60,
-                "1D": 1440,  # 1天=24小时=1440分钟
+                "1D": 1440,  # 1 day = 24 hours = 1440 minutes
             }
             if period in period_to_minutes:
                 total_minutes = period_to_minutes[period] * count
-                # 转换为小时数（可选）
+                # Convert to hours (optional)
                 total_hours = int(total_minutes / 60)
-                # 返回timedelta对象表示总时间跨度
+                # Return timedelta object representing total time span
                 return timedelta(hours=total_hours)
             raise ValueError(f"Unsupported period: {period}")
 
         def parse_time(input_time):
-            """解析时间，支持字符串和 datetime 类型，并将时间转换为 UTC"""
+            """Parse time, supporting string and datetime types, and convert time to UTC"""
             if isinstance(input_time, str):
                 local_time = datetime.fromisoformat(input_time)
                 return local_time.astimezone(timezone.utc)
@@ -254,22 +254,22 @@ class CryptoStore:
                 raise TypeError(f"Unsupported time format: {type(input_time)}")
 
         def update_stop_time(stop_time):
-            """更新 stop_time 到当前时间，确保实时性"""
+            """Update stop_time to current time to ensure recency"""
             now = datetime.now(timezone.utc)
             if stop_time is None or stop_time < now:
                 return now
             return stop_time
 
-        # 解析开始时间和结束时间为 UTC
+        # Parse start time and end time as UTC
         begin_time = parse_time(start_time)
         stop_time = parse_time(end_time)
 
-        # 如果没有结束时间，则根据 granularity 对齐为当前时间
+        # If no end time, align to current time based on granularity
         stop_time = update_stop_time(stop_time)
 
         feed = self.exchange_feeds[exchange_name]
         if begin_time is None and count is not None:
-            # 如果没有开始时间，只传入 count，获取最近 count 条数据
+            # If no start time, only pass count to get the most recent 'count' bars
             data = feed.get_kline(symbol, granularity, count, extra_data=None)
             data.init_data()
             bar_data_list.extend(data.get_data())
@@ -277,18 +277,18 @@ class CryptoStore:
             return bar_data_list
 
         if begin_time is not None:
-            # 循环下载数据
+            # Download data in a loop
             while begin_time < stop_time:
                 try:
-                    # 计算当前时间段的结束时间
+                    # Calculate end time for current time period
                     time_delta = calculate_time_delta(granularity, count)
                     current_end_time = min(begin_time + time_delta, stop_time)
 
-                    # 转换时间戳为毫秒
+                    # Convert timestamps to milliseconds
                     begin_stamp = int(1000.0 * begin_time.timestamp())
                     end_stamp = int(1000.0 * current_end_time.timestamp())
 
-                    # 下载数据
+                    # Download data
                     data = feed.get_kline(
                         symbol,
                         granularity,
@@ -312,16 +312,16 @@ class CryptoStore:
                     # print("new_bar_data", type(new_bar_list), new_bar_list)  # Removed for performance
                     assert 0
                     time.sleep(0.2)
-                    # 更新开始时间
+                    # Update start time
                     begin_time = current_end_time
                     # time.sleep(0.1)
-                    # 如果数据已经下载完成，跳出循环
+                    # If data download is complete, exit loop
                     if begin_time >= stop_time:
                         break
                 except Exception as e:
                     error_info = traceback.format_exception(e)
                     self.log(f"download fail, retry: {error_info}")
-                    time.sleep(3)  # 暂停 3 秒后重试
+                    time.sleep(3)  # Pause for 3 seconds before retry
 
             self.log(
                 f"download all data completely:{exchange_name}, {symbol}, period: {granularity}"
@@ -342,7 +342,7 @@ class CryptoStore:
             self.feed_api.update_total_balance()
             return self.feed_api.get_total_value()
 
-    # 用于获取未成交的订单信息
+    # Used to get unfilled order information
     def get_open_orders(self, data=None):
         pass
 

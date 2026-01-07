@@ -1,10 +1,21 @@
 #!/usr/bin/env python
+"""TRIX Indicator Module - Triple exponential moving average slope.
+
+This module provides the TRIX indicator developed by Jack Hutson in the
+1980s to show the rate of change of a triple smoothed moving average.
+
+Classes:
+    Trix: TRIX indicator (alias: TRIX).
+    TrixSignal: TRIX with signal line.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.TRIX, period=15)
+"""
 import math
 from . import Indicator
 from .ema import EMA
-
-
-# Triple exponential moving average slope
 class Trix(Indicator):
     """
     Defined by Jack Hutson in the 80s and shows the Rate of Change (%) or slope

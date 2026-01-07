@@ -1,9 +1,22 @@
 #!/usr/bin/env python
+"""Momentum Indicator Module - Momentum and Rate of Change.
+
+This module provides momentum-based indicators for measuring the rate
+of price change over a given period.
+
+Classes:
+    Momentum: Measures price change (difference).
+    MomentumOscillator: Momentum as ratio (alias: MomentumOsc).
+    RateOfChange: Rate of change indicator (alias: ROC).
+    RateOfChange100: ROC with base 100 (alias: ROC100).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.ROC, period=12)
+"""
 import math
 from . import Indicator
-
-
-# Momentum indicator, Momentum Oscillator, ROC indicator, ROC indicator times 100
 class Momentum(Indicator):
     """
     Measures the change in price by calculating the difference between the

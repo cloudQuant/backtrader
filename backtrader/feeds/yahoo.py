@@ -28,37 +28,31 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         If this is not the case, pass *reverse* = ``True``
 
       - ``adjclose`` (default: ``True``)
-        # 是否使用分红或者送股调整后的价格，并且根据这个价格调整所有的数据
         Whether to use the dividend/split adjusted close and adjust all
         values according to it.
 
       - ``adjvolume`` (default: ``True``)
-        # 如果使用了复权价格，并且这个参数设置成True的话，也会相应调整成交量
         Do also adjust ``volume`` if ``adjclose`` is also ``True``
 
       - ``round`` (default: ``True``)
-        # 是否在复权后对复权价进行四舍五入，默认是需要在特定小数进行四舍五入
         Whether to round the values to a specific number of decimals after
         having adjusted the close
 
       - ``roundvolume`` (default: ``0``)
-        # 对成交量进行复权之后四舍五入到的小数点位
         Round the resulting volume to the given number of decimals after having
         adjusted it
 
       - ``decimals`` (default: ``2``)
-        # 四舍五入到的小数点位置
         Number of decimals to round to
 
       - ``swapcloses`` (default: ``False``)
-        # 舍弃不用的参数，暂时保留
         [2018-11-16] It would seem that the order of *close* and *adjusted
         close* is now fixed. The parameter is retained, in case the need to
         swap the columns again arose.
 
     """
 
-    # 增加一个line
+    # Add a line
     lines = ("adjclose",)
 
     params = (
@@ -73,17 +67,17 @@ class YahooFinanceCSVData(feed.CSVDataBase):
 
     def start(self):
         super().start()
-        # 如果reverse是False的话，直接return,下面就不在运行
+        # If reverse is False, return directly, don't run code below
         if not self.params.reverse:
             return
 
         # Yahoo sends data in reverse order and the file is still unreversed
-        # 使用deque双向队列，添加到左边的时候，效率比list高很多，如果文件日期是反转的，那么
-        # 传递数据的时候反转了一下，那么新的文件中，日期就是正的
+        # Use deque double-ended queue, appending to left is much more efficient than list.
+        # If file dates are reversed, data is reversed during transfer, so dates in new file are in correct order
         dq = collections.deque()
         for line in self.f:
             dq.appendleft(line)
-        # 建立一个字符串缓存对象，并且把队列中的数据写入文件，把指针移动到第0个字符，关闭文件，把文件赋值给self.f
+        # Create a string buffer object, write queue data to file, move pointer to 0th character, close file, assign file to self.f
         f = io.StringIO(newline=None)
         f.writelines(dq)
         f.seek(0)
@@ -91,8 +85,8 @@ class YahooFinanceCSVData(feed.CSVDataBase):
         self.f = f
 
     def _loadline(self, linetokens):
-        # _loadline的代码相对来说比较熟悉，都比较类似
-        # 一个while 循环
+        # _loadline code is relatively familiar, all quite similar
+        # A while loop
         while True:
             nullseen = False
             for tok in linetokens[1:]:
@@ -107,17 +101,17 @@ class YahooFinanceCSVData(feed.CSVDataBase):
 
             if not nullseen:
                 break  # can proceed
-        # 计数器，next(i)的时候值会增加1
+        # Counter, value increases by 1 when calling next(i)
         i = itertools.count(0)
-        # 获取时间的字符串
+        # Get time string
         dttxt = linetokens[next(i)]
-        # 生成时间
+        # Generate time
         dt = date(int(dttxt[0:4]), int(dttxt[5:7]), int(dttxt[8:10]))
-        # 把时间转化成数字
+        # Convert time to number
         dtnum = date2num(datetime.combine(dt, self.p.sessionend))
-        # 给datetime的line赋值
+        # Assign value to datetime line
         self.lines.datetime[0] = dtnum
-        # 获取开高低收持仓量
+        # Get open, high, low, close, open interest
         o = float(linetokens[next(i)])
         h = float(linetokens[next(i)])
         low = float(linetokens[next(i)])
@@ -126,42 +120,42 @@ class YahooFinanceCSVData(feed.CSVDataBase):
 
         # 2018-11-16 ... Adjusted Close seems to always be delivered after
         # the close and before the volume columns
-        # 获取复权后的价格
+        # Get adjusted price
         adjustedclose = float(linetokens[next(i)])
-        # 尝试获取成交量，如果没有，设置成0
+        # Try to get volume, if not available, set to 0
         try:
             v = float(linetokens[next(i)])
         except Exception as e:  # cover the case in which volume is "null"
             print(e)
             v = 0.0
-        # 如果交换收盘价和复权价，进行交换
+        # If swapping close price and adjusted close price, perform swap
         if self.p.swapcloses:  # swap closing prices if requested
             c, adjustedclose = adjustedclose, c
-        # 计算复权因子，感觉计算复权因子的方式和常规用法有点不同，但是也不能说有问题
+        # Calculate adjustment factor, the calculation method seems different from conventional usage, but not necessarily wrong
         adjfactor = c / adjustedclose
 
         # in v7 "adjusted prices" seem to be given, scale back for non adj
-        # 如果需要调整价格的话，除以复权因子进行调整。
+        # If price adjustment is needed, divide by adjustment factor
         if self.params.adjclose:
             o /= adjfactor
             h /= adjfactor
             low /= adjfactor
             c = adjustedclose
             # If the price goes down, volume must go up and viceversa
-            # 如果调整成交量的话，这里逻辑略有问题，但是应该不影响使用，因为可能存在某些股票合并的情况
-            # todo 注意逻辑
+            # If adjusting volume, the logic here has some issues, but shouldn't affect usage as stock mergers may exist
+            # todo pay attention to logic
             if self.p.adjvolume:
                 v *= adjfactor
-        # 如果要四舍五入，对价格进行四舍五入
+        # If rounding is needed, round the prices
         if self.p.round:
             decimals = self.p.decimals
             o = round(o, decimals)
             h = round(h, decimals)
             low = round(low, decimals)
             c = round(c, decimals)
-        # 对成交量进行四舍五入
+        # Round the volume
         v = round(v, self.p.roundvolume)
-        # 把计算得到的数据赋值给相应的line
+        # Assign calculated data to corresponding lines
         self.lines.open[0] = o
         self.lines.high[0] = h
         self.lines.low[0] = low
@@ -176,7 +170,7 @@ class YahooLegacyCSV(YahooFinanceCSVData):
     """
     This is intended to load files which were downloaded before Yahoo
     discontinued the original service in May-2017
-    # 用于load 2017年5月之前下载的数据
+    Used to load data downloaded before May 2017
     """
 
     params = (("version", ""),)
@@ -186,9 +180,9 @@ class YahooFinanceCSV(feed.CSVFeedBase):
     DataCls = YahooFinanceCSVData
 
 
-# todo 有时间测试一下这个类还能不能使用，如果可以用，尝试进行注释
+# todo Test this class when time permits to see if it still works, if so, try to add comments
 class YahooFinanceData(YahooFinanceCSVData):
-    # 这个是从雅虎上直接爬数据的方法
+    # This is a method to directly crawl data from Yahoo
     """
     Executes a direct download of data from Yahoo servers for the given time
     range.
@@ -360,5 +354,5 @@ class YahooFinanceData(YahooFinanceCSVData):
 
 class YahooFinance(feed.CSVFeedBase):
     DataCls = YahooFinanceData
-    # 获取具体的参数，形成元组
+    # Get specific parameters and form tuple
     params = DataCls.params._gettuple()

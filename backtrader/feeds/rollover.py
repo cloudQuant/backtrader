@@ -6,7 +6,7 @@ from ..utils.date import Localizer
 
 
 class RollOver(DataBase):
-    # 当条件满足之后，移动到下一个合约上
+    # Roll over to the next future when conditions are met
     """Class that rolls over to the next future when a condition is met
 
     Params:
@@ -33,8 +33,8 @@ class RollOver(DataBase):
 
             - ``False``: the expiration cannot take place
 
-        # 这个参数是一个可调用对象checkdate(dt,d),其中dt是一个时间对象，d是当前活跃数据，
-        # 如果返回的值是True，就会转移到下一个合约上；如果是False，就不会转移到下个合约上
+        # This parameter is a callable object checkdate(dt,d), where dt is a time object, d is current active data,
+        # If return value is True, will switch to next contract; if False, will not switch to next contract
 
         - ``checkcondition`` (default: ``None``)
 
@@ -62,8 +62,8 @@ class RollOver(DataBase):
         than the volume from ``d1``
 
             - ``False``: the expiration cannot take place
-        # 在checkdate返回是True的时候，将会调用这个功能，这个必须要是一个可调用对象，checkcondition(d0,d1)
-        # 其中d0是当前激活的期货合约，d1是下一个到期的合约，如果是True的话，将会从d0转移到d1上，如果不是，将不会发生转移。
+        # When checkdate returns True, this function will be called, this must be a callable object, checkcondition(d0,d1)
+        # Where d0 is current active futures contract, d1 is next expiring contract, if True, will switch from d0 to d1, if not, switch will not happen.
     """
 
     params = (
@@ -73,21 +73,21 @@ class RollOver(DataBase):
     )
 
     def islive(self):
-        # 让数据是live形式，将会避免preloading和runonce
+        # Make data live form, will avoid preloading and runonce
         """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
         should be deactivated"""
         return True
 
     def __init__(self, *args, **kwargs):
-        # 处理timeframe和compression参数，原来由元类处理
+        # Handle timeframe and compression parameters, originally handled by metaclass
         if args:
-            # 从第一个数据源复制timeframe和compression
+            # Copy timeframe and compression from first data source
             kwargs.setdefault("timeframe", getattr(args[0], "_timeframe", None))
             kwargs.setdefault("compression", getattr(args[0], "_compression", None))
 
         super().__init__(**kwargs)
 
-        # 准备用于换月的期货合约
+        # Prepare futures contracts for rollover
         self._dts = None
         self._dexp = None
         self._d = None
@@ -96,29 +96,29 @@ class RollOver(DataBase):
 
     def start(self):
         super().start()
-        # 循环所有的数据，准备开始
+        # Loop through all data, prepare to start
         for d in self._rolls:
             d.setenvironment(self._env)
             d._start()
 
         # put the references in a separate list to have pops
-        # todo 此处从新使用list好像用处不大，应为self._rolls本身就是list格式
+        # todo Using list again here seems not very useful, because self._rolls is already list format
         self._ds = list(self._rolls)
-        # 第一个数据
+        # First data
         self._d = self._ds.pop(0) if self._ds else None
-        # 到期数据
+        # Expiration data
         self._dexp = None
-        # 此处默认了一个最小的时间，当和任何时间对比的时候，都会进行移动
+        # Here defaults a minimum time, when comparing with any time, will move
         self._dts = [datetime.min for xx in self._ds]
 
     def stop(self):
-        # 结束数据
+        # End data
         super().stop()
         for d in self._rolls:
             d.stop()
 
     def _gettz(self):
-        # 获取具体的时区
+        # Get specific timezone
         """To be overriden by subclasses which may auto-calculate the
         timezone"""
         if self._rolls:
@@ -126,28 +126,28 @@ class RollOver(DataBase):
         return Localizer(self.p.tz)
 
     def _checkdate(self, dt, d):
-        # 计算当前是否满足换月条件
+        # Calculate if current rollover conditions are met
         if self.p.checkdate is not None:
             return self.p.checkdate(dt, d)
 
         return False
 
     def _checkcondition(self, d0, d1):
-        # 准备开始换月
+        # Prepare to start rollover
         if self.p.checkcondition is not None:
             return self.p.checkcondition(d0, d1)
 
         return True
 
     def _load(self):
-        # 加载数据的方法
+        # Method to load data
         while self._d is not None:
-            # 当self._d不是None的时候，调用next
+            # When self._d is not None, call next
             _next = self._d.next()
-            # 如果_next值是None的话，继续调用next
+            # If _next value is None, continue calling next
             if _next is None:  # no values yet, more will come
                 continue
-            # 如果_next值是False的话，当前数据就换到下个数据上，
+            # If _next value is False, current data switches to next data,
             if _next is False:  # no values from current data src
                 if self._ds:
                     self._d = self._ds.pop(0)
@@ -155,21 +155,21 @@ class RollOver(DataBase):
                 else:
                     self._d = None
                 continue
-            # 当前数据的当前时间
+            # Current time of current data
             dt0 = self._d.datetime.datetime()  # current dt for active data
 
             # Synchronize other datas using dt0
-            # 根据当前时间同步其他的数据
+            # Synchronize other data based on current time
             for i, d_dt in enumerate(zip(self._ds, self._dts)):
                 d, dt = d_dt
-                # 如果其他数据的时间小于当前时间，就把其他数据向后移动，时间增加，并把时间保存到self._dts中
+                # If other data's time is less than current time, move other data forward, increase time, and save time to self._dts
                 while dt < dt0:
                     if d.next() is None:
                         continue
                     self._dts[i] = dt = d.datetime.datetime()
 
             # Move expired future as much as needed
-            # 移动到期的数据
+            # Move expired data
             while self._dexp is not None:
                 if not self._dexp.next():
                     self._dexp = None

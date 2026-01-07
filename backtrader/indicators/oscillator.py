@@ -1,10 +1,21 @@
 #!/usr/bin/env python
+"""Oscillator Indicator Module - Oscillating indicators.
+
+This module provides oscillator indicators that show the deviation
+of one data series from another, typically price from a moving average.
+
+Classes:
+    OscillatorMixIn: MixIn class to create oscillating indicators.
+    Oscillator: Oscillation of data around another data.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.SMAOscillator, period=20)
+"""
 import sys
 
 from . import Indicator, MovingAverage
-
-
-# Create oscillating indicators
 class OscillatorMixIn(Indicator):
     """
     MixIn class to create a subclass with another indicator. The main line of

@@ -21,7 +21,7 @@ def generate_random_n_bar_df(n):
     e = np.random.random(n)
     np.random.seed(6)
     f = np.random.random(n)
-    # bar的数据和时间都是乱生成的，估计没有那种行情是这种，但是应该是不影响测试结果的可靠性
+    # The bar data and timestamps are randomly generated. While such market conditions likely don't exist, this should not affect the reliability of test results
     result = [a, b, c, d, e, f]
     result_df = pd.DataFrame(result).T
     result_df.columns = ["open", "high", "low", "close", "volume", "openinterest"]
@@ -38,38 +38,38 @@ class DirectStrategy(bt.Strategy):
     params = {"short_window": 10, "long_window": 20}
 
     def log(self, txt, dt=None):
-        """log信息的功能"""
+        """Function for logging information"""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # 一般用于计算指标或者预先加载数据，定义变量使用
+        # Typically used for calculating indicators, preloading data, or defining variables
         self.short_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.short_window)
         self.long_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.long_window)
 
     def next(self):
         # Simply log the closing price of the series from the reference
-        # self.log(f"工商银行,{self.datas[0].datetime.date(0)},收盘价为：{self.datas[0].close[0]}")
+        # self.log(f"ICBC,{self.datas[0].datetime.date(0)},closing price:{self.datas[0].close[0]}")
         # self.log(f"short_ma:{self.short_ma[0]},long_ma:{self.long_ma[0]}")
-        # 得到当前的size
+        # Get current position size
         data = self.datas[0]
         size = self.getposition(data).size
 
-        # 平多
+        # Close long position
         if size > 0 and self.short_ma[0] < self.long_ma[0] and self.short_ma[-1] > self.long_ma[-1]:
             self.close(data, size=1)
-        # 平空
+        # Close short position
         if size < 0 and self.short_ma[0] > self.long_ma[0] and self.short_ma[-1] < self.long_ma[-1]:
             self.close(data, size=1)
 
-        # 开多
+        # Open long position
         if (
             size == 0
             and self.short_ma[0] > self.long_ma[0]
             and self.short_ma[-1] < self.long_ma[-1]
         ):
             self.buy(data, size=1)
-        # 开空
+        # Open short position
         if (
             size == 0
             and self.short_ma[0] < self.long_ma[0]
@@ -82,7 +82,7 @@ class DirectStrategy(bt.Strategy):
 
 #     def notify_order(self, order):
 #         if order.status in [order.Submitted, order.Accepted]:
-#             # order被提交和接受
+#             # Order has been submitted and accepted
 #             return
 #         if order.status == order.Rejected:
 #             self.log(f"order is rejected : order_ref:{order.ref}  order_info:{order.info}")
@@ -104,7 +104,7 @@ class DirectStrategy(bt.Strategy):
 #                             order.executed.price,order.executed.value,order.executed.comm))
 
 #     def notify_trade(self, trade):
-#         # 一个trade结束的时候输出信息
+#         # Output information when a trade is completed
 #         if trade.isclosed:
 #             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}' .format(
 #                             trade.getdataname(),trade.pnl, trade.pnlcomm))
@@ -119,29 +119,29 @@ def run_direct_data(n):
     df = generate_random_n_bar_df(n)
     df.index = pd.to_datetime(df.index)
     datetime_list = list(df.index)
-    # 添加cerebro
+    # Add cerebro
     cerebro = bt.Cerebro()
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(DirectStrategy)
-    # 准备数据
+    # Prepare data
     params = dict(
         fromdate=datetime_list[0],
         todate=datetime_list[-1],
         timeframe=bt.TimeFrame.Minutes,
         compression=1,
-        dtformat=("%Y-%m-%d %H:%M:%S"),  # 日期和时间格式
-        tmformat=("%H:%M:%S"),  # 时间格式
+        dtformat=("%Y-%m-%d %H:%M:%S"),  # Date and time format
+        tmformat=("%H:%M:%S"),  # Time format
     )
 
     feed = bt.feeds.PandasDirectData(dataname=df, **params)
-    # 添加合约数据
+    # Add contract data
     cerebro.adddata(feed, name="xxxxxx")
     cerebro.broker.setcommission(commission=0.0005)
 
-    # 添加资金
+    # Add initial cash
     cerebro.broker.setcash(100000.0)
 
-    # 开始运行
+    # Start running
     cerebro.run()
 
     print(f"end value is {cerebro.broker.getvalue()}")

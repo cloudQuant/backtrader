@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""EMA Indicator Module - Exponential Moving Average.
+
+This module provides the EMA (Exponential Moving Average) indicator
+which applies weighting factors that decrease exponentially.
+
+Classes:
+    ExponentialMovingAverage: EMA indicator (alias: EMA).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.EMA, period=20)
+"""
 import math
 from . import MovingAverageBase
-
-
-# Exponential Moving Average
 class ExponentialMovingAverage(MovingAverageBase):
     """
     A Moving Average that smoothes data exponentially over time.

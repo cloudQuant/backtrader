@@ -15,8 +15,7 @@ from ..utils.py3 import (
 
 class IBData(DataBase):
     """Interactive Brokers Data Feed.
-    # 获取数据的时候，支持的dataname格式
-    Supports the following contract specifications in parameter ``dataname``:
+    Supported dataname formats when fetching data:
 
           - TICKER  # Stock type and SMART exchange
           - TICKER-STK  # Stock and SMART exchange
@@ -54,19 +53,21 @@ class IBData(DataBase):
         Default value to apply as *security type* if not provided in the
         ``dataname`` specification
 
-        # 在指定名字的时候，如果没有设定证券类型，那么默认值是股票
+        If security type is not specified when naming, default is stock
 
       - ``exchange`` (default: ``SMART``)
 
         Default value to apply as *exchange* if not provided in the
         ``dataname`` specification
-        # 如果没有在名字中指定的话，默认的交易所是"SMART"
+
+        Default exchange is "SMART" if not specified in name
 
       - ``currency`` (default: ``''``)
 
         Default value to apply as *currency* if not provided in the
         ``dataname`` specification
-        # 如果没有在名字中指定的话，默认的货币种类是空字符串
+
+        Default currency is empty string if not specified in name
 
       - ``historical`` (default: ``False``)
 
@@ -80,8 +81,9 @@ class IBData(DataBase):
         larger than the one allowed by IB given the timeframe/compression
         chosen for the data.
 
-        # 如果这个参数设置的是True的话，将会在第一次下载数据之后停止更新数据。将会使用fromdate 和 todate
-        # 作为指引，如果两个时间间隔大于一次IB允许请求的最大数据量，将会分很多次进行下载
+        If this parameter is set to True, will stop updating data after first download.
+        Uses fromdate and todate as reference. If time interval exceeds maximum data
+        amount allowed by IB per request, will download in multiple requests
 
       - ``what`` (default: ``None``)
 
@@ -95,7 +97,8 @@ class IBData(DataBase):
 
         Check the IB API docs if another value is wished
 
-        # what这个参数决定具体下载哪些数据，可能会根据不同的资产类型有所变化
+        The 'what' parameter determines which specific data to download,
+        may vary depending on different asset types
 
       - ``rtbar`` (default: ``False``)
 
@@ -114,27 +117,32 @@ class IBData(DataBase):
         timeframe/compression below Seconds/5, no real time bars will be used,
         because IB doesn't serve them below that level
 
-        # 这个参数如果设置成True的话，将会获取5秒钟的实时K线，用作最小的tick数据。
-        # 如果设置成False的话，会基于接受到的tick数据，将会使用RTVolume价格。如果是cash类资产，将会接收bid价格
-        # 如果这个参数设置成True的，但是resample的周期在5秒钟以下，也不会使用实时K线数据
+        If this parameter is set to True, will get 5-second real-time bars as minimum tick data.
+        If set to False, will use RTVolume price based on received tick data. For cash assets,
+        will receive bid price. If this parameter is set to True but resample period is below
+        5 seconds, will not use real-time bar data
 
       - ``qcheck`` (default: ``0.5``)
 
         Time in seconds to wake up if no data is received to give a chance to
         resample/replay packets properly and pass notifications up the chain
-        # 当没有数据接收到的时候，多少秒钟唤醒以便有机会合成新的k线
+
+        How many seconds to wake up when no data is received to allow opportunity to form new bars
 
       - ``backfill_start`` (default: ``True``)
 
         Perform backfilling at the start. The maximum possible historical data
         will be fetched in a single request.
-        # 在开始的时候进行数据填充，在一次请求中将会请求尽可能多的数据
+
+        Perform data filling at start, will request as much data as possible in one request
 
       - ``backfill`` (default: ``True``)
 
         Perform backfilling after a disconnection/reconnection cycle. The gap
         duration will be used to download the smallest possible amount of data
-        # 在一次断开连接和重新连接的过程中，将会执行填充。将会根据这个断开的时间间隔下载最小的数据量
+
+        Will perform filling during disconnection and reconnection process. Will download
+        minimum data amount based on disconnection time interval
 
       - ``backfill_from`` (default: ``None``)
 
@@ -142,8 +150,10 @@ class IBData(DataBase):
         backfilling. Once the data source is depleted and if requested,
         backfilling from IB will take place. This is ideally meant to backfill
         from already stored sources like a file on disk, but not limited to.
-        # 从额外的数据源进行填充数据，如果这个数据源已经用完了，将会从IB获取数据进行填充。理想情况下
-        # 这个额外的数据源最好已经存储在一个文件或者硬盘上了，但是也可以是其他方式
+
+        Fill data from additional data source. If this data source is exhausted,
+        will fetch data from IB for filling. Ideally this additional data source
+        should be stored in a file or on disk, but can also be other methods
 
       - ``latethrough`` (default: ``False``)
 
@@ -158,9 +168,9 @@ class IBData(DataBase):
         the ``IBStore`` instance and the TWS server time is not in sync with
         that of the local computer
 
-        # 当合成K线之后，如果有新来的tick是否允许通过。
-        # 当timeoffset设置成False的时候，本地时间可能和服务器时间有很大的差距，导致tick来晚的情况
-        # 更愿意有可能发生。
+        Whether to allow new ticks to pass through after bar formation.
+        When timeoffset is set to False, local time may have large difference from
+        server time, causing late tick arrivals to be more likely
 
       - ``tradename`` (default: ``None``)
         Useful for some specific cases like ``CFD`` in which prices are offered
@@ -172,9 +182,9 @@ class IBData(DataBase):
           price tracking but in this case will be the trading asset (specified
           as ``tradename``)
 
-        # tradename是具体交易的资产的名字，
-        # dataname与tradename如果不一样的话，
-        # 那就是dataname获取数据，在tradename上进行交易
+        tradename is the name of the specific trading asset.
+        If dataname and tradename are different, dataname is used for data
+        fetching and trading occurs on tradename
 
     The default values in the params are the to allow things like ```TICKER``,
     to which the parameter ``sectype`` (default: ``STK``) and ``exchange``
@@ -215,11 +225,11 @@ class IBData(DataBase):
     # States for the Finite State Machine in _load
     _ST_FROM, _ST_START, _ST_LIVE, _ST_HISTORBACK, _ST_OVER = range(5)
 
-    # 时间差或者时间补偿
+    # Time difference or time compensation
     def _timeoffset(self):
         return self.ib.timeoffset()
 
-    # 获取时区
+    # Get timezone
     def _gettz(self):
         # If no object has been provided by the user and a timezone can be
         # found via contractdtails, then try to get it from pytz, which may or
@@ -228,7 +238,7 @@ class IBData(DataBase):
         # The timezone specifications returned by TWS seem to be abbreviations
         # understood by pytz, but the full list which TWS may return is not
         # documented and one of the abbreviations may fail
-        # 如果用户没有自己指定时区，那么就需要使用pytz通过合约详细信息来获取时区
+        # If user hasn't specified timezone, need to use pytz to get timezone through contract details
         tzstr = isinstance(self.p.tz, string_types)
         if self.p.tz is not None and not tzstr:
             return Localizer(self.p.tz)
@@ -254,16 +264,16 @@ class IBData(DataBase):
         # contractdetails there, import ok, timezone found, return it
         return tz
 
-    # 是否是实时数据
+    # Whether this is live data
     def islive(self):
         """Returns ``True`` to notify ``Cerebro`` that preloading and runonce
         should be deactivated"""
         return not self.p.historical
 
-    # 初始化
+    # Initialize
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        # 处理原来元类的注册功能
+        # Handle original metaclass registration functionality
         ibstore.IBStore.DataCls = self.__class__
 
         self.tradecontractdetails = None
@@ -281,14 +291,14 @@ class IBData(DataBase):
         self.precontract = self.parsecontract(self.p.dataname)
         self.pretradecontract = self.parsecontract(self.p.tradename)
 
-    # 设置环境，接收到cerebro，并且把它传递到它所属的store
+    # Set environment, receive cerebro, and pass it to the store it belongs to
     def setenvironment(self, env):
         """Receives an environment (cerebro) and passes it over to the store it
         belongs to"""
         super().setenvironment(env)
         env.addstore(self.ib)
 
-    # 根据具体的数据名称生成合同
+    # Generate contract based on specific data name
     def parsecontract(self, dataname):
         """Parses dataname generates a default contract"""
         # Set defaults for optional tokens in the ticker string
@@ -367,7 +377,7 @@ class IBData(DataBase):
 
         return precon
 
-    # 开始连接到IB ，获取真实的合约并且返回详细的合约信息
+    # Start connection to IB, get real contract and return detailed contract information
     def start(self):
         """Starts the IB connecction and gets the real contract and
         contractdetails if it exists"""
@@ -433,13 +443,13 @@ class IBData(DataBase):
             self._start_finish()  # to finish initialization
             self._st_start()
 
-    # 准备结束
+    # Prepare to stop
     def stop(self):
         """Stops and tells the store to stop"""
         super().stop()
         self.ib.stop()
 
-    # 请求数据
+    # Request data
     def reqdata(self):
         """request real-time data. checks cash vs. non-cash and param useRT"""
         if self.contract is None or self._subcription_valid:
@@ -453,7 +463,7 @@ class IBData(DataBase):
         self._subcription_valid = True
         return self.qlive
 
-    # 取消数据
+    # Cancel data
     def canceldata(self):
         """Cancels Market Data subscription, checking asset type and rtbar"""
         if self.contract is None:
@@ -464,11 +474,11 @@ class IBData(DataBase):
         else:
             self.ib.cancelRealTimeBars(self.qlive)
 
-    # 是否具有实时数据
+    # Whether has live data
     def haslivedata(self):
         return bool(self._storedmsg or self.qlive)
 
-    # 加载数据
+    # Load data
     def _load(self):
         if self.contract is None or self._state == self._ST_OVER:
             return False  # nothing can be done
@@ -711,7 +721,7 @@ class IBData(DataBase):
         self._state = self._ST_LIVE
         return True  # no return before - implicit continue
 
-    # 把K线数据保存到line里面
+    # Save K-line data to line
     def _load_rtbar(self, rtbar, hist=False):
         # A complete 5-second bar made of real-time ticks is delivered and
         # contains open/high/low/close/volume prices
@@ -732,7 +742,7 @@ class IBData(DataBase):
 
         return True
 
-    # 把tick数据保存到line里面
+    # Save tick data to line
     def _load_rtvolume(self, rtvol):
         # A single tick is delivered and is therefore used for the entire set
         # of prices.

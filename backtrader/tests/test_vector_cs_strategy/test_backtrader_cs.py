@@ -1,4 +1,4 @@
-"""用于测试backtrader在横截面上运行的效率"""
+"""Test the efficiency of backtrader running on cross-sectional data"""
 
 import math
 
@@ -15,50 +15,51 @@ import backtrader as bt
 
 # from itertools import product
 # from backtrader.vectors.cal_functions import get_symbol
-from backtrader.comminfo import (  # 期货交易的手续费用，按照比例或者按照金额
+from backtrader.comminfo import (  # Commission fees for futures trading, by percentage or fixed amount
     ComminfoFuturesPercent,
 )
 
 
-# 编写backtrader策略
+# Write backtrader strategy
 class CloseMaCs(bt.Strategy):
-    # 策略作者
+    # Strategy author
     author = "yunjinqi"
-    # 策略的参数
+    # Strategy parameters
     params = (("look_back_days", 40), ("hold_days", 70), ("percent", 0.3))
 
-    # log相应的信息
+    # Log corresponding information
     def log(self, txt, dt=None):
         # Logging function fot this strategy
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print("{}, {}".format(dt.isoformat(), txt))
 
-    # 初始化策略的数据
+    # Initialize strategy data
     def __init__(self):
-        # 运行的bar个数
+        # Number of bars run
         self.bar_num = 0
-        # 计算ma指标
+        # Calculate MA indicator
         self.data_factor = {
             d.name: bt.indicators.NewDiff(d, period=self.p.look_back_days) for d in self.datas
         }
         self.data_new_factor = {d.name: [] for d in self.datas}
-        # 保存signal
+        # Save signals
         self.signals = {"datetime": []}
-        # 保存收益率
+        # Save returns
         self.returns = {"datetime": []}
-        # 保存交易次数
+        # Save trade count
         # self.trade_num = 0
 
     def prenext(self):
-        # 由于期货数据有几千个，每个期货交易日期不同，并不会自然进入next
-        # 需要在每个prenext中调用next函数进行运行
+        # Since there are thousands of futures data with different trading dates,
+        # they won't naturally enter next
+        # Need to call next function in each prenext to run
         self.next()
         # pass
 
     def next(self):
         data = self.datas[0]
         self.current_datetime = bt.num2date(data.datetime[0])
-        # 计算因子并排序
+        # Calculate factor and sort
         result = []
         for d in self.datas[1:]:
             d_datetime = bt.num2date(d.datetime[0])
@@ -73,7 +74,7 @@ class CloseMaCs(bt.Strategy):
             self.bar_num = -1
         if self.bar_num % self.p.hold_days == 0 and len(result) > 0:
             # self.log(f"{self.bar_num}, result: {result}")
-            # 平仓
+            # Close positions
             for d in self.datas[1:]:
                 size = self.getposition(d).size
                 if size != 0:
@@ -82,14 +83,14 @@ class CloseMaCs(bt.Strategy):
             # self.trade_num += 1
             if True:
                 sorted_result = sorted(result, key=lambda x: x[1])
-                # 选择一部分做空，选择一部分做多
+                # Select some for short, select some for long
                 num = int(len(sorted_result) * self.p.percent)
                 long_list = sorted_result[-num:]
                 short_list = sorted_result[:num]
                 # self.log(f"result:{sorted_result}")
                 # self.log(f"long_list: {long_list}")
                 # self.log(f"short_list: {short_list}")
-                # 循环多头进行下单
+                # Loop through long list to place orders
                 for key, _ in long_list:
                     total_value = 0.01 * self.broker.get_value()
                     contract_value = total_value / (num * 2)
@@ -101,7 +102,7 @@ class CloseMaCs(bt.Strategy):
                     lots = contract_value / (close * mult)
                     if lots > 0:
                         self.buy(data, size=lots)
-                # 循环空头进行下单
+                # Loop through short list to place orders
                 for key, _ in short_list:
                     total_value = 0.01 * self.broker.get_value()
                     contract_value = total_value / (num * 2)
@@ -113,7 +114,7 @@ class CloseMaCs(bt.Strategy):
                     lots = contract_value / (close * mult)
                     if lots > 0:
                         self.sell(data, size=lots)
-        # bar个数增加1
+        # Increment bar count by 1
         self.bar_num = self.bar_num + 1
 
     def notify_order(self, order):
@@ -147,7 +148,7 @@ class CloseMaCs(bt.Strategy):
 
     #
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        # Output information when a trade ends
         if trade.isclosed:
             self.log(
                 f"closed symbol: {trade.getdataname()} ,total_profit: {trade.pnl} ,net_profit: {trade.pnlcomm}"
@@ -180,19 +181,19 @@ def run(n_rows=10000, n_data=1000):
         )
         data.index = pd.date_range("1/1/2012", periods=len(data), freq="5min")
         feed = bt.feeds.PandasDirectData(dataname=data)
-        # 添加合约数据
+        # Add contract data
         cerebro.adddata(feed, name=f"data_{i}")
 
         comm_params = {"commission": 0.0002, "margin": 0.1, "mult": 10}
         comm = ComminfoFuturesPercent(**comm_params)
         cerebro.broker.addcommissioninfo(comm, name=f"data_{i}")
-    # 配置滑点费用,1跳
+    # Configure slippage cost, 1 tick
     # cerebro.broker.set_slippage_fixed(slippage*1)
     cerebro.broker.setcash(100000000.0)
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(CloseMaCs, **new_params)
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
-    # 添加AnnualReturn
+    # Add AnnualReturn
     cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name="my_annual_return")
     # Calmar
     cerebro.addanalyzer(bt.analyzers.Calmar, _name="my_calmar", timeframe=bt.TimeFrame.NoTimeFrame)
@@ -231,9 +232,9 @@ def run(n_rows=10000, n_data=1000):
     cerebro.addanalyzer(bt.analyzers.Transactions, _name="my_transactions")
     # VWR
     # cerebro.addanalyzer(bt.analyzers.VWR, _name='my_vwr')
-    # 分析analyzer的结果
+    # Analyze analyzer results
     # cerebro.addanalyzer(bt.analyzers.PyFolio)
-    # 运行回测
+    # Run backtest
     my_results = cerebro.run()
     # sharpe_ratio = my_results[0].analyzers.my_sharpe.get_analysis()["sharperatio"]
     # annual_return = my_results[0].analyzers.my_returns.get_analysis()["rnorm"]
@@ -262,5 +263,5 @@ if __name__ == "__main__":
     begin_time = time.perf_counter()
     total_value = run(n_rows=10000, n_data=100)
     end_time = time.perf_counter()
-    print(f"运行耗费的时间为:{end_time - begin_time}")
-    print("运行结果为:", total_value.tail())
+    print(f"Time elapsed: {end_time - begin_time}")
+    print("Results:", total_value.tail())

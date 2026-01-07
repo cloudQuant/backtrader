@@ -1,9 +1,19 @@
 #!/usr/bin/env python
+"""CCI Indicator Module - Commodity Channel Index.
+
+This module provides the CCI (Commodity Channel Index) indicator
+introduced by Donald Lambert in 1980 for identifying cyclical trends.
+
+Classes:
+    CommodityChannelIndex: CCI indicator (alias: CCI).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.CCI, period=20)
+"""
 import math
 from . import Indicator, MeanDev, MovAv
-
-
-# CCI (Commodity Channel Index) indicator
 class CommodityChannelIndex(Indicator):
     """
     Introduced by Donald Lambert in 1980 to measure variations of the

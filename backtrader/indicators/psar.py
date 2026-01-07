@@ -1,9 +1,20 @@
 #!/usr/bin/env python
+"""PSAR Indicator Module - Parabolic SAR.
+
+This module provides the Parabolic SAR (Stop and Reverse) indicator
+developed by J. Welles Wilder, Jr. for trend following and reversal signals.
+
+Classes:
+    ParabolicSAR: Parabolic SAR indicator (alias: PSAR).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.PSAR)
+"""
 from . import PeriodN
 
 __all__ = ["ParabolicSAR", "PSAR"]
-
-# Used to calculate SAR indicator
 
 
 class _SarStatus:
