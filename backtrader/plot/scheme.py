@@ -1,5 +1,24 @@
 #!/usr/bin/env python
+"""Plot Scheme Module - Plotting configuration and styling.
 
+This module provides the PlotScheme class and color schemes for
+customizing the appearance of backtrader plots.
+
+Variables:
+    tableau20: 20-color palette for plots.
+    tableau10: 10-color palette for plots.
+    tableau10_light: 10 light-color palette.
+    tab10_index: Color index mapping.
+
+Classes:
+    PlotScheme: Configuration class for plot appearance.
+
+Example:
+    Using PlotScheme:
+    >>> scheme = PlotScheme()
+    >>> scheme.ytight = True
+    >>> cerebro.plot(scheme=scheme)
+"""
 tableau20 = [
     "steelblue",  # 0
     "lightsteelblue",  # 1
