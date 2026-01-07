@@ -1,5 +1,21 @@
 #!/usr/bin/env python
+"""Brokers Module - Order execution and portfolio management.
 
+This module provides broker implementations for order execution and
+portfolio management. Brokers handle order routing, position tracking,
+cash management, and trade history.
+
+Available Brokers:
+    - BackBroker: Built-in backtesting broker.
+    - IBBroker: Interactive Brokers integration (optional).
+    - OandaBroker: OANDA broker integration (optional).
+    - VCBroker: VisualChart broker integration (optional).
+
+Example:
+    Setting the broker in cerebro:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.setbroker(bt.brokers.BackBroker())
+"""
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables
 
