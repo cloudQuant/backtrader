@@ -83,6 +83,12 @@ class Calmar(TimeFrameAnalyzerBase):
 
     # Calculate max drawdown
     def __init__(self, *args, **kwargs):
+        """Initialize the Calmar analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
@@ -94,6 +100,11 @@ class Calmar(TimeFrameAnalyzerBase):
 
     # Start
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets up the maximum drawdown tracking, value history queue,
+        and fund mode.
+        """
         # Max drawdown rate
         self._mdd = float("-inf")
         # Double-ended queue, saves period values, default is 36
@@ -110,6 +121,11 @@ class Calmar(TimeFrameAnalyzerBase):
             self._values.append(self.strategy.broker.fundvalue)
 
     def on_dt_over(self):
+        """Calculate Calmar ratio when timeframe period ends.
+
+        Updates maximum drawdown and calculates Calmar ratio as
+        annualized return divided by maximum drawdown.
+        """
         # Max drawdown rate
         self._mdd = max(self._mdd, self._maxdd.maxdd)
         # Add value to self._values
@@ -125,4 +141,8 @@ class Calmar(TimeFrameAnalyzerBase):
         self.rets[self.dtkey] = calmar
 
     def stop(self):
+        """Finalize the analysis when backtest ends.
+
+        Triggers one final Calmar ratio calculation.
+        """
         self.on_dt_over()  # update last values

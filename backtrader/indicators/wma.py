@@ -36,11 +36,19 @@ class WeightedMovingAverage(MovingAverageBase):
     lines = ("wma",)
 
     def __init__(self):
+        """Initialize the WMA indicator.
+
+        Calculates weights and coefficient for weighted moving average.
+        """
         super().__init__()
         self.coef = 2.0 / (self.p.period * (self.p.period + 1.0))
         self.weights = tuple(float(x) for x in range(1, self.p.period + 1))
 
     def next(self):
+        """Calculate WMA for the current bar.
+
+        Applies arithmetic weighting with newest values having more weight.
+        """
         period = self.p.period
         coef = self.coef
         weights = self.weights
@@ -52,6 +60,10 @@ class WeightedMovingAverage(MovingAverageBase):
         self.lines.wma[0] = coef * weighted_sum
 
     def once(self, start, end):
+        """Calculate WMA in runonce mode.
+
+        Applies weighted average calculation across all bars.
+        """
         darray = self.data.array
         larray = self.lines.wma.array
         period = self.p.period

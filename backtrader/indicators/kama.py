@@ -56,6 +56,11 @@ class AdaptiveMovingAverage(MovingAverageBase):
     params = (("fast", 2), ("slow", 30))
 
     def __init__(self):
+        """Initialize the KAMA indicator.
+
+        Calculates fast and slow smoothing constants for the
+        adaptive moving average.
+        """
         super().__init__()
         self.fast_sc = 2.0 / (self.p.fast + 1.0)
         self.slow_sc = 2.0 / (self.p.slow + 1.0)
@@ -83,6 +88,10 @@ class AdaptiveMovingAverage(MovingAverageBase):
         return sc
 
     def nextstart(self):
+        """Seed KAMA calculation with SMA on first valid bar.
+
+        Calculates simple moving average for the initial seed value.
+        """
         # Seed with SMA
         period = self.p.period
         data_sum = 0.0
@@ -91,10 +100,19 @@ class AdaptiveMovingAverage(MovingAverageBase):
         self.lines.kama[0] = data_sum / period
 
     def next(self):
+        """Calculate KAMA for the current bar.
+
+        KAMA = prev_KAMA + sc * (price - prev_KAMA)
+        where sc is the adaptive smoothing constant.
+        """
         sc = self._calc_sc()
         self.lines.kama[0] = self.lines.kama[-1] + sc * (self.data[0] - self.lines.kama[-1])
 
     def once(self, start, end):
+        """Calculate KAMA in runonce mode.
+
+        Seeds with SMA and applies adaptive smoothing for each bar.
+        """
         darray = self.data.array
         larray = self.lines.kama.array
         period = self.p.period

@@ -27,14 +27,20 @@ class _PriceOscBase(Indicator):
     plotinfo = dict(plothlines=[0.0])
 
     def __init__(self):
+        """Initialize the price oscillator base class.
+
+        Creates two moving averages with configured periods.
+        """
         super().__init__()
         self.ma1 = self.p._movav(self.data, period=self.p.period1)
         self.ma2 = self.p._movav(self.data, period=self.p.period2)
 
     def next(self):
+        """Calculate oscillator value: ma1 - ma2."""
         self.lines[0][0] = self.ma1[0] - self.ma2[0]
 
     def once(self, start, end):
+        """Calculate oscillator in runonce mode."""
         ma1_array = self.ma1.lines[0].array
         ma2_array = self.ma2.lines[0].array
         larray = self.lines[0].array
@@ -107,15 +113,25 @@ class PercentagePriceOscillator(_PriceOscBase):
     plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
 
     def __init__(self):
+        """Initialize the PPO indicator.
+
+        Sets up signal line EMA parameters.
+        """
         super().__init__()
         self.signal_alpha = 2.0 / (1.0 + self.p.period_signal)
         self.signal_alpha1 = 1.0 - self.signal_alpha
 
     def next(self):
+        """Calculate PPO, signal, and histogram for current bar.
+
+        PPO = 100 * (ma1 - ma2) / ma2
+        Signal = EMA(PPO)
+        Histogram = PPO - Signal
+        """
         # Calculate base PO
         po_val = self.ma1[0] - self.ma2[0]
         self.lines.po[0] = po_val
-        
+
         # Calculate PPO
         den = self.ma2[0] if self._long else self.ma1[0]
         if den != 0:
@@ -123,18 +139,22 @@ class PercentagePriceOscillator(_PriceOscBase):
         else:
             ppo_val = 0.0
         self.lines.ppo[0] = ppo_val
-        
+
         # Calculate signal (EMA of PPO)
         self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + ppo_val * self.signal_alpha
-        
+
         # Calculate histogram
         self.lines.histo[0] = self.lines.ppo[0] - self.lines.signal[0]
 
     def nextstart(self):
+        """Seed PPO calculation on first valid bar.
+
+        Initializes signal line with first PPO value.
+        """
         # Calculate base PO
         po_val = self.ma1[0] - self.ma2[0]
         self.lines.po[0] = po_val
-        
+
         # Calculate PPO
         den = self.ma2[0] if self._long else self.ma1[0]
         if den != 0:
@@ -142,14 +162,15 @@ class PercentagePriceOscillator(_PriceOscBase):
         else:
             ppo_val = 0.0
         self.lines.ppo[0] = ppo_val
-        
+
         # Seed signal with PPO
         self.lines.signal[0] = ppo_val
-        
+
         # Calculate histogram
         self.lines.histo[0] = 0.0
 
     def once(self, start, end):
+        """Calculate PPO in runonce mode."""
         ma1_array = self.ma1.lines[0].array
         ma2_array = self.ma2.lines[0].array
         po_array = self.lines.po.array

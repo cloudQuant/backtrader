@@ -508,7 +508,18 @@ class LineIterator(LineIteratorMixin, LineSeries):
     _ltype = None  # Line type index, overridden by subclasses
 
     class PlotInfoObj:
+        """Plot information container for LineIterator objects.
+
+        This class stores plotting configuration attributes that control
+        how the LineIterator is displayed in plots.
+        """
+
         def __init__(self):
+            """Initialize plotinfo with default values.
+
+            Sets up default plotting attributes including subplot position,
+            plot name, and various display options.
+            """
             self.plot = True
             self.subplot = True
             self.plotname = ""
@@ -536,6 +547,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
             return hasattr(self, key)
 
         def keys(self):
+            """Return list of public attribute names.
+
+            Returns:
+                list: List of non-private, non-callable attribute names.
+            """
             # OPTIMIZED: Use __dict__ instead of dir() for better performance
             return [
                 attr
@@ -547,7 +563,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
     # CRITICAL FIX: Ensure plotlines is also an object with _get method (not dict)
     class PlotLinesObj:
+        """Plot lines configuration container for LineIterator objects.
+
+        This class stores configuration for individual lines in plots,
+        such as colors, line styles, and other visual properties.
+        """
+
         def __init__(self):
+            """Initialize plotlines container."""
             pass
 
         def _get(self, key, default=None):
@@ -564,10 +587,34 @@ class LineIterator(LineIteratorMixin, LineSeries):
         def __getattr__(self, name):
             # Return an empty plotline object for missing attributes
             class PlotLineObj:
+                """Default plotline object for missing line configurations.
+
+                Provides safe default values for plotlines that don't
+                have explicit configuration.
+                """
+
                 def _get(self, key, default=None):
+                    """Get plotline attribute value.
+
+                    Args:
+                        key: Attribute name.
+                        default: Default value if attribute not found.
+
+                    Returns:
+                        The default value (always returns default).
+                    """
                     return default
 
                 def get(self, key, default=None):
+                    """Get plotline attribute value.
+
+                    Args:
+                        key: Attribute name.
+                        default: Default value if attribute not found.
+
+                    Returns:
+                        The default value (always returns default).
+                    """
                     return default
 
                 def __contains__(self, key):
@@ -580,6 +627,19 @@ class LineIterator(LineIteratorMixin, LineSeries):
     IndType, StratType, ObsType = range(3)
 
     def __new__(cls, *args, **kwargs):
+        """Create a new LineIterator instance.
+
+        This method replaces the metaclass functionality for creating
+        LineIterator instances. It initializes basic attributes,
+        sets up the lines collection, and assigns owner references.
+
+        Args:
+            *args: Positional arguments including data feeds.
+            **kwargs: Keyword arguments for parameter initialization.
+
+        Returns:
+            LineIterator: The newly created instance.
+        """
         # This replaces the metaclass functionality
         # Create the instance using the normal Python object creation
         instance = super(LineIterator, cls).__new__(cls)
@@ -642,6 +702,17 @@ class LineIterator(LineIteratorMixin, LineSeries):
         return instance
 
     def __init__(self, *args, **kwargs):
+        """Initialize the LineIterator instance.
+
+        This method completes the initialization process after __new__.
+        It processes data arguments for indicators, sets up clock references,
+        initializes lineiterators for child objects, and handles
+        registration with owner objects.
+
+        Args:
+            *args: Positional arguments including data feeds and parameters.
+            **kwargs: Keyword arguments for parameter initialization.
+        """
         # The arguments have been processed in __new__, so we can call the parent init
 
         # CRITICAL FIX: Restore kwargs from __new__ if they were lost
@@ -776,6 +847,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
                     if not hasattr(self, "cross"):
                         # Create a safe default for cross indicator
                         class SafeCrossOverDefault:
+                            """Safe default cross indicator for strategies without indicators.
+
+                            Provides safe default comparison operations when
+                            the cross indicator is not properly initialized.
+                            """
+
                             def __gt__(self, other):
                                 return False
 
@@ -1279,6 +1356,15 @@ class LineIterator(LineIteratorMixin, LineSeries):
         pass
 
     def oncestart(self, start, end):
+        """Called once when minimum period is first reached in runonce mode.
+
+        This method is the runonce equivalent of nextstart(). It handles
+        the transition between preonce() and once() phases.
+
+        Args:
+            start: Starting index for processing.
+            end: Ending index for processing.
+        """
         # CRITICAL FIX: Set chkmin properly during nextstart for TestStrategy
         if hasattr(self, "__class__") and "TestStrategy" in self.__class__.__name__:
             # For test strategies, chkmin should be set to the current length when nextstart is called
@@ -1409,13 +1495,38 @@ class LineIterator(LineIteratorMixin, LineSeries):
         if not hasattr(self, "plotinfo"):
             # Create plotinfo object with _get method and legendloc
             class PlotInfoObj:
+                """Plot information object for indicators without plotinfo.
+
+                Provides a minimal plotinfo implementation for indicators
+                that don't have one defined.
+                """
+
                 def __init__(self):
+                    """Initialize plotinfo with legendloc attribute."""
                     self.legendloc = None  # CRITICAL: Add legendloc attribute
 
                 def _get(self, key, default=None):
+                    """Get plotinfo attribute value.
+
+                    Args:
+                        key: Attribute name.
+                        default: Default value if attribute not found.
+
+                    Returns:
+                        The attribute value or default.
+                    """
                     return getattr(self, key, default)
 
                 def get(self, key, default=None):
+                    """Get plotinfo attribute value.
+
+                    Args:
+                        key: Attribute name.
+                        default: Default value if attribute not found.
+
+                    Returns:
+                        The attribute value or default.
+                    """
                     return getattr(self, key, default)
 
                 def __contains__(self, key):
@@ -1612,13 +1723,38 @@ class IndicatorBase(DataAccessor):
         if not hasattr(self, "plotinfo"):
             # Create plotinfo object with _get method and legendloc
             class PlotInfoObj:
+                """Plot information object for strategy plot initialization.
+
+                Provides a plotinfo implementation with default values
+                for plotting configuration.
+                """
+
                 def __init__(self):
+                    """Initialize plotinfo with legendloc attribute."""
                     self.legendloc = None  # CRITICAL: Add legendloc attribute
 
                 def _get(self, key, default=None):
+                    """Get plotinfo attribute value.
+
+                    Args:
+                        key: Attribute name.
+                        default: Default value if attribute not found.
+
+                    Returns:
+                        The attribute value or default.
+                    """
                     return getattr(self, key, default)
 
                 def get(self, key, default=None):
+                    """Get plotinfo attribute value.
+
+                    Args:
+                        key: Attribute name.
+                        default: Default value if attribute not found.
+
+                    Returns:
+                        The attribute value or default.
+                    """
                     return getattr(self, key, default)
 
                 def __contains__(self, key):
@@ -1925,10 +2061,25 @@ class StrategyBase(DataAccessor):
                 if not hasattr(self, "cross"):
                     # Create a safe default for cross indicator that won't break tests
                     class SafeCrossIndicator:
+                        """Safe default cross indicator for error recovery.
+
+                        Provides a safe fallback when the cross indicator
+                        cannot be properly initialized during strategy setup.
+                        """
+
                         def __init__(self):
+                            """Initialize safe cross indicator with default value."""
                             self._current_value = 0.0
 
                         def __gt__(self, other):
+                            """Greater than comparison - always returns False.
+
+                            Args:
+                                other: Value to compare against.
+
+                            Returns:
+                                bool: Always False for safety.
+                            """
                             # Always return False for safety
                             return False
 
@@ -1969,6 +2120,14 @@ class StrategyBase(DataAccessor):
                             return 0
 
                         def __call__(self, ago=0):
+                            """Call the cross indicator.
+
+                            Args:
+                                ago: Number of periods ago to look back (unused).
+
+                            Returns:
+                                float: Always returns 0.0 as safe default.
+                            """
                             return 0.0
 
                     safe_cross = SafeCrossIndicator()
@@ -1978,16 +2137,41 @@ class StrategyBase(DataAccessor):
                 if not hasattr(self, "sma"):
                     # Create a safe default SMA indicator
                     class SafeSMAIndicator:
+                        """Safe default SMA indicator for error recovery.
+
+                        Provides a safe fallback when the SMA indicator
+                        cannot be properly initialized during strategy setup.
+                        """
+
                         def __init__(self):
+                            """Initialize safe SMA indicator with default value."""
                             self._current_value = 0.0
 
                         def __getitem__(self, key):
+                            """Get indicator value.
+
+                            Args:
+                                key: Index key (unused).
+
+                            Returns:
+                                float: Always returns 0.0 as safe default.
+                            """
                             return 0.0
 
                         def __float__(self):
+                            """Convert to float.
+
+                            Returns:
+                                float: Always returns 0.0 as safe default.
+                            """
                             return 0.0
 
                         def __len__(self):
+                            """Return length of owner data.
+
+                            Returns:
+                                int: Length of owner data, or 0 if not available.
+                            """
                             if (
                                 hasattr(self, "_owner")
                                 and self._owner
@@ -2000,6 +2184,14 @@ class StrategyBase(DataAccessor):
                             return 0
 
                         def __call__(self, ago=0):
+                            """Call the SMA indicator.
+
+                            Args:
+                                ago: Number of periods ago to look back (unused).
+
+                            Returns:
+                                float: Always returns 0.0 as safe default.
+                            """
                             return 0.0
 
                     safe_sma = SafeSMAIndicator()
@@ -2069,7 +2261,18 @@ class StrategyBase(DataAccessor):
             else:
                 # Create minimal clock for strategies without data
                 class MinimalClock:
+                    """Minimal clock implementation for strategies without data feeds.
+
+                    Provides a basic clock interface when no data feeds are
+                    available, allowing strategies to run without data.
+                    """
+
                     def buflen(self):
+                        """Return buffer length.
+
+                        Returns:
+                            int: Always returns 0 for minimal clock.
+                        """
                         return 0
 
                     def __len__(self):
@@ -2104,7 +2307,14 @@ class SingleCoupler(LineActions):
         val: Current value.
     """
     # Single line operations
+
     def __init__(self, cdata, clock=None):
+        """Initialize the single coupler.
+
+        Args:
+            cdata: The data source to couple.
+            clock: Optional clock for synchronization. If None, uses owner.
+        """
         super(SingleCoupler, self).__init__()
         self._clock = clock if clock is not None else self._owner
 
@@ -2113,6 +2323,10 @@ class SingleCoupler(LineActions):
         self.val = float("NaN")
 
     def next(self):
+        """Advance the coupler to the next bar.
+
+        Updates the current value if new data is available.
+        """
         if len(self.cdata) > self.dlen:
             self.val = self.cdata[0]
             self.dlen += 1
@@ -2135,12 +2349,20 @@ class MultiCoupler(LineIterator):
     _ltype = LineIterator.IndType
 
     def __init__(self):
+        """Initialize the multi coupler.
+
+        Sets up data length tracking and value storage for all lines.
+        """
         super(MultiCoupler, self).__init__()
         self.dlen = 0
         self.dsize = self.fullsize()  # shorcut for number of lines
         self.dvals = [float("NaN")] * self.dsize
 
     def next(self):
+        """Advance the coupler to the next bar.
+
+        Updates current values for all lines if new data is available.
+        """
         if len(self.data) > self.dlen:
             self.dlen += 1
 

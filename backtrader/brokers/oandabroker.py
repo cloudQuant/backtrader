@@ -24,7 +24,25 @@ from ..stores import oandastore
 
 
 class OandaCommInfo(CommInfoBase):
+    """Commission info for OANDA broker.
+
+    This class provides commission calculation logic specific to OANDA
+    brokerage, where margin requirements approach the full price.
+    """
+
     def getvaluesize(self, size, price):
+        """Calculate the value size for a given order size and price.
+
+        In OANDA, the margin approaches the price, so the value size
+        is simply the absolute size multiplied by the price.
+
+        Args:
+            size: Order size (can be positive or negative).
+            price: Price per unit.
+
+        Returns:
+            float: The value size (abs(size) * price).
+        """
         # In real life, the margin approaches the price
         return abs(size) * price
 
@@ -65,6 +83,14 @@ class OandaBroker(BrokerBase):
     )
 
     def __init__(self, **kwargs):
+        """Initialize the OANDA broker instance.
+
+        Sets up the OANDA store connection, order tracking dictionaries,
+        notification queue, and position management.
+
+        Args:
+            **kwargs: Keyword arguments passed to parent class and OandaStore.
+        """
         super().__init__(**kwargs)
 
         self.o = oandastore.OandaStore(**kwargs)
@@ -80,6 +106,11 @@ class OandaBroker(BrokerBase):
         self.positions = collections.defaultdict(Position)
 
     def start(self):
+        """Start the broker and initialize cash and value from OANDA.
+
+        If use_positions parameter is True, loads existing positions from
+        OANDA to kickstart the broker.
+        """
         super().start()
         self.o.start(broker=self)
         self.startingcash = self.cash = self.o.get_cash()
@@ -96,6 +127,14 @@ class OandaBroker(BrokerBase):
                 self.positions[p["instrument"]] = Position(size, price)
 
     def data_started(self, data):
+        """Called when a data feed starts.
+
+        For existing positions, creates simulated orders to notify the system
+        of the initial state.
+
+        Args:
+            data: The data feed that has started.
+        """
         pos = self.getposition(data)
 
         if pos.size < 0:
@@ -149,19 +188,44 @@ class OandaBroker(BrokerBase):
             self.notify(order)
 
     def stop(self):
+        """Stop the broker and OANDA store connection."""
         super().stop()
         self.o.stop()
 
     def getcash(self):
+        """Get the current available cash from OANDA.
+
+        This call cannot block if no answer is available from OANDA.
+
+        Returns:
+            float: Current available cash.
+        """
         # This call cannot block if no answer is available from oanda
         self.cash = self.o.get_cash()
         return self.cash
 
     def getvalue(self, datas=None):
+        """Get the current portfolio value from OANDA.
+
+        Args:
+            datas: Unused, present for compatibility.
+
+        Returns:
+            float: Current portfolio value.
+        """
         self.value = self.o.get_value()
         return self.value
 
     def getposition(self, data, clone=True):
+        """Get the current position for a data feed.
+
+        Args:
+            data: Data feed to get position for.
+            clone: If True, returns a cloned copy of the position.
+
+        Returns:
+            Position: The position object for the data feed.
+        """
         # return self.o.getposition(data._dataname, clone=clone)
         pos = self.positions[data._dataname]
         if clone:
@@ -170,6 +234,14 @@ class OandaBroker(BrokerBase):
         return pos
 
     def orderstatus(self, order):
+        """Get the status of an order.
+
+        Args:
+            order: Order object to check status for.
+
+        Returns:
+            Order.Status: The status of the order.
+        """
         o = self.orders[order.ref]
         return o.status
 
@@ -340,6 +412,27 @@ class OandaBroker(BrokerBase):
         transmit=True,
         **kwargs,
     ):
+        """Create a buy order.
+
+        Args:
+            owner: Owner of the order (usually a strategy).
+            data: Data feed for the order.
+            size: Order size (positive for buy).
+            price: Order price (None for market orders).
+            plimit: Limit price for stop-limit orders.
+            exectype: Order execution type (Market, Limit, Stop, etc.).
+            valid: Order validity (GoodTillCancel/GoodTillDate).
+            tradeid: Trade ID for the order.
+            oco: One-cancels-other order reference.
+            trailamount: Trailing stop amount.
+            trailpercent: Trailing stop percentage.
+            parent: Parent order for bracket orders.
+            transmit: Whether to transmit the order immediately.
+            **kwargs: Additional order parameters.
+
+        Returns:
+            Order: The created order object.
+        """
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -376,6 +469,27 @@ class OandaBroker(BrokerBase):
         transmit=True,
         **kwargs,
     ):
+        """Create a sell order.
+
+        Args:
+            owner: Owner of the order (usually a strategy).
+            data: Data feed for the order.
+            size: Order size (positive for sell).
+            price: Order price (None for market orders).
+            plimit: Limit price for stop-limit orders.
+            exectype: Order execution type (Market, Limit, Stop, etc.).
+            valid: Order validity (GoodTillCancel/GoodTillDate).
+            tradeid: Trade ID for the order.
+            oco: One-cancels-other order reference.
+            trailamount: Trailing stop amount.
+            trailpercent: Trailing stop percentage.
+            parent: Parent order for bracket orders.
+            transmit: Whether to transmit the order immediately.
+            **kwargs: Additional order parameters.
+
+        Returns:
+            Order: The created order object.
+        """
         order = SellOrder(
             owner=owner,
             data=data,
@@ -396,6 +510,14 @@ class OandaBroker(BrokerBase):
         return self._transmit(order)
 
     def cancel(self, order):
+        """Cancel an order.
+
+        Args:
+            order: Order object to cancel.
+
+        Returns:
+            Result from OANDA store cancel operation, or None if already cancelled.
+        """
         _o = self.orders[order.ref]
         if order.status == Order.Cancelled:  # already cancelled
             return
@@ -403,13 +525,27 @@ class OandaBroker(BrokerBase):
         return self.o.order_cancel(order)
 
     def notify(self, order):
+        """Notify the broker about an order status change.
+
+        Args:
+            order: Order object to notify about.
+        """
         self.notifs.append(order.clone())
 
     def get_notification(self):
+        """Get the next order notification from the queue.
+
+        Returns:
+            Order or None: The next order notification, or None if queue is empty.
+        """
         if not self.notifs:
             return None
 
         return self.notifs.popleft()
 
     def next(self):
+        """Mark the end of current iteration's notifications.
+
+        Appends None to mark the notification boundary between iterations.
+        """
         self.notifs.append(None)  # mark notification boundary

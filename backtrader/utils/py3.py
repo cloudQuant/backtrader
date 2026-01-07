@@ -161,7 +161,27 @@ def with_metaclass(meta, *bases):
     # https://zhuanlan.zhihu.com/p/354828950
     # https://www.jianshu.com/p/224ffcb8e73e
     class metaclass(meta):
+        """Dummy metaclass for creating a temporary base class.
+
+        This metaclass is used internally by with_metaclass to create a
+        temporary class that will be replaced with the actual metaclass.
+
+        Attributes:
+            meta: The target metaclass to use for the final class.
+        """
+
         def __new__(cls, name, this_bases, d):
+            """Create a new class with the target metaclass.
+
+            Args:
+                cls: The metaclass class (metaclass itself).
+                name: Name of the class being created.
+                this_bases: Base classes for the temporary class.
+                d: Class dictionary.
+
+            Returns:
+                A new class created with the target metaclass and specified bases.
+            """
             return meta(name, bases, d)
 
     return type.__new__(metaclass, "temporary_class", (), {})

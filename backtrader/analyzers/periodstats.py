@@ -77,6 +77,12 @@ class PeriodStats(Analyzer):
 
     # Initialize, call TimeReturn
     def __init__(self, *args, **kwargs):
+        """Initialize the PeriodStats analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         self._tr = TimeReturn(
@@ -85,6 +91,11 @@ class PeriodStats(Analyzer):
 
     # Stop
     def stop(self):
+        """Calculate period statistics when backtest ends.
+
+        Computes average, standard deviation, and count of positive/negative/
+        zero returns for the specified timeframe period.
+        """
         # Get returns, default is annual
         trets = self._tr.get_analysis()  # dict key = date, value = ret
         # Count years with positive, negative, and zero returns

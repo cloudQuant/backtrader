@@ -1,3 +1,17 @@
+"""Sharpe Ratio Statistics Module - Advanced Sharpe ratio calculations.
+
+This module provides functions for calculating Sharpe ratio statistics
+including estimated, probabilistic, and defecto Sharpe ratios, along
+with their confidence intervals and significance tests.
+
+Functions:
+    estimated_sharpe_ratio: Calculate basic Sharpe ratio.
+    ann_estimated_sharpe_ratio: Calculate annualized Sharpe ratio.
+    estimated_sharpe_ratio_stdev: Standard deviation of Sharpe estimation.
+    probabilistic_sharpe_ratio: PSR calculation.
+    min_track_record_length: Minimum track record for significance.
+    sharpe_ratio_defacto: Defacto Sharpe ratio calculation.
+"""
 import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats

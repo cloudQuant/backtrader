@@ -35,20 +35,32 @@ class Momentum(Indicator):
     plotinfo = dict(plothlines=[0.0])
 
     def __init__(self):
+        """Initialize the Momentum indicator.
+
+        Sets minimum period to period + 1 for difference calculation.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Calculate momentum for the current bar.
+
+        Momentum = current_price - price_period_ago
+        """
         self.lines.momentum[0] = self.data[0] - self.data[-self.p.period]
 
     def once(self, start, end):
+        """Calculate momentum in runonce mode.
+
+        Computes price difference across all bars.
+        """
         darray = self.data.array
         larray = self.lines.momentum.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(period, min(end, len(darray))):
             larray[i] = darray[i] - darray[i - period]
 
@@ -80,10 +92,19 @@ class MomentumOscillator(Indicator):
         self.plotinfo.plothlines = [self.p.band]
 
     def __init__(self):
+        """Initialize the Momentum Oscillator indicator.
+
+        Sets minimum period to period + 1 for ratio calculation.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Calculate momentum oscillator for the current bar.
+
+        Oscillator = 100 * (current_price / price_period_ago)
+        Returns 0.0 if previous value is 0 to avoid division by zero.
+        """
         prev_val = self.data[-self.p.period]
         if prev_val != 0:
             self.lines.momosc[0] = 100.0 * (self.data[0] / prev_val)
@@ -91,13 +112,17 @@ class MomentumOscillator(Indicator):
             self.lines.momosc[0] = 0.0
 
     def once(self, start, end):
+        """Calculate momentum oscillator in runonce mode.
+
+        Computes 100 * ratio across all bars.
+        """
         darray = self.data.array
         larray = self.lines.momosc.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(period, min(end, len(darray))):
             prev_val = darray[i - period]
             if prev_val != 0:
@@ -126,10 +151,19 @@ class RateOfChange(Indicator):
     params = (("period", 12),)
 
     def __init__(self):
+        """Initialize the Rate of Change indicator.
+
+        Sets minimum period to period + 1 for ratio calculation.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Calculate ROC for the current bar.
+
+        ROC = (current_price - price_period_ago) / price_period_ago
+        Returns 0.0 if previous value is 0 to avoid division by zero.
+        """
         prev_val = self.data[-self.p.period]
         if prev_val != 0:
             self.lines.roc[0] = (self.data[0] - prev_val) / prev_val
@@ -137,13 +171,17 @@ class RateOfChange(Indicator):
             self.lines.roc[0] = 0.0
 
     def once(self, start, end):
+        """Calculate ROC in runonce mode.
+
+        Computes rate of change ratio across all bars.
+        """
         darray = self.data.array
         larray = self.lines.roc.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(period, min(end, len(darray))):
             prev_val = darray[i - period]
             if prev_val != 0:
@@ -175,10 +213,19 @@ class RateOfChange100(Indicator):
     params = (("period", 12),)
 
     def __init__(self):
+        """Initialize the ROC100 indicator.
+
+        Sets minimum period to period + 1 for ratio calculation.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Calculate ROC100 for the current bar.
+
+        ROC100 = 100 * (current_price - price_period_ago) / price_period_ago
+        Returns 0.0 if previous value is 0 to avoid division by zero.
+        """
         prev_val = self.data[-self.p.period]
         if prev_val != 0:
             self.lines.roc100[0] = 100.0 * (self.data[0] - prev_val) / prev_val
@@ -186,13 +233,17 @@ class RateOfChange100(Indicator):
             self.lines.roc100[0] = 0.0
 
     def once(self, start, end):
+        """Calculate ROC100 in runonce mode.
+
+        Computes rate of change with base 100 across all bars.
+        """
         darray = self.data.array
         larray = self.lines.roc100.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(period, min(end, len(darray))):
             prev_val = darray[i - period]
             if prev_val != 0:

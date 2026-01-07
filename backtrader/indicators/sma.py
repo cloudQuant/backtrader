@@ -38,6 +38,13 @@ class MovingAverageSimple(MovingAverageBase):
     lines = ("sma",)
 
     def __init__(self):
+        """Initialize the SMA indicator with optimization features.
+
+        Sets up internal state for:
+        - Result caching for repeated calculations
+        - Vectorized calculation support when possible
+        - Rolling window for O(1) SMA updates
+        """
         # Phase 2 optimization: Add result cache and vectorized calculation support
         self._result_cache = {}
         self._cache_size_limit = 1000  # Limit cache size to prevent memory bloat

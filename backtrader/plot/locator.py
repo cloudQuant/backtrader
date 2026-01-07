@@ -29,6 +29,16 @@ from matplotlib.dates import (
 
 
 def _idx2dt(idx, dates, tz):
+    """Convert an index to a datetime object.
+
+    Args:
+        idx: Index value or datetime.date object.
+        dates: Array of date values.
+        tz: Timezone to use for conversion.
+
+    Returns:
+        datetime.datetime: The corresponding datetime object.
+    """
     if isinstance(idx, datetime.date):
         return idx
 
@@ -44,13 +54,32 @@ def _idx2dt(idx, dates, tz):
 
 
 class RRuleLocator(RRLocator):
+    """Locator for date-based ticks using rrules.
+
+    This locator extends matplotlib's RRuleLocator to work with index-based
+    x-axis that can be converted from/to dates. It handles the conversion
+    between data indices and datetime objects.
+
+    Attributes:
+        _dates: Array of date values for index conversion.
+    """
+
     def __init__(self, dates, o, tz=None):
+        """Initialize the RRuleLocator.
+
+        Args:
+            dates: Array of date values for index conversion.
+            o: RRule object defining the tick frequency and rules.
+            tz: Timezone to use for datetime conversion. Defaults to None.
+        """
         self._dates = dates
         super().__init__(o, tz)
 
     def datalim_to_dt(self):
-        """
-        Convert an axis data interval to datetime objects.
+        """Convert an axis data interval to datetime objects.
+
+        Returns:
+            tuple: A pair of datetime objects representing the data limits.
         """
         dmin, dmax = self.axis.get_data_interval()
         if dmin > dmax:
@@ -59,8 +88,10 @@ class RRuleLocator(RRLocator):
         return (_idx2dt(dmin, self._dates, self.tz), _idx2dt(dmax, self._dates, self.tz))
 
     def viewlim_to_dt(self):
-        """
-        Converts the view interval to datetime objects.
+        """Convert the view interval to datetime objects.
+
+        Returns:
+            tuple: A pair of datetime objects representing the view limits.
         """
         vmin, vmax = self.axis.get_view_interval()
         if vmin > vmax:
@@ -69,6 +100,15 @@ class RRuleLocator(RRLocator):
         return (_idx2dt(vmin, self._dates, self.tz), _idx2dt(vmax, self._dates, self.tz))
 
     def tick_values(self, vmin, vmax):
+        """Return the tick values for the given range.
+
+        Args:
+            vmin: Minimum value of the range.
+            vmax: Maximum value of the range.
+
+        Returns:
+            list: List of indices corresponding to tick positions.
+        """
         import bisect
 
         dtnums = super().tick_values(vmin, vmax)
@@ -76,13 +116,32 @@ class RRuleLocator(RRLocator):
 
 
 class AutoDateLocator(ADLocator):
+    """Locator for automatic date-based tick positioning.
+
+    This locator extends matplotlib's AutoDateLocator to work with index-based
+    x-axis that can be converted from/to dates. It automatically selects the
+    appropriate tick frequency based on the date range.
+
+    Attributes:
+        _dates: Array of date values for index conversion.
+    """
+
     def __init__(self, dates, *args, **kwargs):
+        """Initialize the AutoDateLocator.
+
+        Args:
+            dates: Array of date values for index conversion.
+            *args: Additional positional arguments passed to parent class.
+            **kwargs: Additional keyword arguments passed to parent class.
+        """
         self._dates = dates
         super().__init__(*args, **kwargs)
 
     def datalim_to_dt(self):
-        """
-        Convert an axis data interval to datetime objects.
+        """Convert an axis data interval to datetime objects.
+
+        Returns:
+            tuple: A pair of datetime objects representing the data limits.
         """
         dmin, dmax = self.axis.get_data_interval()
         if dmin > dmax:
@@ -91,8 +150,10 @@ class AutoDateLocator(ADLocator):
         return (_idx2dt(dmin, self._dates, self.tz), _idx2dt(dmax, self._dates, self.tz))
 
     def viewlim_to_dt(self):
-        """
-        Converts the view interval to datetime objects.
+        """Convert the view interval to datetime objects.
+
+        Returns:
+            tuple: A pair of datetime objects representing the view limits.
         """
         vmin, vmax = self.axis.get_view_interval()
         if vmin > vmax:
@@ -101,13 +162,30 @@ class AutoDateLocator(ADLocator):
         return (_idx2dt(vmin, self._dates, self.tz), _idx2dt(vmax, self._dates, self.tz))
 
     def tick_values(self, vmin, vmax):
+        """Return the tick values for the given range.
+
+        Args:
+            vmin: Minimum value of the range.
+            vmax: Maximum value of the range.
+
+        Returns:
+            list: List of indices corresponding to tick positions.
+        """
         import bisect
 
         dtnums = super().tick_values(vmin, vmax)
         return [bisect.bisect_left(self._dates, x) for x in dtnums]
 
     def get_locator(self, dmin, dmax):
-        """Pick the best locator based on a distance."""
+        """Pick the best locator based on a distance.
+
+        Args:
+            dmin: Minimum datetime value.
+            dmax: Maximum datetime value.
+
+        Returns:
+            matplotlib.ticker.Locator: The appropriate locator for the date range.
+        """
         delta = relativedelta(dmax, dmin)
         tdelta = dmax - dmin
 
@@ -226,12 +304,38 @@ class AutoDateLocator(ADLocator):
 
 
 class AutoDateFormatter(ADFormatter):
+    """Formatter for automatic date-based tick labels.
+
+    This formatter extends matplotlib's AutoDateFormatter to work with
+    index-based x-axis that can be converted from/to dates. It automatically
+    formats date labels based on the tick frequency.
+
+    Attributes:
+        _dates: Array of date values for index conversion.
+    """
+
     def __init__(self, dates, locator, tz=None, defaultfmt="%Y-%m-%d"):
+        """Initialize the AutoDateFormatter.
+
+        Args:
+            dates: Array of date values for index conversion.
+            locator: The locator instance to use for tick positioning.
+            tz: Timezone to use for datetime conversion. Defaults to None.
+            defaultfmt: Default format string for dates. Defaults to "%Y-%m-%d".
+        """
         self._dates = dates
         super().__init__(locator, tz, defaultfmt)
 
     def __call__(self, x, pos=None):
-        """Return the label for time x at position pos"""
+        """Return the label for time x at position pos.
+
+        Args:
+            x: The index value to convert to a date label.
+            pos: The position of the tick. Defaults to None.
+
+        Returns:
+            str: The formatted date label.
+        """
         x = int(round(x))
         ldates = len(self._dates)
         if x >= ldates:

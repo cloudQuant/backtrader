@@ -49,28 +49,37 @@ class AwesomeOscillator(Indicator):
 
     # Create indicators during initialization
     def __init__(self):
+        """Initialize the Awesome Oscillator.
+
+        Sets minimum period to the slow period.
+        """
         super().__init__()
         self.addminperiod(self.p.slow)
 
     def next(self):
+        """Calculate AO for the current bar.
+
+        Formula: AO = SMA(median_price, fast) - SMA(median_price, slow)
+        """
         fast = self.p.fast
         slow = self.p.slow
-        
+
         # Calculate median price SMA for fast period
         fast_sum = 0.0
         for i in range(fast):
             fast_sum += (self.data.high[-i] + self.data.low[-i]) / 2.0
         sma_fast = fast_sum / fast
-        
+
         # Calculate median price SMA for slow period
         slow_sum = 0.0
         for i in range(slow):
             slow_sum += (self.data.high[-i] + self.data.low[-i]) / 2.0
         sma_slow = slow_sum / slow
-        
+
         self.lines.ao[0] = sma_fast - sma_slow
 
     def once(self, start, end):
+        """Calculate AO in runonce mode."""
         high_array = self.data.high.array
         low_array = self.data.low.array
         larray = self.lines.ao.array

@@ -1,4 +1,23 @@
 #!/usr/bin/env python
+"""Plotting module for Backtrader.
+
+This module provides plotting functionality for backtrader strategies, including
+matplotlib-based plotting, plotly integration, and pyecharts support for
+creating interactive charts and visualizations of trading results.
+
+Classes:
+    PInfo: Internal plotting information container
+    Plot_OldSync: Main plotting class for matplotlib-based chart generation
+
+Functions:
+    split_data: Split dataframe into chart components
+    get_up_scatter: Get upward swing points for chart
+    get_dn_scatter: Get downward swing points for chart
+    get_valid_point: Get valid swing points
+    draw_chart: Draw comprehensive trading chart
+    get_rate_sharpe_drawdown: Calculate performance metrics
+    run_cerebro_and_plot: Run cerebro backtest and plot results
+"""
 import bisect
 import collections
 import copy
@@ -55,6 +74,14 @@ def cal_macd_system(data, short_=26, long_=12, m=9):
 
 
 def split_data(df) -> dict:
+    """Split dataframe into components for pyecharts plotting.
+
+    Args:
+        df: DataFrame containing OHLCV data and MACD indicators
+
+    Returns:
+        Dictionary with keys: datas, times, vols, macds, difs, deas
+    """
     datas = list(zip(df["open"], df["close"], df["low"], df["high"], df["volume"], df["up_bar"]))
     times = list(df.index)
     vols = list(df["volume"])
@@ -73,6 +100,17 @@ def split_data(df) -> dict:
 
 
 def get_up_scatter(df):
+    """Get upward swing points from dataframe.
+
+    Identifies low points in the price swing for marking on charts.
+    Returns a list of tuples containing (time, lowest price).
+
+    Args:
+        df: DataFrame with up_bar and dn_bar columns
+
+    Returns:
+        List of [time, low] tuples marking upward swing points
+    """
     # Mark up points, format is a list containing tuples of (time, lowest price)
     mark_line_data = []
     first_swing = None
@@ -100,6 +138,17 @@ def get_up_scatter(df):
 
 
 def get_dn_scatter(df):
+    """Get downward swing points from dataframe.
+
+    Identifies high points in the price swing for marking on charts.
+    Returns a list of tuples containing (time, highest price).
+
+    Args:
+        df: DataFrame with up_bar and dn_bar columns
+
+    Returns:
+        List of [time, high] tuples marking downward swing points
+    """
     # Mark down points, format is a list containing tuples of (time, highest price)
     mark_line_data = []
     first_swing = None
@@ -127,6 +176,19 @@ def get_dn_scatter(df):
 
 
 def get_valid_point(df):
+    """Get valid swing points for support/resistance lines.
+
+    Identifies valid swing high and low points that can be used to draw
+    support and resistance lines on price charts.
+
+    Args:
+        df: DataFrame with up_bar, dn_bar, high, and low columns
+
+    Returns:
+        Tuple of two lists:
+            - valid_dn_point_list: Valid downward (high) points
+            - valid_up_point_list: Valid upward (low) points
+    """
     valid_dn_point_list = []
     valid_up_point_list = []
     dn_point_point_list = []
@@ -182,6 +244,22 @@ def get_valid_point(df):
 
 
 def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
+    """Draw comprehensive trading chart using pyecharts.
+
+    Creates a detailed K-line chart with volume, MACD indicators,
+    trading signals, and support/resistance lines.
+
+    Args:
+        data: Dictionary containing times, volumes, MACD data
+        df: DataFrame with OHLCV data and swing markers
+        bk_list: List of buy signals (open long)
+        bp_list: List of sell signals (close long)
+        sk_list: List of short signals (open short)
+        sp_list: List of cover signals (close short)
+
+    Returns:
+        None (renders chart to HTML file)
+    """
     kline = (
         Kline()
         .add_xaxis(xaxis_data=data["times"])
@@ -645,7 +723,38 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
 
 
 class PInfo:
+    """Container for plotting information and state.
+
+    This class maintains all the state information needed during
+    the plotting process, including figure references, axes,
+    color schemes, and layout information.
+
+    Attributes:
+        sch: PlotScheme instance with plotting configuration
+        nrows: Total number of rows in the plot
+        row: Current row index
+        clock: Strategy or data object providing time reference
+        x: X-axis data points
+        xlen: Length of x-axis data
+        sharex: Shared x-axis reference
+        figs: List of figure objects
+        cursors: List of MultiCursor objects
+        daxis: Ordered dictionary mapping objects to axes
+        vaxis: List of vertical (twinx) axes
+        zorder: Dictionary mapping axes to z-order values
+        coloridx: Dictionary tracking color index per axis
+        handles: Dictionary of legend handles per axis
+        labels: Dictionary of legend labels per axis
+        legpos: Dictionary tracking legend position per axis
+        prop: FontProperties for subplot text
+    """
+
     def __init__(self, sch):
+        """Initialize PInfo with plotting scheme.
+
+        Args:
+            sch: PlotScheme instance with plotting configuration
+        """
         self.sch = sch
         self.nrows = 0
         self.row = 0
@@ -666,6 +775,16 @@ class PInfo:
         self.prop = mfontmgr.FontProperties(size=self.sch.subtxtsize)
 
     def newfig(self, figid, numfig, mpyplot):
+        """Create a new matplotlib figure.
+
+        Args:
+            figid: Base figure identifier
+            numfig: Figure number suffix
+            mpyplot: Matplotlib pyplot module
+
+        Returns:
+            Figure object
+        """
         fig = mpyplot.figure(figid + numfig)
         self.figs.append(fig)
         self.daxis = collections.OrderedDict()
@@ -675,26 +794,72 @@ class PInfo:
         return fig
 
     def nextcolor(self, ax):
+        """Increment and get next color index for axis.
+
+        Args:
+            ax: Axis object
+
+        Returns:
+            Next color index
+        """
         self.coloridx[ax] += 1
         return self.coloridx[ax]
 
     def color(self, ax):
+        """Get current color for axis.
+
+        Args:
+            ax: Axis object
+
+        Returns:
+            Color string for the current color index
+        """
         return self.sch.color(self.coloridx[ax])
 
     def zordernext(self, ax):
+        """Get next z-order value for axis.
+
+        Args:
+            ax: Axis object
+
+        Returns:
+            Next z-order value (slightly higher or lower than current)
+        """
         z = self.zorder[ax]
         if self.sch.zdown:
             return z * 0.9999
         return z * 1.0001
 
     def zordercur(self, ax):
+        """Get current z-order value for axis.
+
+        Args:
+            ax: Axis object
+
+        Returns:
+            Current z-order value
+        """
         return self.zorder[ax]
 
 
 class Plot_OldSync(ParameterizedBase):
+    """Matplotlib-based plotting class for backtrader strategies.
+
+    This class provides the main plotting functionality for backtrader,
+    creating charts with price data, indicators, volume, and trading signals.
+
+    Attributes:
+        scheme: PlotScheme instance with plotting configuration
+    """
+
     scheme = ParameterDescriptor(default=PlotScheme(), doc="Plotting scheme to use")
 
     def __init__(self, **kwargs):
+        """Initialize Plot_OldSync with plotting scheme parameters.
+
+        Args:
+            **kwargs: Plotting scheme parameters to override defaults
+        """
         # First call parent class initialization, so self.p can be set correctly
         super().__init__()
 
@@ -703,6 +868,17 @@ class Plot_OldSync(ParameterizedBase):
             setattr(self.p.scheme, pname, pvalue)
 
     def drawtag(self, ax, x, y, facecolor, edgecolor, alpha=0.9, **kwargs):
+        """Draw a text tag on the chart at specified coordinates.
+
+        Args:
+            ax: Axis object to draw on
+            x: X coordinate
+            y: Y coordinate
+            facecolor: Background color of the tag
+            edgecolor: Border color of the tag
+            alpha: Transparency level (default: 0.9)
+            **kwargs: Additional keyword arguments for text
+        """
         ax.text(
             x,
             y,
@@ -719,6 +895,23 @@ class Plot_OldSync(ParameterizedBase):
         )
 
     def plot(self, strategy, figid=0, numfigs=1, iplot=True, start=None, end=None, **kwargs):
+        """Generate plots for a backtrader strategy.
+
+        Creates matplotlib figures with price data, indicators, volume,
+        and other plot elements. Supports multiple figures and date ranges.
+
+        Args:
+            strategy: Strategy object with data and indicators
+            figid: Base figure identifier (default: 0)
+            numfigs: Number of figures to create (default: 1)
+            iplot: Whether to use interactive plotting (default: True)
+            start: Start date or index (default: None for beginning)
+            end: End date or index (default: None for end)
+            **kwargs: Additional plotting arguments
+
+        Returns:
+            List of matplotlib Figure objects
+        """
         # pfillers={}):
         if not strategy.datas:
             return
@@ -887,6 +1080,14 @@ class Plot_OldSync(ParameterizedBase):
         return figs
 
     def setlocators(self, ax):
+        """Set date locators and formatters for x-axis.
+
+        Configures automatic date formatting based on the timeframe
+        of the data being plotted.
+
+        Args:
+            ax: Axis object to configure
+        """
         tframe = getattr(self.pinf.clock, "_timeframe", TimeFrame.Days)
 
         if self.pinf.sch.fmt_x_data is None:
@@ -923,6 +1124,14 @@ class Plot_OldSync(ParameterizedBase):
         ax.xaxis.set_major_formatter(autofmt)
 
     def calcrows(self, strategy):
+        """Calculate the total number of rows needed for plotting.
+
+        Determines how many subplot rows are needed based on data feeds,
+        indicators, observers, and volume plots.
+
+        Args:
+            strategy: Strategy object with data and indicators
+        """
         # Calculate the total number of rows
         rowsmajor = self.pinf.sch.rowsmajor
         rowsminor = self.pinf.sch.rowsminor
@@ -967,6 +1176,18 @@ class Plot_OldSync(ParameterizedBase):
         self.pinf.nrows = nrows
 
     def newaxis(self, obj, rowspan):
+        """Create a new axis for plotting.
+
+        Creates a subplot axis with the specified row span and
+        configures it with appropriate settings.
+
+        Args:
+            obj: Object to associate with this axis
+            rowspan: Number of rows this axis should span
+
+        Returns:
+            Axis object
+        """
         ax = self.mpyplot.subplot2grid(
             (self.pinf.nrows, 1), (self.pinf.row, 0), rowspan=rowspan, sharex=self.pinf.sharex
         )
@@ -988,6 +1209,19 @@ class Plot_OldSync(ParameterizedBase):
         return ax
 
     def plotind(self, iref, ind, subinds=None, upinds=None, downinds=None, masterax=None):
+        """Plot an indicator with optional sub-indicators.
+
+        Plots an indicator on an axis, handling line styling, legends,
+        fills, and recursively plotting sub-indicators.
+
+        Args:
+            iref: Reference object (usually data feed)
+            ind: Indicator object to plot
+            subinds: List of sub-indicators to plot on same axis (default: None)
+            upinds: List of indicators to plot above (default: None)
+            downinds: List of indicators to plot below (default: None)
+            masterax: Master axis to plot on (default: None to create new)
+        """
         # check subind
         subinds = subinds or []
         upinds = upinds or []
@@ -1209,6 +1443,23 @@ class Plot_OldSync(ParameterizedBase):
             self.plotind(iref, downind)
 
     def plotvolume(self, data, opens, highs, lows, closes, volumes, label):
+        """Plot volume for a data feed.
+
+        Creates volume bars with appropriate coloring based on price movement.
+        Can be overlaid on price chart or shown in separate subplot.
+
+        Args:
+            data: Data feed object
+            opens: Array of open prices
+            highs: Array of high prices
+            lows: Array of low prices
+            closes: Array of close prices
+            volumes: Array of volume values
+            label: Label for the volume plot
+
+        Returns:
+            Volume plot artist or None
+        """
         pmaster = data.plotinfo.plotmaster
         if pmaster is data:
             pmaster = None
@@ -1282,6 +1533,16 @@ class Plot_OldSync(ParameterizedBase):
         return volplot
 
     def plotdata(self, data, indicators):
+        """Plot price data for a data feed.
+
+        Creates candlestick, bar, or line chart for price data along
+        with volume and indicators. Handles overlay indicators and
+        proper axis configuration.
+
+        Args:
+            data: Data feed object with OHLCV data
+            indicators: List of indicators to plot with this data
+        """
         for ind in indicators:
             upinds = self.dplotsup[ind]
             for upind in upinds:
@@ -1483,14 +1744,36 @@ class Plot_OldSync(ParameterizedBase):
             a.set_yscale("log")
 
     def show(self):
+        """Display the plot using matplotlib."""
         self.mpyplot.show()
 
     def savefig(self, fig, filename, width=16, height=9, dpi=300, tight=True):
+        """Save figure to file.
+
+        Args:
+            fig: Figure object to save
+            filename: Output file path
+            width: Figure width in inches (default: 16)
+            height: Figure height in inches (default: 9)
+            dpi: Resolution in dots per inch (default: 300)
+            tight: Whether to use tight bounding box (default: True)
+        """
         fig.set_size_inches(width, height)
         bbox_inches = "tight" * tight or None
         fig.savefig(filename, dpi=dpi, bbox_inches=bbox_inches)
 
     def sortdataindicators(self, strategy):
+        """Sort indicators and observers into plotting groups.
+
+        Organizes indicators and observers into groups for plotting:
+        - Top: Observers that go above all data
+        - Up: Indicators that plot above their data
+        - Down: Indicators that plot below their data
+        - Over: Indicators that overlay on their data
+
+        Args:
+            strategy: Strategy object with indicators and observers
+        """
         # These lists/dictionaries hold the subplots that go above each data
         self.dplotstop = list()
         self.dplotsup = collections.defaultdict(list)
@@ -1595,7 +1878,15 @@ Plot = Plot_OldSync
 
 
 def create_table(df, max_rows=18):
-    """Set table format based on dataframe"""
+    """Create HTML table from dataframe for Dash display.
+
+    Args:
+        df: DataFrame to convert to table
+        max_rows: Maximum number of rows to display (default: 18)
+
+    Returns:
+        Dash HTML table object
+    """
 
     table = html.Table(
         # Header
@@ -1611,6 +1902,17 @@ def create_table(df, max_rows=18):
 
 
 def get_rate_sharpe_drawdown(data):
+    """Calculate Sharpe ratio, annual return, and maximum drawdown.
+
+    For intraday data, extracts the last value of each day as the daily
+    closing value. Assumes 252 trading days per year.
+
+    Args:
+        data: DataFrame with datetime index and total_value column
+
+    Returns:
+        Tuple of (sharpe_ratio, annual_return, max_drawdown)
+    """
     # Calculate Sharpe ratio, compound annual return, maximum drawdown
     # For periods less than daily, extract the last value of each day as the final value of a trading day,
     # For futures minute data, it's not calculated based on 15:00 close, which may slightly affect Sharpe ratio and other indicators, but the impact is small.
@@ -1690,6 +1992,24 @@ def get_year_return(data):
 def run_cerebro_and_plot(
     cerebro, strategy, params, score=90, port=8050, optimize=True, auto_open=True, result_path=""
 ):
+    """Run cerebro backtest and save/plot results.
+
+    Executes a backtest with the given strategy and parameters,
+    calculates performance metrics, and saves results to CSV files.
+
+    Args:
+        cerebro: Cerebro instance configured with data
+        strategy: Strategy class to run
+        params: Dictionary of strategy parameters
+        score: Minimum score threshold (default: 90)
+        port: Port for dashboard server (default: 8050)
+        optimize: Whether to run in optimization mode (default: True)
+        auto_open: Whether to auto-open plot (default: True)
+        result_path: Path to save result files (default: current directory)
+
+    Returns:
+        None (saves results to CSV files)
+    """
     strategy_name = strategy.__name__
     params_str = ""
     for key in params:

@@ -37,21 +37,33 @@ class UpDay(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
+        """Initialize the UpDay indicator.
+
+        Sets minimum period for up day calculation.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Calculate up day value for the current bar.
+
+        Returns max(close - close_period_ago, 0).
+        """
         diff = self.data[0] - self.data[-self.p.period]
         self.lines.upday[0] = max(diff, 0.0)
 
     def once(self, start, end):
+        """Calculate up day values in runonce mode.
+
+        Returns max(price_change, 0) for each bar.
+        """
         darray = self.data.array
         larray = self.lines.upday.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(period, min(end, len(darray))):
             diff = darray[i] - darray[i - period]
             larray[i] = max(diff, 0.0)
@@ -76,21 +88,33 @@ class DownDay(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
+        """Initialize the DownDay indicator.
+
+        Sets minimum period for down day calculation.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Calculate down day value for the current bar.
+
+        Returns max(close_period_ago - close, 0).
+        """
         diff = self.data[-self.p.period] - self.data[0]
         self.lines.downday[0] = max(diff, 0.0)
 
     def once(self, start, end):
+        """Calculate down day values in runonce mode.
+
+        Returns max(-price_change, 0) for each bar.
+        """
         darray = self.data.array
         larray = self.lines.downday.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(period, min(end, len(darray))):
             diff = darray[i - period] - darray[i]
             larray[i] = max(diff, 0.0)
@@ -118,20 +142,32 @@ class UpDayBool(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
+        """Initialize the UpDay Bool indicator.
+
+        Sets minimum period for boolean up day calculation.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Check if current bar is an up day.
+
+        Returns 1.0 if close > close_period_ago, 0.0 otherwise.
+        """
         self.lines.upday[0] = 1.0 if self.data[0] > self.data[-self.p.period] else 0.0
 
     def once(self, start, end):
+        """Check for up days in runonce mode.
+
+        Returns 1.0 where price increased, 0.0 otherwise.
+        """
         darray = self.data.array
         larray = self.lines.upday.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(period, min(end, len(darray))):
             larray[i] = 1.0 if darray[i] > darray[i - period] else 0.0
 
@@ -158,20 +194,32 @@ class DownDayBool(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
+        """Initialize the DownDay Bool indicator.
+
+        Sets minimum period for boolean down day calculation.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
 
     def next(self):
+        """Check if current bar is a down day.
+
+        Returns 1.0 if close_period_ago > close, 0.0 otherwise.
+        """
         self.lines.downday[0] = 1.0 if self.data[-self.p.period] > self.data[0] else 0.0
 
     def once(self, start, end):
+        """Check for down days in runonce mode.
+
+        Returns 1.0 where price decreased, 0.0 otherwise.
+        """
         darray = self.data.array
         larray = self.lines.downday.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(period, min(end, len(darray))):
             larray[i] = 1.0 if darray[i - period] > darray[i] else 0.0
 
@@ -238,6 +286,10 @@ class RelativeStrengthIndex(Indicator):
         self.plotinfo.plotyhlines = [self.p.upperband, self.p.lowerband]
 
     def __init__(self):
+        """Initialize the RSI indicator.
+
+        Creates up/down day indicators and their moving averages.
+        """
         super().__init__()
         self.upday = UpDay(self.data, period=self.p.lookback)
         self.downday = DownDay(self.data, period=self.p.lookback)
@@ -245,6 +297,7 @@ class RelativeStrengthIndex(Indicator):
         self.madown = self.p.movav(self.downday, period=self.p.period)
 
     def _rscalc(self, rsi):
+        """Calculate relative strength from RSI value."""
         try:
             rs = (-100.0 / (rsi - 100.0)) - 1.0
         except ZeroDivisionError:
@@ -252,7 +305,15 @@ class RelativeStrengthIndex(Indicator):
         return rs
 
     def _calc_rsi(self, maup_val, madown_val):
-        """Calculate RSI from maup and madown values"""
+        """Calculate RSI from maup and madown values.
+
+        Args:
+            maup_val: Moving average of up days.
+            madown_val: Moving average of down days.
+
+        Returns:
+            RSI value between 0 and 100.
+        """
         if self.p.safediv:
             if madown_val == 0.0:
                 if maup_val == 0.0:
@@ -267,16 +328,24 @@ class RelativeStrengthIndex(Indicator):
         return 100.0 - 100.0 / (1.0 + rs)
 
     def next(self):
+        """Calculate RSI for the current bar.
+
+        RSI = 100 - 100 / (1 + maup/madown)
+        """
         self.lines.rsi[0] = self._calc_rsi(self.maup[0], self.madown[0])
 
     def once(self, start, end):
+        """Calculate RSI in runonce mode.
+
+        Computes RSI values across all bars with safe division handling.
+        """
         maup_array = self.maup.lines[0].array
         madown_array = self.madown.lines[0].array
         larray = self.lines.rsi.array
         safediv = self.p.safediv
         safehigh = self.p.safehigh
         safelow = self.p.safelow
-        
+
         while len(larray) < end:
             larray.append(0.0)
         

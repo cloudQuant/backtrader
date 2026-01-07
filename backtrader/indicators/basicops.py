@@ -49,6 +49,10 @@ class PeriodN(Indicator):
     params = (("period", 1),)
 
     def __init__(self):
+        """Initialize the period-based indicator.
+
+        Sets minimum period based on the period parameter.
+        """
         super().__init__()
         self.addminperiod(self.p.period)
 
@@ -69,6 +73,10 @@ class OperationN(PeriodN):
     """
 
     def next(self):
+        """Calculate function value for the current bar.
+
+        Applies func to the last 'period' data values.
+        """
         # CRITICAL FIX: Use proper line assignment instead of direct array manipulation
         # The line[0] assignment will handle the buffer correctly
         value = self.func(self.data.get(size=self.p.period))
@@ -143,6 +151,10 @@ class BaseApplyN(OperationN):
     params = (("func", None),)
 
     def __init__(self):
+        """Initialize the base apply indicator.
+
+        Sets func from parameter and initializes parent.
+        """
         self.func = self.p.func
         super().__init__()
 
@@ -214,6 +226,14 @@ class ReduceN(OperationN):
     func = functools.reduce
 
     def __init__(self, function, **kwargs):
+        """Initialize the ReduceN indicator.
+
+        Sets up reduce function with optional initializer.
+
+        Args:
+            function: The reduce function to apply.
+            **kwargs: Optional 'initializer' parameter.
+        """
         if "initializer" not in kwargs:
             self.func = functools.partial(self.func, function)
         else:
@@ -288,6 +308,14 @@ class FindFirstIndex(OperationN):
     params = (("_evalfunc", None),)
 
     def func(self, iterable):
+        """Find first index where value matches eval function result.
+
+        Args:
+            iterable: Data values to search.
+
+        Returns:
+            Index of first matching value (looking backwards).
+        """
         m = self.p._evalfunc(iterable)
         return next(i for i, v in enumerate(reversed(iterable)) if v == m)
 
@@ -342,6 +370,14 @@ class FindLastIndex(OperationN):
     params = (("_evalfunc", None),)
 
     def func(self, iterable):
+        """Find last index where value matches eval function result.
+
+        Args:
+            iterable: Data values to search.
+
+        Returns:
+            Index of last matching value (looking backwards).
+        """
         m = self.p._evalfunc(iterable)
         index = next(i for i, v in enumerate(iterable) if v == m)
         # The iterable goes from 0 -> period - 1. If the last element
@@ -403,12 +439,24 @@ class Accum(Indicator):
     # initial look-back value is needed
 
     def nextstart(self):
+        """Start accumulation with seed value.
+
+        accum = seed + data[0]
+        """
         self.lines[0][0] = self.p.seed + self.data[0]
 
     def next(self):
+        """Add current data value to accumulation.
+
+        accum += data
+        """
         self.lines[0][0] = self.lines[0][-1] + self.data[0]
 
     def oncestart(self, start, end):
+        """Start accumulation in runonce mode.
+
+        accum = seed + data for each bar.
+        """
         dst = self.lines[0].array
         src = self.data.array
         prev = self.p.seed
@@ -417,6 +465,10 @@ class Accum(Indicator):
             dst[i] = prev = prev + src[i]
 
     def once(self, start, end):
+        """Continue accumulation in runonce mode.
+
+        accum = prev_accum + data for each bar.
+        """
         dst = self.lines[0].array
         src = self.data.array
         prev = dst[start - 1]
@@ -444,6 +496,10 @@ class Average(PeriodN):
     lines = ("av",)
 
     def next(self):
+        """Calculate arithmetic mean for the current bar.
+
+        av = sum(data, period) / period
+        """
         data_values = self.data.get(size=self.p.period)
         avg_value = math.fsum(data_values) / self.p.period
         self.lines[0][0] = avg_value
@@ -489,6 +545,10 @@ class ExponentialSmoothing(Average):
     params = (("alpha", None),)
 
     def __init__(self):
+        """Initialize the exponential smoothing indicator.
+
+        Calculates alpha and alpha1 for smoothing calculation.
+        """
         self.alpha = self.p.alpha
         if self.alpha is None:
             self.alpha = 2.0 / (1.0 + self.p.period)  # def EMA value
@@ -498,13 +558,25 @@ class ExponentialSmoothing(Average):
         super().__init__()
 
     def nextstart(self):
+        """Seed exponential smoothing with SMA value.
+
+        Uses parent's SMA calculation for initial seed.
+        """
         # Fetch the seed value from the base class calculation
         super().next()
 
     def next(self):
+        """Calculate EMA for the current bar.
+
+        av = prev * alpha1 + data * alpha
+        """
         self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
 
     def oncestart(self, start, end):
+        """Calculate seed value in runonce mode.
+
+        Uses parent's SMA calculation for initial seed.
+        """
         # Calculate seed value using parent's once method (SMA of first period values)
         # Call parent's once method to populate seed at index period-1
         if start == self.p.period - 1:
@@ -595,6 +667,10 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
     alias = ("ExpSmoothingDynamic",)
 
     def __init__(self):
+        """Initialize the dynamic exponential smoothing indicator.
+
+        Sets up alpha1 line for dynamic alpha values.
+        """
         super().__init__()
 
         # CRITICAL FIX: Handle cases where alpha is a float instead of a LineBuffer
@@ -610,17 +686,22 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
             from . import Indicator
 
             class Alpha1Line(Indicator):
+                """Helper class to compute 1 - alpha dynamically."""
+
                 lines = ("alpha1",)
                 params = (("alpha_source", None),)
 
                 def __init__(self):
+                    """Initialize with alpha source reference."""
                     self.alpha_source = self.p.alpha_source
                     super().__init__()
 
                 def next(self):
+                    """Calculate 1 - alpha for current bar."""
                     self.lines.alpha1[0] = 1.0 - self.alpha_source[0]
 
                 def once(self, start, end):
+                    """Calculate 1 - alpha in runonce mode."""
                     alpha_array = self.alpha_source.array
                     alpha1_array = self.lines.alpha1.array
                     for i in range(start, end):
@@ -637,6 +718,10 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
             # self.alpha1 is already set in parent class as a float
 
     def next(self):
+        """Calculate dynamic EMA for the current bar.
+
+        Handles both float and LineBuffer alpha sources.
+        """
         # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
         if hasattr(self.alpha, "__getitem__"):
             # alpha is a LineBuffer - use array access
@@ -646,6 +731,10 @@ class ExponentialSmoothingDynamic(ExponentialSmoothing):
             self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
 
     def once(self, start, end):
+        """Calculate dynamic EMA in runonce mode.
+
+        Handles both float and LineBuffer alpha sources.
+        """
         # CRITICAL FIX: Handle both float and LineBuffer cases for alpha
         darray = self.data.array
         larray = self.line.array
@@ -695,14 +784,26 @@ class WeightedAverage(PeriodN):
     )
 
     def __init__(self):
+        """Initialize the Weighted Average indicator.
+
+        Sets up parameters for weighted average calculation.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate weighted average for the current bar.
+
+        Multiplies data by weights and sums, then applies coefficient.
+        """
         data = self.data.get(size=self.p.period)
         dataweighted = map(operator.mul, data, self.p.weights)
         self.lines[0][0] = self.p.coef * math.fsum(dataweighted)
 
     def once(self, start, end):
+        """Calculate weighted average in runonce mode.
+
+        Computes weighted averages across all bars efficiently.
+        """
         darray = self.data.array
         larray = self.line.array
         period = self.p.period

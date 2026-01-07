@@ -61,16 +61,32 @@ class TradeAnalyzer(Analyzer):
 
     # Create analysis
     def create_analysis(self):
+        """Create the analysis result data structure.
+
+        Initializes the AutoOrderedDict with a total counter set to zero.
+        """
         self.rets = AutoOrderedDict()
         self.rets.total.total = 0
 
     # Stop
     def stop(self):
+        """Finalize the analysis when backtest ends.
+
+        Closes the results dictionary to prevent further modifications.
+        """
         super().stop()
         self.rets._close()
 
     # Trade notification
     def notify_trade(self, trade):
+        """Process trade notifications to build detailed statistics.
+
+        Updates all trade statistics including win/loss counts, streaks,
+        PnL metrics, and trade duration for both long and short positions.
+
+        Args:
+            trade: The trade object with status and PnL information.
+        """
         # If trade just opened
         if trade.justopened:
             # Trade just opened

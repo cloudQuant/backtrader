@@ -46,11 +46,20 @@ class SmoothedMovingAverage(MovingAverageBase):
     lines = ("smma",)
 
     def __init__(self):
+        """Initialize the SMMA indicator.
+
+        Calculates alpha and alpha1 smoothing factors for the
+        smoothed moving average calculation.
+        """
         super().__init__()
         self.alpha = 1.0 / self.p.period
         self.alpha1 = 1.0 - self.alpha
 
     def nextstart(self):
+        """Seed SMMA calculation with SMA on first valid bar.
+
+        Initializes with simple moving average of the first period values.
+        """
         # Seed value: SMA of first period values
         period = self.p.period
         data_sum = 0.0
@@ -59,6 +68,11 @@ class SmoothedMovingAverage(MovingAverageBase):
         self.lines[0][0] = data_sum / period
 
     def next(self):
+        """Calculate SMMA for the current bar.
+
+        Formula: SMMA = prev_SMMMA * alpha1 + current_price * alpha
+        where alpha = 1/period and alpha1 = 1 - alpha.
+        """
         # SMMA formula: prev * alpha1 + current * alpha
         self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
 

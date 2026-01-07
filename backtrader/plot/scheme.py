@@ -72,9 +72,61 @@ tab10_index = [3, 0, 2, 1, 2, 4, 5, 6, 7, 8, 9]
 
 
 class PlotScheme:
+    """Configuration class for plot appearance and styling.
+
+    This class defines the visual appearance of backtrader plots, including
+    colors, fonts, margins, and other styling parameters. It can be customized
+    and passed to cerebro.plot() to change the look of generated charts.
+
+    Attributes:
+        ytight (bool): Whether to use tight packing on y-axis.
+        yadjust (float): Y-margin (top/bottom) for subcharts.
+        zdown (bool): Whether new lines are painted below previous ones.
+        tickrotation (int): Rotation of date labels on x-axis.
+        rowsmajor (int): Subparts for major charts (data feeds).
+        rowsminor (int): Subparts for minor charts (indicators/observers).
+        plotdist (float): Distance between subcharts.
+        grid (bool): Whether to show grid in charts.
+        style (str): Plot style for OHLC bars ('line', 'bar', or 'candle').
+        loc (str): Color for line-on-close plots.
+        barup (str): Color for bullish bars/candles.
+        barupfill (bool): Whether bullish candles are filled.
+        baralpha (float): Opacity for filled candlesticks.
+        fillalpha (float): Alpha blending for fill areas.
+        volume (bool): Whether to plot volume.
+        voloverlay (bool): Whether to overlay volume on data chart.
+        volscaling (float): Scaling factor for volume when overlaying.
+        volpushup (float): Vertical offset for overlaid volume.
+        volup (str): Color for bullish volume.
+        voldown (str): Color for bearish volume.
+        voltrans (float): Transparency for volume when overlaying.
+        subtxttrans (float): Transparency for text labels.
+        subtxtsize (int): Font size for labels on chart.
+        legendind (bool): Whether indicators have legend display.
+        legendindloc (str): Location of legend for indicators.
+        legenddataloc (str): Location of legend for data feeds.
+        linevalues (bool): Whether to plot last value after object name.
+        valuetags (bool): Whether to plot tags with last values.
+        hlinescolor (str): Default color for horizontal lines.
+        hlinesstyle (str): Default style for horizontal lines.
+        hlineswidth (float): Default width for horizontal lines.
+        lcolors (list): Default color scheme for lines.
+        fmt_x_ticks (str): strftime format for x-axis ticks.
+        fmt_x_data (str): strftime format for data point values.
+
+    Example:
+        >>> scheme = PlotScheme()
+        >>> scheme.ytight = True
+        >>> scheme.style = 'candle'
+        >>> cerebro.plot(scheme=scheme)
+    """
+
     def __init__(self):
-        # to have tight packing on the chart, whether only the x-axis or also
-        # the y-axis have (see matplotlib)
+        """Initialize PlotScheme with default styling values.
+
+        Sets all plotting parameters to their default values, which can be
+        customized after initialization to achieve the desired chart appearance.
+        """
         self.ytight = False
 
         # y-margin (top/bottom) for the subcharts. This will not overrule the
@@ -183,5 +235,18 @@ class PlotScheme:
         self.fmt_x_data = None
 
     def color(self, idx):
+        """Get color from color scheme for given index.
+
+        Args:
+            idx (int): Color index to retrieve.
+
+        Returns:
+            str: Color name or hex string from the color scheme.
+
+        Example:
+            >>> scheme = PlotScheme()
+            >>> scheme.color(0)  # Returns first color in scheme
+            'blue'
+        """
         colidx = tab10_index[idx % len(tab10_index)]
         return self.lcolors[colidx]

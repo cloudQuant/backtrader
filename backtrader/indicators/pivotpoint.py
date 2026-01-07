@@ -74,12 +74,21 @@ class PivotPoint(Indicator):
     )
 
     def _plotinit(self):
+        """Initialize plot settings for Pivot Point.
+
+        Attempts to plot on the actual timeframe master data
+        rather than the resampled data.
+        """
         # Try to plot to the actual timeframe master
         if self.p._autoplot:
             if hasattr(self.data, "data"):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
+        """Initialize the Pivot Point indicator.
+
+        Sets up coupler to follow real object if autoplot is enabled.
+        """
         super().__init__()  # enable coopertive inheritance
 
         if self.p._autoplot:
@@ -87,6 +96,11 @@ class PivotPoint(Indicator):
             self()  # Coupler to follow a real object
 
     def next(self):
+        """Calculate pivot point and support/resistance levels.
+
+        Standard formula: p = (h + l + c) / 3
+        Support/Resistance levels derived from pivot and high-low range.
+        """
         o = self.data.open[0]
         h = self.data.high[0]
         low = self.data.low[0]
@@ -106,6 +120,10 @@ class PivotPoint(Indicator):
         self.lines.r2[0] = p + (h - low)
 
     def once(self, start, end):
+        """Calculate pivot point levels in runonce mode.
+
+        Computes pivot, support, and resistance levels across all bars.
+        """
         o_array = self.data.open.array
         h_array = self.data.high.array
         l_array = self.data.low.array
@@ -200,12 +218,21 @@ class FibonacciPivotPoint(Indicator):
     )
 
     def _plotinit(self):
+        """Initialize plot settings for Fibonacci Pivot Point.
+
+        Attempts to plot on the actual timeframe master data
+        rather than the resampled data.
+        """
         # Try to plot to the actual timeframe master
         if self.p._autoplot:
             if hasattr(self.data, "data"):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
+        """Initialize the Fibonacci Pivot Point indicator.
+
+        Sets up coupler to follow real object if autoplot is enabled.
+        """
         super().__init__()
 
         if self.p._autoplot:
@@ -213,6 +240,11 @@ class FibonacciPivotPoint(Indicator):
             self()  # Coupler to follow a real object
 
     def next(self):
+        """Calculate Fibonacci pivot point and support/resistance levels.
+
+        Uses Fibonacci ratios (0.382, 0.618, 1.0) to calculate
+        support/resistance levels from pivot point.
+        """
         o = self.data.open[0]
         h = self.data.high[0]
         low = self.data.low[0]
@@ -235,6 +267,11 @@ class FibonacciPivotPoint(Indicator):
         self.lines.r3[0] = p + self.p.level3 * hl_range
 
     def once(self, start, end):
+        """Calculate Fibonacci pivot point levels in runonce mode.
+
+        Computes pivot and Fibonacci-based support/resistance levels
+        across all bars.
+        """
         o_array = self.data.open.array
         h_array = self.data.high.array
         l_array = self.data.low.array
@@ -342,12 +379,21 @@ class DemarkPivotPoint(Indicator):
     )
 
     def _plotinit(self):
+        """Initialize plot settings for Demark Pivot Point.
+
+        Attempts to plot on the actual timeframe master data
+        rather than the resampled data.
+        """
         # Try to plot to the actual timeframe master
         if self.p._autoplot:
             if hasattr(self.data, "data"):
                 self.plotinfo.plotmaster = self.data.data
 
     def __init__(self):
+        """Initialize the Demark Pivot Point indicator.
+
+        Sets up coupler to follow real object if autoplot is enabled.
+        """
         super().__init__()
 
         if self.p._autoplot:
@@ -355,6 +401,11 @@ class DemarkPivotPoint(Indicator):
             self()  # Coupler to follow a real object
 
     def next(self):
+        """Calculate Demark pivot point and support/resistance levels.
+
+        Demark formula uses relationship between open and close
+        to determine the calculation method.
+        """
         h = self.data.high[0]
         low = self.data.low[0]
         o = self.data.open[0]
@@ -372,6 +423,11 @@ class DemarkPivotPoint(Indicator):
         self.lines.r1[0] = x / 2.0 - low
 
     def once(self, start, end):
+        """Calculate Demark pivot point levels in runonce mode.
+
+        Computes Demark-style pivot, support, and resistance levels
+        across all bars.
+        """
         o_array = self.data.open.array
         h_array = self.data.high.array
         l_array = self.data.low.array

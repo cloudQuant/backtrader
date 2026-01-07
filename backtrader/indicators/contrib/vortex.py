@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Vortex Indicator Module - Vortex Movement Indicator.
+
+This module provides the Vortex indicator, which measures trend movement
+direction and identifies the start of a trend.
+
+Classes:
+    Vortex: Vortex Movement Indicator (Vortex).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.Vortex, period=14)
+"""
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #
@@ -41,6 +54,10 @@ class Vortex(Indicator):
     plotlines = dict(vi_plus=dict(_name="+VI"), vi_minus=dict(_name="-VI"))
 
     def __init__(self):
+        """Initialize the Vortex indicator.
+
+        Calculates the Vortex Movement Indicator components.
+        """
         h0l1 = abs(self.data.high(0) - self.data.low(-1))
         vm_plus = SumN(h0l1, period=self.p.period)
 

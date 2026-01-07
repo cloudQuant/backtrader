@@ -48,6 +48,12 @@ class CalendarDays(ParameterizedBase):
     lastdt = date.max
 
     def __init__(self, data, **kwargs):
+        """Initialize the CalendarDays filter.
+
+        Args:
+            data: The data feed to apply the filter to.
+            **kwargs: Additional keyword arguments passed to parent class.
+        """
         super().__init__(**kwargs)
 
     def __call__(self, data):

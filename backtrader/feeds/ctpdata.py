@@ -63,6 +63,11 @@ class CTPData(DataBase):
         return True
 
     def __init__(self, **kwargs):
+        """Initialize the CTP data feed.
+
+        Args:
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         super().__init__(**kwargs)
         # Handle original metaclass registration functionality
         CTPStore.DataCls = self.__class__
@@ -140,6 +145,11 @@ class CTPData(DataBase):
         self.o.stop()
 
     def haslivedata(self):
+        """Check if live data is available.
+
+        Returns:
+            bool: True if live data queue has data, False otherwise.
+        """
         return bool(self.qlive)  # do not return the obj
 
     def _load(self):

@@ -41,6 +41,23 @@ bytes = bstr  # py2/3 need for ibpy
 
 
 def _ts2dt(tstamp=None):
+    """Transforms a RTVolume timestamp to a datetime object.
+
+    Args:
+        tstamp: Optional timestamp value. If None, empty, or False,
+            returns current UTC time. Otherwise, converts the timestamp
+            to a datetime object.
+
+    Returns:
+        datetime: A datetime object in UTC timezone. If tstamp is provided,
+            it's converted from seconds since epoch with microsecond precision.
+            If not provided, returns current UTC time.
+
+    Note:
+        The original implementation used divisor 1000 (milliseconds), but this
+        was changed to 1 (seconds) to correct time calculation issues. Using
+        1000 resulted in timestamps from 1970 rather than correct current times.
+    """
     # Transforms a RTVolume timestamp to a datetime object
     # Convert timestamp to datetime object, if no timestamp specified, return current UTC time
     # If timestamp is not None, empty, False, process timestamp and return datetime object
@@ -70,6 +87,26 @@ class RTVolume:
     ]
 
     def __init__(self, rtvol="", price=None, tmoffset=None):
+        """Initialize RTVolume from an RTVolume string or simulated data.
+
+        Args:
+            rtvol: String containing RTVolume data from IB API tickString
+                event (tickType 48). Format is semicolon-separated values.
+                If empty, simulates data from individual field values.
+            price: Optional price value. If provided, overrides the price
+                from the rtvol string. Used to simulate RTVolume from
+                tickPrice events.
+            tmoffset: Optional timedelta to add to the datetime. Used for
+                time synchronization between local and IB server time.
+
+        Attributes:
+            price: Price of the tick (float).
+            size: Size/volume of the tick (int).
+            datetime: Timestamp of the tick as datetime object.
+            volume: Total volume (int).
+            vwap: Volume-weighted average price (float).
+            single: Boolean indicating if this is a single tick (bool).
+        """
         # Use a provided string or simulate a list of empty tokens
         # Split received tick data
         tokens = iter(rtvol.split(";"))
@@ -90,6 +127,25 @@ class RTVolume:
 
 # Decorator to mark methods to register with ib.opt
 def ibregister(f):
+    """Decorator to mark methods for registration with IB's ib.opt message system.
+
+    This decorator adds a special attribute to methods that indicates they should
+    be registered with the IB API message handlers. The IBStore class scans for
+    methods with this attribute during initialization and automatically registers
+    them to handle corresponding IB API messages.
+
+    Args:
+        f: The function or method to be registered.
+
+    Returns:
+        The same function with an added _ibregister attribute set to True.
+
+    Example:
+        @ibregister
+        def error(self, msg):
+            # Handle error messages from IB
+            pass
+    """
     f._ibregister = True
     return f
 
@@ -536,6 +592,22 @@ class IBStore(ParameterizedSingletonMixin):
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self):
+        """Initialize the IBStore instance.
+
+        Sets up the IB connection, threading locks, queues, and internal data
+        structures for managing data feeds, broker operations, account updates,
+        and message handling. This is a singleton class that maintains a single
+        connection to IB TWS or Gateway.
+
+        The initialization:
+        1. Creates locks for thread-safe access to shared resources
+        2. Sets up events for tracking connection state
+        3. Initializes data structures for queues, ticker IDs, positions
+        4. Generates or uses provided clientId for IB connection
+        5. Creates ibpy connection object
+        6. Registers message handlers for IB API callbacks
+        7. Builds duration/size lookup tables for historical data requests
+        """
         # Initialize IBStore
         super().__init__()
         # Create 4 threads and add locks
@@ -654,6 +726,23 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Start
     def start(self, data=None, broker=None):
+        """Start the IBStore connection and associated data feeds or broker.
+
+        Args:
+            data: Optional data feed instance. If provided, stores the reference
+                and returns a queue for data delivery.
+            broker: Optional broker instance. If provided, stores the reference
+                for order management.
+
+        Returns:
+            If data is provided, returns a queue for receiving data updates.
+            Otherwise, returns None.
+
+        Note:
+            This method triggers a reconnection attempt. If connection fails,
+            the returned queue will contain None to signal the data feed to
+            handle the failure.
+        """
         self.reconnect(fromstart=True)  # reconnect should be an invariant
 
         # Datas require some processing to kickstart data reception
@@ -671,6 +760,12 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Stop
     def stop(self):
+        """Stop the IBStore connection and cleanup resources.
+
+        Disconnects from IB TWS/Gateway and unblocks any threads waiting on
+        connection events. This is an invariant method that can be called
+        multiple times safely.
+        """
         try:
             self.conn.disconnect()  # disconnect should be an invariant
         except AttributeError:
@@ -682,6 +777,15 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Print information to standard output
     def logmsg(self, *args):
+        """Log messages to standard output when debug mode is enabled.
+
+        Args:
+            *args: Variable length argument list to be printed.
+
+        Note:
+            Messages are only printed if the _debug parameter is True.
+            Used for debugging and monitoring IB API communication.
+        """
         # for logging purposes
         if self.p._debug:
             print(*args)
@@ -689,6 +793,20 @@ class IBStore(ParameterizedSingletonMixin):
     # After registration, if in debug mode, will print all messages,
     # if in notify all information mode, will pass all messages to notification
     def watcher(self, msg):
+        """Watch and process all IB API messages when registered.
+
+        This method is registered to receive all messages from IB if debug mode
+        or notifyall mode is enabled. It logs messages and optionally queues them
+        for notification to cerebro/strategy.
+
+        Args:
+            msg: IB API message object received from TWS/Gateway.
+
+        Note:
+            Only registered if _debug or notifyall parameters are True.
+            When notifyall is True, messages are stored in the notification queue
+            for retrieval by Cerebro's get_notifications method.
+        """
         # will be registered to see all messages if debug is requested
         self.logmsg(str(msg))
         if self.p.notifyall:
@@ -696,6 +814,17 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Used to determine if already connected to TWS or IB
     def connected(self):
+        """Check if currently connected to IB TWS or Gateway.
+
+        Returns:
+            bool: True if connected to IB, False otherwise. Returns False if
+                the connection object doesn't exist or hasn't been initialized.
+
+        Note:
+            The isConnected method is accessed through __getattr__ indirections
+            and may not be present if the connection hasn't been established.
+            AttributeError is caught to handle this case gracefully.
+        """
         # The isConnected method is available through __getattr__ indirections
         # and may not be present, which indicates that no connection has been
         # made because the subattribute sender has not yet been created, hence
@@ -709,6 +838,29 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Reconnection method, this method must be an invariant, convenient to call many times
     def reconnect(self, fromstart=False, resub=False):
+        """Attempt to connect or reconnect to IB TWS/Gateway with retry logic.
+
+        This is an invariant method that can be called multiple times safely.
+        Implements reconnection policy with configurable retry attempts and timeouts.
+
+        Args:
+            fromstart: If True, indicates this is the initial connection attempt.
+                If False and connection succeeds, will restart data subscriptions.
+            resub: If True, restarts data subscriptions when connection succeeds.
+
+        Returns:
+            bool: True if connection is successful, False if all retry attempts
+                fail or if dontreconnect flag is set.
+
+        Note:
+            Connection policy:
+            * If dontreconnect is True, returns False immediately
+            * Checks current connection status (first connection adds 1 to retries)
+            * Retries indefinitely if reconnect parameter is -1
+            * Retries specified number of times if reconnect parameter > 0
+            * Waits timeout seconds between retry attempts
+            * On success, restarts data subscriptions unless fromstart is True
+        """
         # This method must be an invariant in which it can be called several
         # times from the same source and must be consistent.
         # An example would
@@ -769,6 +921,11 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Request subscription data
     def startdatas(self):
+        """Start data subscriptions for all registered data feeds.
+
+        Creates threads to request data from IB for each registered data feed.
+        Waits for all data requests to complete before returning.
+        """
         # kickstrat datas, not returning until all of them have been done
         ts = list()
         for data in self.datas:
@@ -781,6 +938,11 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Stop subscription data, and pop data in LIFO order
     def stopdatas(self):
+        """Stop data subscriptions for all registered data feeds.
+
+        Cancels data requests and puts None in all queues in LIFO (last-in-first-out)
+        order to signal data feeds to stop waiting for data.
+        """
         # stop subs and force datas out of the loop (in LIFO order)
         qs = list(self.qs.values())
         ts = list()
@@ -813,6 +975,29 @@ class IBStore(ParameterizedSingletonMixin):
     # Register related error information
     @ibregister
     def error(self, msg):
+        """Handle error messages from IB API.
+
+        Processes error codes and takes appropriate action based on error type.
+        Many IB errors are informational rather than critical errors.
+
+        Args:
+            msg: IB error message object containing errorCode, errorMsg, and id fields.
+
+        Note:
+            Error code ranges:
+            * 100-199: Order/Data/Historical related
+            * 200-203: tickerId and Order Related (security not found/not allowed)
+            * 300-399: Orders, connectivity, tickers, misc errors
+            * 400-449: Order related
+            * 500-531: Connectivity/Communication Errors
+            * 10000-100027: Special orders/routing
+            * 1100-1102: TWS connectivity to outside
+            * 1300: Socket dropped in client-TWS communication
+            * 2100-2110: Data Farm status (id=-1)
+
+            All errors are logged to notification queue unless notifyall is True
+            (in which case watcher already logged them).
+        """
         # 100-199 Order/Data/Historical related
         # 200-203 tickerId and Order Related
         # 300-399 A mix of things: orders, connectivity, tickers, misc errors
@@ -917,6 +1102,14 @@ class IBStore(ParameterizedSingletonMixin):
     # Close connection
     @ibregister
     def connectionClosed(self, msg):
+        """Handle connection closed message from IB API.
+
+        Sometimes this message arrives without accompanying error codes like
+        1300 or 502, so it needs to be handled independently.
+
+        Args:
+            msg: Connection closed message from IB API.
+        """
         # Sometimes this comes without 1300/502 or any other and will not be
         # seen in error, hence the need to manage the situation independently
         self.conn.disconnect()
@@ -925,6 +1118,19 @@ class IBStore(ParameterizedSingletonMixin):
     # Manage accounts
     @ibregister
     def managedAccounts(self, msg):
+        """Handle managed accounts message from IB API.
+
+        This is typically the first message received after connection.
+        Parses the list of managed account codes and triggers time synchronization.
+
+        Args:
+            msg: Message containing accountsList field with comma-separated account codes.
+
+        Note:
+            Sets the _event_managed_accounts event to unblock other threads waiting
+            for account information. Also requests current time from IB server to
+            calculate time offset for accurate timestamping.
+        """
         # 1st message in the stream
         self.managed_accounts = msg.accountsList.split(",")
         self._event_managed_accounts.set()
@@ -934,11 +1140,28 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Request current time
     def reqCurrentTime(self):
+        """Request current time from IB server.
+
+        Initiates a request to get the current time from IB server. Used for
+        time synchronization between local clock and IB server time.
+        """
         self.conn.reqCurrentTime()
 
     # Current time considering time difference
     @ibregister
     def currentTime(self, msg):
+        """Handle current time message from IB API.
+
+        Calculates and stores the time offset between local clock and IB server time.
+        This offset is used to timestamp market data accurately.
+
+        Args:
+            msg: Message containing 'time' field with Unix timestamp from IB server.
+
+        Note:
+            Only processes if timeoffset parameter is True. After calculating offset,
+            schedules a timer to refresh this offset after timerefresh seconds.
+        """
         if not self.p.timeoffset:  # only if requested ... apply timeoffset
             return
         curtime = datetime.fromtimestamp(float(msg.time))
@@ -949,22 +1172,52 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Get current time difference or time compensation
     def timeoffset(self):
+        """Get the current time offset between local clock and IB server time.
+
+        Returns:
+            timedelta: Time offset to add to local timestamps to align with IB server time.
+        """
         with self._lock_tmoffset:
             return self.tmoffset
 
     # Next ticker id
     def nextTickerId(self):
+        """Generate the next unique ticker ID for data requests.
+
+        Returns:
+            int: The next available ticker ID from the counter starting at REQIDBASE.
+
+        Note:
+            Ticker IDs are used to identify data requests to IB API. REQIDBASE offset
+            ensures data request IDs don't conflict with order IDs.
+        """
         # Get the next ticker using next on the itertools.count
         return next(self._tickerId)
 
     # Next valid order id
     @ibregister
     def nextValidId(self, msg):
+        """Handle next valid order ID message from IB API.
+
+        Initializes the order ID counter from the value provided by IB server.
+        This ensures new orders use valid IDs that IB will accept.
+
+        Args:
+            msg: Message containing orderId field with the next valid order ID.
+        """
         # Create a counter from the TWS notified value to apply to orders
         self.orderid = itertools.count(msg.orderId)
 
     # Next order id
     def nextOrderId(self):
+        """Generate the next valid order ID for placing orders.
+
+        Returns:
+            int: The next available order ID from the counter initialized by nextValidId.
+
+        Note:
+            Must wait for nextValidId message from IB before this can be used.
+        """
         # Get the next ticker using next on the itertools.count made with the
         # notified value from TWS
         return next(self.orderid)
@@ -1020,6 +1273,24 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Get detailed contract information
     def getContractDetails(self, contract, maxcount=None):
+        """Get contract details from IB for a given contract.
+
+        Requests and retrieves detailed contract information from IB.
+        Useful for verifying contract specifications before trading.
+
+        Args:
+            contract: IB Contract object to query.
+            maxcount: Optional maximum number of results. If more than one
+                contract is returned and maxcount is not None, the request
+                is considered ambiguous.
+
+        Returns:
+            List of contract detail messages, or None if request is ambiguous
+            or fails. Notification is added to queue if ambiguous.
+
+        Note:
+            Waits for contractDetailsEnd message before returning.
+        """
         cds = list()
         q = self.reqContractDetails(contract)
         while True:
@@ -1037,6 +1308,14 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Request contract information
     def reqContractDetails(self, contract):
+        """Request contract details from IB API.
+
+        Args:
+            contract: IB Contract object to query.
+
+        Returns:
+            Queue: Queue for receiving contract detail messages.
+        """
         # get a ticker/queue for identification/data delivery
         tickerId, q = self.getTickerQueue()
         self.conn.reqContractDetails(tickerId, contract)
@@ -1308,6 +1587,18 @@ class IBStore(ParameterizedSingletonMixin):
     # Functions related to processing tick data
     @ibregister
     def tickString(self, msg):
+        """Handle tickString messages from IB API.
+
+        Processes tickType 48 (RTVolume) messages which contain real-time volume
+        data including price, size, timestamp, and volume-weighted average price.
+
+        Args:
+            msg: TickString message with tickType and value fields.
+
+        Note:
+            Only processes tickType 48 (RTVolume). The value field contains
+            semicolon-separated RTVolume data which is parsed by RTVolume class.
+        """
         # Receive and process a tickString message
         # If try executes normally, else will also execute; if try doesn't execute normally, else won't execute
         if msg.tickType == 48:  # RTVolume
@@ -1413,6 +1704,16 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Get time length for trading period
     def getdurations(self, timeframe, compression):
+        """Get available durations for a given timeframe and compression.
+
+        Args:
+            timeframe: TimeFrame enum value (Seconds, Minutes, Days, etc.).
+            compression: Compression factor (number of time units per bar).
+
+        Returns:
+            list: List of duration strings compatible with the given timeframe/compression.
+                Returns empty list if combination is not supported.
+        """
         key = (timeframe, compression)
         if key not in self.revdur:
             return []
@@ -1421,6 +1722,15 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Get maximum time length for trading period
     def getmaxduration(self, timeframe, compression):
+        """Get the maximum duration available for a given timeframe and compression.
+
+        Args:
+            timeframe: TimeFrame enum value (Seconds, Minutes, Days, etc.).
+            compression: Compression factor (number of time units per bar).
+
+        Returns:
+            str or None: Maximum duration string if available, None otherwise.
+        """
         key = (timeframe, compression)
         try:
             return self.revdur[key][-1]
@@ -1431,6 +1741,16 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Convert timeframe and compression to barsize
     def tfcomp_to_size(self, timeframe, compression):
+        """Convert timeframe and compression to IB bar size string.
+
+        Args:
+            timeframe: TimeFrame enum value (Seconds, Minutes, Days, Weeks, Months, etc.).
+            compression: Compression factor (number of time units per bar).
+
+        Returns:
+            str or None: IB-compatible bar size string (e.g., "5 mins", "1 day", "1 M").
+                Returns None for unsupported timeframes (Microseconds, Ticks).
+        """
         if timeframe == TimeFrame.Months:
             return f"{compression} M"
 
@@ -1458,6 +1778,18 @@ class IBStore(ParameterizedSingletonMixin):
 
     #
     def dt_plus_duration(self, dt, duration):
+        """Add a duration string to a datetime.
+
+        Args:
+            dt: Base datetime to add duration to.
+            duration: Duration string in format "size dim" where dim is one of:
+                S (seconds), D (days), W (weeks), M (months), Y (years).
+
+        Returns:
+            datetime: New datetime with duration added. For months and years,
+                calculates calendar month/year additions correctly. Returns
+                original dt if duration dimension is not recognized.
+        """
         size, dim = duration.split()
         size = int(size)
         if dim == "S":
@@ -1505,6 +1837,28 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Based on IB historical data API limitations, return smallest possible time length between two dates
     def histduration(self, dt1, dt2):
+        """Calculate the smallest possible duration between two datetimes according to IB's historical data limitations.
+
+        Given two dates, calculates the smallest possible duration string compatible
+        with IB's Historical Data API limitations. This ensures historical data
+        requests use supported duration values.
+
+        Args:
+            dt1: Start datetime.
+            dt2: End datetime.
+
+        Returns:
+            str: Duration string in format "size dim" where dim is one of:
+                S (seconds), D (days), W (weeks), M (months), Y (years).
+
+        Note:
+            IB Historical Data API limitations:
+            * Seconds: 60, 120, 180, 300, 600, 900, 1200, 1800, 3600, 7200, 10800, 14400, 28800
+            * Days: 1, 2
+            * Weeks: 1, 2
+            * Months: 1, 2 (capped from 1-11 to keep table clean)
+            * Years: 1
+        """
         # Given two dates calculates the smallest possible duration according
         # to the table from the Historical Data API limitations provided by IB
         #
@@ -1560,7 +1914,22 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Create contract as needed
     def makecontract(self, symbol, sectype, exch, curr, expiry="", strike=0.0, right="", mult=1):
-        """returns a contract from the parameters without check"""
+        """Create an IB Contract object from parameters without validation.
+
+        Args:
+            symbol: Contract symbol (e.g., stock ticker, futures root).
+            sectype: Security type (STK, FUT, OPT, FOP, CASH, etc.).
+            exch: Exchange code (e.g., SMART, NYSE, CME).
+            curr: Currency code (e.g., USD, EUR).
+            expiry: Optional expiration date for futures/options (format: YYYYMM or YYYYMMDD).
+            strike: Optional strike price for options (default: 0.0).
+            right: Optional put/call right for options ('P' or 'C').
+            mult: Optional contract multiplier (default: 1).
+
+        Returns:
+            Contract: IB Contract object populated with the provided parameters.
+        """
+        # returns a contract from the parameters without check
 
         contract = Contract()
         contract.m_symbol = bytes(symbol)
@@ -1638,6 +2007,18 @@ class IBStore(ParameterizedSingletonMixin):
     # Account information update complete
     @ibregister
     def accountDownloadEnd(self, msg):
+        """Handle account download end message from IB API.
+
+        Signals that the initial account value download is complete. Sets an event
+        that other code may wait on to ensure account data is available.
+
+        Args:
+            msg: Account download end message from IB API.
+
+        Note:
+            This sets the _event_accdownload event, unblocking any threads waiting
+            for account data to be downloaded.
+        """
         # Signals the end of an account update
         # the event indicates it's over. It's only false once, and can be used
         # to find out if it has at least been downloaded once
@@ -1651,6 +2032,21 @@ class IBStore(ParameterizedSingletonMixin):
     # Update portfolio
     @ibregister
     def updatePortfolio(self, msg):
+        """Handle portfolio update message from IB API.
+
+        Updates position information for a contract. Validates that positions
+        calculated locally match what IB reports.
+
+        Args:
+            msg: Portfolio update message containing contract, position, and
+                averageCost fields.
+
+        Note:
+            Thread-safe: uses _lock_pos to synchronize access. On first update
+            (before accountDownloadEnd), creates new Position object. On subsequent
+            updates, validates against existing position. Notification added if
+            positions don't match.
+        """
         # Lock access to the position dicts. This is called in sub-thread and
         # can kick in at any time
         with self._lock_pos:
@@ -1675,6 +2071,19 @@ class IBStore(ParameterizedSingletonMixin):
 
     # Get account position
     def getposition(self, contract, clone=False):
+        """Get position information for a contract.
+
+        Args:
+            contract: IB Contract object to query.
+            clone: If True, returns a copy of the position object to prevent
+                external modification (default: False).
+
+        Returns:
+            Position: Position object containing size and average cost.
+
+        Note:
+            Thread-safe: uses _lock_pos to synchronize access.
+        """
         # Lock access to the position dicts.
         # This is called from the main thread,
         # and updates could be happening in the background
@@ -1688,6 +2097,19 @@ class IBStore(ParameterizedSingletonMixin):
     # Update account value
     @ibregister
     def updateAccountValue(self, msg):
+        """Handle account value update message from IB API.
+
+        Updates account value information including cash, net liquidation value,
+        and other account metrics.
+
+        Args:
+            msg: Account value message containing accountName, key, currency, and value fields.
+
+        Note:
+            Thread-safe: uses _lock_accupd to synchronize access. Special handling
+            for NetLiquidation and TotalCashBalance keys to maintain acc_value and
+            acc_cash dictionaries for quick access.
+        """
         # Lock access to the dicts where values are updated. This happens in a
         # sub-thread and could kick it at anytime
         with self._lock_accupd:

@@ -42,6 +42,15 @@ class VCCommInfo(CommInfoBase):
     left as a future exercise to get it"""
 
     def getvaluesize(self, size, price):
+        """Calculate the value size for margin calculation.
+
+        Args:
+            size: Position size.
+            price: Price of the instrument.
+
+        Returns:
+            float: The margin requirement (approaches price in real life).
+        """
         # In real life, the margin approaches the price
         return abs(size) * price
 
@@ -124,6 +133,14 @@ class VCBroker(BrokerBase):
     )
 
     def __init__(self, **kwargs):
+        """Initialize the VCBroker.
+
+        Sets up the store, account data, position accounting, order storage,
+        and order type/side/restriction mappings for VisualChart integration.
+
+        Args:
+            **kwargs: Keyword arguments passed to parent and store initialization.
+        """
         super().__init__(**kwargs)
 
         self.store = vcstore.VCStore(**kwargs)
@@ -176,30 +193,81 @@ class VCBroker(BrokerBase):
         )
 
     def start(self):
+        """Start the broker and its store.
+
+        Calls parent start method and initializes the VisualChart store
+        with this broker instance.
+        """
         super().start()
         self.store.start(broker=self)
 
     def stop(self):
+        """Stop the broker and its store.
+
+        Calls parent stop method and stops the VisualChart store.
+        """
         super().stop()
         self.store.stop()
 
     def getcash(self):
+        """Get the current cash balance.
+
+        Returns:
+            float: Current available cash in the account.
+
+        Note:
+            This call is non-blocking and returns the cached cash value.
+        """
         # This call cannot block if no answer is available from ib
         return self.cash
 
     def getvalue(self, datas=None):
+        """Get the current portfolio value.
+
+        Args:
+            datas: Unused parameter (for API compatibility).
+
+        Returns:
+            float: Current net worth (portfolio value) of the account.
+        """
         return self.value
 
     def get_notification(self):
+        """Get the next order notification from the queue.
+
+        Returns:
+            Order: The next notification order object (at least a None is present).
+
+        Raises:
+            IndexError: If notification queue is empty.
+        """
         return self.notifs.popleft()  # at leat a None is present
 
     def notify(self, order):
+        """Add an order notification to the queue.
+
+        Args:
+            order: The order to notify (will be cloned before queuing).
+        """
         self.notifs.append(order.clone())
 
     def next(self):
+        """Mark the notification boundary for the current iteration.
+
+        Appends None to mark the end of notifications for this iteration.
+        """
         self.notifs.append(None)  # mark notificatino boundary
 
     def getposition(self, data, clone=True):
+        """Get the current position for a data feed.
+
+        Args:
+            data: The data feed object.
+            clone: If True, return a clone of the position (default: True).
+
+        Returns:
+            Position: The position object (cloned if clone=True).
+        """
         with self._lock_pos:
             pos = self.positions[data._tradename]
             if clone:
@@ -208,6 +276,14 @@ class VCBroker(BrokerBase):
         return pos
 
     def getcommissioninfo(self, data):
+        """Get the commission info object for a data feed.
+
+        Args:
+            data: The data feed object.
+
+        Returns:
+            CommInfoBase: The commission info object for the data feed.
+        """
         if data._tradename in self.comminfo:
             return self.comminfo[data._tradename]
 
@@ -232,6 +308,23 @@ class VCBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
+        """Create a VisualChart order object from backtrader parameters.
+
+        Args:
+            ordtype: Order type (Buy or Sell).
+            owner: The owner of the order (typically a strategy).
+            data: The data feed for the order.
+            size: Order size (positive for buy, negative for sell internally).
+            price: Order price (for Limit/Stop orders).
+            plimit: Limit price (for StopLimit orders).
+            exectype: Execution type (Market, Limit, Stop, StopLimit, Close).
+            valid: Order validity (None, date, or timedelta).
+            tradeid: Trade identifier.
+            **kwargs: Additional VisualChart-specific order parameters.
+
+        Returns:
+            Order: A VisualChart Order object.
+        """
         order = self.store.vcctmod.Order()
         order.Account = self._acc_name
         order.SymbolCode = data._tradename
@@ -293,6 +386,15 @@ class VCBroker(BrokerBase):
         return order
 
     def submit(self, order, vcorder):
+        """Submit an order to VisualChart.
+
+        Args:
+            order: The backtrader order object.
+            vcorder: The VisualChart order object.
+
+        Returns:
+            Order: The submitted order with assigned VisualChart order ID.
+        """
         order.submit(self)
 
         vco = vcorder
@@ -329,6 +431,22 @@ class VCBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
+        """Create and submit a buy order.
+
+        Args:
+            owner: The owner of the order (typically a strategy).
+            data: The data feed for the order.
+            size: Order size (must be positive).
+            price: Order price (for Limit/Stop orders).
+            plimit: Limit price (for StopLimit orders).
+            exectype: Execution type (Market, Limit, Stop, StopLimit, Close).
+            valid: Order validity (None, date, or timedelta).
+            tradeid: Trade identifier.
+            **kwargs: Additional VisualChart-specific order parameters.
+
+        Returns:
+            Order: The submitted buy order.
+        """
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -360,6 +478,22 @@ class VCBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
+        """Create and submit a sell order.
+
+        Args:
+            owner: The owner of the order (typically a strategy).
+            data: The data feed for the order.
+            size: Order size (must be positive).
+            price: Order price (for Limit/Stop orders).
+            plimit: Limit price (for StopLimit orders).
+            exectype: Execution type (Market, Limit, Stop, StopLimit, Close).
+            valid: Order validity (None, date, or timedelta).
+            tradeid: Trade identifier.
+            **kwargs: Additional VisualChart-specific order parameters.
+
+        Returns:
+            Order: The submitted sell order.
+        """
         order = SellOrder(
             owner=owner,
             data=data,
@@ -383,6 +517,17 @@ class VCBroker(BrokerBase):
     # COM Events implementation
     #
     def __call__(self, trader):
+        """Initialize the broker with the VisualChart trader object.
+
+        This is called when the broker is invoked by the store to set up
+        the trader connection and account information.
+
+        Args:
+            trader: The VisualChart trader object from COM interface.
+
+        Returns:
+            VCBroker: Self, for method chaining.
+        """
         # Called to start the process, call in sub-thread. only the passed
         # trader can be used in the thread
         self.trader = trader
@@ -397,6 +542,11 @@ class VCBroker(BrokerBase):
         return self
 
     def OnChangedBalance(self, Account):
+        """Handle balance change event from VisualChart.
+
+        Args:
+            Account: Account name that experienced the balance change.
+        """
         if self._acc_name is None or self._acc_name != Account:
             return  # skip notifs for other accounts
 
@@ -408,11 +558,25 @@ class VCBroker(BrokerBase):
                 break
 
     def OnModifiedOrder(self, Order):
+        """Handle order modification event from VisualChart.
+
+        Note:
+            This is currently not implemented as backtrader does not
+            support order modification.
+
+        Args:
+            Order: The VisualChart order object that was modified.
+        """
         # We are not expecting this: unless backtrader starts implementing
         # modify order method
         pass
 
     def OnCancelledOrder(self, Order):
+        """Handle order cancellation event from VisualChart.
+
+        Args:
+            Order: The VisualChart order object that was cancelled.
+        """
         with self._lock_orders:
             try:
                 border = self.orderbyid[Order.OrderId]
@@ -423,12 +587,30 @@ class VCBroker(BrokerBase):
         self.notify(border)
 
     def OnTotalExecutedOrder(self, Order):
+        """Handle total order execution event from VisualChart.
+
+        Args:
+            Order: The VisualChart order object that was fully executed.
+        """
         self.OnExecutedOrder(Order, partial=False)
 
     def OnPartialExecutedOrder(self, Order):
+        """Handle partial order execution event from VisualChart.
+
+        Args:
+            Order: The VisualChart order object that was partially executed.
+        """
         self.OnExecutedOrder(Order, partial=True)
 
     def OnExecutedOrder(self, Order, partial):
+        """Handle order execution event from VisualChart.
+
+        Updates position, calculates PnL, and notifies strategy.
+
+        Args:
+            Order: The VisualChart order object that was executed.
+            partial: Whether this was a partial execution (True) or full (False).
+        """
         with self._lock_orders:
             try:
                 border = self.orderbyid[Order.OrderId]
@@ -481,6 +663,11 @@ class VCBroker(BrokerBase):
         self.notify(border)
 
     def OnOrderInMarket(self, Order):
+        """Handle order accepted in market event from VisualChart.
+
+        Args:
+            Order: The VisualChart order object that was accepted.
+        """
         # Other is in the market... therefore "accepted"
         with self._lock_orders:
             try:
@@ -492,10 +679,29 @@ class VCBroker(BrokerBase):
         self.notify(border)
 
     def OnNewOrderLocation(self, Order):
+        """Handle new order location event from VisualChart.
+
+        Note:
+            This could be used for "submitted" status, but the status
+            is currently set manually.
+
+        Args:
+            Order: The VisualChart order object.
+        """
         # Can be used for "submitted", but the status is set manually
         pass
 
     def OnChangedOpenPositions(self, Account):
+        """Handle open positions change event from VisualChart.
+
+        Note:
+            This is not used for accounting as VisualChart does not report
+            positions moving back to zero. Accounting is handled through
+            order execution events instead.
+
+        Args:
+            Account: Account name that experienced the position change.
+        """
         # This would be useful if it reported a position moving back to 0. In
         # this case, the report contains a no-position and this doesn't help in
         # the accounting. That's why the accounting is delegated to the
@@ -503,11 +709,30 @@ class VCBroker(BrokerBase):
         pass
 
     def OnNewClosedOperations(self, Account):
+        """Handle new closed operations event from VisualChart.
+
+        Note:
+            This callback has not been observed in practice.
+
+        Args:
+            Account: Account name with new closed operations.
+        """
         # This call-back has not been seen
         pass
 
     def OnServerShutDown(self):
+        """Handle server shutdown event from VisualChart.
+
+        This is called when the VisualChart server shuts down.
+        """
         pass
 
     def OnInternalEvent(self, p1, p2, p3):
+        """Handle internal event from VisualChart.
+
+        Args:
+            p1: Event parameter 1.
+            p2: Event parameter 2.
+            p3: Event parameter 3.
+        """
         pass

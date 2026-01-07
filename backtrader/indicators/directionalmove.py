@@ -43,13 +43,25 @@ class UpMove(Indicator):
     lines = ("upmove",)
 
     def __init__(self):
+        """Initialize the UpMove indicator.
+
+        Sets minimum period to 2 for difference calculation.
+        """
         super().__init__()
         self.addminperiod(2)
 
     def next(self):
+        """Calculate up move for the current bar.
+
+        Returns data - data(-1), the positive price change.
+        """
         self.lines.upmove[0] = self.data[0] - self.data[-1]
 
     def once(self, start, end):
+        """Calculate up moves in runonce mode.
+
+        Computes data[i] - data[i-1] for each bar.
+        """
         darray = self.data.array
         larray = self.lines.upmove.array
         
@@ -78,13 +90,25 @@ class DownMove(Indicator):
     lines = ("downmove",)
 
     def __init__(self):
+        """Initialize the DownMove indicator.
+
+        Sets minimum period to 2 for difference calculation.
+        """
         super().__init__()
         self.addminperiod(2)
 
     def next(self):
+        """Calculate down move for the current bar.
+
+        Returns data(-1) - data, the negative price change as positive value.
+        """
         self.lines.downmove[0] = self.data[-1] - self.data[0]
 
     def once(self, start, end):
+        """Calculate down moves in runonce mode.
+
+        Computes data[i-1] - data[i] for each bar.
+        """
         darray = self.data.array
         larray = self.lines.downmove.array
         
@@ -116,6 +140,14 @@ class _DirectionalIndicator(Indicator):
         return plabels
 
     def __init__(self, _plus=True, _minus=True):
+        """Initialize the directional indicator base.
+
+        Calculates +DI and -DI values based on directional movement.
+
+        Args:
+            _plus: Whether to calculate plus DI.
+            _minus: Whether to calculate minus DI.
+        """
         atr = ATR(self.data, period=self.p.period, movav=self.p.movav)
 
         upmove = self.data.high - self.data.high(-1)
@@ -175,22 +207,34 @@ class DirectionalIndicator(_DirectionalIndicator):
     )
 
     def __init__(self):
+        """Initialize the Directional Indicator.
+
+        Calculates both +DI and -DI.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate +DI and -DI for the current bar.
+
+        Copies DI values from parent calculation.
+        """
         self.lines.plusDI[0] = self.DIplus[0]
         self.lines.minusDI[0] = self.DIminus[0]
 
     def once(self, start, end):
+        """Calculate DI values in runonce mode.
+
+        Copies +DI and -DI values across all bars.
+        """
         diplus_array = self.DIplus.lines[0].array
         diminus_array = self.DIminus.lines[0].array
         plusDI_array = self.lines.plusDI.array
         minusDI_array = self.lines.minusDI.array
-        
+
         for arr in [plusDI_array, minusDI_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         for i in range(start, min(end, len(diplus_array), len(diminus_array))):
             plusDI_array[i] = diplus_array[i] if i < len(diplus_array) else 0.0
             minusDI_array[i] = diminus_array[i] if i < len(diminus_array) else 0.0
@@ -230,18 +274,30 @@ class PlusDirectionalIndicator(_DirectionalIndicator):
     plotinfo = dict(plotname="+DirectionalIndicator")
 
     def __init__(self):
+        """Initialize the +DI indicator.
+
+        Calculates only +DI, not -DI.
+        """
         super().__init__(_minus=False)
 
     def next(self):
+        """Calculate +DI for the current bar.
+
+        Copies +DI value from parent calculation.
+        """
         self.lines.plusDI[0] = self.DIplus[0]
 
     def once(self, start, end):
+        """Calculate +DI in runonce mode.
+
+        Copies +DI values across all bars.
+        """
         diplus_array = self.DIplus.lines[0].array
         plusDI_array = self.lines.plusDI.array
-        
+
         while len(plusDI_array) < end:
             plusDI_array.append(0.0)
-        
+
         for i in range(start, min(end, len(diplus_array))):
             plusDI_array[i] = diplus_array[i] if i < len(diplus_array) else 0.0
 
@@ -280,18 +336,30 @@ class MinusDirectionalIndicator(_DirectionalIndicator):
     plotinfo = dict(plotname="-DirectionalIndicator")
 
     def __init__(self):
+        """Initialize the -DI indicator.
+
+        Calculates only -DI, not +DI.
+        """
         super().__init__(_plus=False)
 
     def next(self):
+        """Calculate -DI for the current bar.
+
+        Copies -DI value from parent calculation.
+        """
         self.lines.minusDI[0] = self.DIminus[0]
 
     def once(self, start, end):
+        """Calculate -DI in runonce mode.
+
+        Copies -DI values across all bars.
+        """
         diminus_array = self.DIminus.lines[0].array
         minusDI_array = self.lines.minusDI.array
-        
+
         while len(minusDI_array) < end:
             minusDI_array.append(0.0)
-        
+
         for i in range(start, min(end, len(diminus_array))):
             minusDI_array[i] = diminus_array[i] if i < len(diminus_array) else 0.0
 
@@ -321,27 +389,31 @@ class AverageDirectionalMovementIndex(Indicator):
     plotlines = dict(adx=dict(_name="ADX"))
 
     def __init__(self):
+        """Initialize the ADX indicator.
+
+        Sets up ATR, DM smoothing, and state for ADX calculation.
+        """
         super().__init__()
         period = self.p.period
-        
+
         # Store sub-indicators for direct array access (like MACD)
         self.atr = ATR(self.data, period=period, movav=self.p.movav)
         self.plusDMav = self.p.movav(period=period)
         self.minusDMav = self.p.movav(period=period)
-        
+
         # Calculate minperiod: ATR needs period, then DI smoothing needs period, then ADX smoothing needs period
         # Total: approximately 2*period for DI + period for ADX smoothing
         adx_minperiod = 2 * period
         self._minperiod = max(self._minperiod, adx_minperiod)
-        
+
         # Propagate minperiod to lines
         for line in self.lines:
             line.updateminperiod(self._minperiod)
-        
+
         # For SMMA calculation
         self.alpha = 1.0 / period
         self.alpha1 = 1.0 - self.alpha
-        
+
         # State for smoothed values
         self._plusDMav_val = 0.0
         self._minusDMav_val = 0.0
@@ -350,72 +422,84 @@ class AverageDirectionalMovementIndex(Indicator):
         self._prev_low = None
 
     def prenext(self):
+        """Track previous high/low during warmup.
+
+        Stores high and low values for directional move calculation.
+        """
         # Track previous high/low for directional move calculation
         self._prev_high = self.data.high[0]
         self._prev_low = self.data.low[0]
 
     def nextstart(self):
+        """Seed ADX calculation on first valid bar.
+
+        Calculates initial DM, DI, DX, and ADX values.
+        """
         period = self.p.period
         idx = self.lines[0].idx
-        
+
         # Get ATR value
         atr_val = self.atr.lines[0].array[idx] if idx < len(self.atr.lines[0].array) else 0.0
         if atr_val == 0:
             atr_val = 0.0001  # Avoid division by zero
-        
+
         # Calculate +DM and -DM
         upmove = self.data.high[0] - (self._prev_high if self._prev_high else self.data.high[-1])
         downmove = (self._prev_low if self._prev_low else self.data.low[-1]) - self.data.low[0]
-        
+
         plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
         minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
-        
+
         # Seed smoothed DM values
         self._plusDMav_val = plusDM
         self._minusDMav_val = minusDM
-        
+
         # Calculate DI
         diplus = 100.0 * self._plusDMav_val / atr_val
         diminus = 100.0 * self._minusDMav_val / atr_val
-        
+
         # Calculate DX
         disum = diplus + diminus
         dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
-        
+
         # Seed ADX
         self._adx_val = dx
         self.lines.adx[0] = self._adx_val
-        
+
         self._prev_high = self.data.high[0]
         self._prev_low = self.data.low[0]
 
     def next(self):
+        """Calculate ADX for the current bar.
+
+        Calculates DM smoothing, DI, DX, and ADX values.
+        """
         idx = self.lines[0].idx
-        
+
         # Get ATR value
         atr_val = self.atr.lines[0].array[idx] if idx < len(self.atr.lines[0].array) else 0.0
         if atr_val == 0:
             atr_val = 0.0001
-        
+
         # Calculate +DM and -DM
         upmove = self.data.high[0] - self.data.high[-1]
         downmove = self.data.low[-1] - self.data.low[0]
-        
+
         plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
         minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
-        
+
         # Smooth DM values (SMMA)
         self._plusDMav_val = self._plusDMav_val * self.alpha1 + plusDM * self.alpha
         self._minusDMav_val = self._minusDMav_val * self.alpha1 + minusDM * self.alpha
-        
+
         # Calculate DI
         diplus = 100.0 * self._plusDMav_val / atr_val
         diminus = 100.0 * self._minusDMav_val / atr_val
-        
+
         # Calculate DX
         disum = diplus + diminus
         dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
-        
+
         # Smooth ADX (SMMA of DX)
         self._adx_val = self._adx_val * self.alpha1 + dx * self.alpha
         self.lines.adx[0] = self._adx_val
@@ -518,13 +602,25 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
     plotlines = dict(adxr=dict(_name="ADXR"))
 
     def __init__(self):
+        """Initialize the ADXR indicator.
+
+        Extends ADX with rating line.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate ADX and ADXR for the current bar.
+
+        ADXR = (ADX + ADX(-period)) / 2
+        """
         super().next()
         self.lines.adxr[0] = (self.lines.adx[0] + self.lines.adx[-self.p.period]) / 2.0
 
     def once(self, start, end):
+        """Calculate ADXR in runonce mode.
+
+        Computes ADXR as average of current ADX and ADX from period ago.
+        """
         super().once(start, end)
         import math
         adx_array = self.lines.adx.array

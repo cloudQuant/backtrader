@@ -50,11 +50,18 @@ class BlazeData(DataBase):
     # Column names
     datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
-    # Start, directly iterate data file, next time _load reads one row each time
     def __init__(self):
+        """Initialize the Blaze data feed.
+
+        Sets up internal row iterator.
+        """
         self._rows = None
 
     def start(self):
+        """Start the Blaze data feed.
+
+        Initializes the row iterator from the dataname.
+        """
         super().start()
 
         # reset the iterator on each start

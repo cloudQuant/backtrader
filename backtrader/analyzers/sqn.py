@@ -61,18 +61,34 @@ class SQN(Analyzer):
 
     # Start, initialize pnl and count
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Initializes lists to store trade P&L values for SQN calculation.
+        """
         super().start()
         self.pnl = list()
         self.count = 0
 
     # Trade notification, if trade is closed, add profit/loss
     def notify_trade(self, trade):
+        """Collect P&L from closed trades.
+
+        Args:
+            trade: The trade object that was closed.
+        """
         if trade.status == trade.Closed:
             self.pnl.append(trade.pnlcomm)
             self.count += 1
 
     # Stop, calculate SQN indicator, if trade count > 0, SQN equals average trade profit * sqrt(trade count) / standard deviation of trade profit
     def stop(self):
+        """Calculate the System Quality Number when backtest ends.
+
+        SQN = sqrt(N) * average(P&L) / std(P&L)
+
+        The result is stored in self.rets.sqn along with the number of
+        trades in self.rets.trades.
+        """
         if self.count > 1:
             pnl_av = average(self.pnl)
             pnl_stddev = standarddev(self.pnl)

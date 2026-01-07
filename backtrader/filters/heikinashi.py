@@ -29,9 +29,27 @@ class HeikinAshi:
     """
 
     def __init__(self, data):
+        """Initialize the HeikinAshi filter.
+
+        Args:
+            data: The data feed to apply the filter to.
+                  No specific parameters are required.
+        """
         pass
 
     def __call__(self, data):
+        """Convert standard OHLC data to Heikin Ashi candlesticks.
+
+        This method transforms the OHLC data into Heikin Ashi format, which
+        uses the average of open, high, low, and close for the close price,
+        and averages the previous close and open for the current open price.
+
+        Args:
+            data: The data feed containing OHLC values to convert.
+
+        Returns:
+            bool: False (the length of data stream is unaltered).
+        """
         o, h, low, c = data.open[0], data.high[0], data.low[0], data.close[0]
 
         data.close[0] = ha_close0 = (o + h + low + c) / 4.0

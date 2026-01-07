@@ -80,6 +80,15 @@ class PyFolio(Analyzer):
 
     # Initialize
     def __init__(self, *args, **kwargs):
+        """Initialize the PyFolio analyzer.
+
+        Creates child analyzers (TimeReturn, PositionsValue, Transactions,
+        GrossLeverage) to collect data for pyfolio integration.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         dtfcomp = dict(timeframe=self.p.timeframe, compression=self.p.compression)
@@ -91,6 +100,11 @@ class PyFolio(Analyzer):
 
     # When stopping, get several analysis results
     def stop(self):
+        """Collect results from child analyzers when backtest ends.
+
+        Gathers returns, positions, transactions, and gross leverage data
+        from the child analyzers for pyfolio processing.
+        """
         super().stop()
         self.rets["returns"] = self._returns.get_analysis()
         self.rets["positions"] = self._positions.get_analysis()

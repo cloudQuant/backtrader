@@ -49,14 +49,23 @@ class DetrendedPriceOscillator(Indicator):
         return plabels
 
     def __init__(self):
+        """Initialize the DPO indicator.
+
+        Creates a moving average and calculates lookback period.
+        """
         super().__init__()
         self.ma = self.p.movav(self.data, period=self.p.period)
         self.lookback = self.p.period // 2 - 1
 
     def next(self):
+        """Calculate DPO for the current bar.
+
+        Formula: DPO = price - MA(lookback bars ago)
+        """
         self.lines.dpo[0] = self.data[0] - self.ma[-self.lookback]
 
     def once(self, start, end):
+        """Calculate DPO in runonce mode."""
         darray = self.data.array
         ma_array = self.ma.lines[0].array
         larray = self.lines.dpo.array

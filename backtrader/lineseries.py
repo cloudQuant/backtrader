@@ -39,6 +39,11 @@ class MinimalData:
     """
 
     def __init__(self):
+        """Initialize minimal data with pre-filled array.
+
+        Creates a pre-filled array to prevent index errors when
+        accessing missing data attributes.
+        """
         # Use valid ordinals instead of 0.0 to handle datetime arrays
         self.array = [1.0] * 1000  # Pre-fill array to prevent index errors
         self._idx = 0
@@ -68,6 +73,11 @@ class MinimalOwner:
     """
 
     def __init__(self):
+        """Initialize minimal owner with default attributes.
+
+        Sets up basic attributes needed for observers and analyzers
+        when the actual owner is not available.
+        """
         self.datas = []
         self.broker = None
         self._lineiterators = {}
@@ -90,10 +100,20 @@ class MinimalClock:
     """
 
     def __init__(self):
+        """Initialize minimal clock with default attributes.
+
+        Sets up basic attributes needed for clock functionality
+        when the actual clock is not available.
+        """
         self._owner = None
         self.datas = []
 
     def buflen(self):
+        """Return buffer length.
+
+        Returns:
+            int: Always returns 1 for minimal clock.
+        """
         return 1
 
     def __len__(self):
@@ -123,6 +143,11 @@ class LineAlias(object):
     """
 
     def __init__(self, line):
+        """Initialize the line alias descriptor.
+
+        Args:
+            line: Index of the line in the owner's lines buffer.
+        """
         self.line = line
 
     def __get__(self, obj, cls=None):
@@ -300,9 +325,19 @@ class Lines(object):
 
     @classmethod
     def getlinealiases(cls):
+        """Get all line aliases for this class.
+
+        Returns:
+            tuple: Tuple of line alias names.
+        """
         return cls._getlines()
 
     def itersize(self):
+        """Return an iterator over the lines.
+
+        Returns:
+            iterator: Iterator over lines from index 0 to size().
+        """
         # CRITICAL FIX: Ensure itersize returns an iterable for proper line iteration
         # This method should return an iterator over the lines from index 0 to size()
         try:
@@ -386,12 +421,27 @@ class Lines(object):
             return 0
 
     def size(self):
+        """Return the number of lines excluding extra lines.
+
+        Returns:
+            int: Number of main lines.
+        """
         return len(self.lines) - self._getlinesextra()
 
     def fullsize(self):
+        """Return the total number of lines including extra lines.
+
+        Returns:
+            int: Total number of lines.
+        """
         return len(self.lines)
 
     def extrasize(self):
+        """Return the number of extra lines.
+
+        Returns:
+            int: Number of extra lines.
+        """
         return self._getlinesextra()
 
     def __getitem__(self, line):
@@ -433,6 +483,16 @@ class Lines(object):
                 return None
 
     def get(self, ago=0, size=1, line=0):
+        """Get a slice of values from a specific line.
+
+        Args:
+            ago: Number of periods to look back (0=current).
+            size: Number of values to return.
+            line: Line index to get values from.
+
+        Returns:
+            list or array: Slice of values from the specified line.
+        """
         return self.lines[line].get(ago, size)
 
     def __setitem__(self, line, value):
@@ -571,34 +631,72 @@ class Lines(object):
                 self._line_assignments[line] = value
 
     def forward(self, value=0.0, size=1):
+        """Forward all lines by the specified size.
+
+        Args:
+            value: Value to use for forwarding (default: 0.0).
+            size: Number of positions to forward (default: 1).
+        """
         for line in self.lines:
             line.forward(value, size)
 
     def backwards(self, size=1, force=False):
+        """Move all lines backward by the specified size.
+
+        Args:
+            size: Number of positions to move backward (default: 1).
+            force: If True, force the backward movement.
+        """
         for line in self.lines:
             line.backwards(size, force=force)
 
     def rewind(self, size=1):
+        """Rewind all lines by decreasing idx and lencount.
+
+        Args:
+            size: Number of positions to rewind (default: 1).
+        """
         for line in self.lines:
             line.rewind(size)
 
     def extend(self, value=0.0, size=0):
+        """Extend all lines with additional positions.
+
+        Args:
+            value: Value to use for extension (default: 0.0).
+            size: Number of positions to add (default: 0).
+        """
         for line in self.lines:
             line.extend(value, size)
 
     def reset(self):
+        """Reset all lines to their initial state."""
         for line in self.lines:
             line.reset()
 
     def home(self):
+        """Reset all lines to the home position (beginning)."""
         for line in self.lines:
             line.home()
 
     def advance(self, size=1):
+        """Advance all lines by increasing idx.
+
+        Args:
+            size: Number of positions to advance (default: 1).
+        """
         for line in self.lines:
             line.advance(size)
 
     def buflen(self, line=0):
+        """Get the buffer length of a specific line.
+
+        Args:
+            line: Index of the line (default: 0).
+
+        Returns:
+            int: Buffer length of the specified line.
+        """
         return self.lines[line].buflen()
 
     def __getattr__(self, name):
@@ -964,23 +1062,55 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     # CRITICAL FIX: Convert plotinfo from dict to object with _get method for plotting compatibility
     class PlotInfoObj:
+        """Plot information object for LineSeries.
+
+        Stores plotting configuration attributes that control
+        how the LineSeries is displayed in plots.
+        """
+
         def __init__(self):
+            """Initialize plotinfo with default values.
+
+            Sets up default plotting attributes including plot status,
+            plot master, and legend location.
+            """
             self.plot = True
             self.plotmaster = None
             self.legendloc = None
 
         def _get(self, key, default=None):
-            """CRITICAL: _get method expected by plotting system"""
+            """CRITICAL: _get method expected by plotting system
+
+            Args:
+                key: Attribute name.
+                default: Default value if attribute not found.
+
+            Returns:
+                The attribute value or default.
+            """
             return getattr(self, key, default)
 
         def get(self, key, default=None):
-            """Standard get method for compatibility"""
+            """Standard get method for compatibility
+
+            Args:
+                key: Attribute name.
+                default: Default value if attribute not found.
+
+            Returns:
+                The attribute value or default.
+            """
             return getattr(self, key, default)
 
         def __contains__(self, key):
             return hasattr(self, key)
 
         def keys(self):
+            """Return list of public attribute names.
+
+            Returns:
+                list: List of non-private, non-callable attribute names.
+            """
             # OPTIMIZED: Use __dict__ instead of dir() for better performance
             return [
                 attr
@@ -992,15 +1122,38 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     # CRITICAL FIX: Ensure plotlines is also an object with _get method (not dict)
     class PlotLinesObj:
+        """Plot lines configuration object for LineSeries.
+
+        Stores configuration for individual lines in plots,
+        such as colors, line styles, and other visual properties.
+        """
+
         def __init__(self):
+            """Initialize plotlines container."""
             pass
 
         def _get(self, key, default=None):
-            """CRITICAL: _get method expected by plotting system"""
+            """CRITICAL: _get method expected by plotting system
+
+            Args:
+                key: Attribute name.
+                default: Default value if attribute not found.
+
+            Returns:
+                The attribute value or default.
+            """
             return getattr(self, key, default)
 
         def get(self, key, default=None):
-            """Standard get method for compatibility"""
+            """Standard get method for compatibility
+
+            Args:
+                key: Attribute name.
+                default: Default value if attribute not found.
+
+            Returns:
+                The attribute value or default.
+            """
             return getattr(self, key, default)
 
         def __contains__(self, key):
@@ -1009,10 +1162,34 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         def __getattr__(self, name):
             # Return an empty plotline object for missing attributes
             class PlotLineObj:
+                """Default plotline object for missing line configurations.
+
+                Provides safe default values for plotlines that don't
+                have explicit configuration.
+                """
+
                 def _get(self, key, default=None):
+                    """Get plotline attribute value.
+
+                    Args:
+                        key: Attribute name.
+                        default: Default value if attribute not found.
+
+                    Returns:
+                        The default value (always returns default).
+                    """
                     return default
 
                 def get(self, key, default=None):
+                    """Get plotline attribute value.
+
+                    Args:
+                        key: Attribute name.
+                        default: Default value if attribute not found.
+
+                    Returns:
+                        The default value (always returns default).
+                    """
                     return default
 
                 def __contains__(self, key):
@@ -1026,6 +1203,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     @property
     def array(self):
+        """Get the array of the first line.
+
+        Returns:
+            array: The underlying array of the first line.
+        """
         return self.lines[0].array
 
     @property
@@ -1316,6 +1498,15 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         self.lines[key] = value
 
     def __init__(self, *args, **kwargs):
+        """Initialize the LineSeries instance.
+
+        Sets up the lines container and owner references.
+        This method is kept for compatibility to ensure im_func exists.
+
+        Args:
+            *args: Positional arguments (unused).
+            **kwargs: Keyword arguments (unused).
+        """
         # if any args, kwargs make it up to here, something is broken
         # defining a __init__ guarantees the existence of im_func to findbases
         # in lineiterator later, because object.__init__ has no im_func
@@ -1335,6 +1526,11 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         super(LineSeries, self).__init__()
 
     def plotlabel(self):
+        """Get the plot label for this LineSeries.
+
+        Returns:
+            str: The plot label string.
+        """
         label = self._plotlabel()
         return label
 
@@ -1396,24 +1592,58 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         return delayed
 
     def forward(self, value=0.0, size=1):
+        """Forward all lines by the specified size.
+
+        Args:
+            value: Value to use for forwarding (default: 0.0).
+            size: Number of positions to forward (default: 1).
+        """
         self.lines.forward(value, size)
 
     def backwards(self, size=1, force=False):
+        """Move all lines backward by the specified size.
+
+        Args:
+            size: Number of positions to move backward (default: 1).
+            force: If True, force the backward movement.
+        """
         self.lines.backwards(size, force=force)
 
     def rewind(self, size=1):
+        """Rewind all lines by decreasing idx and lencount.
+
+        Args:
+            size: Number of positions to rewind (default: 1).
+        """
         self.lines.rewind(size)
 
     def extend(self, value=0.0, size=0):
+        """Extend all lines with additional positions.
+
+        Args:
+            value: Value to use for extension (default: 0.0).
+            size: Number of positions to add (default: 0).
+        """
         self.lines.extend(value, size)
 
     def reset(self, value=0.0):
+        """Reset all lines to their initial state.
+
+        Args:
+            value: Value to use for reset (default: 0.0).
+        """
         self.lines.reset()
 
     def home(self):
+        """Reset all lines to the home position (beginning)."""
         self.lines.home()
 
     def advance(self, size=1):
+        """Advance all lines by increasing idx.
+
+        Args:
+            size: Number of positions to advance (default: 1).
+        """
         self.lines.advance(size)
 
     def size(self):
@@ -1472,46 +1702,98 @@ class LineSeriesStub(LineSeries):
     extralines = 1
 
     def __init__(self, line, slave=False):
+        """Initialize the LineSeriesStub.
+
+        Args:
+            line: The single line to wrap.
+            slave: If True, this line is a slave (managed by another object).
+        """
         self.lines = Lines()
         self.lines.lines = [line]
         self.slave = slave
 
     def forward(self, value=0.0, size=1):
+        """Forward the line if not a slave.
+
+        Args:
+            value: Value to use for forwarding (default: 0.0).
+            size: Number of positions to forward (default: 1).
+        """
         if not self.slave:
             self.lines.forward(value, size)
 
     def backwards(self, size=1, force=False):
+        """Move the line backward if not a slave.
+
+        Args:
+            size: Number of positions to move backward (default: 1).
+            force: If True, force the backward movement.
+        """
         if not self.slave:
             self.lines.backwards(size, force=force)
 
     def rewind(self, size=1):
+        """Rewind the line if not a slave.
+
+        Args:
+            size: Number of positions to rewind (default: 1).
+        """
         if not self.slave:
             self.lines.rewind(size)
 
     def extend(self, value=0.0, size=0):
+        """Extend the line if not a slave.
+
+        Args:
+            value: Value to use for extension (default: 0.0).
+            size: Number of positions to add (default: 0).
+        """
         if not self.slave:
             self.lines.extend(value, size)
 
     def reset(self):
+        """Reset the line if not a slave."""
         if not self.slave:
             self.lines.reset()
 
     def home(self):
+        """Reset the line to home position if not a slave."""
         if not self.slave:
             self.lines.home()
 
     def advance(self, size=1):
+        """Advance the line if not a slave.
+
+        Args:
+            size: Number of positions to advance (default: 1).
+        """
         if not self.slave:
             self.lines.advance(size)
 
     def qbuffer(self):
+        """Queue buffer operation (no-op for stub)."""
         pass
 
     def minbuffer(self, size):
+        """Set minimum buffer size (no-op for stub).
+
+        Args:
+            size: Minimum buffer size.
+        """
         pass
 
 
 def LineSeriesMaker(arg, slave=False):
+    """Create a LineSeries from a single line or return existing LineSeries.
+
+    Args:
+        arg: A single line or LineSeries object.
+        slave: If True, mark the created stub as a slave.
+
+    Returns:
+        The original LineSeries if arg is already a LineSeries,
+        otherwise a LineSeriesStub wrapping the line.
+    """
     if isinstance(arg, LineSeries):
         return arg
 

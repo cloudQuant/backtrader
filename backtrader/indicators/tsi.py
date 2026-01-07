@@ -53,6 +53,11 @@ class TrueStrengthIndicator(Indicator):
     lines = ("tsi",)
 
     def __init__(self):
+        """Initialize the TSI indicator.
+
+        Calculates alpha values for double smoothing and sets
+        minimum period based on pchange + period1 + period2.
+        """
         super().__init__()
         # Store sub-indicators for direct calculation
         self.alpha1 = 2.0 / (1.0 + self.p.period1)
@@ -68,32 +73,46 @@ class TrueStrengthIndicator(Indicator):
         self.addminperiod(self.p.pchange + self.p.period1 + self.p.period2)
 
     def nextstart(self):
+        """Seed TSI calculation on first valid bar.
+
+        Initializes smoothed momentum values with first price change.
+        """
         pc = self.data[0] - self.data[-self.p.pchange]
         self._sm1 = pc
         self._sm12 = pc
         self._sm2 = abs(pc)
         self._sm22 = abs(pc)
-        
+
         if self._sm22 != 0:
             self.lines.tsi[0] = 100.0 * self._sm12 / self._sm22
         else:
             self.lines.tsi[0] = 0.0
 
     def next(self):
+        """Calculate TSI for the current bar.
+
+        Applies double smoothing to price change and absolute price change,
+        then computes the ratio as a percentage.
+        """
         pc = self.data[0] - self.data[-self.p.pchange]
-        
+
         self._sm1 = self._sm1 * self.alpha1_1 + pc * self.alpha1
         self._sm12 = self._sm12 * self.alpha2_1 + self._sm1 * self.alpha2
-        
+
         self._sm2 = self._sm2 * self.alpha1_1 + abs(pc) * self.alpha1
         self._sm22 = self._sm22 * self.alpha2_1 + self._sm2 * self.alpha2
-        
+
         if self._sm22 != 0:
             self.lines.tsi[0] = 100.0 * self._sm12 / self._sm22
         else:
             self.lines.tsi[0] = 0.0
 
     def once(self, start, end):
+        """Calculate TSI in runonce mode.
+
+        Computes double-smoothed momentum values and TSI ratio
+        across all bars.
+        """
         darray = self.data.array
         larray = self.lines.tsi.array
         pchange = self.p.pchange

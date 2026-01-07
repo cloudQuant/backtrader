@@ -30,12 +30,24 @@ class NonZeroDifference(Indicator):
     lines = ("nzd",)
 
     def __init__(self):
+        """Initialize the NonZeroDifference indicator.
+
+        Tracks difference between two data sources.
+        """
         super().__init__()
 
     def nextstart(self):
+        """Initialize NZD on first valid bar.
+
+        Sets initial difference value.
+        """
         self.l.nzd[0] = self.data0[0] - self.data1[0]
 
     def next(self):
+        """Calculate NZD for the current bar.
+
+        Memorizes last non-zero difference when current difference is zero.
+        """
         d = self.data0[0] - self.data1[0]
         # Memorize last non-zero value
         new_val = d if d else self.l.nzd[-1]
@@ -50,10 +62,18 @@ class _CrossBase(Indicator):
     plotinfo = dict(plotymargin=0.05, plotyhlines=[0.0, 1.0])
 
     def __init__(self):
+        """Initialize the crossover base indicator.
+
+        Creates NonZeroDifference for crossover detection.
+        """
         super().__init__()  # CRITICAL: Call parent init first
         self.nzd = NonZeroDifference(self.data0, self.data1)
 
     def next(self):
+        """Detect crossover for the current bar.
+
+        Returns 1.0 if crossover detected, 0.0 otherwise.
+        """
         # Check for crossover
         if hasattr(self, "_crossup"):
             if self._crossup:
@@ -95,6 +115,10 @@ class CrossOver(Indicator):
     plotinfo = dict(plotymargin=0.05, plotyhlines=[-1.0, 1.0])
 
     def __init__(self):
+        """Initialize the CrossOver indicator.
+
+        Sets up minperiod and tracking variables for crossover detection.
+        """
         super().__init__()
         # CRITICAL FIX: Inherit minperiod from data sources first
         # This is needed because the framework's automatic inheritance isn't working
@@ -113,6 +137,10 @@ class CrossOver(Indicator):
         self._owner_data = None  # Will be set to owner's data feed in next()
 
     def prenext(self):
+        """Track difference during warmup period.
+
+        Updates _last_nzd for use in nextstart/next crossover detection.
+        """
         # Track difference during warmup period so _last_nzd is available in nextstart
         # This is similar to MACD's prenext that calculates MACD values during warmup
         diff = self.data0[0] - self.data1[0]
@@ -123,6 +151,10 @@ class CrossOver(Indicator):
             self._last_nzd = diff if diff != 0.0 else self._last_nzd
 
     def nextstart(self):
+        """Calculate crossover on first valid bar.
+
+        Handles replay mode special case and calculates initial crossover.
+        """
         # CRITICAL FIX: In replay mode, the first bar after minperiod doesn't have a valid
         # "previous" bar in the compressed timeframe context. Skip crossover calculation
         # on the first bar ONLY when in replay mode. For normal mode, calculate normally.
@@ -157,6 +189,11 @@ class CrossOver(Indicator):
         self._last_nzd = diff if diff != 0.0 else prev_nzd
 
     def next(self):
+        """Calculate crossover for the current bar.
+
+        Returns 1.0 for upward cross, -1.0 for downward cross, 0.0 otherwise.
+        Handles replay mode correctly by deferring calculation when bars are updating.
+        """
         # Current difference
         diff = self.data0[0] - self.data1[0]
 
@@ -219,6 +256,10 @@ class CrossOver(Indicator):
         self.lines.crossover[0] = up_cross - down_cross
 
     def once(self, start, end):
+        """Calculate crossover in runonce mode.
+
+        Vectorized implementation that processes all bars at once.
+        """
         # Vectorized once() implementation matching next() behavior
         d0array = self.data0.array
         d1array = self.data1.array

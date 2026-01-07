@@ -80,6 +80,22 @@ class OrderExecutionBit(object):
         psize=0,
         pprice=0.0,
     ):
+        """Initialize order execution bit information.
+
+        Args:
+            dt: Execution datetime.
+            size: Executed size.
+            price: Execution price.
+            closed: Size of position closed.
+            closedvalue: Value of closed position.
+            closedcomm: Commission for closed position.
+            opened: Size of new position opened.
+            openedvalue: Value of opened position.
+            openedcomm: Commission for opened position.
+            pnl: Profit/loss from closed position.
+            psize: Current position size.
+            pprice: Current position price.
+        """
         self.dt = dt
         self.size = size
         self.price = price
@@ -165,6 +181,18 @@ class OrderData(object):
         trailamount=0.0,
         trailpercent=0.0,
     ):
+        """Initialize order data.
+
+        Args:
+            dt: Order datetime.
+            size: Order size.
+            price: Order price.
+            pricelimit: Limit price for stop orders.
+            remsize: Remaining size to execute.
+            pclose: Previous close price.
+            trailamount: Trailing amount for stop orders.
+            trailpercent: Trailing percent for stop orders.
+        """
         self.pclose = pclose
         self.exbits = collections.deque()  # for historical purposes
         self.p1, self.p2 = 0, 0  # indices to pending notifications
@@ -229,6 +257,22 @@ class OrderData(object):
         psize=0,
         pprice=0.0,
     ):
+        """Add execution information to this order.
+
+        Args:
+            dt: Execution datetime.
+            size: Executed size.
+            price: Execution price.
+            closed: Size of position closed.
+            closedvalue: Value of closed position.
+            closedcomm: Commission for closed position.
+            opened: Size of new position opened.
+            openedvalue: Value of opened position.
+            openedcomm: Commission for opened position.
+            pnl: Profit/loss from closed position.
+            psize: Current position size.
+            pprice: Current position price.
+        """
         self.addbit(
             OrderExecutionBit(
                 dt,
@@ -248,6 +292,11 @@ class OrderData(object):
 
     # Adjust current attributes based on order execution
     def addbit(self, exbit):
+        """Store an execution bit and recalculate order values.
+
+        Args:
+            exbit: OrderExecutionBit to add.
+        """
         # Stores an ExecutionBit and recalculates own values from ExBit
         self.exbits.append(exbit)
 
@@ -266,19 +315,38 @@ class OrderData(object):
 
     # Get current pending execution information
     def getpending(self):
+        """Get list of pending execution bits.
+
+        Returns:
+            list: List of pending OrderExecutionBit objects.
+        """
         return list(self.iterpending())
 
     # Slice order pending execution information, if p1 and p2 both equal 0, returns empty
     def iterpending(self):
+        """Iterate over pending execution bits.
+
+        Returns:
+            iterator: Iterator over pending OrderExecutionBit objects.
+        """
         return itertools.islice(self.exbits, self.p1, self.p2)
 
     # Mark which pending order execution information
     def markpending(self):
+        """Mark current execution bits as pending.
+
+        Rebuilds the indices to mark which exbits are pending in clone.
+        """
         # rebuild the indices to mark which exbits are pending in clone
         self.p1, self.p2 = self.p2, len(self.exbits)
 
     # Clone the object
     def clone(self):
+        """Clone the OrderData object.
+
+        Returns:
+            OrderData: A cloned copy with marked pending bits.
+        """
         self.markpending()
         obj = copy(self)
         return obj
@@ -286,9 +354,20 @@ class OrderData(object):
 
 # Simple parameter container to replace metaclass functionality
 class OrderParams(object):
-    """Simple parameter container for Order classes"""
+    """Simple parameter container for Order classes.
+
+    Stores order parameters like owner, data, size, price, execution type, etc.
+    """
 
     def __init__(self, **kwargs):
+        """Initialize order parameters with defaults.
+
+        Args:
+            **kwargs: Keyword arguments to override default parameters.
+
+        Raises:
+            AttributeError: If an invalid parameter is provided.
+        """
         # Default parameters
         defaults = {
             "owner": None,
@@ -441,6 +520,11 @@ class OrderBase(object):
 
     # Initialize class - modified to accept kwargs and create params manually
     def __init__(self, **kwargs):
+        """Initialize the order base instance.
+
+        Args:
+            **kwargs: Order parameters (owner, data, size, price, etc.).
+        """
         # Create params object manually instead of using metaclass
         self.p = OrderParams(**kwargs)
         # Create convenient direct access to params - alias for backward compatibility
@@ -560,6 +644,11 @@ class OrderBase(object):
 
     # Clone the order itself
     def clone(self):
+        """Clone the order.
+
+        Returns:
+            OrderBase: A cloned copy with cloned executed OrderData.
+        """
         # status, triggered and executed are the only moving parts in order
         # status and triggered are covered by copy
         # executed has to be replaced with an intelligent clone of itself
@@ -579,6 +668,14 @@ class OrderBase(object):
 
     @classmethod
     def ExecType(cls, exectype):
+        """Get the execution type constant from the class.
+
+        Args:
+            exectype: String name of the execution type.
+
+        Returns:
+            int: The execution type constant.
+        """
         return getattr(cls, exectype)
 
     # Get order type name
@@ -588,10 +685,16 @@ class OrderBase(object):
 
     # Get active status
     def active(self):
+        """Check if the order is active.
+
+        Returns:
+            bool: True if order is active, False otherwise.
+        """
         return self._active
 
     # Activate order
     def activate(self):
+        """Activate the order."""
         self._active = True
 
     # Order is alive if it's in Created, Submitted, Partial, or Accepted status
@@ -751,6 +854,14 @@ class OrderBase(object):
 
     # Trail price adjustment
     def trailadjust(self, price):
+        """Adjust trailing stop price.
+
+        Args:
+            price: Current price for trailing calculation.
+
+        Note:
+            Generic interface - override in subclasses for specific behavior.
+        """
         pass  # generic interface
 
 
@@ -774,6 +885,11 @@ class Order(OrderBase):
 
     # Override initialization function, add processing for ordtype and dteos
     def __init__(self, **kwargs):
+        """Initialize the order instance.
+
+        Args:
+            **kwargs: Order parameters (owner, data, size, price, etc.).
+        """
         super(Order, self).__init__(**kwargs)
 
         # For Order, additional operations on dteos are needed
@@ -810,6 +926,23 @@ class Order(OrderBase):
         psize,
         pprice,
     ):
+        """Execute the order with given parameters.
+
+        Args:
+            dt: Execution datetime.
+            size: Executed size.
+            price: Execution price.
+            closed: Size of position closed.
+            closedvalue: Value of closed position.
+            closedcomm: Commission for closed position.
+            opened: Size of new position opened.
+            openedvalue: Value of opened position.
+            openedcomm: Commission for opened position.
+            margin: Margin required for the order.
+            pnl: Profit/loss from closed position.
+            psize: Current position size.
+            pprice: Current position price.
+        """
         self.executed.add(
             dt,
             size,
@@ -857,6 +990,14 @@ class Order(OrderBase):
     # the moving distance can be represented by absolute value or percentage. This function is mainly to calculate
     # the price after trailing stop order adjustment
     def trailadjust(self, price):
+        """Adjust trailing stop order price.
+
+        Args:
+            price: Current market price for trailing calculation.
+
+        For buy orders: stop price moves up as price increases.
+        For sell orders: stop price moves down as price decreases.
+        """
         # If moving amount, price adjustment amount is the moving amount; if moving percentage,
         # price adjustment amount is price multiplied by percentage, otherwise price adjustment amount is 0
         if self.trailamount:
@@ -888,29 +1029,53 @@ class Order(OrderBase):
 
 # Buy order
 class BuyOrder(Order):
+    """Buy order class.
+
+    Represents a buy order with ordtype set to Order.Buy.
+    """
     ordtype = Order.Buy
 
 
 # Stop buy order
 class StopBuyOrder(BuyOrder):
+    """Stop buy order class.
+
+    Used for buy orders that trigger when price crosses a threshold.
+    """
     pass
 
 
 # Create stop limit buy order
 class StopLimitBuyOrder(BuyOrder):
+    """Stop limit buy order class.
+
+    Used for buy orders that become limit orders after stop price is triggered.
+    """
     pass
 
 
 # Create sell order
 class SellOrder(Order):
+    """Sell order class.
+
+    Represents a sell order with ordtype set to Order.Sell.
+    """
     ordtype = Order.Sell
 
 
 # Create stop sell order
 class StopSellOrder(SellOrder):
+    """Stop sell order class.
+
+    Used for sell orders that trigger when price crosses a threshold.
+    """
     pass
 
 
 # Create stop limit sell order
 class StopLimitSellOrder(SellOrder):
+    """Stop limit sell order class.
+
+    Used for sell orders that become limit orders after stop price is triggered.
+    """
     pass

@@ -36,6 +36,13 @@ class DV2(Indicator):
     lines = ("dv2",)
 
     def __init__(self):
+        """Initialize the DV2 indicator calculation.
+
+        Calculates:
+        1. CHL = close / ((high + low) / 2)
+        2. DVU = moving average of CHL
+        3. DV2 = PercentRank(DVU) * 100
+        """
         chl = self.data.close / ((self.data.high + self.data.low) / 2.0)
         dvu = self.p._movav(chl, period=self.p.maperiod)
         self.lines.dv2 = PercentRank(dvu, period=self.p.period) * 100

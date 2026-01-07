@@ -91,6 +91,12 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
 
     # Start
     def __init__(self, *args, **kwargs):
+        """Initialize the LogReturnsRolling analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
@@ -100,6 +106,11 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         self._fundmode = None
 
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets the fund mode and initializes the rolling value queue
+        with size controlled by compression parameter.
+        """
         super().start()
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
@@ -119,6 +130,14 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
                 self._lastvalue = self.strategy.broker.fundvalue
 
     def notify_fund(self, cash, value, fundvalue, shares):
+        """Update current value from fund notification.
+
+        Args:
+            cash: Current cash amount.
+            value: Current portfolio value.
+            fundvalue: Current fund value.
+            shares: Number of fund shares.
+        """
         if not self._fundmode:
             self._value = value if self.p.data is None else self.p.data[0]
         else:
@@ -126,6 +145,10 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
 
     # Called once in a new timeframe
     def on_dt_over(self):
+        """Handle timeframe boundary crossing.
+
+        Updates the rolling value queue when entering a new period.
+        """
         # next is called in a new timeframe period
         if self.p.data is None or len(self.p.data) > 1:
             # Not tracking a data feed or data feed has data already
@@ -137,6 +160,10 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
         self._values.append(vst)  # push values backwards (and out)
 
     def next(self):
+        """Calculate and store the rolling log return for the current period.
+
+        Calculates log(current_value / oldest_value) from the rolling window.
+        """
         # Calculate the return
         super().next()
         # print(self._value,self._values[0])

@@ -243,27 +243,72 @@ class Analyzer(ParameterizedBase):
 
     # Notify cash, value
     def notify_cashvalue(self, cash, value):
+        """Notify the analyzer of cash and value changes.
+
+        Args:
+            cash: Current available cash.
+            value: Current portfolio value.
+
+        Note:
+            Override this method to react to cash/value changes.
+        """
         pass
 
     # Notify fund
     def notify_fund(self, cash, value, fundvalue, shares):
+        """Notify the analyzer of fund-related changes.
+
+        Args:
+            cash: Current available cash.
+            value: Current portfolio value.
+            fundvalue: Current fund value.
+            shares: Number of fund shares.
+
+        Note:
+            Override this method to react to fund changes.
+        """
         pass
 
     # Notify order, can be overridden in subclasses
     def notify_order(self, order):
+        """Notify the analyzer of an order status change.
+
+        Args:
+            order: The order that was updated.
+
+        Note:
+            Override this method to track order status.
+        """
         pass
 
     # Notify trade, can be overridden in subclasses
     def notify_trade(self, trade):
+        """Notify the analyzer of a trade status change.
+
+        Args:
+            trade: The trade that was updated.
+
+        Note:
+            Override this method to track trade status.
+        """
         pass
 
     # next, can be overridden in subclasses
     def next(self):
+        """Called on each bar after minimum period is reached.
+
+        Note:
+            Override this method to implement per-bar analysis logic.
+        """
         pass
 
     # prenext, if equal to next, override prenext in subclasses,
     # generally, prenext needs to do the same calculation as next or pass
     def prenext(self):
+        """Called on each bar before minimum period is reached.
+
+        By default calls next(). Override if different behavior is needed.
+        """
         # prenext and next until a minimum period of total_lines has been
         # reached
         # By default call next, unless prenext is specially overridden in subclass, otherwise prenext calls next
@@ -271,6 +316,10 @@ class Analyzer(ParameterizedBase):
 
     # nextstart, generally overridden by subclasses, or call next
     def nextstart(self):
+        """Called once when minimum period is first reached.
+
+        By default calls next(). Override if different behavior is needed.
+        """
         # Called once when the minimum period for all lines has been meet
         # It's default behavior is to call next
         # By default call next
@@ -278,14 +327,29 @@ class Analyzer(ParameterizedBase):
 
     # start, can be overridden in subclasses
     def start(self):
+        """Called at the start of the backtest.
+
+        Note:
+            Override this method to initialize analyzer state.
+        """
         pass
 
     # stop, can be overridden in subclasses
     def stop(self):
+        """Called at the end of the backtest.
+
+        Note:
+            Override this method to perform final calculations.
+        """
         pass
 
     # Create analysis, override in subclasses
     def create_analysis(self):
+        """Create the analysis results container.
+
+        Creates the rets OrderedDict that will hold analysis results.
+        Override this method to customize the results structure.
+        """
         # create a dict placeholder for the analysis
         # Create a dict placeholder for analysis results
         # self.rets can be accessed via get_analysis
@@ -399,6 +463,14 @@ class TimeFrameAnalyzerBase(Analyzer):
 
     # This method generally needs to be overridden in subclasses
     def on_dt_over(self):
+        """Called when the timeframe period changes.
+
+        This method is called when the datetime crosses into a new
+        period of the configured timeframe (e.g., new week, new month).
+
+        Note:
+            Override this method to implement period-based analysis logic.
+        """
         pass
 
     # CRITICAL FIX: Match master branch - return boolean and update dtcmp atomically

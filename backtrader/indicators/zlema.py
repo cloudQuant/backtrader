@@ -38,6 +38,10 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
     params = (("_movav", EMA),)
 
     def __init__(self):
+        """Initialize the ZLEMA indicator.
+
+        Calculates lag and alpha values for zero-lag EMA.
+        """
         super().__init__()
         self.lag = (self.p.period - 1) // 2
         self.alpha = 2.0 / (1.0 + self.p.period)
@@ -45,6 +49,10 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
         self.addminperiod(self.lag + self.p.period)
 
     def nextstart(self):
+        """Seed ZLEMA calculation with SMA on first valid bar.
+
+        Uses SMA of lag-adjusted data for initial seed value.
+        """
         # Seed with SMA of adjusted data
         period = self.p.period
         lag = self.lag
@@ -55,11 +63,19 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
         self.lines.zlema[0] = data_sum / period
 
     def next(self):
+        """Calculate ZLEMA for the current bar.
+
+        Applies EMA to lag-adjusted data: 2 * data - data(-lag).
+        """
         lag = self.lag
         adjusted = 2.0 * self.data[0] - self.data[-lag]
         self.lines.zlema[0] = self.lines.zlema[-1] * self.alpha1 + adjusted * self.alpha
 
     def once(self, start, end):
+        """Calculate ZLEMA in runonce mode.
+
+        Applies EMA to lag-adjusted data across all bars.
+        """
         darray = self.data.array
         larray = self.lines.zlema.array
         period = self.p.period

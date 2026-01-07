@@ -30,6 +30,12 @@ from .utils.py3 import cmp, range
 # Generate a List equivalent which uses "is" for contains
 # Create a new List class, overriding __contains__ method, if any element in list has hash value equal to other's hash value, return True
 class List(list):
+    """List subclass that uses hash equality for contains checks.
+
+    This class overrides __contains__ to check if any element has
+    the same hash value as the target, rather than using identity comparison.
+    """
+
     def __contains__(self, other):
         return any(x.__hash__() == other.__hash__() for x in self)
 
@@ -43,6 +49,14 @@ class Logic(LineActions):
     """
 
     def __init__(self, *args):
+        """Initialize the Logic operation.
+
+        Converts all arguments to arrays and propagates minperiod
+        from operands to ensure proper synchronization.
+
+        Args:
+            *args: Line objects or values to operate on.
+        """
         super(Logic, self).__init__()
         self.args = [self.arrayize(arg) for arg in args]
 
@@ -72,16 +86,30 @@ class DivByZero(Logic):
     """
 
     def __init__(self, a, b, zero=0.0):
+        """Initialize the DivByZero operation.
+
+        Args:
+            a: Numerator line or value.
+            b: Denominator line or value.
+            zero: Value to return when division by zero occurs.
+        """
         super(DivByZero, self).__init__(a, b)
         self.a = a
         self.b = b
         self.zero = zero
 
     def next(self):
+        """Calculate the next value with zero-division protection."""
         b = self.b[0]
         self[0] = self.a[0] / b if b else self.zero
 
     def once(self, start, end):
+        """Calculate all values at once with zero-division protection.
+
+        Args:
+            start: Starting index for calculation.
+            end: Ending index for calculation.
+        """
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
@@ -108,6 +136,14 @@ class DivZeroByZero(Logic):
     """
 
     def __init__(self, a, b, single=float("inf"), dual=0.0):
+        """Initialize the DivZeroByZero operation.
+
+        Args:
+            a: Numerator line or value.
+            b: Denominator line or value.
+            single: Value to return when numerator is non-zero and denominator is zero.
+            dual: Value to return when both numerator and denominator are zero.
+        """
         super(DivZeroByZero, self).__init__(a, b)
         self.a = a
         self.b = b
@@ -115,6 +151,7 @@ class DivZeroByZero(Logic):
         self.dual = dual
 
     def next(self):
+        """Calculate the next value with zero/zero indetermination protection."""
         b = self.b[0]
         a = self.a[0]
         if b == 0.0:
@@ -123,6 +160,12 @@ class DivZeroByZero(Logic):
             self[0] = self.a[0] / b
 
     def once(self, start, end):
+        """Calculate all values at once with zero/zero indetermination protection.
+
+        Args:
+            start: Starting index for calculation.
+            end: Ending index for calculation.
+        """
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
@@ -141,15 +184,34 @@ class DivZeroByZero(Logic):
 
 # Compare a and b, a and b are likely lines
 class Cmp(Logic):
+    """Comparison operation that returns comparison results.
+
+    Compares two line objects and returns standard comparison values:
+    -1 if a < b, 0 if a == b, 1 if a > b.
+    """
+
     def __init__(self, a, b):
+        """Initialize the comparison operation.
+
+        Args:
+            a: First line or value to compare.
+            b: Second line or value to compare.
+        """
         super(Cmp, self).__init__(a, b)
         self.a = self.args[0]
         self.b = self.args[1]
 
     def next(self):
+        """Calculate the next comparison value."""
         self[0] = cmp(self.a[0], self.b[0])
 
     def once(self, start, end):
+        """Calculate all comparison values at once.
+
+        Args:
+            start: Starting index for calculation.
+            end: Ending index for calculation.
+        """
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
@@ -162,7 +224,25 @@ class Cmp(Logic):
 # Compare two lines, a and b, return corresponding r1 value when a<b, return r2 value when a=b, return r3 value when a>b
 # todo A friend in the backtrader quantitative trading group pointed out this issue
 class CmpEx(Logic):
+    """Extended comparison operation with three possible return values.
+
+    Compares two line objects and returns one of three values based on
+    the comparison result:
+    - r1 if a < b
+    - r2 if a == b
+    - r3 if a > b
+    """
+
     def __init__(self, a, b, r1, r2, r3):
+        """Initialize the extended comparison operation.
+
+        Args:
+            a: First line or value to compare.
+            b: Second line or value to compare.
+            r1: Value to return when a < b.
+            r2: Value to return when a == b.
+            r3: Value to return when a > b.
+        """
         super(CmpEx, self).__init__(a, b, r1, r2, r3)
         self.a = self.args[0]
         self.b = self.args[1]
@@ -171,6 +251,7 @@ class CmpEx(Logic):
         self.r3 = self.args[4]
 
     def next(self):
+        """Calculate the next extended comparison value."""
         # self[0] = cmp(self.a[0], self.b[0])
         if self.a[0] < self.b[0]:
             self[0] = self.r1[0]
@@ -180,6 +261,12 @@ class CmpEx(Logic):
             self[0] = self.r2[0]
 
     def once(self, start, end):
+        """Calculate all extended comparison values at once.
+
+        Args:
+            start: Starting index for calculation.
+            end: Ending index for calculation.
+        """
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
@@ -202,16 +289,37 @@ class CmpEx(Logic):
 
 # If statement, return corresponding a value when cond is satisfied, return b value when not satisfied
 class If(Logic):
+    """Conditional selection operation.
+
+    Returns a value from a or b based on a condition:
+    - Returns a if condition is True
+    - Returns b if condition is False
+    """
+
     def __init__(self, cond, a, b):
+        """Initialize the conditional operation.
+
+        Args:
+            cond: Condition line - must evaluate to boolean.
+            a: Value to return when condition is True.
+            b: Value to return when condition is False.
+        """
         super(If, self).__init__(a, b)
         self.a = self.args[0]
         self.b = self.args[1]
         self.cond = self.arrayize(cond)
 
     def next(self):
+        """Calculate the next conditional value."""
         self[0] = self.a[0] if self.cond[0] else self.b[0]
 
     def once(self, start, end):
+        """Calculate all conditional values at once.
+
+        Args:
+            start: Starting index for calculation.
+            end: Ending index for calculation.
+        """
         # cache python dictionary lookups
         dst = self.array
 
@@ -341,10 +449,23 @@ class If(Logic):
 
 # Apply one logic to multiple elements
 class MultiLogic(Logic):
+    """Base class for operations that apply a function to multiple arguments.
+
+    The flogic attribute should be set to a callable that takes
+    an iterable of values and returns a single result.
+    """
+
     def next(self):
+        """Apply the logic function to current values from all arguments."""
         self[0] = self.flogic([arg[0] for arg in self.args])
 
     def once(self, start, end):
+        """Apply the logic function to all values across the specified range.
+
+        Args:
+            start: Starting index for calculation.
+            end: Ending index for calculation.
+        """
         # cache python dictionary lookups
         dst = self.array
         arrays = [arg.array for arg in self.args]
@@ -356,7 +477,19 @@ class MultiLogic(Logic):
 
 # Mainly uses functools.partial to generate partial function, functools.reduce, iterates function on a sequence
 class MultiLogicReduce(MultiLogic):
+    """MultiLogic that uses functools.reduce for cumulative operations.
+
+    This class applies a reduction function cumulatively to all arguments,
+    combining them into a single result.
+    """
+
     def __init__(self, *args, **kwargs):
+        """Initialize the reduction operation.
+
+        Args:
+            *args: Line objects or values to reduce.
+            **kwargs: Optional keyword arguments including 'initializer'.
+        """
         super(MultiLogicReduce, self).__init__(*args)
         if "initializer" not in kwargs:
             self.flogic = functools.partial(functools.reduce, self.flogic)
@@ -368,7 +501,19 @@ class MultiLogicReduce(MultiLogic):
 
 # Inheritance class, process flogic
 class Reduce(MultiLogicReduce):
+    """Generic reduction operation with a custom function.
+
+    Allows any reduction function to be applied to the arguments.
+    """
+
     def __init__(self, flogic, *args, **kwargs):
+        """Initialize the custom reduction operation.
+
+        Args:
+            flogic: Function to use for reduction.
+            *args: Line objects or values to reduce.
+            **kwargs: Optional keyword arguments.
+        """
         self.flogic = flogic
         super(Reduce, self).__init__(*args, **kwargs)
 
@@ -379,44 +524,75 @@ class Reduce(MultiLogicReduce):
 
 # Determine if both x and y are True
 def _andlogic(x, y):
+    """Logical AND operation for reduction."""
     return bool(x and y)
 
 
 # Determine if all elements are True
 class And(MultiLogicReduce):
+    """Logical AND operation across all arguments.
+
+    Returns True only if all input values are truthy.
+    """
     flogic = staticmethod(_andlogic)
 
 
 # Determine if either x or y is true
 def _orlogic(x, y):
+    """Logical OR operation for reduction."""
     return bool(x or y)
 
 
 # Determine if any element in the sequence is true
 class Or(MultiLogicReduce):
+    """Logical OR operation across all arguments.
+
+    Returns True if any input value is truthy.
+    """
     flogic = staticmethod(_orlogic)
 
 
 # Find maximum value
 class Max(MultiLogic):
+    """Maximum operation across all arguments.
+
+    Returns the maximum value from all input lines.
+    """
     flogic = max
 
 
 # Find minimum value
 class Min(MultiLogic):
+    """Minimum operation across all arguments.
+
+    Returns the minimum value from all input lines.
+    """
     flogic = min
 
 
 # Calculate sum
 class Sum(MultiLogic):
+    """Sum operation across all arguments.
+
+    Returns the sum of all input values using math.fsum
+    for better floating point precision.
+    """
     flogic = math.fsum
 
 
 # Check if any exists
 class Any(MultiLogic):
+    """Any operation across all arguments.
+
+    Returns True if any input value is truthy.
+    """
     flogic = any
 
 
 # Check if all
 class All(MultiLogic):
+    """All operation across all arguments.
+
+    Returns True only if all input values are truthy.
+    """
     flogic = all

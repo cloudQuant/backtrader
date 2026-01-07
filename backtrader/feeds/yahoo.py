@@ -78,6 +78,10 @@ class YahooFinanceCSVData(feed.CSVDataBase):
     )
 
     def start(self):
+        """Start the Yahoo Finance CSV data feed.
+
+        Reverses data order if needed for correct chronological sequence.
+        """
         super().start()
         # If reverse is False, return directly, don't run code below
         if not self.params.reverse:
@@ -189,6 +193,11 @@ class YahooLegacyCSV(YahooFinanceCSVData):
 
 
 class YahooFinanceCSV(feed.CSVFeedBase):
+    """Yahoo Finance CSV feed class.
+
+    Wrapper class for YahooFinanceCSVData feed functionality.
+    """
+
     DataCls = YahooFinanceCSVData
 
 
@@ -252,9 +261,17 @@ class YahooFinanceData(YahooFinanceCSVData):
     )
 
     def __init__(self):
+        """Initialize the Yahoo Finance data feed.
+
+        Sets up error tracking for data downloads.
+        """
         self.error = None
 
     def start_v7(self):
+        """Start Yahoo Finance data download using v7 API.
+
+        Fetches crumb cookie and downloads historical data.
+        """
         try:
             import requests
         except ImportError:
@@ -358,6 +375,10 @@ class YahooFinanceData(YahooFinanceCSVData):
         self.f = f
 
     def start(self):
+        """Start the Yahoo Finance data feed.
+
+        Initiates download and prepares CSV parser.
+        """
         self.start_v7()
 
         # Prepared a "path" file -  CSV Parser can take over
@@ -365,6 +386,11 @@ class YahooFinanceData(YahooFinanceCSVData):
 
 
 class YahooFinance(feed.CSVFeedBase):
+    """Yahoo Finance feed class.
+
+    Wrapper class for YahooFinanceData feed functionality.
+    """
+
     DataCls = YahooFinanceData
     # Get specific parameters and form tuple
     params = DataCls.params._gettuple()

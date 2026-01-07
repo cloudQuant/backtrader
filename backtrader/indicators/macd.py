@@ -54,6 +54,10 @@ class MACD(Indicator):
         return plabels
 
     def __init__(self):
+        """Initialize the MACD indicator.
+
+        Creates moving averages and sets up signal line calculation.
+        """
         super().__init__()
         # Store the EMAs as sub-indicators
         self.me1 = self.p.movav(self.data, period=self.p.period_me1)
@@ -74,6 +78,10 @@ class MACD(Indicator):
         self.signal_alpha1 = 1.0 - self.signal_alpha
 
     def prenext(self):
+        """Calculate MACD during warmup period.
+
+        Ensures MACD values are available for signal line seeding.
+        """
         # Calculate MACD during warmup period so values are available for signal seeding
         idx = self.lines[0].idx
         me1_val = self.me1.lines[0].array[idx]
@@ -81,6 +89,10 @@ class MACD(Indicator):
         self.lines.macd[0] = me1_val - me2_val
 
     def nextstart(self):
+        """Calculate MACD and seed signal line on first valid bar.
+
+        Computes MACD and seeds signal with SMA of MACD values.
+        """
         # Calculate MACD = me1 - me2
         # Use direct array access to avoid dependency on indicator processing order
         idx = self.lines[0].idx
@@ -97,6 +109,11 @@ class MACD(Indicator):
         self.lines.signal[0] = macd_sum / signal_period
 
     def next(self):
+        """Calculate MACD and signal line for the current bar.
+
+        MACD = me1 - me2
+        Signal = EMA(MACD)
+        """
         # Calculate MACD = me1 - me2
         # Use direct array access to avoid dependency on indicator processing order
         idx = self.lines[0].idx
@@ -196,17 +213,33 @@ class MACDHisto(MACD):
     plotlines = dict(histo=dict(_method="bar", alpha=0.50, width=1.0))
 
     def __init__(self):
+        """Initialize the MACD Histogram indicator.
+
+        Extends MACD with histogram line.
+        """
         super().__init__()
 
     def nextstart(self):
+        """Calculate MACD Histogram on first valid bar.
+
+        Histogram = MACD - Signal.
+        """
         super().nextstart()
         self.lines.histo[0] = self.lines.macd[0] - self.lines.signal[0]
 
     def next(self):
+        """Calculate MACD Histogram for the current bar.
+
+        Histogram = MACD - Signal.
+        """
         super().next()
         self.lines.histo[0] = self.lines.macd[0] - self.lines.signal[0]
 
     def once(self, start, end):
+        """Calculate MACD Histogram in runonce mode.
+
+        Computes histogram as MACD minus signal across all bars.
+        """
         super().once(start, end)
         macd_array = self.lines.macd.array
         signal_array = self.lines.signal.array

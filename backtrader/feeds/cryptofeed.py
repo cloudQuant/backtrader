@@ -1,3 +1,20 @@
+#!/usr/bin/env python
+"""CryptoCurrency Data Feed Module - Crypto exchange data interface.
+
+This module provides the CryptoFeed for connecting to cryptocurrency
+exchanges for live and historical market data.
+
+Classes:
+    CryptoFeed: Cryptocurrency exchange data feed.
+
+Example:
+    >>> store = bt.stores.CryptoStore()
+    >>> data = bt.feeds.CryptoFeed(
+    ...     store=store,
+    ...     dataname='binance___spot___BTCUSDT'
+    ... )
+    >>> cerebro.adddata(data)
+"""
 import time
 import traceback
 from datetime import datetime
@@ -89,15 +106,34 @@ class CryptoFeed(DataBase):
         )
 
     def get_bar_time(self):
+        """Get the current bar timestamp.
+
+        Returns:
+            int: The timestamp of the current bar.
+        """
         return self.bar_time
 
     def get_exchange_name(self):
+        """Get the exchange name and asset type.
+
+        Returns:
+            str: Exchange name and asset type separated by '___'.
+        """
         return self.exchange_name + "___" + self.asset_type
 
     def get_symbol_name(self):
+        """Get the trading symbol name.
+
+        Returns:
+            str: The trading symbol.
+        """
         return self.symbol
 
     def download_history_bars(self):
+        """Download historical bars from the exchange.
+
+        Fetches historical OHLCV data for the specified period.
+        """
         self.history_bars = self.store.download_history_bars(
             self.p.dataname,
             self.period,
@@ -108,6 +144,10 @@ class CryptoFeed(DataBase):
         self.log(f"download {self.p.dataname}, {self.period}, history bar successfully")
 
     def subscribe_live_bars(self):
+        """Subscribe to live bar updates from the exchange.
+
+        Sets up websocket subscriptions for real-time data.
+        """
         if not self.p.historical:
             if self.exchange_name == "OKX":
                 topics = [
@@ -121,6 +161,11 @@ class CryptoFeed(DataBase):
             self.log(f"subscribe {self.p.dataname} topics: {topics} successfully")
 
     def init_logger(self):
+        """Initialize the logger for the crypto feed.
+
+        Returns:
+            Logger instance for logging feed activity.
+        """
         if self.debug:
             print_info = True
         else:
@@ -131,6 +176,12 @@ class CryptoFeed(DataBase):
         return logger
 
     def log(self, txt, level="info"):
+        """Log a message at the specified level.
+
+        Args:
+            txt: Message text to log.
+            level: Logging level ('info', 'warning', 'error', 'debug').
+        """
         if level == "info":
             self.logger.info(txt)
         elif level == "warning":
@@ -151,6 +202,10 @@ class CryptoFeed(DataBase):
         return self.store.bar_queues[key_name]
 
     def start(self):
+        """Start the Crypto data feed.
+
+        Initializes backfilling or live data mode.
+        """
         self.log("CryptoFeed begin to start")
         DataBase.start(self)
         if self.p.fromdate:
@@ -251,9 +306,26 @@ class CryptoFeed(DataBase):
         return result
 
     def islive(self):
+        """Check if feed is in live mode.
+
+        Returns:
+            bool: True if in live data mode, False otherwise.
+        """
         return self._state == self._ST_LIVE
 
     def get_granularity(self, timeframe, compression):
+        """Get exchange-specific granularity string for timeframe.
+
+        Args:
+            timeframe: The TimeFrame value.
+            compression: The compression multiplier.
+
+        Returns:
+            str: Exchange-specific granularity string.
+
+        Raises:
+            ValueError: If timeframe/compression combination is not supported.
+        """
         granularity = self._GRANULARITIES.get((timeframe, compression))
         if granularity is None:
             raise ValueError(

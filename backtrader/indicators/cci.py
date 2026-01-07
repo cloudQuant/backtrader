@@ -52,6 +52,15 @@ class CommodityChannelIndex(Indicator):
         self.plotinfo.plotyhlines = [0.0, self.p.upperband, self.p.lowerband]
 
     def __init__(self):
+        """Initialize the CCI indicator calculation.
+
+        Calculates:
+        1. Typical price: (high + low + close) / 3
+        2. Moving average of typical price
+        3. Deviation from the mean
+        4. Mean deviation
+        5. CCI = deviation / (factor * mean deviation)
+        """
         # CRITICAL: Use line objects to match master branch behavior
         # tp = typical price
         tp = (self.data.high + self.data.low + self.data.close) / 3.0

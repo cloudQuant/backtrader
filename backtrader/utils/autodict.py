@@ -23,8 +23,14 @@ from backtrader.utils.py3 import values as py3lvalues  # Changed relative import
 
 
 def Tree():
-    # Not sure what this function is for, not used elsewhere, ignore
-    # Consider deleting
+    """Create a recursive defaultdict structure.
+
+    Returns a defaultdict that automatically creates nested defaultdicts
+    for any missing key, allowing for infinite nesting.
+
+    Returns:
+        defaultdict: A recursive defaultdict structure.
+    """
     return defaultdict(Tree)
 
 
@@ -215,6 +221,13 @@ class AutoOrderedDict(OrderedDict):
         return self + other
 
     def lvalues(self):
+        """Return dictionary values as a list.
+
+        Provides Python 2/3 compatible list of values.
+
+        Returns:
+            list: List of all values in the dictionary.
+        """
         return py3lvalues(self)
 
 

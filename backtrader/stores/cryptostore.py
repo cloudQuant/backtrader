@@ -23,7 +23,28 @@ from bt_api_py.functions.log_message import SpdLogManager
 
 # class CryptoStore(with_metaclass(MetaSingleton, object)):
 class CryptoStore:
-    """bt_api_py and backtrader store"""
+    """Store for bt_api_py cryptocurrency exchange connections.
+
+    This store manages connections to cryptocurrency exchanges via the bt_api_py
+    library, handling data feeds, order management, and account information.
+
+    Attributes:
+        BrokerCls: Broker class for auto-registration.
+        DataCls: Data class for auto-registration.
+        GetDataNum: Counter for data instances created.
+        kwargs: Exchange connection parameters.
+        feed_api: BtApi instance for exchange communication.
+        data_queues: Dictionary of data queues from feed API.
+        exchange_feeds: Dictionary of exchange feed instances.
+        debug: Boolean flag for debug mode.
+        logger: Logger instance for logging.
+        subscribe_bar_num: Number of subscribed bar feeds.
+        cache_bar_dict: Dictionary for caching bar data.
+        bar_queues: Dictionary of bar queues.
+        order_queue: Queue for order data.
+        trade_queue: Queue for trade data.
+        crypto_datas: Dictionary of crypto data instances.
+    """
 
     BrokerCls = None  # broker class will auto register
     DataCls = None  # data class will auto register
@@ -39,6 +60,15 @@ class CryptoStore:
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self, exchange_params, debug=True, *args, **kwargs):
+        """Initialize the CryptoStore.
+
+        Args:
+            exchange_params: Dictionary containing exchange connection parameters
+                including API keys, exchange name, and other configuration.
+            debug: Boolean flag for debug mode. Defaults to True.
+            *args: Variable length argument list.
+            **kwargs: Arbitrary keyword arguments.
+        """
         super().__init__(*args, **kwargs)
         self.GetDataNum = 0
         self.kwargs = exchange_params
@@ -60,6 +90,13 @@ class CryptoStore:
         self.log("------crypto store initialized successfully------")
 
     def init_logger(self):
+        """Initialize the logger for the store.
+
+        Returns:
+            SpdLogManager: Configured logger instance. Logs are written to
+                'cryptofeed.log' file and optionally printed to console based
+                on debug mode.
+        """
         if self.debug:
             print_info = True
         else:
@@ -70,6 +107,13 @@ class CryptoStore:
         return logger
 
     def log(self, txt, level="info"):
+        """Log a message at the specified level.
+
+        Args:
+            txt: The message text to log.
+            level: The logging level. Must be one of 'info', 'warning', 'error',
+                or 'debug'. Defaults to 'info'.
+        """
         if level == "info":
             self.logger.info(txt)
         elif level == "warning":
@@ -83,6 +127,16 @@ class CryptoStore:
 
     @staticmethod
     def dispatch_data_to_queue(data, queues):
+        """Dispatch market data to appropriate queues based on data type.
+
+        This static method processes different types of market data (RequestData
+        and BarData) and routes them to the appropriate queue based on exchange
+        name, asset type, and symbol.
+
+        Args:
+            data: Market data object (RequestData or BarData).
+            queues: Dictionary of queues keyed by 'exchange___asset_type___symbol'.
+        """
         if isinstance(data, RequestData):
             # print("push history bars to queue")  # Removed for performance
             data.init_data()
@@ -226,6 +280,24 @@ class CryptoStore:
     def download_history_bars(
         self, dataname, granularity, count=100, start_time=None, end_time=None
     ):
+        """Download historical bar data from the exchange.
+
+        Args:
+            dataname: Data name in format 'exchange___asset_type___symbol'.
+            granularity: Time period for bars (e.g., '1m', '5m', '1H', '1D').
+            count: Number of bars to download per request. Defaults to 100.
+            start_time: Start time for data download. Can be string (ISO format)
+                or datetime object. Defaults to None.
+            end_time: End time for data download. Can be string (ISO format)
+                or datetime object. Defaults to None (uses current time).
+
+        Returns:
+            list: List of BarData objects containing historical OHLCV data.
+
+        Raises:
+            ValueError: If an unsupported granularity period is provided.
+            TypeError: If an unsupported time format is provided.
+        """
         self.log(f"store {self.feed_api.exchange_feeds.keys()}")
         bar_data_list = []
         exchange, asset_type, symbol = dataname.split("___")
@@ -342,6 +414,16 @@ class CryptoStore:
         return bar_data_list
 
     def getcash(self, cache=True):
+        """Get the total cash balance in the account.
+
+        Args:
+            cache: If True, returns cached cash value without updating balance.
+                If False, updates balance from exchange before returning. Defaults
+                to True.
+
+        Returns:
+            float: Total cash balance in the account.
+        """
         if cache is True:
             return self.feed_api.get_total_cash()
         else:
@@ -349,6 +431,16 @@ class CryptoStore:
             return self.feed_api.get_total_cash()
 
     def getvalue(self, cache=True):
+        """Get the total account value (cash + holdings).
+
+        Args:
+            cache: If True, returns cached value without updating balance.
+                If False, updates balance from exchange before returning. Defaults
+                to True.
+
+        Returns:
+            float: Total account value including cash and holdings.
+        """
         if cache is True:
             return self.feed_api.get_total_value()
         else:
@@ -357,6 +449,14 @@ class CryptoStore:
 
     # Used to get unfilled order information
     def get_open_orders(self, data=None):
+        """Get unfilled/open orders from the exchange.
+
+        Args:
+            data: Optional data object to filter orders by symbol.
+
+        Returns:
+            list: List of open order objects. Currently returns None.
+        """
         pass
 
     def make_order(
@@ -371,6 +471,25 @@ class CryptoStore:
         extra_data=None,
         **kwargs,
     ):
+        """Create and submit an order to the exchange.
+
+        Args:
+            data: Data object containing exchange and symbol information.
+            vol: Order volume/quantity.
+            price: Order price. Required for limit orders. Defaults to None.
+            order_type: Type of order (e.g., 'buy-limit', 'sell-market').
+                Defaults to 'buy-limit'.
+            offset: Order offset, 'open' for opening positions, 'close' for
+                closing positions. Defaults to 'open'.
+            post_only: If True, order will only be a maker (no taker fee).
+                Defaults to False.
+            client_order_id: Optional client-defined order ID. Defaults to None.
+            extra_data: Additional order data. Defaults to None.
+            **kwargs: Additional keyword arguments for the exchange API.
+
+        Returns:
+            Order response from the exchange API.
+        """
         exchange_name = data.get_exchange_name()
         exchange_api = self.exchange_feeds[exchange_name]
         symbol_name = data.get_symbol_name()
@@ -388,6 +507,14 @@ class CryptoStore:
         )
 
     def cancel_order(self, order):
+        """Cancel an existing order on the exchange.
+
+        Args:
+            order: Order object containing exchange, symbol, and order ID information.
+
+        Returns:
+            Cancel order response from the exchange API.
+        """
         # print("begin to cancel order")  # Removed for performance
         exchange_name = order.data.get_exchange_name()
         exchange_api = self.exchange_feeds[exchange_name]

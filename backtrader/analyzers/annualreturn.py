@@ -42,12 +42,21 @@ class AnnualReturn(Analyzer):
     """
 
     def __init__(self):
+        """Initialize the AnnualReturn analyzer.
+
+        Initializes cache lists for storing dates and values during backtesting.
+        """
         super().__init__()
         # Cache data
         self._dt_cache = []
         self._value_cache = []
 
     def next(self):
+        """Cache current date and account value on each bar.
+
+        Stores the current datetime and portfolio value for later
+        annual return calculation.
+        """
         # Cache current date and account value each time next is called
         dt_val = self.data.datetime[0]
         value_val = self.strategy.broker.getvalue()
@@ -55,6 +64,12 @@ class AnnualReturn(Analyzer):
         self._value_cache.append(value_val)
 
     def stop(self):
+        """Calculate annual returns from cached data.
+
+        Iterates through cached date-value pairs to calculate returns
+        for each calendar year. Stores results in self.rets (list) and
+        self.ret (dictionary keyed by year).
+        """
         # Must have stats.broker
         # Current year
         cur_year = -1
@@ -114,6 +129,11 @@ class AnnualReturn(Analyzer):
             self.ret[cur_year] = annual_ret
 
     def get_analysis(self):
+        """Return the annual return analysis results.
+
+        Returns:
+            OrderedDict: Dictionary mapping years to their annual returns.
+        """
         return self.ret
 
 
@@ -138,6 +158,15 @@ class MyAnnualReturn(Analyzer):
     """
 
     def stop(self):
+        """Calculate annual returns using pandas.
+
+        Uses pandas DataFrame operations to group data by year and
+        calculate annual returns based on beginning and ending values
+        for each year.
+
+        Note:
+            This method requires pandas to be installed.
+        """
         # Container for saving data - dictionary
         if not hasattr(self, "ret"):
             setattr(self, "ret", OrderedDict())
@@ -161,4 +190,9 @@ class MyAnnualReturn(Analyzer):
             self.ret[year] = annual_return
 
     def get_analysis(self):
+        """Return the annual return analysis results.
+
+        Returns:
+            OrderedDict: Dictionary mapping years to their annual returns.
+        """
         return self.ret

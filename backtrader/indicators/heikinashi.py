@@ -61,12 +61,25 @@ class HeikinAshi(Indicator):
     _nextforce = True
 
     def __init__(self):
+        """Initialize the Heikin Ashi indicator.
+
+        Uses next()/once() methods for calculation to avoid recursive
+        line operation issues.
+        """
         # CRITICAL FIX: Call super().__init__() FIRST to ensure proper initialization
         super().__init__()
         # Use next()/once() methods for calculation to avoid recursive line operation issues
         # that cause strategy's next() to never be called
 
     def next(self):
+        """Calculate Heikin Ashi values for the current bar.
+
+        Calculates ha_close, ha_open, ha_high, and ha_low using:
+        - ha_close = (open + high + low + close) / 4
+        - ha_open = (prev_ha_open + prev_ha_close) / 2
+        - ha_high = max(high, ha_open, ha_close)
+        - ha_low = min(low, ha_open, ha_close)
+        """
         # ha_close = (open + high + low + close) / 4
         ha_close = (self.data.open[0] + self.data.high[0] + self.data.low[0] + self.data.close[0]) / 4.0
         self.lines.ha_close[0] = ha_close
@@ -87,6 +100,10 @@ class HeikinAshi(Indicator):
         self.lines.ha_low[0] = min(self.data.low[0], ha_open, ha_close)
 
     def prenext(self):
+        """Calculate Heikin Ashi values before minimum period is reached.
+
+        Uses the same calculation as next() to show values from the start.
+        """
         # Same calculation as next() for prenext period
         self.next()
 

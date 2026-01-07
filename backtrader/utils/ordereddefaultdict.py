@@ -39,6 +39,17 @@ class OrderedDefaultdict(OrderedDict):
 
     # Class initialization, passing *args parameters and **kwargs parameters
     def __init__(self, *args, **kwargs):
+        """Initialize the OrderedDefaultdict.
+
+        Args:
+            *args: If provided, first argument must be a callable that
+                creates default values for missing keys (like list, dict, int).
+                Remaining args are passed to OrderedDict.
+            **kwargs: Keyword arguments passed to OrderedDict.
+
+        Raises:
+            TypeError: If first argument is not None or callable.
+        """
         # If no *args passed, default self.default_factory is None
         if not args:
             self.default_factory = None

@@ -41,6 +41,7 @@ class OscillatorMixIn(Indicator):
             pass
 
     def __init__(self):
+        """Initialize the oscillator by subtracting the base line from data."""
         self.lines[0] = self.data - self.lines[0]
         super().__init__()
 
@@ -79,6 +80,11 @@ class Oscillator(Indicator):
             pass
 
     def __init__(self):
+        """Initialize the oscillator with data source and oscillator data.
+
+        Calculates the oscillation between two data series or between
+        a data series and its underlying data.
+        """
         super().__init__()
 
         if len(self.datas) > 1:

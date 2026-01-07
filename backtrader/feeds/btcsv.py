@@ -24,11 +24,17 @@ class BacktraderCSVData(feed.CSVDataBase):
       - ``dataname``: The filename to parse or a file-like object
     """
 
-    # Process each row of data
     def _loadline(self, linetokens):
-        # Iterate through each row of data
+        """Parse a line from the CSV file.
+
+        Args:
+            linetokens: List of tokenized CSV values.
+
+        Returns:
+            True if line was successfully parsed.
+        """
         itoken = iter(linetokens)
-        # Time processing
+        # Date processing
         dttxt = next(itoken)  # The Format is YYYY-MM-DD - skip char 4 and 7
         dt = date(int(dttxt[0:4]), int(dttxt[5:7]), int(dttxt[8:10]))
         # If there are 8 columns, time exists, second column is time, process time, if not 8 columns, no time, time uses sessionend
@@ -50,5 +56,9 @@ class BacktraderCSVData(feed.CSVDataBase):
 
 
 class BacktraderCSV(feed.CSVFeedBase):
-    # Class, DataCls is set to BacktraderCSVData class
+    """Backtrader CSV feed class.
+
+    Wrapper class for BacktraderCSVData feed functionality.
+    """
+
     DataCls = BacktraderCSVData

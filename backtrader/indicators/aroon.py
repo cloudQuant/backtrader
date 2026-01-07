@@ -49,6 +49,10 @@ class _AroonBase(Indicator):
         self.plotinfo.plotyhlines += [self.p.lowerband, self.p.upperband]
 
     def __init__(self):
+        """Initialize the Aroon base indicator.
+
+        Sets up Aroon Up/Down calculations based on _up and _down flags.
+        """
         # Look backwards period + 1 for current data because the formula mus
         # produce values between 0 and 100 and can only do that if the
         # calculated hhidx/llidx go from 0 to period (hence period + 1 values)
@@ -92,18 +96,30 @@ class AroonUp(_AroonBase):
     lines = ("aroonup",)
 
     def __init__(self):
+        """Initialize the Aroon Up indicator.
+
+        Calculates Aroon Up values using parent class logic.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate Aroon Up for the current bar.
+
+        Copies the up value from the parent calculation.
+        """
         self.lines.aroonup[0] = self.up[0]
 
     def once(self, start, end):
+        """Calculate Aroon Up in runonce mode.
+
+        Copies up values across all bars.
+        """
         up_array = self.up.lines[0].array
         aroonup_array = self.lines.aroonup.array
-        
+
         while len(aroonup_array) < end:
             aroonup_array.append(0.0)
-        
+
         for i in range(start, min(end, len(up_array))):
             aroonup_array[i] = up_array[i] if i < len(up_array) else 0.0
 
@@ -135,18 +151,30 @@ class AroonDown(_AroonBase):
     lines = ("aroondown",)
 
     def __init__(self):
+        """Initialize the Aroon Down indicator.
+
+        Calculates Aroon Down values using parent class logic.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate Aroon Down for the current bar.
+
+        Copies the down value from the parent calculation.
+        """
         self.lines.aroondown[0] = self.down[0]
 
     def once(self, start, end):
+        """Calculate Aroon Down in runonce mode.
+
+        Copies down values across all bars.
+        """
         down_array = self.down.lines[0].array
         aroondown_array = self.lines.aroondown.array
-        
+
         while len(aroondown_array) < end:
             aroondown_array.append(0.0)
-        
+
         for i in range(start, min(end, len(down_array))):
             aroondown_array[i] = down_array[i] if i < len(down_array) else 0.0
 
@@ -207,12 +235,24 @@ class AroonOscillator(_AroonBase):
             self.plotinfo.plotyhlines.append(-yhline)
 
     def __init__(self):
+        """Initialize the Aroon Oscillator indicator.
+
+        Calculates both up and down values for oscillator calculation.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate Aroon Oscillator for the current bar.
+
+        Oscillator = Aroon Up - Aroon Down.
+        """
         self.lines.aroonosc[0] = self.up[0] - self.down[0]
 
     def once(self, start, end):
+        """Calculate Aroon Oscillator in runonce mode.
+
+        Computes oscillator as difference of up and down values.
+        """
         import math
         up_array = self.up.lines[0].array
         down_array = self.down.lines[0].array

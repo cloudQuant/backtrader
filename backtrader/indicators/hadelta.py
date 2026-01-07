@@ -54,6 +54,10 @@ class HaDelta(Indicator):
     )
 
     def __init__(self):
+        """Initialize the HaDelta indicator.
+
+        Sets up Heikin Ashi calculation state if autoheikin is enabled.
+        """
         super().__init__()
 
         self._autoheikin = self.p.autoheikin
@@ -88,15 +92,23 @@ class HaDelta(Indicator):
             return self.data.close[0] - self.data.open[0]
 
     def prenext(self):
+        """Calculate HaDelta during warmup period.
+
+        Computes haDelta but not smoothed values during warmup.
+        """
         # Calculate haDelta during warmup period
         hd = self._calc_heikin_ashi()
         self.lines.haDelta[0] = hd
 
     def nextstart(self):
+        """Calculate HaDelta and seed smoothed on first valid bar.
+
+        Computes haDelta and seeds smoothed with SMA of haDelta values.
+        """
         # First valid bar - calculate haDelta and seed smoothed with SMA
         hd = self._calc_heikin_ashi()
         self.lines.haDelta[0] = hd
-        
+
         # Seed smoothed with SMA of first period haDelta values
         period = self.p.period
         hd_sum = hd
@@ -105,10 +117,15 @@ class HaDelta(Indicator):
         self.lines.smoothed[0] = hd_sum / period
 
     def next(self):
+        """Calculate HaDelta and smoothed values for current bar.
+
+        haDelta = ha_close - ha_open
+        smoothed = SMA(haDelta, period)
+        """
         # Calculate haDelta = ha_close - ha_open
         hd = self._calc_heikin_ashi()
         self.lines.haDelta[0] = hd
-        
+
         # Calculate SMA of haDelta
         period = self.p.period
         hd_sum = hd
@@ -117,6 +134,10 @@ class HaDelta(Indicator):
         self.lines.smoothed[0] = hd_sum / period
 
     def once(self, start, end):
+        """Calculate HaDelta and smoothed in runonce mode.
+
+        Computes haDelta values and smoothed SMA across all bars.
+        """
         # Get data arrays
         o_array = self.data.open.array
         h_array = self.data.high.array

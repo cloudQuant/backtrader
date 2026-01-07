@@ -91,8 +91,11 @@ class Benchmark(TimeReturn):
         labels.append(self.p.data._name)
         return labels
 
-    # Initialize, if no data set, use first data
     def __init__(self):
+        """Initialize the Benchmark observer.
+
+        Sets up data reference and benchmark analyzer.
+        """
         if self.p.data is None:  # use the 1st data in the system if none given
             self.p.data = self.data0
 
@@ -106,12 +109,18 @@ class Benchmark(TimeReturn):
         # swap for consistency
         self.treturn, self.tbench = t, self.treturn
 
-    # Set benchmark value
     def next(self):
+        """Update benchmark value for the current period.
+
+        Gets the benchmark return from the analyzer.
+        """
         super().next()
         self.lines.benchmark[0] = self.tbench.rets.get(self.treturn.dtkey, float("NaN"))
 
-    # prenext
     def prenext(self):
+        """Process bars before minimum period is reached.
+
+        Handles prenext phase for time tracking.
+        """
         if self.p._doprenext:
             super(TimeReturn, self).prenext()

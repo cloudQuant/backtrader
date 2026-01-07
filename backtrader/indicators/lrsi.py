@@ -41,6 +41,11 @@ class LaguerreRSI(PeriodN):
     l0, l1, l2, l3 = 0.0, 0.0, 0.0, 0.0
 
     def next(self):
+        """Calculate Laguerre RSI for the current bar.
+
+        Calculates L0-L3 Laguerre filter values and computes the
+        RSI-style ratio of upward changes to total changes.
+        """
         l0_1 = self.l0  # cache previous intermediate values
         l1_1 = self.l1
         l2_1 = self.l2
@@ -89,6 +94,11 @@ class LaguerreFilter(PeriodN):
     l0, l1, l2, l3 = 0.0, 0.0, 0.0, 0.0
 
     def next(self):
+        """Calculate Laguerre filter for the current bar.
+
+        Computes L0-L3 Laguerre filter values and outputs the
+        weighted average (l0 + 2*l1 + 2*l2 + l3) / 6.
+        """
         l0_1 = self.l0  # cache previous intermediate values
         l1_1 = self.l1
         l2_1 = self.l2

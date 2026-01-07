@@ -59,26 +59,33 @@ class Ichimoku(Indicator):
     )
 
     def __init__(self):
+        """Initialize the Ichimoku Cloud indicator.
+
+        Creates Highest and Lowest sub-indicators for calculating
+        the five Ichimoku lines: tenkan_sen, kijun_sen, senkou_span_a,
+        senkou_span_b, and chikou_span.
+        """
         super().__init__()
-        
+
         # Create sub-indicators and store references for explicit computation
         self.hi_tenkan = Highest(self.data.high, period=self.p.tenkan)
         self.lo_tenkan = Lowest(self.data.low, period=self.p.tenkan)
-        
+
         self.hi_kijun = Highest(self.data.high, period=self.p.kijun)
         self.lo_kijun = Lowest(self.data.low, period=self.p.kijun)
-        
+
         self.hi_senkou = Highest(self.data.high, period=self.p.senkou)
         self.lo_senkou = Lowest(self.data.low, period=self.p.senkou)
-        
+
         # Calculate minperiod - need senkou_lead bars of history for the forward shift
         self._minperiod = max(self._minperiod, self.p.senkou + self.p.senkou_lead)
-        
+
         # Propagate minperiod to lines
         for line in self.lines:
             line.updateminperiod(self._minperiod)
 
     def next(self):
+        """Calculate Ichimoku values for the current bar."""
         # Calculate tenkan_sen and kijun_sen
         idx = self.lines[0].idx
         

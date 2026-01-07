@@ -22,9 +22,33 @@ from .scheme import PlotScheme
 
 
 class PlotlyScheme(PlotScheme):
-    """Extended scheme for Plotly plotting with optimized colors."""
+    """Extended scheme for Plotly plotting with optimized colors.
+
+    Extends PlotScheme with Plotly-specific settings for interactive charts,
+    including theme selection, range slider configuration, and optimized
+    color schemes for better visual presentation in web-based plots.
+
+    Attributes:
+        plotly_theme (str): Plotly theme name (e.g., 'plotly_white').
+        rangeslider (bool): Whether to show range slider for navigation.
+        rangeslider_preview (bool): Whether to show preview in range slider.
+        height_ratios (list): Height ratios for subplots [price, volume, indicator].
+        barup (str): Color for bullish bars (default: red for Chinese market).
+        barupfill (bool): Whether bullish candles are filled.
+        buymarker_color (str): Color for buy markers.
+        buymarker_size (int): Size of buy markers.
+        sellmarker_color (str): Color for sell markers.
+        sellmarker_size (int): Size of sell markers.
+        equity_color (str): Color for equity curve.
+    """
 
     def __init__(self):
+        """Initialize PlotlyScheme with Plotly-specific defaults.
+
+        Sets up optimized color schemes and plotting configurations for
+        interactive Plotly charts, including Chinese market color conventions
+        (red for up, green for down).
+        """
         super().__init__()
         # Plotly specific settings
         self.plotly_theme = "plotly_white"
@@ -79,6 +103,16 @@ class PlotlyPlot(ParameterizedBase):
     scheme = ParameterDescriptor(default=PlotlyScheme(), doc="Plotting scheme")
 
     def __init__(self, **kwargs):
+        """Initialize PlotlyPlot with optional scheme overrides.
+
+        Args:
+            **kwargs: Optional keyword arguments to override scheme parameters.
+                Any parameter name matching a PlotlyScheme attribute will
+                update that attribute in the scheme.
+
+        Example:
+            >>> plotter = PlotlyPlot(style='candle', volume=True)
+        """
         super().__init__()
         for pname, pvalue in kwargs.items():
             if hasattr(self.p.scheme, pname):

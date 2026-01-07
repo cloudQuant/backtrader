@@ -51,12 +51,20 @@ class StandardDeviation(Indicator):
         return plabels
 
     def __init__(self):
+        """Initialize the Standard Deviation indicator.
+
+        Sets minimum period and checks for external mean data source.
+        """
         super().__init__()
         self.addminperiod(self.p.period)
         # Store mean indicator if provided as second data
         self._use_external_mean = len(self.datas) > 1
 
     def next(self):
+        """Calculate standard deviation for the current bar.
+
+        Uses the formula: sqrt(E[x^2] - E[x]^2)
+        """
         period = self.p.period
         data_sum = 0.0
         data_sq_sum = 0.0
@@ -64,18 +72,19 @@ class StandardDeviation(Indicator):
             val = self.data[-i]
             data_sum += val
             data_sq_sum += val * val
-        
+
         mean = data_sum / period
         meansq = data_sq_sum / period
         sqmean = mean * mean
-        
+
         diff = meansq - sqmean
         if self.p.safepow:
             diff = abs(diff)
-        
+
         self.lines.stddev[0] = math.sqrt(max(0, diff))
 
     def once(self, start, end):
+        """Calculate standard deviation in runonce mode."""
         darray = self.data.array
         larray = self.lines.stddev.array
         period = self.p.period
@@ -145,6 +154,11 @@ class MeanDeviation(Indicator):
         return plabels
 
     def __init__(self):
+        """Initialize the Mean Deviation indicator.
+
+        Creates the mean deviation calculation using either
+        external mean or calculated moving average.
+        """
         # CRITICAL: Match master branch behavior
         # If 2 datas are provided, the 2nd is considered to be the mean of the first
         if len(self.datas) > 1:

@@ -68,6 +68,12 @@ else:
         _KNOWN_UNSTABLE = ["SAR"]
 
         def __init__(self, *args, **kwargs):
+            """Initialize the TALib indicator.
+
+            Args:
+                *args: Positional arguments.
+                **kwargs: Keyword arguments for indicator parameters.
+            """
             # First call parent class initialization
             super(_TALibIndicator, self).__init__(*args, **kwargs)
 
@@ -190,10 +196,24 @@ else:
 
         # oncestart
         def oncestart(self, start, end):
+            """Called at the start of batch processing mode.
+
+            Args:
+                start: Starting index for processing.
+                end: Ending index for processing.
+            """
             pass  # if not ... a call with a single value to once will happen
 
         # Run once
         def once(self, start, end):
+            """Calculate indicator values for all bars at once.
+
+            This batch processing mode is faster than bar-by-bar calculation.
+
+            Args:
+                start: Starting index for processing.
+                end: Ending index for processing.
+            """
             import array
 
             # prepare the data arrays - single shot
@@ -217,6 +237,10 @@ else:
 
         # Run for each bar
         def next(self):
+            """Calculate indicator value for the current bar.
+
+            Called once per bar during event-based processing mode.
+            """
             # prepare the data arrays - single shot
             size = getattr(self, "_lookback", None) or len(self)
             narrays = [np.array(x.lines[0].get(size=size)) for x in self.datas]

@@ -1,5 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Fillers Module - Order execution size calculation.
+
+This module provides filler classes that determine how much of an order
+can be executed based on available volume, price constraints, and
+user-defined parameters.
+
+Classes:
+    FixedSize: Execute with fixed maximum size.
+    FixedBarPerc: Execute using percentage of bar volume.
+    BarPointPerc: Execute distributing volume across price range.
+
+Example:
+    >>> cerebro.broker.set_filler(backtrader.fillers.FixedBarPerc(perc=50.0))
+"""
 from .parameters import ParameterizedBase
 from .utils.py3 import MAXINT
 
@@ -25,6 +39,17 @@ class FixedSize(ParameterizedBase):
     params = (("size", None),)
 
     def __call__(self, order, price, ago):
+        """Calculate the execution size for an order.
+
+        Args:
+            order: The order being executed.
+            price: Execution price.
+            ago: Number of bars back (0 for current, -1 for previous).
+
+        Returns:
+            float: The maximum size that can be executed, limited by
+                bar volume, remaining order size, and configured size.
+        """
         size = self.p.size or MAXINT
         return min((order.data.volume[ago], abs(order.executed.remsize), size))
 
@@ -46,6 +71,17 @@ class FixedBarPerc(ParameterizedBase):
     params = (("perc", 100.0),)
 
     def __call__(self, order, price, ago):
+        """Calculate the execution size using percentage of bar volume.
+
+        Args:
+            order: The order being executed.
+            price: Execution price.
+            ago: Number of bars back (0 for current, -1 for previous).
+
+        Returns:
+            float: The maximum size that can be executed based on
+                percentage of bar volume and remaining order size.
+        """
         # Get the volume and scale it to the requested perc
         maxsize = (order.data.volume[ago] * self.p.perc) // 100
         # Return the maximum possible executed volume
@@ -83,6 +119,17 @@ class BarPointPerc(ParameterizedBase):
     )
 
     def __call__(self, order, price, ago):
+        """Calculate the execution size distributing volume across price range.
+
+        Args:
+            order: The order being executed.
+            price: Execution price.
+            ago: Number of bars back (0 for current, -1 for previous).
+
+        Returns:
+            float: The maximum size that can be executed based on
+                proportional distribution across the price range.
+        """
         # Data
         data = order.data
         # Minimum price movement

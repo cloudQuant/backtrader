@@ -52,9 +52,17 @@ class BuySell(Observer):
     )
 
     def __init__(self):
+        """Initialize the BuySell observer.
+
+        Sets up tracking for buy/sell order lengths.
+        """
         self.curbuylen = None
 
     def next(self):
+        """Update buy/sell markers based on executed orders.
+
+        Calculates average prices for buy and sell orders during the bar.
+        """
         buy = list()
         sell = list()
         # If there are pending orders

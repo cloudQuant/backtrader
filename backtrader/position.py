@@ -51,6 +51,12 @@ class Position(object):
 
     # Initialize based on different size and price
     def __init__(self, size=0, price=0.0):
+        """Initialize a Position instance.
+
+        Args:
+            size: Initial position size (default: 0).
+            price: Initial price for the position (default: 0.0).
+        """
         self.datetime = None
         self.size = size
         if size:
@@ -68,6 +74,15 @@ class Position(object):
 
     # Modify position's size and price
     def fix(self, size, price):
+        """Fix the position to a specific size and price.
+
+        Args:
+            size: The new position size.
+            price: The new position price.
+
+        Returns:
+            bool: True if size equals oldsize, False otherwise.
+        """
         oldsize = self.size
         self.size = size
         self.price = price
@@ -75,6 +90,15 @@ class Position(object):
 
     # Set position's size and price
     def set(self, size, price):
+        """Set position's size and price, calculating opening and closing amounts.
+
+        Args:
+            size: The new position size.
+            price: The new position price.
+
+        Returns:
+            tuple: (size, price, upopened, upclosed) calculated values.
+        """
         # If current position > 0 and theoretical size > current size, means new position opening;
         # If theoretical size <= current position, opening amount is minimum of 0 and theoretical size;
         # Closing amount equals minimum of current position and current position minus theoretical position
@@ -128,10 +152,24 @@ class Position(object):
 
     # Clone position information
     def clone(self):
+        """Create a copy of the current position.
+
+        Returns:
+            Position: A new Position instance with the same size and price.
+        """
         return Position(size=self.size, price=self.price)
 
     # Create a position instance, then update size and price
     def pseudoupdate(self, size, price):
+        """Create a pseudo-update by cloning and updating.
+
+        Args:
+            size: The size to add to the position.
+            price: The price for the update.
+
+        Returns:
+            Position: A new Position instance after update.
+        """
         return Position(self.size, self.price).update(size, price)
 
     # Update size and price

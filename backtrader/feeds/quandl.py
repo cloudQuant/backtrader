@@ -61,6 +61,10 @@ class QuandlCSV(feed.CSVDataBase):
     )
 
     def start(self):
+        """Start the Quandl CSV data feed.
+
+        Reverses data if needed for correct chronological order.
+        """
         super().start()
 
         if not self.params.reverse:
@@ -174,9 +178,17 @@ class Quandl(QuandlCSV):
     )
 
     def __init__(self):
+        """Initialize the Quandl data feed.
+
+        Sets up error tracking for data downloads.
+        """
         self.error = None
 
     def start(self):
+        """Start the Quandl data feed and download data.
+
+        Constructs URL with parameters and fetches data from Quandl API.
+        """
         self.error = None
 
         url = f"{self.p.baseurl}/{self.p.dataset}/{urlquote(self.p.dataname)}.csv"

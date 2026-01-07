@@ -97,6 +97,12 @@ class Timer(ParameterizedBase):
 
     # Initialize
     def __init__(self, *args, **kwargs):
+        """Initialize the Timer instance.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for timer parameters.
+        """
         # Save passed parameters
         self.args = args
         self.kwargs = kwargs
@@ -120,6 +126,11 @@ class Timer(ParameterizedBase):
 
     # Start
     def start(self, data):
+        """Initialize the timer with the associated data source.
+
+        Args:
+            data: Data source for time reference and session information.
+        """
         # write down the 'reset when' value
         # If parameter when is not an integer
         if not isinstance(self.get_param("when"), integer_types):  # expect time/datetime
@@ -238,6 +249,14 @@ class Timer(ParameterizedBase):
 
     # Check time
     def check(self, dt):
+        """Check if the timer should trigger at the given time.
+
+        Args:
+            dt: Numeric datetime to check.
+
+        Returns:
+            bool: True if timer should trigger, False otherwise.
+        """
         # Current date and time
         d = num2date(dt)
         # Current date

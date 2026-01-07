@@ -50,11 +50,19 @@ class PrettyGoodOscillator(Indicator):
     )
 
     def __init__(self):
+        """Initialize the Pretty Good Oscillator.
+
+        Creates moving average and ATR sub-indicators.
+        """
         super().__init__()
         self.movav = self.p._movav(self.data, period=self.p.period)
         self.atr = ATR(self.data, period=self.p.period)
 
     def next(self):
+        """Calculate PGO for the current bar.
+
+        Formula: PGO = (price - MA) / ATR
+        """
         atr_val = self.atr[0]
         if atr_val != 0:
             self.lines.pgo[0] = (self.data[0] - self.movav[0]) / atr_val
@@ -62,6 +70,7 @@ class PrettyGoodOscillator(Indicator):
             self.lines.pgo[0] = 0.0
 
     def once(self, start, end):
+        """Calculate PGO in runonce mode."""
         darray = self.data.array
         ma_array = self.movav.lines[0].array
         atr_array = self.atr.lines[0].array

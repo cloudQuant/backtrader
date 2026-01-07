@@ -40,6 +40,10 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
     params = (("_movav", EMA),)
 
     def __init__(self):
+        """Initialize the DEMA indicator.
+
+        Creates two EMAs for the DEMA calculation.
+        """
         super().__init__()
         self.ema1 = self.p._movav(self.data, period=self.p.period)
         self.ema2 = self.p._movav(self.ema1, period=self.p.period)
@@ -47,9 +51,14 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
         self._minperiod = max(self._minperiod, 2 * self.p.period - 1)
 
     def next(self):
+        """Calculate DEMA for the current bar.
+
+        Formula: DEMA = 2 * EMA1 - EMA(EMA1)
+        """
         self.lines.dema[0] = 2.0 * self.ema1[0] - self.ema2[0]
 
     def once(self, start, end):
+        """Calculate DEMA in runonce mode."""
         ema1_array = self.ema1.lines[0].array
         ema2_array = self.ema2.lines[0].array
         larray = self.lines.dema.array
@@ -102,6 +111,10 @@ class TripleExponentialMovingAverage(MovingAverageBase):
     params = (("_movav", EMA),)
 
     def __init__(self):
+        """Initialize the TEMA indicator.
+
+        Creates three EMAs for the TEMA calculation.
+        """
         super().__init__()
         self.ema1 = self.p._movav(self.data, period=self.p.period)
         self.ema2 = self.p._movav(self.ema1, period=self.p.period)
@@ -110,9 +123,14 @@ class TripleExponentialMovingAverage(MovingAverageBase):
         self._minperiod = max(self._minperiod, 3 * self.p.period - 2)
 
     def next(self):
+        """Calculate TEMA for the current bar.
+
+        Formula: TEMA = 3 * EMA1 - 3 * EMA2 + EMA3
+        """
         self.lines.tema[0] = 3.0 * self.ema1[0] - 3.0 * self.ema2[0] + self.ema3[0]
 
     def once(self, start, end):
+        """Calculate TEMA in runonce mode."""
         ema1_array = self.ema1.lines[0].array
         ema2_array = self.ema2.lines[0].array
         ema3_array = self.ema3.lines[0].array

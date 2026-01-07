@@ -34,6 +34,14 @@ class DataFilter(AbstractDataBase):
     params = (("funcfilter", None),)
 
     def preload(self):
+        """Preload data from the underlying data source.
+
+        If the underlying data is not preloaded, loads it completely.
+        Copies timeframe and compression settings from the source data
+        after it has started (some sources do autodetection).
+
+        This method ensures all necessary data is available before processing.
+        """
         if len(self.p.dataname) == self.p.dataname.buflen():
             # if data is not preloaded … do it
             self.p.dataname.start()

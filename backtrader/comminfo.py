@@ -271,6 +271,14 @@ class ComminfoDC(CommInfoBase):
         return abs(size) * price * mult * commission
 
     def get_margin(self, price):
+        """Calculate the margin required for digital currency trading.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            float: Margin calculated as price * mult * margin parameter.
+        """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
         return price * mult * margin
@@ -313,6 +321,14 @@ class ComminfoFuturesPercent(CommInfoBase):
         return abs(size) * price * mult * commission
 
     def get_margin(self, price):
+        """Calculate the margin required for futures percentage commission.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            float: Margin calculated as price * mult * margin parameter.
+        """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
         return price * mult * margin
@@ -333,6 +349,14 @@ class ComminfoFuturesFixed(CommInfoBase):
         return abs(size) * commission
 
     def get_margin(self, price):
+        """Calculate the margin required for futures fixed commission.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            float: Margin calculated as price * mult * margin parameter.
+        """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
         return price * mult * margin
@@ -355,6 +379,14 @@ class ComminfoFundingRate(CommInfoBase):
         return total_commission
 
     def get_margin(self, price):
+        """Calculate the margin required for funding rate trading.
+
+        Args:
+            price: Current price of the asset.
+
+        Returns:
+            float: Margin calculated as price * mult * margin parameter.
+        """
         mult = self.get_param("mult")
         margin = self.get_param("margin")
         return price * mult * margin

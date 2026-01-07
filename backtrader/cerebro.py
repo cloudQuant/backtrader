@@ -70,6 +70,12 @@ class OptReturn:
     """
 
     def __init__(self, params, **kwargs):
+        """Initialize the OptReturn object.
+
+        Args:
+            params: Strategy parameters used in this optimization run.
+            **kwargs: Additional keyword arguments to set as attributes.
+        """
         self.p = self.params = params
         for k, v in kwargs.items():
             setattr(self, k, v)
@@ -1591,6 +1597,14 @@ class Cerebro(ParameterizedBase):
 
     # Stop writer
     def stop_writers(self, runstrats):
+        """Stop all writers and write final information.
+
+        Args:
+            runstrats: List of strategy instances that were run.
+
+        Collects information from data feeds and strategies, writes
+        the information to all registered writers, and stops them.
+        """
         # Cerebro info
         cerebroinfo = OrderedDict()
         # Data info

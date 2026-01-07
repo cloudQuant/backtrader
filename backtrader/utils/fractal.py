@@ -62,6 +62,12 @@ class Fractal(PeriodN):
     )
 
     def next(self):
+        """Calculate fractal patterns for the current bar.
+
+        Identifies bearish fractals (highest high in middle with two lower
+        highs on sides) and bullish fractals (lowest low in middle with two
+        higher lows on sides).
+        """
         # A bearish turning point occurs when there is a pattern with the
         # highest high in the middle and two lower highs on each side. [Ref 1]
 

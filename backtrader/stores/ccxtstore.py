@@ -78,6 +78,16 @@ class CCXTStore(ParameterizedSingletonMixin):
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self, exchange, currency, config, retries, debug=False, sandbox=False):
+        """Initialize the CCXTStore.
+
+        Args:
+            exchange: Name of the exchange (e.g., 'binance', 'coinbase').
+            currency: Base currency to use for the account.
+            config: Configuration dictionary containing API credentials and settings.
+            retries: Number of times to retry failed requests.
+            debug: Whether to enable debug mode. Defaults to False.
+            sandbox: Whether to use sandbox/testnet mode. Defaults to False.
+        """
         self.exchange = getattr(ccxt, exchange)(config)
         if sandbox:
             self.exchange.set_sandbox_mode(True)
@@ -97,6 +107,20 @@ class CCXTStore(ParameterizedSingletonMixin):
             self._value = balance["total"][currency]
 
     def get_granularity(self, timeframe, compression):
+        """Get the exchange-specific granularity string for a timeframe.
+
+        Args:
+            timeframe: TimeFrame value (e.g., TimeFrame.Minutes, TimeFrame.Days).
+            compression: Compression factor for the timeframe.
+
+        Returns:
+            str: Exchange-specific granularity string (e.g., '1m', '1h', '1d').
+
+        Raises:
+            NotImplementedError: If the exchange doesn't support fetching OHLCV data.
+            ValueError: If the timeframe/compression combination is not supported
+                or not supported by the specific exchange.
+        """
         if not self.exchange.has["fetchOHLCV"]:
             raise NotImplementedError(
                 "'%s' exchange doesn't support fetching OHLCV data" % self.exchange.name
@@ -119,6 +143,22 @@ class CCXTStore(ParameterizedSingletonMixin):
         return granularity
 
     def retry(method):
+        """Decorator to retry methods on exchange errors with rate limit delays.
+
+        This decorator wraps methods that interact with the exchange API to
+        automatically retry on network or exchange errors, with delays based
+        on the exchange's rate limit.
+
+        Args:
+            method: The method to wrap with retry logic.
+
+        Returns:
+            The wrapped method that will retry on failures.
+
+        Raises:
+            NetworkError: If retry attempts are exhausted.
+            ExchangeError: If retry attempts are exhausted.
+        """
         @wraps(method)
         def retry_method(self, *args, **kwargs):
             for i in range(self.retries):
@@ -136,11 +176,26 @@ class CCXTStore(ParameterizedSingletonMixin):
 
     @retry
     def get_wallet_balance(self, params=None):
+        """Get the wallet balance from the exchange.
+
+        Args:
+            params: Optional dictionary of parameters to pass to the exchange.
+                Useful for getting margin balances or other specific balance types.
+
+        Returns:
+            dict: Balance information from the exchange.
+        """
         balance = self.exchange.fetch_balance(params)
         return balance
 
     @retry
     def get_balance(self):
+        """Fetch and update the current balance from the exchange.
+
+        Updates the internal _cash and _value attributes with the free and
+        total balance for the configured currency. Handles None values by
+        setting them to 0.
+        """
         balance = self.exchange.fetch_balance()
         cash = balance["free"][self.currency]
         value = balance["total"][self.currency]
@@ -150,25 +205,72 @@ class CCXTStore(ParameterizedSingletonMixin):
 
     @retry
     def getposition(self):
+        """Get the current position value.
+
+        Returns:
+            float: The total value of the position in the configured currency.
+        """
         return self._value
 
     @retry
     def create_order(self, symbol, order_type, side, amount, price, params):
-        # returns the order
+        """Create an order on the exchange.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USD').
+            order_type: Type of order (e.g., 'market', 'limit').
+            side: Order side ('buy' or 'sell').
+            amount: Amount of the asset to trade.
+            price: Price for limit orders.
+            params: Additional exchange-specific parameters.
+
+        Returns:
+            dict: Order information from the exchange.
+        """
         return self.exchange.create_order(
             symbol=symbol, type=order_type, side=side, amount=amount, price=price, params=params
         )
 
     @retry
     def cancel_order(self, order_id, symbol):
+        """Cancel an order on the exchange.
+
+        Args:
+            order_id: The ID of the order to cancel.
+            symbol: Trading pair symbol for the order.
+
+        Returns:
+            dict: Cancellation confirmation from the exchange.
+        """
         return self.exchange.cancel_order(order_id, symbol)
 
     @retry
     def fetch_trades(self, symbol):
+        """Fetch recent trades for a symbol from the exchange.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USD').
+
+        Returns:
+            list: List of recent trades.
+        """
         return self.exchange.fetch_trades(symbol)
 
     @retry
     def fetch_ohlcv(self, symbol, timeframe, since, limit, params=None):
+        """Fetch OHLCV (candlestick) data from the exchange.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC/USD').
+            timeframe: Timeframe for the candles (e.g., '1m', '1h', '1d').
+            since: Timestamp to fetch data from (in milliseconds).
+            limit: Maximum number of candles to fetch.
+            params: Optional dictionary of additional parameters.
+
+        Returns:
+            list: List of OHLCV data points. Each data point is a list
+                containing [timestamp, open, high, low, close, volume].
+        """
         if self.debug:
             pass
             # print("Fetching: {}, TF: {}, Since: {}, Limit: {}".format(symbol, timeframe, since, limit))  # Removed for performance
@@ -180,10 +282,24 @@ class CCXTStore(ParameterizedSingletonMixin):
 
     @retry
     def fetch_order(self, oid, symbol):
+        """Fetch order information from the exchange.
+
+        Args:
+            oid: Order ID to fetch.
+            symbol: Trading pair symbol for the order.
+
+        Returns:
+            dict: Order information including status, price, amount, etc.
+        """
         return self.exchange.fetch_order(oid, symbol)
 
     @retry
     def fetch_open_orders(self):
+        """Fetch all open orders from the exchange.
+
+        Returns:
+            list: List of open orders.
+        """
         return self.exchange.fetchOpenOrders()
 
     @retry

@@ -55,6 +55,16 @@ class Sizer(ParameterizedBase):
 
     # Get the specific position size for order placement
     def getsizing(self, data, isbuy):
+        """Get the position size for an order.
+
+        Args:
+            data: The target data for the order.
+            isbuy: True for buy operations, False for sell operations.
+
+        Returns:
+            int: The position size to use for the order, as determined
+                by the _getsizing method.
+        """
         comminfo = self.broker.getcommissioninfo(data)
         return self._getsizing(comminfo, self.broker.getcash(), data, isbuy)
 
@@ -90,6 +100,12 @@ class Sizer(ParameterizedBase):
 
     # Set strategy and broker
     def set(self, strategy, broker):
+        """Set the strategy and broker references for this sizer.
+
+        Args:
+            strategy: The strategy instance using this sizer.
+            broker: The broker instance for portfolio information.
+        """
         self.strategy = strategy
         self.broker = broker
 

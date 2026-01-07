@@ -87,10 +87,21 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
     # __init__ method to support parameter initialization after metaclass removal
     def __init__(self, *args, **kwargs):
+        """Initialize the TimeReturn analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         super().__init__(*args, **kwargs)
 
     # Start
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets the fund mode and initializes the starting value for return
+        calculations.
+        """
         super().start()
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
@@ -110,6 +121,14 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
     # Notify fund information
     def notify_fund(self, cash, value, fundvalue, shares):
+        """Update current value based on fund notification.
+
+        Args:
+            cash: Current cash amount.
+            value: Current portfolio value.
+            fundvalue: Current fund value.
+            shares: Number of fund shares.
+        """
         if not self._fundmode:
             # Record current value
             if self.p.data is None:
@@ -124,6 +143,11 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
     # On datetime over
     def on_dt_over(self):
+        """Handle timeframe boundary crossing.
+
+        Updates the starting value for return calculation when crossing
+        into a new timeframe period.
+        """
         # next is called in a new timeframe period
         # if self.p.data is None or len(self.p.data) > 1:
         if self.p.data is None or self._lastvalue is not None:
@@ -138,6 +162,11 @@ class TimeReturn(TimeFrameAnalyzerBase):
 
     # Call next
     def next(self):
+        """Calculate and store the return for the current period.
+
+        Calculates the return as (current_value / start_value) - 1 and
+        stores it in the results dictionary keyed by datetime.
+        """
         # Calculate the return
         super().next()
         # self.dtkey is an attribute set in analyzer, usually the end date of a period

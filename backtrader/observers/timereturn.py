@@ -71,10 +71,16 @@ class TimeReturn(Observer):
             str(self.treturn.compression),
         ]
 
-    # Initialize, add TimeReturn from analyzers
     def __init__(self):
+        """Initialize the TimeReturn observer.
+
+        Adds TimeReturn analyzer to track returns over time.
+        """
         self.treturn = self._owner._addanalyzer_slave(TimeReturnAnalyzer, **self.p._getkwargs())
 
-    # Set current return on each next
     def next(self):
+        """Update the time return value for the current period.
+
+        Gets the return value from the analyzer for the current time key.
+        """
         self.lines.timereturn[0] = self.treturn.rets.get(self.treturn.dtkey, float("NaN"))

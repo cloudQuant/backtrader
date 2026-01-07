@@ -222,6 +222,17 @@ class Trade(object):
     def __init__(
         self, data=None, tradeid=0, historyon=False, size=0, price=0.0, value=0.0, commission=0.0
     ):
+        """Initialize a Trade object.
+
+        Args:
+            data: Data source associated with this trade.
+            tradeid: Unique identifier for the trade.
+            historyon: Whether to record trade history.
+            size: Initial position size.
+            price: Initial price.
+            value: Initial value.
+            commission: Initial commission.
+        """
         self.long = None
         self.ref = next(self.refbasis)
         self.data = data

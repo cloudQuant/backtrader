@@ -324,6 +324,11 @@ class VCData(DataBase):
         return True
 
     def __init__(self, **kwargs):
+        """Initialize the VC data feed.
+
+        Args:
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         super().__init__(**kwargs)
         # Handle original metaclass registration functionality
         vcstore.VCStore.DataCls = self.__class__
@@ -471,6 +476,11 @@ class VCData(DataBase):
         self._serie = serie
 
     def haslivedata(self):
+        """Check if live data is available.
+
+        Returns:
+            bool: True if in live mode and queue exists, False otherwise.
+        """
         return self._laststatus == self.LIVE and self.q
 
     def _load(self):
@@ -547,6 +557,12 @@ class VCData(DataBase):
         return self._pingtmout
 
     def OnNewDataSerieBar(self, DataSerie, forcepush=False):
+        """Process new data bar from VisualChart COM event.
+
+        Args:
+            DataSerie: COM object containing the data series.
+            forcepush: If True, force push all bars regardless of timing.
+        """
         # Processes the COM Event (also called directly when 1st creating the
         # data serie
         ssize = DataSerie.Size
@@ -585,6 +601,10 @@ class VCData(DataBase):
         self.idx = max(1, ssize)
 
     def ping(self):
+        """Ping the data series to check for deliverable bars.
+
+        Checks if any bars are ready to be delivered from the data series.
+        """
         ssize = self._serie.Size
 
         if self.idx > ssize:
@@ -629,6 +649,15 @@ class VCData(DataBase):
             self.store._vcrt_connection(self.store._RT_BASEMSG - p2)
 
     def OnNewTicks(self, ArrayTicks):
+        """Process new ticks from VisualChart COM event.
+
+        Args:
+            ArrayTicks: Array of tick objects from VisualChart.
+
+        Note:
+            This is only used temporarily to verify symbol availability
+            and calculate time offset.
+        """
         # Process the COM Event for New Ticks. This is only used temporarily
         # for 2 purposes
         #
@@ -679,6 +708,11 @@ class VCData(DataBase):
                 self._vcrt.CancelSymbolFeed(self._dataname, False)
 
     def debug_ticks(self, ticks):
+        """Debug helper for printing tick information.
+
+        Args:
+            ticks: Array of tick objects to debug.
+        """
         print("*" * 50, "DEBUG OnNewTicks")
         for tick in ticks:
             print("-" * 40)

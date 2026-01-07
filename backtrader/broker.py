@@ -33,6 +33,16 @@ class BrokerAliasMixin:
     """
 
     def __init__(self, *args, **kwargs):
+        """Initialize the broker alias mixin.
+
+        Creates method aliases for compatibility:
+            - get_cash -> getcash
+            - get_value -> getvalue
+
+        Args:
+            *args: Positional arguments passed to parent.
+            **kwargs: Keyword arguments passed to parent.
+        """
         super().__init__(*args, **kwargs)
         # Create aliases if they don't exist
         if not hasattr(self, "get_cash"):
@@ -179,19 +189,49 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
 
     # Add commission info
     def addcommissioninfo(self, comminfo, name=None):
+        """Add a CommissionInfo object for an asset.
+
+        Args:
+            comminfo: The CommissionInfo object to add.
+            name: Asset name. If None, sets as default for all assets.
+        """
         # Adds a ``CommissionInfo`` object that will be the default for all assets if ``name`` is ``None``
         self.comminfo[name] = comminfo
 
     # Get cash
     def getcash(self):
+        """Get the current available cash.
+
+        Returns:
+            float: Current cash amount.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclasses.
+        """
         raise NotImplementedError
 
     # Get value
     def getvalue(self, datas=None):
+        """Get the current portfolio value.
+
+        Args:
+            datas: Data feeds to calculate value for (optional).
+
+        Returns:
+            float: Current portfolio value.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclasses.
+        """
         raise NotImplementedError
 
     # Get fund shares
     def get_fundshares(self):
+        """Get the current number of shares in fund-like mode.
+
+        Returns:
+            float: Number of shares (1.0 for abstract mode).
+        """
         # Returns the current number of shares in the fund-like mode
         return 1.0  # the abstract mode has only 1 share
 
@@ -199,20 +239,35 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
 
     # Get fund value
     def get_fundvalue(self):
+        """Get the current fund value.
+
+        Returns:
+            float: Current fund value.
+        """
         return self.getvalue()
 
     fundvalue = property(get_fundvalue)
 
     # Set fund mode
     def set_fundmode(self, fundmode, fundstartval=None):
-        """Set the actual fundmode (True or False)
+        """Set the fund mode for the broker.
 
-        If the argument fundstartval is not `None`, it will use
+        Args:
+            fundmode: True to enable fund mode, False otherwise.
+            fundstartval: Initial fund value (optional).
+
+        Note:
+            Not all brokers support fund mode.
         """
         pass  # do nothing, not all brokers can support this
 
     # Get fund mode
     def get_fundmode(self):
+        """Get the current fund mode status.
+
+        Returns:
+            bool: True if fund mode is enabled, False otherwise.
+        """
         # Returns the actual fundmode (True or False)
         return False
 
@@ -220,14 +275,41 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
 
     # Get position
     def getposition(self, data):
+        """Get the current position for a data feed.
+
+        Args:
+            data: Data feed to get position for.
+
+        Returns:
+            Position: Current position for the data feed.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclasses.
+        """
         raise NotImplementedError
 
     # Submit
     def submit(self, order):
+        """Submit an order to the broker.
+
+        Args:
+            order: Order object to submit.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclasses.
+        """
         raise NotImplementedError
 
     # Cancel
     def cancel(self, order):
+        """Cancel a pending order.
+
+        Args:
+            order: Order object to cancel.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclasses.
+        """
         raise NotImplementedError
 
     # Buy order
@@ -246,6 +328,28 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         trailpercent=None,
         **kwargs,
     ):
+        """Create a buy order.
+
+        Args:
+            owner: Strategy/owner creating the order.
+            data: Data feed for the order.
+            size: Size of the order (positive for buy).
+            price: Limit price (optional).
+            plimit: Profit limit price (optional).
+            exectype: Execution type (Market, Limit, Stop, etc.).
+            valid: Validity period for the order.
+            tradeid: Trade identifier.
+            oco: One-cancels-other order reference.
+            trailamount: Trailing amount for stop orders.
+            trailpercent: Trailing percent for stop orders.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Order: The created order object.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclasses.
+        """
         raise NotImplementedError
 
     # Sell order
@@ -264,10 +368,37 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
         trailpercent=None,
         **kwargs,
     ):
+        """Create a sell order.
+
+        Args:
+            owner: Strategy/owner creating the order.
+            data: Data feed for the order.
+            size: Size of the order (positive for sell).
+            price: Limit price (optional).
+            plimit: Profit limit price (optional).
+            exectype: Execution type (Market, Limit, Stop, etc.).
+            valid: Validity period for the order.
+            tradeid: Trade identifier.
+            oco: One-cancels-other order reference.
+            trailamount: Trailing amount for stop orders.
+            trailpercent: Trailing percent for stop orders.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Order: The created order object.
+
+        Raises:
+            NotImplementedError: Must be implemented by subclasses.
+        """
         raise NotImplementedError
 
     # Next bar
     def next(self):
+        """Process the next bar in the backtest.
+
+        Called by the cerebro engine for each iteration.
+        Override in subclasses to perform per-bar operations.
+        """
         pass
 
 

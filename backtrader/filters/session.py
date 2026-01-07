@@ -91,6 +91,12 @@ class SessionFiller(ParameterizedBase):
     }
 
     def __init__(self, data, **kwargs):
+        """Initialize the SessionFiller.
+
+        Args:
+            data: The data feed to apply the filter to.
+            **kwargs: Additional keyword arguments passed to parent class.
+        """
         super().__init__(**kwargs)
         # Calculate and save timedelta for timeframe
         self._tdframe = self._tdeltas[data._timeframe]
@@ -222,6 +228,12 @@ class SessionFilterSimple(ParameterizedBase):
     """
 
     def __init__(self, data, **kwargs):
+        """Initialize the SessionFilterSimple.
+
+        Args:
+            data: The data feed to apply the filter to.
+            **kwargs: Additional keyword arguments passed to parent class.
+        """
         super().__init__(**kwargs)
 
     def __call__(self, data):
@@ -251,6 +263,12 @@ class SessionFilter(ParameterizedBase):
     """
 
     def __init__(self, data, **kwargs):
+        """Initialize the SessionFilter.
+
+        Args:
+            data: The data feed to apply the filter to.
+            **kwargs: Additional keyword arguments passed to parent class.
+        """
         super().__init__(**kwargs)
 
     def __call__(self, data):

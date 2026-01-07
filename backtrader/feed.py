@@ -119,6 +119,12 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     ]
 
     def __init__(self, *args, **kwargs):
+        """Initialize the data feed.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for data feed parameters.
+        """
         # Execute the original metaclass dopreinit functionality
         self._init_preinit(*args, **kwargs)
 
@@ -376,6 +382,14 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Convert time to number; if timezone info is not None, localize time first, then convert
     def date2num(self, dt):
+        """Convert datetime to internal numeric format.
+
+        Args:
+            dt: datetime object to convert.
+
+        Returns:
+            float: Internal numeric representation of the datetime.
+        """
         if self._tz is not None:
             return date2num(self._tz.localize(dt))
 
@@ -383,6 +397,16 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Convert number to date+time
     def num2date(self, dt=None, tz=None, naive=True):
+        """Convert internal numeric format to datetime.
+
+        Args:
+            dt: Numeric datetime value (uses current if None).
+            tz: Timezone to use (uses feed tz if None).
+            naive: Return naive datetime if True.
+
+        Returns:
+            datetime: Converted datetime object.
+        """
         if dt is None:
             return num2date(self.lines.datetime[0], tz or self._tz, naive)
 
@@ -390,10 +414,21 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Whether has live data; default is False; if has live data, needs override
     def haslivedata(self):
+        """Check if this data feed has live data.
+
+        Returns:
+            bool: False for base class, override for live data feeds.
+        """
         return False  # must be overriden for those that can
 
     # Wait interval when resampling live data
     def do_qcheck(self, onoff, qlapse):
+        """Calculate wait interval for queue checking.
+
+        Args:
+            onoff: Whether queue checking is enabled.
+            qlapse: Time elapsed since last check.
+        """
         # if onoff is True, the data will wait p.qcheck for incoming live data
         # on its queue.
         qwait = self.p.qcheck if onoff else 0.0
@@ -433,30 +468,66 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Get feed
     def getfeed(self):
+        """Get the parent feed object.
+
+        Returns:
+            FeedBase or None: The parent feed instance.
+        """
         return self._feed
 
     # Amount of cached data
     def qbuffer(self, savemem=0, replaying=False):
+        """Apply queued buffering to all lines.
+
+        Args:
+            savemem: Memory saving mode.
+            replaying: Whether replaying is active.
+        """
         extrasize = self.resampling or replaying
         for line in self.lines:
             line.qbuffer(savemem=savemem, extrasize=extrasize)
 
     # Start, reset _barstack and _barstash
     def start(self):
+        """Start the data feed.
+
+        Resets internal queues and sets initial status to CONNECTED.
+        """
         self._barstack = collections.deque()
         self._barstash = collections.deque()
         self._laststatus = self.CONNECTED
 
     # End
     def stop(self):
+        """Stop the data feed.
+
+        Override in subclasses for cleanup.
+        """
         pass
 
     # Clone data
     def clone(self, **kwargs):
+        """Create a clone of this data feed.
+
+        Args:
+            **kwargs: Additional keyword arguments for the clone.
+
+        Returns:
+            DataClone: A cloned data feed.
+        """
         return DataClone(dataname=self, **kwargs)
 
     # Copy data and give it a different name
     def copyas(self, _dataname, **kwargs):
+        """Copy the data feed with a different name.
+
+        Args:
+            _dataname: New name for the data feed.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            DataClone: A cloned data feed with the new name.
+        """
         d = DataClone(dataname=self, **kwargs)
         d._dataname = _dataname
         d._name = _dataname
@@ -469,15 +540,34 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Get environment
     def getenvironment(self):
+        """Get the cerebro environment reference.
+
+        Returns:
+            The cerebro environment instance.
+        """
         return self._env
 
     # Add simple filter
     def addfilter_simple(self, f, *args, **kwargs):
+        """Add a simple filter wrapper to this data feed.
+
+        Args:
+            f: Filter function to apply.
+            *args: Positional arguments for the filter.
+            **kwargs: Keyword arguments for the filter.
+        """
         fp = SimpleFilterWrapper(self, f, *args, **kwargs)
         self._filters.append((fp, fp.args, fp.kwargs))
 
     # Add filter
     def addfilter(self, p, *args, **kwargs):
+        """Add a filter to this data feed.
+
+        Args:
+            p: Filter class or instance.
+            *args: Positional arguments for filter creation.
+            **kwargs: Keyword arguments for filter creation.
+        """
         if inspect.isclass(p):
             pobj = p(self, *args, **kwargs)
             self._filters.append((pobj, [], {}))
@@ -520,6 +610,11 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Get time of next bar
     def advance_peek(self):
+        """Peek at the datetime of the next bar.
+
+        Returns:
+            float: Numeric datetime of next bar, or inf if unavailable.
+        """
         try:
             if len(self) < self.buflen():
                 # CRITICAL FIX: Check if datetime[1] is valid before returning
@@ -538,6 +633,13 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Move data forward by size
     def advance(self, size=1, datamaster=None, ticks=True):
+        """Advance the data feed by the specified size.
+
+        Args:
+            size: Number of bars to advance (default: 1).
+            datamaster: Master data feed for synchronization.
+            ticks: Whether to process tick data.
+        """
         if ticks:
             self._tick_nullify()
 
@@ -564,6 +666,15 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # What happens on data when next is called
     def next(self, datamaster=None, ticks=True):
+        """Move to the next bar.
+
+        Args:
+            datamaster: Master data feed for synchronization.
+            ticks: Whether to process tick data.
+
+        Returns:
+            bool: True if a bar is available, False otherwise.
+        """
         # If data length is greater than cached data length, if it's ticks data, call _tick_nullify to generate tick_xxx attributes, then call load to try getting next bar; if ret is empty
         # return ret. If master data is None, if it's ticks data, need to call _tick_fill.
         # If own length is less than cached data length, move forward
@@ -611,6 +722,10 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Preload data
     def preload(self):
+        """Preload all available data from the data feed.
+
+        Loads all bars and resets position to the beginning.
+        """
         # Load data
         while self.load():
             pass
@@ -648,6 +763,16 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Load data
     def load(self):
+        """Load the next bar from the data feed.
+
+        Returns:
+            bool: True if a bar was loaded, False if no more data.
+
+        This method handles:
+            - Forwarding the data pointer
+            - Processing filters
+            - Checking date boundaries
+        """
         while True:
             # move a data pointer forward for new bar
             # Move data pointer forward by one
@@ -790,10 +915,24 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     # Add resample filter
     def resample(self, **kwargs):
+        """Add a resampling filter to this data feed.
+
+        Resampling converts data to a different timeframe (e.g., minutes to days).
+
+        Args:
+            **kwargs: Arguments for the Resampler filter.
+        """
         self.addfilter(Resampler, **kwargs)
 
     # Add replay filter
     def replay(self, **kwargs):
+        """Add a replay filter to this data feed.
+
+        Replay filters process tick data into bars with precise control.
+
+        Args:
+            **kwargs: Arguments for the Replayer filter.
+        """
         self.addfilter(Replayer, **kwargs)
 
     @classmethod
@@ -804,13 +943,29 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
 # DataBase class, directly inherits from abstract DataBase
 class DataBase(AbstractDataBase):
+    """Full-featured data feed class.
+
+    Inherits all functionality from AbstractDataBase.
+    This is the standard data feed class for most use cases.
+    """
     pass
 
 
 # Refactor: Remove MetaParams metaclass, use normal parameter processing
 class FeedBase:
+    """Base class for feed containers.
+
+    Manages multiple data feeds and provides parameter processing
+    without using metaclasses.
+    """
+
     # Parameter processing, originally merged parameters automatically via metaclass, now manual processing
     def __init__(self, **kwargs):
+        """Initialize the feed base.
+
+        Args:
+            **kwargs: Keyword arguments for parameters.
+        """
         # Manually set parameters, replacing original metaclass functionality
         self.p = self._create_params(**kwargs)
         self.datas = list()
@@ -820,8 +975,17 @@ class FeedBase:
 
         # Create a simple parameter object
         class Params:
+            """Parameter container for FeedBase.
+
+            Stores parameter values and provides access via _getitems.
+            """
+
             def _getitems(self):
-                """Simulate original _getitems method"""
+                """Simulate original _getitems method.
+
+                Returns:
+                    list: List of (attribute_name, value) tuples for non-private attributes.
+                """
                 # OPTIMIZED: Use __dict__ instead of dir() for better performance
                 items = []
                 for attr_name, value in self.__dict__.items():
@@ -849,16 +1013,28 @@ class FeedBase:
 
     # Data start
     def start(self):
+        """Start all managed data feeds."""
         for data in self.datas:
             data.start()
 
     # Data end
     def stop(self):
+        """Stop all managed data feeds."""
         for data in self.datas:
             data.stop()
 
     # Get data based on dataname and add data to self.datas
     def getdata(self, dataname, name=None, **kwargs):
+        """Get or create a data feed and add it to the managed datas.
+
+        Args:
+            dataname: Data source identifier (filename, URL, etc.).
+            name: Display name for the data feed.
+            **kwargs: Additional parameters for the data feed.
+
+        Returns:
+            DataBase: The created or retrieved data feed instance.
+        """
         # Merge parameters
         final_kwargs = {}
         if hasattr(self.p, "_getitems"):
@@ -918,6 +1094,12 @@ class CSVDataBase(DataBase):
 
     # Get data and simple processing
     def __init__(self, *args, **kwargs):
+        """Initialize the CSV data base.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for parameters.
+        """
         # Execute original metaclass MetaCSVDataBase.dopostinit functionality
         self._csv_postinit(**kwargs)
 
@@ -942,6 +1124,10 @@ class CSVDataBase(DataBase):
                 self._name, _ = os.path.splitext(os.path.basename(dataname))
 
     def start(self):
+        """Start the CSV data feed.
+
+        Opens the CSV file and optionally skips headers.
+        """
         super().start()
         # If data is None
         if self.f is None:
@@ -960,6 +1146,10 @@ class CSVDataBase(DataBase):
 
     # Stop
     def stop(self):
+        """Stop the CSV data feed.
+
+        Closes the CSV file if open.
+        """
         super().stop()
         # If data file is not None, close file and set to None
         if self.f is not None:
@@ -968,6 +1158,10 @@ class CSVDataBase(DataBase):
 
     # Preload data
     def preload(self):
+        """Preload all data from the CSV file.
+
+        Loads all available data and closes the file handle.
+        """
         # Load data
         while self.load():
             pass
@@ -1014,8 +1208,19 @@ class CSVDataBase(DataBase):
 
 
 class CSVFeedBase(FeedBase):
+    """Base class for CSV feed containers.
+
+    Manages CSV data feeds with support for base path prefixing.
+    """
+
     # Set parameters
     def __init__(self, basepath="", **kwargs):
+        """Initialize the CSV feed base.
+
+        Args:
+            basepath: Base path to prepend to data file names.
+            **kwargs: Additional keyword arguments for parameters.
+        """
         self.basepath = basepath
         # Merge CSVDataBase parameters
         csv_params = {}
@@ -1045,12 +1250,28 @@ class CSVFeedBase(FeedBase):
 
 # Data clone
 class DataClone(AbstractDataBase):
+    """Clones an existing data feed.
+
+    Creates a new data feed that references an existing data feed.
+    Useful for creating multiple views of the same data with
+    different parameters or filters.
+    """
+
     # Set _clone attribute to True
     _clone = True
 
     # Initialize, data equals dataname parameter value, _datename equals data's _dataname attribute value
     # Then copy date, time, trading interval, compression parameters
     def __init__(self, *args, **kwargs):
+        """Initialize the data clone.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments, must include 'dataname' (the source data feed).
+
+        Raises:
+            ValueError: If 'dataname' parameter is not provided.
+        """
         # CRITICAL FIX: Initialize these attributes BEFORE calling super().__init__
         # to ensure they exist when parent class methods access them
         self._dlen = None
@@ -1111,12 +1332,20 @@ class DataClone(AbstractDataBase):
 
     # Start
     def start(self):
+        """Start the data clone.
+
+        Initializes internal tracking variables.
+        """
         super().start()
         self._dlen = 0
         self._preloading = False
 
     # Preload data
     def preload(self):
+        """Preload data from the source data feed.
+
+        After preloading, resets the source data's position.
+        """
         self._preloading = True
         super().preload()
         if hasattr(self.data, "home"):
@@ -1125,6 +1354,11 @@ class DataClone(AbstractDataBase):
 
     # Load data
     def _load(self):
+        """Load data from the source data feed.
+
+        Returns:
+            bool: True if data was loaded, False otherwise.
+        """
         # assumption: the data is in the system
         # copy the lines
         # If preparing to preload, run following code to copy specific data bit by bit
@@ -1161,5 +1395,12 @@ class DataClone(AbstractDataBase):
 
     # Move forward by size
     def advance(self, size=1, datamaster=None, ticks=True):
+        """Advance the data clone by the specified size.
+
+        Args:
+            size: Number of bars to advance.
+            datamaster: Master data feed for synchronization (unused).
+            ticks: Whether to process tick data.
+        """
         self._dlen += size
         super().advance(size, datamaster, ticks=ticks)

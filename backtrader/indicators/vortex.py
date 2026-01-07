@@ -30,6 +30,11 @@ class Vortex(Indicator):
     plotlines = dict(vi_plus=dict(_name="+VI"), vi_minus=dict(_name="-VI"))
 
     def __init__(self):
+        """Initialize the Vortex indicator.
+
+        Sets up VI+ and VI- calculations based on True Range and
+        directional movement.
+        """
         h0l1 = abs(self.data.high(0) - self.data.low(-1))
         vm_plus = SumN(h0l1, period=self.p.period)
 

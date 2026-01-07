@@ -29,7 +29,28 @@ from ..utils.py3 import queue
 
 
 class CCXTOrder(Order):
+    """CCXT-specific order implementation.
+
+    This class extends the base Order class to support orders placed through
+    the CCXT library for cryptocurrency exchange trading.
+
+    Attributes:
+        ccxt_order: Raw CCXT order dictionary from the exchange.
+        executed_fills: List of fill IDs that have been processed.
+    """
+
     def __init__(self, owner, data, exectype, side, amount, price, ccxt_order):
+        """Initialize a CCXTOrder instance.
+
+        Args:
+            owner: The strategy or object that owns this order.
+            data: The data feed associated with this order.
+            exectype: Order execution type (Market, Limit, Stop, etc.).
+            side: Order side ('buy' or 'sell').
+            amount: Order size/quantity.
+            price: Order price (None for market orders).
+            ccxt_order: Raw CCXT order dictionary from the exchange.
+        """
         self.owner = owner
         self.data = data
         self.exectype = exectype
@@ -106,6 +127,25 @@ class CCXTBroker(BrokerBase):
     }
 
     def __init__(self, broker_mapping=None, debug=False, **kwargs):
+        """Initialize the CCXTBroker instance.
+
+        Args:
+            broker_mapping: Optional dictionary containing custom mappings for
+                order types and status values. Expected format:
+                {
+                    'order_types': {bt.Order.Market: 'market', ...},
+                    'mappings': {
+                        'closed_order': {'key': 'status', 'value': 'closed'},
+                        'canceled_order': {'key': 'status', 'value': 'canceled'}
+                    }
+                }
+            debug: If True, enable debug output.
+            **kwargs: Additional arguments passed to CCXTStore (exchange,
+                api_key, secret, etc.).
+
+        Raises:
+            KeyError: If broker_mapping is malformed (caught silently).
+        """
         super().__init__()
 
         self.cash = None
@@ -138,12 +178,40 @@ class CCXTBroker(BrokerBase):
         self._last_op_time = 0
 
     def get_balance(self):
+        """Get and update the account balance from the exchange.
+
+        This method manually refreshes the account balance from the exchange,
+        updating the broker's cash and value attributes. This can help alleviate
+        rate limit issues by allowing manual balance checks instead of automatic
+        checks before/after each operation.
+
+        Returns:
+            tuple: (cash, value) where cash is available funds and value is
+                total portfolio value.
+        """
         self.store.get_balance()
         self.cash = self.store._cash
         self.value = self.store._value
         return self.cash, self.value
 
     def get_wallet_balance(self, currency_list, params=None):
+        """Get wallet balance for specific currencies.
+
+        This method allows manual checking of balances for multiple currencies,
+        useful for dealing with multiple assets or margin balances.
+
+        Args:
+            currency_list: List of currency symbols to query (e.g., ['BTC', 'ETH']).
+            params: Optional dictionary of parameters to pass to the exchange API.
+
+        Returns:
+            dict: Dictionary mapping currency symbols to their balance information:
+                {
+                    'BTC': {'cash': <free_amount>, 'value': <total_amount>},
+                    'ETH': {'cash': <free_amount>, 'value': <total_amount>},
+                    ...
+                }
+        """
         result = {}
         if params is None:
             params = {}
@@ -155,6 +223,15 @@ class CCXTBroker(BrokerBase):
         return result
 
     def getcash(self):
+        """Get the current available cash balance.
+
+        Returns:
+            float: Current available cash/funds in the broker currency.
+
+        Note:
+            This method returns cached cash values to avoid repeated REST API calls.
+            Use get_balance() to refresh from the exchange.
+        """
         # Get cash seems to always be called before get value,
         # Therefore, it makes sense to add getbalance here.
         # return self.store.getcash(self.currency)
@@ -162,20 +239,53 @@ class CCXTBroker(BrokerBase):
         return self.cash
 
     def getvalue(self, datas=None):
+        """Get the current portfolio value.
+
+        Args:
+            datas: Unused parameter (kept for API compatibility).
+
+        Returns:
+            float: Current total portfolio value including cash and positions.
+
+        Note:
+            This method returns cached value to avoid repeated REST API calls.
+            Use get_balance() to refresh from the exchange.
+        """
         # return self.store.getvalue(self.currency)
         self.value = self.store._value
         return self.value
 
     def get_notification(self):
+        """Get the next order notification from the queue.
+
+        Returns:
+            Order or None: The next order notification, or None if no
+                notifications are available.
+        """
         try:
             return self.notifs.get(False)
         except queue.Empty:
             return None
 
     def notify(self, order):
+        """Add an order notification to the queue.
+
+        Args:
+            order: The order to notify (typically a clone of the order).
+        """
         self.notifs.put(order)
 
     def getposition(self, data, clone=True):
+        """Get the current position for a data feed.
+
+        Args:
+            data: The data feed to get the position for.
+            clone: If True (default), return a clone of the position to prevent
+                modification of the internal state.
+
+        Returns:
+            Position: The position object for the specified data feed.
+        """
         # return self.o.getposition(data._dataname, clone=clone)
         pos = self.positions[data._dataname]
         if clone:
@@ -183,6 +293,15 @@ class CCXTBroker(BrokerBase):
         return pos
 
     def next(self):
+        """Called on each iteration to update broker state.
+
+        This method is called by the backtrader engine on each iteration.
+        It rate-limits order status checking to once every 3 seconds to avoid
+        hitting exchange API rate limits.
+
+        Note:
+            Debug printing has been removed for performance reasons.
+        """
         if self.debug:
             pass  # print("Broker next() called")  # Removed for performance
         # ===========================================
@@ -341,6 +460,26 @@ class CCXTBroker(BrokerBase):
         trailpercent=None,
         **kwargs,
     ):
+        """Create a buy order.
+
+        Args:
+            owner: The strategy creating this order.
+            data: The data feed to trade.
+            size: Order size (positive for buy).
+            price: Order price (None for market orders).
+            plimit: Limit price for stop-limit orders.
+            exectype: Order execution type (Market, Limit, Stop, StopLimit).
+            valid: Order validity (e.g., Good Till Cancelled).
+            tradeid: Trade identifier.
+            oco: One-Cancels-Other order ID.
+            trailamount: Trailing stop amount.
+            trailpercent: Trailing stop percentage.
+            **kwargs: Additional parameters including 'params' for CCXT-specific
+                options.
+
+        Returns:
+            CCXTOrder: The created order instance.
+        """
         del kwargs["parent"]
         del kwargs["transmit"]
         return self._submit(owner, data, exectype, "buy", size, price, kwargs)
@@ -360,11 +499,44 @@ class CCXTBroker(BrokerBase):
         trailpercent=None,
         **kwargs,
     ):
+        """Create a sell order.
+
+        Args:
+            owner: The strategy creating this order.
+            data: The data feed to trade.
+            size: Order size (positive for sell, will be converted internally).
+            price: Order price (None for market orders).
+            plimit: Limit price for stop-limit orders.
+            exectype: Order execution type (Market, Limit, Stop, StopLimit).
+            valid: Order validity (e.g., Good Till Cancelled).
+            tradeid: Trade identifier.
+            oco: One-Cancels-Other order ID.
+            trailamount: Trailing stop amount.
+            trailpercent: Trailing stop percentage.
+            **kwargs: Additional parameters including 'params' for CCXT-specific
+                options.
+
+        Returns:
+            CCXTOrder: The created order instance.
+        """
         del kwargs["parent"]
         del kwargs["transmit"]
         return self._submit(owner, data, exectype, "sell", size, price, kwargs)
 
     def cancel(self, order):
+        """Cancel an open order.
+
+        Args:
+            order: The CCXTOrder instance to cancel.
+
+        Returns:
+            CCXTOrder: The canceled order instance.
+
+        Note:
+            If the order is already filled or canceled, this method returns
+            the order without taking action. Otherwise, it cancels the order
+            on the exchange and updates the order status.
+        """
         oID = order.ccxt_order["id"]
 
         if self.debug:
@@ -402,24 +574,42 @@ class CCXTBroker(BrokerBase):
         return order
 
     def get_orders_open(self, safe=False):
+        """Get all open orders from the exchange.
+
+        Args:
+            safe: Unused parameter (kept for API compatibility).
+
+        Returns:
+            list: List of open order dictionaries from the exchange.
+        """
         return self.store.fetch_open_orders()
 
     def private_end_point(self, type, endpoint, params):
-        """
-        Open method to allow calls to be made to any private end point.
-        See here: https://github.com/ccxt/ccxt/wiki/Manual#implicit-api-methods
+        """Call a private API endpoint on the exchange.
 
-        - type: String, 'Get', 'Post','Put' or 'Delete'.
-        - endpoint = String containing the endpoint address e.g. 'order/{id}/cancel'
-        - Params: Dict: An implicit method takes a dictionary of parameters, sends
-          the request to the exchange and returns an exchange-specific JSON
-          result from the API as is unparsed.
+        This method allows access to any private, non-unified endpoint provided
+        by the CCXT exchange. For more details, see:
+        https://github.com/ccxt/ccxt/wiki/Manual#implicit-api-methods
 
-        To get a list of all available methods with an exchange instance,
-        including implicit methods and unified methods you can simply do the
-        following:
+        Args:
+            type: HTTP method type ('Get', 'Post', 'Put', or 'Delete').
+            endpoint: String containing the endpoint address (e.g., 'order/{id}/cancel').
+            params: Dictionary of parameters to send with the request.
 
-        print(dir(ccxt.hitbtc()))
+        Returns:
+            dict: Exchange-specific JSON result from the API, returned as-is
+                without parsing.
+
+        Example:
+            To get a list of all available methods with an exchange instance:
+            >>> print(dir(ccxt.hitbtc()))
+
+            To call a private endpoint:
+            >>> broker.private_end_point(
+            ...     'Get',
+            ...     'order/{id}/cancel',
+            ...     {'id': '12345'}
+            ... )
         """
         endpoint_str = endpoint.replace("/", "_")
         endpoint_str = endpoint_str.replace("{", "")

@@ -1,4 +1,24 @@
 #!/usr/bin/env python
+"""Plot Formatters Module - Custom formatters for matplotlib plots.
+
+This module provides custom formatters for matplotlib charts used in backtrader
+plotting, including volume formatters and date formatters that work with
+backtrader's internal date representation.
+
+Classes:
+    MyVolFormatter: Custom formatter for volume axis with K/M/B suffixes.
+    MyDateFormatter: Custom formatter for date axis.
+
+Functions:
+    patch_locator: Patch date locator with custom date limits.
+    patch_formatter: Patch date formatter with custom date handling.
+    getlocator: Create and patch date locator and formatter.
+
+Example:
+    >>> from backtrader.plot.formatters import MyVolFormatter, MyDateFormatter
+    >>> vol_fmt = MyVolFormatter(volmax=1000000)
+    >>> date_fmt = MyDateFormatter(dates, fmt='%Y-%m-%d')
+"""
 
 import matplotlib.dates as mdates
 import matplotlib.ticker as mplticker
@@ -7,9 +27,31 @@ from ..utils import num2date
 
 
 class MyVolFormatter(mplticker.Formatter):
+    """Custom formatter for volume axis labels with magnitude suffixes.
+
+    This formatter formats volume values with appropriate suffixes (K, M, B, T, P)
+    based on the maximum volume value. For example, volumes in the thousands
+    will be displayed with 'K' suffix, millions with 'M' suffix, etc.
+
+    Attributes:
+        Suffixes: List of suffixes for different magnitudes.
+
+    Example:
+        >>> formatter = MyVolFormatter(volmax=1500000)
+        >>> label = formatter(1000000, 0)
+        >>> print(label)
+        1M
+    """
+
     Suffixes = ["", "K", "M", "G", "T", "P"]
 
     def __init__(self, volmax):
+        """Initialize the volume formatter.
+
+        Args:
+            volmax: Maximum volume value to be displayed. This determines
+                the appropriate suffix and divisor for formatting.
+        """
         self.volmax = volmax
         magnitude = 0
         self.divisor = 1.0
@@ -30,7 +72,27 @@ class MyVolFormatter(mplticker.Formatter):
 
 
 class MyDateFormatter(mplticker.Formatter):
+    """Custom formatter for date axis labels.
+
+    This formatter formats dates using backtrader's internal date representation
+    and displays them with the specified format string. It handles index-based
+    date lookups and ensures valid index bounds.
+
+    Example:
+        >>> formatter = MyDateFormatter(dates, fmt='%Y-%m-%d')
+        >>> label = formatter(100, 0)
+        >>> print(label)
+        2020-01-15
+    """
+
     def __init__(self, dates, fmt="%Y-%m-%d"):
+        """Initialize the date formatter.
+
+        Args:
+            dates: Array or sequence of dates in backtrader's internal format.
+            fmt: strftime-compatible format string for date display.
+                Defaults to '%Y-%m-%d'.
+        """
         self.dates = dates
         self.lendates = len(dates)
         self.fmt = fmt
@@ -48,6 +110,16 @@ class MyDateFormatter(mplticker.Formatter):
 
 
 def patch_locator(locator, xdates):
+    """Patch a date locator with custom date limit conversion methods.
+
+    This function patches the locator's datalim_to_dt and viewlim_to_dt methods
+    to work with backtrader's internal date array (xdates) instead of using
+    matplotlib's default date conversion.
+
+    Args:
+        locator: matplotlib date locator instance to patch.
+        xdates: Array of dates in backtrader's internal format.
+    """
     def _patched_datalim_to_dt(self):
         dmin, dmax = self.axis.get_data_interval()
 
@@ -75,6 +147,15 @@ def patch_locator(locator, xdates):
 
 
 def patch_formatter(formatter, xdates):
+    """Patch a date formatter with custom date formatting logic.
+
+    This function patches the formatter's __call__ method to work with
+    backtrader's internal date array (xdates) for index-based date lookups.
+
+    Args:
+        formatter: matplotlib date formatter instance to patch.
+        xdates: Array of dates in backtrader's internal format.
+    """
     def newcall(self, x, pos=0):
         if False and x < 0:
             raise ValueError(
@@ -93,6 +174,21 @@ def patch_formatter(formatter, xdates):
 
 
 def getlocator(xdates, numticks=5, tz=None):
+    """Create a patched date locator and formatter for backtrader plots.
+
+    This function creates matplotlib date locator and formatter instances
+    patched to work with backtrader's internal date representation.
+
+    Args:
+        xdates: Array of dates in backtrader's internal format.
+        numticks: Target number of ticks on the axis. Defaults to 5.
+        tz: Timezone for date conversion. Defaults to None (local timezone).
+
+    Returns:
+        A tuple of (locator, formatter) where:
+            - locator: Patched matplotlib date locator instance.
+            - formatter: Patched matplotlib date formatter instance.
+    """
     span = xdates[-1] - xdates[0]
 
     locator, formatter = mdates.date_ticker_factory(span=span, tz=tz, numticks=numticks)

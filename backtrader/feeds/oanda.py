@@ -152,6 +152,11 @@ class OandaData(DataBase):
         return True
 
     def __init__(self, **kwargs):
+        """Initialize the Oanda data feed.
+
+        Args:
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         super().__init__(**kwargs)
         # Handle original metaclass registration functionality
         oandastore.OandaStore.DataCls = self.__class__
@@ -253,6 +258,11 @@ class OandaData(DataBase):
         self.o.stop()
 
     def haslivedata(self):
+        """Check if live data is available.
+
+        Returns:
+            bool: True if stored message or live queue has data, False otherwise.
+        """
         return bool(self._storedmsg or self.qlive)  # do not return the objs
 
     def _load(self):

@@ -33,6 +33,11 @@ class VChartFile(DataBase):
     """
 
     def __init__(self, **kwargs):
+        """Initialize the VChartFile data feed.
+
+        Args:
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         super().__init__(**kwargs)
         # Handle original metaclass registration functionality
         if hasattr(stores, "VChartFile"):
@@ -45,6 +50,10 @@ class VChartFile(DataBase):
         self._store = None
 
     def start(self):
+        """Start the VChartFile data feed.
+
+        Opens the VisualChart binary file for reading.
+        """
         super().start()
         if self._store is None:
             self._store = stores.VChartFile()
@@ -83,6 +92,10 @@ class VChartFile(DataBase):
             self.f = None
 
     def stop(self):
+        """Stop the VChartFile data feed.
+
+        Closes the open file handle.
+        """
         if self.f is not None:
             self.f.close()
             self.f = None

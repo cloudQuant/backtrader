@@ -35,13 +35,19 @@ class TrueHigh(Indicator):
     lines = ("truehigh",)
 
     def __init__(self):
+        """Initialize the TrueHigh indicator.
+
+        Adds a minimum period of 2 to access previous close.
+        """
         super().__init__()
         self.addminperiod(2)
 
     def next(self):
+        """Calculate true high: max(high, previous_close)."""
         self.lines.truehigh[0] = max(self.data.high[0], self.data.close[-1])
 
     def once(self, start, end):
+        """Calculate true high in runonce mode."""
         high_array = self.data.high.array
         close_array = self.data.close.array
         larray = self.lines.truehigh.array
@@ -77,13 +83,19 @@ class TrueLow(Indicator):
     lines = ("truelow",)
 
     def __init__(self):
+        """Initialize the TrueLow indicator.
+
+        Adds a minimum period of 2 to access previous close.
+        """
         super().__init__()
         self.addminperiod(2)
 
     def next(self):
+        """Calculate true low: min(low, previous_close)."""
         self.lines.truelow[0] = min(self.data.low[0], self.data.close[-1])
 
     def once(self, start, end):
+        """Calculate true low in runonce mode."""
         low_array = self.data.low.array
         close_array = self.data.close.array
         larray = self.lines.truelow.array
@@ -125,15 +137,21 @@ class TrueRange(Indicator):
     lines = ("tr",)
 
     def __init__(self):
+        """Initialize the TrueRange indicator.
+
+        Adds a minimum period of 2 to access previous close.
+        """
         super().__init__()
         self.addminperiod(2)
 
     def next(self):
+        """Calculate true range: truehigh - truelow."""
         truehigh = max(self.data.high[0], self.data.close[-1])
         truelow = min(self.data.low[0], self.data.close[-1])
         self.lines.tr[0] = truehigh - truelow
 
     def once(self, start, end):
+        """Calculate true range in runonce mode."""
         high_array = self.data.high.array
         low_array = self.data.low.array
         close_array = self.data.close.array
@@ -183,6 +201,10 @@ class AverageTrueRange(Indicator):
         return plabels
 
     def __init__(self):
+        """Initialize the ATR indicator.
+
+        Sets up Wilder's smoothing factors.
+        """
         super().__init__()
         self.addminperiod(self.p.period + 1)
         # SMMA alpha for Wilder's smoothing
@@ -190,12 +212,22 @@ class AverageTrueRange(Indicator):
         self.alpha1 = 1.0 - self.alpha
 
     def _calc_tr(self, high, low, prev_close):
-        """Calculate True Range"""
+        """Calculate True Range
+
+        Args:
+            high: Current high price.
+            low: Current low price.
+            prev_close: Previous close price.
+
+        Returns:
+            float: True range value.
+        """
         truehigh = max(high, prev_close)
         truelow = min(low, prev_close)
         return truehigh - truelow
 
     def nextstart(self):
+        """Seed ATR with SMA of first period TR values."""
         # Seed with SMA of first period TR values
         period = self.p.period
         tr_sum = 0.0
@@ -208,10 +240,15 @@ class AverageTrueRange(Indicator):
         self.lines.atr[0] = tr_sum / period
 
     def next(self):
+        """Calculate ATR for the current bar.
+
+        Uses smoothed moving average: ATR = prev_ATR * alpha1 + TR * alpha
+        """
         tr = self._calc_tr(self.data.high[0], self.data.low[0], self.data.close[-1])
         self.lines.atr[0] = self.lines.atr[-1] * self.alpha1 + tr * self.alpha
 
     def once(self, start, end):
+        """Calculate ATR in runonce mode."""
         high_array = self.data.high.array
         low_array = self.data.low.array
         close_array = self.data.close.array

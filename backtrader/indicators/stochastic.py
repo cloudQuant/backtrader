@@ -43,6 +43,10 @@ class _StochasticBase(Indicator):
         self.plotinfo.plotyhlines = [self.p.upperband, self.p.lowerband]
 
     def __init__(self):
+        """Initialize the Stochastic base indicator.
+
+        Creates Highest and Lowest indicators for %K calculation.
+        """
         super().__init__()
         self.highesthigh = Highest(self.data.high, period=self.p.period)
         self.lowestlow = Lowest(self.data.low, period=self.p.period)
@@ -89,9 +93,18 @@ class StochasticFast(_StochasticBase):
     """
 
     def __init__(self):
+        """Initialize the Fast Stochastic indicator.
+
+        Extends base class for fast stochastic calculation.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate Fast Stochastic for the current bar.
+
+        %K = 100 * (close - lowest) / (highest - lowest)
+        %D = SMA(%K, period_dfast)
+        """
         k_val = self._calc_k()
         self.lines.percK[0] = k_val
         # Calculate %D as SMA of %K
@@ -102,6 +115,10 @@ class StochasticFast(_StochasticBase):
         self.lines.percD[0] = k_sum / period_d
 
     def once(self, start, end):
+        """Calculate Fast Stochastic in runonce mode.
+
+        Computes %K and %D values across all bars.
+        """
         hh_array = self.highesthigh.lines[0].array
         ll_array = self.lowestlow.lines[0].array
         close_array = self.data.close.array
@@ -185,26 +202,34 @@ class Stochastic(_StochasticBase):
         return plabels
 
     def __init__(self):
+        """Initialize the Slow Stochastic indicator.
+
+        Sets up tracking for fast %D values which become slow %K.
+        """
         super().__init__()
         self._fast_d_vals = []
         # CRITICAL FIX: Add minperiod for period_dslow smoothing
         self.addminperiod(self.p.period_dslow - 1)
 
     def next(self):
+        """Calculate Slow Stochastic for the current bar.
+
+        Fast %D becomes Slow %K, then Slow %D is SMA of Slow %K.
+        """
         k_val = self._calc_k()
         # Fast %D becomes slow %K
         period_d = self.p.period_dfast
         self._fast_d_vals.append(k_val)
         if len(self._fast_d_vals) > period_d:
             self._fast_d_vals.pop(0)
-        
+
         if len(self._fast_d_vals) >= period_d:
             fast_d = sum(self._fast_d_vals[-period_d:]) / period_d
         else:
             fast_d = sum(self._fast_d_vals) / len(self._fast_d_vals)
-        
+
         self.lines.percK[0] = fast_d
-        
+
         # Slow %D is SMA of slow %K
         period_dslow = self.p.period_dslow
         d_sum = fast_d
@@ -213,6 +238,10 @@ class Stochastic(_StochasticBase):
         self.lines.percD[0] = d_sum / period_dslow
 
     def once(self, start, end):
+        """Calculate Slow Stochastic in runonce mode.
+
+        Computes slow %K and %D values across all bars.
+        """
         hh_array = self.highesthigh.lines[0].array
         ll_array = self.lowestlow.lines[0].array
         close_array = self.data.close.array
@@ -320,12 +349,22 @@ class StochasticFull(_StochasticBase):
         return plabels
 
     def __init__(self):
+        """Initialize the Full Stochastic indicator.
+
+        Extends base class with additional %DSlow line.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate Full Stochastic for the current bar.
+
+        %K = raw stochastic value
+        %D = SMA(%K, period_dfast)
+        %DSlow = SMA(%D, period_dslow)
+        """
         k_val = self._calc_k()
         self.lines.percK[0] = k_val
-        
+
         # %D is SMA of %K
         period_d = self.p.period_dfast
         k_sum = k_val
@@ -333,7 +372,7 @@ class StochasticFull(_StochasticBase):
             k_sum += self.lines.percK[-i]
         d_val = k_sum / period_d
         self.lines.percD[0] = d_val
-        
+
         # %DSlow is SMA of %D
         period_dslow = self.p.period_dslow
         d_sum = d_val
@@ -342,6 +381,10 @@ class StochasticFull(_StochasticBase):
         self.lines.percDSlow[0] = d_sum / period_dslow
 
     def once(self, start, end):
+        """Calculate Full Stochastic in runonce mode.
+
+        Computes %K, %D, and %DSlow values across all bars.
+        """
         hh_array = self.highesthigh.lines[0].array
         ll_array = self.lowestlow.lines[0].array
         close_array = self.data.close.array

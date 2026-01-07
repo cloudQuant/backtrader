@@ -61,6 +61,10 @@ class DicksonMovingAverage(MovingAverageBase):
         return plabels
 
     def __init__(self):
+        """Initialize the Dickson Moving Average.
+
+        Creates ZeroLag and Hull MA sub-indicators.
+        """
         super().__init__()
         self.ec = ZeroLagIndicator(
             period=self.p.period, gainlimit=self.p.gainlimit, _movav=self.p._movav
@@ -68,9 +72,14 @@ class DicksonMovingAverage(MovingAverageBase):
         self.hull = self.p._hma(period=self.p.hperiod)
 
     def next(self):
+        """Calculate DMA for the current bar.
+
+        Formula: DMA = (ZeroLag + HMA) / 2
+        """
         self.lines.dma[0] = (self.ec[0] + self.hull[0]) / 2.0
 
     def once(self, start, end):
+        """Calculate DMA in runonce mode."""
         ec_array = self.ec.lines[0].array
         hull_array = self.hull.lines[0].array
         larray = self.lines.dma.array

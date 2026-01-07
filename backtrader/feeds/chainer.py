@@ -31,8 +31,13 @@ class Chainer(DataBase):
         should be deactivated"""
         return True
 
-    # Initialize
     def __init__(self, *args, **kwargs):
+        """Initialize the Chainer data feed.
+
+        Args:
+            *args: Data feeds to chain together.
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         # Handle timeframe and compression parameters, originally handled by metaclass
         if args:
             # Copy timeframe and compression from first data source
@@ -46,8 +51,11 @@ class Chainer(DataBase):
         self._ds = None
         self._args = args
 
-    # Start
     def start(self):
+        """Start the Chainer data feed.
+
+        Initializes all chained data feeds.
+        """
         super().start()
         for d in self._args:
             d.setenvironment(self._env)
@@ -58,14 +66,21 @@ class Chainer(DataBase):
         self._d = self._ds.pop(0) if self._ds else None
         self._lastdt = datetime.min
 
-    # Stop
     def stop(self):
+        """Stop the Chainer data feed.
+
+        Stops all underlying data feeds.
+        """
         super().stop()
         for d in self._args:
             d.stop()
 
-    # Notifications
     def get_notifications(self):
+        """Get notifications from the current data feed.
+
+        Returns:
+            list: Notifications from active data feed or empty list.
+        """
         return [] if self._d is None else self._d.get_notifications()
 
     # Get timezone

@@ -65,6 +65,10 @@ class KnowSureThing(Indicator):
     plotinfo = dict(plothlines=[0.0])
 
     def __init__(self):
+        """Initialize the KST indicator.
+
+        Creates 4 ROC and moving average sub-indicators.
+        """
         super().__init__()
         self.rcma1 = self.p._rmovav(ROC100(self.data, period=self.p.rp1), period=self.p.rma1)
         self.rcma2 = self.p._rmovav(ROC100(self.data, period=self.p.rp2), period=self.p.rma2)
@@ -72,10 +76,15 @@ class KnowSureThing(Indicator):
         self.rcma4 = self.p._rmovav(ROC100(self.data, period=self.p.rp4), period=self.p.rma4)
 
     def next(self):
+        """Calculate KST and signal for the current bar.
+
+        Formula: KST = w1*RCMA1 + w2*RCMA2 + w3*RCMA3 + w4*RCMA4
+        Signal = SMA(KST, rsignal)
+        """
         rf = self.p.rfactors
         kst_val = rf[0] * self.rcma1[0] + rf[1] * self.rcma2[0] + rf[2] * self.rcma3[0] + rf[3] * self.rcma4[0]
         self.lines.kst[0] = kst_val
-        
+
         # Calculate signal (SMA of KST)
         rsignal = self.p.rsignal
         kst_sum = kst_val
@@ -84,6 +93,7 @@ class KnowSureThing(Indicator):
         self.lines.signal[0] = kst_sum / rsignal
 
     def once(self, start, end):
+        """Calculate KST and signal in runonce mode."""
         rcma1_array = self.rcma1.lines[0].array
         rcma2_array = self.rcma2.lines[0].array
         rcma3_array = self.rcma3.lines[0].array

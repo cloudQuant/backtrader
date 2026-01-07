@@ -62,11 +62,22 @@ class PositionsValue(Analyzer):
 
     # Start
     def __init__(self, *args, **kwargs):
+        """Initialize the PositionsValue analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         self._usedate = None
 
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets up headers for the results dictionary and determines whether
+        to use date or datetime as the key based on the timeframe.
+        """
         # If headers parameter is True, use each data's name as header
         if self.p.headers:
             headers = [d._name or "Data%d" % i for i, d in enumerate(self.datas)]
@@ -79,6 +90,11 @@ class PositionsValue(Analyzer):
 
     # Called once per bar
     def next(self):
+        """Record position values for the current bar.
+
+        Gets the value of positions for each data feed and optionally
+        includes cash. Stores results keyed by date or datetime.
+        """
         # Get value for each data
         pvals = [self.strategy.broker.get_value([d]) for d in self.datas]
         # If cash is True, save cash

@@ -30,11 +30,30 @@ class BarReplayerOpen:
     """
 
     def __init__(self, data):
+        """Initialize the BarReplayerOpen filter.
+
+        Args:
+            data: The data feed to apply the filter to.
+                  The filter sets resampling=1 and replaying=True on the data.
+        """
         self.pendingbar = None
         data.resampling = 1
         data.replaying = True
 
     def __call__(self, data):
+        """Process the data feed to split bars into open and OHLC parts.
+
+        This method is called for each bar in the data feed. It splits the bar
+        into two parts - an initial bar with only the open price (OHLC=Open)
+        and the original OHLC bar. This simulates intraday replay behavior.
+
+        Args:
+            data: The data feed containing the bar to process.
+
+        Returns:
+            bool: True if the length of the stream was changed,
+                  False if it remained unchanged.
+        """
         ret = True
 
         # Make a copy of the new bar and remove it from stream

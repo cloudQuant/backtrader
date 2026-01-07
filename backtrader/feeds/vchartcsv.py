@@ -70,4 +70,9 @@ class VChartCSVData(feed.CSVDataBase):
 
 
 class VChartCSV(feed.CSVFeedBase):
+    """VisualChart CSV feed class.
+
+    Wrapper class for VChartCSVData feed functionality.
+    """
+
     DataCls = VChartCSVData

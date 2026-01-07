@@ -93,6 +93,12 @@ class RollOver(DataBase):
         return True
 
     def __init__(self, *args, **kwargs):
+        """Initialize the RollOver data feed.
+
+        Args:
+            *args: Data feeds to roll over between.
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         # Handle timeframe and compression parameters, originally handled by metaclass
         if args:
             # Copy timeframe and compression from first data source
@@ -109,6 +115,10 @@ class RollOver(DataBase):
         self._rolls = args
 
     def start(self):
+        """Start the RollOver data feed.
+
+        Initializes all data feeds for rollover functionality.
+        """
         super().start()
         # Loop through all data, prepare to start
         for d in self._rolls:
@@ -126,6 +136,10 @@ class RollOver(DataBase):
         self._dts = [datetime.min for xx in self._ds]
 
     def stop(self):
+        """Stop the RollOver data feed.
+
+        Stops all underlying data feeds.
+        """
         # End data
         super().stop()
         for d in self._rolls:

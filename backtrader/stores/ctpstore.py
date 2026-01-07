@@ -40,7 +40,40 @@ from backtrader.utils.py3 import queue
 
 
 class MyCtpbeeApi(CtpbeeApi):
+    """Custom CTP API wrapper for handling CTP events and market data.
+
+    This class extends CtpbeeApi to provide custom handling for tick data,
+    bar data, orders, trades, positions, and account information from the
+    CTP (China Futures) market.
+
+    Attributes:
+        md_queue: Market data queue for distributing bar data to feeds.
+        is_position_ok: Flag indicating if position data has been received.
+        is_account_ok: Flag indicating if account data has been received.
+        _bar_timeframe: Bar timeframe (4=minutes, 5=days).
+        _bar_compression: Bar compression multiplier.
+        _bar_begin_time: Beginning timestamp of current bar.
+        _bar_end_time: Ending timestamp of current bar.
+        _bar_interval: Bar interval string (e.g., '1m', '5d').
+        _data_name: Name/symbol of the current data feed.
+        time_diff: Time difference in seconds for bar interval.
+        bar_datetime: Current bar's datetime.
+        bar_open_price: Current bar's open price.
+        bar_high_price: Current bar's high price.
+        bar_low_price: Current bar's low price.
+        bar_close_price: Current bar's close price.
+        bar_volume: Current bar's volume.
+    """
+
     def __init__(self, name, timeframe=None, compression=None, md_queue=None):
+        """Initialize the MyCtpbeeApi instance.
+
+        Args:
+            name: Name/identifier for this API instance.
+            timeframe: Bar timeframe (4=minutes, 5=days, others=1min default).
+            compression: Bar compression multiplier (e.g., 5 for 5-minute bars).
+            md_queue: Market data queue for distributing bar data to feeds.
+        """
         super().__init__(name)
         self.md_queue = md_queue  # Market data queue
         self.is_position_ok = False
@@ -61,6 +94,18 @@ class MyCtpbeeApi(CtpbeeApi):
         self.bar_volume = 0.0
 
     def subscribe(self, dataname, timeframe, compression):
+        """Subscribe to market data for a specific instrument.
+
+        Args:
+            dataname: Instrument symbol to subscribe to.
+            timeframe: Bar timeframe code (4=minutes, 5=days).
+            compression: Bar compression multiplier (e.g., 5 for 5-minute bars).
+
+        Note:
+            This sets up the bar interval calculation based on the timeframe and
+            compression. Timeframe 4 is for minutes, 5 is for days, and any other
+            value defaults to 1-minute bars.
+        """
         # print(f"------Start subscribing to data------")  # Removed for performance
         if dataname is not None:
             self.action.subscribe(dataname)
@@ -152,6 +197,11 @@ class MyCtpbeeApi(CtpbeeApi):
         self.md_queue[bar.local_symbol].put(bar)  # Distribute market data to corresponding queue
 
     def on_init(self, init):
+        """Handle initialization event from CTP API.
+
+        Args:
+            init: Initialization status/information from CTP.
+        """
         pass
 
     def on_order(self, order: OrderData) -> None:
@@ -202,6 +252,18 @@ class CTPStore(ParameterizedSingletonMixin):
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self, ctp_setting, *args, **kwargs):
+        """Initialize the CTPStore instance.
+
+        Args:
+            ctp_setting: Dictionary containing CTP connection settings including
+                userid, password, brokerid, and other connection parameters.
+            *args: Additional positional arguments (unused).
+            **kwargs: Additional keyword arguments (unused).
+
+        Note:
+            This initializes the CtpBee app with the provided settings and waits
+            for the account information to be loaded before returning.
+        """
         super().__init__()
         # Connection settings
         self.ctp_setting = ctp_setting
@@ -235,21 +297,52 @@ class CTPStore(ParameterizedSingletonMixin):
     #         print(f"-----Successfully subscribed to data {data.p.dataname}--------")
 
     def stop(self):
+        """Stop the CTP store and disconnect from CTP.
+
+        Note:
+            Currently a placeholder method. Implementation may include
+            cleanup operations and disconnection logic.
+        """
         pass
 
     def get_positions(self):
+        """Get current positions from CTP.
+
+        Returns:
+            PositionData: Dictionary or object containing current position
+            information from the CTP center.
+        """
         positions = self.main_ctpbee_api.center.positions
         print("positions:", positions)
         return positions
 
     def get_balance(self):
+        """Get account balance information from CTP.
+
+        Updates the internal cash and value attributes from the CTP account
+        information.
+
+        Note:
+            This method updates self._cash with available capital and self._value
+            with total account balance.
+        """
         account = self.main_ctpbee_api.center.account
         print("account:", account)
         self._cash = account.available
         self._value = account.balance
 
     def get_cash(self):
+        """Get available cash from the account.
+
+        Returns:
+            float: Available cash/capital in the account.
+        """
         return self._cash
 
     def get_value(self):
+        """Get total account value.
+
+        Returns:
+            float: Total account balance including cash and positions.
+        """
         return self._value

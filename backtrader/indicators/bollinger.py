@@ -55,13 +55,22 @@ class BollingerBands(Indicator):
         return plabels
 
     def __init__(self):
+        """Initialize the Bollinger Bands indicator.
+
+        Sets minimum period to the configured period.
+        """
         super().__init__()
         self.addminperiod(self.p.period)
 
     def next(self):
+        """Calculate Bollinger Bands for the current bar.
+
+        Calculates mid (SMA), top (mid + devfactor*stddev), and
+        bot (mid - devfactor*stddev) bands.
+        """
         period = self.p.period
         devfactor = self.p.devfactor
-        
+
         # Calculate SMA (mid)
         data_sum = 0.0
         data_sq_sum = 0.0
@@ -69,21 +78,22 @@ class BollingerBands(Indicator):
             val = self.data[-i]
             data_sum += val
             data_sq_sum += val * val
-        
+
         mid = data_sum / period
-        
+
         # Calculate StdDev
         meansq = data_sq_sum / period
         sqmean = mid * mid
         diff = abs(meansq - sqmean)
         stddev = math.sqrt(max(0, diff))
-        
+
         # Set lines
         self.lines.mid[0] = mid
         self.lines.top[0] = mid + devfactor * stddev
         self.lines.bot[0] = mid - devfactor * stddev
 
     def once(self, start, end):
+        """Calculate Bollinger Bands in runonce mode."""
         darray = self.data.array
         mid_array = self.lines.mid.array
         top_array = self.lines.top.array
@@ -137,9 +147,17 @@ class BollingerBandsPct(BollingerBands):
     plotlines = dict(pctb=dict(_name="%B"))  # display the line as %B on chart
 
     def __init__(self):
+        """Initialize the Bollinger Bands %B indicator.
+
+        Extends Bollinger Bands with percentage calculation.
+        """
         super().__init__()
 
     def next(self):
+        """Calculate %B line for the current bar.
+
+        Formula: %B = (price - bot) / (top - bot)
+        """
         super().next()
         top = self.lines.top[0]
         bot = self.lines.bot[0]
@@ -150,6 +168,7 @@ class BollingerBandsPct(BollingerBands):
             self.lines.pctb[0] = 0.0
 
     def once(self, start, end):
+        """Calculate %B line in runonce mode."""
         super().once(start, end)
         darray = self.data.array
         top_array = self.lines.top.array

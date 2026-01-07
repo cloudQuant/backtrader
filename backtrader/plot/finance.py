@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+"""Financial plotting utilities for backtrader.
+
+This module provides plot handlers and functions for rendering various
+financial chart types including candlestick, OHLC, volume, and line-on-close
+plots using matplotlib.
+"""
 import matplotlib.collections as mcol
 import matplotlib.colors as mcolors
 import matplotlib.legend as mlegend
@@ -9,6 +15,27 @@ from .utils import shade_color
 
 
 class CandlestickPlotHandler:
+    """Handler for creating and managing candlestick plot collections.
+
+    This class creates matplotlib collections for rendering candlestick charts
+    with customizable colors for up and down bars. It also provides custom
+    legend rendering for candlestick patterns.
+
+    Attributes:
+        legend_opens: Open prices for legend sample candles.
+        legend_highs: High prices for legend sample candles.
+        legend_lows: Low prices for legend sample candles.
+        legend_closes: Close prices for legend sample candles.
+        colorup: RGBA color for up bars (close > open).
+        colordown: RGBA color for down bars (close < open).
+        edgeup: RGBA edge color for up bars.
+        edgedown: RGBA edge color for down bars.
+        tickup: RGBA color for up tick marks.
+        tickdown: RGBA color for down tick marks.
+        barcol: PolyCollection containing the candlestick bodies.
+        tickcol: LineCollection containing the candlestick wicks.
+    """
+
     legend_opens = [0.50, 0.50, 0.50]
     legend_highs = [1.00, 1.00, 1.00]
     legend_lows = [0.00, 0.00, 0.00]
@@ -38,6 +65,34 @@ class CandlestickPlotHandler:
         filldown=True,
         **kwargs,
     ):
+        """Initialize the candlestick plot handler.
+
+        Args:
+            ax: Matplotlib axes object to add collections to.
+            x: Array of x-axis coordinates (typically bar indices).
+            opens: Array of opening prices.
+            highs: Array of high prices.
+            lows: Array of low prices.
+            closes: Array of closing prices.
+            colorup: Color for up bars (close > open). Default is "k" (black).
+            colordown: Color for down bars (close < open). Default is "r" (red).
+            edgeup: Edge color for up bars. If None, derived from colorup with shading.
+            edgedown: Edge color for down bars. If None, derived from colordown with shading.
+            tickup: Color for up tick marks (wicks). If None, uses edgeup.
+            tickdown: Color for down tick marks (wicks). If None, uses edgedown.
+            width: Width of candlestick bodies. Default is 1.
+            tickwidth: Width of candlestick wicks. Default is 1.
+            edgeadjust: Adjustment for edge width. Default is 0.05.
+            edgeshading: Shading factor for edge colors. Default is -10.
+            alpha: Transparency level (0-1). Default is 1.0.
+            label: Label for legend. Default is "_nolegend".
+            fillup: Whether to fill up bars. Default is True.
+            filldown: Whether to fill down bars. Default is True.
+            **kwargs: Additional keyword arguments passed to collections.
+
+        Raises:
+            ValueError: If color conversion fails.
+        """
         # Manager up/down bar colors
         r, g, b = mcolors.colorConverter.to_rgb(colorup)
         self.colorup = r, g, b, alpha
@@ -96,6 +151,17 @@ class CandlestickPlotHandler:
         mlegend.Legend.update_default_handler_map({self.barcol: self})
 
     def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+        """Create a custom legend artist for candlestick plots.
+
+        Args:
+            legend: The legend object being created.
+            orig_handle: The original handle for which the artist is created.
+            fontsize: The font size for the legend.
+            handlebox: The handlebox container for positioning the legend artist.
+
+        Returns:
+            Tuple of (barcol, tickcol): The bar and tick collections for the legend.
+        """
         x0 = handlebox.xdescent
         y0 = handlebox.ydescent
         width = handlebox.width / len(self.legend_opens)
@@ -140,6 +206,27 @@ class CandlestickPlotHandler:
         filldown=True,
         **kwargs,
     ):
+        """Create matplotlib collections for candlestick bars and wicks.
+
+        Args:
+            xs: Array of x-axis coordinates.
+            opens: Array of opening prices.
+            highs: Array of high prices.
+            lows: Array of low prices.
+            closes: Array of closing prices.
+            width: Width of candlestick bodies.
+            tickwidth: Width of candlestick wicks. Default is 1.
+            edgeadjust: Adjustment for edge width. Default is 0.
+            label: Label for legend. Default is "_nolegend".
+            scaling: Vertical scaling factor. Default is 1.0.
+            bot: Bottom offset for vertical positioning. Default is 0.
+            fillup: Whether to fill up bars. Default is True.
+            filldown: Whether to fill down bars. Default is True.
+            **kwargs: Additional keyword arguments passed to collections.
+
+        Returns:
+            Tuple of (barcol, tickcol): PolyCollection for bodies and LineCollection for wicks.
+        """
         # Prepack different zips of the series values
         oc = lambda: zip(opens, closes)  # NOQA: E731
         xoc = lambda: zip(xs, opens, closes)  # NOQA: E731
@@ -242,6 +329,37 @@ def plot_candlestick(
     filldown=True,
     **kwargs,
 ):
+    """Plot candlestick chart on given axes.
+
+    Convenience function that creates a CandlestickPlotHandler and returns
+    the matplotlib collections for the candlestick chart.
+
+    Args:
+        ax: Matplotlib axes object to add collections to.
+        x: Array of x-axis coordinates (typically bar indices).
+        opens: Array of opening prices.
+        highs: Array of high prices.
+        lows: Array of low prices.
+        closes: Array of closing prices.
+        colorup: Color for up bars (close > open). Default is "k" (black).
+        colordown: Color for down bars (close < open). Default is "r" (red).
+        edgeup: Edge color for up bars. If None, derived from colorup with shading.
+        edgedown: Edge color for down bars. If None, derived from colordown with shading.
+        tickup: Color for up tick marks (wicks). If None, uses edgeup.
+        tickdown: Color for down tick marks (wicks). If None, uses edgedown.
+        width: Width of candlestick bodies. Default is 1.
+        tickwidth: Width of candlestick wicks. Default is 1.25.
+        edgeadjust: Adjustment for edge width. Default is 0.05.
+        edgeshading: Shading factor for edge colors. Default is -10.
+        alpha: Transparency level (0-1). Default is 1.0.
+        label: Label for legend. Default is "_nolegend".
+        fillup: Whether to fill up bars. Default is True.
+        filldown: Whether to fill down bars. Default is True.
+        **kwargs: Additional keyword arguments passed to collections.
+
+    Returns:
+        Tuple of (barcol, tickcol): PolyCollection for bodies and LineCollection for wicks.
+    """
     chandler = CandlestickPlotHandler(
         ax,
         x,
@@ -273,6 +391,22 @@ def plot_candlestick(
 
 
 class VolumePlotHandler:
+    """Handler for creating and managing volume plot collections.
+
+    This class creates matplotlib collections for rendering volume bars
+    with customizable colors for up and down periods based on price movement.
+
+    Attributes:
+        legend_vols: Sample volumes for legend rendering.
+        legend_opens: Sample open prices for legend rendering.
+        legend_closes: Sample close prices for legend rendering.
+        colorup: RGBA color for up volume bars (close > open).
+        colordown: RGBA color for down volume bars (close < open).
+        edgeup: RGBA edge color for up bars.
+        edgedown: RGBA edge color for down bars.
+        barcol: PolyCollection containing the volume bars.
+    """
+
     legend_vols = [0.5, 1.0, 0.75]
     legend_opens = [0, 1, 0]
     legend_closes = [1, 0, 1]
@@ -294,6 +428,27 @@ class VolumePlotHandler:
         alpha=1.0,
         **kwargs,
     ):
+        """Initialize the volume plot handler.
+
+        Args:
+            ax: Matplotlib axes object to add collections to.
+            x: Array of x-axis coordinates (typically bar indices).
+            opens: Array of opening prices.
+            closes: Array of closing prices.
+            volumes: Array of volume values.
+            colorup: Color for up volume bars (close > open). Default is "k" (black).
+            colordown: Color for down volume bars (close < open). Default is "r" (red).
+            edgeup: Edge color for up bars. If None, derived from colorup with shading.
+            edgedown: Edge color for down bars. If None, derived from colordown with shading.
+            edgeshading: Shading factor for edge colors. Default is -5.
+            edgeadjust: Adjustment for edge width. Default is 0.05.
+            width: Width of volume bars. Default is 1.
+            alpha: Transparency level (0-1). Default is 1.0.
+            **kwargs: Additional keyword arguments passed to collections.
+
+        Raises:
+            ValueError: If color conversion fails.
+        """
         # Manage the up/down colors
         r, g, b = mcolors.colorConverter.to_rgb(colorup)
         self.colorup = r, g, b, alpha
@@ -328,6 +483,17 @@ class VolumePlotHandler:
         mlegend.Legend.update_default_handler_map({self.barcol: self})
 
     def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+        """Create a custom legend artist for volume plots.
+
+        Args:
+            legend: The legend object being created.
+            orig_handle: The original handle for which the artist is created.
+            fontsize: The font size for the legend.
+            handlebox: The handlebox container for positioning the legend artist.
+
+        Returns:
+            barcol: The volume bar collection for the legend.
+        """
         x0 = handlebox.xdescent
         y0 = handlebox.ydescent
         width = handlebox.width / len(self.legend_vols)
@@ -354,6 +520,22 @@ class VolumePlotHandler:
     def barcollection(
         self, x, opens, closes, vols, width, edgeadjust=0, vscaling=1.0, vbot=0, **kwargs
     ):
+        """Create matplotlib collection for volume bars.
+
+        Args:
+            x: Array of x-axis coordinates.
+            opens: Array of opening prices.
+            closes: Array of closing prices.
+            vols: Array of volume values.
+            width: Width of volume bars.
+            edgeadjust: Adjustment for edge width. Default is 0.
+            vscaling: Vertical scaling factor. Default is 1.0.
+            vbot: Bottom offset for vertical positioning. Default is 0.
+            **kwargs: Additional keyword arguments passed to collection.
+
+        Returns:
+            barcol: PolyCollection containing the volume bars.
+        """
         # Prepare the data
         openclose = lambda: zip(opens, closes)  # NOQA: E731
 
@@ -401,6 +583,30 @@ def plot_volume(
     alpha=1.0,
     **kwargs,
 ):
+    """Plot volume chart on given axes.
+
+    Convenience function that creates a VolumePlotHandler and returns
+    the matplotlib collection for the volume chart.
+
+    Args:
+        ax: Matplotlib axes object to add collections to.
+        x: Array of x-axis coordinates (typically bar indices).
+        opens: Array of opening prices.
+        closes: Array of closing prices.
+        volumes: Array of volume values.
+        colorup: Color for up volume bars (close > open). Default is "k" (black).
+        colordown: Color for down volume bars (close < open). Default is "r" (red).
+        edgeup: Edge color for up bars. If None, derived from colorup with shading.
+        edgedown: Edge color for down bars. If None, derived from colordown with shading.
+        edgeshading: Shading factor for edge colors. Default is -5.
+        edgeadjust: Adjustment for edge width. Default is 0.05.
+        width: Width of volume bars. Default is 1.
+        alpha: Transparency level (0-1). Default is 1.0.
+        **kwargs: Additional keyword arguments passed to collection.
+
+    Returns:
+        Tuple containing the volume bar collection.
+    """
     vhandler = VolumePlotHandler(
         ax,
         x,
@@ -422,6 +628,23 @@ def plot_volume(
 
 
 class OHLCPlotHandler:
+    """Handler for creating and managing OHLC (Open-High-Low-Close) plot collections.
+
+    This class creates matplotlib line collections for rendering OHLC bar charts
+    with customizable colors for up and down bars.
+
+    Attributes:
+        legend_opens: Open prices for legend sample bars.
+        legend_highs: High prices for legend sample bars.
+        legend_lows: Low prices for legend sample bars.
+        legend_closes: Close prices for legend sample bars.
+        colorup: RGBA color for up bars (close > open).
+        colordown: RGBA color for down bars (close < open).
+        barcol: LineCollection containing the vertical high-low lines.
+        opencol: LineCollection containing the open tick marks.
+        closecol: LineCollection containing the close tick marks.
+    """
+
     legend_opens = [0.50, 0.50, 0.50]
     legend_highs = [1.00, 1.00, 1.00]
     legend_lows = [0.00, 0.00, 0.00]
@@ -443,6 +666,26 @@ class OHLCPlotHandler:
         label="_nolegend",
         **kwargs,
     ):
+        """Initialize the OHLC plot handler.
+
+        Args:
+            ax: Matplotlib axes object to add collections to.
+            x: Array of x-axis coordinates (typically bar indices).
+            opens: Array of opening prices.
+            highs: Array of high prices.
+            lows: Array of low prices.
+            closes: Array of closing prices.
+            colorup: Color for up bars (close > open). Default is "k" (black).
+            colordown: Color for down bars (close < open). Default is "r" (red).
+            width: Width of vertical high-low lines. Default is 1.
+            tickwidth: Width of open/close tick marks. Default is 0.5.
+            alpha: Transparency level (0-1). Default is 1.0.
+            label: Label for legend. Default is "_nolegend".
+            **kwargs: Additional keyword arguments passed to collections.
+
+        Raises:
+            ValueError: If color conversion fails.
+        """
         # Manager up/down bar colors
         r, g, b = mcolors.colorConverter.to_rgb(colorup)
         self.colorup = r, g, b, alpha
@@ -470,6 +713,17 @@ class OHLCPlotHandler:
         mlegend.Legend.update_default_handler_map({self.barcol: self})
 
     def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+        """Create a custom legend artist for OHLC plots.
+
+        Args:
+            legend: The legend object being created.
+            orig_handle: The original handle for which the artist is created.
+            fontsize: The font size for the legend.
+            handlebox: The handlebox container for positioning the legend artist.
+
+        Returns:
+            Tuple of (barcol, opencol, closecol): The line collections for the legend.
+        """
         x0 = handlebox.xdescent
         y0 = handlebox.ydescent
         width = handlebox.width / len(self.legend_opens)
@@ -513,6 +767,25 @@ class OHLCPlotHandler:
         bot=0,
         **kwargs,
     ):
+        """Create matplotlib collections for OHLC bars and tick marks.
+
+        Args:
+            xs: Array of x-axis coordinates.
+            opens: Array of opening prices.
+            highs: Array of high prices.
+            lows: Array of low prices.
+            closes: Array of closing prices.
+            width: Width of vertical high-low lines.
+            tickwidth: Width of open/close tick marks.
+            label: Label for legend. Default is "_nolegend".
+            scaling: Vertical scaling factor. Default is 1.0.
+            bot: Bottom offset for vertical positioning. Default is 0.
+            **kwargs: Additional keyword arguments passed to collections.
+
+        Returns:
+            Tuple of (barcol, opencol, closecol): LineCollection for bars,
+                open ticks, and close ticks.
+        """
         # Prepack different zips of the series values
         ihighlow = lambda: zip(xs, highs, lows)  # NOQA: E731
         iopen = lambda: zip(xs, opens)  # NOQA: E731
@@ -584,6 +857,30 @@ def plot_ohlc(
     label="_nolegend",
     **kwargs,
 ):
+    """Plot OHLC (Open-High-Low-Close) chart on given axes.
+
+    Convenience function that creates an OHLCPlotHandler and returns
+    the matplotlib collections for the OHLC chart.
+
+    Args:
+        ax: Matplotlib axes object to add collections to.
+        x: Array of x-axis coordinates (typically bar indices).
+        opens: Array of opening prices.
+        highs: Array of high prices.
+        lows: Array of low prices.
+        closes: Array of closing prices.
+        colorup: Color for up bars (close > open). Default is "k" (black).
+        colordown: Color for down bars (close < open). Default is "r" (red).
+        width: Width of vertical high-low lines. Default is 1.5.
+        tickwidth: Width of open/close tick marks. Default is 0.5.
+        alpha: Transparency level (0-1). Default is 1.0.
+        label: Label for legend. Default is "_nolegend".
+        **kwargs: Additional keyword arguments passed to collections.
+
+    Returns:
+        Tuple of (barcol, opencol, closecol): LineCollection for bars,
+            open ticks, and close ticks.
+    """
     handler = OHLCPlotHandler(
         ax,
         x,
@@ -604,9 +901,33 @@ def plot_ohlc(
 
 
 class LineOnClosePlotHandler:
+    """Handler for creating and managing line-on-close plot collections.
+
+    This class creates matplotlib line objects for rendering a simple line
+    chart of closing prices.
+
+    Attributes:
+        legend_closes: Sample close prices for legend rendering.
+        color: Color of the line.
+        alpha: Transparency level (0-1).
+        loc: Line2D object containing the close price line.
+    """
+
     legend_closes = [0.00, 0.66, 0.33, 1.00]
 
     def __init__(self, ax, x, closes, color="k", width=1, alpha=1.0, label="_nolegend", **kwargs):
+        """Initialize the line-on-close plot handler.
+
+        Args:
+            ax: Matplotlib axes object to add the line to.
+            x: Array of x-axis coordinates (typically bar indices).
+            closes: Array of closing prices.
+            color: Color of the line. Default is "k" (black).
+            width: Width of the line. Default is 1.
+            alpha: Transparency level (0-1). Default is 1.0.
+            label: Label for legend. Default is "_nolegend".
+            **kwargs: Additional keyword arguments passed to Line2D.
+        """
         self.color = color
         self.alpha = alpha
 
@@ -623,6 +944,17 @@ class LineOnClosePlotHandler:
         mlegend.Legend.update_default_handler_map({self.loc: self})
 
     def legend_artist(self, legend, orig_handle, fontsize, handlebox):
+        """Create a custom legend artist for line-on-close plots.
+
+        Args:
+            legend: The legend object being created.
+            orig_handle: The original handle for which the artist is created.
+            fontsize: The font size for the legend.
+            handlebox: The handlebox container for positioning the legend artist.
+
+        Returns:
+            Tuple containing the line collection for the legend.
+        """
         x0 = handlebox.xdescent
         y0 = handlebox.ydescent
         width = handlebox.width / len(self.legend_closes)
@@ -639,6 +971,20 @@ class LineOnClosePlotHandler:
         return (linecol,)
 
     def barcollection(self, xs, closes, width, label="_nolegend", scaling=1.0, bot=0, **kwargs):
+        """Create matplotlib line object for close prices.
+
+        Args:
+            xs: Array of x-axis coordinates.
+            closes: Array of closing prices.
+            width: Width of the line.
+            label: Label for legend. Default is "_nolegend".
+            scaling: Vertical scaling factor. Default is 1.0.
+            bot: Bottom offset for vertical positioning. Default is 0.
+            **kwargs: Additional keyword arguments passed to Line2D.
+
+        Returns:
+            Tuple containing the Line2D object.
+        """
         # Prepack different zips of the series values
         scaled = [close * scaling + bot for close in closes]
 
@@ -650,6 +996,24 @@ class LineOnClosePlotHandler:
 
 
 def plot_lineonclose(ax, x, closes, color="k", width=1.5, alpha=1.0, label="_nolegend", **kwargs):
+    """Plot line-on-close chart on given axes.
+
+    Convenience function that creates a LineOnClosePlotHandler and returns
+    the matplotlib line object for the line chart.
+
+    Args:
+        ax: Matplotlib axes object to add the line to.
+        x: Array of x-axis coordinates (typically bar indices).
+        closes: Array of closing prices.
+        color: Color of the line. Default is "k" (black).
+        width: Width of the line. Default is 1.5.
+        alpha: Transparency level (0-1). Default is 1.0.
+        label: Label for legend. Default is "_nolegend".
+        **kwargs: Additional keyword arguments passed to Line2D.
+
+    Returns:
+        Tuple containing the Line2D object.
+    """
     handler = LineOnClosePlotHandler(
         ax, x, closes, color=color, width=width, alpha=alpha, label=label, **kwargs
     )

@@ -63,6 +63,11 @@ class HurstExponent(PeriodN):
         return plabels
 
     def __init__(self):
+        """Initialize the Hurst Exponent indicator.
+
+        Prepares lag arrays for calculating the Hurst exponent,
+        which measures the long-term memory of a time series.
+        """
         super().__init__()
         # Prepare the lag array
         self._lag_start = lag_start = self.p.lag_start or 2
@@ -71,6 +76,7 @@ class HurstExponent(PeriodN):
         self.log10lags = log10(self.lags)
 
     def next(self):
+        """Calculate Hurst Exponent for the current bar."""
         # Fetch the data
         ts = asarray(self.data.get(size=self.p.period))
 

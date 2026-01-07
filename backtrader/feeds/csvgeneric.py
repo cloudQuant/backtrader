@@ -82,13 +82,22 @@ class GenericCSVData(feed.CSVDataBase):
         ("openinterest", 6),
     )
 
-    # Start, determine conversion method based on passed date parameters
     def __init__(self, *args, **kwargs):
+        """Initialize the Generic CSV data feed.
+
+        Args:
+            *args: Positional arguments for data feed configuration.
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         super().__init__(*args, **kwargs)
         self._dtconvert = None
         self._dtstr = None
 
     def start(self):
+        """Start the Generic CSV data feed.
+
+        Sets up datetime conversion based on dtformat parameter.
+        """
         super().start()
         # If string type, set self._dtstr to True, otherwise default is False
         self._dtstr = False
@@ -178,5 +187,9 @@ class GenericCSVData(feed.CSVDataBase):
 
 
 class GenericCSV(feed.CSVFeedBase):
-    # Class, add a DataCls attribute and set its value to GenericCSVData
+    """Generic CSV feed class.
+
+    Wrapper class for GenericCSVData feed functionality.
+    """
+
     DataCls = GenericCSVData

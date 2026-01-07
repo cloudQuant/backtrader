@@ -74,6 +74,14 @@ class WriterFile(WriterBase):
 
     # Initialize
     def __init__(self, **kwargs):
+        """Initialize the WriterFile instance.
+
+        Sets up the counter, headers list, and values list for tracking
+        data during execution.
+
+        Args:
+            **kwargs: Keyword arguments for writer parameters.
+        """
         # Initialize parent class first
         super(WriterFile, self).__init__(**kwargs)
         # _len is a counter
@@ -105,6 +113,11 @@ class WriterFile(WriterBase):
 
     # Start
     def start(self):
+        """Initialize the writer at the start of execution.
+
+        Opens the output file/stream and writes CSV headers if CSV mode
+        is enabled.
+        """
         # Call _start_output to prepare for output
         self._start_output()
         # If csv is True
@@ -116,22 +129,41 @@ class WriterFile(WriterBase):
 
     # Stop, if close_out is True, close self.out
     def stop(self):
+        """Close the output stream when execution ends.
+
+        Closes the output file if close_out parameter is True.
+        """
         if self.close_out:
             self.out.close()
 
     # If csv is True, save values to self.out each time, and set self.values to empty list
     def next(self):
+        """Write accumulated values to output.
+
+        Called during execution to write the current set of values
+        to the CSV output and reset the values list.
+        """
         if self.p.csv:
             self.writeiterable(self.values, func=str, counter=next(self._len))
             self.values = list()
 
     # If csv is True, add column names
     def addheaders(self, headers):
+        """Add column headers for CSV output.
+
+        Args:
+            headers: List of header names to add.
+        """
         if self.p.csv:
             self.headers.extend(headers)
 
     # If csv is True and need to filter nan, replace nan with '', and add values to self.values
     def addvalues(self, values):
+        """Add values to be written to CSV output.
+
+        Args:
+            values: Iterable of values to add.
+        """
         if self.p.csv:
             if self.p.csv_filternan:
                 values = map(lambda x: x if x == x else "", values)
@@ -139,6 +171,13 @@ class WriterFile(WriterBase):
 
     # Process iterable objects and write to standard output or csv file
     def writeiterable(self, iterable, func=None, counter=""):
+        """Write an iterable to the output as a CSV line.
+
+        Args:
+            iterable: The data to write.
+            func: Optional function to apply to each element.
+            counter: Optional counter value to prepend.
+        """
         # If saving csv counter, add counter before iterable
         if self.p.csv_counter:
             iterable = itertools.chain([counter], iterable)
@@ -152,15 +191,30 @@ class WriterFile(WriterBase):
 
     # Write line to self.out
     def writeline(self, line):
+        """Write a single line to the output.
+
+        Args:
+            line: The line content to write.
+        """
         self.out.write(line + "\n")
 
     # Write multiple lines to self.out
     def writelines(self, lines):
+        """Write multiple lines to the output.
+
+        Args:
+            lines: Iterable of line contents to write.
+        """
         for line in lines:
             self.out.write(line + "\n")
 
     # Write line separator
     def writelineseparator(self, level=0):
+        """Write a separator line for visual formatting.
+
+        Args:
+            level: Indentation level that determines separator style.
+        """
         # Decide which separator to use, default is first separator "="
         sepnum = level % len(self.p.separators)
         separator = self.p.separators[sepnum]
@@ -172,6 +226,13 @@ class WriterFile(WriterBase):
 
     # Write dictionary
     def writedict(self, dct, level=0, recurse=False):
+        """Write a dictionary to the output with formatting.
+
+        Args:
+            dct: Dictionary to write.
+            level: Indentation level for nested output.
+            recurse: Whether this is a recursive call.
+        """
         # If not recursing, write line separator
         if not recurse:
             self.writelineseparator(level)
@@ -236,10 +297,32 @@ class WriterFile(WriterBase):
 
 # Write StringIO - refactored to not use metaclass
 class WriterStringIO(WriterFile):
+    """Writer that outputs to an in-memory StringIO buffer.
+
+    This writer stores all output in memory rather than writing to a file.
+    Useful for testing or when you need to capture output programmatically.
+
+    Attributes:
+        _stringio: The StringIO buffer holding the output.
+
+    Example:
+        >>> writer = WriterStringIO()
+        >>> cerebro.addwriter(writer)
+        >>> results = cerebro.run()
+        >>> output = writer.getvalue()
+    """
+
     # Parameter out set to StringIO
     params = (("out", io.StringIO),)
 
     def __init__(self, **kwargs):
+        """Initialize the WriterStringIO instance.
+
+        Creates a new StringIO buffer for storing output.
+
+        Args:
+            **kwargs: Keyword arguments for writer parameters.
+        """
         self._stringio = io.StringIO()
         self.close_out = False
         super(WriterStringIO, self).__init__(**kwargs)

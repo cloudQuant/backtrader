@@ -57,6 +57,10 @@ class DrawDown(Analyzer):
 
     # Start, get fundmode
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets the fund mode based on parameters or broker settings.
+        """
         super().start()
         if self.p.fund is None:
             # self._fundmode = self.strategy.broker.fundmode
@@ -67,6 +71,10 @@ class DrawDown(Analyzer):
 
     # Create indicator values to analyze
     def create_analysis(self):
+        """Create the analysis result data structure.
+
+        Initializes the results dictionary with all drawdown metrics set to zero.
+        """
         self.rets = AutoOrderedDict()  # dict with. notation
 
         self.rets.len = 0
@@ -81,10 +89,22 @@ class DrawDown(Analyzer):
 
     # Stop
     def stop(self):
+        """Finalize the analysis when backtest ends.
+
+        Closes the results dictionary to prevent further modifications.
+        """
         self.rets._close()  # . notation cannot create more keys
 
     # Notify fund situation
     def notify_fund(self, cash, value, fundvalue, shares):
+        """Update drawdown calculation with current fund values.
+
+        Args:
+            cash: Current cash amount.
+            value: Current portfolio value.
+            fundvalue: Current fund value.
+            shares: Number of fund shares.
+        """
         if not self._fundmode:
             self._value = value  # record current value
             self._maxvalue = max(self._maxvalue, value)  # update peak value
@@ -93,6 +113,10 @@ class DrawDown(Analyzer):
             self._maxvalue = max(self._maxvalue, fundvalue)  # update peak
 
     def next(self):
+        """Calculate drawdown for the current period.
+
+        Updates current and maximum drawdown values and lengths.
+        """
         r = self.rets
 
         # calculate current drawdown values
@@ -158,6 +182,12 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
     params = (("fund", None),)
 
     def __init__(self, *args, **kwargs):
+        """Initialize the TimeDrawDown analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
@@ -169,6 +199,10 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
         self._fundmode = None
 
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets the fund mode and initializes drawdown tracking variables.
+        """
         super().start()
         # fundmode
         if self.p.fund is None:
@@ -184,6 +218,10 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
 
     # Calculate max drawdown and max drawdown length
     def on_dt_over(self):
+        """Called when a datetime period is over.
+
+        Updates drawdown calculations for the timeframe period.
+        """
         if not self._fundmode:
             value = self.strategy.broker.getvalue()
         else:
@@ -204,5 +242,9 @@ class TimeDrawDown(TimeFrameAnalyzerBase):
 
     # When stopping, add max drawdown and max drawdown length to dictionary
     def stop(self):
+        """Finalize the analysis when backtest ends.
+
+        Stores the maximum drawdown and maximum drawdown period.
+        """
         self.rets["maxdrawdown"] = self.maxdd
         self.rets["maxdrawdownperiod"] = self.maxddlen

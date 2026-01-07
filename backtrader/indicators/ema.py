@@ -37,11 +37,18 @@ class ExponentialMovingAverage(MovingAverageBase):
     lines = ("ema",)
 
     def __init__(self):
+        """Initialize the EMA indicator.
+
+        Calculates alpha and alpha1 smoothing factors:
+        - alpha = 2 / (1 + period)
+        - alpha1 = 1 - alpha
+        """
         super().__init__()
         self.alpha = 2.0 / (1.0 + self.p.period)
         self.alpha1 = 1.0 - self.alpha
 
     def nextstart(self):
+        """Seed the EMA with SMA of first period values."""
         # Seed value: SMA of first period values
         period = self.p.period
         data_sum = 0.0
@@ -50,6 +57,10 @@ class ExponentialMovingAverage(MovingAverageBase):
         self.lines[0][0] = data_sum / period
 
     def next(self):
+        """Calculate EMA for the current bar.
+
+        Formula: EMA = previous_ema * alpha1 + current_price * alpha
+        """
         # EMA formula: prev * alpha1 + current * alpha
         self.lines[0][0] = self.lines[0][-1] * self.alpha1 + self.data[0] * self.alpha
 

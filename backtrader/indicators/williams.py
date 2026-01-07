@@ -44,11 +44,20 @@ class WilliamsR(Indicator):
         self.plotinfo.plotyhlines = [self.p.upperband, self.p.lowerband]
 
     def __init__(self):
+        """Initialize the Williams %R indicator.
+
+        Creates Highest and Lowest indicators for calculation.
+        """
         super().__init__()
         self.highest = Highest(self.data.high, period=self.p.period)
         self.lowest = Lowest(self.data.low, period=self.p.period)
 
     def next(self):
+        """Calculate Williams %R for the current bar.
+
+        %R = -100 * (highest - close) / (highest - lowest)
+        Returns 0.0 if denominator is 0 to avoid division by zero.
+        """
         h = self.highest[0]
         low = self.lowest[0]
         c = self.data.close[0]
@@ -59,6 +68,10 @@ class WilliamsR(Indicator):
             self.lines.percR[0] = 0.0
 
     def once(self, start, end):
+        """Calculate Williams %R in runonce mode.
+
+        Computes %R values across all bars.
+        """
         h_array = self.highest.lines[0].array
         l_array = self.lowest.lines[0].array
         c_array = self.data.close.array
@@ -102,6 +115,10 @@ class WilliamsAD(Indicator):
     lines = ("ad",)
 
     def __init__(self):
+        """Initialize the Williams A/D indicator.
+
+        Creates up/down day and true high/low indicators.
+        """
         super().__init__()
         self.upday = UpDay(self.data.close)
         self.downday = DownDay(self.data.close)
@@ -110,6 +127,10 @@ class WilliamsAD(Indicator):
         self._accum = 0.0
 
     def next(self):
+        """Calculate Williams A/D for the current bar.
+
+        Accumulates based on up days and down days using true range.
+        """
         upday_val = self.upday[0]
         downday_val = self.downday[0]
         
@@ -127,6 +148,10 @@ class WilliamsAD(Indicator):
         self.lines.ad[0] = self._accum
 
     def once(self, start, end):
+        """Calculate Williams A/D in runonce mode.
+
+        Accumulates values across all bars.
+        """
         upday_array = self.upday.lines[0].array
         downday_array = self.downday.lines[0].array
         truelow_array = self.truelow.lines[0].array

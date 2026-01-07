@@ -38,6 +38,7 @@ class VChartData(feed.DataBase):
     """
 
     def __init__(self):
+        """Initialize the VChart data feed."""
         self.barfmt = None
         self.f = None
         self.barsize = None
@@ -45,6 +46,10 @@ class VChartData(feed.DataBase):
         self.ext = None
 
     def start(self):
+        """Start the VChart data feed.
+
+        Opens the VisualChart binary file for reading.
+        """
         super().start()
 
         # Not yet known if an extension is needed
@@ -83,6 +88,10 @@ class VChartData(feed.DataBase):
             self.f = open(dataname, "rb")
 
     def stop(self):
+        """Stop the VChart data feed.
+
+        Closes the open file handle.
+        """
         if self.f is not None:
             self.f.close()
             self.f = None
@@ -124,6 +133,11 @@ class VChartData(feed.DataBase):
 
 
 class VChartFeed(feed.FeedBase):
+    """VisualChart feed class.
+
+    Wrapper class for VChartData feed functionality.
+    """
+
     DataCls = VChartData
 
     params = (("basepath", ""),) + DataCls.params._gettuple()

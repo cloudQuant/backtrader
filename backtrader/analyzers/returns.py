@@ -98,6 +98,12 @@ class Returns(TimeFrameAnalyzerBase):
 
     # Start
     def __init__(self, *args, **kwargs):
+        """Initialize the Returns analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
@@ -107,6 +113,10 @@ class Returns(TimeFrameAnalyzerBase):
         self._fundmode = None
 
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Records the initial portfolio value and sets the fund mode.
+        """
         super().start()
         # If fund is None, _fundmode is broker's fundmode, otherwise equals fund
         if self.p.fund is None:
@@ -123,6 +133,14 @@ class Returns(TimeFrameAnalyzerBase):
 
     # When stopping
     def stop(self):
+        """Calculate and store return statistics at the end of the backtest.
+
+        Calculates:
+            - rtot: Total compound return
+            - ravg: Average return for the period
+            - rnorm: Annualized return
+            - rnorm100: Annualized return in percentage form
+        """
         super().stop()
         # If fundmode is False, get value, otherwise get fundvalue
         if not self._fundmode:
@@ -165,4 +183,8 @@ class Returns(TimeFrameAnalyzerBase):
         self.rets["rnorm100"] = rnorm * 100.0  # human-readable %
 
     def on_dt_over(self):
+        """Called when a datetime period is over.
+
+        Increments the subperiod counter.
+        """
         self._tcount += 1  # count the subperiod

@@ -39,34 +39,109 @@ from .mixins import ParameterizedSingletonMixin
 
 
 class OandaRequestError(oandapy.OandaError):
+    """Exception raised when an OANDA API request fails.
+
+    This exception is used to wrap request failures, such as network errors
+    or malformed requests, into a standardized error format compatible with
+    the OANDA API error handling system.
+    """
+
     def __init__(self):
+        """Initialize the OandaRequestError with default error details.
+
+        Creates an error dictionary with code 599, message "Request Error",
+        and an empty description, then passes it to the parent OandaError class.
+        """
         er = dict(code=599, message="Request Error", description="")
         super(self.__class__, self).__init__(er)
 
 
 class OandaStreamError(oandapy.OandaError):
+    """Exception raised when an OANDA streaming operation fails.
+
+    This exception is used to wrap streaming failures, such as connection drops
+    or malformed streaming data, into a standardized error format compatible with
+    the OANDA API error handling system.
+
+    Attributes:
+        content: Optional description of the streaming failure.
+    """
+
     def __init__(self, content=""):
+        """Initialize the OandaStreamError with error details.
+
+        Args:
+            content: Description of the streaming error (default: "").
+        """
         er = dict(code=598, message="Failed Streaming", description=content)
         super(self.__class__, self).__init__(er)
 
 
 class OandaTimeFrameError(oandapy.OandaError):
+    """Exception raised when an unsupported timeframe is requested.
+
+    This exception is raised when attempting to use a timeframe/granularity
+    combination that is not supported by the OANDA API.
+    """
+
     def __init__(self, content):
+        """Initialize the OandaTimeFrameError with error details.
+
+        Args:
+            content: The unsupported timeframe or content that triggered the error.
+        """
         er = dict(code=597, message="Not supported TimeFrame", description="")
         super(self.__class__, self).__init__(er)
 
 
 class OandaNetworkError(oandapy.OandaError):
+    """Exception raised when a network error occurs during OANDA API communication.
+
+    This exception is used to wrap network-related failures, such as connection
+    timeouts or DNS resolution failures, into a standardized error format.
+    """
+
     def __init__(self):
+        """Initialize the OandaNetworkError with default error details.
+
+        Creates an error dictionary with code 596, message "Network Error",
+        and an empty description, then passes it to the parent OandaError class.
+        """
         er = dict(code=596, message="Network Error", description="")
         super(self.__class__, self).__init__(er)
 
 
 # OANDA has suspended domestic business and this API is no longer available, ignore this source code
 class API(oandapy.API):
+    """Custom OANDA API wrapper with enhanced error handling.
+
+    This class extends the standard oandapy.API to provide better exception
+    handling for network requests. Instead of simply printing exceptions,
+    it catches RequestException and returns standardized error responses.
+
+    Note:
+        OANDA has suspended domestic business and this API is no longer
+        available. This code is kept for reference purposes.
+    """
+
     def request(self, endpoint, method="GET", params=None):
-        # Overriden to make something sensible out of a
-        # request.RequestException rather than simply issuing a print(str(e))
+        """Make an HTTP request to the OANDA API with enhanced error handling.
+
+        This method overrides the parent class to catch RequestException
+        and return standardized error responses instead of raising exceptions.
+
+        Args:
+            endpoint: The API endpoint to call (e.g., "v1/accounts").
+            method: HTTP method to use (default: "GET").
+            params: Dictionary of query parameters or request body data.
+
+        Returns:
+            dict: JSON response parsed as a dictionary, or an error response
+                dictionary if the request fails.
+
+        Raises:
+            No exceptions are raised; errors are returned as error response dicts.
+        """
         url = f"{self.api_url}/{endpoint}"
 
         method = method.lower()
@@ -99,7 +174,27 @@ class API(oandapy.API):
 
 
 class Streamer(oandapy.Streamer):
+    """Enhanced streamer for OANDA API with custom header support.
+
+    This class extends oandapy.Streamer to support custom headers and
+    improved exception handling. It puts received data into a queue
+    for asynchronous processing.
+
+    Attributes:
+        connected: Boolean indicating if the stream is active.
+        q: Queue object for receiving streaming data.
+        client: HTTP client for making requests.
+    """
+
     def __init__(self, q, headers=None, *args, **kwargs):
+        """Initialize the Streamer with a queue and optional headers.
+
+        Args:
+            q: Queue object to put received streaming data into.
+            headers: Optional dictionary of HTTP headers to include in requests.
+            *args: Additional positional arguments passed to parent class.
+            **kwargs: Additional keyword arguments passed to parent class.
+        """
         # Override to provide headers, which is in the standard API interface
         super().__init__(*args, **kwargs)
 
@@ -110,8 +205,17 @@ class Streamer(oandapy.Streamer):
         self.q = q
 
     def run(self, endpoint, params=None):
-        # Override to better manage exceptions.
-        # Kept as much as possible close to the original
+        """Run the streaming connection with enhanced exception handling.
+
+        This method maintains a persistent connection to the OANDA streaming
+        endpoint, processing incoming data and putting it into the queue.
+        It handles network errors gracefully and supports heartbeat filtering.
+
+        Args:
+            endpoint: The streaming endpoint to connect to.
+            params: Optional dictionary of query parameters, including:
+                - ignore_heartbeat: If True, heartbeat messages are filtered out.
+        """
         self.connected = True
 
         params = params or {}
@@ -154,12 +258,32 @@ class Streamer(oandapy.Streamer):
                 break
 
     def on_success(self, data):
+        """Process successfully received streaming data.
+
+        This method is called for each valid message received from the
+        streaming endpoint. It extracts tick or transaction data and
+        puts it into the queue for processing.
+
+        Args:
+            data: Dictionary containing the streaming data, which may contain
+                either a 'tick' key with price data or a 'transaction' key
+                with order/trade information.
+        """
         if "tick" in data:
             self.q.put(data["tick"])
         elif "transaction" in data:
             self.q.put(data["transaction"])
 
     def on_error(self, data):
+        """Handle streaming errors.
+
+        This method is called when an error occurs during streaming,
+        such as a non-200 status code. It disconnects the stream
+        and puts the error into the queue for handling.
+
+        Args:
+            data: Raw error response content from the failed request.
+        """
         self.disconnect()
         self.q.put(OandaStreamError(data).error_response)
 
@@ -208,6 +332,12 @@ class OandaStore(ParameterizedSingletonMixin):
         return cls.BrokerCls(*args, **kwargs)
 
     def __init__(self):
+        """Initialize the OandaStore with default attributes and API connection.
+
+        Sets up queues for order management, account data, and notifications.
+        Also initializes the OANDA API client with the configured environment
+        and access token.
+        """
         super().__init__()
 
         self.q_orderclose = None
@@ -236,7 +366,17 @@ class OandaStore(ParameterizedSingletonMixin):
         self._evt_acct = threading.Event()
 
     def start(self, data=None, broker=None):
-        # Datas require some processing to kickstart data reception
+        """Start the store for data or broker operation.
+
+        This method initializes the store for either data feeds or broker
+        operations. For data feeds, it registers the data and notifies
+        the broker. For broker operations, it starts the event streaming
+        and broker management threads.
+
+        Args:
+            data: Optional data feed instance to register.
+            broker: Optional broker instance to start managing.
+        """
         if data is None and broker is None:
             self.cash = None
             return
@@ -255,6 +395,11 @@ class OandaStore(ParameterizedSingletonMixin):
             self.broker_threads()
 
     def stop(self):
+        """Stop the store and signal all threads to terminate.
+
+        Sends None to all broker-related queues to signal threads to
+        gracefully shut down.
+        """
         # signal end of thread
         if self.broker is not None:
             self.q_ordercreate.put(None)
@@ -262,6 +407,13 @@ class OandaStore(ParameterizedSingletonMixin):
             self.q_account.put(None)
 
     def put_notification(self, msg, *args, **kwargs):
+        """Add a notification to the store's notification queue.
+
+        Args:
+            msg: The notification message.
+            *args: Additional positional arguments to store with the notification.
+            **kwargs: Additional keyword arguments to store with the notification.
+        """
         self.notifs.append((msg, args, kwargs))
 
     def get_notifications(self):
@@ -295,6 +447,13 @@ class OandaStore(ParameterizedSingletonMixin):
     }
 
     def get_positions(self):
+        """Get current open positions from OANDA.
+
+        Returns:
+            list or None: List of position dictionaries if successful,
+                None if an error occurs. Each dictionary contains
+                position details including instrument, units, and side.
+        """
         try:
             positions = self.oapi.get_positions(self.p.account)
         except (
@@ -307,9 +466,28 @@ class OandaStore(ParameterizedSingletonMixin):
         return poslist
 
     def get_granularity(self, timeframe, compression):
+        """Get the OANDA API granularity string for a timeframe/compression pair.
+
+        Args:
+            timeframe: The TimeFrame constant (e.g., TimeFrame.Minutes).
+            compression: The compression value (e.g., 5 for 5-minute bars).
+
+        Returns:
+            str or None: The OANDA API granularity string (e.g., "M5"), or None
+                if the timeframe/combination is not supported.
+        """
         return self._GRANULARITIES.get((timeframe, compression), None)
 
     def get_instrument(self, dataname):
+        """Get instrument information from OANDA.
+
+        Args:
+            dataname: The instrument name to query (e.g., "EUR_USD").
+
+        Returns:
+            dict or None: Dictionary containing instrument details if found,
+                None if the instrument doesn't exist or an error occurs.
+        """
         try:
             insts = self.oapi.get_instruments(self.p.account, instruments=dataname)
         except (
@@ -322,6 +500,17 @@ class OandaStore(ParameterizedSingletonMixin):
         return i[0] or None
 
     def streaming_events(self, tmout=None):
+        """Start streaming events for the account.
+
+        Creates and starts threads to listen for streaming events from
+        the OANDA API, including transaction updates and order status changes.
+
+        Args:
+            tmout: Optional timeout in seconds before starting the stream.
+
+        Returns:
+            Queue: Queue object that will receive streaming event data.
+        """
         q = queue.Queue()
         kwargs = {"q": q, "tmout": tmout}
 
@@ -353,6 +542,24 @@ class OandaStore(ParameterizedSingletonMixin):
         streamer.events(ignore_heartbeat=False)
 
     def candles(self, dataname, dtbegin, dtend, timeframe, compression, candleFormat, includeFirst):
+        """Get historical candle data for an instrument.
+
+        Creates a thread to fetch historical OHLCV data from OANDA
+        for the specified instrument and time range.
+
+        Args:
+            dataname: The instrument name to fetch data for.
+            dtbegin: Start datetime for the data fetch (can be None).
+            dtend: End datetime for the data fetch (can be None).
+            timeframe: TimeFrame constant for the bars.
+            compression: Compression value for the timeframe.
+            candleFormat: Format for candle data (e.g., "bidask", "midpoint").
+            includeFirst: Whether to include the first candle.
+
+        Returns:
+            Queue: Queue object that will receive candle data dictionaries,
+                terminated by an empty dictionary to signal completion.
+        """
         kwargs = locals().copy()
         kwargs.pop("self")
         kwargs["q"] = q = queue.Queue()
@@ -393,6 +600,18 @@ class OandaStore(ParameterizedSingletonMixin):
         q.put({})  # end of transmission
 
     def streaming_prices(self, dataname, tmout=None):
+        """Start streaming prices for a specific instrument.
+
+        Creates and starts a thread to stream real-time price data
+        for the specified instrument from the OANDA API.
+
+        Args:
+            dataname: The instrument name to stream prices for.
+            tmout: Optional timeout in seconds before starting the stream.
+
+        Returns:
+            Queue: Queue object that will receive streaming price data.
+        """
         q = queue.Queue()
         kwargs = {"q": q, "dataname": dataname, "tmout": tmout}
         t = threading.Thread(target=self._t_streaming_prices, kwargs=kwargs)
@@ -414,9 +633,21 @@ class OandaStore(ParameterizedSingletonMixin):
         streamer.rates(self.p.account, instruments=dataname)
 
     def get_cash(self):
+        """Get the current available cash (margin) from the account.
+
+        Returns:
+            float: The current available cash/margin for trading.
+                This is updated periodically by the account polling thread.
+        """
         return self._cash
 
     def get_value(self):
+        """Get the current account value (balance) from the account.
+
+        Returns:
+            float: The current account balance.
+                This is updated periodically by the account polling thread.
+        """
         return self._value
 
     _ORDEREXECS = {
@@ -427,6 +658,15 @@ class OandaStore(ParameterizedSingletonMixin):
     }
 
     def broker_threads(self):
+        """Start and manage all broker-related threads.
+
+        Creates and starts daemon threads for:
+        - Account data updates (cash and value refresh)
+        - Order creation processing
+        - Order cancellation processing
+
+        Also waits for initial account data to be loaded.
+        """
         self.q_account = queue.Queue()
         self.q_account.put(True)  # force an immediate update
         t = threading.Thread(target=self._t_account)
@@ -470,6 +710,17 @@ class OandaStore(ParameterizedSingletonMixin):
             self._evt_acct.set()
 
     def order_create(self, order, stopside=None, takeside=None, **kwargs):
+        """Create and submit an order to OANDA.
+
+        Args:
+            order: The backtrader Order object to create.
+            stopside: Optional stop-loss order side with price information.
+            takeside: Optional take-profit order side with price information.
+            **kwargs: Additional parameters to pass to the OANDA API.
+
+        Returns:
+            Order: The same order object passed in, for chaining.
+        """
         okwargs = dict()
         okwargs["instrument"] = order.data._dataname
         okwargs["units"] = abs(order.created.size)
@@ -559,6 +810,14 @@ class OandaStore(ParameterizedSingletonMixin):
                     self._process_transaction(oid, trans)
 
     def order_cancel(self, order):
+        """Request cancellation of an existing order.
+
+        Args:
+            order: The backtrader Order object to cancel.
+
+        Returns:
+            Order: The same order object passed in, for chaining.
+        """
         self.q_orderclose.put(order.ref)
         return order
 

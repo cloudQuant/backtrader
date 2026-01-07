@@ -316,8 +316,12 @@ class BackBroker(BrokerBase):
         default=False, type_=bool, doc="Enable fund-like performance calculation"
     )
 
-    # Initialize when creating instance
     def __init__(self, **kwargs):
+        """Initialize the BackBroker instance.
+
+        Args:
+            **kwargs: Keyword arguments for parameter initialization
+        """
         super().__init__(**kwargs)
         # Used to save order history records
         self._cash_addition = None
@@ -350,8 +354,12 @@ class BackBroker(BrokerBase):
         # Used to save fund shares and net asset value
         self._fhistlast = [float("NaN"), float("NaN")]
 
-    # Initialization function
     def init(self):
+        """Initialize broker state and internal data structures.
+
+        This method sets up the initial cash, positions, orders, and other
+        broker-related data structures. Called during cerebro initialization.
+        """
         super().init()
         # Initial cash at the start - obtained from parameter system
         cash_param = self.get_param("cash")
@@ -396,8 +404,12 @@ class BackBroker(BrokerBase):
         # Cash addition
         self._cash_addition = collections.deque()
 
-    # Get notification info
     def get_notification(self):
+        """Get the next notification from the notification queue.
+
+        Returns:
+            Order notification if available, None otherwise
+        """
         try:
             return self.notifs.popleft()
         except IndexError:
@@ -415,41 +427,71 @@ class BackBroker(BrokerBase):
         if fundstartval is not None:
             self.set_fundstartval(fundstartval)
 
-    # Get fundmode
     def get_fundmode(self):
-        # Returns the actual fundmode (True or False)
+        """Get the current fund mode status.
+
+        Returns:
+            bool: True if fund mode is enabled, False otherwise
+        """
         return self.get_param("fundmode")
 
-    # Set fund starting value
     def set_fundstartval(self, fundstartval):
-        # Set the starting value of the fund-like performance tracker
+        """Set the starting value for fund-like performance tracking.
+
+        Args:
+            fundstartval: The starting value for the fund
+        """
         self.set_param("fundstartval", fundstartval)
 
-    # Transfer interest costs to pnl
     def set_int2pnl(self, int2pnl):
-        # Configure assignment of interest to profit and loss
+        """Configure assignment of interest to profit and loss.
+
+        Args:
+            int2pnl: If True, interest is assigned to PnL when positions close
+        """
         self.set_param("int2pnl", int2pnl)
 
-    # Set Cheat-On-Close
     def set_coc(self, coc):
-        # Configure the Cheat-On-Close method to buy the close on order bar
+        """Configure Cheat-On-Close behavior.
+
+        When enabled, market orders can execute at the closing price of the
+        bar in which they were issued.
+
+        Args:
+            coc: If True, enable cheat-on-close
+        """
         self.set_param("coc", coc)
 
-    # Set Cheat-On-Open
     def set_coo(self, coo):
-        # Configure the Cheat-On-Open method to buy the close on order bar
+        """Configure Cheat-On-Open behavior.
+
+        When enabled, market orders can execute at the opening price.
+
+        Args:
+            coo: If True, enable cheat-on-open
+        """
         self.set_param("coo", coo)
 
-    # Set shortcash parameter
     def set_shortcash(self, shortcash):
-        # Configure the shortcash parameters
+        """Configure short cash behavior for stock-like assets.
+
+        Args:
+            shortcash: If True, increase cash when shorting stock-like assets
+        """
         self.set_param("shortcash", shortcash)
 
-    # Set percentage slippage related info
     def set_slippage_perc(
         self, perc, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
     ):
-        # Configure slippage to be percentage based
+        """Configure percentage-based slippage.
+
+        Args:
+            perc: Slippage percentage (e.g., 0.01 for 1%)
+            slip_open: Apply slippage to opening prices
+            slip_limit: Allow limit order matching with slippage capping
+            slip_match: Cap slippage at high/low prices
+            slip_out: Provide slippage even outside high-low range
+        """
         self.set_param("slip_perc", perc)
         self.set_param("slip_fixed", 0.0)
         self.set_param("slip_open", slip_open)
@@ -457,11 +499,18 @@ class BackBroker(BrokerBase):
         self.set_param("slip_match", slip_match)
         self.set_param("slip_out", slip_out)
 
-    # Set fixed slippage related info
     def set_slippage_fixed(
         self, fixed, slip_open=True, slip_limit=True, slip_match=True, slip_out=False
     ):
-        # Configure slippage to be fixed points based
+        """Configure fixed-point slippage.
+
+        Args:
+            fixed: Fixed slippage amount in price units
+            slip_open: Apply slippage to opening prices
+            slip_limit: Allow limit order matching with slippage capping
+            slip_match: Cap slippage at high/low prices
+            slip_out: Provide slippage even outside high-low range
+        """
         self.set_param("slip_perc", 0.0)
         self.set_param("slip_fixed", fixed)
         self.set_param("slip_open", slip_open)
@@ -469,27 +518,39 @@ class BackBroker(BrokerBase):
         self.set_param("slip_match", slip_match)
         self.set_param("slip_out", slip_out)
 
-    # Set callable object that determines order execution size based on volume limit
     def set_filler(self, filler):
-        # Sets a volume filler for volume filling execution
+        """Set a volume filler callable for order execution.
+
+        Args:
+            filler: Callable with signature (order, price, ago) -> executed_size
+        """
         self.set_param("filler", filler)
 
-    # Set checksubmit parameter
     def set_checksubmit(self, checksubmit):
-        # Sets the checksubmit parameter
+        """Set whether to check margin/cash before accepting orders.
+
+        Args:
+            checksubmit: If True, validate margin/cash before order submission
+        """
         self.set_param("checksubmit", checksubmit)
 
-    # Set eosbar parameter
     def set_eosbar(self, eosbar):
-        # Sets the eosbar parameter (alias: ``seteosbar``
+        """Set end-of-session bar behavior.
+
+        Args:
+            eosbar: If True, consider bar with same time as end of session as EOS
+        """
         self.set_param("eosbar", eosbar)
 
     seteosbar = set_eosbar
 
-    # Get cash
     def get_cash(self):
-        # Returns the current cash (alias: ``getcash``)
-        # If not yet initialized, return parameter value; otherwise return current cash status
+        """Get the current available cash.
+
+        Returns:
+            float: Current cash amount. Returns parameter value if not yet
+                initialized, otherwise returns current cash status.
+        """
         if hasattr(self, "_cash") and self._cash is not None:
             return self._cash
         else:
@@ -500,6 +561,14 @@ class BackBroker(BrokerBase):
     # CRITICAL FIX: Override __getattribute__ to return runtime _cash value
     # when accessing broker.cash, instead of the initial parameter value
     def __getattribute__(self, name):
+        """Override attribute access to return runtime cash value.
+
+        Args:
+            name: Attribute name being accessed
+
+        Returns:
+            Runtime _cash value if accessing 'cash', otherwise the attribute value
+        """
         if name == "cash":
             # Use object.__getattribute__ to avoid recursion
             try:
@@ -516,36 +585,56 @@ class BackBroker(BrokerBase):
                 return 10000.0  # Default value
         return object.__getattribute__(self, name)
 
-    # Set cash
     def set_cash(self, cash):
-        # Sets the cash parameter (alias: ``setcash``)
+        """Set the broker cash amount.
+
+        Args:
+            cash: Cash amount to set
+        """
         self.startingcash = self._cash = cash
         self.set_param("cash", cash)
         self._value = cash
 
     setcash = set_cash
 
-    # Add cash
     def add_cash(self, cash):
-        # Add/Remove cash to the system (use a negative value to remove)
+        """Add or remove cash from the system.
+
+        Args:
+            cash: Cash amount to add (use negative value to remove)
+        """
         self._cash_addition.append(cash)
 
-    # Get fund shares
     def get_fundshares(self):
-        # Returns the current number of shares in the fund-like mode
+        """Get the current number of fund shares.
+
+        Returns:
+            float: Current number of shares in fund-like mode
+        """
         return self._fundshares
 
     fundshares = property(get_fundshares)
 
-    # Get fund value
     def get_fundvalue(self):
-        # Returns the Fund-like share value
+        """Get the fund share value.
+
+        Returns:
+            float: Current fund-like share value
+        """
         return self._fundval
 
     fundvalue = property(get_fundvalue)
 
-    # Cancel order
     def cancel(self, order, bracket=False):
+        """Cancel an order.
+
+        Args:
+            order: The order to cancel
+            bracket: If True, cancel as part of bracket order
+
+        Returns:
+            bool: True if order was cancelled, False if not found
+        """
         try:
             self.pending.remove(order)
         except ValueError:
@@ -578,8 +667,16 @@ class BackBroker(BrokerBase):
     # def get_value_lever(self, datas=None, mkt=False):
     #     return self.get_value(datas=datas, mkt=mkt)
 
-    # Get account value
     def _get_value(self, datas=None, lever=False):
+        """Calculate portfolio value for given data feeds.
+
+        Args:
+            datas: Data feeds to calculate value for (None for all)
+            lever: If True, return leveraged value
+
+        Returns:
+            float: Portfolio value
+        """
         # Position value
         pos_value = 0.0
         # Unleveraged position value
@@ -671,8 +768,12 @@ class BackBroker(BrokerBase):
 
         return self._value if not lever else self._valuelever
 
-    # Get leverage
     def get_leverage(self):
+        """Get the current account leverage ratio.
+
+        Returns:
+            float: Current leverage ratio
+        """
         return self._leverage
 
     # Get pending orders
@@ -691,14 +792,26 @@ class BackBroker(BrokerBase):
 
         return os
 
-    # Get data position
     def getposition(self, data):
-        """Returns the current position status (a ``Position`` instance) for
-        the given ``data``"""
+        """Get the current position status for a data feed.
+
+        Args:
+            data: Data feed to get position for
+
+        Returns:
+            Position: Current position instance for the data feed
+        """
         return self.positions[data]
 
-    # Get order status
     def orderstatus(self, order):
+        """Get the status of an order.
+
+        Args:
+            order: Order object or order reference
+
+        Returns:
+            Order.Status: The current status of the order
+        """
         try:
             o = self.orders.index(order)
         except ValueError:
@@ -706,8 +819,15 @@ class BackBroker(BrokerBase):
 
         return o.status
 
-    #
     def _take_children(self, order):
+        """Handle parent-child relationship for bracket orders.
+
+        Args:
+            order: Order to process for parent-child relationship
+
+        Returns:
+            Parent order reference if successful, None if order rejected
+        """
         # Order ID
         oref = order.ref
         # Get parent order ID of order, if not found then it's itself
@@ -722,8 +842,16 @@ class BackBroker(BrokerBase):
         # If they are equal, return parent order ID
         return pref
 
-    # Submit order
     def submit(self, order, check=True):
+        """Submit an order to the broker.
+
+        Args:
+            order: Order object to submit
+            check: If True, validate order before submission
+
+        Returns:
+            Order: The submitted order or parent order if part of bracket
+        """
         # Get parent order ID of order or its own ID, if this ID is None, return order itself
         pref = self._take_children(order)
         if pref is None:  # order has not been taken
@@ -739,8 +867,16 @@ class BackBroker(BrokerBase):
 
         return order
 
-    # transmit function
     def transmit(self, order, check=True):
+        """Transmit an order for execution.
+
+        Args:
+            order: Order to transmit
+            check: If True, check margin/cash before accepting
+
+        Returns:
+            Order: The transmitted order
+        """
         # If check is True and checksubmit is True
         if check and self.get_param("checksubmit"):
             # Orderssubmit
@@ -757,8 +893,12 @@ class BackBroker(BrokerBase):
         # Return order
         return order
 
-    # Check submission
     def check_submitted(self):
+        """Check and validate submitted orders against available cash and margin.
+
+        Processes all orders in the submitted queue and validates them
+        against current cash and margin requirements.
+        """
         # Currently available cash
         cash = self._cash
         # Position
@@ -788,8 +928,12 @@ class BackBroker(BrokerBase):
             self._ococheck(order)
             self._bracketize(order, cancel=True)
 
-    # Accept this order
     def submit_accept(self, order):
+        """Accept and activate a submitted order.
+
+        Args:
+            order: Order to accept
+        """
         # TODO Set additional pannotated attribute for order, purpose unknown for now
         order.pannotated = None
         # Order submit
@@ -801,8 +945,13 @@ class BackBroker(BrokerBase):
         # Notify order status
         self.notify(order)
 
-    # Delete order or change order active status to inactive
     def _bracketize(self, order, cancel=False):
+        """Handle bracket order activation or cancellation.
+
+        Args:
+            order: Order in a bracket order group
+            cancel: If True, cancel remaining orders in bracket
+        """
         # Ordersid
         oref = order.ref
         # Parent order ID or own ID
@@ -825,8 +974,12 @@ class BackBroker(BrokerBase):
             for o in pc:  # activate children
                 self._toactivate.append(o)
 
-    # OCO order check
     def _ococheck(self, order):
+        """Check and handle OCO (One-Cancels-Other) order relationships.
+
+        Args:
+            order: Order to check for OCO relationships
+        """
         # ocoref = self._ocos[order.ref] or order.ref  # a parent or self
         parentref = self._ocos[order.ref]
         ocoref = self._ocos.get(parentref, None)
@@ -839,8 +992,13 @@ class BackBroker(BrokerBase):
                     o.cancel()
                     self.notify(o)
 
-    # OCO order operation
     def _ocoize(self, order, oco):
+        """Set up OCO (One-Cancels-Other) relationship for an order.
+
+        Args:
+            order: Order to set up OCO relationship for
+            oco: OCO order reference (None for new OCO group)
+        """
         oref = order.ref
         if oco is None:
             self._ocos[oref] = oref  # current order is parent
@@ -850,14 +1008,23 @@ class BackBroker(BrokerBase):
             self._ocos[oref] = ocoref  # ref to group leader
             self._ocol[ocoref].append(oref)  # add to group
 
-    # Add order history
     def add_order_history(self, orders, notify=True):
+        """Add historical orders to the broker.
+
+        Args:
+            orders: Iterable of historical orders to add
+            notify: If True, send notifications for these orders
+        """
         oiter = iter(orders)
         o = next(oiter, None)
         self._userhist.append([o, oiter, notify])
 
-    # Set fund history info
     def set_fund_history(self, fund):
+        """Set fund history for fund-like performance tracking.
+
+        Args:
+            fund: Iterable of [datetime, share_value, net_asset_value] items
+        """
         # iterable with the following pro item
         # [datetime, share_value, net asset value]
         fiter = iter(fund)
@@ -867,7 +1034,6 @@ class BackBroker(BrokerBase):
 
         self.set_cash(float(f[2]))
 
-    # Buy operation
     def buy(
         self,
         owner,
@@ -887,6 +1053,29 @@ class BackBroker(BrokerBase):
         _checksubmit=True,
         **kwargs,
     ):
+        """Create and submit a buy order.
+
+        Args:
+            owner: Strategy or object creating the order
+            data: Data feed for the order
+            size: Order size (positive for buy)
+            price: Order price (for limit/stop orders)
+            plimit: Limit price for stop-limit orders
+            exectype: Order execution type
+            valid: Order validity
+            tradeid: Trade identifier
+            oco: OCO (One-Cancels-Other) order reference
+            trailamount: Trailing stop amount
+            trailpercent: Trailing stop percentage
+            parent: Parent order (for bracket orders)
+            transmit: If True, transmit order immediately
+            histnotify: If True, notify for historical orders
+            _checksubmit: If True, validate order before submission
+            **kwargs: Additional order parameters
+
+        Returns:
+            Order: The submitted buy order
+        """
         order = BuyOrder(
             owner=owner,
             data=data,
@@ -908,7 +1097,6 @@ class BackBroker(BrokerBase):
 
         return self.submit(order, check=_checksubmit)
 
-    # Sell operation
     def sell(
         self,
         owner,
@@ -928,6 +1116,29 @@ class BackBroker(BrokerBase):
         _checksubmit=True,
         **kwargs,
     ):
+        """Create and submit a sell order.
+
+        Args:
+            owner: Strategy or object creating the order
+            data: Data feed for the order
+            size: Order size (positive for sell)
+            price: Order price (for limit/stop orders)
+            plimit: Limit price for stop-limit orders
+            exectype: Order execution type
+            valid: Order validity
+            tradeid: Trade identifier
+            oco: OCO (One-Cancels-Other) order reference
+            trailamount: Trailing stop amount
+            trailpercent: Trailing stop percentage
+            parent: Parent order (for bracket orders)
+            transmit: If True, transmit order immediately
+            histnotify: If True, notify for historical orders
+            _checksubmit: If True, validate order before submission
+            **kwargs: Additional order parameters
+
+        Returns:
+            Order: The submitted sell order
+        """
         order = SellOrder(
             owner=owner,
             data=data,
@@ -1153,8 +1364,12 @@ class BackBroker(BrokerBase):
             self._ococheck(order)
             self._bracketize(order, cancel=True)
 
-    # Notify orderInfo
     def notify(self, order):
+        """Add an order notification to the notification queue.
+
+        Args:
+            order: Order to create notification for
+        """
         self.notifs.append(order.clone())
 
     # Try to execute historical
@@ -1534,8 +1749,17 @@ class BackBroker(BrokerBase):
                 # update to next potential order
                 uhist[0] = uhorder = next(uhorders, None)
 
-    # next
     def next(self):
+        """Process broker operations for the current time step.
+
+        This method:
+        - Activates pending orders
+        - Validates submitted orders
+        - Calculates interest charges
+        - Processes order history
+        - Executes pending orders
+        - Adjusts cash for mark-to-market
+        """
         while self._toactivate:
             self._toactivate.popleft().activate()
 

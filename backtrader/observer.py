@@ -80,6 +80,15 @@ class Observer(ObserverBase):
     # An Observer is ideally always observing and that' why prenext calls next.
     # The behavior can be overriden by subclasses
     def prenext(self):
+        """Process bars before minimum period is reached.
+
+        By default, observers always process every bar by calling next()
+        even during the prenext phase. Subclasses can override this behavior.
+
+        Note:
+            This default implementation calls next() to ensure observers
+            track all bars from the beginning.
+        """
         self.next()
 
     # Register analyzer
@@ -97,4 +106,8 @@ class Observer(ObserverBase):
         self.start()
 
     def start(self):
-        pass
+        """Called at the start of the backtesting run.
+
+        This method can be overridden by subclasses to perform
+        initialization at the start of strategy execution.
+        """

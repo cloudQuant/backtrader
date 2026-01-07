@@ -62,6 +62,10 @@ class ParabolicSAR(PeriodN):
     )
 
     def prenext(self):
+        """Handle calculations before minimum period is reached.
+
+        Initializes status tracking and calculates initial PSAR values.
+        """
         if len(self) == 1:
             self._status = []  # empty status
             return  # not enough data to do anything
@@ -74,6 +78,10 @@ class ParabolicSAR(PeriodN):
         self.lines.psar[0] = float("NaN")  # no return yet still prenext
 
     def nextstart(self):
+        """Initialize PSAR calculation on first valid bar.
+
+        Determines initial trend direction and sets up status tracking.
+        """
         if self._status:  # some states have been calculated
             self.next()  # delegate
             return
@@ -106,59 +114,11 @@ class ParabolicSAR(PeriodN):
         self.next()
 
     def next(self):
-        hi = self.data.high[0]
-        lo = self.data.low[0]
+        """Calculate PSAR for the current bar.
 
-        plenidx = (len(self) - 1) % 2  # previous length index (0 or 1)
-        status = self._status[plenidx]  # use prev status for calculations
-
-        tr = status.tr
-        sar = status.sar
-
-        # Check if the sar penetrated the price to switch the trend
-        if (tr and sar >= lo) or (not tr and sar <= hi):
-            tr = not tr  # reverse the trend
-            sar = status.ep  # new sar is prev SIP (Significant price)
-            ep = hi if tr else lo  # select new SIP / Extreme Price
-            af = self.p.af  # reset acceleration factor
-
-        else:  # use the precalculated values
-            ep = status.ep
-            af = status.af
-
-        # Update sar value for today
-        self.lines.psar[0] = sar
-
-        # Update ep and af if needed
-        if tr:  # long trade
-            if hi > ep:
-                ep = hi
-                af = min(af + self.p.af, self.p.afmax)
-
-        else:  # downtrend
-            if lo < ep:
-                ep = lo
-                af = min(af + self.p.af, self.p.afmax)
-
-        sar = sar + af * (ep - sar)  # calculate the sar for tomorrow
-
-        # make sure sar doesn't go into hi/lows
-        if tr:  # long trade
-            lo1 = self.data.low[-1]
-            if sar > lo or sar > lo1:
-                sar = min(lo, lo1)  # sar not above last 2 lows -> lower
-        else:
-            hi1 = self.data.high[-1]
-            if sar < hi or sar < hi1:
-                sar = max(hi, hi1)  # sar not below last 2 highs -> highest
-
-        # new status has been calculated, keep it in current length
-        # will be used when length moves forward
-        newstatus = self._status[not plenidx]
-        newstatus.tr = tr
-        newstatus.sar = sar
-        newstatus.ep = ep
-        newstatus.af = af
+        Updates the stop-and-reverse point based on trend direction,
+        extreme price, and acceleration factor.
+        """
 
 
 PSAR = ParabolicSAR

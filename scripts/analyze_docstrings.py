@@ -16,23 +16,29 @@ Example output:
     === Analysis Report for strategy.py ===
     Total lines: 2530
     Suggested segments: 7 (each ~400 lines)
-    
+
     [Missing Docstrings]
     - Module docstring: MISSING
     - Class 'Strategy' (line 45): MISSING
     - Method 'buy' (line 234): MISSING
-    
+
     [Chinese Comments]
-    - Line 123: # 这是一个中文注释
-    - Line 456: # 计算移动平均
+    - Line 123: # This is a Chinese comment
+    - Line 456: # Calculate moving average
 """
 
 import ast
 import re
 import sys
 import argparse
+import io
 from pathlib import Path
 from typing import List, Tuple, Dict, Any
+
+# Fix Windows console encoding issue
+if sys.platform == 'win32':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
 
 
 def count_lines(filepath: str) -> int:

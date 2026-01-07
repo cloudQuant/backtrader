@@ -33,13 +33,27 @@ class TotalValue(Analyzer):
     rets = None
 
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Creates the ordered dictionary to store value history.
+        """
         super().start()
         self.rets = OrderedDict()
 
     def next(self):
+        """Record the total portfolio value for the current bar.
+
+        Gets the current portfolio value from the broker and stores it
+        keyed by datetime.
+        """
         # Calculate the return
         super().next()
         self.rets[self.datas[0].datetime.datetime()] = self.strategy.broker.getvalue()
 
     def get_analysis(self):
+        """Return the total value analysis results.
+
+        Returns:
+            OrderedDict: Dictionary mapping datetimes to portfolio values.
+        """
         return self.rets

@@ -61,6 +61,15 @@ class TimeFrame:
     # Class method to get Timeframe period type
     @classmethod
     def getname(cls, tframe, compression=None):  # backtrader built-in
+        """Get the name for a timeframe.
+
+        Args:
+            tframe: TimeFrame constant (e.g., TimeFrame.Days).
+            compression: Compression factor. If None, uses 1.
+
+        Returns:
+            str: Name of the timeframe (singular or plural).
+        """
         # The default parameter setting for compression is not actually reasonable here,
         # if the default parameter is passed directly, an error will occur in the comparison below
         # Modify the default parameter to 1 or add judgment for compression,
@@ -78,11 +87,27 @@ class TimeFrame:
     # Class method to get trading period name value
     @classmethod
     def TFrame(cls, name):
+        """Get TimeFrame constant from name.
+
+        Args:
+            name: String name like 'Days', 'Minutes'.
+
+        Returns:
+            TimeFrame constant.
+        """
         return getattr(cls, name)
 
     # Class method to return trading period name based on trading period value
     @classmethod
     def TName(cls, tframe):
+        """Get name string from timeframe constant.
+
+        Args:
+            tframe: TimeFrame constant.
+
+        Returns:
+            str: Name of the timeframe.
+        """
         return cls.Names[tframe]
 
 
@@ -130,6 +155,11 @@ class DataSeries(LineSeries):
 
     # Get header variable names of dataseries
     def getwriterheaders(self):
+        """Get header names for writing data.
+
+        Returns:
+            list: List of header names including data name and line names.
+        """
         headers = [self._name, "len"]
 
         for lo in self.LineOrder:
@@ -142,6 +172,11 @@ class DataSeries(LineSeries):
 
     # Get values
     def getwritervalues(self):
+        """Get current values for writing.
+
+        Returns:
+            list: List of current values including data name, length, and line values.
+        """
         length = len(self)
         values = [self._name, length]
 
@@ -158,6 +193,11 @@ class DataSeries(LineSeries):
 
     # Get written information
     def getwriterinfo(self):
+        """Get information about the data series.
+
+        Returns:
+            OrderedDict: Dictionary with name, timeframe, and compression info.
+        """
         # returns dictionary with information
         info = OrderedDict()
         info["Name"] = self._name
@@ -167,10 +207,21 @@ class DataSeries(LineSeries):
         return info
 
     def get_name(self):
+        """Get the name of this data series.
+
+        Returns:
+            str: Data series name.
+        """
         return self._name
 
 
 class OHLC(DataSeries):
+    """DataSeries with OHLCV lines but no datetime line.
+
+    Lines:
+        close, low, high, open, volume, openinterest
+    """
+
     # Inherit from DataSeries, lines exclude datetime leaving only 6
     lines = (
         "close",
@@ -183,6 +234,11 @@ class OHLC(DataSeries):
 
 
 class OHLCDateTime(OHLC):
+    """DataSeries with datetime line plus OHLCV lines.
+
+    This is the full-featured data series for financial data.
+    """
+
     # Inherit from DataSeries, lines only keep datetime
     lines = (("datetime"),)
 
@@ -204,6 +260,14 @@ class SimpleFilterWrapper:
     # This is a class for adding filters, which can perform certain operations on data according to filter needs, such as removal
     # This filter is usually a class or a function
     def __init__(self, data, ffilter, *args, **kwargs):
+        """Initialize the filter wrapper.
+
+        Args:
+            data: Data source to filter.
+            ffilter: Filter class or callable.
+            *args: Positional arguments for the filter.
+            **kwargs: Keyword arguments for the filter.
+        """
         if inspect.isclass(ffilter):
             ffilter = ffilter(data, *args, **kwargs)
             args = []
@@ -214,6 +278,14 @@ class SimpleFilterWrapper:
         self.kwargs = kwargs
 
     def __call__(self, data):
+        """Apply the filter to the data.
+
+        Args:
+            data: Data source to filter.
+
+        Returns:
+            bool: True if bar was filtered (removed), False otherwise.
+        """
         if self.ffilter(data, *self.args, **self.kwargs):
             data.backwards()
             return True
@@ -241,6 +313,11 @@ class _Bar(AutoOrderedDict):
     MAXDATE = date2num(_datetime.datetime.max) - 2
 
     def __init__(self, maxdate=False):
+        """Initialize a bar container.
+
+        Args:
+            maxdate: If True, set datetime to maximum date.
+        """
         super().__init__()
         # todo Uncommenting these lines will cause an error, need to check the reason
         # self.datetime = None

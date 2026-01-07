@@ -30,6 +30,14 @@ class ComminfoDC(CommInfoBase):
         return abs(size) * price * self.p.mult * self.p.commission
 
     def get_margin(self, price):
+        """Calculate margin required for a position at given price.
+
+        Args:
+            price: Price per unit of the asset.
+
+        Returns:
+            float: Margin amount required.
+        """
         return price * self.p.mult * self.p.margin
 
     # Calculate interest fee, involves some simplifications

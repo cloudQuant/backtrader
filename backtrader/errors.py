@@ -44,6 +44,12 @@ class ModuleImportError(BacktraderError):
     be imported"""
 
     def __init__(self, message, *args):
+        """Initialize the ModuleImportError.
+
+        Args:
+            message: Error message.
+            *args: Additional arguments.
+        """
         super().__init__(message)
         self.args = args
 
@@ -54,4 +60,10 @@ class FromModuleImportError(ModuleImportError):
     be imported"""
 
     def __init__(self, message, *args):
+        """Initialize the FromModuleImportError.
+
+        Args:
+            message: Error message.
+            *args: Additional arguments.
+        """
         super().__init__(message, *args)

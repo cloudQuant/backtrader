@@ -70,14 +70,20 @@ class LogReturns(Observer):
             str(self.p.compression or 1),
         ]
 
-    # Calculate log returns via LogReturnsRolling during initialization
     def __init__(self):
+        """Initialize the LogReturns observer.
+
+        Adds LogReturnsRolling analyzer to track log returns.
+        """
         self.logret1 = self._owner._addanalyzer_slave(
             LogReturnsRolling, data=self.data0, **self.p._getkwargs()
         )
 
-    # Assign value to logret1
     def next(self):
+        """Update log return value for the current period.
+
+        Gets the log return from the analyzer.
+        """
         self.lines.logret1[0] = self.logret1.rets[self.logret1.dtkey]
 
 
@@ -88,6 +94,10 @@ class LogReturns2(LogReturns):
     lines = ("logret2",)
 
     def __init__(self):
+        """Initialize the LogReturns2 observer.
+
+        Adds analyzer for second data feed's log returns.
+        """
         super().__init__()
 
         self.logret2 = self._owner._addanalyzer_slave(
@@ -95,5 +105,9 @@ class LogReturns2(LogReturns):
         )
 
     def next(self):
+        """Update log return values for both data feeds.
+
+        Updates logret1 from parent and logret2 for second feed.
+        """
         super().next()
         self.lines.logret2[0] = self.logret2.rets[self.logret2.dtkey]

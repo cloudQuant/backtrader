@@ -54,6 +54,10 @@ class Trix(Indicator):
         return plabels
 
     def __init__(self):
+        """Initialize the TRIX indicator.
+
+        Creates triple EMA structure for TRIX calculation.
+        """
         super().__init__()
         self.ema1 = self.p._movav(self.data, period=self.p.period)
         self.ema2 = self.p._movav(self.ema1, period=self.p.period)
@@ -62,6 +66,10 @@ class Trix(Indicator):
         self._minperiod = max(self._minperiod, 3 * self.p.period + self.p._rocperiod - 2)
 
     def next(self):
+        """Calculate TRIX for the current bar.
+
+        Formula: TRIX = 100 * (ema3 / ema3_rocperiod_ago - 1.0)
+        """
         rocperiod = self.p._rocperiod
         ema3_curr = self.ema3[0]
         ema3_prev = self.ema3[-rocperiod]
@@ -71,6 +79,10 @@ class Trix(Indicator):
             self.lines.trix[0] = 0.0
 
     def once(self, start, end):
+        """Calculate TRIX in runonce mode.
+
+        Computes triple EMA rate of change percentage across all bars.
+        """
         ema3_array = self.ema3.lines[0].array
         larray = self.lines.trix.array
         rocperiod = self.p._rocperiod
@@ -113,19 +125,35 @@ class TrixSignal(Trix):
     params = (("sigperiod", 9),)
 
     def __init__(self):
+        """Initialize the TRIX Signal indicator.
+
+        Sets up signal line EMA smoothing parameters.
+        """
         super().__init__()
         self.signal_alpha = 2.0 / (1.0 + self.p.sigperiod)
         self.signal_alpha1 = 1.0 - self.signal_alpha
 
     def nextstart(self):
+        """Seed TRIX Signal calculation on first valid bar.
+
+        Initializes signal line with TRIX value.
+        """
         super().next()
         self.lines.signal[0] = self.lines.trix[0]
 
     def next(self):
+        """Calculate TRIX and signal line for current bar.
+
+        Signal line is EMA of TRIX values.
+        """
         super().next()
         self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + self.lines.trix[0] * self.signal_alpha
 
     def once(self, start, end):
+        """Calculate TRIX Signal in runonce mode.
+
+        Computes signal line as EMA of TRIX values across all bars.
+        """
         super().once(start, end)
         trix_array = self.lines.trix.array
         signal_array = self.lines.signal.array

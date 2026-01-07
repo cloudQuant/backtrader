@@ -45,6 +45,12 @@ class GrossLeverage(Analyzer):
 
     # Start
     def __init__(self, *args, **kwargs):
+        """Initialize the GrossLeverage analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         self._value = None
@@ -52,6 +58,10 @@ class GrossLeverage(Analyzer):
         self._fundmode = None
 
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets the fund mode based on parameters or broker settings.
+        """
         if self.p.fund is None:
             self._fundmode = self.strategy.broker.fundmode
         else:
@@ -59,6 +69,14 @@ class GrossLeverage(Analyzer):
 
     # Fund notification
     def notify_fund(self, cash, value, fundvalue, shares):
+        """Update cash and value from fund notification.
+
+        Args:
+            cash: Current cash amount.
+            value: Current portfolio value.
+            fundvalue: Current fund value.
+            shares: Number of fund shares.
+        """
         self._cash = cash
         if not self._fundmode:
             self._value = value
@@ -67,6 +85,11 @@ class GrossLeverage(Analyzer):
 
     # Run once per bar, get ratio of used capital
     def next(self):
+        """Calculate and record the gross leverage for the current bar.
+
+        Gross leverage is calculated as (value - cash) / value.
+        Returns 0.0 if 100% in cash, 1.0 if fully invested without shorting.
+        """
         # Updates the leverage for "dtkey" (see base class) for each cycle
         # 0.0 if 100% in cash, 1.0 if no short selling and fully invested
         lev = (self._value - self._cash) / self._value

@@ -27,10 +27,25 @@ from .mixins import ParameterizedSingletonMixin
 
 # Copy SymbolInfo object, set syminfo attributes and values to class instance
 class _SymInfo:
+    """Replica of SymbolInfo COM object for thread boundary passing.
+
+    This class creates a Python replica of the VisualChart SymbolInfo COM object,
+    allowing it to be safely passed across thread boundaries where COM objects
+    cannot directly traverse.
+
+    Attributes:
+        _fields: List of field names to copy from SymbolInfo object.
+    """
+
     # Replica of the SymbolInfo COM object to pass it over thread boundaries
     _fields = ["Type", "Description", "Decimals", "TimeOffset", "PointValue", "MinMovement"]
 
     def __init__(self, syminfo):
+        """Initialize the _SymInfo object from a SymbolInfo COM object.
+
+        Args:
+            syminfo: VisualChart SymbolInfo COM object to copy attributes from.
+        """
         for f in self._fields:
             setattr(self, f, getattr(syminfo, f))
 
@@ -139,18 +154,53 @@ def PumpEvents(timeout=-1, hevt=None, cb=None):
 
 
 class RTEventSink:
+    """Event sink for VisualChart RealTime events.
+
+    This class receives and handles events from the VisualChart RealTime COM object,
+    including connection status changes, server shutdown, and new tick data.
+
+    Attributes:
+        store: Reference to the VCStore instance.
+        vcrtmod: VisualChart RealTime module.
+        lastconn: Last connection status to avoid duplicate notifications.
+    """
+
     def __init__(self, store):
+        """Initialize the RTEventSink with a store instance.
+
+        Args:
+            store: VCStore instance to notify of events.
+        """
         self.store = store
         self.vcrtmod = store.vcrtmod
         self.lastconn = None
 
     def OnNewTicks(self, ArrayTicks):
+        """Handle new tick data events.
+
+        Args:
+            ArrayTicks: Array containing new tick data.
+        """
         pass
 
     def OnServerShutDown(self):
+        """Handle VisualChart server shutdown events.
+
+        Notifies the store that VisualChart is shutting down.
+        """
         self.store._vcrt_connection(self.store._RT_SHUTDOWN)
 
     def OnInternalEvent(self, p1, p2, p3):
+        """Handle internal VisualChart events.
+
+        Processes connection events (p1=1) and notifies the store of
+        connection status changes.
+
+        Args:
+            p1: Event type (1 = Connection Event).
+            p2: Event code (0 = disconnected, 1 = connected).
+            p3: Additional event parameter (unused).
+        """
         if p1 != 1:  # Apparently "Connection Event"
             return
 
@@ -230,6 +280,16 @@ class VCStore(ParameterizedSingletonMixin):
     VC_BINPATH = "bin"
 
     def find_vchart(self):
+        """Locate VisualChart installation directory and DLL files.
+
+        Tries to locate VisualChart in the Windows registry to get the installation
+        directory. If found, scans the directory for 64-bit or 32-bit DLL files.
+        If not found in registry, returns well-known TypeLib CLSIDs as fallback.
+
+        Returns:
+            list: List of DLL file paths if found in registry, or list of
+                TypeLib CLSIDs as fallback.
+        """
         # Tries to locate VisualChart in the registry to get the installation
         # directory
         # If not found returns well-known typelibs clsid
@@ -301,6 +361,15 @@ class VCStore(ParameterizedSingletonMixin):
         return True  # notifiy comtypes was loaded
 
     def __init__(self):
+        """Initialize the VCStore instance.
+
+        Attempts to load comtypes library, locate VisualChart installation,
+        load COM TypeLib modules, and create COM objects. Sets up internal
+        data structures for managing data feeds, queues, and notifications.
+
+        Raises:
+            OSError: If COM TypeLib modules or objects cannot be loaded.
+        """
         self._connected = False  # modules/objects created
 
         self.notifs = collections.deque()  # hold notifications to deliver
@@ -373,14 +442,37 @@ class VCStore(ParameterizedSingletonMixin):
         }
 
     def put_notification(self, msg, *args, **kwargs):
+        """Add a notification to the internal queue.
+
+        Args:
+            msg: Notification message code.
+            *args: Additional positional arguments for the notification.
+            **kwargs: Additional keyword arguments for the notification.
+        """
         self.notifs.append((msg, args, kwargs))
 
     def get_notifications(self):
-        """Return the pending "store" notifications"""
+        """Return the pending "store" notifications.
+
+        Marks the current end of notifications and returns all pending
+        notifications up to this point.
+
+        Returns:
+            list: List of pending notifications as (msg, args, kwargs) tuples.
+        """
         self.notifs.append(None)  # Mark the current end of notifs
         return [x for x in iter(self.notifs.popleft, None)]  # popleft til None
 
     def start(self, data=None, broker=None):
+        """Start the store connections and threads.
+
+        Initiates the VisualChart RealTime connection thread and optionally
+        starts a broker thread if a broker instance is provided.
+
+        Args:
+            data: Optional data feed instance (unused).
+            broker: Optional broker instance to start in a separate thread.
+        """
         if not self._connected:
             return
 
@@ -396,9 +488,18 @@ class VCStore(ParameterizedSingletonMixin):
             t.start()
 
     def stop(self):
+        """Stop the store and clean up resources.
+
+        Currently a no-op as resources are cleaned up automatically.
+        """
         pass  # nothing to do
 
     def connected(self):
+        """Check if the store is connected to VisualChart.
+
+        Returns:
+            bool: True if connected, False otherwise.
+        """
         return self._connected
 
     def _start_vcrt(self):

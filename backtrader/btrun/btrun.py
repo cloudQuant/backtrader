@@ -1,4 +1,21 @@
 #!/usr/bin/env python
+"""btrun - Command-line runner for Backtrader backtesting framework.
+
+This module provides a command-line interface for running backtrader strategies
+from the command line. It supports loading data feeds, strategies, indicators,
+observers, analyzers, and signals from both built-in modules and external files.
+
+The main entry point is the `btrun()` function which parses command-line arguments
+and executes a complete backtest with the specified configuration.
+
+Example:
+    Running from command line:
+    $ python -m backtrader.btrun.btrun --data data.csv --strategy MyStrategy
+
+    Running programmatically:
+    >>> from backtrader.btrun import btrun
+    >>> btrun('--data data.csv --strategy MyStrategy')
+"""
 
 import argparse
 import datetime
@@ -76,6 +93,26 @@ TIMEFRAMES = dict(
 
 
 def btrun(pargs=""):
+    """Run a backtest with the specified configuration.
+
+    This is the main entry point for command-line backtesting. It parses arguments,
+    sets up the Cerebro engine with data feeds, strategies, indicators, observers,
+    and analyzers, then executes the backtest and optionally displays results.
+
+    Args:
+        pargs (str or list, optional): Command-line arguments as a string or list.
+            If empty, uses sys.argv. Defaults to "".
+
+    The function performs the following steps:
+        1. Parse command-line arguments
+        2. Create Cerebro instance with specified parameters
+        3. Add data feeds (with optional resampling/replaying)
+        4. Add signals, strategies, indicators, observers, and analyzers
+        5. Configure broker settings (cash, commission, slippage)
+        6. Add writers for output
+        7. Run the backtest
+        8. Optionally print analyzer results and plot results
+    """
     args = parse_args(pargs)
 
     if args.flush:
@@ -174,6 +211,23 @@ def btrun(pargs=""):
 
 
 def setbroker(args, cerebro):
+    """Configure broker settings from parsed command-line arguments.
+
+    Sets broker cash, commission scheme parameters, and slippage settings
+    on the cerebro instance's broker.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments containing
+            broker configuration options like cash, commission, margin, mult,
+            interest, slippage, etc.
+        cerebro (Cerebro): Cerebro instance whose broker will be configured.
+
+    The following broker settings are configured:
+        - Cash: Initial capital via args.cash
+        - Commission: Trading commission via args.commission, args.margin, args.mult
+        - Interest: Credit interest rate via args.interest, args.interest_long
+        - Slippage: Price slippage model via args.slip_perc or args.slip_fixed
+    """
     broker = cerebro.getbroker()
 
     if args.cash is not None:
@@ -211,6 +265,25 @@ def setbroker(args, cerebro):
 
 
 def getdatas(args):
+    """Create data feed instances from command-line arguments.
+
+    Parses the data format, date range, timeframe, and compression settings
+    from the arguments, then creates data feed instances for each specified
+    data file.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments containing
+            data configuration options including:
+            - data: List of data file paths
+            - format: Data format type (e.g., 'btcsv', 'yahoo')
+            - fromdate: Start date filter
+            - todate: End date filter
+            - timeframe: Timeframe for the data
+            - compression: Compression factor
+
+    Returns:
+        list: List of data feed instances ready to be added to Cerebro.
+    """
     # Get the data feed class from the global dictionary
     dfcls = DATAFORMATS[args.format]
 
@@ -252,6 +325,21 @@ def getdatas(args):
 
 
 def getmodclasses(mod, clstype, clsname=None):
+    """Get classes from a module that match a specific type.
+
+    Searches through a module to find all classes that are subclasses of
+    a given type. Optionally filters by class name.
+
+    Args:
+        mod (module): Python module to search for classes.
+        clstype (type): Base class type to filter by (e.g., Strategy, Indicator).
+        clsname (str, optional): Specific class name to find. If None,
+            returns all matching classes. Defaults to None.
+
+    Returns:
+        list: List of class objects that match the criteria. If clsname is
+            specified, returns a list with at most one element.
+    """
     clsmembers = inspect.getmembers(mod, inspect.isclass)
 
     clslist = list()
@@ -270,6 +358,20 @@ def getmodclasses(mod, clstype, clsname=None):
 
 
 def getmodfunctions(mod, funcname=None):
+    """Get functions from a module, optionally filtering by name.
+
+    Searches through a module to find all functions and methods. Optionally
+    filters by function name.
+
+    Args:
+        mod (module): Python module to search for functions.
+        funcname (str, optional): Specific function name to find. If None,
+            returns all functions and methods. Defaults to None.
+
+    Returns:
+        list: List of function/method objects that match the criteria. If
+            funcname is specified, returns a list with at most one element.
+    """
     members = inspect.getmembers(mod, inspect.isfunction) + inspect.getmembers(
         mod, inspect.ismethod
     )
@@ -287,6 +389,23 @@ def getmodfunctions(mod, funcname=None):
 
 
 def loadmodule(modpath, modname=""):
+    """Load a Python module from a file path.
+
+    Dynamically loads a Python module from a file path. Supports both Python 2
+    and Python 3 using different loading mechanisms. If no module name is provided,
+    generates a random 10-character alphanumeric name.
+
+    Args:
+        modpath (str): Path to the Python module file. If it doesn't end with
+            '.py', the extension will be automatically appended.
+        modname (str, optional): Name to assign to the loaded module. If None or
+            empty, a random name is generated. Defaults to "".
+
+    Returns:
+        tuple: A tuple containing:
+            - mod (module or None): The loaded module object, or None if loading failed.
+            - e (Exception or None): Exception object if loading failed, None otherwise.
+    """
     # generate a random name for the module
 
     if not modpath.endswith(".py"):
@@ -307,6 +426,21 @@ def loadmodule(modpath, modname=""):
 
 
 def loadmodule2(modpath, modname):
+    """Load a Python module using the deprecated imp module (Python 2.x).
+
+    This function is used for Python versions < 3.3 to load modules from
+    file paths using the imp module, which is deprecated but was the standard
+    method before importlib.
+
+    Args:
+        modpath (str): Path to the Python module file.
+        modname (str): Name to assign to the loaded module.
+
+    Returns:
+        tuple: A tuple containing:
+            - mod (module or None): The loaded module object, or None if loading failed.
+            - e (Exception or None): Exception object if loading failed, None otherwise.
+    """
     import imp
 
     try:
@@ -318,6 +452,21 @@ def loadmodule2(modpath, modname):
 
 
 def loadmodule3(modpath, modname):
+    """Load a Python module using importlib.machinery (Python 3.3+).
+
+    This function is used for Python versions >= 3.3 to load modules from
+    file paths using importlib.machinery.SourceFileLoader, which is the
+    modern replacement for the deprecated imp module.
+
+    Args:
+        modpath (str): Path to the Python module file.
+        modname (str): Name to assign to the loaded module.
+
+    Returns:
+        tuple: A tuple containing:
+            - mod (module or None): The loaded module object, or None if loading failed.
+            - e (Exception or None): Exception object if loading failed, None otherwise.
+    """
     import importlib.machinery
 
     try:
@@ -330,6 +479,32 @@ def loadmodule3(modpath, modname):
 
 
 def getobjects(iterable, clsbase, modbase, issignal=False):
+    """Load and instantiate objects from module specifications.
+
+    Parses a list of object specifications in the format 'module:name:kwargs',
+    loads the corresponding modules, finds the requested classes, and returns
+    them with their associated kwargs. Used for strategies, indicators,
+    observers, analyzers, and signals.
+
+    Args:
+        iterable (list): List of object specification strings. Each string can be:
+            - 'module:name:kwargs' - Load specific class from module with kwargs
+            - 'module:name' - Load specific class from module
+            - 'module' - Load first matching class from module
+            - ':name' - Load class from built-in module (modbase)
+            - For signals: 'signaltype+module:name:kwargs'
+        clsbase (type): Base class type to filter by (e.g., Strategy, Indicator).
+        modbase (module): Default module to use when module path is omitted.
+        issignal (bool, optional): Whether processing signals. If True, parses
+            signal type prefix (e.g., 'longshort+'). Defaults to False.
+
+    Returns:
+        list: List of tuples containing:
+            - For signals: (class, kwargs_dict, signal_type)
+            - For others: (class, kwargs_dict)
+
+    The function will call sys.exit(1) if module loading or class finding fails.
+    """
     retobjects = list()
 
     for item in iterable or []:
@@ -382,6 +557,27 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
 
 
 def getfunctions(iterable, modbase):
+    """Load and retrieve function objects from module specifications.
+
+    Parses a list of function specifications in the format 'module:name:kwargs',
+    loads the corresponding modules, finds the requested functions, and returns
+    them with their associated kwargs. Used for cerebro hook functions.
+
+    Args:
+        iterable (list): List of function specification strings. Each string can be:
+            - 'module:name:kwargs' - Load specific function from module with kwargs
+            - 'module:name' - Load specific function from module
+            - 'module' - Load first function from module
+            - ':name' - Load built-in cerebro method (e.g., ':addtz')
+        modbase (module): Default module to use when module path is omitted
+            (typically Cerebro for built-in methods).
+
+    Returns:
+        list: List of tuples containing:
+            - (function, kwargs_dict): Function object and its keyword arguments
+
+    The function will call sys.exit(1) if module loading or function finding fails.
+    """
     retfunctions = list()
 
     for item in iterable or []:
@@ -424,6 +620,38 @@ def getfunctions(iterable, modbase):
 
 
 def parse_args(pargs=""):
+    """Parse command-line arguments for the btrun script.
+
+    Creates an argument parser and defines all command-line options for the
+    backtrader runner, including data feeds, strategies, indicators, observers,
+    analyzers, signals, broker settings, and output options.
+
+    Args:
+        pargs (str or list, optional): Command-line arguments to parse. If empty
+            string, parses from sys.argv. Can be a string or list of strings.
+            Defaults to "".
+
+    Returns:
+        argparse.Namespace: Parsed command-line arguments object containing all
+            the configuration options for the backtest.
+
+    The parser defines the following argument groups:
+        - Data options: --data, --format, --fromdate, --todate, --timeframe,
+          --compression, --resample, --replay
+        - Cerebro options: --cerebro, --nostdstats
+        - Strategy options: --strategy
+        - Signals: --signal
+        - Observers and statistics: --observer
+        - Analyzers: --analyzer, --pranalyzer, --ppranalyzer
+        - Indicators: --indicator
+        - Writers: --writer
+        - Cash and Commission: --cash, --commission, --margin, --mult,
+          --interest, --interest_long
+        - Slippage: --slip_perc, --slip_fixed, --slip_open, --no-slip_match,
+          --slip_out
+        - Output: --flush, --plot
+        - Hooks: --hook
+    """
     parser = argparse.ArgumentParser(
         description="Backtrader Run Script",
         formatter_class=argparse.RawTextHelpFormatter,

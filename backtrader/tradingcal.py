@@ -185,6 +185,11 @@ class TradingCalendar(TradingCalendarBase):
 
     # Initialize, get these dates based on earlydays to speed up searches
     def __init__(self, **kwargs):
+        """Initialize the TradingCalendar.
+
+        Args:
+            **kwargs: Keyword arguments for calendar parameters.
+        """
         super(TradingCalendar, self).__init__(**kwargs)
         self._earlydays = [x[0] for x in self.p.earlydays]  # speed up searches
 
@@ -288,6 +293,11 @@ class PandasMarketCalendar(TradingCalendarBase):
 
     # Initialize
     def __init__(self, **kwargs):
+        """Initialize the PandasMarketCalendar.
+
+        Args:
+            **kwargs: Keyword arguments for calendar parameters.
+        """
         super(PandasMarketCalendar, self).__init__(**kwargs)
         self._calendar = self.p.calendar
         # If self._calendar is a string, use get_calendar to convert to calendar instance

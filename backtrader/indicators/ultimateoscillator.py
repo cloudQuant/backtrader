@@ -55,6 +55,10 @@ class UltimateOscillator(Indicator):
         self.plotinfo.plotyticks = baseticks + hlines
 
     def __init__(self):
+        """Initialize the Ultimate Oscillator indicator.
+
+        Creates TrueLow and TrueRange indicators for BP/TR calculations.
+        """
         super().__init__()
         self.truelow = TrueLow(self.data)
         self.truerange = TrueRange(self.data)
@@ -63,6 +67,10 @@ class UltimateOscillator(Indicator):
         self.addminperiod(self.p.p3 + 1)
 
     def next(self):
+        """Calculate Ultimate Oscillator for the current bar.
+
+        Combines 3 timeframes (p1, p2, p3) to reduce false signals.
+        """
         p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3
         
         # Calculate BP and TR sums for each period
@@ -91,6 +99,10 @@ class UltimateOscillator(Indicator):
         self.lines.uo[0] = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28
 
     def once(self, start, end):
+        """Calculate Ultimate Oscillator in runonce mode.
+
+        Combines BP/TR sums across 3 timeframes for all bars.
+        """
         close_array = self.data.close.array
         tl_array = self.truelow.lines[0].array
         tr_array = self.truerange.lines[0].array

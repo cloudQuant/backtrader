@@ -49,6 +49,10 @@ class HullMovingAverage(MovingAverageBase):
     params = (("_movav", WMA),)
 
     def __init__(self):
+        """Initialize the Hull Moving Average.
+
+        Creates full-period and half-period WMAs for the HMA calculation.
+        """
         super().__init__()
         self.wma_full = self.p._movav(self.data, period=self.p.period)
         self.wma_half = self.p._movav(self.data, period=self.p.period // 2)
@@ -57,7 +61,15 @@ class HullMovingAverage(MovingAverageBase):
         self._minperiod = max(self._minperiod, self.p.period + self.sqrtperiod - 1)
 
     def _calc_wma(self, values, period):
-        """Calculate WMA for a list of values"""
+        """Calculate WMA for a list of values.
+
+        Args:
+            values: List of values to average.
+            period: Period for WMA calculation.
+
+        Returns:
+            float: Weighted moving average value.
+        """
         if len(values) < period:
             return float("nan")
         coef = 2.0 / (period * (period + 1.0))
@@ -68,6 +80,10 @@ class HullMovingAverage(MovingAverageBase):
         return coef * weighted_sum
 
     def next(self):
+        """Calculate HMA for the current bar.
+
+        Formula: HMA = WMA(2*WMA(n/2) - WMA(n), sqrt(n))
+        """
         # Get raw values for final WMA calculation
         sqrtperiod = self.sqrtperiod
         raw_values = []
@@ -76,10 +92,11 @@ class HullMovingAverage(MovingAverageBase):
             wma_val = self.wma_full[-i]
             raw_values.append(wma2_val - wma_val)
         raw_values.reverse()
-        
+
         self.lines.hma[0] = self._calc_wma(raw_values, sqrtperiod)
 
     def once(self, start, end):
+        """Calculate HMA in runonce mode."""
         wma_full_array = self.wma_full.lines[0].array
         wma_half_array = self.wma_half.lines[0].array
         larray = self.lines.hma.array

@@ -47,36 +47,48 @@ class AccelerationDecelerationOscillator(Indicator):
     plotlines = dict(accde=dict(_method="bar", alpha=0.50, width=1.0))
 
     def __init__(self):
+        """Initialize the AC indicator.
+
+        Creates an Awesome Oscillator sub-indicator for calculation.
+        """
         super().__init__()
         self.ao = AwesomeOscillator(self.data)
 
     def next(self):
+        """Calculate AC for the current bar.
+
+        Formula: AC = AO - SMA(AO, period)
+        """
         ao_val = self.ao[0]
         period = self.p.period
-        
+
         # Calculate SMA of AO
         ao_sum = ao_val
         for i in range(1, period):
             ao_sum += self.ao[-i]
         ao_sma = ao_sum / period
-        
+
         self.lines.accde[0] = ao_val - ao_sma
 
     def once(self, start, end):
+        """Calculate AC in runonce mode.
+
+        Calculates AC = AO - SMA(AO, period) for all bars.
+        """
         ao_array = self.ao.lines[0].array
         larray = self.lines.accde.array
         period = self.p.period
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(start, min(end, len(ao_array))):
             ao_val = ao_array[i] if i < len(ao_array) else 0.0
-            
+
             if isinstance(ao_val, float) and math.isnan(ao_val):
                 larray[i] = float("nan")
                 continue
-            
+
             if i < period - 1:
                 larray[i] = float("nan")
             else:

@@ -33,6 +33,23 @@ bytes = bstr  # py2/3 need for ibpy
 
 # IB Order Status
 class IBOrderState:
+    """Wraps Interactive Brokers OrderState object.
+
+    This class wraps the IB OrderState object to provide convenient
+    access to order state fields and string representation.
+
+    Attributes:
+        status: Order status.
+        initMargin: Initial margin requirement.
+        maintMargin: Maintenance margin requirement.
+        equityWithLoan: Equity with loan value.
+        commission: Commission charged.
+        minCommission: Minimum commission.
+        maxCommission: Maximum commission.
+        commissionCurrency: Currency of commission.
+        warningText: Warning message text.
+    """
+
     # wraps OrderState object and can print it
     _fields = [
         "status",
@@ -47,6 +64,11 @@ class IBOrderState:
     ]
 
     def __init__(self, orderstate):
+        """Initialize the IBOrderState from an IB OrderState object.
+
+        Args:
+            orderstate: IB OrderState object containing order state information.
+        """
         for field in self._fields:
             setattr(self, field, getattr(orderstate, field, None))
 
@@ -117,6 +139,16 @@ class IBOrder(OrderBase, ib.ext.Order.Order):
 
     # Initialize, convert from backtrader order type to IB order type
     def __init__(self, action, **kwargs):
+        """Initialize the IBOrder with action and order parameters.
+
+        Args:
+            action (str): Order direction, either 'BUY' or 'SELL'.
+            **kwargs: Additional order parameters including price, size,
+                exectype, valid, and other IB-specific parameters.
+
+        Raises:
+            KeyError: If invalid order type is specified.
+        """
         # Marker to indicate an openOrder has been seen with
         # PendinCancel/Canceled which is an indication of an upcoming
         # cancellation
@@ -226,6 +258,15 @@ class IBCommInfo(CommInfoBase):
     left as a future exercise to get it"""
 
     def getvaluesize(self, size, price):
+        """Calculate the value size for margin calculation.
+
+        Args:
+            size (float): Position size.
+            price (float): Price of the instrument.
+
+        Returns:
+            float: The value size calculated as absolute size times price.
+        """
         # In real life, the margin approaches the price
         return abs(size) * price
 
@@ -280,6 +321,12 @@ class IBBroker(BrokerBase):
     # IBBroker has no extra parameters, so no need to define parameters
 
     def __init__(self, **kwargs):
+        """Initialize the IBBroker with IBStore connection.
+
+        Args:
+            **kwargs: Arguments passed to IBStore for connection setup
+                (e.g., host, port, clientId).
+        """
         super().__init__()
         # ibstore
         self.ib = ibstore.IBStore(**kwargs)
@@ -300,6 +347,11 @@ class IBBroker(BrokerBase):
 
     # Start
     def start(self):
+        """Start the broker and IBStore connection.
+
+        Requests account updates and initializes cash and value from IB.
+        Sets starting cash and value to 0.0 if connection fails.
+        """
         super().start()
         self.ib.start(broker=self)
         # If connection successful, get account information, update cash and value
@@ -313,26 +365,62 @@ class IBBroker(BrokerBase):
 
     # Stop
     def stop(self):
+        """Stop the broker and IBStore connection.
+
+        Stops the IB connection and cleans up resources.
+        """
         super().stop()
         self.ib.stop()
 
     # Get cash
     def getcash(self):
+        """Get the current cash balance from IB.
+
+        Returns:
+            float: Current cash balance in the account.
+        """
         # This call cannot block if no answer is available from ib
         self.cash = self.ib.get_acc_cash()
         return self.cash
 
     # Get account value
     def getvalue(self, datas=None):
+        """Get the current account value from IB.
+
+        Args:
+            datas: Not used, kept for API compatibility.
+
+        Returns:
+            float: Current account value including cash and positions.
+        """
         self.value = self.ib.get_acc_value()
         return self.value
 
     # Get position
     def getposition(self, data, clone=True):
+        """Get the current position for a data feed from IB.
+
+        Args:
+            data: Data feed object.
+            clone (bool): Whether to return a cloned position object.
+                Defaults to True.
+
+        Returns:
+            Position object containing size, price, and other position details.
+        """
         return self.ib.getposition(data.tradecontract, clone=clone)
 
     # Cancel order
     def cancel(self, order):
+        """Cancel an active order.
+
+        Args:
+            order: IBOrder object to cancel.
+
+        Note:
+            If order is already cancelled or not found, this method
+            does nothing.
+        """
         try:
             _order = self.orderbyid[order.m_orderId]
         except (ValueError, KeyError):
@@ -345,6 +433,14 @@ class IBBroker(BrokerBase):
 
     # Order status
     def orderstatus(self, order):
+        """Get the current status of an order.
+
+        Args:
+            order: IBOrder object to query.
+
+        Returns:
+            Order.Status: The current status of the order.
+        """
         try:
             o = self.orderbyid[order.m_orderId]
         except (ValueError, KeyError):
@@ -354,6 +450,14 @@ class IBBroker(BrokerBase):
 
     # Submit order
     def submit(self, order):
+        """Submit an order to Interactive Brokers.
+
+        Args:
+            order: IBOrder object to submit.
+
+        Returns:
+            IBOrder: The submitted order object.
+        """
         order.submit(self)
 
         # ocoize if needed
@@ -370,6 +474,15 @@ class IBBroker(BrokerBase):
 
     # Get commission and margin information
     def getcommissioninfo(self, data):
+        """Get commission information for a data feed.
+
+        Args:
+            data: Data feed object.
+
+        Returns:
+            IBCommInfo: Commission info object with multiplier and
+                stocklike settings based on the contract type.
+        """
         contract = data.tradecontract
         try:
             mult = float(contract.m_multiplier)
@@ -398,6 +511,23 @@ class IBBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
+        """Create an IBOrder with the specified parameters.
+
+        Args:
+            action (str): Order direction ('BUY' or 'SELL').
+            owner: Owner object (typically a strategy).
+            data: Data feed object.
+            size (int): Order size (positive for buy, negative for sell).
+            price (float, optional): Limit or stop price.
+            plimit (float, optional): Limit price for stop-limit orders.
+            exectype (Order.ExecType, optional): Order execution type.
+            valid (datetime/timedelta, optional): Order validity period.
+            tradeid (int, optional): Trade identifier. Defaults to 0.
+            **kwargs: Additional IB-specific order parameters.
+
+        Returns:
+            IBOrder: Configured order object with commission info attached.
+        """
         order = IBOrder(
             action,
             owner=owner,
@@ -429,6 +559,22 @@ class IBBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
+        """Create and submit a buy order.
+
+        Args:
+            owner: Owner object (typically a strategy).
+            data: Data feed object.
+            size (int): Order size (negative for buy orders).
+            price (float, optional): Limit or stop price.
+            plimit (float, optional): Limit price for stop-limit orders.
+            exectype (Order.ExecType, optional): Order execution type.
+            valid (datetime/timedelta, optional): Order validity period.
+            tradeid (int, optional): Trade identifier. Defaults to 0.
+            **kwargs: Additional IB-specific order parameters.
+
+        Returns:
+            IBOrder: The submitted buy order.
+        """
         order = self._makeorder(
             "BUY", owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
         )
@@ -448,6 +594,22 @@ class IBBroker(BrokerBase):
         tradeid=0,
         **kwargs,
     ):
+        """Create and submit a sell order.
+
+        Args:
+            owner: Owner object (typically a strategy).
+            data: Data feed object.
+            size (int): Order size (positive for sell orders).
+            price (float, optional): Limit or stop price.
+            plimit (float, optional): Limit price for stop-limit orders.
+            exectype (Order.ExecType, optional): Order execution type.
+            valid (datetime/timedelta, optional): Order validity period.
+            tradeid (int, optional): Trade identifier. Defaults to 0.
+            **kwargs: Additional IB-specific order parameters.
+
+        Returns:
+            IBOrder: The submitted sell order.
+        """
         order = self._makeorder(
             "SELL", owner, data, size, price, plimit, exectype, valid, tradeid, **kwargs
         )
@@ -456,10 +618,20 @@ class IBBroker(BrokerBase):
 
     # Save notification information
     def notify(self, order):
+        """Store a cloned order notification in the notification queue.
+
+        Args:
+            order: IBOrder object to notify.
+        """
         self.notifs.put(order.clone())
 
     # Get notification information
     def get_notification(self):
+        """Get the next notification from the queue.
+
+        Returns:
+            IBOrder or None: The next order notification, or None if queue is empty.
+        """
         try:
             return self.notifs.get(False)
         except queue.Empty:
@@ -469,6 +641,11 @@ class IBBroker(BrokerBase):
 
     # next, add a None, sets a notification boundary
     def next(self):
+        """Mark a notification boundary.
+
+        Places None in the notification queue to signal the end of
+        current notifications.
+        """
         self.notifs.put(None)  # mark notificatino boundary
 
     # Order statuses in msg
@@ -485,6 +662,16 @@ class IBBroker(BrokerBase):
 
     # Push order status
     def push_orderstatus(self, msg):
+        """Process and update order status from IB message.
+
+        Args:
+            msg: Order status message from IB containing orderId,
+                status, and filled quantity.
+
+        Note:
+            Handles various order states including Submitted, Cancelled,
+            Inactive, Filled, PendingSubmit, PreSubmitted, and PendingCancel.
+        """
         # Cancelled and Submitted with Filled = 0 can be pushed immediately
         try:
             order = self.orderbyid[msg.orderId]
@@ -550,10 +737,27 @@ class IBBroker(BrokerBase):
 
     # Push execution
     def push_execution(self, ex):
+        """Store an execution report from IB.
+
+        Args:
+            ex: Execution object containing execution details including
+                execution ID, order ID, shares, price, and time.
+        """
         self.executions[ex.m_execId] = ex
 
     # Push order, commission and other information
     def push_commissionreport(self, cr):
+        """Process commission report and update order execution details.
+
+        Args:
+            cr: Commission report object containing execution ID,
+                commission amount, and realized P&L.
+
+        Note:
+            This method updates the order with execution details,
+            calculates closed/opened positions and commissions, and
+            triggers order notifications.
+        """
         with self._lock_orders:
             ex = self.executions.pop(cr.m_execId)
             oid = ex.m_orderId
@@ -617,6 +821,13 @@ class IBBroker(BrokerBase):
 
     # Push portfolio update information
     def push_portupdate(self):
+        """Process portfolio update and notify pending orders.
+
+        Note:
+            Called when IBStore receives a portfolio update. Notifies
+            all orders pending notification. Portfolio updates intermixed
+            with split executions signal that the strategy can be notified.
+        """
         # If the IBStore receives a Portfolio update, then this method will be
         # indicated. If the execution of an order is split in serveral lots,
         # updatePortfolio messages will be intermixed, which is used as a
@@ -629,6 +840,15 @@ class IBBroker(BrokerBase):
 
     # Push order error information
     def push_ordererror(self, msg):
+        """Process order error messages from IB.
+
+        Args:
+            msg: Error message object containing error code and order ID.
+
+        Note:
+            Handles error code 202 (order cancellation) and 201 (order rejection).
+            All other error codes result in order rejection.
+        """
         with self._lock_orders:
             try:
                 order = self.orderbyid[msg.id]
@@ -652,6 +872,16 @@ class IBBroker(BrokerBase):
 
     # Push order status
     def push_orderstate(self, msg):
+        """Process order state messages from IB.
+
+        Args:
+            msg: Order state message containing orderId and orderState
+                with status information.
+
+        Note:
+            Detects when orders are about to expire by checking for
+            PendingCancel/Cancelled status in openOrder messages.
+        """
         with self._lock_orders:
             try:
                 order = self.orderbyid[msg.orderId]

@@ -108,6 +108,12 @@ class VWR(TimeFrameAnalyzerBase):
 
     # Initialize, get returns
     def __init__(self, *args, **kwargs):
+        """Initialize the VWR analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # Call parent class __init__ method to support timeframe and compression parameters
         super().__init__(*args, **kwargs)
 
@@ -121,6 +127,11 @@ class VWR(TimeFrameAnalyzerBase):
 
     # Start
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets the fund mode and initializes lists to track period
+        start and end values.
+        """
         super().start()
         # Add an initial placeholder for [-1] operation
         # Get fundmode
@@ -138,6 +149,11 @@ class VWR(TimeFrameAnalyzerBase):
 
     # Stop
     def stop(self):
+        """Calculate the VWR metric when backtest ends.
+
+        VWR = rnorm100 * (1 - (sdev_p / sdev_max)^tau)
+        where sdev_p is the standard deviation of period returns.
+        """
         super().stop()
         # Check if no value has been seen after the last 'dt_over'
         # If so, there is one 'pi' out of place and a None 'pn'. Purge
@@ -169,12 +185,25 @@ class VWR(TimeFrameAnalyzerBase):
 
     # Fund notification
     def notify_fund(self, cash, value, fundvalue, shares):
+        """Update the current period end value from fund notification.
+
+        Args:
+            cash: Current cash amount.
+            value: Current portfolio value.
+            fundvalue: Current fund value.
+            shares: Number of fund shares.
+        """
         if not self._fundmode:
             self._pns[-1] = value  # annotate last seen pn for the current period
         else:
             self._pns[-1] = fundvalue  # annotate last pn for current period
 
     def on_dt_over(self):
+        """Handle timeframe boundary crossing.
+
+        Moves the current period end value to be the next period's
+        start value and creates a new placeholder.
+        """
         self._pis.append(self._pns[-1])  # the last pn is pi in the next period
         self._pns.append(None)  # placeholder for [-1] operation
 

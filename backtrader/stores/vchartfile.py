@@ -33,6 +33,10 @@ class VChartFile(Store):
     params = (("path", None),)
 
     def __init__(self):
+        """Initialize the VChartFile store.
+
+        Determines the VisualChart data directory path.
+        """
         self._path = self.p.path
         if self._path is None:
             self._path = self._find_vchart()
@@ -81,4 +85,9 @@ class VChartFile(Store):
         return vcdir
 
     def get_datapath(self):
+        """Get the VisualChart data directory path.
+
+        Returns:
+            str: Path to the VisualChart data directory.
+        """
         return self._path

@@ -86,6 +86,11 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # Initialization
     def __init__(self):
+        """Initialize the LineBuffer instance.
+
+        Sets up all internal attributes including the array storage,
+        index pointer, buffer mode, and performance optimization flags.
+        """
         # ===== Optimization A: Pre-initialize all attributes to eliminate runtime hasattr checks =====
         # Core attributes - must be initialized first
         self._minperiod = 1  # Minimum period
@@ -152,11 +157,26 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # Get the value of _idx
     def get_idx(self):
+        """Get the current index position.
+
+        Returns:
+            int: The current index in the buffer.
+        """
         # Optimization A: Removed hasattr check, __init__ ensures _idx exists
         return self._idx
 
     # Set the value of _idx
     def set_idx(self, idx, force=False):
+        """Set the index position.
+
+        Args:
+            idx: The new index value.
+            force: If True, force set even in QBuffer mode at lenmark.
+
+        Note:
+            In QBuffer mode, when at lenmark, the index stays at 0
+            unless force is True. This allows resampling operations.
+        """
         # If QBuffer and the last position of the buffer were reached, keep
         # it (unless force) as index 0. This allows resampling
         #  - forward adds a position. However, the 1st one is discarded, the 0 is
@@ -243,6 +263,16 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # Set cache-related variables
     def qbuffer(self, savemem=0, extrasize=0):
+        """Enable queued buffer mode for memory-efficient storage.
+
+        Args:
+            savemem: Memory saving mode (0=normal, >0=enable cache mode).
+            extrasize: Extra buffer size for resampling/replay operations.
+
+        Note:
+            In QBuffer mode, only the last maxlen values are kept,
+            reducing memory usage for long backtests.
+        """
         self.mode = self.QBuffer  # Set specific mode
         self.maxlen = max(1, self._minperiod)  # Set maximum length, ensure at least 1
         self.extrasize = max(0, extrasize)  # Set extra size, ensure non-negative
@@ -251,6 +281,11 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # Get indicator values
     def getindicators(self):
+        """Get list of indicators using this line buffer.
+
+        Returns:
+            list: Empty list for base LineBuffer (override in subclasses).
+        """
         return []
 
     # Minimum buffer
@@ -644,6 +679,14 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # Move backward one step (original backwards was overridden)
     def safe_backwards(self, size=1):
+        """Safely move the index backwards without raising errors.
+
+        Args:
+            size: Number of positions to move backwards.
+
+        Returns:
+            bool: True if index is still >= 0 after moving, False otherwise.
+        """
         # CRITICAL FIX: Safe backward navigation
         if not hasattr(self, "_idx") or self._idx is None:
             self._idx = -1
@@ -654,6 +697,11 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # Decrease idx and lencount by size
     def rewind(self, size=1):
+        """Rewind the buffer by decreasing idx and lencount.
+
+        Args:
+            size: Number of positions to rewind.
+        """
         # CRITICAL FIX: Safe attribute access
         if hasattr(self, "idx"):
             self.idx -= size
@@ -715,6 +763,15 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     # Get partial data from array
     def plotrange(self, start, end):
+        """Get a slice of data from the array.
+
+        Args:
+            start: Start index of the slice.
+            end: End index of the slice.
+
+        Returns:
+            list or array: Slice of data from start to end.
+        """
         if self.useislice:
             return list(islice(self.array, start, end))
 
@@ -784,6 +841,19 @@ class LineBuffer(LineSingle, LineRootMixin):
         self._tz = tz
 
     def datetime(self, ago=0, tz=None, naive=True):
+        """Get the datetime value at the specified offset.
+
+        Args:
+            ago: Number of periods to look back (0=current, -1=previous).
+            tz: Timezone to apply. If None, uses self._tz.
+            naive: If True, return naive datetime without timezone info.
+
+        Returns:
+            datetime: Datetime object representing the timestamp.
+
+        Raises:
+            IndexError: If the requested position is out of bounds for data feeds.
+        """
         # CRITICAL FIX: For datetime lines, if index is out of range, raise IndexError
         # This allows strategy to detect end of data for next_month calculation
         # Simply delegate to __getitem__ which will raise IndexError if out of bounds for data feeds
@@ -816,7 +886,14 @@ class LineBuffer(LineSingle, LineRootMixin):
                 except Exception:
                     # Last resort - create a minimal valid datetime-like object with needed methods
                     class MinimalDateTime:
+                        """Minimal datetime-like object for error recovery.
+
+                        Provides a basic datetime-compatible object when
+                        proper datetime creation fails.
+                        """
+
                         def __init__(self):
+                            """Initialize with default datetime values (Jan 1, 2000)."""
                             self.year = 2000
                             self.month = 1
                             self.day = 1
@@ -826,18 +903,49 @@ class LineBuffer(LineSingle, LineRootMixin):
                             self.microsecond = 0
 
                         def date(self):
+                            """Return date component.
+
+                            Returns:
+                                MinimalDateTime: Self as a date-like object.
+                            """
                             return self
 
                         def time(self):
+                            """Return time component.
+
+                            Returns:
+                                MinimalDateTime: Self as a time-like object.
+                            """
                             return self
 
                         def replace(self, **kwargs):
+                            """Return a new object with replaced fields.
+
+                            Args:
+                                **kwargs: Fields to replace.
+
+                            Returns:
+                                MinimalDateTime: Self with fields replaced.
+                            """
                             return self
 
                         def timetuple(self):
+                            """Return time tuple struct.
+
+                            Returns:
+                                tuple: Time tuple (2000, 1, 1, 0, 0, 0, 0, 0, 0).
+                            """
                             return (2000, 1, 1, 0, 0, 0, 0, 0, 0)
 
                         def strftime(self, fmt):
+                            """Format datetime as string.
+
+                            Args:
+                                fmt: Format string (unused, returns default).
+
+                            Returns:
+                                str: Default formatted datetime string.
+                            """
                             return "2000-01-01 00:00:00"
 
                     return MinimalDateTime()
@@ -853,7 +961,14 @@ class LineBuffer(LineSingle, LineRootMixin):
             except Exception:
                 # Create a minimal valid datetime-like object with needed methods
                 class MinimalDateTime:
+                    """Minimal datetime-like object for error recovery (second instance).
+
+                    Provides a basic datetime-compatible object when
+                    proper datetime creation fails.
+                    """
+
                     def __init__(self):
+                        """Initialize with default datetime values (Jan 1, 2000)."""
                         self.year = 2000
                         self.month = 1
                         self.day = 1
@@ -863,23 +978,67 @@ class LineBuffer(LineSingle, LineRootMixin):
                         self.microsecond = 0
 
                     def date(self):
+                        """Return date component.
+
+                        Returns:
+                            MinimalDateTime: Self as a date-like object.
+                        """
                         return self
 
                     def time(self):
+                        """Return time component.
+
+                        Returns:
+                            MinimalDateTime: Self as a time-like object.
+                        """
                         return self
 
                     def replace(self, **kwargs):
+                        """Return a new object with replaced fields.
+
+                        Args:
+                            **kwargs: Fields to replace.
+
+                        Returns:
+                            MinimalDateTime: Self with fields replaced.
+                        """
                         return self
 
                     def timetuple(self):
+                        """Return time tuple struct.
+
+                        Returns:
+                            tuple: Time tuple (2000, 1, 1, 0, 0, 0, 0, 0, 0).
+                        """
                         return (2000, 1, 1, 0, 0, 0, 0, 0, 0)
 
                     def strftime(self, fmt):
+                        """Format datetime as string.
+
+                        Args:
+                            fmt: Format string (unused, returns default).
+
+                        Returns:
+                            str: Default formatted datetime string.
+                        """
                         return "2000-01-01 00:00:00"
 
                 return MinimalDateTime()
 
     def date(self, ago=0, tz=None, naive=True):
+        """Get the date component of the datetime value at the specified offset.
+
+        Args:
+            ago: Number of periods to look back (0=current, -1=previous).
+            tz: Timezone to apply. If None, uses self._tz.
+            naive: If True, return naive date without timezone info.
+
+        Returns:
+            date: Date object representing the date portion of the timestamp.
+
+        Raises:
+            IndexError: If the requested position is out of bounds for data feeds.
+        """
         # CRITICAL FIX: date() calls datetime(), which should raise IndexError if out of range
         # This allows strategy to detect end of data for next_month calculation
         try:
@@ -895,6 +1054,16 @@ class LineBuffer(LineSingle, LineRootMixin):
             return None
 
     def time(self, ago=0, tz=None, naive=True):
+        """Get the time component of the datetime value at the specified offset.
+
+        Args:
+            ago: Number of periods to look back (0=current, -1=previous).
+            tz: Timezone to apply. If None, uses self._tz.
+            naive: If True, return naive time without timezone info.
+
+        Returns:
+            time: Time object representing the time portion of the timestamp.
+        """
         dt = self.datetime(ago, tz, naive)
         if dt is None:
             return None
@@ -984,10 +1153,16 @@ class LineActionsCache:
 
     @classmethod
     def enable_cache(cls, enable=True):
+        """Enable or disable the cache.
+
+        Args:
+            enable: True to enable caching, False to disable.
+        """
         cls._cache_enabled = enable
 
     @classmethod
     def clear_cache(cls):
+        """Clear all cached values."""
         cls._cache.clear()
 
     @classmethod
@@ -1088,6 +1263,11 @@ class PseudoArray(object):
     """
 
     def __init__(self, wrapped):
+        """Initialize PseudoArray with a wrapped iterable.
+
+        Args:
+            wrapped: The iterable object to wrap.
+        """
         self.wrapped = wrapped
         # CRITICAL FIX: Ensure PseudoArray has _minperiod attribute
         self._minperiod = getattr(wrapped, "_minperiod", 1)
@@ -1120,6 +1300,11 @@ class PseudoArray(object):
 
     @property
     def array(self):
+        """Get the array representation of the wrapped object.
+
+        Returns:
+            list or array: Array representation of the wrapped object.
+        """
         # Handle repeat objects specially
         if str(type(self.wrapped)) == "<class 'itertools.repeat'>":
             # For repeat objects, return a list with one element repeated
@@ -1310,6 +1495,16 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         return instance
 
     def __init__(self, *args, **kwargs):
+        """Initialize LineActions instance.
+
+        Sets up lines, owner references, data sources, and clock.
+        This is a complex initialization that handles multiple scenarios
+        including indicators, strategies, and data feeds.
+
+        Args:
+            *args: Positional arguments including data feeds.
+            **kwargs: Keyword arguments for parameters.
+        """
         # CRITICAL FIX: Set lines._owner FIRST, before any other initialization
         # This ensures line bindings in user's __init__ can find the owner
         if hasattr(self, "lines") and self.lines is not None:
@@ -1384,9 +1579,19 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
         self.__class__.dopostinit(self, *args, **kwargs)
 
     def getindicators(self):
+        """Get list of indicators using this line actions object.
+
+        Returns:
+            list: Empty list for base LineActions (override in subclasses).
+        """
         return []
 
     def qbuffer(self, savemem=0):
+        """Enable queued buffer mode for memory-efficient storage.
+
+        Args:
+            savemem: Memory saving mode (0=normal, >0=enable cache mode).
+        """
         super(LineActions, self).qbuffer(savemem=1)
 
     def plotlabel(self):
@@ -1417,6 +1622,15 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
     @staticmethod
     def arrayize(obj):
+        """Convert an object to an array-compatible object.
+
+        Args:
+            obj: Object to convert. Can be a value, iterable, or array-like.
+
+        Returns:
+            The original object if it has an array attribute,
+            otherwise a LineNum or PseudoArray wrapper.
+        """
         if not hasattr(obj, "array"):
             if not hasattr(obj, "__getitem__"):
                 # CRITICAL FIX: Create a LineNum that properly handles _minperiod
@@ -1568,6 +1782,16 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
 
 
 def LineDelay(a, ago=0, **kwargs):
+    """Create a delayed line object.
+
+    Args:
+        a: Source line object.
+        ago: Number of periods to delay. Negative for lookback.
+        **kwargs: Additional keyword arguments.
+
+    Returns:
+        _LineDelay or _LineForward: A delayed line object.
+    """
     if ago <= 0:
         return _LineDelay(a, ago, **kwargs)
 
@@ -1575,11 +1799,36 @@ def LineDelay(a, ago=0, **kwargs):
 
 
 def LineNum(num):
+    """Create a constant line from a number.
+
+    Args:
+        num: The constant value.
+
+    Returns:
+        _LineDelay: A line object that always returns the constant value.
+    """
     return _LineDelay(PseudoArray(repeat(num)), 0)
 
 
 class _LineDelay(LineActions):
+    """Delayed line object for negative ago values (lookback).
+
+    This class represents a line that accesses historical values
+    from another line. For example, data(-1) returns the
+    previous bar's value.
+
+    Attributes:
+        a: The source line object.
+        ago: Number of periods to look back (negative value).
+    """
+
     def __init__(self, a, ago):
+        """Initialize the delayed line.
+
+        Args:
+            a: Source line object.
+            ago: Number of periods to look back (negative value).
+        """
         super(_LineDelay, self).__init__()
         self.a = self.arrayize(a)
         self.ago = ago
@@ -1625,6 +1874,11 @@ class _LineDelay(LineActions):
             return 0.0
 
     def next(self):
+        """Calculate and set the delayed value for the current bar.
+
+        Gets the value from the source line at the delayed position
+        and stores it at position 0.
+        """
         # CRITICAL FIX: Proper delay operation
         # ago is negative for lookback (e.g., ago=-10 means 10 bars back)
         # We need self.a[ago] to get the historical value
@@ -1644,6 +1898,12 @@ class _LineDelay(LineActions):
             self[0] = 0.0
 
     def once(self, start, end):
+        """Calculate delayed values in batch mode (runonce).
+
+        Args:
+            start: Starting index.
+            end: Ending index.
+        """
         # cache python dictionary lookups
         dst = self.array
         ago = self.ago
@@ -1725,7 +1985,24 @@ class _LineDelay(LineActions):
 
 
 class _LineForward(LineActions):
+    """Forward line object for positive ago values (lookahead).
+
+    This class represents a line that accesses future values
+    from another line. For example, data(1) returns the
+    next bar's value.
+
+    Attributes:
+        a: The source line object.
+        ago: Number of periods to look ahead (positive value).
+    """
+
     def __init__(self, a, ago):
+        """Initialize the forward line.
+
+        Args:
+            a: Source line object.
+            ago: Number of periods to look ahead (positive value).
+        """
         super(_LineForward, self).__init__()
         self.a = self.arrayize(a)
         self.ago = ago
@@ -1735,6 +2012,11 @@ class _LineForward(LineActions):
             self.addminperiod(ago)
 
     def next(self):
+        """Calculate and set the forwarded value for the current bar.
+
+        Gets the value from the source line at the forward position
+        and stores it at position 0.
+        """
         # operation(float, other) ... expecting other to be a float
         # CRITICAL FIX: Ensure we get valid numeric values for indicator calculations
         try:
@@ -1812,6 +2094,12 @@ class _LineForward(LineActions):
             self[0] = 0.0
 
     def once(self, start, end):
+        """Calculate forwarded values in batch mode (runonce).
+
+        Args:
+            start: Starting index.
+            end: Ending index.
+        """
         # cache python dictionary lookups
         dst = self.array
         srca = self.a.array
@@ -1868,8 +2156,18 @@ class LinesOperation(LineActions):
     """
 
     def __init__(self, a, b, operation, r=False, parent_a=None, parent_b=None):
+        """Initialize a binary operation between two line objects.
+
+        Args:
+            a: First operand (left-hand side).
+            b: Second operand (right-hand side).
+            operation: The binary function to apply (e.g., operator.add).
+            r: If True, reverse operation order (b op a instead of a op b).
+            parent_a: Parent indicator for operand a.
+            parent_b: Parent indicator for operand b.
+        """
         super(LinesOperation, self).__init__()
-        
+
         self.operation = operation
         self.a = a  # always a linebuffer-like object
         self.b = self.arrayize(b)
@@ -1945,6 +2243,11 @@ class LinesOperation(LineActions):
             binding[0] = self[0]
 
     def next(self):
+        """Calculate and set the operation result for the current bar.
+
+        Performs the binary operation on the current values of both
+        operands and stores the result at position 0.
+        """
         # operation(float, other) ... expecting other to be a float
         # CRITICAL FIX: Ensure we get valid numeric values for indicator calculations
         try:
@@ -2022,10 +2325,16 @@ class LinesOperation(LineActions):
             self[0] = 0.0
 
     def once(self, start, end):
+        """Calculate operation results in batch mode (runonce).
+
+        Args:
+            start: Starting index.
+            end: Ending index.
+        """
         # Check if array is already populated (avoid redundant work)
         if len(self.array) >= end:
             return
-        
+
         # CRITICAL FIX: Always use start=0 for nested operations
         # This ensures historical values are available for indicators like SMA
         nested_start = 0
@@ -2250,11 +2559,18 @@ class LineOwnOperation(LineActions):
     """
 
     def __init__(self, a, operation, parent_a=None):
+        """Initialize a unary operation on a line object.
+
+        Args:
+            a: The operand (line object).
+            operation: The unary function to apply (e.g., operator.neg).
+            parent_a: Parent indicator for the operand.
+        """
         super(LineOwnOperation, self).__init__()
-        
+
         self.operation = operation
         self.a = a
-        
+
         # CRITICAL FIX: Store reference to parent indicator for _once processing
         self._parent_a = parent_a if parent_a is not None else self._find_parent_indicator(a)
 
@@ -2285,9 +2601,20 @@ class LineOwnOperation(LineActions):
             return float('nan')
 
     def next(self):
+        """Calculate and set the unary operation result for the current bar.
+
+        Performs the unary operation on the current value of the operand
+        and stores the result at position 0.
+        """
         self[0] = self.operation(self.a[0])
 
     def once(self, start, end):
+        """Calculate unary operation results in batch mode (runonce).
+
+        Args:
+            start: Starting index.
+            end: Ending index.
+        """
         # CRITICAL FIX: Ensure source operand is processed first
         if self._parent_a is not None and hasattr(self._parent_a, '_once'):
             try:

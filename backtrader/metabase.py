@@ -382,24 +382,72 @@ class BaseMixin:
 
     @classmethod
     def doprenew(cls, *args, **kwargs):
+        """Called before object creation.
+
+        Args:
+            *args: Positional arguments for object creation.
+            **kwargs: Keyword arguments for object creation.
+
+        Returns:
+            tuple: (cls, args, kwargs) - Class and arguments to use.
+        """
         return cls, args, kwargs
 
     @classmethod
     def donew(cls, *args, **kwargs):
+        """Create a new object instance.
+
+        Args:
+            *args: Positional arguments for object creation.
+            **kwargs: Keyword arguments for object creation.
+
+        Returns:
+            tuple: (_obj, args, kwargs) - New instance and remaining arguments.
+        """
         _obj = cls.__new__(cls)
         return _obj, args, kwargs
 
     @classmethod
     def dopreinit(cls, _obj, *args, **kwargs):
+        """Called before __init__ to modify arguments.
+
+        Args:
+            _obj: The object instance.
+            *args: Positional arguments for __init__.
+            **kwargs: Keyword arguments for __init__.
+
+        Returns:
+            tuple: (_obj, args, kwargs) - Object and arguments for __init__.
+        """
         return _obj, args, kwargs
 
     @classmethod
     def doinit(cls, _obj, *args, **kwargs):
+        """Call __init__ on the object.
+
+        Args:
+            _obj: The object instance.
+            *args: Positional arguments for __init__.
+            **kwargs: Keyword arguments for __init__.
+
+        Returns:
+            tuple: (_obj, args, kwargs) - Object and remaining arguments.
+        """
         _obj.__init__(*args, **kwargs)
         return _obj, args, kwargs
 
     @classmethod
     def dopostinit(cls, _obj, *args, **kwargs):
+        """Called after __init__ for post-processing.
+
+        Args:
+            _obj: The object instance.
+            *args: Remaining positional arguments.
+            **kwargs: Remaining keyword arguments.
+
+        Returns:
+            tuple: (_obj, args, kwargs) - Object and remaining arguments.
+        """
         return _obj, args, kwargs
 
     @classmethod
@@ -525,6 +573,15 @@ class AutoInfoClass(object):
         return getattr(self, name, default)
 
     def get(self, name, default=None):
+        """Get a parameter value by name with optional default.
+
+        Args:
+            name: Name of the parameter to get.
+            default: Default value if parameter is not found.
+
+        Returns:
+            The parameter value or default if not found.
+        """
         return self._get(name, default)
 
     @classmethod
@@ -717,6 +774,14 @@ class ParameterManager:
 
         # Create new parameter class with all necessary methods
         class ParamClass(AutoInfoClass):
+            """Dynamically created parameter class.
+
+            This class is created dynamically with the parameters from the
+            target class. It provides access to parameter values via attributes.
+
+            Attributes:
+                params: Self-reference for backward compatibility.
+            """
             @classmethod
             def _getpairs(cls):
                 return all_params.copy()
@@ -734,6 +799,11 @@ class ParameterManager:
                 return list(all_params.values())
 
             def __init__(self, **kwargs):
+                """Initialize the ParamClass with parameter values.
+
+                Args:
+                    **kwargs: Parameter values to override defaults.
+                """
                 super().__init__()
                 # Set default values as instance attributes
                 for key, default_value in all_params.items():
@@ -1091,13 +1161,41 @@ class ParamsMixin(BaseMixin):
                             if not hasattr(self, "plotinfo"):
                                 # Create plotinfo object with _get method and legendloc
                                 class PlotInfoObj:
+                                    """Plot information object for indicators.
+
+                                    A simple plotinfo object with minimal attributes
+                                    for plotting configuration.
+
+                                    Attributes:
+                                        legendloc: Location for the plot legend.
+                                    """
+
                                     def __init__(self):
+                                        """Initialize PlotInfoObj with default attributes."""
                                         self.legendloc = None  # CRITICAL: Add legendloc attribute
 
                                     def _get(self, key, default=None):
+                                        """Get a plotinfo attribute value.
+
+                                        Args:
+                                            key: Name of the attribute.
+                                            default: Default value if not found.
+
+                                        Returns:
+                                            The attribute value or default.
+                                        """
                                         return getattr(self, key, default)
 
                                     def get(self, key, default=None):
+                                        """Get a plotinfo attribute value.
+
+                                        Args:
+                                            key: Name of the attribute.
+                                            default: Default value if not found.
+
+                                        Returns:
+                                            The attribute value or default.
+                                        """
                                         return getattr(self, key, default)
 
                                     def __contains__(self, key):
@@ -1264,7 +1362,19 @@ class ParamsMixin(BaseMixin):
             if isinstance(cls._params, (tuple, list)) or not hasattr(cls._params, "_gettuple"):
                 # Create a wrapper that provides _gettuple functionality
                 class ParamsWrapper:
+                    """Wrapper for parameter data to provide _gettuple method.
+
+                    This wrapper ensures that parameter data (whether from a
+                    tuple, list, or existing params object) provides the
+                    _gettuple method expected by the framework.
+                    """
+
                     def __init__(self, data):
+                        """Initialize the wrapper with parameter data.
+
+                        Args:
+                            data: Parameter data as tuple, list, or object with _gettuple.
+                        """
                         if isinstance(data, (tuple, list)):
                             self.data = data
                         elif hasattr(data, "_gettuple"):
@@ -1426,6 +1536,7 @@ class ItemCollection(object):
     """
 
     def __init__(self):
+        """Initialize the collection with an empty items list."""
         self.items = list()
 
     def __len__(self):
@@ -1470,7 +1581,21 @@ def _convert_plotlines_dict_to_object(cls):
     plotlines_dict = cls.plotlines
 
     class PlotLinesObj:
+        """Object wrapper for plotlines dictionary.
+
+        Converts a plotlines dictionary into an object that supports
+        attribute access and the _get method expected by the plotting system.
+
+        Attributes:
+            _data: Original dictionary data.
+        """
+
         def __init__(self, data_dict):
+            """Initialize the PlotLinesObj with dictionary data.
+
+            Args:
+                data_dict: Dictionary of plot line configurations.
+            """
             self._data = data_dict.copy()
             # Set attributes for direct access
             for key, value in data_dict.items():
@@ -1508,7 +1633,21 @@ def _convert_plotlines_dict_to_object(cls):
             return PlotLineAttrObj({})
 
     class PlotLineAttrObj:
+        """Object wrapper for plot line attributes.
+
+        Converts nested dictionaries in plotlines into objects that
+        support attribute access.
+
+        Attributes:
+            _data: Original dictionary data.
+        """
+
         def __init__(self, data_dict):
+            """Initialize the PlotLineAttrObj with dictionary data.
+
+            Args:
+                data_dict: Dictionary of plot line attributes.
+            """
             self._data = data_dict.copy()
             # Set attributes for direct access
             for key, value in data_dict.items():
@@ -1553,7 +1692,31 @@ def _initialize_indicator_aliases():
             if not hasattr(self, "plotinfo"):
                 # Create a plotinfo object that behaves like the expected plotinfo with _get method
                 class PlotInfo:
+                    """Plot configuration information object.
+
+                    Stores plotting configuration for indicators and strategies.
+                    Provides both attribute and dictionary-style access with defaults.
+
+                    Attributes:
+                        _data: Dictionary storing plot configuration values.
+                        plot: Whether to plot this item.
+                        subplot: Whether to plot in a separate subplot.
+                        plotname: Name for the plot.
+                        plotskip: Whether to skip plotting.
+                        plotabove: Whether to plot above the data.
+                        plotlinelabels: Whether to show line labels.
+                        plotlinevalues: Whether to show line values.
+                        plotvaluetags: Whether to show value tags.
+                        plotymargin: Vertical margin for the plot.
+                        plotyhlines: Horizontal lines at y values.
+                        plotyticks: Y-axis tick positions.
+                        plothlines: Horizontal lines.
+                        plotforce: Force plotting even if disabled.
+                        plotmaster: Master plot for this item.
+                    """
+
                     def __init__(self):
+                        """Initialize PlotInfo with default plotting configuration."""
                         self._data = {}
                         # Set default plot attributes
                         defaults = {

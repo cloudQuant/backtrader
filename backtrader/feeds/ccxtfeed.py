@@ -63,8 +63,12 @@ class CCXTFeed(DataBase):
     # States for the Finite State Machine in _load
     _ST_LIVE, _ST_HISTORBACK, _ST_OVER = range(3)
 
-    # def __init__(self, exchange, symbol, ohlcv_limit=None, config={}, retries=5):
     def __init__(self, **kwargs):
+        """Initialize the CCXT data feed.
+
+        Args:
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         # self.store = CCXTStore(exchange, config, retries)
         self._state = None
         self.store = self._store(**kwargs)
@@ -74,6 +78,14 @@ class CCXTFeed(DataBase):
         self._last_update_bar_time = 0
 
     def utc_to_ts(self, dt):
+        """Convert datetime to timestamp in milliseconds.
+
+        Args:
+            dt: Datetime object to convert.
+
+        Returns:
+            int: Timestamp in milliseconds since epoch.
+        """
         fromdate = datetime(dt.year, dt.month, dt.day, dt.hour, dt.minute)
         epoch = datetime(1970, 1, 1)
         return int((fromdate - epoch).total_seconds() * 1000)
@@ -81,6 +93,10 @@ class CCXTFeed(DataBase):
     def start(
         self,
     ):
+        """Start the CCXT data feed.
+
+        Initializes backfilling or live data mode based on parameters.
+        """
         DataBase.start(self)
         if self.p.fromdate:
             self._state = self._ST_HISTORBACK
@@ -208,7 +224,17 @@ class CCXTFeed(DataBase):
         return True
 
     def haslivedata(self):
+        """Check if live data is available.
+
+        Returns:
+            bool: True if in live mode and data queue is not empty.
+        """
         return self._state == self._ST_LIVE and not self._data.empty()
 
     def islive(self):
+        """Check if feed is in live mode.
+
+        Returns:
+            bool: True if not historical-only mode.
+        """
         return not self.p.historical

@@ -18,19 +18,50 @@ import sys
 
 from . import Indicator, MovingAverage
 class PlotLineAttr:
+    """Plot line attribute container for envelope visualization."""
+
     def __init__(self, **kwargs):
+        """Initialize plot line attributes.
+
+        Args:
+            **kwargs: Arbitrary plot line attributes.
+        """
         for k, v in kwargs.items():
             setattr(self, k, v)
 
     def _get(self, key, default=None):
-        """CRITICAL: _get method expected by plotting system"""
+        """Get attribute value for plotting system compatibility.
+
+        Args:
+            key: Attribute name to retrieve.
+            default: Default value if key not found.
+
+        Returns:
+            Attribute value or default.
+        """
         return getattr(self, key, default)
 
     def get(self, key, default=None):
-        """Standard get method for compatibility"""
+        """Standard get method for compatibility.
+
+        Args:
+            key: Attribute name to retrieve.
+            default: Default value if key not found.
+
+        Returns:
+            Attribute value or default.
+        """
         return getattr(self, key, default)
 
     def __contains__(self, key):
+        """Check if attribute exists.
+
+        Args:
+            key: Attribute name to check.
+
+        Returns:
+            True if attribute exists, False otherwise.
+        """
         return hasattr(self, key)
 
 
@@ -62,26 +93,56 @@ class EnvelopeMixIn:
 
     # CRITICAL FIX: Convert plotlines from dict to object with _get method for plotting compatibility
     class PlotLinesObj:
+        """Plot lines configuration object for envelope visualization."""
+
         def __init__(self):
+            """Initialize plot lines with top and bot attributes."""
             self.top = PlotLineAttr(_samecolor=True)
             self.bot = PlotLineAttr(_samecolor=True)
 
         def _get(self, key, default=None):
-            """CRITICAL: _get method expected by plotting system"""
+            """Get plot line attribute for plotting system.
+
+            Args:
+                key: Attribute name.
+                default: Default value if not found.
+
+            Returns:
+                Attribute value or default.
+            """
             return getattr(self, key, default)
 
         def get(self, key, default=None):
-            """Standard get method for compatibility"""
+            """Standard get method for compatibility.
+
+            Args:
+                key: Attribute name.
+                default: Default value if not found.
+
+            Returns:
+                Attribute value or default.
+            """
             return getattr(self, key, default)
 
         def __contains__(self, key):
+            """Check if attribute exists.
+
+            Args:
+                key: Attribute name to check.
+
+            Returns:
+                True if attribute exists, False otherwise.
+            """
             return hasattr(self, key)
 
     plotlines = PlotLinesObj()
 
     # CRITICAL FIX: Add complete plotinfo object with all required attributes
     class PlotInfoObj:
+        """Plot information configuration object for envelope visualization."""
+
         def __init__(self):
+            """Initialize plot info with default envelope settings."""
             self.subplot = False
             self.plot = True
             self.plotname = ""
@@ -99,19 +160,47 @@ class EnvelopeMixIn:
             self.legendloc = None  # CRITICAL: Add the missing legendloc attribute
 
         def _get(self, key, default=None):
-            """CRITICAL: _get method expected by plotting system"""
+            """Get plot info attribute for plotting system.
+
+            Args:
+                key: Attribute name.
+                default: Default value if not found.
+
+            Returns:
+                Attribute value or default.
+            """
             return getattr(self, key, default)
 
         def get(self, key, default=None):
-            """Standard get method for compatibility"""
+            """Standard get method for compatibility.
+
+            Args:
+                key: Attribute name.
+                default: Default value if not found.
+
+            Returns:
+                Attribute value or default.
+            """
             return getattr(self, key, default)
 
         def __contains__(self, key):
+            """Check if attribute exists.
+
+            Args:
+                key: Attribute name to check.
+
+            Returns:
+                True if attribute exists, False otherwise.
+            """
             return hasattr(self, key)
 
     plotinfo = PlotInfoObj()
 
     def __init__(self):
+        """Initialize the envelope mix-in.
+
+        Calculates percentage value for band width.
+        """
         # CRITICAL FIX: Call super().__init__() first to ensure params and lines are initialized
         super().__init__()
 
@@ -123,11 +212,20 @@ class EnvelopeMixIn:
         self._perc = perc_value / 100.0
 
     def next(self):
+        """Calculate envelope bands for the current bar.
+
+        top = base * (1 + perc)
+        bot = base * (1 - perc)
+        """
         base_val = self.lines[0][0]
         self.lines.top[0] = base_val * (1.0 + self._perc)
         self.lines.bot[0] = base_val * (1.0 - self._perc)
 
     def once(self, start, end):
+        """Calculate envelope bands in runonce mode.
+
+        Computes top and bot bands as percentage of base value.
+        """
         import math
         base_array = self.lines[0].array
         top_array = self.lines.top.array
@@ -154,7 +252,10 @@ class _EnvelopeBase(Indicator):
 
     # CRITICAL FIX: Add complete plotinfo object with all required attributes
     class PlotInfoObjBase:
+        """Plot information configuration for envelope base class."""
+
         def __init__(self):
+            """Initialize plot info with default settings."""
             self.subplot = False
             self.plot = True
             self.plotname = ""
@@ -172,14 +273,38 @@ class _EnvelopeBase(Indicator):
             self.legendloc = None  # CRITICAL: Add the missing legendloc attribute
 
         def _get(self, key, default=None):
-            """CRITICAL: _get method expected by plotting system"""
+            """Get plot info attribute for plotting system.
+
+            Args:
+                key: Attribute name.
+                default: Default value if not found.
+
+            Returns:
+                Attribute value or default.
+            """
             return getattr(self, key, default)
 
         def get(self, key, default=None):
-            """Standard get method for compatibility"""
+            """Standard get method for compatibility.
+
+            Args:
+                key: Attribute name.
+                default: Default value if not found.
+
+            Returns:
+                Attribute value or default.
+            """
             return getattr(self, key, default)
 
         def __contains__(self, key):
+            """Check if attribute exists.
+
+            Args:
+                key: Attribute name to check.
+
+            Returns:
+                True if attribute exists, False otherwise.
+            """
             return hasattr(self, key)
 
     plotinfo = PlotInfoObjBase()
@@ -187,35 +312,71 @@ class _EnvelopeBase(Indicator):
     # Do not replot the data line
     # CRITICAL FIX: Convert plotlines from dict to object with _get method for plotting compatibility
     class PlotLinesObjBase:
+        """Plot lines configuration for envelope base class."""
+
         def __init__(self):
+            """Initialize plot lines with src skipped from plotting."""
             self.src = PlotLineAttr(_plotskip=True)
 
         def _get(self, key, default=None):
-            """CRITICAL: _get method expected by plotting system"""
+            """Get plot line attribute for plotting system.
+
+            Args:
+                key: Attribute name.
+                default: Default value if not found.
+
+            Returns:
+                Attribute value or default.
+            """
             return getattr(self, key, default)
 
         def get(self, key, default=None):
-            """Standard get method for compatibility"""
+            """Standard get method for compatibility.
+
+            Args:
+                key: Attribute name.
+                default: Default value if not found.
+
+            Returns:
+                Attribute value or default.
+            """
             return getattr(self, key, default)
 
         def __contains__(self, key):
+            """Check if attribute exists.
+
+            Args:
+                key: Attribute name to check.
+
+            Returns:
+                True if attribute exists, False otherwise.
+            """
             return hasattr(self, key)
 
     plotlines = PlotLinesObjBase()
 
     def __init__(self):
+        """Initialize the envelope base indicator."""
         super().__init__()
 
     def next(self):
+        """Pass data through to src line.
+
+        Copies data value to src line.
+        """
         self.lines.src[0] = self.data[0]
 
     def once(self, start, end):
+        """Pass data through in runonce mode.
+
+        Copies data values to src line across all bars.
+        """
         darray = self.data.array
         larray = self.lines.src.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(start, min(end, len(darray))):
             larray[i] = darray[i] if i < len(darray) else 0.0
 

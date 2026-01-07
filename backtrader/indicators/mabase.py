@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Moving Average Base Module - Core moving average infrastructure.
+
+This module provides the base classes and registration system for all
+moving average indicators in backtrader.
+
+Classes:
+    MovingAverage: Placeholder for all moving average types.
+    MovAv: Alias for MovingAverage.
+    MovingAverageBase: Base class for moving average indicators.
+
+Example:
+    >>> sma = MovAv.SMA(data, period=20)
+    >>> ema = MovAv.EMA(data, period=12)
+"""
 
 
 from . import Indicator
@@ -31,6 +45,14 @@ class MovingAverage:
 
     @classmethod
     def register(cls, regcls):
+        """Register a moving average class with the placeholder.
+
+        Args:
+            regcls: The moving average class to register.
+
+        Sets the class name and aliases as attributes on the placeholder
+        for easy access (e.g., MovAv.SMA, MovAv.EMA).
+        """
         # If indicator doesn't have _notregister or _notregister value is False, continue to register, otherwise return directly
         if getattr(regcls, "_notregister", False):
             return
@@ -66,11 +88,24 @@ class MovingAverage:
 
 # Alias for moving average
 class MovAv(MovingAverage):
+    """Alias for MovingAverage.
+
+    Provides a shorter name for accessing moving average types.
+    """
     pass  # alias
 
 
 # Base class for moving average, add parameters and plot settings - refactored to remove metaclass
 class MovingAverageBase(Indicator):
+    """Base class for all moving average indicators.
+
+    Provides common initialization with minimum period management and
+    automatic registration with the MovingAverage placeholder.
+
+    Attributes:
+        params: Default period parameter (30).
+        plotinfo: Default to plot on main chart (subplot=False).
+    """
     # Parameters
     params = (("period", 30),)
     # Plot on main chart by default

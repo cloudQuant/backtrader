@@ -128,6 +128,14 @@ class SharpeRatio(Analyzer):
     }
 
     def __init__(self, *args, **kwargs):
+        """Initialize the SharpeRatio analyzer.
+
+        Sets up the return analyzer based on the legacyannual parameter.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         # If using years, get annualized return, otherwise get daily return
@@ -139,6 +147,15 @@ class SharpeRatio(Analyzer):
             )
 
     def stop(self):
+        """Calculate and store the Sharpe ratio when analysis ends.
+
+        Performs the following calculations:
+        1. Retrieves returns from the sub-analyzer
+        2. Converts risk-free rate if needed
+        3. Calculates excess returns
+        4. Computes the Sharpe ratio
+        5. Optionally annualizes the result
+        """
         super().stop()
         # Calculate returns and Sharpe ratio in annual units
         if self.p.legacyannual:

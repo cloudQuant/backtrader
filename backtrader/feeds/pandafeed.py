@@ -47,12 +47,19 @@ class PandasDirectData(DataBase):
     # Column names
     datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
-    # Start, convert dataframe data to iterable tuples, one tuple per row
     def __init__(self):
+        """Initialize the PandasDirect data feed.
+
+        Prepares for iterating over DataFrame rows.
+        """
         super().__init__()  # CRITICAL FIX: Must call parent __init__
         self._rows = None
 
     def start(self):
+        """Start the PandasDirect data feed.
+
+        Creates iterator from DataFrame.
+        """
         super().start()
 
         # reset the iterator on each start
@@ -156,8 +163,11 @@ class PandasData(DataBase):
     # Column names of data
     datafields = ["datetime", "open", "high", "low", "close", "volume", "openinterest"]
 
-    # Class initialization
     def __init__(self):
+        """Initialize the Pandas data feed.
+
+        Creates column mappings for DataFrame data access.
+        """
         super().__init__()
 
         # these "colnames" can be strings or numeric types
@@ -214,8 +224,11 @@ class PandasData(DataBase):
                 # all other cases -- used given index
                 self._colmapping[datafield] = defmapping
 
-    # Start processing data
     def start(self):
+        """Start the Pandas data feed.
+
+        Resets index and converts column names to indices.
+        """
         super().start()
         # Before starting, reset _idx first
         # reset the length with each start

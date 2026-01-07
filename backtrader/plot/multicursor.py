@@ -1,3 +1,40 @@
+#!/usr/bin/env python
+# -*- coding: utf-8; py-indent-offset:4 -*-
+"""MultiCursor Widget Module for Matplotlib.
+
+This module provides MultiCursor widgets for matplotlib that display vertical
+and/or horizontal cursor lines across multiple axes simultaneously. It includes
+two implementations:
+
+    * MultiCursor: Enhanced version with support for independent/shared
+      cursor behavior across axes
+
+    * MultiCursor2: Simplified version with basic shared cursor functionality
+
+These widgets are useful for interactive plots where you need to compare data
+across multiple subplots at the same cursor position.
+
+The module is based on matplotlib's MultiCursor widget with enhancements
+to better handle axes with different y-dimensions and more flexible cursor
+visibility controls.
+
+Example:
+    >>> from matplotlib import pyplot as plt
+    >>> import numpy as np
+    >>> from backtrader.plot.multicursor import MultiCursor
+    >>> t = np.arange(0.0, 2.0, 0.01)
+    >>> s1 = np.sin(2*np.pi*t)
+    >>> s2 = np.sin(4*np.pi*t)
+    >>> fig = plt.figure()
+    >>> ax1 = fig.add_subplot(211)
+    >>> ax1.plot(t, s1)
+    >>> ax2 = fig.add_subplot(212, sharex=ax1)
+    >>> ax2.plot(t, s2)
+    >>> multi = MultiCursor(fig.canvas, (ax1, ax2), color='r', lw=1,
+    ...                     horizOn=False, vertOn=True)
+    >>> plt.show()
+"""
+
 # LICENSE AGREEMENT FOR MATPLOTLIB 1.2.0
 # --------------------------------------
 #
@@ -137,6 +174,39 @@ class MultiCursor(Widget):
         vertShared=False,
         **lineprops,
     ):
+        """Initialize the MultiCursor widget.
+
+        Creates vertical and/or horizontal cursor lines that are synchronized
+        across multiple axes. The enhanced version supports independent cursor
+        behavior per axis and handles axes with different dimensions correctly.
+
+        Args:
+            canvas: The matplotlib canvas to attach the cursor to.
+            axes: Sequence of Axes objects to share the cursor across.
+            useblit: If True, use blitting for faster rendering (default: True).
+            horizOn: If True, display horizontal cursor lines (default: False).
+            vertOn: If True, display vertical cursor lines (default: True).
+            horizMulti: If True, show horizontal cursor on all axes
+                simultaneously; if False, only show on axis under cursor
+                (default: False).
+            vertMulti: If True, show vertical cursor on all axes simultaneously;
+                if False, only show on axis under cursor (default: True).
+            horizShared: If True, use shared y-position for horizontal cursors
+                from the last axis; if False, calculate independently per axis
+                (default: True).
+            vertShared: If True, use shared x-position for vertical cursors
+                from the last axis; if False, calculate independently per axis
+                (default: False).
+            **lineprops: Additional keyword arguments passed to the cursor lines
+                (e.g., color, linewidth, linestyle).
+
+        Attributes:
+            visible: Boolean indicating if the cursor is currently visible.
+            vlines: List of vertical cursor line objects.
+            hlines: List of horizontal cursor line objects.
+            useblit: Boolean indicating if blitting is enabled.
+            background: Background canvas for blitting.
+        """
         self._ciddraw = None
         self._cidmotion = None
         self.canvas = canvas
@@ -202,6 +272,23 @@ class MultiCursor(Widget):
             line.set_visible(False)
 
     def onmove(self, event):
+        """Handle mouse motion events to update cursor position.
+
+        Updates the vertical and/or horizontal cursor lines based on the mouse
+        position in the axes. Respects the horizMulti, vertMulti, horizShared,
+        and vertShared settings to control cursor visibility and positioning.
+
+        Args:
+            event: Matplotlib motion event containing xdata, ydata, and inaxes
+                information.
+
+        The method will:
+            * Ignore the event if the widget is inactive
+            * Ignore the event if the mouse is outside all axes
+            * Update cursor line positions based on mouse coordinates
+            * Show/hide cursors based on multi-axis settings
+            * Trigger a canvas update via blitting or draw_idle
+        """
         if self.ignore(event):
             return
         if event.inaxes is None:
@@ -271,6 +358,34 @@ class MultiCursor2(Widget):
     """
 
     def __init__(self, canvas, axes, useblit=True, horizOn=False, vertOn=True, **lineprops):
+        """Initialize the MultiCursor2 widget.
+
+        Creates vertical and/or horizontal cursor lines that are synchronized
+        across multiple axes. This is a simplified version that shows horizontal
+        cursors only on the axis where the mouse is located.
+
+        Args:
+            canvas: The matplotlib canvas to attach the cursor to.
+            axes: Sequence of Axes objects to share the cursor across.
+            useblit: If True, use blitting for faster rendering (default: True).
+            horizOn: If True, display horizontal cursor lines (default: False).
+            vertOn: If True, display vertical cursor lines (default: True).
+            **lineprops: Additional keyword arguments passed to the cursor lines
+                (e.g., color, linewidth, linestyle).
+
+        Attributes:
+            visible: Boolean indicating if the cursor is currently visible.
+            vlines: List of vertical cursor line objects.
+            hlines: List of horizontal cursor line objects.
+            useblit: Boolean indicating if blitting is enabled.
+            background: Background canvas for blitting.
+
+        Note:
+            Unlike MultiCursor, this version always shows vertical cursors on
+            all axes and shows horizontal cursors only on the axis where the
+            mouse event occurs. This avoids distortion when axes have different
+            y-dimensions.
+        """
         self._ciddraw = None
         self._cidmotion = None
         self.canvas = canvas
@@ -326,6 +441,24 @@ class MultiCursor2(Widget):
             line.set_visible(False)
 
     def onmove(self, event):
+        """Handle mouse motion events to update cursor position.
+
+        Updates the vertical and/or horizontal cursor lines based on the mouse
+        position in the axes. Vertical cursors are shown on all axes, while
+        horizontal cursors are only shown on the axis where the mouse event
+        occurred.
+
+        Args:
+            event: Matplotlib motion event containing xdata, ydata, and inaxes
+                information.
+
+        The method will:
+            * Ignore the event if the widget is inactive
+            * Ignore the event if the mouse is outside all axes
+            * Update all vertical cursors to the mouse x-position
+            * Update horizontal cursor only on the axis under the mouse
+            * Trigger a canvas update via blitting or draw_idle
+        """
         if self.ignore(event):
             return
         if event.inaxes is None:

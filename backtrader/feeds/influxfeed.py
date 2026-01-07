@@ -29,6 +29,8 @@ except Exception:  # pragma: no cover - optional dependency, handled at runtime
     idbclient = None
 
     class InfluxDBClientError(Exception):
+        """Exception raised for InfluxDB client errors."""
+
         pass
 
 
@@ -47,6 +49,11 @@ TIMEFRAMES = dict(
 
 # backtrader fetches data from InfluxDB
 class InfluxDB(DataBase):
+    """InfluxDB data feed for time series market data.
+
+    Fetches OHLCV data from an InfluxDB time series database.
+    """
+
     # Import packages
     frompackages = (
         ("influxdb", [("InfluxDBClient", "idbclient")]),
@@ -69,12 +76,16 @@ class InfluxDB(DataBase):
         ("ointerest", "oi"),
     )
 
-    # Start
     def __init__(self):
+        """Initialize the InfluxDB data feed."""
         self.biter = None
         self.ndb = None
 
     def start(self):
+        """Start the InfluxDB data feed.
+
+        Connects to InfluxDB and executes query to fetch data.
+        """
         super().start()
         # Try to connect to database
         try:

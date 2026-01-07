@@ -55,8 +55,11 @@ class Trades(Observer):
         ),
     )
 
-    # Initialize trades-related values
     def __init__(self):
+        """Initialize the Trades observer.
+
+        Sets up tracking variables for trade statistics.
+        """
         self.trades = 0
 
         self.trades_long = 0
@@ -81,6 +84,10 @@ class Trades(Observer):
         self.trades_length_min = 0
 
     def next(self):
+        """Update trade statistics based on closed trades.
+
+        Processes pending trades and updates PnL lines.
+        """
         # For existing trades
         for trade in self._owner._tradespending:
             # If trade's data has no data, skip
@@ -216,6 +223,10 @@ class DataTrades(Observer):
                 setattr(self.plotlines, line_name, plot_config)
 
     def next(self):
+        """Update data-specific trade PnL values.
+
+        Records closed trade PnL for each data feed.
+        """
         for trade in self._owner._tradespending:
             if trade.data not in self.ddatas:
                 continue

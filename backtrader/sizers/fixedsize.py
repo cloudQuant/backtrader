@@ -39,6 +39,12 @@ class FixedSize(Sizer):
     )
 
     def __init__(self, **kwargs):
+        """Initialize the FixedSize sizer.
+
+        Args:
+            **kwargs: Keyword arguments for sizer configuration including
+                stake and tranches parameters.
+        """
         super().__init__(**kwargs)
 
     # Return specific stake size, if tranches > 1, will divide stake into tranches parts, otherwise return stake directly
@@ -50,6 +56,12 @@ class FixedSize(Sizer):
 
     # Set stake size
     def setsizing(self, stake):
+        """Set the fixed stake size for operations.
+
+        Args:
+            stake (int): The stake size to set. If tranches > 1, this value
+                will be divided by tranches and stored as the internal stake.
+        """
         if self.get_param("tranches") > 1:
             self.set_param("stake", abs(int(stake / self.get_param("tranches"))))
         else:
@@ -78,6 +90,12 @@ class FixedReverser(Sizer):
     )
 
     def __init__(self, **kwargs):
+        """Initialize the FixedReverser sizer.
+
+        Args:
+            **kwargs: Keyword arguments for sizer configuration including
+                stake parameter.
+        """
         super().__init__(**kwargs)
 
     def _getsizing(self, comminfo, cash, data, isbuy):
@@ -112,6 +130,12 @@ class FixedSizeTarget(Sizer):
     )
 
     def __init__(self, **kwargs):
+        """Initialize the FixedSizeTarget sizer.
+
+        Args:
+            **kwargs: Keyword arguments for sizer configuration including
+                stake and tranches parameters.
+        """
         super().__init__(**kwargs)
 
     def _getsizing(self, comminfo, cash, data, isbuy):
@@ -122,6 +146,13 @@ class FixedSizeTarget(Sizer):
             return self.get_param("stake")
 
     def setsizing(self, stake):
+        """Set the fixed target stake size for operations.
+
+        Args:
+            stake (int): The target stake size to set. If tranches > 1, this value
+                will be divided by tranches and adjusted based on current
+                position size to reach the target.
+        """
         if self.get_param("tranches") > 1:
             size = abs(int(stake / self.get_param("tranches")))
             self.set_param("stake", min((self.strategy.position.size + size), stake))

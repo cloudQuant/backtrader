@@ -45,6 +45,10 @@ class OLS_Slope_InterceptN(PeriodN):
     params = (("period", 10),)
 
     def next(self):
+        """Calculate OLS slope and intercept for the current bar.
+
+        Uses statsmodels OLS to perform linear regression.
+        """
         p0 = pd.Series(self.data0.get(size=self.p.period))
         p1 = pd.Series(self.data1.get(size=self.p.period))
         p1 = sm.add_constant(p1)
@@ -71,10 +75,18 @@ class OLS_TransformationN(PeriodN):
     params = (("period", 10),)
 
     def __init__(self):
+        """Initialize the OLS Transformation indicator.
+
+        Creates OLS slope-intercept indicator for transformation calculations.
+        """
         super().__init__()
         self.slint = OLS_Slope_InterceptN(*self.datas)
 
     def next(self):
+        """Calculate OLS transformation values for the current bar.
+
+        Computes spread, mean, std, and zscore based on OLS regression.
+        """
         slope = self.slint.slope[0]
         intercept = self.slint.intercept[0]
         spread = self.data0[0] - (slope * self.data1[0] + intercept)
@@ -102,6 +114,10 @@ class OLS_TransformationN(PeriodN):
             self.lines.zscore[0] = 0.0
 
     def once(self, start, end):
+        """Calculate OLS transformation in runonce mode.
+
+        Computes spread, mean, std, and zscore values across all bars.
+        """
         import math
         slope_array = self.slint.lines.slope.array
         intercept_array = self.slint.lines.intercept.array
@@ -170,6 +186,10 @@ class OLS_BetaN(PeriodN):
     params = (("period", 10),)
 
     def next(self):
+        """Calculate beta via OLS regression for the current bar.
+
+        Uses pandas OLS to calculate regression beta.
+        """
         y, x = (pd.Series(d.get(size=self.p.period)) for d in self.datas)
         r_beta = pd.ols(y=y, x=x, window_type="full_sample")
         self.lines.beta[0] = r_beta.beta["x"]
@@ -198,6 +218,10 @@ class CointN(PeriodN):
     )
 
     def next(self):
+        """Calculate cointegration test for the current period.
+
+        Uses statsmodels coint function to test for cointegration.
+        """
         x, y = (pd.Series(d.get(size=self.p.period)) for d in self.datas)
         score, pvalue, _ = coint(x, y, trend=self.p.trend)
         self.lines.score[0] = score

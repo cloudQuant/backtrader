@@ -59,12 +59,23 @@ class Transactions(Analyzer):
 
     # Initialize
     def __init__(self, *args, **kwargs):
+        """Initialize the Transactions analyzer.
+
+        Args:
+            *args: Positional arguments.
+            **kwargs: Keyword arguments for analyzer parameters.
+        """
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         self._idnames = None
         self._positions = None
 
     def start(self):
+        """Initialize the analyzer at the start of the backtest.
+
+        Sets up the results structure and initializes position tracking
+        for each data feed.
+        """
         super().start()
         # If headers is True, initialize rets
         if self.p.headers:
@@ -76,6 +87,14 @@ class Transactions(Analyzer):
 
     # Order information processing
     def notify_order(self, order):
+        """Process order execution notifications.
+
+        Updates the position tracking when orders are executed or partially
+        executed. Collected positions are recorded in the next() method.
+
+        Args:
+            order: The order object with execution information.
+        """
         # An order could have several partial executions per cycle (unlikely
         # but possible) and therefore: collect each new execution notification
         # and let the work for the next
@@ -97,6 +116,11 @@ class Transactions(Analyzer):
 
     # Called once per bar
     def next(self):
+        """Record transactions for the current bar.
+
+        Collects position changes from all data feeds and records them
+        in the results dictionary keyed by datetime.
+        """
         # super(Transactions, self).next()  # let dtkey update
         # Entries
         entries = []

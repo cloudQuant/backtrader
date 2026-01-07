@@ -286,8 +286,12 @@ class IBData(DataBase):
         should be deactivated"""
         return not self.p.historical
 
-    # Initialize
     def __init__(self, **kwargs):
+        """Initialize the IB data feed.
+
+        Args:
+            **kwargs: Keyword arguments for data feed configuration.
+        """
         super().__init__(**kwargs)
         # Handle original metaclass registration functionality
         ibstore.IBStore.DataCls = self.__class__
@@ -490,8 +494,12 @@ class IBData(DataBase):
         else:
             self.ib.cancelRealTimeBars(self.qlive)
 
-    # Whether has live data
     def haslivedata(self):
+        """Check if live data is available.
+
+        Returns:
+            bool: True if stored message or live queue has data, False otherwise.
+        """
         return bool(self._storedmsg or self.qlive)
 
     # Load data

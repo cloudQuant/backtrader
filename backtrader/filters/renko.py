@@ -62,12 +62,27 @@ class Renko(Filter):
     )
 
     def __init__(self, data, *args, **kwargs):
+        """Initialize the Renko filter.
+
+        Args:
+            data: The data feed to apply the filter to.
+            *args: Variable length argument list.
+            **kwargs: Additional keyword arguments passed to parent class.
+        """
         super().__init__(data, *args, **kwargs)
         self._bot = None
         self._top = None
         self._size = None
 
     def nextstart(self, data):
+        """Initialize Renko brick boundaries on the first data point.
+
+        This method sets up the initial brick size and top/bottom boundaries
+        based on the opening price and configured parameters.
+
+        Args:
+            data: The data feed containing the first bar.
+        """
         o = data.open[0]
         o = round(o / self.p.align, 0) * self.p.align  # aligned
         self._size = self.p.size or float(o // self.p.autosize)
@@ -78,6 +93,20 @@ class Renko(Filter):
         self._bot = o - self._size
 
     def next(self, data):
+        """Process each bar to create Renko bricks.
+
+        This method analyzes the current price data and creates Renko bricks
+        when price moves beyond the current brick boundaries. Each brick has
+        a fixed size, and new bricks are created when price breaks through
+        the current brick's top or bottom boundary.
+
+        Args:
+            data: The data feed containing current bar data.
+
+        Returns:
+            bool: True if the stream length changed (bar removed),
+                  False if unchanged (Renko brick created).
+        """
         c = data.close[0]
         h = data.high[0]
         low = data.low[0]

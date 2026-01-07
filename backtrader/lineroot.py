@@ -652,6 +652,19 @@ class LineMultiple(LineRoot):
     """
 
     def __init__(self):
+        """Initialize a LineMultiple instance.
+
+        Sets up the internal state for managing multiple lines, including
+        line type indicator, lines collection, clock reference, and
+        line iterator tracking.
+
+        Initializes:
+            _ltype: Line type indicator (None for base LineMultiple).
+            lines: Collection of line objects (creates if not exists).
+            _clock: Clock reference for synchronization.
+            _lineiterators: Dictionary tracking registered lineiterators.
+            _minperiod: Minimum period requirement (defaults to 1).
+        """
         super(LineMultiple, self).__init__()
         # CRITICAL FIX: Initialize _ltype for proper strategy/indicator identification
         self._ltype = None
@@ -674,6 +687,12 @@ class LineMultiple(LineRoot):
             self._minperiod = 1
 
     def reset(self):
+        """Reset the line multiple to initial state.
+
+        Resets the operation stage to stage 1 and resets all managed
+        lines to their initial state. This is typically called before
+        starting a new backtest run.
+        """
         self._stage1()
         self.lines.reset()
 
@@ -766,10 +785,27 @@ class LineMultiple(LineRoot):
                 return 0
 
     def qbuffer(self, savemem=0):
+        """Apply queued buffering to all managed lines.
+
+        Changes the lines to implement a minimum size qbuffer scheme
+        to control memory usage during backtesting.
+
+        Args:
+            savemem: Memory savings mode (0 = normal, higher values
+                reduce memory usage at the cost of performance).
+        """
         for line in self.lines:
             line.qbuffer(savemem=savemem)
 
     def minbuffer(self, size):
+        """Set minimum buffer size for all managed lines.
+
+        Receives notification of how large the buffer must at least be
+        and propagates this requirement to all managed lines.
+
+        Args:
+            size: Minimum buffer size required.
+        """
         for line in self.lines:
             line.minbuffer(size)
 

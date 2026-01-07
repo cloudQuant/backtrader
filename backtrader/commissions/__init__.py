@@ -34,20 +34,45 @@ class CommInfoFutures(CommInfoBase):
 
 
 class CommInfoFuturesPerc(CommInfoFutures):
+    """Futures commission scheme with percentage-based commission.
+
+    Commission is calculated as a percentage of the trading volume.
+    """
+
     params = (("commtype", CommInfoBase.COMM_PERC),)
 
 
 class CommInfoFuturesFixed(CommInfoFutures):
+    """Futures commission scheme with fixed per-contract commission.
+
+    Commission is a fixed amount per contract traded.
+    """
+
     params = (("commtype", CommInfoBase.COMM_FIXED),)
 
 
 class CommInfoStocks(CommInfoBase):
+    """Stock commission scheme with stock-like asset behavior.
+
+    Uses stock-like margin and position handling.
+    """
+
     params = (("stocklike", True),)
 
 
 class CommInfoStocksPerc(CommInfoStocks):
+    """Stock commission scheme with percentage-based commission.
+
+    Commission is calculated as a percentage of the trading volume.
+    """
+
     params = (("commtype", CommInfoBase.COMM_PERC),)
 
 
 class CommInfoStocksFixed(CommInfoStocks):
+    """Stock commission scheme with fixed per-share commission.
+
+    Commission is a fixed amount per share traded.
+    """
+
     params = (("commtype", CommInfoBase.COMM_FIXED),)

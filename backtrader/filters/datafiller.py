@@ -51,17 +51,35 @@ class DataFiller(AbstractDataBase):
     )
 
     def __init__(self):
+        """Initialize the DataFiller.
+
+        Sets up internal state variables for tracking timeframe,
+        compression, data bars, and fill bars queue.
+        """
         self._timeframe = None
         self._compression = None
         self._dbar = None
         self._fillbars = None
 
     def start(self):
+        """Start the data filler.
+
+        Initializes the fill bars queue and data bar flag.
+        This method is called when the data feed starts processing.
+        """
         super().start()
         self._fillbars = collections.deque()
         self._dbar = False
 
     def preload(self):
+        """Preload data from the underlying data source.
+
+        If the underlying data is not preloaded, loads it completely.
+        Copies timeframe and compression settings from the source data
+        after it has started (some sources do autodetection).
+
+        This method ensures all necessary data is available before processing.
+        """
         if len(self.p.dataname) == self.p.dataname.buflen():
             # if data is not preloaded … do it
             self.p.dataname.start()

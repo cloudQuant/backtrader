@@ -60,6 +60,12 @@ class DTFaker(object):
 
     # Initialize
     def __init__(self, data, forcedata=None):
+        """Initialize the DTFaker with current time.
+
+        Args:
+            data: The underlying data source.
+            forcedata: Optional data source to force time from.
+        """
         # Data
         self.data = data
 
@@ -90,18 +96,50 @@ class DTFaker(object):
 
     # Return localized date and time when called
     def __call__(self, idx=0):
+        """Return the localized datetime.
+
+        Args:
+            idx: Index (ignored, for compatibility).
+
+        Returns:
+            Localized datetime object.
+        """
         return self._dtime  # simulates data.datetime.datetime()
 
     # datetime returns localized date and time
     def datetime(self, idx=0):
+        """Return the localized datetime.
+
+        Args:
+            idx: Index (ignored, for compatibility).
+
+        Returns:
+            Localized datetime object.
+        """
         return self._dtime
 
     # Return localized date
     def date(self, idx=0):
+        """Return the localized date.
+
+        Args:
+            idx: Index (ignored, for compatibility).
+
+        Returns:
+            Date object.
+        """
         return self._dtime.date()
 
     # Return localized time
     def time(self, idx=0):
+        """Return the localized time.
+
+        Args:
+            idx: Index (ignored, for compatibility).
+
+        Returns:
+            Time object.
+        """
         return self._dtime.time()
 
     # Return data calendar
@@ -115,10 +153,24 @@ class DTFaker(object):
 
     # Convert number to date and time
     def num2date(self, *args, **kwargs):
+        """Convert numeric time to datetime.
+
+        Delegates to the underlying data source's num2date method.
+
+        Returns:
+            Datetime object.
+        """
         return self.data.num2date(*args, **kwargs)
 
     # Convert date and time to number
     def date2num(self, *args, **kwargs):
+        """Convert datetime to numeric time.
+
+        Delegates to the underlying data source's date2num method.
+
+        Returns:
+            Float representing the datetime.
+        """
         return self.data.date2num(*args, **kwargs)
 
     # Get trading day end time
@@ -142,6 +194,15 @@ class _BaseResampler(ParameterizedBase):
 
     # Initialize
     def __init__(self, data, **kwargs):
+        """Initialize the base resampler.
+
+        Sets up the resampling configuration based on timeframe and
+        compression parameters, and modifies the data source accordingly.
+
+        Args:
+            data: The data source to resample.
+            **kwargs: Additional parameters for the resampler.
+        """
         super(_BaseResampler, self).__init__(**kwargs)
         # If timeframe is less than day but greater than tick, subdays is True, subdays represents intraday timeframe
         self.subdays = TimeFrame.Ticks < self.p.timeframe < TimeFrame.Days
@@ -727,6 +788,18 @@ class Replayer(_BaseResampler):
 
     # Run when calling class
     def __call__(self, data, fromcheck=False, forcedata=None):
+        """Process the data for replaying.
+
+        Manages bar replaying with session information and time alignment.
+
+        Args:
+            data: The data source to replay.
+            fromcheck: Whether this is being called from a periodic check.
+            forcedata: Optional data source to force timing from.
+
+        Returns:
+            bool: True if a new bar was generated, False otherwise.
+        """
         # Consume
         consumed = False
         # At bar generation time point
@@ -829,52 +902,78 @@ class Replayer(_BaseResampler):
 
 
 class ResamplerTicks(Resampler):
+    """Resampler for tick-level data."""
+
     params = (("timeframe", TimeFrame.Ticks),)
 
 
 class ResamplerSeconds(Resampler):
+    """Resampler for seconds-level data."""
+
     params = (("timeframe", TimeFrame.Seconds),)
 
 
 class ResamplerMinutes(Resampler):
+    """Resampler for minute-level data."""
+
     params = (("timeframe", TimeFrame.Minutes),)
 
 
 class ResamplerDaily(Resampler):
+    """Resampler for daily data."""
+
     params = (("timeframe", TimeFrame.Days),)
 
 
 class ResamplerWeekly(Resampler):
+    """Resampler for weekly data."""
+
     params = (("timeframe", TimeFrame.Weeks),)
 
 
 class ResamplerMonthly(Resampler):
+    """Resampler for monthly data."""
+
     params = (("timeframe", TimeFrame.Months),)
 
 
 class ResamplerYearly(Resampler):
+    """Resampler for yearly data."""
+
     params = (("timeframe", TimeFrame.Years),)
 
 
 class ReplayerTicks(Replayer):
+    """Replayer for tick-level data."""
+
     params = (("timeframe", TimeFrame.Ticks),)
 
 
 class ReplayerSeconds(Replayer):
+    """Replayer for seconds-level data."""
+
     params = (("timeframe", TimeFrame.Seconds),)
 
 
 class ReplayerMinutes(Replayer):
+    """Replayer for minute-level data."""
+
     params = (("timeframe", TimeFrame.Minutes),)
 
 
 class ReplayerDaily(Replayer):
+    """Replayer for daily data."""
+
     params = (("timeframe", TimeFrame.Days),)
 
 
 class ReplayerWeekly(Replayer):
+    """Replayer for weekly data."""
+
     params = (("timeframe", TimeFrame.Weeks),)
 
 
 class ReplayerMonthly(Replayer):
+    """Replayer for monthly data."""
+
     params = (("timeframe", TimeFrame.Months),)

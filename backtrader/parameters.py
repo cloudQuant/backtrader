@@ -1549,10 +1549,24 @@ class _IntValidator:
     """
 
     def __init__(self, min_val=None, max_val=None):
+        """Initialize the integer validator.
+
+        Args:
+            min_val: Minimum allowed value (inclusive). None means no minimum.
+            max_val: Maximum allowed value (inclusive). None means no maximum.
+        """
         self.min_val = min_val
         self.max_val = max_val
 
     def __call__(self, value):
+        """Validate that value is an integer within the specified range.
+
+        Args:
+            value: Value to validate.
+
+        Returns:
+            True if value is a valid integer within range, False otherwise.
+        """
         # Only accept actual int values, not floats or other types
         if not isinstance(value, int) or isinstance(value, bool):
             return False
@@ -1579,10 +1593,24 @@ class _FloatValidator:
     """
 
     def __init__(self, min_val=None, max_val=None):
+        """Initialize the float validator.
+
+        Args:
+            min_val: Minimum allowed value (inclusive). None means no minimum.
+            max_val: Maximum allowed value (inclusive). None means no maximum.
+        """
         self.min_val = min_val
         self.max_val = max_val
 
     def __call__(self, value):
+        """Validate that value is a float within the specified range.
+
+        Args:
+            value: Value to validate.
+
+        Returns:
+            True if value is a valid numeric type within range, False otherwise.
+        """
         # Only accept actual numeric types, not strings
         if not isinstance(value, (int, float)):
             return False
@@ -1629,10 +1657,24 @@ class _StringValidator:
     """
 
     def __init__(self, min_length=None, max_length=None):
+        """Initialize the string validator.
+
+        Args:
+            min_length: Minimum allowed string length. None means no minimum.
+            max_length: Maximum allowed string length. None means no maximum.
+        """
         self.min_length = min_length
         self.max_length = max_length
 
     def __call__(self, value):
+        """Validate that value is a string within the specified length range.
+
+        Args:
+            value: Value to validate.
+
+        Returns:
+            True if value is a string with valid length, False otherwise.
+        """
         if not isinstance(value, string_types):
             return False
         if self.min_length is not None and len(value) < self.min_length:
@@ -1654,9 +1696,22 @@ class _OneOfValidator:
     """
 
     def __init__(self, choices):
+        """Initialize the OneOf validator.
+
+        Args:
+            choices: Tuple or list of allowed values.
+        """
         self.choices = choices
 
     def __call__(self, value):
+        """Validate that value is one of the allowed choices.
+
+        Args:
+            value: Value to validate.
+
+        Returns:
+            True if value is in the allowed choices, False otherwise.
+        """
         return value in self.choices
 
     def __reduce__(self):
@@ -1916,6 +1971,14 @@ class ParameterValidationError(ValueError):
         expected_type: Optional[Type] = None,
         additional_info: str = "",
     ):
+        """Initialize a parameter validation error.
+
+        Args:
+            parameter_name: Name of the parameter that failed validation.
+            value: The invalid value that was provided.
+            expected_type: Expected type for the parameter (optional).
+            additional_info: Additional error information (optional).
+        """
         self.parameter_name = parameter_name
         self.value = value
         self.expected_type = expected_type
@@ -1933,6 +1996,13 @@ class ParameterAccessError(AttributeError):
     """Specific exception for parameter access errors."""
 
     def __init__(self, parameter_name: str, class_name: str, available_params: List[str]):
+        """Initialize a parameter access error.
+
+        Args:
+            parameter_name: Name of the parameter that was not found.
+            class_name: Name of the class where access was attempted.
+            available_params: List of available parameter names.
+        """
         self.parameter_name = parameter_name
         self.class_name = class_name
         self.available_params = available_params

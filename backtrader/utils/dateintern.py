@@ -1,4 +1,29 @@
 #!/usr/bin/env python
+"""Date Internal Module - Date/time conversion and timezone utilities.
+
+This module provides internal utilities for date/time conversions,
+timezone handling, and numeric date representations used throughout
+backtrader.
+
+Classes:
+    _UTC: UTC timezone implementation.
+    _LocalTimezone: Local timezone with DST support.
+
+Functions:
+    tzparse: Parse timezone specification.
+    Localizer: Add localize method to timezone objects.
+    num2date: Convert numeric date to datetime.
+    num2dt: Convert numeric date to date.
+    num2time: Convert numeric date to time.
+    date2num: Convert datetime to numeric format.
+    time2num: Convert time to numeric format.
+
+Constants:
+    UTC: Singleton UTC timezone instance.
+    TZLocal: Singleton local timezone instance.
+    TIME_MAX: Maximum time value (23:59:59.999990).
+    TIME_MIN: Minimum time value (00:00:00).
+"""
 import datetime
 import math
 import time as _time
@@ -127,6 +152,16 @@ def datetime2str(datetime_obj, string_format="%Y-%m-%d %H:%M:%S.%f"):
 
 
 def tzparse(tz):
+    """Parse a timezone specification into a tzinfo object.
+
+    Args:
+        tz: Timezone specification (string, tzinfo object, or None).
+
+    Returns:
+        A tzinfo object. If pytz is available and tz is a string,
+        returns the corresponding pytz timezone. Otherwise returns
+        a Localizer-wrapped tz object.
+    """
     # This function attempts to convert tz
     # If no object has been provided by the user and a timezone can be
     # found via contractdtails, then try to get it from pytz, which may or
@@ -153,6 +188,18 @@ def tzparse(tz):
 
 
 def Localizer(tz):
+    """Add a localize method to a timezone object.
+
+    This function adds a localize method to tz objects that don't
+    have one, allowing consistent timezone localization across
+    different timezone implementations.
+
+    Args:
+        tz: Timezone object to add localize method to.
+
+    Returns:
+        The same timezone object with a localize method added.
+    """
     # This function adds a localize method to tz, this localize method adds timezone info to dt
     # tzparse and Localizer are mainly for handling different timezones during live trading
     import types
@@ -169,27 +216,54 @@ def Localizer(tz):
 
 # A UTC class, same as the one in the Python Docs
 class _UTC(datetime.tzinfo):
-    """UTC"""
+    """UTC timezone implementation.
+
+    A simple UTC timezone class that implements the tzinfo interface
+    with zero offset (no DST).
+    """
 
     # UTC class
     def utcoffset(self, dt):
+        """Return UTC offset (always zero)."""
         return ZERO
 
     def tzname(self, dt):
+        """Return timezone name (UTC)."""
         return "UTC"
 
     def dst(self, dt):
+        """Return DST offset (always zero - UTC has no DST)."""
         return ZERO
 
     def localize(self, dt):
+        """Localize a naive datetime to UTC.
+
+        Args:
+            dt: Naive datetime to localize.
+
+        Returns:
+            Datetime with UTC timezone info.
+        """
         return dt.replace(tzinfo=self)
 
 
 class _LocalTimezone(datetime.tzinfo):
-    """Local timezone related processing"""
+    """Local timezone with DST support.
+
+    Implements the local system timezone with automatic DST
+    (daylight saving time) calculation.
+    """
 
     # Timezone offset
     def utcoffset(self, dt):
+        """Return the UTC offset for this timezone.
+
+        Args:
+            dt: Datetime to calculate offset for.
+
+        Returns:
+            Timedelta offset from UTC (includes DST if applicable).
+        """
         if self._isdst(dt):
             return DSTOFFSET
         else:
@@ -197,6 +271,14 @@ class _LocalTimezone(datetime.tzinfo):
 
     # DST offset, offset is 0 when not in DST
     def dst(self, dt):
+        """Return the DST offset.
+
+        Args:
+            dt: Datetime to calculate DST offset for.
+
+        Returns:
+            Timedelta DST adjustment (zero if not in DST).
+        """
         if self._isdst(dt):
             return DSTDIFF
         else:
@@ -204,6 +286,14 @@ class _LocalTimezone(datetime.tzinfo):
 
     # Possibly timezone name
     def tzname(self, dt):
+        """Return the timezone name.
+
+        Args:
+            dt: Datetime to get name for.
+
+        Returns:
+            String timezone name (e.g., 'EST' or 'EDT').
+        """
         return _time.tzname[self._isdst(dt)]
 
     # Determine if current time is DST
@@ -219,6 +309,14 @@ class _LocalTimezone(datetime.tzinfo):
 
     # Add timezone info to dt
     def localize(self, dt):
+        """Localize a naive datetime to this timezone.
+
+        Args:
+            dt: Naive datetime to localize.
+
+        Returns:
+            Datetime with local timezone info.
+        """
         return dt.replace(tzinfo=self)
 
 
@@ -297,6 +395,16 @@ def num2date(x, tz=None, naive=True):
 
 
 def num2dt(num, tz=None, naive=True):
+    """Convert numeric date to date object.
+
+    Args:
+        num: Numeric date value (days since 0001-01-01 UTC + 1).
+        tz: Timezone for the result (optional).
+        naive: If True, return naive date without timezone info.
+
+    Returns:
+        date: Date object extracted from the datetime.
+    """
     return num2date(num, tz=tz, naive=naive).date()
 
 
@@ -304,6 +412,16 @@ def num2dt(num, tz=None, naive=True):
 
 
 def num2time(num, tz=None, naive=True):
+    """Convert numeric date to time object.
+
+    Args:
+        num: Numeric date value (days since 0001-01-01 UTC + 1).
+        tz: Timezone for the result (optional).
+        naive: If True, return naive time without timezone info.
+
+    Returns:
+        time: Time object extracted from the datetime.
+    """
     return num2date(num, tz=tz, naive=naive).time()
 
 

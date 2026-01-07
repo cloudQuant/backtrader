@@ -55,10 +55,28 @@ class DaySplitterClose(ParameterizedBase):
     # replaying = True
 
     def __init__(self, data, **kwargs):
+        """Initialize the DaySplitterClose filter.
+
+        Args:
+            data: The data feed to apply the filter to.
+            **kwargs: Additional keyword arguments passed to parent class.
+        """
         super().__init__(**kwargs)
         self.lastdt = None
 
     def __call__(self, data):
+        """Process the data feed to split daily bars.
+
+        This method is called for each bar in the data feed. It splits the daily
+        bar into two parts - an OHLX tick and a CCCC tick - to simulate intraday
+        trading behavior.
+
+        Args:
+            data: The data feed containing the bar to process.
+
+        Returns:
+            bool: False if the initial tick can be further processed from stack.
+        """
         # Make a copy of the new bar and remove it from stream
         datadt = data.datetime.date()  # keep the date
 

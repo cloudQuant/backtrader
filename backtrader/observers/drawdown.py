@@ -52,11 +52,18 @@ class DrawDown(Observer):
     )
 
     def __init__(self):
+        """Initialize the DrawDown observer.
+
+        Adds DrawDown analyzer to track drawdown levels.
+        """
         kwargs = self.p._getkwargs()
         self._dd = self._owner._addanalyzer_slave(DrawDownAnalyzer, **kwargs)
 
-    # Set drawdown and max drawdown values
     def next(self):
+        """Update drawdown values for the current period.
+
+        Gets current and maximum drawdown from the analyzer.
+        """
         self.lines.drawdown[0] = self._dd.rets.drawdown  # update drawdown
         self.lines.maxdrawdown[0] = self._dd.rets.max.drawdown  # update max
 
@@ -85,10 +92,17 @@ class DrawDownLength(Observer):
     )
 
     def __init__(self):
+        """Initialize the DrawDownLength observer.
+
+        Adds DrawDown analyzer to track drawdown length.
+        """
         self._dd = self._owner._addanalyzer_slave(DrawDownAnalyzer)
 
-    # Set drawdown length and max drawdown length
     def next(self):
+        """Update drawdown length values.
+
+        Gets current and maximum drawdown length from the analyzer.
+        """
         self.lines.len[0] = self._dd.rets.len  # update drawdown length
         self.lines.maxlen[0] = self._dd.rets.max.len  # update max length
 
@@ -117,12 +131,20 @@ class DrawDownOld(Observer):
     )
 
     def __init__(self):
+        """Initialize the DrawDownOld observer.
+
+        Sets up peak and max drawdown tracking variables.
+        """
         super().__init__()
 
         self.maxdd = 0.0
         self.peak = float("-inf")
 
     def next(self):
+        """Calculate and update drawdown values.
+
+        Computes drawdown from peak value and updates maximum.
+        """
         value = self._owner.broker.getvalue()
 
         # update the maximum seen peak

@@ -60,6 +60,10 @@ class ZeroLagIndicator(MovingAverageBase):
         return plabels
 
     def __init__(self):
+        """Initialize the Zero Lag Indicator.
+
+        Creates EMA and sets up gain limits for error correction.
+        """
         self.ema = self.p._movav(period=self.p.period)
         self.limits = [-self.p.gainlimit, self.p.gainlimit + 1]
 
@@ -67,6 +71,11 @@ class ZeroLagIndicator(MovingAverageBase):
         super().__init__()
 
     def next(self):
+        """Calculate zero lag indicator for the current bar.
+
+        Iterates over gain values to find the error correction that
+        minimizes the difference between price and corrected EMA.
+        """
         leasterror = MAXINT  # 1000000 in original code
         bestec = ema = self.ema[0]  # seed value 1st time for ec
         price = self.data[0]

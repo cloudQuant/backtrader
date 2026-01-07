@@ -1,5 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Math Support Module - Mathematical functions for indicator calculations.
+
+This module provides mathematical utility functions for calculating
+statistics used in technical indicators, such as average, variance,
+and standard deviation.
+
+Functions:
+    average: Calculate arithmetic mean with optional Bessel's correction.
+    variance: Calculate variance from a sequence.
+    standarddev: Calculate standard deviation with Bessel's correction option.
+
+Note:
+    These functions are primarily used for indicator calculations.
+    For large datasets, numpy-based implementations would provide
+    better performance.
+"""
 import math
 
 # These functions are mainly used for calculating indicators, not used in main code. Commented for now, will review later whether Cython optimization is needed, no immediate need.

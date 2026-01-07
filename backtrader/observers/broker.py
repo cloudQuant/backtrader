@@ -28,6 +28,10 @@ class Cash(Observer):
     plotinfo = dict(plot=True, subplot=True)
 
     def next(self):
+        """Update the cash value for the current period.
+
+        Gets current cash amount from the broker.
+        """
         self.lines[0][0] = self._owner.broker.getcash()
 
 
@@ -58,15 +62,27 @@ class Value(Observer):
     plotinfo = dict(plot=True, subplot=True)
 
     def __init__(self):
+        """Initialize the Value observer.
+
+        Sets up fund mode tracking variable.
+        """
         self._fundmode = None
 
     def start(self):
+        """Start the Value observer and determine fund mode.
+
+        Detects or sets fund mode for value calculation.
+        """
         if self.p.fund is None:
             self._fundmode = self._owner.broker.fundmode
         else:
             self._fundmode = self.p.fund
 
     def next(self):
+        """Update the portfolio value for the current period.
+
+        Gets value from broker based on fund mode setting.
+        """
         if not self._fundmode:
             self.lines[0][0] = self._owner.broker.getvalue()
         else:
@@ -91,9 +107,17 @@ class Broker(Observer):
     plotinfo = dict(plot=True, subplot=True)
 
     def __init__(self):
+        """Initialize the Broker observer.
+
+        Sets up fund mode tracking variable.
+        """
         self._fundmode = None
 
     def start(self):
+        """Start the Broker observer and configure plotting.
+
+        Determines fund mode and configures plot settings.
+        """
         if self.p.fund is None:
             self._fundmode = self._owner.broker.fundmode
         else:
@@ -104,6 +128,10 @@ class Broker(Observer):
             self.plotlines.value._name = "FundValue"
 
     def next(self):
+        """Update cash and value for the current period.
+
+        Gets current cash and portfolio value from the broker.
+        """
         if not self._fundmode:
             self.lines.value[0] = self._owner.broker.getvalue()
             self.lines.cash[0] = self._owner.broker.getcash()
@@ -126,6 +154,10 @@ class FundValue(Observer):
     plotinfo = dict(plot=True, subplot=True)
 
     def next(self):
+        """Update the fund value for the current period.
+
+        Gets current fund value from the broker.
+        """
         self.lines.fundval[0] = self._owner.broker.fundvalue
 
 
@@ -143,4 +175,8 @@ class FundShares(Observer):
     plotinfo = dict(plot=True, subplot=True)
 
     def next(self):
+        """Update the fund shares for the current period.
+
+        Gets current fund shares from the broker.
+        """
         self.lines.fundshares[0] = self._owner.broker.fundshares

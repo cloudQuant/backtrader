@@ -40,6 +40,11 @@ class PercentSizer(Sizer):
     )
 
     def __init__(self, **kwargs):
+        """Initialize the PercentSizer sizer.
+
+        Args:
+            **kwargs: Keyword arguments for sizer configuration.
+        """
         super().__init__(**kwargs)
 
     # If no current position, calculate orderable quantity based on cash percentage
