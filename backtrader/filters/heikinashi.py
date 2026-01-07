@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Heikin Ashi Filter Module - Heikin Ashi candlestick filter.
+
+This module provides the HeikinAshi filter for remodeling price
+data into Heikin Ashi candlesticks.
+
+Classes:
+    HeikinAshi: Creates Heikin Ashi candlesticks.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.HeikinAshi())
+    >>> cerebro.adddata(data)
+"""
 
 
 __all__ = ["HeikinAshi"]

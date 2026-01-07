@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Day Steps Filter Module - Bar replay simulation.
+
+This module provides the BarReplayerOpen filter for splitting bars
+to simulate replay behavior.
+
+Classes:
+    BarReplayerOpen: Splits bars into open and OHLC parts.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.BarReplayerOpen())
+    >>> cerebro.adddata(data)
+"""
 
 
 class BarReplayerOpen:

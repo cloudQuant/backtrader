@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Session Filter Module - Session bar filling.
+
+This module provides the SessionFiller filter for adding missing
+bars over gaps within a trading session.
+
+Classes:
+    SessionFiller: Fills missing bars within a session.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.SessionFiller())
+    >>> cerebro.adddata(data)
+"""
 from datetime import datetime, timedelta
 
 from ..dataseries import TimeFrame

@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Renko Filter Module - Renko chart bars.
+
+This module provides the Renko filter for converting price data
+into Renko bricks for charting.
+
+Classes:
+    Renko: Creates Renko bars from price data.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.Renko(size=10))
+    >>> cerebro.adddata(data)
+"""
 from . import Filter
 
 __all__ = ["Renko"]

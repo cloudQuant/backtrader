@@ -1,4 +1,20 @@
 #!/usr/bin/env python
+"""CCXT Store Module - Cryptocurrency exchange store.
+
+This module provides the CCXTStore for connecting to cryptocurrency
+exchanges through the CCXT library.
+
+Classes:
+    CCXTStore: Singleton store for CCXT exchange connections.
+
+Example:
+    >>> store = bt.stores.CCXTStore(
+    ...     exchange='binance',
+    ...     api_key='your_key',
+    ...     secret='your_secret'
+    ... )
+    >>> cerebro.setbroker(store.getbroker())
+"""
 import time
 from functools import wraps
 

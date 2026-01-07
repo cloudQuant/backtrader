@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Data Filter Module - Generic data filtering.
+
+This module provides the DataFilter for filtering bars from a
+data source based on a callable function.
+
+Classes:
+    DataFilter: Filters bars based on a filter function.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.DataFilter(funcfilter=my_filter_func))
+    >>> cerebro.adddata(data)
+"""
 from ..feed import AbstractDataBase
 
 

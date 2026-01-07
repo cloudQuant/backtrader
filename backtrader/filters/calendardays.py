@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Calendar Days Filter Module - Calendar day filling.
+
+This module provides the CalendarDays filter for adding missing
+calendar days to trading day data.
+
+Classes:
+    CalendarDays: Fills missing calendar days.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.CalendarDays())
+    >>> cerebro.adddata(data)
+"""
 from datetime import date, datetime, timedelta
 
 from ..parameters import ParameterizedBase

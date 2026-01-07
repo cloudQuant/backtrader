@@ -1,4 +1,20 @@
 #!/usr/bin/env python
+"""Interactive Brokers Store Module - IB API connection.
+
+This module provides the IBStore for connecting to Interactive Brokers
+TWS or IB Gateway for trading and data.
+
+Classes:
+    IBStore: Singleton store for IB connections.
+    IBMessage: IB message handling.
+
+Functions:
+    _ts2dt: Converts IB timestamp to datetime.
+
+Example:
+    >>> store = bt.stores.IBStore(port=7497, clientId=1)
+    >>> cerebro.setbroker(store.getbroker())
+"""
 import bisect
 import collections
 import inspect
