@@ -1,4 +1,34 @@
 #!/usr/bin/env python
+"""Analyzer Module - Strategy performance analysis framework.
+
+This module provides the base classes for analyzers that calculate and
+report performance metrics for trading strategies. Analyzers can track
+trades, returns, drawdowns, Sharpe ratios, and other statistics.
+
+Key Classes:
+    Analyzer: Base class for all analyzers.
+    TimeFrameAnalyzerBase: Base for time-frame aware analyzers.
+
+Analyzers receive notifications from the strategy during backtesting:
+    - notify_trade: Called when a trade is completed
+    - notify_order: Called when an order status changes
+    - notify_cashvalue: Called when cash/value changes
+    - notify_fund: Called when fund data changes
+
+Example:
+    Creating a custom analyzer:
+    >>> class MyAnalyzer(Analyzer):
+    ...     def __init__(self):
+    ...         super().__init__()
+    ...         self.trades = 0
+    ...
+    ...     def notify_trade(self, trade):
+    ...         if trade.isclosed:
+    ...             self.trades += 1
+    ...
+    ...     def get_analysis(self):
+    ...         return {'trade_count': self.trades}
+"""
 import calendar
 import datetime
 import pprint as pp
@@ -295,6 +325,20 @@ class Analyzer(ParameterizedBase):
 
 # TimeFrameAnalyzerBase class - refactored to not use metaclass
 class TimeFrameAnalyzerBase(Analyzer):
+    """Base class for time-frame aware analyzers.
+
+    This analyzer base operates on a specific timeframe (daily, weekly,
+    monthly, etc.) and calls on_dt_over() when the timeframe changes.
+
+    Params:
+        timeframe: TimeFrame to use (None = use data's timeframe).
+        compression: Compression factor (None = use data's compression).
+        _doprenext: Whether to call prenext (default: True).
+
+    Methods:
+        on_dt_over(): Override to handle timeframe changes.
+    """
+
     # Parameters
     params = (
         ("timeframe", None),
