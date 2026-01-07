@@ -1,5 +1,26 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Trading Calendar Module - Market calendar and session handling.
+
+This module provides trading calendar functionality for handling market
+sessions, holidays, and trading days. It supports custom calendars
+and pandas market calendar integration.
+
+Classes:
+    TradingCalendarBase: Base class for trading calendars.
+    TradingCalendar: Standard trading calendar implementation.
+    PandasMarketCalendar: Wrapper for pandas_market_cal calendars.
+
+Constants:
+    MONDAY-SUNDAY: Weekday constants.
+    WEEKEND: Weekend days (Saturday, Sunday).
+    ONEDAY: Timedelta of one day.
+
+Example:
+    Using a trading calendar:
+    >>> cal = bt.TradingCalendar()
+    >>> next_day = cal.nextday(datetime.date(2020, 1, 1))
+"""
 from datetime import datetime, time, timedelta
 
 from backtrader.utils import UTC
@@ -31,6 +52,18 @@ ONEDAY = timedelta(days=1)
 
 # Trading calendar base class, defines specific methods - refactored to not use metaclass
 class TradingCalendarBase(ParameterizedBase):
+    """Base class for trading calendars.
+
+    Provides methods for calculating trading days, session times,
+    and determining if a day is the last trading day of a week or month.
+
+    Methods:
+        _nextday(day): Returns next trading day and isocalendar components.
+        schedule(day): Returns opening and closing times for a day.
+        nextday(day): Returns next trading day.
+        last_weekday(day): Returns True if day is last trading day of week.
+        last_monthday(day): Returns True if day is last trading day of month.
+    """
     # Return the next trading day after day and calendar composition
     def _nextday(self, day):
         """
