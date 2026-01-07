@@ -1,8 +1,18 @@
 #!/usr/bin/env python
+"""Relative Momentum Index Module - RMI indicator.
+
+This module provides the Relative Momentum Index (RMI) developed by
+Roger Altman as a variation of RSI.
+
+Classes:
+    RelativeMomentumIndex: RMI indicator (alias: RMI).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.RMI, period=14, momperiod=5)
+"""
 from . import RSI
-
-
-# Calculate Relative Momentum Index indicator
 class RelativeMomentumIndex(RSI):
     """
     Description:

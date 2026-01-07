@@ -1,4 +1,22 @@
 #!/usr/bin/env python
+"""OLS Indicator Module - Ordinary least squares regression.
+
+This module provides indicators using OLS (Ordinary Least Squares)
+regression for statistical analysis.
+
+Classes:
+    OLS_Slope_InterceptN: Calculates slope and intercept via OLS.
+    OLS_TransformationN: Calculates OLS transformed values.
+    OLS_BetaN: Calculates beta via OLS.
+    CointN: Tests for cointegration between series.
+
+Example:
+    >>> data1 = bt.feeds.GenericCSVData(dataname='data1.csv')
+    >>> data2 = bt.feeds.GenericCSVData(dataname='data2.csv')
+    >>> cerebro.adddata(data1)
+    >>> cerebro.adddata(data2)
+    >>> ols = bt.indicators.OLS_Slope_InterceptN(data1, data2, period=30)
+"""
 import pandas as pd
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import coint
@@ -6,9 +24,6 @@ from statsmodels.tsa.stattools import coint
 from . import SMA, PeriodN, StdDev
 
 __all__ = ["OLS_Slope_InterceptN", "OLS_TransformationN", "OLS_BetaN", "CointN"]
-
-
-# Linear regression operations
 class OLS_Slope_InterceptN(PeriodN):
     """
     Calculates a linear regression using ``statsmodel.OLS`` (Ordinary least

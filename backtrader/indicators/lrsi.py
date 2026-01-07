@@ -1,10 +1,21 @@
 #!/usr/bin/env python
+"""Laguerre RSI Module - Laguerre filter-based RSI.
+
+This module provides the LaguerreRSI indicator defined by John F. Ehlers
+for faster reaction to price changes using Laguerre filters.
+
+Classes:
+    LaguerreRSI: Laguerre RSI indicator (alias: LRSI).
+    LaguerreFilter: Laguerre filter (alias: LAGF).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.LRSI, gamma=0.5)
+"""
 from . import PeriodN
 
 __all__ = ["LaguerreRSI", "LRSI", "LaguerreFilter", "LAGF"]
-
-
-# Modified indicators from Rocket Science for Traders author
 class LaguerreRSI(PeriodN):
     """
     Defined by John F. Ehlers in `Cybernetic Analysis for Stock and Futures`,

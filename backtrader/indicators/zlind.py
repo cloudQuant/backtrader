@@ -1,11 +1,21 @@
 #!/usr/bin/env python
+"""Zero Lag Indicator Module - Zero-lag error correction.
+
+This module provides the ZeroLagIndicator developed by John Ehlers
+and Ric Way to reduce lag in moving averages.
+
+Classes:
+    ZeroLagIndicator: Zero-lag indicator with error correction.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.ZeroLagIndicator, period=20)
+"""
 from backtrader.utils.py3 import MAXINT
 
 from . import MovingAverageBase
 from .ema import EMA
-
-
-# Zero Lag Moving Average
 class ZeroLagIndicator(MovingAverageBase):
     """By John Ehlers and Ric Way
 
