@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Period Statistics Analyzer Module - Basic statistics by period.
+
+This module provides the PeriodStats analyzer for calculating basic
+statistics (average, standard deviation, etc.) for a given timeframe.
+
+Classes:
+    PeriodStats: Analyzer that calculates period statistics.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.PeriodStats, _name='stats')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.stats.get_analysis())
+"""
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 from ..mathsupport import average, standarddev

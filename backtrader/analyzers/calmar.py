@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Calmar Ratio Analyzer Module - Calmar ratio calculation.
+
+This module provides the Calmar analyzer for calculating the Calmar
+ratio (annual return divided by maximum drawdown).
+
+Classes:
+    Calmar: Analyzer that calculates Calmar ratio.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.Calmar, _name='calmar')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.calmar.get_analysis())
+"""
 import collections
 import math
 

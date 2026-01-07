@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Leverage Analyzer Module - Gross leverage calculation.
+
+This module provides the GrossLeverage analyzer for calculating the
+gross leverage (ratio of used capital to portfolio value).
+
+Classes:
+    GrossLeverage: Analyzer that calculates gross leverage.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.GrossLeverage, _name='lev')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.lev.get_analysis())
+"""
 from ..analyzer import Analyzer
 
 
