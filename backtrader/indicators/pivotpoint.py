@@ -1,8 +1,21 @@
 #!/usr/bin/env python
+"""Pivot Point Indicator Module - Support and resistance levels.
+
+This module provides Pivot Point indicators for calculating support
+and resistance levels from previous period price data.
+
+Classes:
+    PivotPoint: Standard pivot points with 2 support/resistance levels.
+    FibonacciPivotPoint: Pivot points with Fibonacci-based levels.
+    DemarkPivotPoint: Demark pivot point calculation.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.resampledata(data, timeframe=bt.TimeFrame.Months)
+    >>> pivot = bt.indicators.PivotPoint(data1)
+"""
 from . import CmpEx, Indicator
-
-
-# Algorithms for price pivot points
 class PivotPoint(Indicator):
     """
     Defines a level of significance by taking into account the average of price

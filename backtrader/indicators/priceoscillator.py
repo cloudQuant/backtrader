@@ -1,9 +1,22 @@
 #!/usr/bin/env python
+"""Price Oscillator Module - Price oscillators.
+
+This module provides Price Oscillator indicators that measure the
+difference between two moving averages.
+
+Classes:
+    _PriceOscBase: Base class for price oscillators.
+    PriceOscillator: Price difference (aliases: PriceOsc, APO, AbsPriceOsc).
+    PercentagePriceOscillator: Percentage price oscillator (aliases: PPO, PercPriceOsc).
+    PercentagePriceOscillatorShort: PPO with short denominator (aliases: PPOShort).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.PPO, period1=12, period2=26)
+"""
 import math
 from . import Indicator, MovAv
-
-
-# Difference between two moving averages
 class _PriceOscBase(Indicator):
     params = (
         ("period1", 12),

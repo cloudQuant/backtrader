@@ -1,10 +1,20 @@
 #!/usr/bin/env python
+"""TSI Indicator Module - True Strength Index.
+
+This module provides the TSI (True Strength Index) indicator developed
+by William Blau for measuring momentum with double smoothing.
+
+Classes:
+    TrueStrengthIndicator: TSI indicator (alias: TSI).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.TSI, period1=25, period2=13)
+"""
 import math
 from . import Indicator
 from .ema import ExponentialMovingAverage
-
-
-# True Strength Indicator
 class TrueStrengthIndicator(Indicator):
     """
     The True Strength Indicators was first introduced in Stocks & Commodities

@@ -1,9 +1,20 @@
 #!/usr/bin/env python
+"""Pretty Good Oscillator Module - PGO indicator.
+
+This module provides the Pretty Good Oscillator (PGO) developed
+by Mark Johnson for measuring price distance from moving average
+in terms of ATR.
+
+Classes:
+    PrettyGoodOscillator: PGO indicator (aliases: PGO, PrettyGoodOsc).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.PGO, period=14)
+"""
 import math
 from . import ATR, Indicator, MovAv
-
-
-# Distance between price and moving average divided by ATR
 class PrettyGoodOscillator(Indicator):
     """
     The "Pretty Good Oscillator" (PGO) by Mark Johnson measures the distance of
