@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Positions Analyzer Module - Position value tracking.
+
+This module provides the PositionsValue analyzer for tracking the
+value of positions across all data feeds.
+
+Classes:
+    PositionsValue: Analyzer that reports position values over time.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.PositionsValue, _name='posval')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.posval.get_analysis())
+"""
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 

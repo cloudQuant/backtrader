@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""Transactions Analyzer Module - Transaction logging.
+
+This module provides the Transactions analyzer for recording all
+transactions (order executions) during backtesting.
+
+Classes:
+    Transactions: Analyzer that records transaction history.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.txn.get_analysis())
+"""
 import collections
 
 from ..analyzer import Analyzer
