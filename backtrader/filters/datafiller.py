@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Data Filler Filter Module - Gap filling for data feeds.
+
+This module provides the DataFiller for filling gaps in data feeds
+when bars are missing.
+
+Classes:
+    DataFiller: Fills gaps in data with specified values.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.DataFiller())
+    >>> cerebro.adddata(data)
+"""
 import collections
 from datetime import datetime, timedelta
 

@@ -1,12 +1,20 @@
 #!/usr/bin/env python
+"""Backtrader CSV Data Feed Module - Test CSV format.
 
+This module provides the BacktraderCSVData feed for parsing
+a custom CSV format used for testing.
+
+Classes:
+    BacktraderCSVData: Parses backtrader test CSV format.
+
+Example:
+    >>> data = bt.feeds.BacktraderCSVData(dataname='test.csv')
+    >>> cerebro.adddata(data)
+"""
 from datetime import date, datetime, time
 
 from .. import feed
 from ..utils import date2num
-
-
-# Parse a custom CSV data, mainly for testing.
 class BacktraderCSVData(feed.CSVDataBase):
     """
     Parses a self-defined CSV Data used for testing.

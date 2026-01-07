@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""MetaTrader 4 CSV Data Feed Module - MT4 CSV parsing.
+
+This module provides the MT4CSVData feed for parsing MetaTrader 4
+History Center exported CSV files.
+
+Classes:
+    MT4CSVData: Parses MT4 CSV format files.
+
+Example:
+    >>> data = bt.feeds.MT4CSVData(dataname='mt4_data.csv')
+    >>> cerebro.adddata(data)
+"""
 
 from . import GenericCSVData
 

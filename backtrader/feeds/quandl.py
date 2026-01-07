@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Quandl Data Feed Module - Quandl data parsing.
+
+This module provides data feeds for Quandl CSV data and
+ Quandl API connection.
+
+Classes:
+    QuandlCSV: Parses pre-downloaded Quandl CSV files.
+    Quandl: Live Quandl data feed.
+
+Example:
+    >>> data = bt.feeds.QuandlCSV(dataname='quandl.csv')
+    >>> cerebro.adddata(data)
+"""
 import collections
 import io
 import itertools
@@ -9,9 +22,6 @@ from ..utils import date2num
 from ..utils.py3 import urlquote
 
 __all__ = ["QuandlCSV", "Quandl"]
-
-
-# Process Quandl CSV data
 class QuandlCSV(feed.CSVDataBase):
     """
     Parses pre-downloaded Quandl CSV Data Feeds (or locally generated if they
