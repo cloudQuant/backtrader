@@ -1,13 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-"""
-module:: lineroot
+"""LineRoot Module - Base classes for line-based data structures.
 
-Definition of the base class LineRoot and base classes LineSingle/LineMultiple
-to define interfaces and hierarchy for the real operational classes
+This module defines the base class LineRoot and derived classes LineSingle
+and LineMultiple that provide the foundation and interfaces for all
+line-based objects in backtrader.
 
-module author:: Daniel Rodriguez
+Key Classes:
+    LineRoot: Common base for all line objects with period management.
+    LineSingle: Base for single-line objects.
+    LineMultiple: Base for multi-line objects.
+    LineRootMixin: Mixin providing owner-finding functionality.
 
+The module provides:
+    - Period management (minperiod)
+    - Iteration management
+    - Operation management (binary/unary operations)
+    - Rich comparison operators
+
+Example:
+    Period management:
+    >>> obj.setminperiod(20)  # Set minimum period to 20
+    >>> obj.updateminperiod(30)  # Update to max(current, 30)
 """
 
 import operator
@@ -619,6 +633,24 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
 
 
 class LineMultiple(LineRoot):
+    """Base class for objects containing multiple lines.
+
+    LineMultiple is the base class for objects that manage multiple
+    line instances, such as indicators with multiple outputs. It provides
+    common functionality for period management, staging, and operations
+    across all contained lines.
+
+    Attributes:
+        lines: Collection of line objects managed by this instance.
+        _ltype: Line type indicator (None for base LineMultiple).
+        _clock: Clock reference for synchronization.
+        _lineiterators: Dictionary tracking registered lineiterators.
+
+    Example:
+        >>> class MyIndicator(LineMultiple):
+        ...     lines = ('output1', 'output2')
+    """
+
     def __init__(self):
         super(LineMultiple, self).__init__()
         # CRITICAL FIX: Initialize _ltype for proper strategy/indicator identification
@@ -743,6 +775,17 @@ class LineMultiple(LineRoot):
 
 
 class LineSingle(LineRoot):
+    """Base class for single-line objects.
+
+    LineSingle is the base class for objects that represent a single
+    line of time-series data. It provides the foundational interface
+    for period management and operations on individual lines.
+
+    Example:
+        >>> line = LineSingle()
+        >>> line.addminperiod(5)  # Require 5 periods before valid
+    """
+
     def addminperiod(self, minperiod):
         """
         Add the minperiod (substracting the overlapping 1 minimum period)
