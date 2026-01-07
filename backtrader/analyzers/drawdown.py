@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+"""DrawDown Analyzer Module - Drawdown statistics calculation.
+
+This module provides analyzers for calculating drawdown statistics including
+current drawdown, maximum drawdown, and drawdown duration.
+
+Classes:
+    DrawDown: Analyzer that calculates drawdown statistics.
+    TimeDrawDown: Time-frame based drawdown analyzer.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.DrawDown, _name='dd')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.dd.get_analysis())
+"""
 from ..analyzer import Analyzer, TimeFrameAnalyzerBase
 from ..utils import AutoOrderedDict
 

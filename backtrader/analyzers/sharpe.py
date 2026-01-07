@@ -1,4 +1,19 @@
 #!/usr/bin/env python
+"""Sharpe Ratio Analyzer Module - Sharpe ratio calculation.
+
+This module provides the SharpeRatio analyzer for calculating the Sharpe
+ratio of a strategy using a risk-free asset.
+
+Classes:
+    SharpeRatio: Analyzer that calculates Sharpe ratio.
+    SharpeRatio_Annual: Annualized Sharpe ratio analyzer.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.sharpe.get_analysis())
+"""
 import math
 
 from ..analyzer import Analyzer
