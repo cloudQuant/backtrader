@@ -18,6 +18,9 @@ from .awesomeoscillator import AwesomeOscillator
 from .sma import SMA
 
 __all__ = ["AccelerationDecelerationOscillator", "AccDeOsc"]
+
+
+class AccelerationDecelerationOscillator(Indicator):
     """
     Acceleration/Deceleration Technical Indicator (AC) measures acceleration
     and deceleration of the current driving force. This indicator will change
