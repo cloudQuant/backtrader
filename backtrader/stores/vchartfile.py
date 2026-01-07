@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""VChartFile Store Module - VisualChart file store.
+
+This module provides the VChartFile store for accessing VisualChart
+binary files by market code.
+
+Classes:
+    VChartFile: Store for VisualChart binary files.
+
+Example:
+    >>> store = bt.stores.VChartFile(path='C:\\VisualChart\\Data')
+    >>> data = bt.feeds.VChartFile(dataname='015ES', store=store)
+    >>> cerebro.adddata(data)
+"""
 
 import os.path
 import traceback

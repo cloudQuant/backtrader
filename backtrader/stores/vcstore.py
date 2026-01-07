@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""VisualChart Store Module - VisualChart connection.
+
+This module provides the VCStore for connecting to VisualChart
+for trading and market data.
+
+Classes:
+    _SymInfo: Replica of SymbolInfo COM object.
+    VCStore: Singleton store for VisualChart connections.
+
+Example:
+    >>> store = bt.stores.VCStore(path='C:\\VisualChart\\Data')
+    >>> cerebro.setbroker(store.getbroker())
+"""
 
 import collections
 import ctypes
