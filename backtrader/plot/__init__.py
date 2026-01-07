@@ -1,4 +1,22 @@
 #!/usr/bin/env python
+"""Plotting Module - Visualization for backtesting results.
+
+This module provides plotting functionality using matplotlib to visualize
+strategy performance, indicators, and trading signals.
+
+Classes:
+    Plot: Main plotting class using matplotlib.
+    Plot_OldSync: Old synchronization mode plotting.
+    PlotlyPlot: Plotly-based interactive plotting.
+    PlotScheme: Plotting configuration and styling.
+
+Example:
+    Plotting cerebro results:
+    >>> cerebro = bt.Cerebro()
+    >>> # ... add data, strategy, etc.
+    >>> results = cerebro.run()
+    >>> cerebro.plot()
+"""
 import sys
 import traceback
 
