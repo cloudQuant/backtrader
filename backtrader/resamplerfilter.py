@@ -1,5 +1,23 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Resampler and Filter Module - Data resampling and replay functionality.
+
+This module provides classes for resampling data to different timeframes
+and replaying data at compressed timeframes. It includes the base
+resampler and replayer classes along with specific implementations for
+different time periods.
+
+Key Classes:
+    Resampler: Base class for resampling data to different timeframes.
+    Replayer: Base class for replaying data with session information.
+    DTFaker: Provides fake datetime for live/real-time data feeds.
+
+Example:
+    Resampling daily data to weekly:
+    >>> data = bt.feeds.GenericCSVData(dataname='daily.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.resampledata(data, timeframe=bt.TimeFrame.Weeks)
+"""
 from datetime import UTC, datetime, timedelta
 
 from .dataseries import TimeFrame, _Bar
@@ -7,9 +25,26 @@ from .parameters import ParameterizedBase
 from .utils.date import date2num, num2date
 
 
-# 这个类仅仅用在了_checkbarover这样一个函数中
+# This class is only used in the _checkbarover function
 # chkdata = DTFaker(data, forcedata) if fromcheck else data
 class DTFaker(object):
+    """Provides fake datetime for data sources that need periodic checks.
+
+    This class is used for real-time data feeds that return None from _load
+    to indicate that a check of the resampler and/or notification queue
+    is needed. It provides the current time in both UTC and localized formats.
+
+    Attributes:
+        data: The underlying data source.
+        _dt: UTC-like time as numeric value.
+        _dtime: Localized datetime.
+        sessionend: Trading day end time.
+
+    Example:
+        >>> faker = DTFaker(data)
+        >>> print(faker.datetime())  # Current localized time
+    """
+
     # This will only be used for data sources which at some point in time
     # return None from _load to indicate that a check of the resampler and/or
     # notification queue is needed
@@ -23,77 +58,77 @@ class DTFaker(object):
     # to ensure the returned datetime object is localized according to the
     # expected output by the user (local timezone or any specified)
 
-    # 初始化
+    # Initialize
     def __init__(self, data, forcedata=None):
-        # 数据
+        # Data
         self.data = data
 
         # Aliases
         self.datetime = self
         self.p = self
 
-        # 如果forcedata是None的话
+        # If forcedata is None
         if forcedata is None:
-            # 获取现在的utc时间，并且加上数据的时间补偿
+            # Get current utc time and add data time offset
             _dtime = datetime.now(UTC) + data._timeoffset()
-            # 把计算得到的utc时间转化成数字
+            # Convert calculated utc time to number
             self._dt = dt = date2num(_dtime)  # utc-like time
-            # 把数字时间转化成本地的时间格式的时间
+            # Convert numeric time to localized time format
             self._dtime = data.num2date(dt)  # localized time
-        # 如果forcedata不是None的话
+        # If forcedata is not None
         else:
-            # 直接从forcedata的列datatime中获取相应的时间作为utc时间
+            # Get corresponding time from forcedata's datetime column as utc time
             self._dt = forcedata.datetime[0]  # utc-like time
-            # 直接从forcedata中获取本地时间
+            # Get local time directly from forcedata
             self._dtime = forcedata.datetime.datetime()  # localized time
-        # 一天交易结束时间
+        # Trading day end time
         self.sessionend = data.p.sessionend
 
-    # 长度
+    # Length
     def __len__(self):
         return len(self.data)
 
-    # 调用的时候返回本地化的日期和时间
+    # Return localized date and time when called
     def __call__(self, idx=0):
         return self._dtime  # simulates data.datetime.datetime()
 
-    # datetime返回本地化日期和时间
+    # datetime returns localized date and time
     def datetime(self, idx=0):
         return self._dtime
 
-    # 返回本地化的日期
+    # Return localized date
     def date(self, idx=0):
         return self._dtime.date()
 
-    # 返回本地化的时间
+    # Return localized time
     def time(self, idx=0):
         return self._dtime.time()
 
-    # 返回数据的日历
+    # Return data calendar
     @property
     def _calendar(self):
         return self.data._calendar
 
-    # 如果idx=0,返回utc的数字格式的时间，否则，返回-inf
+    # If idx=0, return utc numeric time, otherwise return -inf
     def __getitem__(self, idx):
         return self._dt if idx == 0 else float("-inf")
 
-    # 数字转化成日期和时间
+    # Convert number to date and time
     def num2date(self, *args, **kwargs):
         return self.data.num2date(*args, **kwargs)
 
-    # 日期和时间转化成数字
+    # Convert date and time to number
     def date2num(self, *args, **kwargs):
         return self.data.date2num(*args, **kwargs)
 
-    # 获取交易日结束的时间
+    # Get trading day end time
     def _getnexteos(self):
         return self.data._getnexteos()
 
 
-# resampler的基类
+# Base class for resampler
 class _BaseResampler(ParameterizedBase):
-    # 参数
+    # Parameters
     params = (
         ("bar2edge", True),
         ("adjbartime", True),
@@ -105,44 +140,44 @@ class _BaseResampler(ParameterizedBase):
         ("sessionend", True),
     )
 
-    # 初始化
+    # Initialize
     def __init__(self, data, **kwargs):
         super(_BaseResampler, self).__init__(**kwargs)
-        # 如果时间周期小于日，但是大于tick,subdays就是True，subdays代表是日内的时间周期
+        # If timeframe is less than day but greater than tick, subdays is True, subdays represents intraday timeframe
         self.subdays = TimeFrame.Ticks < self.p.timeframe < TimeFrame.Days
-        # 如果时间周期小于周，subweeks就是True
+        # If timeframe is less than week, subweeks is True
         self.subweeks = self.p.timeframe < TimeFrame.Weeks
-        # 如果不是subdays，并且数据的时间周期等于参数的时间周期，并且参数的周期数除以数据周期数余数是0，componly是True
+        # If not subdays, and data timeframe equals parameter timeframe, and parameter compression divided by data compression remainder is 0, componly is True
         self.componly = (
             not self.subdays
             and data._timeframe == self.p.timeframe
             and not (self.p.compression % data._compression)
         )
-        # 创建一个对象，用于保存bar的数据
+        # Create an object to save bar data
         self.bar = _Bar(maxdate=True)  # bar holder
-        # 产生的bar的数目，用于控制周期数
+        # Number of bars produced, used to control compression count
         self.compcount = 0  # count of produced bars to control compression
-        # 是否是第一个bar
+        # Whether it is the first bar
         self._firstbar = True
-        # 如果bar2edge、adjbartime、subweeks都是True的话，doadjusttime就是True
+        # If bar2edge, adjbartime, subweeks are all True, doadjusttime is True
         self.doadjusttime = self.p.bar2edge and self.p.adjbartime and self.subweeks
-        # 该交易日的结束时间
+        # The end time of this trading day
         self._nexteos = None
 
         # Modify data information according to own parameters
-        # 初始化的时候，根据参数修改data的属性
-        # 数据的resampling是1
+        # During initialization, modify data attributes based on parameters
+        # Data resampling is 1
         data.resampling = 1
-        # replaying等于replaying
+        # replaying equals replaying
         data.replaying = self.replaying
-        # 数据的时间周期等于参数的时间周期
+        # Data timeframe equals parameter timeframe
         data._timeframe = self.p.timeframe
-        # 数据的周期数等于参数的周期数
+        # Data compression equals parameter compression
         data._compression = self.p.compression
 
         self.data = data
 
-    # 晚到的数据怎么处理，如果不是subdays，返回False,如果data长度大于1并且现在时间小于等于上一个时间，返回True
+    # How to handle late-arriving data, if not subdays return False, if data length > 1 and current time <= previous time return True
     def _latedata(self, data):
         # new data at position 0, still untouched from stream
         if not self.subdays:
@@ -151,70 +186,70 @@ class _BaseResampler(ParameterizedBase):
         # Time already delivered
         return len(data) > 1 and data.datetime[0] <= data.datetime[-1]
 
-    # 是否检查bar结束
+    # Whether to check if bar is over
     def _checkbarover(self, data, fromcheck=False, forcedata=None):
-        # 检查的数据，如果fromcheck是True的话，使用DTFaker生成实例，否则使用data
+        # Data to check, if fromcheck is True, use DTFaker to generate instance, otherwise use data
         chkdata = DTFaker(data, forcedata) if fromcheck else data
-        # 是否结束
+        # Whether finished
         isover = False
-        # 如果不是componly，并且_barover(chkdata)是False的话，返回False
+        # If not componly and _barover(chkdata) is False, return False
         if not self.componly and not self._barover(chkdata):
             return isover
-        # 如果是日内的话，并且bar2edge是True的话，返回True
+        # If intraday and bar2edge is True, return True
         if self.subdays and self.p.bar2edge:
             isover = True
-        # 如果fromcheck是False的话
+        # If fromcheck is False
         elif not fromcheck:  # fromcheck doesn't increase compcount
             # compcount+1
             self.compcount += 1
-            # 如果compcount除以周期数等于0，返回True
+            # If compcount divided by compression equals 0, return True
             if not (self.compcount % self.p.compression):
                 # boundary crossed and enough bars for compression ... proceed
                 isover = True
 
         return isover
 
-    # 判断data数据是否结束
+    # Determine if data has finished
     def _barover(self, data):
-        # 时间周期
+        # Timeframe
         tframe = self.p.timeframe
-        # 如果时间周期等于tick,返回bar.isopen()
+        # If timeframe equals tick, return bar.isopen()
         if tframe == TimeFrame.Ticks:
             # Ticks is already the lowest level
             return self.bar.isopen()
-        # 如果时间周期小于day,调用_barover_subdays(data)
+        # If timeframe is less than day, call _barover_subdays(data)
         elif tframe < TimeFrame.Days:
             return self._barover_subdays(data)
-        # 如果时间周期等于day,调用_barover_days(data)
+        # If timeframe equals day, call _barover_days(data)
         elif tframe == TimeFrame.Days:
             return self._barover_days(data)
-        # 如果时间周期等于week,调用_barover_weeks(data)
+        # If timeframe equals week, call _barover_weeks(data)
         elif tframe == TimeFrame.Weeks:
             return self._barover_weeks(data)
-        # 如果时间周期等于月，调用_barover_months(data)
+        # If timeframe equals month, call _barover_months(data)
         elif tframe == TimeFrame.Months:
             return self._barover_months(data)
-        # 如果时间周期等于年，调用_barover_years(data)
+        # If timeframe equals year, call _barover_years(data)
         elif tframe == TimeFrame.Years:
             return self._barover_years(data)
 
-    # 设置session结束的时间
+    # Set session end time
     def _eosset(self):
         if self._nexteos is None:
             self._nexteos, self._nextdteos = self.data._getnexteos()
             return
 
-    # 检查session结束的时间
+    # Check session end time
     def _eoscheck(self, data, seteos=True, exact=False):
-        # 如果seteos是True的话，直接调用_eosset计算session结束的时间
+        # If seteos is True, directly call _eosset to calculate session end time
         if seteos:
             self._eosset()
-        # 对比当前的数据时间和session结束的时间
+        # Compare current data time with session end time
         equal = data.datetime[0] == self._nextdteos
         grter = data.datetime[0] > self._nextdteos
-        # 如果exact是True的话，ret就等于equal,
-        # 如果不是的话,如果grter是True的话，如果bar.isopen()是True,bar.datetime小于下一个结束时间，ret等于True
-        # 否则，ret就等于equal
+        # If exact is True, ret equals equal,
+        # Otherwise, if grter is True, if bar.isopen() is True and bar.datetime < next end time, ret equals True
+        # Otherwise, ret equals equal
         if exact:
             ret = equal
         else:
@@ -226,8 +261,8 @@ class _BaseResampler(ParameterizedBase):
                 ret = self.bar.isopen() and self.bar.datetime <= self._nextdteos
             else:
                 ret = equal
-        # 如果ret是True的话，_lasteos等于_nexteos,_lastdteos等于_nextdteos
-        # 并把_nexteos和_nextdteos分别设置成None和-inf
+        # If ret is True, _lasteos equals _nexteos, _lastdteos equals _nextdteos
+        # And set _nexteos and _nextdteos to None and -inf respectively
         if ret:
             self._lasteos = self._nexteos
             self._lastdteos = self._nextdteos
@@ -236,28 +271,28 @@ class _BaseResampler(ParameterizedBase):
 
         return ret
 
-    # 检查日
+    # Check days
     def _barover_days(self, data):
         return self._eoscheck(data)
 
-    # 检查周
+    # Check weeks
     def _barover_weeks(self, data):
-        # 如果数据的_calendar是None的话
+        # If data's _calendar is None
         if self.data._calendar is None:
-            # 根据日期得到具体的年，周数目和日
+            # Get specific year, week number and day from date
             year, week, _ = data.num2date(self.bar.datetime).date().isocalendar()
-            # 得到bar的周数目
+            # Get bar's week number
             yearweek = year * 100 + week
-            # 得到数据的年、周数目和日，并得到数据的周数目
+            # Get data's year, week number and day, and get data's week number
             baryear, barweek, _ = data.datetime.date().isocalendar()
             bar_yearweek = baryear * 100 + barweek
-            # 如果数据的周数目大于bar的周数目，返回True,否则，返回False
+            # If data's week number is greater than bar's week number, return True, otherwise return False
             return bar_yearweek > yearweek
-        # 如果数据的_calendar不是None的话，调用last_weekday
+        # If data's _calendar is not None, call last_weekday
         else:
             return data._calendar.last_weekday(data.datetime.date())
 
-    # 检查月
+    # Check months
     def _barover_months(self, data):
         dt = data.num2date(self.bar.datetime).date()
         yearmonth = dt.year * 100 + dt.month
@@ -267,11 +302,11 @@ class _BaseResampler(ParameterizedBase):
 
         return bar_yearmonth > yearmonth
 
-    # 检查年
+    # Check years
     def _barover_years(self, data):
         return data.datetime.datetime().year > data.num2date(self.bar.datetime).year
 
-    # 获取时间的点数
+    # Get time point
     def _gettmpoint(self, tm):
         """
             Returns the point of time intraday for a given time according to the
@@ -280,61 +315,61 @@ class _BaseResampler(ParameterizedBase):
           - Ex 1: 00:05:00 in minutes -> point = 5
           - Ex 2: 00:05:20 in seconds -> point = 5 * 60 + 20 = 320
         """
-        # 分钟点数
+        # Minute point
         point = tm.hour * 60 + tm.minute
-        # 剩余点数
+        # Remaining point
         restpoint = 0
-        # 如果时间周期小于分钟
+        # If timeframe is less than minutes
         if self.p.timeframe < TimeFrame.Minutes:
-            # 秒的点数
+            # Second point
             point = point * 60 + tm.second
-            # 如果时间周期小于秒
+            # If timeframe is less than seconds
             if self.p.timeframe < TimeFrame.Seconds:
-                # point转化成微秒数
+                # Convert point to microseconds
                 point = point * 1e6 + tm.microsecond
-            # 如果时间周期不小于秒，剩余点数为微秒数
+            # If timeframe is not less than seconds, remaining point is microseconds
             else:
                 restpoint = tm.microsecond
-        # 如果时间周期不小于分钟，剩余点数为秒数和微秒数
+        # If timeframe is not less than minutes, remaining point is seconds and microseconds
         else:
             restpoint = tm.second + tm.microsecond
-        # 点数加上boundoff
+        # Add boundoff to point
         point += self.p.boundoff
 
         return point, restpoint
 
-    # 日内bar结束
+    # Intraday bar over
     def _barover_subdays(self, data):
-        # 如果_eoscheck(data)返回True,那么，函数返回True
+        # If _eoscheck(data) returns True, then function returns True
         if self._eoscheck(data):
             return True
-        # 如果数据的时间小于bar的时间，返回False
+        # If data time is less than bar time, return False
         if data.datetime[0] < self.bar.datetime:
             return False
 
         # Get time objects for the comparisons - in utc-like format
-        # 获取bar的和data的时间
+        # Get bar and data time
         tm = num2date(self.bar.datetime).time()
         bartm = num2date(data.datetime[0]).time()
-        # 分别获取self.bar的时间的点数，data的时间的点数
+        # Get self.bar's time point and data's time point respectively
         point, _ = self._gettmpoint(tm)
         barpoint, _ = self._gettmpoint(bartm)
-        # 设置ret等于False
+        # Set ret to False
         ret = False
-        # 如果data的时间的点数小于bar的时间的点数，返回False
-        # 如果data的时间的点数大于bar的时间的点数，进一步分析
+        # If data's time point is less than bar's time point, return False
+        # If data's time point is greater than bar's time point, further analyze
         if barpoint > point:
             # The data bar has surpassed the internal bar
-            # 如果bar2edge是False的话，返回True
+            # If bar2edge is False, return True
             if not self.p.bar2edge:
                 # Compression done on a simple bar basis (like days)
                 ret = True
-            # 如果周期数是1的话，返回True
+            # If compression is 1, return True
             elif self.p.compression == 1:
                 # no bar compression requested -> internal bar done
                 ret = True
-            # 如果bar2edge是True的话，并且compression不等于1的话，计算两个的点数除以周期数之后的余数
-            # 如果数据的点数的余数大于bar的点数的余数，返回True
+            # If bar2edge is True and compression is not 1, calculate remainder of dividing points by compression
+            # If data's point remainder is greater than bar's point remainder, return True
             else:
                 point_comp = point // self.p.compression
                 barpoint_comp = barpoint // self.p.compression
@@ -345,7 +380,7 @@ class _BaseResampler(ParameterizedBase):
 
         return ret
 
-    # 检查是否在数据还没有向前移动的情况下提交当前存储的bar
+    # Check whether to submit currently stored bar when data hasn't moved forward
     def check(self, data, _forcedata=None):
         """Called to check if the current stored bar has to be delivered in
         spite of the data not having moved forward. If no ticks from a live
@@ -359,72 +394,72 @@ class _BaseResampler(ParameterizedBase):
 
         return self(data, fromcheck=True, forcedata=_forcedata)
 
-    # 判断数据是否是快要形成bar了
+    # Determine if data is about to form a bar
     def _dataonedge(self, data):
-        # 如果subweek是False的话，如果data._calendar是None的话，返回False和True
+        # If subweek is False, if data._calendar is None, return False and True
         if not self.subweeks:
             if data._calendar is None:
                 return False, True  # nothing can be done
-            # 时间周期
+            # Timeframe
             tframe = self.p.timeframe
-            # ret设置成False
+            # Set ret to False
             ret = False
-            # 如果时间周期等于周，调用last_weekday判断
-            # 如果时间周期等于月，调用last_monthday判断
-            # 如果时间周期等于年，调用last_yearday判断
+            # If timeframe equals week, call last_weekday to check
+            # If timeframe equals month, call last_monthday to check
+            # If timeframe equals year, call last_yearday to check
             if tframe == TimeFrame.Weeks:  # Ticks is already the lowest
                 ret = data._calendar.last_weekday(data.datetime.date())
             elif tframe == TimeFrame.Months:
                 ret = data._calendar.last_monthday(data.datetime.date())
             elif tframe == TimeFrame.Years:
                 ret = data._calendar.last_yearday(data.datetime.date())
-            # 如果ret是True
+            # If ret is True
             if ret:
                 # Data must be consumed but compression may not be met yet
                 # Prevent barcheckover from being called because it could again
                 # increase compcount
-                # docheckover设置成False
+                # Set docheckover to False
                 docheckover = False
                 # compcount+1
                 self.compcount += 1
-                # 如果compcount除以compression余数等于0，返回True,否则，返回False
+                # If compcount divided by compression remainder equals 0, return True, otherwise return False
                 ret = not (self.compcount % self.p.compression)
-            # 如果ret等于False的话，docheckover等于True
+            # If ret equals False, docheckover equals True
             else:
                 docheckover = True
-            # 返回ret , docheckover
+            # Return ret, docheckover
             return ret, docheckover
-        # _eoscheck检查，返回两个True
+        # _eoscheck check, return two True
         if self._eoscheck(data, exact=True):
             return True, True
-        # 如果是日内的话
+        # If intraday
         if self.subdays:
-            # 获取数据的点数和剩余的点数
+            # Get data's point and remaining point
             point, prest = self._gettmpoint(data.datetime.time())
-            # 如果剩余点数不为0，返回False和True
+            # If remaining point is not 0, return False and True
             if prest:
                 return False, True  # cannot be on boundary, subunits present
 
             # Pass through compression to get boundary and rest over boundary
-            # 计算boundary和剩余的boundary
+            # Calculate boundary and remaining boundary
             bound, brest = divmod(point, self.p.compression)
 
             # if no extra and decomp bound is point
-            # 如果divmod计算的结果余数为0，返回两个True
+            # If divmod result remainder is 0, return two True
             return brest == 0 and point == (bound * self.p.compression), True
 
         # Code overriden by eoscheck
-        # 这段不会运行
+        # This code will not run
         if False and self.p.sessionend:
             # Days scenario - get datetime to compare in output timezone
             # because p.sessionend is expected in output timezone
             bdtime = data.datetime.datetime()
             bsend = datetime.combine(bdtime.date(), data.p.sessionend)
             return bdtime == bsend
-        # 如果前面都没有运行到return,返回False,True
+        # If none of above reached return, return False, True
         return False, True  # subweeks, not subdays and not sessionend
 
-    # 计算调整的时间
+    # Calculate adjusted time
     def _calcadjtime(self, greater=False):
         if self._nexteos is None:
             # Session has been exceeded - end of session is the mark
@@ -480,7 +515,7 @@ class _BaseResampler(ParameterizedBase):
         dtnum = self.data.date2num(dt)
         return dtnum
 
-    # 调整bar的时间
+    # Adjust bar time
     def _adjusttime(self, greater=False, forcedata=None):
         """
         Adjusts the time of calculated bar (from the underlying data source) by
@@ -499,7 +534,7 @@ class _BaseResampler(ParameterizedBase):
         return True
 
 
-# 把小周期的数据抽样形成大周期的数据
+# Resample small period data to form large period data
 class Resampler(_BaseResampler):
     """This class resamples data of a given timeframe to a larger timeframe.
 
@@ -511,7 +546,7 @@ class Resampler(_BaseResampler):
         "ticks -> 5 seconds" the resulting 5-seconds bars will be aligned to
         xx:00, xx:05, xx:10 ...
 
-        # 在抽样的时候使用时间边界作为目标，比如如果是ticks数据想要抽样程5秒钟，那么将会在xx:00,xx:05,xx:10这样的时间形成bar
+        # When resampling, use time boundary as target, for example if ticks data wants to resample to 5 seconds, bars will be formed at xx:00, xx:05, xx:10
 
       - Adjbartime (default: True)
 
@@ -525,7 +560,7 @@ class Resampler(_BaseResampler):
            Time will only be adjusted if "bar2edge" is True. It wouldn't make
            sense to adjust the time if the bar has not been aligned to a
            boundary
-        # 调整bar最后一个bar的最后的时间，在bar2edge是True的时候，使用最后的边界作为最后一个bar的时间
+        # Adjust the last bar's final time, when bar2edge is True, use the final boundary as the last bar's time
 
       - Rightedge (default: True)
 
@@ -537,11 +572,11 @@ class Resampler(_BaseResampler):
 
         If True, the used boundary for the time will be hh:mm:05 (the ending
         boundary)
-        # 是否使用右边的时间边界，比如时间边界是hh:mm:00：hh:mm:05，如果设置成True的话，将会使用hh:mm:05
-        # 设置成False, 将会使用hh:mm:00
+        # Whether to use the right time boundary, for example if time boundary is hh:mm:00:hh:mm:05, if set to True, will use hh:mm:05
+        # Set to False, will use hh:mm:00
     """
 
-    # 参数
+    # Parameters
     params = (
         ("bar2edge", True),
         ("adjbartime", True),
@@ -550,7 +585,7 @@ class Resampler(_BaseResampler):
 
     replaying = False
 
-    # 在数据不再产生bar的时候调用，可以被调用多次，有机会在必须传递bar的时候产生额外的bar
+    # Called when data no longer produces bars, can be called multiple times, has chance to produce extra bars when must deliver bar
     def last(self, data):
         """Called when the data is no longer producing bars
 
@@ -568,7 +603,7 @@ class Resampler(_BaseResampler):
 
         return False
 
-    # 调用resampler的时候使用
+    # Used when calling resampler
     def __call__(self, data, fromcheck=False, forcedata=None):
         """Called for each set of values produced by the data source"""
         consumed = False
@@ -636,7 +671,7 @@ class Resampler(_BaseResampler):
         return True
 
 
-# replayer类
+# Replayer class
 class Replayer(_BaseResampler):
     """This class replays data of a given timeframe to a larger timeframe.
 
@@ -690,38 +725,38 @@ class Replayer(_BaseResampler):
 
     replaying = True
 
-    # 调用类的时候运行
+    # Run when calling class
     def __call__(self, data, fromcheck=False, forcedata=None):
-        # 消耗
+        # Consume
         consumed = False
-        # 在生成bar的时间点
+        # At bar generation time point
         onedge = False
-        # 晚到的数据
+        # Late-arriving data
         takinglate = False
-        # 是否检查bar结束
+        # Whether to check bar end
         docheckover = True
-        # 如果fromcheck是False的话
+        # If fromcheck is False
         if not fromcheck:
-            # 调用_latedata判断，看晚到的数据怎么处理,如果返回True
+            # Call _latedata to see how to handle late data, if returns True
             if self._latedata(data):
-                # 如果takelate是False的话，就生成一个新的bar
+                # If takelate is False, generate a new bar
                 if not self.p.takelate:
                     data.backwards(force=True)
                     return True  # get a new bar
-                # 设置这两个参数
+                # Set these two parameters
                 consumed = True
                 takinglate = True
-            # 如果不是日内的话
+            # If not intraday
             elif self.componly:  # only if not subdays
                 consumed = True
 
             else:
-                # 调用_dataonedge，用于判断是否在生成bar的时间和bar是否结束
+                # Call _dataonedge to determine if at bar generation time and if bar is over
                 onedge, docheckover = self._dataonedge(data)  # for subdays
                 consumed = onedge
 
             data._tick_fill(force=True)  # update
-        # 如果consumed是True的话，更新数据，如果takinglate是True的话，给bar设置一个新的时间
+        # If consumed is True, update data, if takinglate is True, set a new time for bar
         if consumed:
             self.bar.bupdate(data)
             if takinglate:
@@ -729,34 +764,34 @@ class Replayer(_BaseResampler):
 
         # if onedge or (checkbarover and self._checkbarover)
         cond = onedge
-        # 如果当前不是在生成bar的时间点，如果需要检查，就需要检查bar是否结束
+        # If currently not at bar generation time point, if check is needed, need to check if bar is over
         if not cond:  # original is or, if true, it would suffice
             if docheckover:
                 cond = self._checkbarover(data, fromcheck=fromcheck)
-        # 如果检查结果返回True的话
+        # If check result returns True
         if cond:
-            # 如果不是正好在生成bar的时候，并且要调整时间
+            # If not exactly at bar generation time and need to adjust time
             if not onedge and self.doadjusttime:  # insert tick with adjtime
                 adjusted = self._adjusttime(greater=True)
-                # 如果需要调整，就调整时间，更新bar
+                # If adjustment is needed, adjust time and update bar
                 if adjusted:
                     ago = 0 if (consumed or fromcheck) else -1
                     # Update to the point right before the new data
                     data._updatebar(self.bar.lvalues(), forward=False, ago=ago)
-                # 如果不需要检查
+                # If no check needed
                 if not fromcheck:
-                    # 如果不是消耗模式，就使用_save2stack保存数据
+                    # If not in consume mode, use _save2stack to save data
                     if not consumed:
                         # Reopen bar with real new data and save data to queue
                         self.bar.bupdate(data, reopen=True)
                         # erase is True, but the tick will not be seen below
                         # and therefore no need to mark as 1st
                         data._save2stack(erase=True, force=True)
-                    # 如果是消耗模式，data启动，下个bar是第一根bar
+                    # If in consume mode, data starts, next bar is first bar
                     else:
                         self.bar.bstart(maxdate=True)
                         self._firstbar = True  # next is first
-                # 如果需要检查
+                # If check is needed
                 else:  # from check
                     # fromcheck or consumed have forced delivery, reopen
                     self.bar.bstart(maxdate=True)
@@ -764,7 +799,7 @@ class Replayer(_BaseResampler):
                     if adjusted:
                         # after adjusting need to redeliver if this was a check
                         data._save2stack(erase=True, force=True)
-            # 如果不需要检查
+            # If no check needed
             elif not fromcheck:
                 if not consumed:
                     # Data already "forwarded" and we replay to new bar
@@ -778,7 +813,7 @@ class Replayer(_BaseResampler):
                     data._updatebar(self.bar.lvalues(), forward=False, ago=0)
                     self.bar.bstart(maxdate=True)
                     self._firstbar = True  # make sure the next tick moves forward
-        # 如果不需要检查
+        # If no check needed
         elif not fromcheck:
             # not over, update, remove new entry, deliver
             if not consumed:
