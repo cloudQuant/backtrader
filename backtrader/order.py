@@ -1,5 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Backtrader Order Module.
+
+This module provides order data structures and execution tracking.
+
+Key Classes:
+    OrderExecutionBit: Holds information about a single order execution.
+    OrderData: Holds the full order data including creation and execution details.
+
+The order system supports:
+    - Order creation and execution tracking
+    - Partial execution handling
+    - Commission calculation
+    - PnL calculation for closed positions
+    - Position size and price tracking
+"""
 import collections
 import datetime
 import itertools
