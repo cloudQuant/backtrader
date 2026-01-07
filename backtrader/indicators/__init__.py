@@ -1,4 +1,26 @@
 #!/usr/bin/env python
+"""Technical Analysis Indicators Module.
+
+This module provides a comprehensive collection of technical analysis
+indicators for trading strategies. It includes moving averages,
+oscillators, momentum indicators, volatility indicators, and more.
+
+Indicator Categories:
+    - Moving Averages: SMA, EMA, SMMA, WMA, DEMA, KAMA, HMA, etc.
+    - Oscillators: RSI, Stochastic, MACD, CCI, etc.
+    - Volatility: ATR, Bollinger Bands, Standard Deviation
+    - Momentum: ROC, Momentum, Ultimate Oscillator
+    - Trend: ADX, Aroon, Parabolic SAR, Ichimoku
+    - Volume: OBV, Money Flow Index
+    - Custom: Additional custom indicators
+
+Example:
+    Using indicators in a strategy:
+    >>> class MyStrategy(bt.Strategy):
+    ...     def __init__(self):
+    ...         self.sma = bt.indicators.SMA(self.data.close, period=20)
+    ...         self.rsi = bt.indicators.RSI(self.data.close, period=14)
+"""
 from ..indicator import Indicator as Indicator
 from backtrader.functions import *
 
