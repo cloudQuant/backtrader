@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""VisualChart CSV Data Feed Module - VisualChart CSV parsing.
+
+This module provides the VChartCSVData feed for parsing VisualChart
+CSV exported files.
+
+Classes:
+    VChartCSVData: Parses VisualChart CSV format files.
+
+Example:
+    >>> data = bt.feeds.VChartCSVData(dataname='vchart.csv')
+    >>> cerebro.adddata(data)
+"""
 import datetime
 
 from .. import feed

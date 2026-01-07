@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""VisualChart Data Feed Module - VisualChart data connection.
+
+This module provides the VCData feed for connecting to VisualChart
+for live and historical market data.
+
+Classes:
+    VCData: VisualChart data feed.
+
+Example:
+    >>> store = bt.stores.VCStore()
+    >>> data = bt.feeds.VCData(dataname='BATCH', store=store)
+    >>> cerebro.adddata(data)
+"""
 from datetime import datetime, timedelta, tzinfo
 
 from ..dataseries import TimeFrame

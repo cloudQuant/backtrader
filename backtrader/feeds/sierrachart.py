@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""Sierra Chart CSV Data Feed Module - SierraChart CSV parsing.
+
+This module provides the SierraChartCSVData feed for parsing
+Sierra Chart exported CSV files.
+
+Classes:
+    SierraChartCSVData: Parses SierraChart CSV format files.
+
+Example:
+    >>> data = bt.feeds.SierraChartCSVData(dataname='sierra.csv')
+    >>> cerebro.adddata(data)
+"""
 from . import GenericCSVData
 
 

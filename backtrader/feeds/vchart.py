@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""Visual Chart Binary Data Feed Module - VisualChart binary files.
+
+This module provides the VChartData feed for reading VisualChart
+binary on-disk data files.
+
+Classes:
+    VChartData: Reads VisualChart binary data files.
+
+Example:
+    >>> data = bt.feeds.VChartData(dataname='data.fd')
+    >>> cerebro.adddata(data)
+"""
 import datetime
 import os.path
 import struct
