@@ -1,5 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Contributed Indicators Module - Community-contributed technical indicators.
+
+This module contains technical indicators contributed by the community
+that are not part of the standard indicator set.
+
+Indicators:
+    Vortex: Vortex Indicator for trend identification.
+
+Example:
+    Using contributed indicators:
+    >>> cerebro.addindicator(bt.indicators.Vortex)
+"""
 ###############################################################################
 #
 # Copyright (C) 2015-2020 Daniel Rodriguez
