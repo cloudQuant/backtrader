@@ -321,6 +321,23 @@ class OrderParams(object):
 
 
 class OrderBase(object):
+    """Base class for order objects.
+
+    Provides the foundation for all order types with common attributes
+    and methods for order tracking, status management, and execution.
+
+    Class Attributes:
+        DAY: Constant for day order identification.
+        Market, Close, Limit, Stop, StopLimit, StopTrail, StopTrailLimit: Order execution types.
+        Buy, Sell: Order direction types.
+        Created, Submitted, Accepted, Partial, Completed, Canceled, Expired, Margin, Rejected: Order status codes.
+
+    Attributes:
+        ref: Unique order reference number.
+        broker: Broker instance handling this order.
+        p: OrderParams instance containing order parameters.
+    """
+
     # Basic parameters for orders - removed metaclass usage
     # DAY currently represents empty time delta
     DAY = datetime.timedelta()  # constant for DAY order identification
@@ -739,6 +756,17 @@ class OrderBase(object):
 
 # Modified Order class to work without metaclass
 class Order(OrderBase):
+    """Order class for buy/sell orders.
+
+    Extends OrderBase with order type (buy/sell) and session end time
+    handling. This is the main order class used for creating and
+    managing trading orders.
+
+    Attributes:
+        ordtype: Order type (Buy or Sell).
+        dteos: Date/time of end of session for order validity.
+    """
+
     # Above is processing of OrderBase, below is processing of Order, Order inherits from OrderBase
     # Order class mainly adds dteos, ordtype and other information, also rewrites some functions, adds ordtype, a tracking price
     # ordtype variable determines whether this order is a buy order or sell order, not set by default
