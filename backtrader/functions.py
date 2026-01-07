@@ -1,5 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""Functions Module - Common operations on line objects.
+
+This module provides utility functions and classes for performing
+operations on line objects. It includes arithmetic operations with
+zero-division protection, logical operations, comparison operations,
+and mathematical functions.
+
+Classes:
+    Logic: Base class for logical operations on lines.
+    DivByZero: Division with zero-division protection.
+    DivZeroByZero: Division with zero/zero indetermination protection.
+    And/Or/Not/If/Max/Min/MinN/MaxN: Logical and comparison operations.
+    Sum/Average/StdDev/TSMean: Statistical operations.
+
+Example:
+    Using indicator functions:
+    >>> from backtrader.functions import And, Or
+    >>> condition = And(indicator1 > indicator2, indicator3 > 0)
+"""
 import functools
 import itertools
 import math
@@ -17,17 +36,23 @@ class List(list):
 
 # Create a class to serialize elements within it
 class Logic(LineActions):
+    """Base class for logical operations on line objects.
+
+    Handles argument conversion to arrays and manages minperiod
+    propagation from operands.
+    """
+
     def __init__(self, *args):
         super(Logic, self).__init__()
         self.args = [self.arrayize(arg) for arg in args]
-        
+
         # CRITICAL FIX: Collect minperiods from args and update own minperiod
         # This ensures functions like And, Or, etc. inherit the max minperiod from their operands
         _minperiods = []
         for arg in self.args:
             mp = getattr(arg, '_minperiod', 1)
             _minperiods.append(mp)
-        
+
         if _minperiods:
             max_minperiod = max(_minperiods)
             self.updateminperiod(max_minperiod)
