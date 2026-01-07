@@ -1,3 +1,16 @@
+"""Crypto Store Module - bt_api_py integration.
+
+This module provides the CryptoStore for connecting to bt_api_py
+for cryptocurrency trading.
+
+Classes:
+    CryptoStore: Store for bt_api_py connections.
+
+Example:
+    >>> exchange_params = {...}
+    >>> store = bt.stores.CryptoStore(exchange_params)
+    >>> cerebro.setbroker(store.getbroker())
+"""
 import queue
 import time
 import traceback

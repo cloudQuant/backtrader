@@ -1,4 +1,17 @@
 #!/usr/bin/env python
+"""Bar Splitter Filter Module - Daily bar splitting.
+
+This module provides the DaySplitterClose filter for splitting daily
+bars into two parts for intraday replay simulation.
+
+Classes:
+    DaySplitterClose: Splits daily bars into OHLX and CCCC ticks.
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='daily.csv')
+    >>> data.addfilter(bt.filters.DaySplitterClose())
+    >>> cerebro.adddata(data)
+"""
 
 import datetime
 

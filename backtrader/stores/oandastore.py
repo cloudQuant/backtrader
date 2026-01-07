@@ -1,4 +1,21 @@
 #!/usr/bin/env python
+"""OANDA Store Module - OANDA broker connection.
+
+This module provides the OandaStore for connecting to OANDA
+brokerage for trading and market data.
+
+Classes:
+    OandaStore: Singleton store for OANDA connections.
+    OandaRequestError: Custom exception for request errors.
+    OandaStreamError: Custom exception for stream errors.
+
+Example:
+    >>> store = bt.stores.OandaStore(
+    ...     account='your_account',
+    ...     token='your_token'
+    ... )
+    >>> cerebro.setbroker(store.getbroker())
+"""
 
 import collections
 import json

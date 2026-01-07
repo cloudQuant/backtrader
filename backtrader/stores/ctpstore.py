@@ -1,4 +1,21 @@
 #!/usr/bin/env python
+"""CTP Store Module - CTP futures trading.
+
+This module provides the CTPStore for connecting to CTP (China Futures)
+through ctpbee for futures trading.
+
+Classes:
+    MyCtpbeeApi: Custom CTP API wrapper.
+    CTPStore: Singleton store for CTP connections.
+
+Example:
+    >>> store = bt.stores.CTPStore(
+    ...     userid='your_id',
+    ...     password='your_password',
+    ...     brokerid='your_broker'
+    ... )
+    >>> cerebro.setbroker(store.getbroker())
+"""
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
