@@ -1,12 +1,22 @@
 #!/usr/bin/env python
+"""Hurst Exponent Module - Hurst exponent indicator.
+
+This module provides the Hurst Exponent indicator for measuring
+long-term memory of time series.
+
+Classes:
+    HurstExponent: Hurst exponent indicator (alias: Hurst).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.Hurst, period=2000)
+"""
 from numpy import asarray, isnan, log10, polyfit, sqrt, std, subtract
 
 from . import PeriodN
 
 __all__ = ["HurstExponent", "Hurst"]
-
-
-# Hurst Exponent indicator
 class HurstExponent(PeriodN):
     """
      References:

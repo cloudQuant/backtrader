@@ -1,12 +1,23 @@
 #!/usr/bin/env python
+"""HaDelta Indicator Module - Heikin Ashi Delta indicator.
+
+This module provides the HaDelta indicator defined by Dan Valcu
+for measuring Heikin Ashi candle body differences.
+
+Classes:
+    HaDelta: Heikin Ashi Delta indicator (aliases: haD, haDelta).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> data.addfilter(bt.filters.HeikinAshi())
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.HaDelta)
+"""
 import math
 from . import Indicator
 from .sma import SMA
 
 __all__ = ["HaDelta", "haD", "haDelta"]
-
-
-# HaDelta indicator
 class HaDelta(Indicator):
     """Heikin Ashi Delta. Defined by Dan Valcu in his book "Heikin-Ashi: How to
     Trade Without Candlestick Patterns ".

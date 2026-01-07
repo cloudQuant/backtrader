@@ -1,10 +1,20 @@
 #!/usr/bin/env python
+"""DV2 Indicator Module - RSI(2) alternative.
+
+This module provides the DV2 indicator developed by David Varadi
+as an alternative to RSI(2).
+
+Classes:
+    DV2: DV2 indicator (RSI(2) alternative).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.DV2)
+"""
 from . import SMA, Indicator, PercentRank
 
 __all__ = ["DV2"]
-
-
-# Alternative to RSI indicator
 class DV2(Indicator):
     """
     RSI(2) alternative

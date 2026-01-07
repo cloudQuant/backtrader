@@ -1,13 +1,23 @@
 #!/usr/bin/env python
+"""Acceleration/Deceleration Oscillator Module - AC indicator.
+
+This module provides the Acceleration/Deceleration Oscillator (AC)
+developed by Bill Williams to measure the acceleration of driving force.
+
+Classes:
+    AccelerationDecelerationOscillator: AC indicator (alias: AccDeOsc).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.AccDeOsc)
+"""
 import math
 from . import Indicator
 from .awesomeoscillator import AwesomeOscillator
 from .sma import SMA
 
 __all__ = ["AccelerationDecelerationOscillator", "AccDeOsc"]
-
-
-class AccelerationDecelerationOscillator(Indicator):
     """
     Acceleration/Deceleration Technical Indicator (AC) measures acceleration
     and deceleration of the current driving force. This indicator will change
