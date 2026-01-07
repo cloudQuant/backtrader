@@ -1367,12 +1367,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
         pass
 
     def nextstart(self):
-        """
-        This method will be called once, exactly when the minimum period for
-        all datas/indicators have been meet. The default behavior is to call
-        next
-        """
+        """Called once when minimum period is first reached.
 
+        This method is called exactly once when the minimum period required
+        for all data feeds and indicators has been satisfied. The default
+        implementation calls next().
+
+        This is the transition point between prenext() and next() phases.
+        """
         # Called once for 1st full calculation - defaults to regular next
         self.next()
 
