@@ -1,4 +1,20 @@
 #!/usr/bin/env python
+"""CCXT Broker Module - Cryptocurrency exchange broker.
+
+This module provides the CCXTBroker for trading on cryptocurrency
+exchanges through the CCXT library.
+
+Classes:
+    CCXTOrder: CCXT-specific order implementation.
+    CCXTBroker: Broker implementation for CCXT trading.
+
+Functions:
+    _register_ccxt_broker_class: Registers broker with store.
+
+Example:
+    >>> store = bt.stores.CCXTStore(exchange='binance')
+    >>> cerebro.setbroker(store.getbroker())
+"""
 
 
 import collections

@@ -1,9 +1,17 @@
 #!/usr/bin/env python
+"""Fixed Size Sizer Module - Fixed stake position sizing.
+
+This module provides the FixedSize sizer for using a fixed stake
+size in trading operations.
+
+Classes:
+    FixedSize: Returns a fixed stake size for orders.
+
+Example:
+    >>> cerebro.addsizer(bt.sizers.FixedSize, stake=10)
+"""
 from ..parameters import Int, ParameterDescriptor
 from ..sizer import Sizer
-
-
-# Fixed stake size class, if size is not specified when placing order, a sizer will be called by default
 class FixedSize(Sizer):
     """
     This sizer simply returns a fixed size for any operation.

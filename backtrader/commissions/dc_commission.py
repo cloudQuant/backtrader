@@ -1,3 +1,18 @@
+"""Digital Currency Commission Module - Crypto commission scheme.
+
+This module provides the ComminfoDC class for calculating commissions
+for digital currency (cryptocurrency) trading.
+
+Classes:
+    ComminfoDC: Commission info for digital currency trading.
+
+Example:
+    >>> comminfo = bt.commissions.ComminfoDC(
+    ...     commission=0.001,
+    ...     margin=0.5
+    ... )
+    >>> cerebro.broker.setcommission(comminfo)
+"""
 from ..comminfo import CommInfoBase
 
 

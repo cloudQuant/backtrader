@@ -1,12 +1,22 @@
 #!/usr/bin/env python
+"""Percent Sizer Module - Percentage-based position sizing.
 
+This module provides sizers that calculate position size based on
+a percentage of available cash.
+
+Classes:
+    PercentSizer: Uses percentage of cash for sizing.
+    AllInSizer: Uses 100% of available cash.
+    PercentSizerInt: PercentSizer returning int values.
+    AllInSizerInt: AllInSizer returning int values.
+
+Example:
+    >>> cerebro.addsizer(bt.sizers.PercentSizer, percents=20)
+"""
 from ..parameters import Float, ParameterDescriptor
 from ..sizer import Sizer
 
 __all__ = ["PercentSizer", "AllInSizer", "PercentSizerInt", "AllInSizerInt"]
-
-
-# Percentage stake size, place order based on percentage of available cash
 class PercentSizer(Sizer):
     """This sizer return percentages of available cash
 
