@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""PyFolio Analyzer Module - PyFolio integration.
+
+This module provides the PyFolio analyzer for collecting data compatible
+with the pyfolio library for performance analysis.
+
+Classes:
+    PyFolio: Analyzer that collects data for pyfolio.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
+    >>> results = cerebro.run()
+    >>> pyfolio_data = results[0].analyzers.pyfolio.get_analysis()
+"""
 # import collections
 import pandas as pd
 

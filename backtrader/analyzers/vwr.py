@@ -1,4 +1,18 @@
 #!/usr/bin/env python
+"""VWR Analyzer Module - Variability-Weighted Return calculation.
+
+This module provides the VWR (Variability-Weighted Return) analyzer,
+an alternative to the Sharpe ratio using log returns.
+
+Classes:
+    VWR: Analyzer that calculates VWR metric.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.VWR, _name='vwr')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.vwr.get_analysis())
+"""
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase

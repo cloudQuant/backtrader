@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""TimeReturn Analyzer Module - Time-based returns calculation.
+
+This module provides the TimeReturn analyzer for calculating returns
+over specified time periods.
+
+Classes:
+    TimeReturn: Analyzer that calculates returns by timeframe.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Years)
+"""
 from ..analyzer import TimeFrameAnalyzerBase
 
 

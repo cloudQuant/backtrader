@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""LogReturnsRolling Analyzer Module - Rolling log returns calculation.
+
+This module provides the LogReturnsRolling analyzer for calculating
+rolling log returns over a specified timeframe.
+
+Classes:
+    LogReturnsRolling: Analyzer that calculates rolling log returns.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.LogReturnsRolling)
+"""
 import collections
 import math
 

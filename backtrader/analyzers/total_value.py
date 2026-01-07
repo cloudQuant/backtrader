@@ -1,3 +1,17 @@
+"""TotalValue Analyzer Module - Portfolio value tracking.
+
+This module provides the TotalValue analyzer for tracking the total
+portfolio value over time.
+
+Classes:
+    TotalValue: Analyzer that records portfolio value at each step.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addanalyzer(bt.analyzers.TotalValue, _name='val')
+    >>> results = cerebro.run()
+    >>> print(results[0].analyzers.val.get_analysis())
+"""
 from collections import OrderedDict
 
 from ..analyzer import Analyzer
