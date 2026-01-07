@@ -1,4 +1,16 @@
 #!/usr/bin/env python
+"""Broker Observer Module - Cash and value tracking.
+
+This module provides observers for tracking broker cash and portfolio value.
+
+Classes:
+    Cash: Observer that tracks current cash level.
+    Value: Observer that tracks portfolio value.
+
+Example:
+    >>> cerebro = bt.Cerebro()
+    >>> cerebro.addobserver(bt.observers.Broker)
+"""
 from ..observer import Observer
 
 
