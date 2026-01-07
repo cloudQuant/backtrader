@@ -1,5 +1,25 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
+"""TA-Lib Integration Module - Wrapper for TA-Lib indicators.
+
+This module provides integration with TA-Lib (Technical Analysis Library),
+allowing the use of TA-Lib's extensive collection of technical indicators
+within backtrader.
+
+Note:
+    TA-Lib must be installed separately for this module to work.
+
+Classes:
+    _TALibIndicator: Base class for TA-Lib indicators.
+
+Example:
+    Using TA-Lib indicators:
+    >>> import backtrader as bt
+    >>> cerebro = bt.Cerebro()
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.talib.SMA, timeperiod=20)
+"""
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables
 
