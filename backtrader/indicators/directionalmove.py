@@ -1,7 +1,28 @@
 #!/usr/bin/env python
-from . import ATR, And, If, Indicator, MovAv
+"""Directional Movement Indicator Module - ADX and DI indicators.
 
-# ADX-related indicators
+This module provides the ADX (Average Directional Index) and
+Directional Indicators developed by J. Welles Wilder, Jr. for
+measuring trend strength.
+
+Classes:
+    UpMove: Upward move calculation.
+    DownMove: Downward move calculation.
+    _DirectionalIndicator: Base class for DI calculations.
+    DirectionalIndicator: DI indicator (alias: DI).
+    PlusDirectionalIndicator: +DI indicator (aliases: PlusDI, +DI).
+    MinusDirectionalIndicator: -DI indicator (aliases: MinusDI, -DI).
+    AverageDirectionalMovementIndex: ADX indicator (alias: ADX).
+    AverageDirectionalMovementIndexRating: ADXR indicator (alias: ADXR).
+    DirectionalMovementIndex: DMI with ADX and DI (alias: DMI).
+    DirectionalMovement: Complete DM system (alias: DM).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.ADX, period=14)
+"""
+from . import ATR, And, If, Indicator, MovAv
 
 
 class UpMove(Indicator):

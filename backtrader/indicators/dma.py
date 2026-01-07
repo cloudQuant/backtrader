@@ -1,11 +1,21 @@
 #!/usr/bin/env python
+"""DMA Indicator Module - Dickson Moving Average.
+
+This module provides the Dickson Moving Average (DMA) developed
+by Nathan Dickson, combining ZeroLag and Hull moving averages.
+
+Classes:
+    DicksonMovingAverage: DMA indicator (aliases: DMA, DicksonMA).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.DMA, period=20)
+"""
 import math
 from . import MovingAverageBase, ZeroLagIndicator
 from .ema import EMA
 from .hma import HMA
-
-
-# Dickson Moving Average
 class DicksonMovingAverage(MovingAverageBase):
     """By Nathan Dickson
 

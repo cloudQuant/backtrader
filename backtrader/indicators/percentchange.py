@@ -1,10 +1,20 @@
 #!/usr/bin/env python
+"""Percent Change Indicator Module - Percentage change calculation.
+
+This module provides the Percent Change indicator for measuring the
+percentage change in price over a given period.
+
+Classes:
+    PercentChange: Percentage change indicator (alias: PctChange).
+
+Example:
+    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
+    >>> cerebro.adddata(data)
+    >>> cerebro.addindicator(bt.indicators.PctChange, period=30)
+"""
 from . import Indicator
 
 __all__ = ["PercentChange", "PctChange"]
-
-
-# Percentage change
 class PercentChange(Indicator):
     """
     Measures the percentage change of the current value with respect to that
