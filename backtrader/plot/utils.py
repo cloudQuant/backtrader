@@ -1,5 +1,19 @@
 #!/usr/bin/env python
+"""Plot Utils Module - Plotting utility functions.
 
+This module provides utility functions for plotting, including
+box styling and color manipulation.
+
+Functions:
+    tag_box_style: Create a box path with a tab/pointer.
+    color_by_alpha: Modify color alpha channel.
+    clip_obj: Clip object to visible area.
+
+Example:
+    Creating a box style:
+    >>> from backtrader.plot.utils import tag_box_style
+    >>> path = tag_box_style(0, 0, 1, 1, 0.1)
+"""
 from colorsys import hls_to_rgb as hls2rgb
 from colorsys import rgb_to_hls as rgb2hls
 
@@ -8,13 +22,21 @@ import matplotlib.path as mplpath
 
 
 def tag_box_style(x0, y0, width, height, mutation_size, mutation_aspect=1):
-    """
+    """Create a box path with a tab/pointer.
+
     Given the location and size of the box, return the path of
     the box around it.
 
-     - *x0*, *y0*, *width*, *height*: location and size of the box
-     - *mutation_size*: a reference scale for the mutation.
-     - *aspect_ratio*: aspect-ration for the mutation.
+    Args:
+        x0: X coordinate of box origin.
+        y0: Y coordinate of box origin.
+        width: Width of the box.
+        height: Height of the box.
+        mutation_size: Reference scale for the mutation.
+        mutation_aspect: Aspect ratio for the mutation.
+
+    Returns:
+        A matplotlib Path object representing the box.
     """
 
     # Note that we are ignoring mutation_aspect. This is okay in general.
