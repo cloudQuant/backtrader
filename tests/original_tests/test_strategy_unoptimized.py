@@ -19,9 +19,26 @@
 #
 ###############################################################################
 
+"""Test module for unoptimized strategy execution in backtrader.
+
+This module tests a Simple Moving Average (SMA) crossover strategy with
+explicit order creation and execution tracking. It validates that orders are
+created and executed at expected price levels for both stock-like and
+futures-like commission structures.
+
+The test strategy:
+1. Uses an SMA indicator with a configurable period
+2. Generates buy signals when price crosses above the SMA
+3. Generates sell signals when price crosses below the SMA
+4. Tracks order creation and execution prices
+5. Validates final portfolio values against expected results
+
+Expected Behavior:
+* For futures (stocklike=False): Final value 12795.00, cash 11795.00
+* For stocks (stocklike=True): Final value 10284.10, cash 6164.16
+"""
 
 import backtrader as bt
-
 import time
 
 try:
@@ -33,6 +50,7 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Expected buy order creation prices
 BUYCREATE = [
     "3641.42",
     "3798.46",
@@ -48,6 +66,7 @@ BUYCREATE = [
     "4052.89",
 ]
 
+# Expected sell order creation prices
 SELLCREATE = [
     "3763.73",
     "3811.45",
@@ -62,6 +81,7 @@ SELLCREATE = [
     "4048.16",
 ]
 
+# Expected buy order execution prices
 BUYEXEC = [
     "3643.35",
     "3801.03",
@@ -77,6 +97,7 @@ BUYEXEC = [
     "4052.55",
 ]
 
+# Expected sell order execution prices
 SELLEXEC = [
     "3763.95",
     "3811.85",
@@ -93,6 +114,30 @@ SELLEXEC = [
 
 
 class RunStrategy(bt.Strategy):
+    """Simple Moving Average (SMA) crossover trading strategy.
+
+    This strategy implements a classic crossover system where:
+    * Buy signals are generated when price crosses above the SMA
+    * Sell signals are generated when price crosses below the SMA
+
+    The strategy tracks all order creation and execution prices to validate
+    correct backtest behavior. It supports both stock-like and futures-like
+    commission structures.
+
+    Attributes:
+        buycreate (list): Prices at which buy orders were created.
+        sellcreate (list): Prices at which sell orders were created.
+        buyexec (list): Prices at which buy orders were executed.
+        sellexec (list): Prices at which sell orders were executed.
+        orderid: ID of the currently active order, or None if no order is active.
+
+    Args:
+        period (int): Period for the SMA indicator. Default is 15.
+        printdata (bool): Whether to print data bars during execution. Default is True.
+        printops (bool): Whether to print order operations. Default is True.
+        stocklike (bool): Whether to use stock-like (True) or futures-like (False)
+            commission structure. Default is True.
+    """
     params = (
         ("period", 15),
         ("printdata", True),
@@ -101,6 +146,15 @@ class RunStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None, nodate=False):
+        """Log a message with optional timestamp.
+
+        Args:
+            txt (str): The message text to log.
+            dt (datetime, optional): Specific datetime to use for the timestamp.
+                If None, uses the current data's datetime. Defaults to None.
+            nodate (bool, optional): If True, prints message without timestamp.
+                Defaults to False.
+        """
         if not nodate:
             dt = dt or self.data.datetime[0]
             dt = bt.num2date(dt)
@@ -109,6 +163,14 @@ class RunStrategy(bt.Strategy):
             print("---------- %s" % (txt))
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Called when an order changes status. Tracks executed prices for
+        validation and logs order operations if printing is enabled.
+
+        Args:
+            order (bt.Order): The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return  # Await further notifications
 
@@ -135,6 +197,11 @@ class RunStrategy(bt.Strategy):
         self.orderid = None
 
     def __init__(self):
+        """Initialize the strategy with indicators and order tracking.
+
+        Sets up the SMA indicator and crossover indicator for generating
+        trading signals. Also initializes the order tracking flag.
+        """
         # Flag to allow new orders in the system or not
         self.orderid = None
 
@@ -142,6 +209,12 @@ class RunStrategy(bt.Strategy):
         self.cross = btind.CrossOver(self.data.close, self.sma, plot=True)
 
     def start(self):
+        """Initialize the strategy before backtest execution.
+
+        Sets up commission structure based on stocklike parameter,
+        logs initial portfolio value, and initializes tracking lists
+        for order creation and execution prices.
+        """
         if not self.p.stocklike:
             self.broker.setcommission(commission=2.0, mult=10.0, margin=1000.0)
 
@@ -157,6 +230,12 @@ class RunStrategy(bt.Strategy):
         self.sellexec = list()
 
     def stop(self):
+        """Finalize the strategy after backtest execution.
+
+        Logs execution time and final portfolio values. In test mode
+        (printdata=False), validates that the actual results match
+        expected values for portfolio, cash, and order prices.
+        """
         tused = time_clock() - self.tstart
         if self.p.printdata:
             self.log("Time used: %s" % str(tused))
@@ -187,6 +266,14 @@ class RunStrategy(bt.Strategy):
             assert self.sellexec == SELLEXEC
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Called for each bar of data. Implements the crossover strategy:
+        * If no position is open, buy when price crosses above SMA
+        * If position is open, sell when price crosses below SMA
+
+        Only allows one active order at a time.
+        """
         if self.p.printdata:
             self.log(
                 "Open, High, Low, Close, %.2f, %.2f, %.2f, %.2f, Sma, %f"
@@ -222,10 +309,22 @@ class RunStrategy(bt.Strategy):
             self.sellcreate.append(chkprice)
 
 
+# Number of data feeds to use in the test
 chkdatas = 1
 
 
 def test_run(main=False):
+    """Run the unoptimized strategy test.
+
+    Tests the strategy with both stock-like and futures-like commission
+    structures. For each structure, creates data feeds and runs the
+    backtest, validating that order creation and execution prices
+    match expected values.
+
+    Args:
+        main (bool, optional): If True, runs in verbose mode with data
+            and operations printing enabled. Defaults to False.
+    """
     for stlike in [False, True]:
         datas = [testcommon.getdata(i) for i in range(chkdatas)]
         testcommon.runtest(

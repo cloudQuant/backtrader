@@ -44,11 +44,16 @@ _logger = logging.getLogger(__name__)
 
 class FigurePage:
     """Figure Page
-    
+
     Manages a group of related charts and data sources.
     """
-    
+
     def __init__(self, strategy=None):
+        """Initialize a FigurePage.
+
+        Args:
+            strategy: Strategy instance associated with this figure page.
+        """
         self.strategy = strategy
         self.figures = []
         self.cds = None  # ColumnDataSource
@@ -95,11 +100,16 @@ class FigurePage:
 
 class Figure:
     """Single Figure
-    
+
     Wraps a Bokeh figure.
     """
-    
+
     def __init__(self, scheme=None):
+        """Initialize a Figure.
+
+        Args:
+            scheme: Theme/scheme instance for styling the figure.
+        """
         self.scheme = scheme
         self.figure = None
         self.cds = None
@@ -145,8 +155,17 @@ class BacktraderBokeh:
         ('use_default_tabs', True),
         ('filter', None),
     )
-    
+
     def __init__(self, **kwargs):
+        """Initialize BacktraderBokeh application.
+
+        Args:
+            **kwargs: Keyword arguments for configuration:
+                - style: Chart style ('bar' or 'candle')
+                - scheme: Theme instance for styling
+                - use_default_tabs: Whether to use default tabs
+                - filter: Data filter configuration
+        """
         # Process parameters
         self.p = type('Params', (), {})()
         for name, default in self.params:

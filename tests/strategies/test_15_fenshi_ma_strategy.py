@@ -47,9 +47,26 @@ class TimeLine(bt.Indicator):
     params = (("day_end_time", (15, 0, 0)),)
 
     def __init__(self):
+        """Initialize the TimeLine indicator.
+
+        Creates an empty list to store closing prices for the current day.
+        The cumulative average of these prices will be calculated as the
+        time average price line.
+        """
         self.day_close_price_list = []
 
     def next(self):
+        """Calculate the time average price for the current bar.
+
+        This method is called for each bar in the data series. It:
+        1. Appends the current bar's close price to the day's price list
+        2. Calculates the cumulative average of all prices in the list
+        3. Resets the price list at the end of the trading day
+
+        The time average price line is useful for intraday strategies as it
+        represents the average entry price of all market participants throughout
+        the day.
+        """
         self.day_close_price_list.append(self.data.close[0])
         self.lines.day_avg_price[0] = sum(self.day_close_price_list) / len(self.day_close_price_list)
 
@@ -82,6 +99,14 @@ class TimeLineMaStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the TimeLineMaStrategy.
+
+        Sets up the following components:
+        - Counter variables for bars and trades
+        - TimeLine indicator for calculating day average price
+        - Simple Moving Average (SMA) for trend filtering
+        - State variables for tracking positions, daily high/low, and orders
+        """
         self.bar_num = 0
         self.day_bar_num = 0
         self.buy_count = 0
@@ -100,9 +125,33 @@ class TimeLineMaStrategy(bt.Strategy):
         self.stop_order = None
 
     def prenext(self):
+        """Called before the minimum period is reached.
+
+        This method is called for each bar before the indicators have enough
+        data to be valid. Currently empty as all logic is in the next() method.
+        """
         pass
 
     def next(self):
+        """Execute the main trading logic for each bar.
+
+        This method implements the core strategy:
+        1. Updates daily high/low tracking
+        2. Checks if position needs to be closed at market close (14:55)
+        3. Generates long signals when:
+           - MA is trending up (current > previous)
+           - Price is above MA
+           - Price breaks above time average price line (bullish breakout)
+        4. Generates short signals when:
+           - MA is trending down (current < previous)
+           - Price is below MA
+           - Price breaks below time average price line (bearish breakout)
+        5. Places trailing stop orders for risk management
+        6. Closes positions when price reverses through time average price line
+
+        Trading hours: 9:00-11:00 and 21:00-23:00
+        Position close: 14:55 (before market close at 15:00)
+        """
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
         self.current_hour = self.current_datetime.hour
         self.current_minute = self.current_datetime.minute
@@ -185,6 +234,14 @@ class TimeLineMaStrategy(bt.Strategy):
                 self.stop_order = None
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called when an order changes status. Logs executed orders and ignores
+        pending orders (Submitted/Accepted).
+
+        Args:
+            order: The order object that changed status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -194,10 +251,23 @@ class TimeLineMaStrategy(bt.Strategy):
                 self.log(f"SELL: price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Called when a trade is closed. Logs the profit/loss information
+        including gross and net PnL (after commissions).
+
+        Args:
+            trade: The trade object that was closed.
+        """
         if trade.isclosed:
             self.log(f"Trade completed: pnl={trade.pnl:.2f}, pnlcomm={trade.pnlcomm:.2f}")
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        Logs final statistics including total bars processed and the
+        number of buy/sell orders executed during the backtest.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 

@@ -24,18 +24,29 @@ _log_storage = {}
 
 class LogHandler(logging.Handler):
     """Log handler.
-    
+
     Captures log messages and stores them in specified storage.
     """
-    
+
     def __init__(self, storage_key, max_records=1000):
+        """Initialize log handler.
+
+        Args:
+            storage_key: Key to identify log storage in global dictionary.
+            max_records: Maximum number of log records to keep (default: 1000).
+        """
         super().__init__()
         self.storage_key = storage_key
         self.max_records = max_records
         if storage_key not in _log_storage:
             _log_storage[storage_key] = deque(maxlen=max_records)
-    
+
     def emit(self, record):
+        """Emit a log record.
+
+        Args:
+            record: Log record to process.
+        """
         log_entry = {
             'time': self.format(record).split(' - ')[0] if ' - ' in self.format(record) else '',
             'level': record.levelname,
@@ -76,8 +87,16 @@ class LogTab(BokehTab):
     """
     
     cols = ['Time', 'Level', 'Message']  # Default columns
-    
+
     def __init__(self, app, figurepage, client=None, cols=None):
+        """Initialize log tab.
+
+        Args:
+            app: Bokeh application instance.
+            figurepage: Figure page instance.
+            client: Optional client instance.
+            cols: Custom column configuration for log display.
+        """
         super().__init__(app, figurepage, client)
         if cols is not None:
             self.cols = cols

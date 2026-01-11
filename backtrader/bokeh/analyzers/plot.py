@@ -61,8 +61,20 @@ class LivePlotAnalyzer(bt.Analyzer):
         ('title', None),            # Title
         ('autostart', True),        # Auto-start
     )
-    
+
     def __init__(self, **kwargs):
+        """Initialize live plot analyzer.
+
+        Args:
+            **kwargs: Keyword arguments overriding default parameters:
+                - scheme: Theme instance (defaults to Tradimo)
+                - style: Chart style ('bar' or 'candle')
+                - lookback: Number of bars to retain in display
+                - address: Server address (default: 'localhost')
+                - port: Server port (default: 8999)
+                - title: Chart title (default: 'Live {StrategyName}')
+                - autostart: Whether to auto-start server (default: True)
+        """
         super().__init__()
         
         # Set title

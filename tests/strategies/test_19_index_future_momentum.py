@@ -40,6 +40,26 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TreasuryFuturesMacdStrategy(bt.Strategy):
+    """MACD-based trading strategy for treasury futures with rollover support.
+
+    This strategy implements a momentum-based trading system using MACD indicators
+    for trading treasury futures contracts. It automatically handles contract rollover
+    by tracking the dominant contract (highest open interest) and rolling positions
+    when the dominant contract changes.
+
+    The strategy enters long positions when the shorter EMA crosses above the longer
+    EMA with positive MACD, and enters short positions when the shorter EMA crosses
+    below the longer EMA with negative MACD. Positions are closed when price crosses
+    back over the shorter EMA.
+
+    Attributes:
+        author: Strategy author identifier.
+        params: Strategy parameters including EMA periods and MACD signal period.
+            - period_me1: Shorter EMA period (default: 10).
+            - period_me2: Longer EMA period (default: 20).
+            - period_dif: MACD signal line EMA period (default: 9).
+    """
+
     # Strategy author
     author = 'yunjinqi'
     # Strategy parameters
@@ -51,12 +71,30 @@ class TreasuryFuturesMacdStrategy(bt.Strategy):
 
     # Log corresponding information
     def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
+        """Log strategy information with timestamp.
+
+        Args:
+            txt (str): Text message to log.
+            dt (datetime, optional): DateTime for the log entry. If None, uses
+                current data timestamp. Defaults to None.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     # Initialize strategy data
     def __init__(self):
+        """Initialize the strategy and set up indicators.
+
+        Sets up the MACD indicator components including:
+        - Short period EMA (period_me1)
+        - Long period EMA (period_me2)
+        - MACD line (DIF): EMA1 - EMA2
+        - Signal line (DEA): EMA of DIF
+        - MACD histogram: (DIF - DEA) * 2
+
+        Also initializes tracking variables for bar count, trade counts,
+        current date, and currently held contract.
+        """
         # Common attribute variables
         self.bar_num = 0  # Number of bars next has run
         self.buy_count = 0
@@ -72,13 +110,29 @@ class TreasuryFuturesMacdStrategy(bt.Strategy):
         self.holding_contract_name = None
 
     def prenext(self):
-        # Since futures data has thousands of bars and each futures contract has different trading dates, it won't naturally enter next
-        # Need to call next function in each prenext to run
+        """Handle prenext phase by calling next() for futures data.
+
+        Since futures data has thousands of bars and each futures contract has
+        different trading dates, the strategy won't naturally enter the next phase.
+        This method calls next() in each prenext to ensure the strategy logic
+        runs continuously even during the minimum period warmup phase.
+        """
         self.next()
         # pass
 
     # Add corresponding strategy logic in next
     def next(self):
+        """Execute main strategy logic for each bar.
+
+        Implements the following trading logic:
+        1. Close existing long positions when price crosses below EMA1
+        2. Close existing short positions when price crosses above EMA1
+        3. Open long positions when EMA1 crosses above EMA2 with positive MACD
+        4. Open short positions when EMA1 crosses below EMA2 with negative MACD
+        5. Roll over positions when the dominant contract changes
+
+        The dominant contract is determined by the highest open interest.
+        """
         # Increment bar_num by 1 each time it runs and update trading day
         self.current_date = bt.num2date(self.datas[0].datetime[0])
         self.bar_num += 1
@@ -137,7 +191,22 @@ class TreasuryFuturesMacdStrategy(bt.Strategy):
                 self.holding_contract_name = dominant_contract
 
     def get_dominant_contract(self):
+        """Determine the dominant futures contract based on open interest.
 
+        The dominant contract is defined as the contract with the highest open
+        interest among all contracts currently trading. This method iterates
+        through all data feeds (excluding the index contract at position 0),
+        checks which contracts have data for the current date, and returns
+        the name of the contract with the highest open interest.
+
+        Returns:
+            str: The name of the dominant contract (data feed name).
+
+        Note:
+            This implementation can be customized to define dominant contracts
+            differently based on specific requirements (e.g., volume, trading
+            activity, or custom criteria).
+        """
         # Use contract with largest open interest as dominant contract, return data name
         # Can define how to calculate dominant contract according to needs
 
@@ -159,7 +228,19 @@ class TreasuryFuturesMacdStrategy(bt.Strategy):
         return target_datas[-1][0]
 
     def notify_order(self, order):
+        """Handle order status updates and log order events.
 
+        This method is called by the broker whenever an order's status changes.
+        It logs various order events including submission, acceptance, rejection,
+        margin calls, cancellation, partial fills, and completion.
+
+        Args:
+            order (backtrader.Order): The order object with updated status.
+
+        Note:
+            Orders in Submitted or Accepted status are ignored as they are
+            still pending execution.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -185,6 +266,19 @@ class TreasuryFuturesMacdStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
+        """Handle trade lifecycle events and log trade information.
+
+        This method is called whenever a trade is opened or closed. It logs
+        the trade details including symbol, profit/loss, and net profit
+        after commissions.
+
+        Args:
+            trade (backtrader.Trade): The trade object with updated status.
+
+        Note:
+            Only closed trades show profit/loss. Open trades only show the
+            entry price information.
+        """
         # Output information when a trade ends
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
@@ -196,6 +290,12 @@ class TreasuryFuturesMacdStrategy(bt.Strategy):
                 trade.getdataname(), trade.price))
 
     def stop(self):
+        """Log final strategy statistics when backtesting completes.
+
+        This method is called at the end of the backtest to log summary
+        statistics including the total number of bars processed and the
+        count of buy and sell orders executed.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 
@@ -209,7 +309,7 @@ def load_futures_data(variety: str = "T"):
         index_df: Index contract DataFrame
         data: Original data DataFrame
     """
-    data = pd.read_csv(resolve_data_path("CFFEX Futures Contract Data.csv"), index_col=0)
+    data = pd.read_csv(resolve_data_path("CFFEX_Futures_Contract_Data.csv"), index_col=0)
     data = data[data['variety'] == variety]
     data['datetime'] = pd.to_datetime(data['date'], format="%Y%m%d")
     data = data.dropna()

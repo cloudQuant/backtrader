@@ -18,6 +18,23 @@
 #
 ###############################################################################
 
+"""Test module for the Stochastic oscillator indicator.
+
+This module contains tests for the Stochastic technical indicator, which is a
+momentum indicator that shows the location of the close relative to the
+high-low range over a set period of time. The Stochastic oscillator is
+commonly used to identify overbought and oversold conditions.
+
+The test validates that the Stochastic indicator produces expected values
+at specific checkpoint bars when run with default parameters.
+
+Module-level constants:
+    chkdatas: Number of data feeds to use in the test.
+    chkvals: Expected values for the Stochastic lines (percK, percD, percSlowK)
+        at specific checkpoints. Each row contains values for one checkpoint.
+    chkmin: Expected minimum period before the indicator produces valid values.
+    chkind: The Stochastic indicator class being tested.
+"""
 
 import backtrader as bt
 
@@ -36,6 +53,25 @@ chkind = btind.Stochastic
 
 
 def test_run(main=False):
+    """Run the Stochastic indicator test.
+
+    This function executes the Stochastic indicator test by loading test data,
+    running the backtest with a TestStrategy that creates the indicator,
+    and validating that the computed values match the expected values at
+    checkpoint bars.
+
+    Args:
+        main (bool, optional): If True, enable plotting mode for visual
+            inspection. Defaults to False.
+
+    Returns:
+        None. The function runs the test and raises exceptions if validation
+            fails.
+
+    Raises:
+        AssertionError: If the computed indicator values do not match the
+            expected values at the checkpoint bars.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

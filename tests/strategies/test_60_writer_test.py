@@ -16,6 +16,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching common locations.
+
+    This function searches for a data file in several standard locations
+    relative to the test directory, including the current directory,
+    parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -44,6 +60,12 @@ class WriterTestStrategy(bt.Strategy):
     params = (('period', 15),)
 
     def __init__(self):
+        """Initialize the WriterTestStrategy.
+
+        Sets up the Simple Moving Average (SMA) indicator and the crossover
+        indicator that tracks when the price crosses above or below the SMA.
+        Also initializes counters for tracking bars, buy orders, and sell orders.
+        """
         sma = bt.ind.SMA(self.data, period=self.p.period)
         self.crossover = bt.ind.CrossOver(self.data.close, sma)
         self.bar_num = 0
@@ -51,6 +73,15 @@ class WriterTestStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status changes and update trade counters.
+
+        This method is called by the backtrader engine whenever an order's
+        status changes. It tracks completed buy and sell orders by incrementing
+        the respective counters.
+
+        Args:
+            order: The order object whose status has changed.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -58,6 +89,15 @@ class WriterTestStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def next(self):
+        """Execute the trading logic for each bar.
+
+        This method is called for each bar in the data feed. It implements
+        a simple crossover strategy:
+        - Buy when price crosses above the SMA (crossover > 0)
+        - Close position when price crosses below the SMA (crossover < 0)
+
+        The bar counter is incremented on each call.
+        """
         self.bar_num += 1
         if self.crossover > 0 and not self.position:
             self.buy()
@@ -69,7 +109,15 @@ def test_writer():
     """Test Writer output functionality.
 
     This function tests the Writer functionality by running a backtest
-    with a price-SMA crossover strategy and verifying the results.
+    with a price-SMA crossover strategy and verifying the results. It sets up
+    a Cerebro engine with data, strategy, and multiple analyzers, then runs
+    the backtest and validates the output against expected values.
+
+    Raises:
+        AssertionError: If any of the backtest results do not match the
+            expected values for bar count, final portfolio value, Sharpe ratio,
+            annual return, maximum drawdown, or total trades.
+        FileNotFoundError: If the required data file cannot be found.
     """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)

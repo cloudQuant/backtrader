@@ -2,8 +2,17 @@
 # -*- coding: utf-8 -*-
 """Test case for Volume Breakout Strategy.
 
+This module implements and tests a volume breakout trading strategy that uses
+volume spikes combined with RSI indicators for entry and exit signals. The
+strategy enters long positions when volume exceeds a moving average threshold
+and exits when RSI becomes overbought or a maximum holding period is reached.
+
 Reference: backtrader_NUPL_strategy/hope/Hope_vol.py
-Uses volume breakout combined with MACD and RSI for entry signals.
+
+The test validates strategy performance using Oracle (ORCL) historical data
+from 2010-2014, checking that the strategy produces consistent results with
+expected performance metrics including Sharpe ratio, annual returns, and
+maximum drawdown.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -16,6 +25,28 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the absolute path of a data file by searching common directories.
+
+    This function searches for a data file in multiple common locations relative
+    to the test directory, including the current directory, parent directory,
+    and 'datas' subdirectories. This allows tests to find data files regardless
+    of how the test suite is executed.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the first found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched directories.
+
+    Examples:
+        >>> path = resolve_data_path("orcl-1995-2014.txt")
+        >>> print(path)
+        /path/to/tests/datas/orcl-1995-2014.txt
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -29,22 +60,36 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class VolumeBreakoutStrategy(bt.Strategy):
-    """Volume Breakout Strategy.
+    """A momentum-based trading strategy using volume breakout signals.
 
-    Entry conditions:
-        - Long: Volume > N-day average volume * multiplier
+    This strategy identifies potential breakouts by monitoring volume spikes
+    relative to a moving average. When volume exceeds the threshold, it enters
+    a long position expecting continued momentum. Exit signals are based on
+    RSI overbought conditions or a maximum holding period.
 
-    Exit conditions:
-        - RSI > 70
+    Entry Logic:
+        - Long entry: Current volume > N-day volume SMA * multiplier
+        - This identifies unusual trading activity that may precede price moves
+
+    Exit Logic:
+        - RSI exit: RSI > threshold (default 70) indicating overbought conditions
+        - Time exit: Position held for more than 5 bars
 
     Attributes:
-        vol_ma: Simple moving average of volume.
-        rsi: Relative Strength Index indicator.
-        order: Current pending order.
-        bar_num: Total number of bars processed.
-        bar_executed: Bar number when last order was executed.
-        buy_count: Total number of buy orders executed.
-        sell_count: Total number of sell orders executed.
+        vol_ma: Simple moving average of volume for the specified period.
+        rsi: Relative Strength Index indicator for exit signals.
+        order: Current pending order object (None if no pending order).
+        bar_num: Total number of bars processed during the backtest.
+        bar_executed: Bar number when the last order was executed.
+        buy_count: Total number of buy orders executed during the backtest.
+        sell_count: Total number of sell orders executed during the backtest.
+
+    Parameters:
+        stake: Number of shares/contracts per trade (default: 10).
+        vol_period: Period for volume moving average (default: 20).
+        vol_mult: Volume multiplier for breakout signal (default: 1.05).
+        rsi_period: Period for RSI calculation (default: 14).
+        rsi_exit: RSI threshold for exit signal (default: 70).
     """
     params = dict(
         stake=10,
@@ -55,9 +100,15 @@ class VolumeBreakoutStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the VolumeBreakoutStrategy with indicators and tracking variables.
+
+        Sets up the technical indicators (volume SMA and RSI) and initializes
+        variables for tracking orders and trade statistics. Indicators are
+        automatically registered with the strategy by backtrader.
+        """
         self.vol_ma = bt.indicators.SMA(self.data.volume, period=self.p.vol_period)
         self.rsi = bt.indicators.RSI(self.data, period=self.p.rsi_period)
-        
+
         self.order = None
         self.bar_num = 0
         self.bar_executed = 0
@@ -65,10 +116,15 @@ class VolumeBreakoutStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
-        """Handle order notification updates.
+        """Handle order status updates from the broker.
+
+        This method is called by backtrader whenever an order's status changes.
+        It tracks completed orders to maintain buy/sell statistics and clears
+        the pending order reference when the order is complete or cancelled.
 
         Args:
-            order: The order object with status updates.
+            order: The order object containing status and execution details.
+                Status can be Submitted, Accepted, Completed, or Cancelled.
         """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
@@ -81,18 +137,30 @@ class VolumeBreakoutStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
-        """Execute trading logic for each bar."""
+        """Execute the main trading logic for each bar.
+
+        This method is called by backtrader for every new bar of data. It implements
+        the core trading logic:
+
+        1. Increments the bar counter
+        2. Checks if there's a pending order (no action if pending)
+        3. If not in position: checks for volume breakout signal to enter long
+        4. If in position: checks for exit conditions (RSI overbought or time exit)
+
+        The strategy only takes long positions and enters when volume spikes above
+        the moving average threshold, expecting continued momentum.
+        """
         self.bar_num += 1
 
         if self.order:
             return
 
         if not self.position:
-            # Volume breakout (simplified condition)
+            # Volume breakout condition for entry
             if self.data.volume[0] > self.vol_ma[0] * self.p.vol_mult:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # RSI overbought or holding for more than 5 days
+            # Exit conditions: RSI overbought or maximum holding period reached
             if self.rsi[0] > self.p.rsi_exit or len(self) > self.bar_executed + 5:
                 self.order = self.close()
 
@@ -100,13 +168,27 @@ class VolumeBreakoutStrategy(bt.Strategy):
 def test_volume_breakout_strategy():
     """Test the Volume Breakout strategy with historical data.
 
-    This test:
-        1. Loads Oracle stock data from 2010-2014
-        2. Runs the VolumeBreakoutStrategy backtest
-        3. Validates performance metrics against expected values
+    This test validates that the VolumeBreakoutStrategy produces consistent
+    and expected results when run on Oracle (ORCL) historical stock data.
+    The test performs the following steps:
+
+    1. Loads Oracle stock data from 2010-2014 from a CSV file
+    2. Configures a Cerebro backtesting engine with the strategy
+    3. Sets initial capital to $100,000 and commission to 0.1%
+    4. Adds performance analyzers (Sharpe Ratio, Returns, Drawdown)
+    5. Runs the backtest and extracts performance metrics
+    6. Validates metrics against expected values with precise tolerances
+
+    The test ensures that changes to the backtrader framework do not
+    inadvertently break existing strategy behavior.
 
     Raises:
-        AssertionError: If any metric deviates from expected values.
+        AssertionError: If any performance metric deviates from expected values.
+            Tolerances: 0.01 for final_value, 1e-6 for other metrics.
+
+    Note:
+        Expected values are based on the reference implementation and
+        may need adjustment if the strategy logic or data source changes.
     """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")

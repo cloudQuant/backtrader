@@ -16,6 +16,21 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve data file path by searching common directory locations.
+
+    Searches for data files in multiple directories including the current
+    file's directory, parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any
+            of the search locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -48,6 +63,11 @@ class TripleEmaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Triple EMA strategy.
+
+        Sets up the three EMA indicators with different periods and
+        initializes tracking variables for order management and statistics.
+        """
         self.ema_fast = bt.indicators.EMA(self.data, period=self.p.fast)
         self.ema_mid = bt.indicators.EMA(self.data, period=self.p.mid)
         self.ema_slow = bt.indicators.EMA(self.data, period=self.p.slow)
@@ -58,6 +78,14 @@ class TripleEmaStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Updates buy/sell counters when orders complete and clears the
+        pending order reference.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -68,6 +96,13 @@ class TripleEmaStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the triple EMA trend-following strategy:
+        - Enter long when EMA5 > EMA10 > EMA20 (bullish alignment)
+        - Exit long when EMA5 < EMA10 < EMA20 (bearish alignment)
+        - Only one position at a time (no pyramiding)
+        """
         self.bar_num += 1
 
         if self.order:
@@ -84,6 +119,21 @@ class TripleEmaStrategy(bt.Strategy):
 
 
 def test_triple_ema_strategy():
+    """Test the Triple EMA strategy implementation.
+
+    Sets up a backtest with Oracle data from 2010-2014, runs the strategy,
+    and validates the results against expected values.
+
+    The test validates:
+        - bar_num: 1238
+        - final_value: ~100065.31
+        - sharpe_ratio: ~0.376
+        - annual_return: ~0.00013
+        - max_drawdown: ~0.095
+
+    Raises:
+        AssertionError: If any of the validation checks fail.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(

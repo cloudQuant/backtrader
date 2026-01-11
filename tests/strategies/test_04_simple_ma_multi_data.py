@@ -1,27 +1,39 @@
 #!/usr/bin/env python
-
-import backtrader as bt
 """
-Test case for multi-data source simple moving average strategy
+Test case for multi-data source simple moving average strategy.
 
-Tests a multi-asset moving average crossover strategy using convertible bond data:
-- Buy when price rises above 60-day moving average
-- Sell when price falls below 60-day moving average
-- Backtest using the first 100 convertible bonds
+This module tests a multi-asset moving average crossover strategy using convertible
+bond data. The strategy implements a simple trend-following approach where positions
+are taken when price crosses above or below a moving average.
+
+Strategy Logic:
+    - Buy signal: Price rises above 60-day moving average
+    - Sell signal: Price falls below 60-day moving average
+    - Equal weight allocation across all tradable convertible bonds
+    - First data source serves as date alignment index (not traded)
 
 Usage:
-    python tests/strategies/test_04_simple_ma_multi_data.py
-    pytest tests/strategies/test_04_simple_ma_multi_data.py -v
+    Direct execution:
+        python tests/strategies/test_04_simple_ma_multi_data.py
+
+    Via pytest:
+        pytest tests/strategies/test_04_simple_ma_multi_data.py -v
+
+Example:
+    >>> from tests.strategies.test_04_simple_ma_multi_data import run_strategy
+    >>> cerebro, results, metrics = run_strategy(max_bonds=30)
+    >>> print(f"Return: {metrics['return_rate']:.2f}%")
 """
 
 import os
 import warnings
 
+import backtrader as bt
 import pandas as pd
 
 from backtrader.cerebro import Cerebro
-from backtrader.strategy import Strategy
 from backtrader.feeds import PandasData
+from backtrader.strategy import Strategy
 import backtrader.indicators as btind
 
 warnings.filterwarnings("ignore")
@@ -38,7 +50,35 @@ DATA_DIR = os.path.join(TESTS_DIR, "datas")
 
 
 class ExtendPandasFeed(PandasData):
-    """Extended Pandas data feed with convertible bond-specific fields"""
+    """Extended Pandas data feed with convertible bond-specific fields.
+
+    This data feed extends the standard PandasData to include additional
+    fields specific to convertible bonds, allowing for more comprehensive
+    analysis and strategy development.
+
+    Lines:
+        pure_bond_value: Pure bond value of the convertible bond
+        convert_value: Conversion value of the bond
+        pure_bond_premium_rate: Premium rate of pure bond value
+        convert_premium_rate: Premium rate of conversion value
+
+    Params:
+        datetime: Column name or index for datetime values
+        open: Column name or index for open prices
+        high: Column name or index for high prices
+        low: Column name or index for low prices
+        close: Column name or index for close prices
+        volume: Column name or index for volume data
+        openinterest: Column name or index for open interest
+        pure_bond_value: Column index for pure bond value (field 5)
+        convert_value: Column index for conversion value (field 6)
+        pure_bond_premium_rate: Column index for pure bond premium rate (field 7)
+        convert_premium_rate: Column index for conversion premium rate (field 8)
+
+    Note:
+        Column indices 0-4 are reserved for standard OHLCV data.
+        Convertible bond-specific fields start at index 5.
+    """
 
     params = (
         ("datetime", None),
@@ -62,13 +102,38 @@ class ExtendPandasFeed(PandasData):
 
 
 class SimpleMAMultiDataStrategy(bt.Strategy):
-    """
-    Multi-data source simple moving average strategy
+    """Multi-data source simple moving average crossover strategy.
 
-    Strategy logic:
-    - Buy when price rises above 60-day moving average
-    - Sell when price falls below 60-day moving average
-    - First data is index used for date alignment, not for trading
+    This strategy implements a trend-following approach using moving average
+    crossovers across multiple convertible bonds simultaneously. It maintains
+    equal weight positions across all tradable assets.
+
+    Strategy Logic:
+        1. Calculate 60-day simple moving average for each convertible bond
+        2. Buy when price crosses above the moving average (uptrend signal)
+        3. Sell when price crosses below the moving average (downtrend signal)
+        4. Allocate equal portfolio weight to each tradable bond
+
+    Data Source Handling:
+        - First data source (index=0): Used for date alignment only, not traded
+        - Data sources (index=1+): Individual convertible bonds for trading
+
+    Position Management:
+        - Tracks pending orders to prevent duplicate position entries
+        - Cancels pending buy orders when sell signal is triggered
+        - Trades in round lots of 10 shares (convertible bond convention)
+
+    Attributes:
+        bar_num (int): Counter for total bars processed
+        buy_count (int): Total buy orders placed
+        sell_count (int): Total sell orders placed
+        stock_ma_dict (dict): Mapping of bond names to MA indicators
+        position_dict (dict): Mapping of bond names to pending orders
+        stock_dict (dict): Set of tradable bond names
+
+    Params:
+        period (int): Moving average period (default: 60 days)
+        verbose (bool): Enable detailed logging output (default: False)
     """
 
     params = (
@@ -77,12 +142,41 @@ class SimpleMAMultiDataStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
-        """Log output"""
+        """Log strategy messages to console.
+
+        Outputs formatted log messages when verbose mode is enabled.
+        Messages include timestamp and custom text.
+
+        Args:
+            txt (str): Message text to log
+            dt (datetime.datetime, optional): Datetime object for timestamp.
+                If None, uses current bar's datetime from first data source.
+
+        Note:
+            Only outputs when self.p.verbose is True.
+        """
         if self.p.verbose:
             dt = dt or self.datas[0].datetime.date(0)
             print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
+        """Initialize the strategy with indicators and tracking variables.
+
+        Sets up the moving average indicators for each convertible bond and
+        initializes tracking dictionaries for positions and orders.
+
+        Key initialization steps:
+            1. Initialize counters for bars, buys, and sells
+            2. Create SimpleMovingAverage indicator for each bond (skipping index)
+            3. Attach indicators to strategy to ensure proper owner registration
+            4. Initialize position tracking dictionaries
+
+        Note:
+            Indicators are attached via setattr() to trigger LineSeries.__setattr__,
+            which corrects the _owner attribute from MinimalOwner to the current
+            strategy and adds the indicator to strategy._lineiterators for proper
+            updating during _next() calls.
+        """
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -103,9 +197,49 @@ class SimpleMAMultiDataStrategy(bt.Strategy):
         self.stock_dict = {}
 
     def prenext(self):
+        """Handle prenext phase by calling next().
+
+        The prenext phase occurs before the minimum period requirement is met.
+        This strategy bypasses the warm-up period by directly calling next()
+        to begin processing immediately.
+
+        Note:
+            This allows the strategy to start trading before all indicators
+            have enough data, which is handled by checking indicator length
+            in the next() method.
+        """
         self.next()
 
     def next(self):
+        """Execute strategy logic for each bar.
+
+        Main strategy execution method called for each bar. Implements the
+        moving average crossover logic across all convertible bonds.
+
+        Algorithm:
+            1. Update bar counter and retrieve current date from index
+            2. Calculate portfolio statistics (total value, available cash)
+            3. Identify all tradable bonds for current date
+            4. Calculate position size based on equal-weight allocation
+            5. For each bond:
+               - Check if moving average crossover signal exists
+               - Execute sell order if price crosses below MA (close long)
+               - Execute buy order if price crosses above MA (open long)
+               - Handle pending order cancellation on signal reversal
+
+        Position Sizing:
+            - Allocates equal weight to all tradable bonds
+            - Calculates size as: (total_value / num_bonds) / close_price
+            - Rounds down to nearest multiple of 10 shares
+
+        Signal Logic:
+            - Buy: previous_close < previous_ma AND current_close > current_ma
+            - Sell: previous_close > previous_ma AND current_close < current_ma
+
+        Note:
+            Skips bonds with insufficient data (less than period + 1 bars)
+            or invalid moving average values (NaN, zero, or negative).
+        """
         self.bar_num += 1
 
         # Current trading day
@@ -191,6 +325,25 @@ class SimpleMAMultiDataStrategy(bt.Strategy):
                         self.buy_count += 1
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called by the broker when an order's status changes. Logs order
+        execution details and handles order status notifications.
+
+        Args:
+            order (backtrader.Order): Order object with updated status
+
+        Order Statuses Handled:
+            - Submitted: Order submitted to broker (no action)
+            - Accepted: Order accepted by broker (no action)
+            - Rejected: Order rejected (logs rejection)
+            - Margin: Margin requirement not met (logs margin issue)
+            - Cancelled: Order cancelled (logs cancellation)
+            - Completed: Order filled (logs execution price and direction)
+
+        Note:
+            Uses self.log() which only outputs when verbose mode is enabled.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -207,6 +360,25 @@ class SimpleMAMultiDataStrategy(bt.Strategy):
                 self.log(f"SELL: {order.p.data._name} @ {order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade lifecycle events.
+
+        Called when a trade is opened or closed. Logs trade details
+        including profit and loss information.
+
+        Args:
+            trade (backtrader.Trade): Trade object with status and P&L info
+
+        Trade States Logged:
+            - Open: Trade just opened with entry price
+            - Closed: Trade closed with total and net P&L (after commissions)
+
+        Output Format:
+            - Open: "Trade opened: {bond_name} @ {price:.2f}"
+            - Closed: "Trade closed: {bond_name}, PnL: {total:.2f}, Net: {net:.2f}"
+
+        Note:
+            Only logs when verbose mode is enabled via self.log().
+        """
         if trade.isclosed:
             self.log(
                 f"Trade closed: {trade.getdataname()}, PnL: {trade.pnl:.2f}, Net: {trade.pnlcomm:.2f}"
@@ -215,6 +387,19 @@ class SimpleMAMultiDataStrategy(bt.Strategy):
             self.log(f"Trade opened: {trade.getdataname()} @ {trade.price:.2f}")
 
     def stop(self):
+        """Print strategy completion statistics.
+
+        Called after backtest completion. Outputs summary statistics
+        including total bars processed and order counts.
+
+        Outputs:
+            - bar_num: Total number of bars processed
+            - buy_count: Total number of buy orders placed
+            - sell_count: Total number of sell orders placed
+
+        Note:
+            This output always occurs regardless of verbose setting.
+        """
         print(
             f"Strategy ended: bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}"
         )
@@ -226,7 +411,31 @@ class SimpleMAMultiDataStrategy(bt.Strategy):
 
 
 def load_index_data(csv_file):
-    """Load index data"""
+    """Load index data from CSV file for date alignment.
+
+    Reads a CSV file containing index data and processes it for use
+    as the primary date alignment source in multi-data strategies.
+
+    Args:
+        csv_file (str): Path to CSV file containing index data
+
+    Returns:
+        pandas.DataFrame: Processed dataframe with datetime index
+            - Index: Datetime values parsed from 'datetime' column
+            - Columns: Float64 data columns (OHLCV format)
+            - Rows: Cleaned data with NaN values dropped
+
+    Processing Steps:
+        1. Read CSV file
+        2. Convert 'datetime' column to datetime objects
+        3. Set datetime column as index
+        4. Drop any rows with missing values
+        5. Convert all columns to float dtype
+
+    Example:
+        >>> df = load_index_data('bond_index_000000.csv')
+        >>> print(df.head())
+    """
     df = pd.read_csv(csv_file)
     df["datetime"] = pd.to_datetime(df["datetime"])
     df = df.set_index("datetime")
@@ -236,15 +445,41 @@ def load_index_data(csv_file):
 
 
 def load_bond_data_multi(csv_file, max_bonds=100):
-    """
-    Load multiple convertible bond data
+    """Load multiple convertible bond data from merged CSV file.
+
+    Reads a CSV file containing merged data for multiple convertible bonds
+    and splits it into individual DataFrames by bond code. Filters bonds
+    by minimum data length requirement.
 
     Args:
-        csv_file: Merged convertible bond data CSV file
-        max_bonds: Maximum number of convertible bonds to load
+        csv_file (str): Path to merged convertible bond CSV file with columns:
+            - BOND_CODE: Unique bond identifier
+            - BOND_SYMBOL: Bond symbol/ticker
+            - datetime: Date/time of data point
+            - open, high, low, close: Price data
+            - volume: Trading volume
+            - pure_bond_value: Pure bond valuation
+            - convert_value: Conversion value
+            - pure_bond_premium_rate: Premium rate over pure bond value
+            - convert_premium_rate: Premium rate over conversion value
+        max_bonds (int, optional): Maximum number of bonds to load.
+            Defaults to 100.
 
     Returns:
-        dict: {bond_code: DataFrame}
+        dict: Dictionary mapping bond codes to DataFrames
+            - Key: Bond code (string)
+            - Value: DataFrame with datetime index and float64 columns
+
+    Filtering:
+        - Only includes bonds with at least 60 data points
+        - Removes BOND_CODE and BOND_SYMBOL columns from output
+        - Drops rows with missing values
+        - Converts all columns to float dtype
+
+    Example:
+        >>> bonds = load_bond_data_multi('bond_merged_all_data.csv', max_bonds=30)
+        >>> print(f"Loaded {len(bonds)} bonds")
+        >>> print(f"Bond codes: {list(bonds.keys())}")
     """
     df = pd.read_csv(csv_file)
     df.columns = [
@@ -287,17 +522,60 @@ def load_bond_data_multi(csv_file, max_bonds=100):
 
 
 def run_strategy(max_bonds=100, initial_cash=10000000.0, commission=0.0002, verbose=False):
-    """
-    Run multi-data source moving average strategy backtest
+    """Run multi-data source moving average strategy backtest.
+
+    Creates and executes a complete backtest of the simple moving average
+    crossover strategy across multiple convertible bonds with full
+    performance analysis.
 
     Args:
-        max_bonds: Maximum number of convertible bonds
-        initial_cash: Initial capital
-        commission: Commission rate
-        verbose: Whether to print detailed logs
+        max_bonds (int, optional): Maximum number of convertible bonds to load.
+            Defaults to 100.
+        initial_cash (float, optional): Starting capital for the backtest.
+            Defaults to 10,000,000.0.
+        commission (float, optional): Commission rate as a decimal (e.g., 0.0002 = 0.02%).
+            Defaults to 0.0002.
+        verbose (bool, optional): Enable detailed strategy logging.
+            Defaults to False.
 
     Returns:
-        tuple: (cerebro, results, metrics)
+        tuple: A tuple containing:
+            - cerebro (backtrader.Cerebro): The cerebro engine instance
+            - results (list): List of strategy instances from backtest
+            - metrics (dict): Dictionary of performance metrics including:
+                * bar_num (int): Total bars processed
+                * buy_count (int): Total buy orders placed
+                * sell_count (int): Total sell orders placed
+                * final_value (float): Final portfolio value
+                * total_profit (float): Absolute profit (final - initial)
+                * return_rate (float): Percentage return
+                * sharpe_ratio (float): Sharpe ratio
+                * annual_return (float): Annualized return
+                * max_drawdown (float): Maximum drawdown percentage
+                * total_trades (int): Total completed trades
+                * initial_cash (float): Initial capital
+                * bonds_loaded (int): Number of bonds loaded
+
+    Data Files Required:
+        - DATA_DIR/bond_index_000000.csv: Index data for date alignment
+        - DATA_DIR/bond_merged_all_data.csv: Merged convertible bond data
+
+    Analyzers Added:
+        - TotalValue: Portfolio value over time
+        - SharpeRatio: Risk-adjusted return metric
+        - Returns: Return statistics
+        - DrawDown: Drawdown analysis
+        - TradeAnalyzer: Trade statistics
+
+    Example:
+        >>> cerebro, results, metrics = run_strategy(
+        ...     max_bonds=30,
+        ...     initial_cash=1000000.0,
+        ...     commission=0.0001,
+        ...     verbose=True
+        ... )
+        >>> print(f"Return: {metrics['return_rate']:.2f}%")
+        >>> print(f"Sharpe: {metrics['sharpe_ratio']:.4f}")
     """
     cerebro = bt.Cerebro()
 
@@ -376,7 +654,32 @@ _test_results = None
 
 
 def get_test_results():
-    """Get backtest results (cached)"""
+    """Get backtest results with caching for test efficiency.
+
+    Retrieves or computes the backtest results for the multi-data moving
+    average strategy. Results are cached after first execution to avoid
+    redundant computation in multiple test calls.
+
+    Returns:
+        tuple: Cached backtest results from run_strategy():
+            - cerebro (backtrader.Cerebro): Cerebro engine instance
+            - results (list): Strategy instances from backtest
+            - metrics (dict): Performance metrics dictionary
+
+    Test Configuration:
+        - max_bonds: 30 (limited for faster test execution)
+        - initial_cash: 10,000,000.0
+        - commission: 0.0002 (0.02%)
+        - verbose: False (reduce output during testing)
+
+    Note:
+        Uses module-level _test_results variable for caching.
+        Cache persists for the lifetime of the Python process.
+
+    Example:
+        >>> cerebro, results, metrics = get_test_results()
+        >>> assert metrics['buy_count'] > 0
+    """
     global _test_results
     if _test_results is None:
         _test_results = run_strategy(
@@ -391,7 +694,40 @@ def get_test_results():
 
 
 def test_simple_ma_multi_data_strategy():
-    """Test multi-data source moving average strategy"""
+    """Test multi-data source moving average strategy execution and results.
+
+    Pytest-compatible test function that validates the strategy backtest
+    produces expected results. Ensures strategy logic is working correctly
+    by comparing actual metrics against expected values.
+
+    Test Validates:
+        - Data loading: Correct number of bonds loaded (30)
+        - Bar processing: Correct bar count (4434)
+        - Trading activity: Buy and sell order counts
+        - Trade execution: Total completed trades
+        - Performance metrics: Sharpe ratio, max drawdown, final value
+
+    Assertions:
+        Integer metrics (exact match):
+            - bonds_loaded == 30
+            - bar_num == 4434
+            - buy_count == 463
+            - sell_count == 450
+            - total_trades == 460
+
+        Float metrics (approximate match):
+            - sharpe_ratio ≈ 0.1920060395982071 (±1e-6)
+            - max_drawdown ≈ 17.7630% (±0.01%)
+            - final_value ≈ 14,535,803.03 (±1.0)
+
+    Raises:
+        AssertionError: If any metric does not match expected value
+
+    Example:
+        $ pytest tests/strategies/test_04_simple_ma_multi_data.py -v
+        ===== test session starts =====
+        tests/strategies/test_04_simple_ma_multi_data.py::test_simple_ma_multi_data_strategy PASSED
+    """
     cerebro, results, metrics = get_test_results()
 
     # Print results

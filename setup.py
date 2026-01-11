@@ -1,11 +1,24 @@
+"""Setup configuration for backtrader package.
+
+This module configures the build process for the backtrader quantitative trading
+framework, including C/Cython extension modules and package dependencies.
+"""
+
 import sys
 
-# import numpy as np  # 注释掉顶层导入
+# import numpy as np  # Commented out top-level import to avoid build-time dependency
 from setuptools import Extension, find_packages, setup
 
 
 def get_numpy_include():
-    """延迟导入numpy以避免构建时依赖问题"""
+    """Get numpy include directory for compilation.
+
+    This function performs lazy import of numpy to avoid build-time dependency
+    issues when numpy is not yet installed in the build environment.
+
+    Returns:
+        str: Path to numpy include directory, or empty string if numpy not available.
+    """
     try:
         import numpy as np
 
@@ -15,6 +28,14 @@ def get_numpy_include():
 
 
 def set_optimize_option(optimize_arg: int) -> str:
+    """Set optimization flag for different platforms.
+
+    Args:
+        optimize_arg: Optimization level (typically 0-3).
+
+    Returns:
+        str: Platform-specific optimization flag.
+    """
     if sys.platform == "win32":
         return f"/O{optimize_arg}"
     elif sys.platform == "linux":
@@ -26,6 +47,14 @@ def set_optimize_option(optimize_arg: int) -> str:
 
 
 def set_compile_args(compile_arg: str) -> str:
+    """Set compilation argument flag for different platforms.
+
+    Args:
+        compile_arg: Compilation argument to format.
+
+    Returns:
+        str: Platform-specific compilation flag.
+    """
     if sys.platform == "win32":
         return f"/{compile_arg}"
     elif sys.platform == "linux":
@@ -37,6 +66,14 @@ def set_compile_args(compile_arg: str) -> str:
 
 
 def set_extra_link_args(link_arg: str) -> str:
+    """Set linker argument flag for different platforms.
+
+    Args:
+        link_arg: Linker argument to format.
+
+    Returns:
+        str: Platform-specific linker flag.
+    """
     if sys.platform == "win32":
         return f"/{link_arg}"
     elif sys.platform == "linux":
@@ -48,6 +85,14 @@ def set_extra_link_args(link_arg: str) -> str:
 
 
 def set_cpp_version(cpp_version: str) -> str:
+    """Set C++ version standard flag for different platforms.
+
+    Args:
+        cpp_version: C++ version string (e.g., 'c++11', 'c++14').
+
+    Returns:
+        str: Platform-specific C++ version flag.
+    """
     if sys.platform == "win32":
         return f"-std:{cpp_version}"
     elif sys.platform == "linux":
@@ -58,12 +103,12 @@ def set_cpp_version(cpp_version: str) -> str:
         return f"-std={cpp_version}"
 
 
-# # 定义扩展模块
+# # Define extension modules for Cython/C++ compilation
 # extensions = [
 #     Extension(
-#         name='backtrader.utils.cal_performance_indicators.cal_metrics',  # 模块名称
-#         sources=['backtrader/utils/cal_performance_indicators/performance_pointer.pyx'],  # 源文件列表
-#         include_dirs=[get_numpy_include(), 'backtrader/utils/cal_performance_indicators'],  # 使用函数替代np.get_include()
+#         name='backtrader.utils.cal_performance_indicators.cal_metrics',  # Module name
+#         sources=['backtrader/utils/cal_performance_indicators/performance_pointer.pyx'],  # Source file list
+#         include_dirs=[get_numpy_include(), 'backtrader/utils/cal_performance_indicators'],  # Use function instead of np.get_include()
 #         language='c++',
 #         extra_compile_args=[
 #             set_optimize_option(2),
@@ -77,9 +122,9 @@ def set_cpp_version(cpp_version: str) -> str:
 #         ]
 #     ),
 #     Extension(
-#         name='backtrader.utils.cs_cal_value.cal_total_value_cython',  # 模块名称
-#         sources=['backtrader/utils/cs_cal_value/cal_by_cython.pyx'],  # 源文件列表
-#         include_dirs=[get_numpy_include(), 'backtrader/utils/cs_cal_value'],  # 使用函数替代np.get_include()
+#         name='backtrader.utils.cs_cal_value.cal_total_value_cython',  # Module name
+#         sources=['backtrader/utils/cs_cal_value/cal_by_cython.pyx'],  # Source file list
+#         include_dirs=[get_numpy_include(), 'backtrader/utils/cs_cal_value'],  # Use function instead of np.get_include()
 #         language='c++',
 #         extra_compile_args=[
 #             set_optimize_option(2),
@@ -93,9 +138,9 @@ def set_cpp_version(cpp_version: str) -> str:
 #         ]
 #     ),
 #     Extension(
-#         name='backtrader.utils.cs_long_short_signals.cal_long_short_signals',  # 模块名称
-#         sources=['backtrader/utils/cs_long_short_signals/cal_by_cython.pyx'],  # 源文件列表
-#         include_dirs=[get_numpy_include(), "backtrader/utils/cs_long_short_signals"],  # 使用函数替代np.get_include()
+#         name='backtrader.utils.cs_long_short_signals.cal_long_short_signals',  # Module name
+#         sources=['backtrader/utils/cs_long_short_signals/cal_by_cython.pyx'],  # Source file list
+#         include_dirs=[get_numpy_include(), "backtrader/utils/cs_long_short_signals"],  # Use function instead of np.get_include()
 #         language='c++',
 #         extra_compile_args=[
 #             set_optimize_option(2),
@@ -109,9 +154,9 @@ def set_cpp_version(cpp_version: str) -> str:
 #         ]
 #     ),
 #     Extension(
-#         name='backtrader.utils.ts_cal_value.cal_value_by_cython',  # 模块名称
-#         sources=['backtrader/utils/ts_cal_value/cal_by_cython.pyx'],  # 源文件列表
-#         include_dirs=[get_numpy_include(), 'backtrader/utils/ts_cal_value'],  # 使用函数替代np.get_include()
+#         name='backtrader.utils.ts_cal_value.cal_value_by_cython',  # Module name
+#         sources=['backtrader/utils/ts_cal_value/cal_by_cython.pyx'],  # Source file list
+#         include_dirs=[get_numpy_include(), 'backtrader/utils/ts_cal_value'],  # Use function instead of np.get_include()
 #         language='c++',
 #         extra_compile_args=[
 #             set_optimize_option(2),
@@ -125,33 +170,33 @@ def set_cpp_version(cpp_version: str) -> str:
 #         ]
 #     ),
 #
-#     # 添加其他扩展模块
+#     # Add other extension modules
 # ]
 
 extensions = []
 
 setup(
-    name="backtrader",  # 项目的名称
-    version="0.1",  # 版本号
+    name="backtrader",  # Project name
+    version="0.1",  # Version number
     packages=find_packages(exclude=["strategies", "studies"]),
     # package_data={'bt_alpha': ['bt_alpha/utils/*', 'utils/*']},
-    author="cloud",  # 作者名字
-    author_email="yunjinqi@qq.com",  # 作者邮箱
-    description="the cpp and cython version of backtrader",  # 项目描述
+    author="cloud",  # Author name
+    author_email="yunjinqi@qq.com",  # Author email
+    description="the cpp and cython version of backtrader",  # Project description
     long_description=open(
         "README.md", encoding="utf-8"
-    ).read(),  # 项目长描述（一般是 README 文件内容）
-    long_description_content_type="text/markdown",  # 长描述的内容类型
-    url="https://gitee.com/yunjinqi/backtrader.git",  # 项目的 URL
+    ).read(),  # Long description (usually README file content)
+    long_description_content_type="text/markdown",  # Long description content type
+    url="https://gitee.com/yunjinqi/backtrader.git",  # Project URL
     install_requires=[
-        "numpy>=1.20.0",  # 添加numpy依赖
+        "numpy>=1.20.0",  # Add numpy dependency
         "cython",
-        # 添加其他依赖项
-    ],  # 项目所需的依赖项列表
-    ext_modules=extensions,  # 添加扩展模块
+        # Add other dependencies
+    ],  # List of project dependencies
+    ext_modules=extensions,  # Add extension modules
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
-        # 可以根据需要添加其他分类器
-    ],  # 项目的分类器列表
+        # Add other classifiers as needed
+    ],  # Project classifiers list
 )

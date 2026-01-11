@@ -1,9 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-"""
-Report Generation Module Tests
+"""Report Generation Module Tests.
 
-Tests the report generation functionality added in iteration 44
+This module tests the report generation functionality that was added to backtrader
+to provide comprehensive performance analysis and visualization capabilities.
+
+Test Coverage:
+    - PerformanceCalculator: Calculates performance metrics from strategy results
+    - ReportChart: Generates visualization charts for equity, returns, drawdown
+    - ReportGenerator: Creates HTML and JSON reports with embedded charts
+    - Cerebro integration: add_report_analyzers() and generate_report() methods
+
+Features Tested:
+    - Import and instantiation of report components
+    - SQN (System Quality Number) to rating conversion
+    - Analyzer integration with Cerebro
+    - Strategy backtesting with report generation
+    - HTML report output with user/memo metadata
+    - JSON report output for programmatic access
+    - Summary printing functionality
+
+Dependencies:
+    - backtrader: Core backtesting framework
+    - backtrader.reports: Report generation module (tested here)
+    - NVDA stock data (nvda-1999-2014.txt) for integration tests
+
+Example:
+    >>> run_all_tests()
+    Report Generation Module Tests
+    ...
+    Test completed: 10 passed, 0 failed
 """
 
 import sys
@@ -18,19 +44,50 @@ import backtrader as bt
 
 
 class SMACrossStrategy(bt.Strategy):
-    """Simple Moving Average Crossover Strategy"""
-    
+    """Simple Moving Average Crossover Strategy.
+
+    A basic trend-following strategy that generates buy signals when the
+    fast moving average crosses above the slow moving average (golden cross)
+    and exit signals when the fast MA crosses below (death cross).
+
+    Attributes:
+        fast_sma (bt.indicators.SMA): Fast simple moving average (default period 10).
+        slow_sma (bt.indicators.SMA): Slow simple moving average (default period 30).
+        crossover (bt.indicators.CrossOver): Crossover indicator (+1 for bullish,
+            -1 for bearish, 0 for no crossover).
+
+    Parameters:
+        fast_period (int): Period for the fast moving average (default: 10).
+        slow_period (int): Period for the slow moving average (default: 30).
+
+    Entry Logic:
+        - Buy when fast SMA crosses above slow SMA (crossover > 0)
+        - Only enter if not already in position
+
+    Exit Logic:
+        - Close position when fast SMA crosses below slow SMA (crossover < 0)
+
+    Note:
+        This is a long-only strategy with no short selling. Used in tests
+        as a simple strategy to generate trades for report generation.
+    """
+
     params = (
         ('fast_period', 10),
         ('slow_period', 30),
     )
-    
+
     def __init__(self):
+        """Initialize SMA indicators and crossover detector."""
         self.fast_sma = bt.indicators.SMA(period=self.p.fast_period)
         self.slow_sma = bt.indicators.SMA(period=self.p.slow_period)
         self.crossover = bt.indicators.CrossOver(self.fast_sma, self.slow_sma)
-    
+
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements classic dual moving average crossover strategy.
+        """
         if not self.position:
             if self.crossover > 0:
                 self.buy()
@@ -39,7 +96,16 @@ class SMACrossStrategy(bt.Strategy):
 
 
 def test_performance_calculator_import():
-    """Test PerformanceCalculator import"""
+    """Test PerformanceCalculator import.
+
+    Verifies that the PerformanceCalculator class can be imported from the
+    backtrader.reports module. This class is responsible for calculating
+    performance metrics from backtest results.
+
+    Raises:
+        AssertionError: If PerformanceCalculator cannot be imported.
+        ImportError: If the backtrader.reports module is not available.
+    """
     from backtrader.reports import PerformanceCalculator
 
     assert PerformanceCalculator is not None
@@ -47,7 +113,20 @@ def test_performance_calculator_import():
 
 
 def test_report_chart_import():
-    """Test ReportChart import"""
+    """Test ReportChart import.
+
+    Verifies that the ReportChart class can be imported and has the required
+    methods for generating visualization charts. This class handles creation
+    of equity curves, return charts, and drawdown visualizations.
+
+    Raises:
+        AssertionError: If ReportChart is missing required methods.
+
+    Methods verified:
+        - plot_equity_curve: Generate equity over time chart
+        - plot_return_bars: Generate return distribution chart
+        - plot_drawdown: Generate underwater drawdown chart
+    """
     from backtrader.reports import ReportChart
 
     assert ReportChart is not None
@@ -59,7 +138,15 @@ def test_report_chart_import():
 
 
 def test_report_generator_import():
-    """Test ReportGenerator import"""
+    """Test ReportGenerator import.
+
+    Verifies that the ReportGenerator class can be imported. This class
+    orchestrates the creation of HTML and JSON reports with embedded
+    visualizations and performance metrics.
+
+    Raises:
+        AssertionError: If ReportGenerator cannot be imported.
+    """
     from backtrader.reports import ReportGenerator
 
     assert ReportGenerator is not None
@@ -67,7 +154,28 @@ def test_report_generator_import():
 
 
 def test_sqn_to_rating():
-    """Test SQN rating conversion"""
+    """Test SQN (System Quality Number) to rating conversion.
+
+    Tests the static method that converts numeric SQN values to descriptive
+    ratings based on Van Tharp's scale for evaluating trading system quality.
+
+    SQN Rating Scale (Van Tharp):
+        - < 1.0: Poor
+        - 1.0 - 1.9: Below Average
+        - 2.0 - 2.9: Average
+        - 3.0 - 4.9: Good
+        - 5.0 - 6.9: Excellent
+        - >= 7.0: Superb
+        - >= 7.5: Holy Grail (exceptional)
+
+    Test Cases:
+        - Boundary values at each rating level
+        - Edge case: None input (returns "N/A")
+        - Edge case: NaN input (returns "N/A")
+
+    Raises:
+        AssertionError: If SQN to rating mapping is incorrect.
+    """
     from backtrader.reports import PerformanceCalculator
 
     # Test ratings at each level
@@ -89,7 +197,25 @@ def test_sqn_to_rating():
 
 
 def test_cerebro_add_report_analyzers():
-    """Test Cerebro adding report analyzers"""
+    """Test Cerebro.add_report_analyzers() method.
+
+    Verifies that the add_report_analyzers() convenience method properly
+    attaches all necessary analyzers to the Cerebro instance for later
+    report generation.
+
+    Analyzers added:
+        - SharpeRatio: Risk-adjusted return metric
+        - Returns: Total and annualized returns
+        - DrawDown: Maximum drawdown analysis
+        - TradeAnalyzer: Trade statistics
+        - Returns (for SQN calculation): System Quality Number
+
+    Args:
+        riskfree_rate (float): Risk-free rate for Sharpe ratio calculation.
+
+    Raises:
+        AssertionError: If no analyzers are added to Cerebro.
+    """
     cerebro = bt.Cerebro()
 
     # Add report analyzers
@@ -102,7 +228,26 @@ def test_cerebro_add_report_analyzers():
 
 
 def test_integration_with_strategy():
-    """Test integration with strategy"""
+    """Test integration with strategy backtesting.
+
+    Performs an end-to-end integration test that:
+        1. Creates a Cerebro instance
+        2. Loads NVDA stock data (2000 full year)
+        3. Adds SMACrossStrategy
+        4. Attaches report analyzers
+        5. Runs backtest
+        6. Verifies PerformanceCalculator extracts metrics correctly
+
+    Validated Metrics:
+        - start_cash: Initial capital
+        - total_return: Total return percentage
+        - sharpe_ratio: Risk-adjusted return
+        - strategy_name: Strategy class name
+        - bars: Number of bars processed
+
+    Raises:
+        AssertionError: If metrics are missing or incorrect.
+    """
     from backtrader.reports import PerformanceCalculator, ReportGenerator
 
     # Create cerebro
@@ -113,7 +258,7 @@ def test_integration_with_strategy():
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping integration test")
         return
-    
+
     data = bt.feeds.GenericCSVData(
         dataname=data_path,
         dtformat='%Y-%m-%d',
@@ -163,7 +308,32 @@ def test_integration_with_strategy():
 
 
 def test_html_report_generation():
-    """Test HTML report generation"""
+    """Test HTML report generation.
+
+    Tests the creation of HTML reports with embedded visualizations and
+    performance metrics. Validates that the report contains expected
+    content and metadata.
+
+    Report Features:
+        - HTML formatted output
+        - Embedded base64 charts (equity, returns, drawdown)
+        - Performance metrics table
+        - User and memo metadata fields
+
+    Validation:
+        - File creation
+        - Content includes strategy name
+        - Content includes user metadata
+        - Content includes memo metadata
+
+    Args:
+        output_path (str): Temporary file path for report output.
+        user (str): User metadata field value.
+        memo (str): Memo/description metadata field value.
+
+    Raises:
+        AssertionError: If report generation fails or content is invalid.
+    """
     from backtrader.reports import ReportGenerator
 
     # Create cerebro
@@ -174,7 +344,7 @@ def test_html_report_generation():
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping HTML report test")
         return
-    
+
     data = bt.feeds.GenericCSVData(
         dataname=data_path,
         dtformat='%Y-%m-%d',
@@ -191,7 +361,7 @@ def test_html_report_generation():
     cerebro.adddata(data)
     cerebro.addstrategy(SMACrossStrategy)
     cerebro.add_report_analyzers()
-    
+
     results = cerebro.run()
 
     # Generate HTML report
@@ -219,7 +389,29 @@ def test_html_report_generation():
 
 
 def test_json_report_generation():
-    """Test JSON report generation"""
+    """Test JSON report generation.
+
+    Tests the creation of JSON reports for programmatic access to
+    backtest results. JSON format enables integration with other
+    tools and automated analysis pipelines.
+
+    Report Structure:
+        - strategy: Strategy metadata (name, parameters, etc.)
+        - metrics: Performance metrics dictionary
+        - data: Data feed information
+        - timestamp: Report generation timestamp
+
+    Validation:
+        - File creation
+        - Valid JSON structure
+        - Contains 'strategy' key
+        - Contains 'metrics' key
+        - Strategy name matches expected value
+
+    Raises:
+        AssertionError: If JSON generation fails or structure is invalid.
+        json.JSONDecodeError: If output is not valid JSON.
+    """
     from backtrader.reports import ReportGenerator
     import json
 
@@ -231,7 +423,7 @@ def test_json_report_generation():
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping JSON report test")
         return
-    
+
     data = bt.feeds.GenericCSVData(
         dataname=data_path,
         dtformat='%Y-%m-%d',
@@ -248,7 +440,7 @@ def test_json_report_generation():
     cerebro.adddata(data)
     cerebro.addstrategy(SMACrossStrategy)
     cerebro.add_report_analyzers()
-    
+
     results = cerebro.run()
 
     # Generate JSON report
@@ -276,7 +468,23 @@ def test_json_report_generation():
 
 
 def test_cerebro_generate_report():
-    """Test Cerebro.generate_report() method"""
+    """Test Cerebro.generate_report() convenience method.
+
+    Verifies that the Cerebro.generate_report() method works correctly
+    as a wrapper around ReportGenerator for easier report creation.
+
+    Method Signature:
+        generate_report(output_path, format='html', user=None, memo=None)
+
+    Args:
+        output_path (str): File path for report output.
+        format (str): Report format ('html' or 'json').
+        user (str, optional): User metadata field.
+        memo (str, optional): Memo/description metadata field.
+
+    Raises:
+        AssertionError: If report generation fails or content is invalid.
+    """
     # Create cerebro
     cerebro = bt.Cerebro()
 
@@ -285,7 +493,7 @@ def test_cerebro_generate_report():
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping Cerebro.generate_report test")
         return
-    
+
     data = bt.feeds.GenericCSVData(
         dataname=data_path,
         dtformat='%Y-%m-%d',
@@ -302,7 +510,7 @@ def test_cerebro_generate_report():
     cerebro.adddata(data)
     cerebro.addstrategy(SMACrossStrategy)
     cerebro.add_report_analyzers()
-    
+
     cerebro.run()
 
     # Test report generation through Cerebro
@@ -325,7 +533,26 @@ def test_cerebro_generate_report():
 
 
 def test_print_summary():
-    """Test printing summary"""
+    """Test printing summary to console.
+
+    Verifies that the print_summary() method executes without errors
+    and outputs performance metrics to stdout. This provides a quick
+    overview of backtest results in the console.
+
+    Output includes:
+        - Strategy name and parameters
+        - Return metrics (total, annualized)
+        - Risk metrics (Sharpe, drawdown)
+        - Trade statistics
+        - SQN rating
+
+    Note:
+        This test only verifies no exceptions are raised. Actual console
+        output is not validated.
+
+    Raises:
+        None: Errors during summary printing are caught and reported.
+    """
     from backtrader.reports import ReportGenerator
 
     # Create cerebro
@@ -336,7 +563,7 @@ def test_print_summary():
     if not os.path.exists(data_path):
         print("⚠ Test data file does not exist, skipping print summary test")
         return
-    
+
     data = bt.feeds.GenericCSVData(
         dataname=data_path,
         dtformat='%Y-%m-%d',
@@ -353,7 +580,7 @@ def test_print_summary():
     cerebro.adddata(data)
     cerebro.addstrategy(SMACrossStrategy)
     cerebro.add_report_analyzers()
-    
+
     results = cerebro.run()
 
     # Print summary
@@ -364,11 +591,30 @@ def test_print_summary():
 
 
 def run_all_tests():
-    """Run all tests"""
+    """Run all report generation module tests.
+
+    Executes all test functions in sequence, tracking pass/fail counts
+    and displaying progress. Tests that depend on NVDA data file will
+    be skipped if the file is not found.
+
+    Returns:
+        bool: True if all tests passed, False if any test failed.
+
+    Test Order:
+        1. Import tests (verify module availability)
+        2. Unit tests (SQN conversion, analyzer attachment)
+        3. Integration tests (strategy with reports)
+        4. Report generation tests (HTML, JSON)
+        5. Convenience method tests (Cerebro wrapper)
+        6. Output tests (summary printing)
+
+    Raises:
+        None: All exceptions are caught and counted as failures.
+    """
     print("=" * 60)
     print("Report Generation Module Tests")
     print("=" * 60)
-    
+
     tests = [
         test_performance_calculator_import,
         test_report_chart_import,
@@ -381,10 +627,10 @@ def run_all_tests():
         test_cerebro_generate_report,
         test_print_summary,
     ]
-    
+
     passed = 0
     failed = 0
-    
+
     for test in tests:
         print(f"\n--- {test.__name__} ---")
         try:
@@ -399,7 +645,7 @@ def run_all_tests():
     print("\n" + "=" * 60)
     print(f"Test completed: {passed} passed, {failed} failed")
     print("=" * 60)
-    
+
     return failed == 0
 
 

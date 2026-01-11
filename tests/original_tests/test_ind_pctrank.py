@@ -18,6 +18,31 @@
 #
 ###############################################################################
 
+"""Test module for the PercentRank indicator.
+
+This module contains test cases for the PercentRank (pctrank) indicator in
+backtrader. The PercentRank indicator calculates the percentile rank of a
+value within a given period, showing where the current value falls within
+the historical distribution.
+
+The test validates that the PercentRank indicator:
+* Calculates correct percentile rank values
+* Handles the minimum period requirement correctly
+* Produces expected output at specific checkpoints
+* Works correctly with the test data set
+
+Test Configuration:
+    Data Sources: Uses 1 data feed (2006-day-001.txt)
+    Indicator: backtrader.indicators.PercentRank
+    Minimum Period: 50 bars
+    Expected Values: Validated at specific checkpoints
+
+Module Constants:
+    chkdatas: Number of data feeds to use (1)
+    chkvals: Expected indicator values at test checkpoints
+    chkmin: Expected minimum period for the indicator (50)
+    chkind: The indicator class being tested (PercentRank)
+"""
 
 import backtrader as bt
 
@@ -35,6 +60,31 @@ chkind = btind.PercentRank
 
 
 def test_run(main=False):
+    """Run the PercentRank indicator test.
+
+    Executes a backtest using the TestStrategy with the PercentRank indicator
+    to validate that the indicator produces expected values. The test is run
+    with multiple configuration combinations (runonce, preload, exactbars)
+    to ensure compatibility across all execution modes.
+
+    The test loads data feeds, applies the PercentRank indicator with a
+    period of 50, and validates the calculated values against expected
+    results at specific checkpoints.
+
+    Args:
+        main (bool, optional): If True, enables plotting and verbose output.
+            Defaults to False, which runs the test in silent mode suitable
+            for automated testing.
+
+    Returns:
+        None. The function executes the test and implicitly validates results
+        through assertions in the TestStrategy.stop() method.
+
+    Raises:
+        AssertionError: If indicator values do not match expected results
+            at the defined checkpoints. This is raised during the strategy's
+            stop() method execution.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

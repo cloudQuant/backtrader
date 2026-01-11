@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Test Case: Mean Reversion SMA Strategy
+"""Mean Reversion SMA Strategy Test Module.
+
+This module implements and tests a mean reversion strategy based on Simple Moving
+Average (SMA). The strategy buys when the price drops below the SMA by a
+specified percentage threshold and sells when the price returns to the SMA.
 
 Reference: backtrader-strategies-compendium/strategies/MeanReversion.py
-Buy when price drops below SMA by a certain percentage, sell when it returns to SMA.
+
+Example:
+    To run the test::
+
+        python test_94_mean_reversion_sma_strategy.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -18,6 +25,27 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the absolute path to a test data file.
+
+    Searches for data files in multiple possible locations relative to the
+    test directory, including the current directory, parent directory,
+    and 'datas' subdirectories.
+
+    Args:
+        filename (str): The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+
+    Example:
+        >>> path = resolve_data_path("orcl-1995-2014.txt")
+        >>> print(path)
+        /path/to/tests/strategies/datas/orcl-1995-2014.txt
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -31,13 +59,36 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class MeanReversionSmaStrategy(bt.Strategy):
-    """Mean Reversion SMA Strategy.
+    """A mean reversion trading strategy based on Simple Moving Average (SMA).
+
+    This strategy implements a mean reversion approach by identifying when prices
+    deviate significantly from their SMA. It enters long positions when the price
+    drops below the SMA by a specified percentage threshold (dip_size) and exits
+    when the price returns to the SMA level.
 
     Entry Conditions:
         - Buy when price drops below SMA by more than dip_size percentage.
 
     Exit Conditions:
-        - Sell when price returns above SMA.
+        - Sell when price returns to or above SMA.
+
+    Attributes:
+        sma (bt.indicators.SMA): The Simple Moving Average indicator.
+        order (bt.Order): The current pending order, or None if no order is pending.
+        bar_num (int): Counter tracking the number of bars processed.
+        buy_count (int): Total number of buy orders executed.
+        sell_count (int): Total number of sell orders executed.
+
+    Args:
+        period (int): The period for the SMA calculation. Default is 20.
+        order_percentage (float): The percentage of available cash to use per
+            trade. Default is 0.95 (95%).
+        dip_size (float): The percentage drop below SMA required to trigger a
+            buy signal. Default is 0.025 (2.5%).
+
+    Example:
+        >>> cerebro = bt.Cerebro()
+        >>> cerebro.addstrategy(MeanReversionSmaStrategy, period=20, dip_size=0.03)
     """
     params = dict(
         period=20,
@@ -46,6 +97,11 @@ class MeanReversionSmaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the MeanReversionSmaStrategy.
+
+        Sets up the SMA indicator and initializes tracking variables for orders
+        and trade statistics.
+        """
         self.sma = bt.indicators.SMA(self.data, period=self.p.period)
         self.order = None
         self.bar_num = 0
@@ -53,11 +109,26 @@ class MeanReversionSmaStrategy(bt.Strategy):
         self.sell_count = 0
 
     def log(self, txt, dt=None):
-        """Logging function for this strategy."""
+        """Log a message with timestamp for strategy monitoring.
+
+        Args:
+            txt (str): The message text to log.
+            dt (datetime.datetime, optional): The datetime to use for the log
+                entry. If None, uses the current bar's datetime.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def notify_order(self, order):
+        """Handle order status updates and logging.
+
+        Called by the backtrader engine when an order changes status. Logs
+        order completion, rejection, cancellation, and other status changes.
+        Updates buy/sell counters when orders are completed.
+
+        Args:
+            order (bt.Order): The order object with updated status.
+        """
         if not order.alive():
             self.order = None
 
@@ -88,7 +159,14 @@ class MeanReversionSmaStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
-        """Log information when a trade is closed or opened."""
+        """Handle trade lifecycle events (open/close).
+
+        Called by the backtrader engine when a trade is opened or closed.
+        Logs profit/loss information when trades close.
+
+        Args:
+            trade (bt.Trade): The trade object with updated status.
+        """
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -99,11 +177,19 @@ class MeanReversionSmaStrategy(bt.Strategy):
                 trade.getdataname(), trade.price))
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by the backtrader engine for each bar. Implements
+        the mean reversion strategy logic:
+        1. If no position exists, check if price has dropped below SMA by
+           dip_size percentage and buy if so.
+        2. If a position exists, close it when price returns to SMA level.
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
             # Price drops below SMA by more than dip_size percentage
             dip_ratio = (self.data.close[0] / self.sma[0]) - 1
@@ -119,15 +205,40 @@ class MeanReversionSmaStrategy(bt.Strategy):
 
 
 def test_mean_reversion_sma_strategy():
-    """Test the Mean Reversion SMA strategy.
+    """Test the Mean Reversion SMA strategy with historical data.
 
-    This test:
-        1. Loads historical Oracle stock data from 2010-2014
-        2. Runs the Mean Reversion SMA strategy with default parameters
-        3. Validates performance metrics against expected values
+    This test function validates the MeanReversionSmaStrategy implementation by:
+        1. Loading historical Oracle stock data from 2010-2014
+        2. Running the strategy with default parameters (period=20, dip_size=0.025)
+        3. Calculating performance metrics (Sharpe ratio, annual return, drawdown)
+        4. Validating results against expected values with tight tolerances
+
+    The test uses:
+        - Initial cash: $100,000
+        - Commission: 0.1% per trade
+        - Data range: 2010-01-01 to 2014-12-31
+        - Expected final value: $172,375.61 (72.4% return)
 
     Raises:
-        AssertionError: If any of the performance metrics don't match expected values.
+        AssertionError: If any of the performance metrics don't match expected
+            values within specified tolerances. Final value tolerance is 0.01,
+            all other metrics tolerance is 1e-6.
+        FileNotFoundError: If the Oracle data file cannot be located.
+
+    Example:
+        >>> test_mean_reversion_sma_strategy()
+        ==================================================
+        Mean Reversion SMA Strategy Backtest Results:
+          bar_num: 1238
+          buy_count: 42
+          sell_count: 42
+          sharpe_ratio: 1.2716817661545428
+          annual_return: 0.11534195315155864
+          max_drawdown: 18.967205229875198
+          final_value: 172375.61
+        ==================================================
+
+        Test passed!
     """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")

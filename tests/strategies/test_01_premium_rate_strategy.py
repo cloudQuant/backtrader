@@ -1,11 +1,32 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Convertible bond premium rate moving average crossover strategy test.
+"""Convertible bond premium rate moving average crossover strategy test.
 
-Calculates moving averages using conversion premium rate. Buy when the
-short-term moving average crosses above the long-term moving average,
-and sell to close positions when it crosses below.
+This module tests a trading strategy that uses convertible bond conversion
+premium rates to generate trading signals. The strategy calculates moving
+averages on the conversion premium rate and executes trades based on
+crossover signals.
+
+Key Features:
+    - Uses ExtendPandasFeed to load convertible bond data with custom fields
+    - Implements PremiumRateCrossoverStrategy for dual moving average signals
+    - Tests strategy performance using 113013.csv convertible bond data
+    - Validates backtest results including Sharpe ratio, returns, and drawdown
+
+Trading Logic:
+    - Buy signal: Short-term MA crosses above long-term MA
+    - Sell signal: Short-term MA crosses below long-term MA (close position)
+    - Position sizing: 95% of available cash per trade
+    - Commission: 0.03% per trade
+
+Example:
+    >>> from tests.strategies.test_01_premium_rate_strategy import test_premium_rate_strategy
+    >>> test_premium_rate_strategy()
+    Loading convertible bond data...
+    Data range: 2020-01-02 00:00:00 to 2025-06-18 00:00:00, total 1384 records
+    Starting backtest...
+    ...
+    All tests passed!
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -24,14 +45,30 @@ BASE_DIR = Path(__file__).resolve().parent
 def resolve_data_path(filename: str) -> Path:
     """Locate data files based on the script directory to avoid relative path failures.
 
+    This function searches for data files in multiple predefined locations,
+    including the script directory, parent directory, and an optional
+    environment-specified data directory. This makes tests more robust
+    when run from different working directories.
+
     Args:
-        filename: Name of the data file to locate.
+        filename (str): Name of the data file to locate (e.g., "113013.csv").
 
     Returns:
-        Path: Absolute path to the located data file.
+        Path: Absolute path to the located data file as a pathlib.Path object.
 
     Raises:
         FileNotFoundError: If the data file cannot be found in any search path.
+            The error message includes the filename being searched for.
+
+    Search Paths:
+        1. Script directory: tests/strategies/{filename}
+        2. Parent directory: tests/{filename}
+        3. Datas directory: tests/datas/{filename}
+        4. Environment directory: {BACKTRADER_DATA_DIR}/{filename} (if set)
+
+    Example:
+        >>> resolve_data_path("113013.csv")
+        PosixPath('/path/to/backtrader/tests/strategies/113013.csv')
     """
     search_paths = [
         BASE_DIR / filename,
@@ -53,12 +90,36 @@ def resolve_data_path(filename: str) -> Path:
 class ExtendPandasFeed(bt.feeds.PandasData):
     """Extended Pandas data feed with convertible bond-specific fields.
 
-    DataFrame structure (after set_index):
-        - Index: datetime
-        - Column 0: open, Column 1: high, Column 2: low, Column 3: close,
-          Column 4: volume
-        - Column 5: pure_bond_value, Column 6: convert_value
-        - Column 7: pure_bond_premium_rate, Column 8: convert_premium_rate
+    This custom data feed extends the standard Backtrader PandasData feed
+    to support convertible bond data with additional fields for pure bond
+    value, conversion value, and their respective premium rates.
+
+    The feed maps DataFrame columns to Backtrader lines, enabling the
+    strategy to access convertible bond-specific metrics during backtesting.
+
+    Attributes:
+        params (tuple): Parameter definitions specifying column indices in the
+            input DataFrame. Maps standard OHLCV columns and custom bond fields.
+        lines (tuple): Line definitions for data access in strategies.
+            Includes pure_bond_value, convert_value, pure_bond_premium_rate,
+            and convert_premium_rate.
+
+    DataFrame Structure (after set_index):
+        - Index: datetime (DateTimeIndex)
+        - Column 0: open (float)
+        - Column 1: high (float)
+        - Column 2: low (float)
+        - Column 3: close (float)
+        - Column 4: volume (float)
+        - Column 5: pure_bond_value (float) - Pure bond value
+        - Column 6: convert_value (float) - Conversion value
+        - Column 7: pure_bond_premium_rate (float) - Pure bond premium rate
+        - Column 8: convert_premium_rate (float) - Conversion premium rate
+
+    Example:
+        >>> df = load_bond_data("113013.csv")
+        >>> data = ExtendPandasFeed(dataname=df)
+        >>> cerebro.adddata(data)
     """
 
     params = (
@@ -82,13 +143,50 @@ class ExtendPandasFeed(bt.feeds.PandasData):
 class PremiumRateCrossoverStrategy(bt.Strategy):
     """Conversion premium rate moving average crossover strategy.
 
-    Strategy logic:
-        - Use conversion premium rate (convert_premium_rate) to calculate
-          moving averages
-        - Buy when short-term moving average (default 10-day) crosses above
-          long-term moving average (default 60-day)
-        - Sell to close positions when short-term moving average crosses below
-          long-term moving average
+    This strategy implements a dual moving average crossover system using
+    convertible bond conversion premium rates as the underlying data series.
+    It generates buy signals when the short-term moving average crosses above
+    the long-term moving average, and exit signals when the opposite crossover
+    occurs.
+
+    The strategy is designed specifically for convertible bond trading, where
+    the conversion premium rate reflects the theoretical arbitrage profit
+    potential from converting the bond to underlying shares.
+
+    Attributes:
+        premium_rate (LineSingle): The conversion premium rate data line from
+            the first data feed.
+        sma_short (SimpleMovingAverage): Short-term moving average indicator
+            (default 10-period).
+        sma_long (SimpleMovingAverage): Long-term moving average indicator
+            (default 60-period).
+        crossover (CrossOver): Crossover indicator that generates +1 when
+            short MA crosses above long MA, and -1 for opposite crossover.
+        order (Order): Reference to the current pending order, or None if
+            no order is pending.
+        bar_num (int): Counter tracking the total number of bars processed.
+        buy_count (int): Counter tracking the total number of buy orders
+            executed.
+        sell_count (int): Counter tracking the total number of sell orders
+            executed.
+
+    Strategy Logic:
+        1. Calculate short-term and long-term moving averages of the
+           conversion premium rate
+        2. Generate buy signal when short MA crosses above long MA
+        3. Generate exit signal when short MA crosses below long MA
+        4. Use 95% of available cash for position sizing on entry
+        5. Only hold one position at a time (long-only)
+
+    Parameters:
+        short_period (int): Period for the short-term moving average.
+            Default is 10.
+        long_period (int): Period for the long-term moving average.
+            Default is 60.
+
+    Example:
+        >>> cerebro.addstrategy(PremiumRateCrossoverStrategy,
+        ...                    short_period=10, long_period=60)
     """
 
     params = (
@@ -97,6 +195,26 @@ class PremiumRateCrossoverStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy with indicators and tracking variables.
+
+        Sets up the conversion premium rate data source, calculates moving
+        averages, initializes the crossover indicator, and creates counters
+        for tracking order execution and bar processing.
+
+        Attributes Initialized:
+            self.premium_rate (LineSingle): References the convert_premium_rate
+                line from the first data feed.
+            self.sma_short (SimpleMovingAverage): Short-period SMA calculated
+                on the premium rate.
+            self.sma_long (SimpleMovingAverage): Long-period SMA calculated
+                on the premium rate.
+            self.crossover (CrossOver): Indicator tracking crossover events
+                between short and long MAs.
+            self.order (None): Initialized to None, will hold pending orders.
+            self.bar_num (int): Initialized to 0, incremented each bar.
+            self.buy_count (int): Initialized to 0, incremented on buy fills.
+            self.sell_count (int): Initialized to 0, incremented on sell fills.
+        """
         self.premium_rate = self.datas[0].convert_premium_rate
         self.sma_short = bt.indicators.SimpleMovingAverage(
             self.premium_rate, period=self.p.short_period
@@ -111,6 +229,26 @@ class PremiumRateCrossoverStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates and track execution counts.
+
+        This method is called by Backtrader whenever an order's status changes.
+        It filters out intermediate statuses (Submitted, Accepted) and only
+        processes Completed orders to update buy/sell counters.
+
+        Args:
+            order (Order): The order object with updated status information.
+                Contains status codes and execution details.
+
+        Order Statuses:
+            - Submitted: Order has been submitted to the broker (ignored)
+            - Accepted: Order has been accepted by the broker (ignored)
+            - Completed: Order has been fully or partially filled (processed)
+
+        Side Effects:
+            - Increments self.buy_count when a buy order is completed
+            - Increments self.sell_count when a sell order is completed
+            - Sets self.order to None to allow new order generation
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -121,6 +259,29 @@ class PremiumRateCrossoverStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic on each bar.
+
+        This method is called by Backtrader for each new bar of data.
+        It implements the core strategy logic: checking for crossovers,
+        managing position entry and exit, and tracking bar count.
+
+        Trading Logic:
+            1. Increment bar counter for each bar processed
+            2. Skip trading if a pending order exists
+            3. If no position: Enter long when crossover > 0 (short MA above long MA)
+            4. If has position: Exit when crossover < 0 (short MA below long MA)
+
+        Position Sizing:
+            - Uses 95% of available cash for entry orders
+            - Calculates size based on current close price
+            - Rounds down to integer number of shares/bonds
+
+        Side Effects:
+            - Increments self.bar_num on each call
+            - Creates buy orders when entry signals are triggered
+            - Creates close orders when exit signals are triggered
+            - Stores order reference in self.order to prevent duplicate orders
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -136,13 +297,45 @@ class PremiumRateCrossoverStrategy(bt.Strategy):
 
 
 def load_bond_data(csv_file: str) -> pd.DataFrame:
-    """Load convertible bond data from CSV file.
+    """Load convertible bond data from CSV file and prepare for Backtrader.
+
+    This function reads a CSV file containing convertible bond data, performs
+    data cleaning and transformations, and returns a DataFrame ready to be
+    used with ExtendPandasFeed.
+
+    The CSV file is expected to have the following columns:
+        - BOND_CODE: Bond code identifier (dropped)
+        - BOND_SYMBOL: Bond symbol (dropped)
+        - datetime: Date/time of the bar (becomes index)
+        - open, high, low, close: OHLC price data
+        - volume: Trading volume
+        - pure_bond_value: Pure bond valuation
+        - convert_value: Conversion value
+        - pure_bond_premium_rate: Pure bond premium rate
+        - convert_premium_rate: Conversion premium rate
 
     Args:
-        csv_file: Path to the CSV file.
+        csv_file (str): Path to the CSV file containing convertible bond data.
 
     Returns:
-        pd.DataFrame: Processed DataFrame with bond data.
+        pd.DataFrame: Processed DataFrame with:
+            - DateTimeIndex converted to datetime objects
+            - BOND_CODE and BOND_SYMBOL columns removed
+            - All values converted to float type
+            - Rows with missing values dropped (dropna)
+            - Columns ordered for ExtendPandasFeed mapping
+
+    Raises:
+        FileNotFoundError: If the CSV file does not exist at the specified path.
+        KeyError: If required columns are missing from the CSV file.
+        ValueError: If data cannot be converted to float type.
+
+    Example:
+        >>> df = load_bond_data("113013.csv")
+        >>> print(df.head())
+                        open   high    low  close  volume  ...
+        datetime
+        2020-01-02  100.5  101.2  100.1  101.0    5000  ...
     """
     df = pd.read_csv(csv_file)
     df.columns = ['BOND_CODE', 'BOND_SYMBOL', 'datetime', 'open', 'high', 'low',
@@ -161,8 +354,46 @@ def load_bond_data(csv_file: str) -> pd.DataFrame:
 def test_premium_rate_strategy():
     """Test convertible bond premium rate moving average crossover strategy.
 
-    Uses 113013.csv data for backtesting to verify strategy metrics
-    meet expected values.
+    This end-to-end test validates the PremiumRateCrossoverStrategy by running
+    a backtest on historical convertible bond data (113013.csv) and verifying
+    that key performance metrics match expected values.
+
+    The test:
+        1. Loads and processes convertible bond data
+        2. Sets up a Cerebro backtest engine with custom data feed
+        3. Configures initial capital (100,000) and commission (0.03%)
+        4. Adds the PremiumRateCrossoverStrategy
+        5. Runs the backtest and collects performance metrics
+        6. Asserts that metrics match expected values within tolerance
+
+    Expected Results (based on 113013.csv data):
+        - bar_num: 1384 bars processed
+        - final_value: 104,275.87 portfolio value
+        - sharpe_ratio: 0.11457 (annualized)
+        - annual_return: 0.733% (normalized annual return)
+        - max_drawdown: 17.41% maximum drawdown
+        - total_trades: 21 trades executed
+
+    Raises:
+        AssertionError: If any performance metric deviates from expected values
+            beyond the specified tolerance. Tolerances are set at 1e-6 for
+            floating-point comparisons.
+        FileNotFoundError: If the 113013.csv data file cannot be located.
+
+    Side Effects:
+        - Prints progress messages to stdout during execution
+        - Prints backtest results summary after completion
+
+    Example:
+        >>> test_premium_rate_strategy()
+        ============================================================
+        Convertible Bond Premium Rate Crossover Strategy Test
+        ============================================================
+        Loading convertible bond data...
+        Data range: 2020-01-02 00:00:00 to 2025-06-18 00:00:00, total 1384 records
+        Starting backtest...
+        ...
+        All tests passed!
     """
     cerebro = bt.Cerebro()
 

@@ -17,6 +17,27 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    This function searches for a data file in multiple possible locations relative
+    to the current test directory, including the current directory, parent directory,
+    and 'datas' subdirectories.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+
+    Examples:
+        >>> path = resolve_data_path('2005-2006-day-001.txt')
+        >>> print(path.exists())
+        True
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -47,6 +68,17 @@ class ReplayMACDStrategy(bt.Strategy):
     params = (('fast_period', 12), ('slow_period', 26), ('signal_period', 9))
 
     def __init__(self):
+        """Initialize the ReplayMACDStrategy with indicators and tracking variables.
+
+        This method sets up the MACD indicator with configurable periods and
+        initializes tracking variables for order management and statistics.
+
+        The strategy uses:
+        - MACD indicator for trend analysis
+        - CrossOver indicator to detect signal line crossovers
+        - Order tracking to prevent multiple simultaneous orders
+        - Counters for buy/sell orders and processed bars
+        """
         self.macd = bt.ind.MACD(
             period_me1=self.p.fast_period,
             period_me2=self.p.slow_period,
@@ -59,11 +91,44 @@ class ReplayMACDStrategy(bt.Strategy):
         self.sell_count = 0
 
     def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
+        """Log a message with timestamp for this strategy.
+
+        This method prints log messages with an ISO-formatted timestamp, using
+        the current bar's datetime if no timestamp is provided.
+
+        Args:
+            txt: The message text to log.
+            dt: Optional datetime object for the log entry. If None, uses the
+                current bar's datetime from the first data feed.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def notify_order(self, order):
+        """Handle order status changes and update tracking variables.
+
+        This method is called by the backtrader engine whenever an order's status
+        changes. It logs order events and updates the buy/sell counters for
+        completed orders.
+
+        Args:
+            order: The order object with updated status information.
+
+        Order Statuses Handled:
+            - Submitted: Order has been submitted to the broker.
+            - Accepted: Order has been accepted by the broker.
+            - Rejected: Order was rejected (insufficient funds, etc.).
+            - Margin: Order requires margin (not enough cash).
+            - Cancelled: Order was cancelled.
+            - Partial: Order was partially filled.
+            - Completed: Order was fully executed.
+
+        Side Effects:
+            - Updates self.buy_count when buy orders complete.
+            - Updates self.sell_count when sell orders complete.
+            - Sets self.order to None when order is no longer alive.
+            - Logs all order status changes.
+        """
         if not order.alive():
             self.order = None
 
@@ -94,6 +159,23 @@ class ReplayMACDStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
+        """Handle trade lifecycle events and log trade statistics.
+
+        This method is called by the backtrader engine when a trade's status
+        changes. It logs profit/loss information when trades close and entry
+        prices when trades are opened.
+
+        Args:
+            trade: The trade object with updated status information.
+
+        Trade States Handled:
+            - Open: Trade has been opened (position entered).
+            - Closed: Trade has been closed (position exited).
+
+        Side Effects:
+            - Logs closed trades with symbol, gross profit, and net profit.
+            - Logs opened trades with symbol and entry price.
+        """
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -103,6 +185,30 @@ class ReplayMACDStrategy(bt.Strategy):
                 trade.getdataname(), trade.price))
 
     def next(self):
+        """Execute trading logic for each bar in the backtest.
+
+        This method is called by the backtrader engine for each bar after all
+        indicators have been calculated. It implements the MACD crossover strategy:
+        - Buy when MACD crosses above the signal line
+        - Sell and close position when MACD crosses below the signal line
+
+        The method also logs detailed indicator values for debugging purposes,
+        including MACD, signal line, and crossover values for each bar.
+
+        Trading Logic:
+            1. Check for pending orders and wait if one exists
+            2. If crossover > 0 (MACD crosses above signal):
+               - Close existing position if any
+               - Open new long position
+            3. If crossover < 0 (MACD crosses below signal):
+               - Close existing position if any
+
+        Side Effects:
+            - Increments self.bar_num counter
+            - Logs detailed indicator values for each bar
+            - May create buy or close orders
+            - Updates self.order with pending order reference
+        """
         self.bar_num += 1
         # Print detailed MACD values for debugging in first 10 bars and key positions
         macd_val = self.macd.macd[0] if len(self.macd.macd) > 0 else 'N/A'

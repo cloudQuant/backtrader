@@ -1,4 +1,10 @@
 #!/usr/bin/env python
+"""Detailed test for CommInfo parameter setting process.
+
+This module tests the detailed process of creating and configuring
+CommInfo (Commission Info) objects, which handle commission calculations
+and margin requirements in backtrader.
+"""
 
 import backtrader as bt
 import os
@@ -13,16 +19,21 @@ import testcommon
 
 
 def test_parameter_setting_details():
-    """详细测试参数设置过程"""
-    print("=== 详细测试CommInfo参数设置 ===")
+    """Test detailed parameter setting process for CommInfo.
 
-    # 1. 测试直接创建CommInfo对象
-    print("\n1. 直接创建CommInfo对象（类似broker.setcommission）:")
-    print("   调用: bt.CommInfoBase(commission=2.0, margin=1000.0, mult=10.0)")
+    This test verifies that CommInfo objects can be created with
+    custom parameters and that those parameters are correctly
+    stored and accessible.
+    """
+    print("=== Detailed CommInfo Parameter Setting Test ===")
+
+    # 1. Test direct CommInfo object creation
+    print("\n1. Direct CommInfo object creation (similar to broker.setcommission):")
+    print("   Call: bt.CommInfoBase(commission=2.0, margin=1000.0, mult=10.0)")
 
     try:
         comminfo = bt.CommInfoBase(commission=2.0, margin=1000.0, mult=10.0)
-        print(f"   创建成功!")
+        print(f"   Creation successful!")
         print(f"   commission: {comminfo.get_param('commission')}")
         print(f"   margin: {comminfo.get_param('margin')}")
         print(f"   mult: {comminfo.get_param('mult')}")
@@ -32,27 +43,27 @@ def test_parameter_setting_details():
         print(f"   property stocklike: {comminfo.stocklike}")
         print(f"   property margin: {comminfo.margin}")
 
-        # 测试关键方法
+        # Test key methods
         test_price = 100.0
         test_size = 1
-        print(f"\n   测试关键方法 (price={test_price}, size={test_size}):")
+        print(f"\n   Test key methods (price={test_price}, size={test_size}):")
         print(f"   getcommission(): {comminfo.getcommission(test_size, test_price)}")
         print(f"   get_margin(): {comminfo.get_margin(test_price)}")
         print(f"   getoperationcost(): {comminfo.getoperationcost(test_size, test_price)}")
 
     except Exception as e:
-        print(f"   创建失败: {e}")
+        print(f"   Creation failed: {e}")
         import traceback
 
         traceback.print_exc()
 
-    # 2. 测试原始参数创建（对比）
-    print("\n\n2. 测试原始参数创建（默认值）:")
-    print("   调用: bt.CommInfoBase()")
+    # 2. Test creation with default parameters (for comparison)
+    print("\n\n2. Test creation with default parameters:")
+    print("   Call: bt.CommInfoBase()")
 
     try:
         default_comminfo = bt.CommInfoBase()
-        print(f"   创建成功!")
+        print(f"   Creation successful!")
         print(f"   commission: {default_comminfo.get_param('commission')}")
         print(f"   margin: {default_comminfo.get_param('margin')}")
         print(f"   mult: {default_comminfo.get_param('mult')}")
@@ -63,7 +74,7 @@ def test_parameter_setting_details():
         print(f"   property margin: {default_comminfo.margin}")
 
     except Exception as e:
-        print(f"   创建失败: {e}")
+        print(f"   Creation failed: {e}")
         import traceback
 
         traceback.print_exc()

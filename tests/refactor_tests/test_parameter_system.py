@@ -1,8 +1,4 @@
-
-import backtrader as bt
-
-"""
-Tests for the new Parameter System
+"""Tests for the new Parameter System.
 
 This module tests the ParameterDescriptor implementation and related
 functionality to ensure all requirements from Day 29-31 are met.
@@ -11,6 +7,7 @@ functionality to ensure all requirements from Day 29-31 are met.
 import os
 import sys
 
+import backtrader as bt
 import pytest
 
 from backtrader.parameters import (
@@ -26,13 +23,41 @@ from backtrader.parameters import (
 
 
 class TestParameterDescriptor:
-    """Test the ParameterDescriptor class functionality."""
+    """Test suite for the ParameterDescriptor class functionality.
+
+    This test class verifies that ParameterDescriptor correctly implements:
+    - Basic descriptor get/set operations with type checking
+    - Automatic type conversion and validation
+    - Custom value validation using validator functions
+    - Python 3.6+ __set_name__ protocol support
+    - Integration with ParameterizedBase class
+
+    The ParameterDescriptor is the core component of the new parameter system
+    that provides declarative parameter definition with type safety and validation.
+    """
 
     def test_basic_descriptor_functionality(self):
-        """Test basic descriptor get/set operations."""
+        """Test basic descriptor get/set operations.
+
+        This test verifies that:
+        1. Parameters are initialized with their default values
+        2. Parameter values can be read and modified
+        3. Parameter values are accessible through direct attribute access
+        4. Parameter values are accessible through params and p accessors
+        5. All access methods return consistent values
+
+        Raises:
+            AssertionError: If any of the basic descriptor operations fail.
+        """
 
         # Create a simple parameterized class
         class TestClass(ParameterizedBase):
+            """Test helper class for basic descriptor functionality.
+
+            Attributes:
+                period: An integer parameter representing a time period (default: 14).
+                factor: A float parameter representing a scaling factor (default: 1.0).
+            """
             period = ParameterDescriptor(default=14, type_=int, doc="Period parameter")
             factor = ParameterDescriptor(default=1.0, type_=float)
 
@@ -54,9 +79,26 @@ class TestParameterDescriptor:
         assert obj.p.factor == 2.5
 
     def test_type_checking_mechanism(self):
-        """Test automatic type checking and conversion."""
+        """Test automatic type checking and conversion.
+
+        This test verifies that:
+        1. Parameters automatically convert values to their declared types
+        2. String representations of numbers are converted to numeric types
+        3. Converted values maintain their correct type
+        4. Invalid type conversions raise TypeError
+
+        Raises:
+            AssertionError: If type checking or conversion fails.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test helper class for type checking mechanism.
+
+            Attributes:
+                int_param: An integer parameter for testing type conversion.
+                float_param: A float parameter for testing type conversion.
+                str_param: A string parameter for testing type conversion.
+            """
             int_param = ParameterDescriptor(default=10, type_=int)
             float_param = ParameterDescriptor(default=1.0, type_=float)
             str_param = ParameterDescriptor(default="test", type_=str)
@@ -77,9 +119,27 @@ class TestParameterDescriptor:
             obj.int_param = "invalid_int"
 
     def test_value_validation_mechanism(self):
-        """Test custom value validation."""
+        """Test custom value validation.
+
+        This test verifies that:
+        1. Custom validator functions work correctly
+        2. OneOf validator restricts values to specified choices
+        3. Float validator enforces min/max range constraints
+        4. Invalid values raise ValueError
+        5. Valid values are accepted and stored
+
+        Raises:
+            AssertionError: If value validation logic fails.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test helper class for value validation mechanism.
+
+            Attributes:
+                positive_int: A positive integer parameter with custom validator.
+                choice_param: A string parameter restricted to specific choices.
+                range_float: A float parameter with min/max range validation.
+            """
             positive_int = ParameterDescriptor(default=1, type_=int, validator=lambda x: x > 0)
             choice_param = ParameterDescriptor(default="A", validator=OneOf("A", "B", "C"))
             range_float = ParameterDescriptor(
@@ -108,9 +168,27 @@ class TestParameterDescriptor:
             obj.range_float = 1.5
 
     def test_python36_set_name_support(self):
-        """Test Python 3.6+ __set_name__ functionality."""
+        """Test Python 3.6+ __set_name__ functionality.
+
+        This test verifies that:
+        1. The __set_name__ protocol is properly implemented
+        2. Descriptor names are correctly set when defined in a class
+        3. The internal attribute name uses the _param_ prefix convention
+        4. Descriptors are properly computed and registered
+
+        The __set_name__ protocol is used in Python 3.6+ to automatically
+        set descriptor names when they are assigned as class attributes.
+
+        Raises:
+            AssertionError: If __set_name__ functionality fails.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test helper class for __set_name__ protocol validation.
+
+            Attributes:
+                my_param: A parameter to test automatic name assignment.
+            """
             my_param = ParameterDescriptor(default=42)
 
         # Ensure descriptors are computed
@@ -126,10 +204,30 @@ class TestParameterDescriptor:
 
 
 class TestParameterManager:
-    """Test the ParameterManager class functionality."""
+    """Test suite for the ParameterManager class functionality.
+
+    This test class verifies that ParameterManager correctly implements:
+    - Parameter storage and retrieval with default values
+    - Parameter inheritance between parent and child managers
+    - Batch operations for updating multiple parameters
+    - Dictionary export functionality via to_dict()
+
+    The ParameterManager is responsible for storing parameter values and
+    managing the inheritance hierarchy between classes in the parameter system.
+    """
 
     def test_parameter_storage_and_retrieval(self):
-        """Test basic parameter storage and retrieval."""
+        """Test basic parameter storage and retrieval.
+
+        This test verifies that:
+        1. Parameters are initialized with their default values from descriptors
+        2. Parameter values can be retrieved using get() method
+        3. Parameter values can be updated using set() method
+        4. Updated values persist correctly
+
+        Raises:
+            AssertionError: If parameter storage or retrieval fails.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default="test", name="param2"),
@@ -149,7 +247,17 @@ class TestParameterManager:
         assert manager.get("param2") == "new_value"
 
     def test_parameter_inheritance(self):
-        """Test parameter inheritance between managers."""
+        """Test parameter inheritance between managers.
+
+        This test verifies that:
+        1. Child managers can inherit values from parent managers
+        2. Only parameters defined in child's descriptors are inherited
+        3. Parameters not in child's descriptors are not inherited
+        4. Child's own parameters remain independent
+
+        Raises:
+            AssertionError: If parameter inheritance logic fails.
+        """
         descriptors1 = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -176,7 +284,17 @@ class TestParameterManager:
         assert child.get("param3") == 30
 
     def test_batch_operations(self):
-        """Test batch parameter operations."""
+        """Test batch parameter operations.
+
+        This test verifies that:
+        1. Multiple parameters can be updated using update() with a dictionary
+        2. Parameters not included in update retain their values
+        3. All parameters can be exported using to_dict()
+        4. Exported dictionary contains all current parameter values
+
+        Raises:
+            AssertionError: If batch operations fail.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -199,12 +317,40 @@ class TestParameterManager:
 
 
 class TestParameterizedBase:
-    """Test the ParameterizedBase class functionality."""
+    """Test suite for the ParameterizedBase class functionality.
+
+    This test class verifies that ParameterizedBase correctly implements:
+    - Creation of parameterized classes with various parameter types
+    - Parameter inheritance between base and derived classes
+    - Backward compatibility with legacy parameter access patterns
+    - Support for params and p accessors (obj.params, obj.p)
+
+    ParameterizedBase is the foundation class that provides parameter
+    management capabilities to all backtrader components including
+    strategies, indicators, analyzers, and observers.
+    """
 
     def test_class_creation_with_parameters(self):
-        """Test creating parameterized classes."""
+        """Test creating parameterized classes.
+
+        This test verifies that:
+        1. Parameterized classes can be created with various parameter types
+        2. Default values are correctly assigned
+        3. Parameters can be overridden at initialization time
+        4. Different parameter types (int, float, str) are handled correctly
+
+        Raises:
+            AssertionError: If class creation or parameter initialization fails.
+        """
 
         class MyClass(ParameterizedBase):
+            """Test helper class for parameterized class creation.
+
+            Attributes:
+                period: An integer period parameter (default: 14).
+                factor: A float scaling factor parameter (default: 1.0).
+                name: A string name parameter (default: "test").
+            """
             period = ParameterDescriptor(default=14, type_=int)
             factor = ParameterDescriptor(default=1.0, type_=float)
             name = ParameterDescriptor(default="test", type_=str)
@@ -222,13 +368,35 @@ class TestParameterizedBase:
         assert obj2.name == "custom"
 
     def test_parameter_inheritance_in_classes(self):
-        """Test parameter inheritance between classes."""
+        """Test parameter inheritance between classes.
+
+        This test verifies that:
+        1. Derived classes inherit parameters from base classes
+        2. Derived classes can add new parameters
+        3. Derived classes can override base class parameters
+        4. Overridden parameters use derived class defaults
+
+        Raises:
+            AssertionError: If parameter inheritance between classes fails.
+        """
 
         class BaseClass(ParameterizedBase):
+            """Base test class for inheritance testing.
+
+            Attributes:
+                base_param: An integer parameter unique to the base class.
+                shared_param: A string parameter that will be overridden in derived class.
+            """
             base_param = ParameterDescriptor(default=100, type_=int)
             shared_param = ParameterDescriptor(default="base", type_=str)
 
         class DerivedClass(BaseClass):
+            """Derived test class for inheritance testing.
+
+            Attributes:
+                derived_param: An integer parameter unique to the derived class.
+                shared_param: A string parameter overriding the base class value.
+            """
             derived_param = ParameterDescriptor(default=200, type_=int)
             shared_param = ParameterDescriptor(default="derived", type_=str)  # Override
 
@@ -242,9 +410,29 @@ class TestParameterizedBase:
         assert obj.shared_param == "derived"
 
     def test_backward_compatibility_interface(self):
-        """Test backward compatibility with old parameter interface."""
+        """Test backward compatibility with old parameter interface.
+
+        This test verifies that:
+        1. obj.params interface works for accessing parameters
+        2. obj.p shorthand interface works for accessing parameters
+        3. Parameters can be modified through params/p interfaces
+        4. Modifications are reflected in direct attribute access
+        5. Legacy methods _getitems(), _getkeys(), _getvalues() work correctly
+
+        These interfaces ensure compatibility with existing backtrader code
+        that uses the old parameter system.
+
+        Raises:
+            AssertionError: If backward compatibility interfaces fail.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test helper class for backward compatibility interface testing.
+
+            Attributes:
+                period: An integer period parameter (default: 14).
+                factor: A float scaling factor parameter (default: 1.0).
+            """
             period = ParameterDescriptor(default=14, type_=int)
             factor = ParameterDescriptor(default=1.0, type_=float)
 
@@ -281,10 +469,31 @@ class TestParameterizedBase:
 
 
 class TestValidatorHelpers:
-    """Test the validator helper functions."""
+    """Test suite for the validator helper functions.
+
+    This test class verifies that validator helpers correctly implement:
+    - Int validator for integer type and range validation
+    - Float validator for float type and range validation
+    - OneOf validator for restricting values to a set of choices
+    - String validator for string type and length validation
+
+    Validator helpers are callable objects that validate parameter values
+    and raise ValueError if validation fails. They can be used as
+    validator arguments when defining ParameterDescriptor instances.
+    """
 
     def test_int_validator(self):
-        """Test Int validator function."""
+        """Test Int validator function.
+
+        This test verifies that:
+        1. Int validator accepts integer values and returns True
+        2. Int validator rejects non-integer values and returns False
+        3. Int validator with min_val/max_val enforces range constraints
+        4. Values outside the specified range are rejected
+
+        Raises:
+            AssertionError: If Int validator logic fails.
+        """
         # Basic int validation
         validator = Int()
         assert validator(10) == True
@@ -298,7 +507,17 @@ class TestValidatorHelpers:
         assert range_validator(101) == False
 
     def test_float_validator(self):
-        """Test Float validator function."""
+        """Test Float validator function.
+
+        This test verifies that:
+        1. Float validator accepts float values and returns True
+        2. Float validator accepts integer values (as valid floats) and returns True
+        3. Float validator rejects non-numeric values and returns False
+        4. Float validator with min_val/max_val enforces range constraints
+
+        Raises:
+            AssertionError: If Float validator logic fails.
+        """
         # Basic float validation
         validator = Float()
         assert validator(10.5) == True
@@ -312,7 +531,17 @@ class TestValidatorHelpers:
         assert range_validator(1.1) == False
 
     def test_oneof_validator(self):
-        """Test OneOf validator function."""
+        """Test OneOf validator function.
+
+        This test verifies that:
+        1. OneOf validator accepts values from the allowed set
+        2. OneOf validator rejects values not in the allowed set
+        3. OneOf works with string choices
+        4. OneOf works with numeric choices
+
+        Raises:
+            AssertionError: If OneOf validator logic fails.
+        """
         validator = OneOf("A", "B", "C")
         assert validator("A") == True
         assert validator("B") == True
@@ -324,7 +553,17 @@ class TestValidatorHelpers:
         assert num_validator(4) == False
 
     def test_string_validator(self):
-        """Test String validator function."""
+        """Test String validator function.
+
+        This test verifies that:
+        1. String validator accepts string values and returns True
+        2. String validator rejects non-string values and returns False
+        3. String validator with min_length/max_length enforces length constraints
+        4. Values outside the specified length range are rejected
+
+        Raises:
+            AssertionError: If String validator logic fails.
+        """
         # Basic string validation
         validator = String()
         assert validator("test") == True
@@ -338,18 +577,56 @@ class TestValidatorHelpers:
 
 
 class TestComplexScenarios:
-    """Test complex usage scenarios."""
+    """Test suite for complex usage scenarios.
+
+    This test class validates that the parameter system handles:
+    - Multiple inheritance with parameters from multiple parent classes
+    - Parameter validation during object initialization
+    - Parameter introspection and metadata extraction
+    - Edge cases and advanced usage patterns
+
+    These tests ensure the parameter system is robust enough to handle
+    real-world usage scenarios in backtrader applications.
+    """
 
     def test_multiple_inheritance_with_parameters(self):
-        """Test multiple inheritance scenarios."""
+        """Test multiple inheritance scenarios.
+
+        This test verifies that:
+        1. Multiple inheritance from ParameterizedBase classes works correctly
+        2. Parameters from all parent classes are inherited
+        3. Child class parameters are properly integrated
+        4. Method Resolution Order (MRO) is maintained
+
+        Raises:
+            AssertionError: If multiple inheritance with parameters fails.
+        """
 
         class Mixin1(ParameterizedBase):
+            """First mixin class for multiple inheritance testing.
+
+            Attributes:
+                param1: An integer parameter from the first mixin.
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
 
         class Mixin2(ParameterizedBase):
+            """Second mixin class for multiple inheritance testing.
+
+            Attributes:
+                param2: An integer parameter from the second mixin.
+            """
             param2 = ParameterDescriptor(default=2, type_=int)
 
         class Combined(Mixin1, Mixin2):
+            """Combined class inheriting from multiple mixins.
+
+            This class tests that parameters from all parent classes are
+            properly inherited and integrated.
+
+            Attributes:
+                param3: An integer parameter unique to the combined class.
+            """
             param3 = ParameterDescriptor(default=3, type_=int)
 
         obj = Combined()
@@ -358,9 +635,24 @@ class TestComplexScenarios:
         assert obj.param3 == 3
 
     def test_parameter_validation_on_initialization(self):
-        """Test that parameters are validated during initialization."""
+        """Test that parameters are validated during initialization.
+
+        This test verifies that:
+        1. Valid parameters passed during initialization are accepted
+        2. Invalid parameters raise ValueError during initialization
+        3. Validation occurs before the object is fully constructed
+        4. Custom validators are applied during initialization
+
+        Raises:
+            AssertionError: If parameter validation during initialization fails.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test helper class for initialization validation testing.
+
+            Attributes:
+                positive_param: A positive integer parameter with validation.
+            """
             positive_param = ParameterDescriptor(default=1, type_=int, validator=lambda x: x > 0)
 
         # Valid initialization
@@ -372,9 +664,28 @@ class TestComplexScenarios:
             obj2 = TestClass(positive_param=-1)
 
     def test_parameter_info_and_introspection(self):
-        """Test parameter introspection capabilities."""
+        """Test parameter introspection capabilities.
+
+        This test verifies that:
+        1. get_param_info() returns a dictionary of all parameter metadata
+        2. Parameter info includes name, type, default value, and validator status
+        3. Parameter info includes documentation strings
+        4. All parameters defined in the class are included in the info
+
+        The get_param_info() method is used for documentation generation,
+        UI display, and runtime introspection of parameter configurations.
+
+        Raises:
+            AssertionError: If parameter introspection fails.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test helper class for parameter introspection testing.
+
+            Attributes:
+                int_param: An integer parameter with range validation and documentation.
+                str_param: A string parameter with documentation.
+            """
             int_param = ParameterDescriptor(
                 default=10, type_=int, validator=Int(min_val=0), doc="An integer parameter"
             )

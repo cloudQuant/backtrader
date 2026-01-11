@@ -22,6 +22,28 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching common locations.
+
+    This function searches for data files in several predefined locations
+    relative to the test directory, making it easier to run tests from
+    different working directories.
+
+    Args:
+        filename (str): The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the first matching data file found.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+
+    Search Locations:
+        - BASE_DIR / filename
+        - BASE_DIR.parent / filename
+        - BASE_DIR / "datas" / filename
+        - BASE_DIR.parent / "datas" / filename
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -80,6 +102,19 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Sunrise Volatility Expansion Strategy.
+
+        Sets up all necessary indicators, data references, and state machine
+        variables for the 4-phase entry system.
+
+        Initialization includes:
+        - Data access references (open, high, low, close)
+        - EMA indicators for trend detection and filtering
+        - ATR indicator for volatility-based stop loss/take profit
+        - State machine variables for tracking entry phases
+        - Trade tracking variables (orders, entry price, stop loss, take profit)
+        - Performance counters (bar count, buy/sell counts)
+        """
         self.dataclose = self.datas[0].close
         self.dataopen = self.datas[0].open
         self.datahigh = self.datas[0].high
@@ -112,7 +147,7 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         self.window_expiry_bar = None
         self.window_bar_start = None
         self.signal_detection_atr = None
-        
+
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -278,6 +313,27 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         return None
 
     def notify_order(self, order):
+        """Handle order notifications and update strategy state.
+
+        This method is called by the backtrader engine when an order's status
+        changes. It updates trade tracking variables and calculates stop loss
+        and take profit levels for completed buy orders.
+
+        Args:
+            order (bt.Order): The order object with updated status.
+
+        Order Handling:
+        - Ignores Submitted and Accepted orders (still pending)
+        - For Completed buy orders:
+            - Increments buy counter
+            - Records entry price
+            - Calculates ATR-based stop loss (bar low - ATR * multiplier)
+            - Calculates ATR-based take profit (bar high + ATR * multiplier)
+            - Records entry bar number
+        - For Completed sell orders:
+            - Increments sell counter
+        - Clears pending order reference after processing
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -295,6 +351,18 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute the main strategy logic for each bar.
+
+        This method implements the complete 4-phase state machine for trade entry:
+        1. Position management (stop loss/take profit checks)
+        2. Phase 1 (SCANNING): EMA crossover signal detection
+        3. Phase 2 (ARMED): Pullback candle confirmation
+        4. Phase 3 (WINDOW_OPEN): Price channel calculation
+        5. Phase 4: Breakout monitoring and trade execution
+
+        The method also handles global invalidation when opposite signals appear
+        during armed states, and manages the transition between all phases.
+        """
         self.bar_num += 1
         current_bar = len(self)
 
@@ -378,6 +446,32 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
 
 
 def test_sunrise_volatility_expansion_strategy():
+    """Test the Sunrise Volatility Expansion Strategy with XAUUSD data.
+
+    This test function:
+    1. Loads XAUUSD 5-minute historical data from CSV file
+    2. Configures the SunriseVolatilityExpansionStrategy with default parameters
+    3. Runs a backtest over a 1-year period (2024-06-01 to 2025-06-30)
+    4. Collects performance metrics (Sharpe ratio, returns, drawdown)
+    5. Validates results against expected values with strict tolerances
+
+    Test Configuration:
+    - Initial Capital: $100,000
+    - Commission: 0.001 (0.1%)
+    - Data: XAUUSD 5-minute bars
+    - Period: June 1, 2024 to June 30, 2025
+
+    Expected Results:
+    - Total bars processed: 76,055
+    - Final portfolio value: $99,780.54
+    - Sharpe ratio: -0.0583
+    - Annual return: -0.165%
+    - Maximum drawdown: 2.17%
+
+    Raises:
+        AssertionError: If any metric deviates beyond tolerance from expected values.
+            Tolerance: 1e-6 for most metrics, 0.01 for final_value.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("XAUUSD_5m_5Yea.csv")
     # XAUUSD CSV format: Date,Time,Open,High,Low,Close,Volume

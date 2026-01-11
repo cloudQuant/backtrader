@@ -53,11 +53,23 @@ class RBreakerStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
-        """Log information with timestamp."""
+        """Log strategy information with timestamp.
+
+        Args:
+            txt: Text message to log.
+            dt: Optional datetime object for the log entry. If None, uses
+                current bar's datetime from the first data feed.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize R-Breaker strategy with tracking variables.
+
+        Initializes counters for bars, trades, and price tracking lists.
+        Sets up variables to track current and historical daily price data
+        for calculating pivot points and resistance/support levels.
+        """
         self.bar_num = 0
         self.pre_date = None
         self.buy_count = 0
@@ -75,9 +87,30 @@ class RBreakerStrategy(bt.Strategy):
         self.marketposition = 0
 
     def prenext(self):
+        """Handle bars before minimum period is reached.
+
+        This method is called for each bar before the strategy's minimum
+        period requirement is met. No action is taken during this phase.
+        """
         pass
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the R-Breaker strategy:
+        1. Track current day's high, low, close prices
+        2. Calculate pivot point and support/resistance levels from previous day
+        3. Generate long signals when price breaks above R3
+        4. Generate short signals when price breaks below S3
+        5. Reverse positions when price pulls back to R1/S1
+        6. Close all positions before market close (14:55)
+
+        Trading hours:
+        - Night session: 21:00-23:00
+        - Day session: 9:00-11:00
+        - Position closing: 14:55
+        - End of day: 15:00
+        """
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
         self.current_hour = self.current_datetime.hour
         self.current_minute = self.current_datetime.minute
@@ -148,6 +181,14 @@ class RBreakerStrategy(bt.Strategy):
             self.marketposition = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Args:
+            order: Order object with status and execution information.
+
+        Logs buy/sell orders when they are completed. Orders that are
+        submitted or accepted are ignored until they fill.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -157,10 +198,23 @@ class RBreakerStrategy(bt.Strategy):
                 self.log(f"SELL: price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Args:
+            trade: Trade object with profit/loss information.
+
+        Logs trade results when a position is closed, showing both
+        gross profit (pnl) and net profit after commissions (pnlcomm).
+        """
         if trade.isclosed:
             self.log(f"Trade completed: pnl={trade.pnl:.2f}, pnlcomm={trade.pnlcomm:.2f}")
 
     def stop(self):
+        """Log final statistics when backtest completes.
+
+        Called after all data has been processed. Logs the total number
+        of bars processed and total buy/sell orders executed.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 

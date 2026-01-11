@@ -19,6 +19,15 @@
 #
 ###############################################################################
 
+"""Test module for data resampling functionality in backtrader.
+
+This module tests the resampling of data from daily timeframe to weekly timeframe.
+It validates that indicators (specifically SMA) produce correct values when applied
+to resampled data.
+
+The test loads daily price data, resamples it to weekly bars, and then verifies
+that the SMA indicator calculates expected values at specific checkpoints.
+"""
 
 import backtrader as bt
 
@@ -26,15 +35,34 @@ import testcommon
 
 import backtrader.indicators as btind
 
-chkdatas = 1
-chkvals = [["3836.453333", "3703.962333", "3741.802000"]]
+# Module-level constants for test validation
+chkdatas = 1  # Number of data feeds to use
+chkvals = [["3836.453333", "3703.962333", "3741.802000"]]  # Expected SMA values
 
-chkmin = 30  # period will be in weeks
-chkind = [btind.SMA]
-chkargs = dict()
+chkmin = 30  # Expected minimum period (will be in weeks)
+chkind = [btind.SMA]  # Indicator class to test
+chkargs = dict()  # Additional arguments for indicator creation
 
 
 def test_run(main=False):
+    """Run the data resampling test with multiple execution modes.
+
+    This function tests data resampling from daily to weekly timeframe with
+    both runonce=True and runonce=False modes to ensure compatibility
+    across different execution strategies.
+
+    Args:
+        main (bool, optional): If True, enables plotting for visual inspection.
+            Defaults to False (automated test mode).
+
+    Returns:
+        None: The function executes tests and validates results through
+            the testcommon.runtest framework.
+
+    Raises:
+        AssertionError: If indicator values don't match expected results
+            at checkpoints.
+    """
     for runonce in [True, False]:
         data = testcommon.getdata(0)
         data.resample(timeframe=bt.TimeFrame.Weeks, compression=1)

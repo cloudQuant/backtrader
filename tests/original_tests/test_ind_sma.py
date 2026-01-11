@@ -18,23 +18,53 @@
 #
 ###############################################################################
 
+"""Test module for Simple Moving Average (SMA) indicator.
 
+This module contains tests to validate the SMA indicator implementation in
+backtrader. It tests the indicator calculation by comparing computed values
+against known expected values at specific checkpoints in the data.
+
+The test uses 2006 daily stock data and validates that a 30-period SMA
+produces the expected values at specific time points.
+"""
 import backtrader as bt
 
 import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to use in the test
 chkdatas = 1
+
+# Expected SMA values at specific checkpoints
+# These values are the expected 30-period SMA values at three checkpoints
 chkvals = [
     ["4063.463000", "3644.444667", "3554.693333"],
 ]
 
+# Minimum period for the SMA indicator (30-period moving average)
 chkmin = 30
+
+# The indicator class to test
 chkind = btind.SMA
 
 
 def test_run(main=False):
+    """Run the SMA indicator test.
+
+    Loads test data, creates a strategy with the SMA indicator, and runs
+    the backtest to validate the indicator calculations against expected values.
+
+    Args:
+        main (bool, optional): If True, run in standalone mode with plotting.
+            Defaults to False.
+
+    Returns:
+        None. The test raises an assertion error if values don't match.
+
+    Raises:
+        AssertionError: If the calculated SMA values do not match expected values.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

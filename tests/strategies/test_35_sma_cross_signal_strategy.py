@@ -45,11 +45,34 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SmaCrossSignalStrategy(bt.Strategy):
-    """SMA crossover signal strategy.
+    """Simple Moving Average (SMA) crossover signal trading strategy.
 
-    Generates a buy signal when the short-term moving average crosses above
-    the long-term moving average. Generates a sell signal when the short-term
-    moving average crosses below the long-term moving average.
+    This strategy implements a classic moving average crossover approach where
+    trading signals are generated based on the relationship between a short-term
+    and long-term simple moving average. The crossover indicator detects when
+    the short-term SMA crosses above or below the long-term SMA, triggering
+    buy and sell signals respectively.
+
+    The strategy tracks performance metrics including total bars processed,
+    buy/sell order counts, win/loss ratios, and cumulative profit/loss.
+
+    Attributes:
+        crossover: CrossOver indicator that detects SMA crossovers.
+        order: Reference to the currently pending order (if any).
+        bar_num: Counter for the number of bars processed.
+        buy_count: Counter for total buy orders executed.
+        sell_count: Counter for total sell orders executed.
+        win_count: Counter for profitable closed trades.
+        loss_count: Counter for unprofitable closed trades.
+        sum_profit: Cumulative profit/loss from all closed trades.
+
+    Parameters:
+        sma1 (int): Period for the short-term SMA. Default is 10.
+        sma2 (int): Period for the long-term SMA. Default is 20.
+
+    Note:
+        This strategy uses the SignalStrategy base class from backtrader,
+        which provides a framework for signal-based trading systems.
     """
     params = dict(
         sma1=10,
@@ -57,6 +80,17 @@ class SmaCrossSignalStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the SMA crossover strategy.
+
+        Creates the short-term and long-term simple moving average indicators
+        and a CrossOver indicator to detect when they intersect. Initializes
+        tracking variables for order management and performance statistics.
+
+        The strategy sets up two SMAs:
+        - Short-term SMA (default 10 periods) for fast price movement tracking
+        - Long-term SMA (default 20 periods) for trend identification
+        - CrossOver indicator generates +1 on bullish crossover, -1 on bearish
+        """
         sma1 = bt.ind.SMA(period=self.params.sma1)
         sma2 = bt.ind.SMA(period=self.params.sma2)
         self.crossover = bt.ind.CrossOver(sma1, sma2)
@@ -71,6 +105,16 @@ class SmaCrossSignalStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called by the backtrader engine when an order changes status. This method
+        updates the buy/sell counters when orders are completed and clears the
+        order reference when the order is no longer alive (filled, cancelled,
+        or expired).
+
+        Args:
+            order: The order object that has changed status.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -80,6 +124,16 @@ class SmaCrossSignalStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Called by the backtrader engine when a trade is closed. This method
+        updates performance statistics including cumulative profit/loss and
+        the count of winning versus losing trades.
+
+        Args:
+            trade: The trade object that has been closed. Contains information
+                about the trade including profit/loss (pnlcomm).
+        """
         if trade.isclosed:
             self.sum_profit += trade.pnlcomm
             if trade.pnlcomm > 0:
@@ -88,6 +142,24 @@ class SmaCrossSignalStrategy(bt.Strategy):
                 self.loss_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by the backtrader engine for each new bar of data.
+        It implements the core trading logic:
+
+        1. Increments the bar counter
+        2. Skips trading if an order is already pending
+        3. On bullish crossover (short SMA crosses above long SMA):
+           - Closes any existing position
+           - Opens a new long position
+        4. On bearish crossover (short SMA crosses below long SMA):
+           - Closes any existing position
+
+        The crossover indicator returns:
+        - +1: Bullish crossover (buy signal)
+        - -1: Bearish crossover (sell signal)
+        - 0: No crossover
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -100,6 +172,15 @@ class SmaCrossSignalStrategy(bt.Strategy):
                 self.order = self.close()
 
     def stop(self):
+        """Display final performance metrics when backtesting completes.
+
+        This method is called by the backtrader engine when the backtest finishes.
+        It calculates and prints a summary of the strategy's performance including
+        total bars processed, order counts, win/loss statistics, win rate, and
+        total profit/loss.
+
+        The win rate is calculated as: (win_count / total_closed_trades) * 100
+        """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "

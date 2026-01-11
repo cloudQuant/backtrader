@@ -1,8 +1,16 @@
-"""Fear & Greed Sentiment Indicator Strategy Test Case
+"""Fear & Greed Sentiment Indicator Strategy Test Case.
 
-Tests sentiment-driven strategy using SPY and Fear & Greed sentiment indicator data.
-- Uses GenericCSVData to load local data files
-- Accesses data via self.datas[0] for consistency
+This module implements and tests a sentiment-driven trading strategy that uses
+the Fear & Greed index to make buy/sell decisions on SPY (S&P 500 ETF).
+
+The strategy is based on the contrarian investing principle:
+- Buy when the market shows extreme fear (Fear & Greed index < 10)
+- Sell when the market shows extreme greed (Fear & Greed index > 94)
+
+The module includes:
+- SPYFearGreedData: Custom data feed for loading SPY price data with sentiment indicators
+- FearGreedStrategy: The main strategy implementation
+- test_fear_greed_strategy(): Test function that runs the backtest
 
 Reference: https://github.com/cloudQuant/sentiment-fear-and-greed.git
 """
@@ -19,7 +27,29 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """Locate data files based on the script's directory to avoid relative path failures."""
+    """Locate data files by searching multiple possible directory locations.
+
+    This function searches for data files in several predefined locations
+    relative to the test file directory, avoiding issues with relative paths
+    when the test is run from different working directories.
+
+    Args:
+        filename (str): The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+
+    Search Locations:
+        1. Current test directory (tests/strategies/)
+        2. Parent directory (tests/)
+        3. Grandparent directory (project root)
+        4. tests/datas/ subdirectory
+        5. BACKTRADER_DATA_DIR environment variable path (if set)
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -39,10 +69,30 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SPYFearGreedData(bt.feeds.GenericCSVData):
-    """SPY + Fear & Greed Sentiment Indicator Data Feed.
+    """Custom data feed for loading SPY price data with Fear & Greed sentiment indicators.
 
-    CSV format:
-    Date,Open,High,Low,Close,Adj Close,Volume,Put Call,Fear Greed,VIX
+    This data feed extends GenericCSVData to load SPY (S&P 500 ETF) historical price
+    data along with three additional sentiment indicators:
+    - Put/Call Ratio: Options market sentiment indicator
+    - Fear & Greed Index: Market sentiment indicator (0-100 scale)
+    - VIX: CBOE Volatility Index
+
+    The CSV file must contain columns in the following order:
+    Date, Open, High, Low, Close, Adj Close, Volume, Put Call, Fear Greed, VIX
+
+    Attributes:
+        lines (tuple): Additional data lines beyond standard OHLCV:
+            - put_call: Put/Call ratio from options market
+            - fear_greed: Fear & Greed sentiment index (0=extreme fear, 100=extreme greed)
+            - vix: CBOE Volatility Index value
+
+    Example:
+        >>> data = SPYFearGreedData(
+        ...     dataname="spy-put-call-fear-greed-vix.csv",
+        ...     fromdate=datetime(2011, 1, 1),
+        ...     todate=datetime(2021, 12, 31)
+        ... )
+        >>> cerebro.adddata(data, name="SPY")
     """
     lines = ('put_call', 'fear_greed', 'vix')
 
@@ -62,14 +112,37 @@ class SPYFearGreedData(bt.feeds.GenericCSVData):
 
 
 class FearGreedStrategy(bt.Strategy):
-    """Fear & Greed Sentiment Indicator Strategy.
+    """A contrarian trading strategy based on the Fear & Greed sentiment index.
 
-    Strategy logic:
-    - Buy when Fear & Greed index < 10 (extreme fear)
-    - Sell when Fear & Greed index > 94 (extreme greed)
+    This strategy implements a mean-reversion approach by trading against
+    extreme market sentiment:
+    - Buys SPY when the Fear & Greed index indicates extreme fear (< 10)
+    - Sells SPY when the Fear & Greed index indicates extreme greed (> 94)
 
-    Data used:
-    - datas[0]: SPY price data + Fear & Greed indicator
+    The underlying hypothesis is that periods of extreme fear represent
+    buying opportunities (markets are oversold), while periods of extreme
+    greed represent selling opportunities (markets are overbought).
+
+    Attributes:
+        params (tuple): Strategy parameters:
+            - fear_threshold (int): Fear level below which to buy (default: 10)
+            - greed_threshold (int): Greed level above which to sell (default: 94)
+        bar_num (int): Counter for the number of bars processed.
+        buy_count (int): Total number of buy orders executed.
+        sell_count (int): Total number of sell orders executed.
+        sum_profit (float): Cumulative profit/loss from all closed trades.
+        win_count (int): Number of profitable trades.
+        loss_count (int): Number of unprofitable trades.
+        data0 (Data feed): Reference to the primary data feed (SPY + indicators).
+        fear_greed (Line): Reference to the Fear & Greed index data line.
+        close (Line): Reference to the closing price data line.
+
+    Example:
+        >>> cerebro.addstrategy(
+        ...     FearGreedStrategy,
+        ...     fear_threshold=10,
+        ...     greed_threshold=94
+        ... )
     """
 
     params = (
@@ -78,13 +151,41 @@ class FearGreedStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None, force=False):
-        """Logging function."""
+        """Log strategy messages with timestamp.
+
+        Args:
+            txt (str): The message text to log.
+            dt (datetime, optional): The datetime to use for the timestamp.
+                If None, uses the current bar's datetime. Defaults to None.
+            force (bool, optional): If True, always log the message.
+                If False, suppress logging. Defaults to False.
+
+        Returns:
+            None
+        """
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
+        """Initialize the strategy and set up data references.
+
+        Initializes tracking variables for performance statistics and
+        establishes references to the data feed lines needed for
+        trading logic.
+
+        Attributes Initialized:
+            bar_num (int): Set to 0. Tracks the number of bars processed.
+            buy_count (int): Set to 0. Counts buy orders executed.
+            sell_count (int): Set to 0. Counts sell orders executed.
+            sum_profit (float): Set to 0.0. Accumulates total profit/loss.
+            win_count (int): Set to 0. Counts profitable trades.
+            loss_count (int): Set to 0. Counts unprofitable trades.
+            data0 (Data feed): Reference to self.datas[0], the primary data feed.
+            fear_greed (Line): Reference to the Fear & Greed index line.
+            close (Line): Reference to the closing price line.
+        """
         # Record statistics
         self.bar_num = 0
         self.buy_count = 0
@@ -99,7 +200,23 @@ class FearGreedStrategy(bt.Strategy):
         self.close = self.data0.close
 
     def notify_trade(self, trade):
-        """Trade completion notification."""
+        """Handle trade completion notifications.
+
+        Called by Backtrader when a trade is closed. Updates the strategy's
+        performance statistics by tracking wins, losses, and cumulative profit.
+
+        Args:
+            trade (backtrader.Trade): The completed trade object containing
+                profit/loss information via trade.pnl and trade.pnlcomm.
+
+        Returns:
+            None
+
+        Notes:
+            - Only processes closed trades (trade.isclosed == True)
+            - Gross profit (trade.pnl) is used for win/loss classification
+            - Both gross and net profit (after commissions) are logged
+        """
         if not trade.isclosed:
             return
         if trade.pnl > 0:
@@ -110,7 +227,22 @@ class FearGreedStrategy(bt.Strategy):
         self.log(f"Trade completed: Gross profit={trade.pnl:.2f}, Net profit={trade.pnlcomm:.2f}, Cumulative={self.sum_profit:.2f}")
 
     def notify_order(self, order):
-        """Order status notification."""
+        """Handle order status change notifications.
+
+        Called by Backtrader when an order's status changes. Logs order
+        execution details and any order failures.
+
+        Args:
+            order (backtrader.Order): The order object with updated status.
+
+        Returns:
+            None
+
+        Notes:
+            - Ignores Submitted and Accepted status (order still pending)
+            - Logs execution price and size for Completed orders
+            - Logs status for Canceled, Margin, or Rejected orders
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -123,6 +255,22 @@ class FearGreedStrategy(bt.Strategy):
             self.log(f"Order status: {order.Status[order.status]}")
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by Backtrader for each new bar of data.
+        Implements the core strategy logic:
+        1. Buy when Fear & Greed index falls below fear_threshold (extreme fear)
+        2. Sell when Fear & Greed index rises above greed_threshold (extreme greed)
+
+        Returns:
+            None
+
+        Notes:
+            - Only buys if not already in a position
+            - Only sells if currently holding a position
+            - Position size is calculated based on available cash
+            - Uses full position size when selling (closes entire position)
+        """
         self.bar_num += 1
 
         # Calculate buyable quantity
@@ -140,7 +288,25 @@ class FearGreedStrategy(bt.Strategy):
             self.sell_count += 1
 
     def stop(self):
-        """Output statistics when strategy ends."""
+        """Output final statistics when the strategy execution completes.
+
+        Called by Backtrader after all data has been processed. Calculates
+        and logs the final performance statistics including total trades,
+        win rate, and cumulative profit.
+
+        Returns:
+            None
+
+        Outputs:
+            A formatted log message containing:
+            - bar_num: Total number of bars processed
+            - buy_count: Total buy orders executed
+            - sell_count: Total sell orders executed
+            - wins: Number of profitable trades
+            - losses: Number of unprofitable trades
+            - win_rate: Percentage of profitable trades (0-100)
+            - profit: Total cumulative profit/loss
+        """
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -151,9 +317,34 @@ class FearGreedStrategy(bt.Strategy):
 
 
 def test_fear_greed_strategy():
-    """Test Fear & Greed Sentiment Indicator Strategy.
+    """Test the Fear & Greed Sentiment Indicator Strategy with backtesting.
 
-    Performs backtesting using SPY and Fear & Greed data.
+    This function performs a comprehensive backtest of the FearGreedStrategy
+    using historical SPY data with Fear & Greed sentiment indicators from
+    2011-2021. It validates the strategy's performance against expected
+    values to ensure correct implementation.
+
+    The test:
+    1. Loads SPY price data with sentiment indicators (Put/Call, Fear & Greed, VIX)
+    2. Runs the FearGreedStrategy with fear_threshold=10, greed_threshold=94
+    3. Analyzes performance using Sharpe Ratio, Returns, DrawDown, and TradeAnalyzer
+    4. Asserts that results match expected values
+
+    Raises:
+        AssertionError: If any of the performance metrics don't match expected values.
+        FileNotFoundError: If the required data file cannot be located.
+
+    Expected Results:
+        - bar_num: 2445 bars processed
+        - buy_count: 6 buy orders executed
+        - sell_count: 2 sell orders executed
+        - win_count: 2 profitable trades
+        - loss_count: 0 unprofitable trades
+        - total_trades: 3 completed trades
+        - sharpe_ratio: 0.8915453296028274
+        - annual_return: 0.11230697705249652 (11.23%)
+        - max_drawdown: 0.2428350846476322 (24.28%)
+        - final_value: $280,859.60 (starting from $100,000)
     """
     # Create cerebro
     cerebro = bt.Cerebro(stdstats=True)

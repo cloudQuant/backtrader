@@ -17,6 +17,28 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    Searches for a data file in several predefined directories relative to the
+    current test file location. This allows tests to find data files regardless
+    of how the test suite is executed.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path: The resolved path object pointing to the existing data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+
+    Search Paths:
+        1. Current test directory
+        2. Parent test directory
+        3. Current test directory/datas/
+        4. Parent test directory/datas/
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -51,6 +73,13 @@ class HmaMultiTrendStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the HMA MultiTrend strategy with indicators and tracking variables.
+
+        Creates four Hull Moving Average indicators with different periods to
+        establish a trend-following system. Also initializes ATR for volatility
+        measurement and ADX for trend strength filtering. Sets up counters to
+        track trading activity.
+        """
         self.hma_fast = bt.indicators.HullMovingAverage(
             self.data.close, period=self.p.fast
         )
@@ -63,16 +92,25 @@ class HmaMultiTrendStrategy(bt.Strategy):
         self.hma_mid3 = bt.indicators.HullMovingAverage(
             self.data.close, period=self.p.mid3
         )
-        
+
         self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
         self.adx = bt.indicators.ADX(self.data, period=self.p.adx_period)
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates and track completed trades.
+
+        Called by Backtrader when an order changes status. Counts completed
+        buy and sell orders for performance tracking. Resets the order reference
+        when the order is complete or cancelled.
+
+        Args:
+            order: The Backtrader Order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -83,6 +121,16 @@ class HmaMultiTrendStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar in the backtest.
+
+        Implements the core strategy logic:
+        1. Checks if there's a pending order (no action if order pending)
+        2. Applies ADX filter if enabled
+        3. Evaluates trend conditions using HMA alignment
+        4. Enters long when all HMAs are in ascending order
+        5. Enters short when all HMAs are in descending order
+        6. Exits positions when the trend reverses
+        """
         self.bar_num += 1
 
         if self.order:
@@ -112,6 +160,30 @@ class HmaMultiTrendStrategy(bt.Strategy):
 
 
 def test_hma_multitrend_strategy():
+    """Test the HMA MultiTrend strategy with historical Oracle data.
+
+    Sets up a backtest using Oracle Corporation stock data from 2010-2014,
+    runs the HMA MultiTrend strategy, and validates the results against
+    expected values. This test ensures the strategy produces consistent
+    results after refactoring or code changes.
+
+    Test Configuration:
+        - Data: Oracle (ORCL) daily prices from 2010-01-01 to 2014-12-31
+        - Initial Capital: $100,000
+        - Commission: 0.1% per trade
+        - Strategy Parameters: fast=10, mid1=20, mid2=30, mid3=50
+
+    Assertions:
+        - bar_num: Exactly 1202 bars processed
+        - final_value: Approximately $100,003.09 (nearly break-even)
+        - sharpe_ratio: Approximately 0.00618 (very low returns)
+        - annual_return: Approximately 0.0000062 (minimal)
+        - max_drawdown: Approximately 25.88%
+
+    Raises:
+        AssertionError: If any of the performance metrics don't match
+            expected values within specified tolerances.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(

@@ -17,6 +17,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    This function searches for a data file in multiple standard locations
+    relative to the test file directory, including the current directory,
+    parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -48,6 +64,11 @@ class ReplayMAStrategy(bt.Strategy):
     params = (('fast_period', 5), ('slow_period', 15))
 
     def __init__(self):
+        """Initialize the ReplayMAStrategy with indicators and tracking variables.
+
+        Sets up the fast and slow moving average indicators, the crossover
+        indicator, and initializes tracking variables for orders and bar counts.
+        """
         self.fast_ma = bt.ind.SMA(period=self.p.fast_period)
         self.slow_ma = bt.ind.SMA(period=self.p.slow_period)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
@@ -67,6 +88,15 @@ class ReplayMAStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def notify_order(self, order):
+        """Handle order notifications and track order status changes.
+
+        This method is called by the broker when an order status changes.
+        It logs order execution details and updates the buy/sell counters
+        when orders are completed.
+
+        Args:
+            order: The order object that triggered the notification.
+        """
         if not order.alive():
             self.order = None
 
@@ -97,7 +127,15 @@ class ReplayMAStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
-        # Output information when a trade is closed
+        """Handle trade notifications and log trade information.
+
+        This method is called when a trade is opened or closed. It logs
+        the profit/loss information for closed trades and price information
+        for newly opened trades.
+
+        Args:
+            trade: The trade object that triggered the notification.
+        """
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -108,6 +146,16 @@ class ReplayMAStrategy(bt.Strategy):
                 trade.getdataname(), trade.price))
 
     def next(self):
+        """Execute the trading strategy logic for each bar.
+
+        This method is called for each bar of data. It implements the dual
+        moving average crossover strategy:
+        - When fast MA crosses above slow MA (crossover > 0): close existing
+          position and buy
+        - When fast MA crosses below slow MA (crossover < 0): close position
+
+        Only one order is allowed at a time to avoid overlapping positions.
+        """
         self.bar_num += 1
         if self.order:
             return

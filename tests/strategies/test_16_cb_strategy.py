@@ -95,6 +95,12 @@ class ConvertibleBondIntradayStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the convertible bond intraday strategy.
+
+        Sets up tracking dictionaries for indicators, positions, and trading state
+        for each convertible bond data feed. Calculates technical indicators including
+        moving averages, volume averages, and lowest price points.
+        """
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -114,9 +120,31 @@ class ConvertibleBondIntradayStrategy(bt.Strategy):
         self.cb_low_point_dict = {data._name: bt.indicators.Lowest(data.low, period=20) for data in self.datas[1:]}
 
     def prenext(self):
+        """Handle prenext phase by delegating to next method.
+
+        This allows the strategy to run logic even before minimum period
+        requirements are met.
+        """
         self.next()
 
     def next(self):
+        """Execute main trading logic for each bar.
+
+        Iterates through all convertible bond data feeds and implements
+        multi-factor entry and exit logic:
+
+        Entry conditions:
+        - Price > 20-period moving average
+        - Price change between -1% and +1%
+        - Volume < 4x of 30-period average volume
+        - Moving average rising but slowing down
+
+        Exit conditions:
+        - Position held for more than 10 bars
+        - Price falls below 20-period low
+        - Profit exceeds 3%
+        - Data feed expires (no future data available)
+        """
         self.bar_num += 1
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
 
@@ -125,13 +153,13 @@ class ConvertibleBondIntradayStrategy(bt.Strategy):
             if data_datetime == self.current_datetime:
                 data_name = data._name
                 close_price = data.close[0]
-                
+
                 # Check if previous day's closing price exists
                 pre_close = self.cb_pre_close_dict[data_name]
                 if pre_close is None:
                     pre_close = data.open[0]
                     self.cb_pre_close_dict[data_name] = pre_close
-                
+
                 # Update closing price (direct update for daily data)
                 self.cb_pre_close_dict[data_name] = close_price
 
@@ -204,6 +232,14 @@ class ConvertibleBondIntradayStrategy(bt.Strategy):
                                             self.cb_open_position_price_dict[data_name] = close_price
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Args:
+            order: The order object with status information.
+
+        Logs buy/sell orders when they are completed. Orders that are
+        submitted or accepted are ignored as they haven't filled yet.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -213,10 +249,22 @@ class ConvertibleBondIntradayStrategy(bt.Strategy):
                 self.log(f"SELL: {order.p.data._name} price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Args:
+            trade: The trade object with profit/loss information.
+
+        Logs the final profit/loss when a trade is closed.
+        """
         if trade.isclosed:
             self.log(f"Trade completed: {trade.getdataname()} pnl={trade.pnl:.2f}")
 
     def stop(self):
+        """Log final statistics when backtesting completes.
+
+        Called after all data has been processed. Outputs the total
+        number of bars processed and the count of buy/sell operations.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 

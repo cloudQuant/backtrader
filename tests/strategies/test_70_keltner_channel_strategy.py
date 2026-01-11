@@ -16,6 +16,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    This function searches for a data file in multiple possible locations
+    relative to the test directory, including the current directory, parent
+    directory, and 'datas' subdirectories.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        The resolved Path object pointing to the data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -38,6 +54,12 @@ class KeltnerChannelIndicator(bt.Indicator):
     params = dict(period=20, atr_mult=2.0, atr_period=14)
 
     def __init__(self):
+        """Initialize the Keltner Channel indicator.
+
+        Calculates the middle line as an Exponential Moving Average (EMA) and
+        the upper/lower bands by adding/subtracting a multiple of the Average
+        True Range (ATR) to/from the middle line.
+        """
         self.l.mid = bt.indicators.EMA(self.data.close, period=self.p.period)
         atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
         self.l.top = self.l.mid + self.p.atr_mult * atr
@@ -60,6 +82,11 @@ class KeltnerChannelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Keltner Channel strategy.
+
+        Sets up the Keltner Channel indicator and initializes tracking variables
+        for orders, bar count, and trade statistics.
+        """
         self.kc = KeltnerChannelIndicator(
             self.data, period=self.p.period, atr_mult=self.p.atr_mult
         )
@@ -70,6 +97,11 @@ class KeltnerChannelStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order notifications and update trade statistics.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -80,6 +112,12 @@ class KeltnerChannelStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the Keltner Channel breakout strategy:
+        - Long entry when price breaks above the upper band
+        - Exit when price falls below the middle band
+        """
         self.bar_num += 1
 
         if self.order:

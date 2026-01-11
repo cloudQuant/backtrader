@@ -18,6 +18,26 @@
 #
 ###############################################################################
 
+"""Test module for StochasticFull indicator.
+
+This module tests the StochasticFull indicator implementation in backtrader,
+validating that the indicator produces expected values for known data inputs.
+The test loads historical price data and compares the computed StochasticFull
+values against pre-validated expected results at specific checkpoints.
+
+The StochasticFull indicator is a momentum oscillator that compares a specific
+closing price of a security to a range of its prices over a certain period of
+time. It consists of three lines:
+1. %K - The fast stochastic line
+2. %D - A moving average of %K
+3. %Dslow - A slower moving average of %D
+
+Test Configuration:
+    - Data Source: 2006 daily OHLCV data (single data feed)
+    - Indicator: StochasticFull with default parameters
+    - Expected Minimum Period: 18 bars
+    - Validation Checkpoints: Three points in time with expected values
+"""
 
 import backtrader as bt
 
@@ -25,18 +45,42 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to use for testing
 chkdatas = 1
+
+# Expected values for StochasticFull indicator at three checkpoints
+# Each inner list contains: [percK, percD, percDslow] values as strings
 chkvals = [
     ["83.541267", "36.818395", "41.769503"],
     ["88.667626", "21.409626", "63.796187"],
     ["82.845850", "15.710059", "77.642219"],
 ]
 
+# Expected minimum period before indicator produces valid values
 chkmin = 18
+
+# The indicator class being tested
 chkind = btind.StochasticFull
 
 
 def test_run(main=False):
+    """Execute the StochasticFull indicator test.
+
+    This function loads test data and runs the indicator validation test.
+    It tests the indicator across multiple execution modes (runonce/preload
+    combinations) to ensure compatibility and correctness.
+
+    Args:
+        main (bool, optional): If True, enables plotting for visual inspection.
+            When run as main, the test will display charts. Defaults to False.
+
+    Returns:
+        None. The function runs the test and assertions are handled internally.
+
+    Raises:
+        AssertionError: If computed indicator values do not match expected values
+            at any checkpoint, or if minimum period is incorrect.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

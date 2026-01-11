@@ -51,6 +51,11 @@ class CTPBroker(BrokerBase):
     use_positions = BoolParam(default=True, doc="Use existing positions to kickstart the broker")
 
     def __init__(self, **kwargs):
+        """Initialize CTPBroker with CTP store connection.
+
+        Args:
+            **kwargs: Keyword arguments passed to CTPStore and parent class.
+        """
         super().__init__(**kwargs)
         self.o = CTPStore(**kwargs)
 
@@ -62,6 +67,10 @@ class CTPBroker(BrokerBase):
         self.positions = collections.defaultdict(Position)
 
     def start(self):
+        """Start the broker and initialize account state.
+
+        Retrieves initial balance and existing positions from the CTP broker.
+        """
         super().start()
         # Get balance on start
         self.o.get_balance()
@@ -95,59 +104,126 @@ class CTPBroker(BrokerBase):
                 self.positions[p["local_symbol"]] = Position(final_size, final_price)
 
     def stop(self):
+        """Stop the broker and release CTP connection."""
         super().stop()
         self.o.stop()
 
     def getcash(self):
+        """Get current cash balance.
+
+        Returns:
+            float: Current available cash.
+        """
         self.cash = self.o.get_cash()
         return self.cash
 
     def getvalue(self):
+        """Get current portfolio value.
+
+        Returns:
+            float: Current portfolio value including cash and positions.
+        """
         self.value = self.o.get_value()
         return self.value
 
     def getposition(self, data, clone=True):
+        """Get position for a data feed.
+
+        Args:
+            data: Data feed object.
+            clone: If True, return a cloned copy of the position.
+
+        Returns:
+            Position: Position object for the specified data feed.
+        """
         pos = self.positions[data._dataname]
         if clone:
             pos = pos.clone()
         return pos
 
     def orderstatus(self, order):
+        """Get the status of an order.
+
+        Args:
+            order: Order object.
+
+        Returns:
+            Order.Status: The current status of the order.
+        """
         o = self.orders[order.ref]
         return o.status
 
     def _submit(self, oref):
+        """Submit an order to the broker.
+
+        Args:
+            oref: Order reference ID.
+        """
         order = self.orders[oref]
         order.submit(self)
         self.notify(order)
 
     def _reject(self, oref):
+        """Reject an order.
+
+        Args:
+            oref: Order reference ID.
+        """
         order = self.orders[oref]
         order.reject(self)
         self.notify(order)
 
     def _accept(self, oref):
+        """Accept an order.
+
+        Args:
+            oref: Order reference ID.
+        """
         order = self.orders[oref]
         order.accept()
         self.notify(order)
 
     def _cancel(self, oref):
+        """Cancel an order.
+
+        Args:
+            oref: Order reference ID.
+        """
         order = self.orders[oref]
         order.cancel()
         self.notify(order)
 
     def _expire(self, oref):
+        """Mark an order as expired.
+
+        Args:
+            oref: Order reference ID.
+        """
         order = self.orders[oref]
         order.expire()
         self.notify(order)
 
     def notify(self, order):
+        """Store order notification for later retrieval.
+
+        Args:
+            order: Order object to notify.
+        """
         self.notifs.append(order.clone())
 
     def get_notification(self):
+        """Get the next order notification.
+
+        Returns:
+            Order or None: The next order notification, or None if no notifications.
+        """
         if not self.notifs:
             return None
         return self.notifs.popleft()
 
     def next(self):
+        """Mark notification boundary for each iteration.
+
+        Appends None to separate notifications from different iterations.
+        """
         self.notifs.append(None)  # mark notification boundary

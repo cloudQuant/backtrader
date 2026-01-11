@@ -18,6 +18,33 @@
 #
 ###############################################################################
 
+"""Test module for DV2 (Detrended Price Oscillator Version 2) indicator.
+
+This module contains tests for the DV2 indicator, which is a momentum oscillator
+that measures the position of a security's price relative to a selected moving
+average representation of price. The DV2 indicator is used to identify overbought
+and oversold conditions and potential trend reversals.
+
+The test validates that the DV2 indicator calculates values correctly across
+different execution modes (runonce/preload combinations) and produces expected
+results at specific checkpoints in the data.
+
+Test Configuration:
+    - Data Source: Single data feed (2006-day-001.txt)
+    - Indicator: DV2 (Detrended Price Oscillator Version 2)
+    - Expected Minimum Period: 253 bars
+    - Expected Values: Three checkpoint values for validation
+
+Example:
+    Run the test directly with plotting enabled::
+
+        python test_ind_dv2.py
+
+    Or import and run programmatically::
+
+        from tests.original_tests import test_ind_dv2
+        test_ind_dv2.test_run()
+"""
 
 import backtrader as bt
 
@@ -35,6 +62,31 @@ chkind = btind.DV2
 
 
 def test_run(main=False):
+    """Run the DV2 indicator test.
+
+    Executes the DV2 indicator test by loading test data, creating a backtest
+    strategy, and validating indicator calculations against expected values.
+    The test runs across multiple configuration combinations to ensure
+    compatibility.
+
+    Args:
+        main (bool, optional): If True, enables plotting and detailed output
+            for manual inspection. Defaults to False.
+
+    Returns:
+        list: List of Cerebro instances, one for each configuration tested.
+            The configurations include different combinations of runonce,
+            preload, and exactbars settings.
+
+    Example:
+        Run test with plotting enabled::
+
+            test_run(main=True)
+
+        Run test silently for automated testing::
+
+            test_run()
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

@@ -67,6 +67,12 @@ class LongShortStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Long Short Strategy.
+
+        Sets up the Simple Moving Average (SMA) indicator and crossover
+        signal to detect when price crosses above or below the SMA.
+        Initializes all tracking variables for trade statistics.
+        """
         self.orderid = None
         sma = bt.ind.SMA(self.data, period=self.p.period)
         self.signal = bt.ind.CrossOver(self.data.close, sma)
@@ -80,6 +86,14 @@ class LongShortStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called by the broker when an order changes status. Tracks completed
+        buy and sell orders for statistics.
+
+        Args:
+            order: The order object with updated status information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -95,6 +109,14 @@ class LongShortStrategy(bt.Strategy):
         self.orderid = None
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Called when a trade is closed. Updates profit/loss statistics
+        and win/loss counters.
+
+        Args:
+            trade: The closed trade object containing profit/loss information.
+        """
         if trade.isclosed:
             self.sum_profit += trade.pnlcomm
             if trade.pnlcomm > 0:
@@ -103,6 +125,15 @@ class LongShortStrategy(bt.Strategy):
                 self.loss_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Called on every bar update. Implements the long-short strategy:
+        - Go long when price crosses above SMA
+        - Go short when price crosses below SMA (if not in long-only mode)
+        - Close existing positions before opening new ones
+
+        The strategy ensures only one order is pending at a time.
+        """
         self.bar_num += 1
 
         if self.orderid:
@@ -120,6 +151,13 @@ class LongShortStrategy(bt.Strategy):
                 self.sell(size=self.p.stake)
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        Prints final statistics including bar count, trade counts,
+        win/loss ratio, and total profit/loss.
+
+        The win rate is calculated as: (wins / total trades) * 100
+        """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "

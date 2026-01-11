@@ -1,16 +1,45 @@
+"""Tests for Enhanced ParameterManager functionality.
+
+This module contains comprehensive tests for the enhanced ParameterManager system,
+which provides advanced parameter management features for the backtrader framework.
+These tests validate the new features added during the metaclass removal refactoring.
+
+Key Features Tested:
+    - Parameter Locking: Prevent modification of critical parameters
+    - Parameter Groups: Organize related parameters for batch operations
+    - Change Tracking: Maintain history of parameter modifications
+    - Inheritance Strategies: Control how parameters are inherited from parent managers
+    - Lazy Defaults: Defer computation of default values until first access
+    - Change Callbacks: Execute custom logic when parameters change
+    - Batch Operations: Validate and apply multiple parameter changes atomically
+    - Transaction Support: Rollback parameter changes if validation fails
+    - Dependency Tracking: Manage relationships between parameters
+    - Serialization: Copy and serialize parameter managers
+
+Test Classes:
+    TestEnhancedParameterStorage: Tests for storage and management features
+    TestAdvancedInheritance: Tests for inheritance mechanisms
+    TestLazyDefaults: Tests for lazy default value evaluation
+    TestChangeCallbacks: Tests for parameter change notification system
+    TestEnhancedBatchOperations: Tests for batch update and transaction support
+    TestDependencyTracking: Tests for parameter dependency management
+    TestCopyAndSerialization: Tests for copying parameter managers
+
+Example:
+    Run all tests with pytest::
+
+        pytest tests/refactor_tests/test_enhanced_parameter_manager.py -v
+
+    Run specific test class::
+
+        pytest tests/refactor_tests/test_enhanced_parameter_manager.py::TestEnhancedParameterStorage -v
+
+    Run specific test method::
+
+        pytest tests/refactor_tests/test_enhanced_parameter_manager.py::TestEnhancedParameterStorage::test_parameter_locking -v
+"""
 
 import backtrader as bt
-
-"""
-Tests for Enhanced ParameterManager (Day 32-33)
-
-This module tests the enhanced ParameterManager functionality including:
-- Advanced parameter storage and management
-- Complete inheritance mechanisms
-- Optimized default value handling
-- Enhanced batch update functionality
-- New features: locking, groups, callbacks, transactions, etc.
-"""
 
 import os
 import sys
@@ -30,10 +59,29 @@ from backtrader.parameters import (
 
 
 class TestEnhancedParameterStorage:
-    """Test advanced parameter storage and management features."""
+    """Test advanced parameter storage and management features.
+
+    This test class validates the enhanced storage capabilities of the
+    ParameterManager, including parameter locking, grouping, and change tracking.
+
+    Attributes:
+        None (this is a test class with no persistent state)
+    """
 
     def test_parameter_locking(self):
-        """Test parameter locking mechanism."""
+        """Test parameter locking mechanism.
+
+        Validates that parameters can be locked to prevent accidental modification:
+        - Initially, no parameters are locked
+        - Parameters can be locked individually
+        - Modifying locked parameters raises ValueError
+        - Force=True flag bypasses lock protection
+        - Resetting locked parameters raises ValueError
+        - Parameters can be unlocked to restore normal modification
+
+        Raises:
+            AssertionError: If locking mechanism does not work as expected.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -75,7 +123,20 @@ class TestEnhancedParameterStorage:
         assert manager.get("param1") == 25
 
     def test_parameter_groups(self):
-        """Test parameter grouping functionality."""
+        """Test parameter grouping functionality.
+
+        Validates that parameters can be organized into groups for batch operations:
+        - Groups can be created with specific parameter memberships
+        - Group membership can be queried for individual parameters
+        - Group values can be set atomically
+        - Group values can be retrieved as dictionaries
+        - Invalid group operations raise appropriate errors
+
+        Raises:
+            AssertionError: If grouping functionality does not work as expected.
+            ValueError: If invalid group operations are attempted.
+            AttributeError: If groups reference non-existent parameters.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -114,7 +175,22 @@ class TestEnhancedParameterStorage:
             manager.create_group("invalid", ["nonexistent_param"])
 
     def test_change_tracking_and_history(self):
-        """Test parameter change tracking and history."""
+        """Test parameter change tracking and history.
+
+        Validates that parameter manager maintains a history of changes:
+        - History is initially empty
+        - Each change is recorded with old value, new value, and timestamp
+        - History entries are in chronological order (most recent first)
+        - History can be limited to N most recent changes
+        - History can be cleared for individual parameters
+        - History tracking can be disabled for performance
+
+        History Structure:
+            Each history entry is a tuple of (old_value, new_value, timestamp)
+
+        Raises:
+            AssertionError: If history tracking does not work as expected.
+        """
         descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
 
         manager = ParameterManager(descriptors, enable_history=True)
@@ -133,14 +209,14 @@ class TestEnhancedParameterStorage:
         print(history)
         # Check history structure (old_value, new_value, timestamp)
         assert history[0][0] == 30  # old value
-        assert history[0][1] == 10  # new value
+        assert history[0][1] == 10  # new value (reset to default)
         assert isinstance(history[0][2], float)  # timestamp
 
         assert history[1][0] == 20
         assert history[1][1] == 30
 
         assert history[2][0] == 10
-        assert history[2][1] == 20  # reset to default
+        assert history[2][1] == 20
 
         # Test history limit
         limited_history = manager.get_change_history("param1", limit=2)
@@ -157,10 +233,36 @@ class TestEnhancedParameterStorage:
 
 
 class TestAdvancedInheritance:
-    """Test enhanced inheritance mechanisms."""
+    """Test enhanced inheritance mechanisms.
+
+    This test class validates the advanced inheritance features that allow
+    child parameter managers to inherit values from parent managers with
+    configurable conflict resolution strategies.
+
+    Inheritance Strategies:
+        - merge: Combine parent and child values
+        - replace: Parent values completely replace child values
+        - selective: Inherit only specified parameters
+
+    Conflict Resolution (for merge strategy):
+        - parent: Parent's value wins on conflict
+        - child: Child's value wins on conflict
+        - raise: Raise exception on conflict
+    """
 
     def test_inheritance_strategies(self):
-        """Test different inheritance strategies."""
+        """Test different inheritance strategies.
+
+        Validates that child managers can inherit from parent managers using
+        different strategies and conflict resolution methods:
+        - Merge with parent priority: Parent values override child conflicts
+        - Merge with child priority: Child values override parent conflicts
+        - Replace: All child values replaced by parent values
+        - Selective: Only specified parameters are inherited
+
+        Raises:
+            AssertionError: If inheritance strategies do not work as expected.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -212,7 +314,17 @@ class TestAdvancedInheritance:
         assert child.get("param3") == 30  # Not inherited (default)
 
     def test_inheritance_conflict_detection(self):
-        """Test inheritance conflict detection."""
+        """Test inheritance conflict detection.
+
+        Validates that conflicts between parent and child values can be
+        detected and handled appropriately:
+        - Conflicts can be raised as exceptions
+        - This allows strict validation of inherited values
+
+        Raises:
+            AssertionError: If conflict detection does not work as expected.
+            ValueError: If conflicts are detected and resolution is set to "raise".
+        """
         descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
 
         parent = ParameterManager(descriptors)
@@ -226,7 +338,16 @@ class TestAdvancedInheritance:
             child.inherit_from(parent, strategy="merge", conflict_resolution="raise")
 
     def test_inheritance_tracking(self):
-        """Test inheritance chain tracking."""
+        """Test inheritance chain tracking.
+
+        Validates that the parameter manager tracks inheritance information:
+        - Can query if a parameter value was inherited
+        - Can identify the source (parent) of inherited values
+        - Directly setting a value overrides inherited status
+
+        Raises:
+            AssertionError: If inheritance tracking does not work as expected.
+        """
         descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
 
         grandparent = ParameterManager(descriptors)
@@ -251,10 +372,29 @@ class TestAdvancedInheritance:
 
 
 class TestLazyDefaults:
-    """Test lazy default value handling."""
+    """Test lazy default value handling.
+
+    This test class validates lazy default evaluation, which allows parameter
+    defaults to be computed on-demand rather than at initialization time.
+
+    Benefits:
+        - Defer expensive computations until needed
+        - Provide time-dependent default values
+        - Reduce memory footprint for unused parameters
+    """
 
     def test_lazy_default_evaluation(self):
-        """Test lazy default value evaluation."""
+        """Test lazy default value evaluation.
+
+        Validates that lazy defaults are evaluated correctly:
+        - Lazy function is called only once on first access
+        - Result is cached for subsequent accesses
+        - Lazy default can be cleared to restore original default
+        - Lazy defaults can use dynamic values (e.g., current time)
+
+        Raises:
+            AssertionError: If lazy default evaluation does not work as expected.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -266,6 +406,12 @@ class TestLazyDefaults:
         call_count = 0
 
         def lazy_func():
+            """Compute time-based default value.
+
+            Returns:
+                int: A value based on the current time, used to demonstrate
+                    that lazy defaults can compute dynamic values.
+            """
             nonlocal call_count
             call_count += 1
             return int(time.time() * 1000) % 1000  # Some time-based value
@@ -287,7 +433,16 @@ class TestLazyDefaults:
         assert value3 == 10  # Back to original default
 
     def test_lazy_default_with_set(self):
-        """Test interaction between lazy defaults and explicit setting."""
+        """Test interaction between lazy defaults and explicit setting.
+
+        Validates that lazy defaults interact correctly with explicit value setting:
+        - Lazy default is used until an explicit value is set
+        - Explicit value overrides lazy default
+        - Resetting restores the lazy default (not original default)
+
+        Raises:
+            AssertionError: If lazy default/set interaction does not work as expected.
+        """
         descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
 
         manager = ParameterManager(descriptors)
@@ -308,10 +463,30 @@ class TestLazyDefaults:
 
 
 class TestChangeCallbacks:
-    """Test parameter change callbacks."""
+    """Test parameter change callbacks.
+
+    This test class validates the callback system that allows custom code
+    to be executed when parameter values change.
+
+    Use Cases:
+        - Trigger recalculation when dependent parameters change
+        - Log parameter modifications for audit trails
+        - Enforce business rules on parameter changes
+        - Update UI components when parameters change
+    """
 
     def test_parameter_specific_callbacks(self):
-        """Test parameter-specific change callbacks."""
+        """Test parameter-specific change callbacks.
+
+        Validates that callbacks can be registered for specific parameters:
+        - Callbacks receive parameter name, old value, and new value
+        - Only changes to monitored parameters trigger callbacks
+        - Callbacks can be removed to stop monitoring
+        - Multiple callbacks can be registered for the same parameter
+
+        Raises:
+            AssertionError: If parameter-specific callbacks do not work as expected.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -323,6 +498,13 @@ class TestChangeCallbacks:
         callback_calls = []
 
         def callback(name, old_value, new_value):
+            """Track parameter changes for testing.
+
+            Args:
+                name: The name of the parameter that changed.
+                old_value: The previous value of the parameter.
+                new_value: The new value of the parameter.
+            """
             callback_calls.append((name, old_value, new_value))
 
         # Add callback for specific parameter
@@ -343,7 +525,16 @@ class TestChangeCallbacks:
         assert len(callback_calls) == 1  # No new calls
 
     def test_global_callbacks(self):
-        """Test global change callbacks."""
+        """Test global change callbacks.
+
+        Validates that global callbacks receive notifications for all parameters:
+        - Global callbacks are triggered by any parameter change
+        - Callbacks receive the parameter name along with values
+        - Multiple global callbacks can be registered
+
+        Raises:
+            AssertionError: If global callbacks do not work as expected.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -354,6 +545,13 @@ class TestChangeCallbacks:
         callback_calls = []
 
         def global_callback(name, old_value, new_value):
+            """Track all parameter changes for testing.
+
+            Args:
+                name: The name of the parameter that changed.
+                old_value: The previous value of the parameter.
+                new_value: The new value of the parameter.
+            """
             callback_calls.append((name, old_value, new_value))
 
         # Add global callback
@@ -368,12 +566,32 @@ class TestChangeCallbacks:
         assert callback_calls[1] == ("param2", 20, 25)
 
     def test_callback_error_handling(self):
-        """Test that callback errors don't break parameter setting."""
+        """Test that callback errors don't break parameter setting.
+
+        Validates robustness of the callback system:
+        - Exceptions raised in callbacks are caught and logged
+        - Parameter setting succeeds even if callbacks fail
+        - This allows the parameter system to remain functional despite
+          errors in user-provided callbacks
+
+        Raises:
+            AssertionError: If error handling does not work as expected.
+        """
         descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
 
         manager = ParameterManager(descriptors, enable_callbacks=True)
 
         def bad_callback(name, old_value, new_value):
+            """Callback that intentionally raises an exception.
+
+            Args:
+                name: The parameter name (ignored).
+                old_value: The old value (ignored).
+                new_value: The new value (ignored).
+
+            Raises:
+                RuntimeError: Always raised to test error handling.
+            """
             raise RuntimeError("Callback error!")
 
         manager.add_change_callback(bad_callback)
@@ -384,10 +602,31 @@ class TestChangeCallbacks:
 
 
 class TestEnhancedBatchOperations:
-    """Test enhanced batch update functionality."""
+    """Test enhanced batch update functionality.
+
+    This test class validates batch operations and transaction support,
+    which allow multiple parameter changes to be applied atomically.
+
+    Benefits:
+        - Validate all changes before applying any
+        - Rollback changes if validation fails
+        - Trigger callbacks only after all changes succeed
+        - Maintain consistency across related parameters
+    """
 
     def test_batch_validation(self):
-        """Test batch validation before applying changes."""
+        """Test batch validation before applying changes.
+
+        Validates that batch operations validate all changes before applying:
+        - Validation errors prevent any changes from being applied
+        - Locked parameters are detected during validation
+        - Force flag bypasses validation
+        - All-or-nothing semantics ensure consistency
+
+        Raises:
+            AssertionError: If batch validation does not work as expected.
+            ValueError: If validation fails with validate_all=True.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, type_=int, name="param1"),
             "param2": ParameterDescriptor(default=20, type_=int, name="param2"),
@@ -410,7 +649,25 @@ class TestEnhancedBatchOperations:
         assert manager.get("param2") == 25
 
     def test_transaction_support(self):
-        """Test transactional batch updates."""
+        """Test transactional batch updates.
+
+        Validates that parameter changes can be grouped into transactions:
+        - Changes within a transaction are visible immediately
+        - Callbacks are not triggered until transaction is committed
+        - Committed changes become permanent
+        - Rolled back changes are discarded
+        - Transaction state can be queried
+
+        Transaction Lifecycle:
+            1. begin_transaction(): Start a new transaction
+            2. set/modify: Make changes (visible within transaction)
+            3. commit_transaction(): Apply changes permanently
+            4. OR rollback_transaction(): Discard changes
+
+        Raises:
+            AssertionError: If transaction support does not work as expected.
+            RuntimeError: If transaction operations are used incorrectly.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -421,6 +678,13 @@ class TestEnhancedBatchOperations:
         callback_calls = []
 
         def callback(name, old_value, new_value):
+            """Track parameter changes during transaction testing.
+
+            Args:
+                name: The parameter name that changed.
+                old_value: The previous value.
+                new_value: The new value.
+            """
             callback_calls.append((name, old_value, new_value))
 
         manager.add_change_callback(callback)
@@ -465,7 +729,17 @@ class TestEnhancedBatchOperations:
         assert len(callback_calls) == 0  # No callbacks for rolled back changes
 
     def test_transaction_nesting_protection(self):
-        """Test that nested transactions are prevented."""
+        """Test that nested transactions are prevented.
+
+        Validates that the parameter manager prevents nested transactions:
+        - Cannot begin a transaction while already in one
+        - Cannot commit/rollback without being in a transaction
+        - These restrictions prevent data corruption from complex nesting
+
+        Raises:
+            AssertionError: If transaction nesting protection does not work as expected.
+            RuntimeError: If nested transaction is attempted.
+        """
         descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
 
         manager = ParameterManager(descriptors)
@@ -482,10 +756,30 @@ class TestEnhancedBatchOperations:
 
 
 class TestDependencyTracking:
-    """Test parameter dependency tracking."""
+    """Test parameter dependency tracking.
+
+    This test class validates the dependency tracking system, which allows
+    parameters to declare relationships with other parameters.
+
+    Use Cases:
+        - Automatically update dependent parameters
+        - Validate parameter changes don't break dependencies
+        - Calculate parameter values based on other parameters
+        - Detect circular dependencies
+    """
 
     def test_dependency_management(self):
-        """Test adding and removing dependencies."""
+        """Test adding and removing dependencies.
+
+        Validates that parameter dependencies can be managed:
+        - Dependencies can be added between parameters
+        - Dependencies can be queried (both directions)
+        - Dependencies can be removed
+        - Multiple dependents can be tracked per parameter
+
+        Raises:
+            AssertionError: If dependency management does not work as expected.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),
@@ -509,7 +803,17 @@ class TestDependencyTracking:
         assert manager.get_dependents("param2") == []
 
     def test_dependency_validation(self):
-        """Test dependency validation with unknown parameters."""
+        """Test dependency validation with unknown parameters.
+
+        Validates that dependencies reference only valid parameters:
+        - Cannot add dependency with unknown dependent parameter
+        - Cannot add dependency with unknown source parameter
+        - Validation prevents silent failures from typos
+
+        Raises:
+            AssertionError: If dependency validation does not work as expected.
+            AttributeError: If dependency references unknown parameter.
+        """
         descriptors = {"param1": ParameterDescriptor(default=10, name="param1")}
 
         manager = ParameterManager(descriptors)
@@ -523,10 +827,31 @@ class TestDependencyTracking:
 
 
 class TestCopyAndSerialization:
-    """Test copying and serialization of enhanced managers."""
+    """Test copying and serialization of enhanced managers.
+
+    This test class validates that parameter managers can be copied while
+    preserving all their enhanced features.
+
+    Copied Attributes:
+        - Parameter values
+        - Lock states
+        - Parameter groups
+        - Change history (if enabled)
+        - Callbacks (may be deep copied or shallow copied based on implementation)
+    """
 
     def test_deep_copy(self):
-        """Test deep copying of enhanced parameter manager."""
+        """Test deep copying of enhanced parameter manager.
+
+        Validates that a deep copy creates an independent parameter manager:
+        - Values are copied correctly
+        - Lock states are preserved
+        - Groups are copied
+        - Changes to copy don't affect original
+
+        Raises:
+            AssertionError: If deep copy does not work as expected.
+        """
         descriptors = {
             "param1": ParameterDescriptor(default=10, name="param1"),
             "param2": ParameterDescriptor(default=20, name="param2"),

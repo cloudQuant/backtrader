@@ -18,12 +18,55 @@
 #
 ###############################################################################
 
+"""Test module for the Position class in backtrader.
+
+This module tests the functionality of the bt.Position class, which manages
+position state including size and price. The tests verify:
+
+1. Initial position creation with size and price
+2. Position updates when opening new positions (increasing size)
+3. Position updates when closing positions (decreasing size)
+4. Position updates when flipping positions (closing and opening in opposite direction)
+5. Correct calculation of average price during position updates
+6. Proper tracking of opened and closed amounts
+
+The test covers various scenarios including:
+- Opening long positions
+- Partially closing positions
+- Fully closing positions
+- Flipping from long to short positions
+"""
 
 import backtrader as bt
 
 
-
 def test_run(main=False):
+    """Test Position class functionality including creation and updates.
+
+    This test function verifies the behavior of the bt.Position class through
+    three main scenarios:
+
+    1. **Opening a position**: Tests that adding to a position correctly
+       calculates the new average price and tracks the opened amount.
+
+    2. **Partial close**: Tests that partially closing a position maintains
+       the original average price and correctly tracks the closed amount.
+
+    3. **Position flip**: Tests that closing more than the current position
+       (flipping to the opposite direction) correctly sets the new price
+       and tracks both closed and opened amounts.
+
+    Args:
+        main (bool, optional): If True, prints intermediate results for
+            manual verification. Defaults to False.
+
+    Returns:
+        None: This function performs assertions and returns nothing.
+
+    Raises:
+        AssertionError: If any of the position calculations are incorrect,
+            including size, price, opened amount, or closed amount.
+    """
     size = 10
     price = 10.0
 
@@ -36,8 +79,6 @@ def test_run(main=False):
     nsize, nprice, opened, closed = pos.update(size=upsize, price=upprice)
 
     if main:
-        # print('pos.size/price', pos.size, pos.price)  # Removed for performance
-        pass
         print("nsize, nprice, opened, closed", nsize, nprice, opened, closed)
 
     assert pos.size == size + upsize
@@ -55,8 +96,6 @@ def test_run(main=False):
     nsize, nprice, opened, closed = pos.update(size=upsize, price=upprice)
 
     if main:
-        # print('pos.size/price', pos.size, pos.price)  # Removed for performance
-        pass
         print("nsize, nprice, opened, closed", nsize, nprice, opened, closed)
 
     assert pos.size == size + upsize
@@ -75,8 +114,6 @@ def test_run(main=False):
     nsize, nprice, opened, closed = pos.update(size=upsize, price=upprice)
 
     if main:
-        # print('pos.size/price', pos.size, pos.price)  # Removed for performance
-        pass
         print("nsize, nprice, opened, closed", nsize, nprice, opened, closed)
 
     assert pos.size == size + upsize

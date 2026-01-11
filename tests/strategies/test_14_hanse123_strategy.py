@@ -20,14 +20,29 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """Locate data files based on script directory to avoid relative path failures."""
+    """Locate data files by searching multiple possible directory paths.
+
+    This function searches for data files in several predefined locations relative
+    to the script directory, avoiding issues with relative paths. It also checks
+    an optional environment variable for custom data directory location.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the first found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
         BASE_DIR.parent.parent / filename,
         BASE_DIR.parent.parent / "tests" / "datas" / filename,
     ]
-    
+
     data_dir = os.environ.get("BACKTRADER_DATA_DIR")
     if data_dir:
         search_paths.append(Path(data_dir) / filename)
@@ -54,11 +69,23 @@ class Hans123Strategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
-        """Log information to console."""
+        """Log trading information to console with timestamp.
+
+        Args:
+            txt: Text message to log.
+            dt: Optional datetime object. If not provided, uses current bar's datetime.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the Hans123 strategy with indicators and state variables.
+
+        Sets up:
+        - Moving average indicator for trend filtering
+        - State tracking variables for bar counting and trade statistics
+        - Variables for tracking daily high/low and breakout bands
+        """
         self.bar_num = 0
         self.day_bar_num = 0
         self.buy_count = 0
@@ -77,9 +104,27 @@ class Hans123Strategy(bt.Strategy):
         self.lower_line = None
 
     def prenext(self):
+        """Handle bars before minimum period is reached.
+
+        This method is called for each bar before the strategy's minimum period
+        (determined by indicator requirements) is satisfied. No action is taken
+        during this phase.
+        """
         pass
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the Hans123 breakout strategy logic:
+        1. Track daily high/low prices from market open
+        2. After specified bars, establish upper/lower breakout bands
+        3. Enter long when MA trending up, price above MA, and breaks upper band
+        4. Enter short when MA trending down, price below MA, and breaks lower band
+        5. Close all positions before market close (14:55)
+        6. Reset daily tracking at end of trading day (15:00)
+
+        Only trades during specified time windows (21:00-23:00 or 9:00-11:00).
+        """
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
         self.current_hour = self.current_datetime.hour
         self.current_minute = self.current_datetime.minute
@@ -140,6 +185,14 @@ class Hans123Strategy(bt.Strategy):
                 self.marketposition = 0
 
     def notify_order(self, order):
+        """Handle order status changes.
+
+        Called when an order's status changes. Logs executed trades and
+        filters out intermediate order statuses.
+
+        Args:
+            order: Order object that has changed status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -149,10 +202,22 @@ class Hans123Strategy(bt.Strategy):
                 self.log(f"SELL: price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Called when a trade is closed. Logs the profit/loss information.
+
+        Args:
+            trade: Trade object that has completed.
+        """
         if trade.isclosed:
             self.log(f"Trade completed: pnl={trade.pnl:.2f}, pnlcomm={trade.pnlcomm:.2f}")
 
     def stop(self):
+        """Log final strategy statistics when backtest completes.
+
+        Called after all data has been processed. Outputs total bar count
+        and trade execution statistics.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 
@@ -200,9 +265,19 @@ def load_rb889_data(filename: str = "RB889.csv", max_rows: int = 50000) -> pd.Da
 
 
 def test_hans123_strategy():
-    """Test Hans123 intraday breakout strategy.
+    """Test Hans123 intraday breakout strategy with rebar futures data.
 
-    Runs backtest using rebar futures data RB889.csv.
+    This test function:
+    1. Loads RB889 rebar futures data from CSV file
+    2. Configures cerebro with data feed, commission info, and strategy
+    3. Runs backtest with Hans123 strategy (MA period=200, bar_num=2)
+    4. Collects performance metrics (Sharpe ratio, returns, drawdown, trades)
+    5. Asserts that results match expected values
+
+    Raises:
+        AssertionError: If any of the test assertions fail (bar count, trade counts,
+            Sharpe ratio, annual return, max drawdown, or final value).
+        FileNotFoundError: If RB889.csv data file cannot be located.
     """
     # Create cerebro
     cerebro = bt.Cerebro(stdstats=True)

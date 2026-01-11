@@ -94,6 +94,11 @@ class ConvertibleBondFridayRotationStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the convertible bond Friday rotation strategy.
+
+        Sets up tracking variables for bar counting, trade statistics,
+        and order management.
+        """
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -101,9 +106,25 @@ class ConvertibleBondFridayRotationStrategy(bt.Strategy):
         self.order_list = []
 
     def prenext(self):
+        """Handle prenext phase by calling next() directly.
+
+        This strategy executes trading logic from the first bar, so
+        prenext delegates to next() without waiting for minimum period.
+        """
         self.next()
 
     def next(self):
+        """Execute main trading logic for each bar.
+
+        On Fridays (weekday 5):
+        1. Close all existing positions
+        2. Select top 3 convertible bonds by premium rate
+        3. Allocate 10% of portfolio value to each selected bond
+        4. Track orders for future rebalancing
+
+        The strategy uses index data as the primary data feed (self.datas[0])
+        and convertible bond data as additional feeds (self.datas[1:]).
+        """
         self.bar_num += 1
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
         total_value = self.broker.get_value()
@@ -147,6 +168,14 @@ class ConvertibleBondFridayRotationStrategy(bt.Strategy):
                     self.order_list.append([data, order])
 
     def notify_order(self, order):
+        """Handle order status changes.
+
+        Logs buy and sell orders when they are executed. Orders in
+        Submitted or Accepted status are ignored until completion.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -156,10 +185,22 @@ class ConvertibleBondFridayRotationStrategy(bt.Strategy):
                 self.log(f"SELL: {order.p.data._name} price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Logs the profit/loss when a trade is closed.
+
+        Args:
+            trade: The trade object with execution details.
+        """
         if trade.isclosed:
             self.log(f"Trade completed: {trade.getdataname()} pnl={trade.pnl:.2f}")
 
     def stop(self):
+        """Log final statistics when backtesting completes.
+
+        Outputs the total number of bars processed, buy orders executed,
+        and sell orders executed.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 

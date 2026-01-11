@@ -73,11 +73,16 @@ class TripleCrossStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the TripleCrossStrategy.
+
+        Sets up the three simple moving averages and initializes tracking
+        variables for orders and statistics.
+        """
         self.dataclose = self.datas[0].close
         self.ma1 = bt.ind.SMA(self.datas[0], period=self.p.ma1_period)
         self.ma2 = bt.ind.SMA(self.datas[0], period=self.p.ma2_period)
         self.ma3 = bt.ind.SMA(self.datas[0], period=self.p.ma3_period)
-        
+
         self.order = None
         self.last_operation = "SELL"
 
@@ -87,6 +92,14 @@ class TripleCrossStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Updates buy/sell counts and tracks the last executed operation when
+        orders are completed.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -101,6 +114,15 @@ class TripleCrossStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the triple moving average crossover strategy:
+        - Buy when MA1 > MA2 > MA3 (bullish alignment)
+        - Sell when MA1 < MA2 < MA3 (bearish alignment)
+
+        Only one order can be active at a time, and the strategy avoids
+        duplicate trades in the same direction.
+        """
         self.bar_num += 1
 
         if self.order:
@@ -117,20 +139,33 @@ class TripleCrossStrategy(bt.Strategy):
                 self.order = self.sell(size=self.p.stake)
 
     def stop(self):
+        """Called when the strategy execution is complete.
+
+        This method is invoked after all data has been processed.
+        Currently performs no action but can be extended for cleanup
+        or final reporting.
+        """
         pass
 
 
 def test_triple_cross_strategy():
     """Test the triple moving average crossover strategy.
 
-    This test function:
-        1. Loads historical Oracle stock data (2010-2014)
-        2. Runs the TripleCrossStrategy with default parameters
+    This test performs the following operations:
+        1. Loads historical Oracle stock data from 2010-2014
+        2. Runs the TripleCrossStrategy with default parameters (5/8/13 MA periods)
         3. Validates performance metrics against expected values
+
+    The test validates:
+        - Number of bars processed: 1245
+        - Final portfolio value: ~100063.63
+        - Sharpe ratio: ~0.361
+        - Annual return: ~0.00013
+        - Maximum drawdown: ~0.109
 
     Raises:
         AssertionError: If any of the performance metrics don't match
-            expected values within tolerance.
+            expected values within tolerance (0.01 for final_value, 1e-6 for others).
     """
     cerebro = bt.Cerebro()
 

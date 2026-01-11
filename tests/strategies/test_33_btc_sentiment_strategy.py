@@ -68,11 +68,18 @@ class BtcSentimentStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the BtcSentiment strategy.
+
+        Sets up the data feeds, indicators, and tracking variables for the strategy.
+        The strategy uses BTC price data from the first feed and Google Trends sentiment
+        data from the second feed. Bollinger Bands are calculated on the sentiment data
+        to generate trading signals.
+        """
         self.btc_price = self.datas[0].close
         self.google_sentiment = self.datas[1].close
         self.bbands = bt.indicators.BollingerBands(
-            self.google_sentiment, 
-            period=self.params.period, 
+            self.google_sentiment,
+            period=self.params.period,
             devfactor=self.params.devfactor
         )
         self.order = None
@@ -86,6 +93,15 @@ class BtcSentimentStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Tracks the number of buy and sell orders as they are executed.
+        Resets the pending order reference when the order is completed,
+        canceled, margin-triggered, or rejected.
+
+        Args:
+            order: The order object with updated status information.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -101,6 +117,14 @@ class BtcSentimentStrategy(bt.Strategy):
         self.order = None
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Tracks profit/loss for each completed trade and increments the
+        win or loss counters accordingly.
+
+        Args:
+            trade: The trade object with P&L information.
+        """
         if trade.isclosed:
             self.sum_profit += trade.pnlcomm
             if trade.pnlcomm > 0:
@@ -109,6 +133,15 @@ class BtcSentimentStrategy(bt.Strategy):
                 self.loss_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the Bollinger Bands-based sentiment strategy:
+        - Long: When sentiment exceeds the upper Bollinger Band
+        - Short: When sentiment falls below the lower Bollinger Band
+        - Close: When sentiment returns to the middle region
+
+        Only one order is allowed at a time to prevent over-trading.
+        """
         self.bar_num += 1
 
         if self.order:
@@ -132,8 +165,12 @@ class BtcSentimentStrategy(bt.Strategy):
     def stop(self):
         """Output statistics when the strategy stops.
 
-        Prints the final statistics including bar count, trade counts, win rate,
+        Calculates and prints the final performance statistics including
+        bar count, order counts, win/loss counts, win rate percentage,
         and total profit/loss.
+
+        Returns:
+            None
         """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
@@ -159,6 +196,15 @@ def test_btc_sentiment_strategy():
         - Sharpe ratio is approximately 0.801
         - Annual return is approximately 23.7%
         - Maximum drawdown is approximately 17.49%
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If any of the expected strategy metrics do not match
+            the actual values within the specified tolerance.
+        FileNotFoundError: If the required data files (BTCUSD_Weekly.csv or
+            BTC_Gtrends.csv) cannot be found in the expected paths.
     """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(10000.0)

@@ -18,6 +18,20 @@
 #
 ###############################################################################
 
+"""Test module for the Directional Movement (DM) indicator.
+
+This module contains test cases for the Directional Movement indicator (btind.DM),
+which measures the positive and negative directional movement in price data.
+The DM indicator is a key component of the Directional Movement System developed
+by J. Welles Wilder Jr.
+
+The test validates that the DM indicator produces expected values when applied
+to test data, using the common test infrastructure.
+
+Typical usage example:
+    test_run()  # Run the test programmatically
+    python test_ind_dm.py  # Run from command line with plotting
+"""
 
 import backtrader as bt
 
@@ -38,6 +52,29 @@ chkind = btind.DM
 
 
 def test_run(main=False):
+    """Run the DM indicator test.
+
+    This function loads test data, executes a backtest with the DM indicator,
+    and validates the results against expected values. It uses the common
+    test infrastructure to perform the validation.
+
+    Args:
+        main (bool, optional): If True, enables plotting mode for visual
+            inspection of results. When running as a script (main=True),
+            the chart will be displayed. Defaults to False.
+
+    Returns:
+        None: The function executes the test but does not return a value.
+            Results are validated internally by testcommon.runtest().
+
+    Raises:
+        AssertionError: If the DM indicator values do not match the expected
+            values in chkvals.
+
+    Example:
+        >>> test_run()  # Run without plotting
+        >>> test_run(main=True)  # Run with plotting enabled
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

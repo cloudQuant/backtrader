@@ -16,6 +16,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    This function searches for a data file in several standard locations
+    relative to the test directory, including the current directory,
+    parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        The resolved Path object pointing to the data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of
+            the search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -37,6 +53,13 @@ class StrategyA(bt.Strategy):
     params = (('p1', 10), ('p2', 30))
 
     def __init__(self):
+        """Initialize the StrategyA indicators and state variables.
+
+        Sets up two Simple Moving Average (SMA) indicators with periods
+        defined by p1 and p2 parameters, and creates a crossover indicator
+        to detect when the fast SMA crosses the slow SMA. Also initializes
+        tracking variables for orders, bars, and trade counts.
+        """
         sma1 = bt.ind.SMA(period=self.p.p1)
         sma2 = bt.ind.SMA(period=self.p.p2)
         self.crossover = bt.ind.CrossOver(sma1, sma2)
@@ -47,6 +70,14 @@ class StrategyA(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates and track completed trades.
+
+        Updates the buy/sell counters when orders are completed and
+        clears the order reference when the order is no longer alive.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -56,6 +87,13 @@ class StrategyA(bt.Strategy):
             self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the dual moving average crossover strategy:
+        - Buy when fast SMA crosses above slow SMA
+        - Sell (close position) when fast SMA crosses below slow SMA
+        - Only one active order at a time
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -77,6 +115,13 @@ class StrategyB(bt.Strategy):
     params = (('period', 10),)
 
     def __init__(self):
+        """Initialize the StrategyB indicators and state variables.
+
+        Sets up a Simple Moving Average (SMA) indicator with the period
+        defined by the 'period' parameter, and creates a crossover indicator
+        to detect when the price crosses above or below the SMA. Also
+        initializes tracking variables for orders, bars, and trade counts.
+        """
         sma = bt.ind.SMA(period=self.p.period)
         self.crossover = bt.ind.CrossOver(self.data.close, sma)
         self.order = None
@@ -86,6 +131,14 @@ class StrategyB(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates and track completed trades.
+
+        Updates the buy/sell counters when orders are completed and
+        clears the order reference when the order is no longer alive.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -95,6 +148,13 @@ class StrategyB(bt.Strategy):
             self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the price and moving average crossover strategy:
+        - Buy when price crosses above the SMA
+        - Sell (close position) when price crosses below the SMA
+        - Only one active order at a time
+        """
         self.bar_num += 1
         if self.order:
             return

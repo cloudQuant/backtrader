@@ -60,6 +60,13 @@ class BracketOrderStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Bracket Order Strategy.
+
+        Sets up the technical indicators and tracking variables for the strategy.
+        Creates two simple moving averages (SMA) and a crossover indicator to
+        generate entry signals. Also initializes tracking variables for order
+        references, position holding, and performance statistics.
+        """
         ma1 = bt.ind.SMA(period=self.p.p1)
         ma2 = bt.ind.SMA(period=self.p.p2)
         self.cross = bt.ind.CrossOver(ma1, ma2)
@@ -75,6 +82,15 @@ class BracketOrderStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Tracks completed orders by incrementing buy/sell counters and updating
+        the hold start time. Also removes order references from the active order
+        list when orders are no longer alive (completed, cancelled, or expired).
+
+        Args:
+            order: The order object that has changed status.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -86,6 +102,15 @@ class BracketOrderStrategy(bt.Strategy):
             self.orefs.remove(order.ref)
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Updates performance statistics when a trade is closed, including
+        total profit/loss, win count, and loss count based on the trade's
+        net profit (pnlcomm).
+
+        Args:
+            trade: The trade object that has been closed.
+        """
         if trade.isclosed:
             self.sum_profit += trade.pnlcomm
             if trade.pnlcomm > 0:
@@ -94,6 +119,20 @@ class BracketOrderStrategy(bt.Strategy):
                 self.loss_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called for each bar in the data series. It implements
+        the bracket order strategy logic:
+        1. Skips if there are active orders pending
+        2. When not in a position and the fast SMA crosses above the slow SMA,
+           creates a bracket order with:
+           - Main limit buy order (p1) at current price * (1 - limit)
+           - Stop loss sell order (p2) at p1 - 2% of close price
+           - Take profit sell order (p3) at p1 + 2% of close price
+
+        The bracket orders are transmitted together as a group, with the stop
+        loss and take profit orders as children of the main limit order.
+        """
         self.bar_num += 1
 
         if self.orefs:
@@ -135,6 +174,12 @@ class BracketOrderStrategy(bt.Strategy):
                 self.orefs = [o1.ref, o2.ref, o3.ref]
 
     def stop(self):
+        """Print final performance statistics when backtesting completes.
+
+        Calculates and displays the win rate along with other performance
+        metrics including total bars processed, buy/sell counts, win/loss
+        counts, and total profit/loss.
+        """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "
@@ -145,7 +190,27 @@ class BracketOrderStrategy(bt.Strategy):
 
 
 def test_bracket_order_strategy():
-    """Test the Bracket Order Strategy."""
+    """Test the Bracket Order Strategy implementation and performance.
+
+    This test function:
+    1. Sets up a Cerebro backtesting engine with initial capital of 100,000
+    2. Loads daily price data from 2005-2006
+    3. Runs the BracketOrderStrategy with fixed position sizing (10 shares)
+    4. Collects performance metrics via analyzers (Sharpe Ratio, Returns, DrawDown, TradeAnalyzer)
+    5. Validates the results against expected values
+
+    Expected results:
+    - 497 total bars processed
+    - 8 buy orders and 8 sell orders executed
+    - 4 winning trades and 4 losing trades (50% win rate)
+    - Final portfolio value: 99,875.56
+    - Sharpe ratio: -1.4294780971098613
+    - Annual return: -0.06127%
+    - Maximum drawdown: 2.57%
+
+    Raises:
+        AssertionError: If any of the performance metrics don't match expected values.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 

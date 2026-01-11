@@ -93,13 +93,19 @@ class TDSequentialStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the TD Sequential strategy.
+
+        Sets up all necessary state variables for tracking TD Sequential
+        setup and countdown phases, including buy/sell triggers, counters,
+        price levels, and trading statistics.
+        """
         self.dataprimary = self.datas[0]
         self.dataclose = self.dataprimary.close
-        
+
         self.order = None
         self.buyTrig = False
         self.sellTrig = False
-        
+
         self.tdsl = 0  # TD sequence long
         self.tdss = 0  # TD sequence short
         self.buySetup = False
@@ -108,15 +114,15 @@ class TDSequentialStrategy(bt.Strategy):
         self.sellCountdown = 0
         self.buyVal = 0
         self.sellVal = 0
-        
+
         self.buySig = False
         self.idealBuySig = False
         self.sellSig = False
         self.idealSellSig = False
-        
+
         self.buy_nine = False
         self.sell_nine = False
-        
+
         self.buy_high = 999999
         self.buy_low = 0
         self.sell_high = 999999
@@ -130,6 +136,14 @@ class TDSequentialStrategy(bt.Strategy):
         self.setup_sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Tracks completed buy and sell orders, updating the respective
+        counters when orders are filled.
+
+        Args:
+            order: The order object with updated status information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -140,6 +154,12 @@ class TDSequentialStrategy(bt.Strategy):
         self.order = None
 
     def reset_on_cancel_1(self):
+        """Reset all setup and countdown state variables.
+
+        Called when cancel_1 condition is triggered, which occurs when
+        price moves beyond the high/low of the current setup phase.
+        Resets both buy and sell setups, countdowns, and price levels.
+        """
         self.buySetup = False
         self.sellSetup = False
         self.buyCountdown = 0
@@ -150,6 +170,11 @@ class TDSequentialStrategy(bt.Strategy):
         self.sell_low = 0
 
     def reset_setup(self, buy_or_sell):
+        """Reset setup trigger and counter for buy or sell direction.
+
+        Args:
+            buy_or_sell: Either "B" for buy setup or "S" for sell setup.
+        """
         if buy_or_sell == "B":
             self.buyTrig = False
             self.tdsl = 0
@@ -158,10 +183,19 @@ class TDSequentialStrategy(bt.Strategy):
             self.tdss = 0
 
     def reset_countdown(self, buy_or_sell, count):
+        """Reset countdown phase and initialize setup for buy or sell direction.
+
+        Transitions from setup phase to countdown phase when setup completes.
+        Records high/low prices during the setup and generates trading signals.
+
+        Args:
+            buy_or_sell: Either "B" for buy countdown or "S" for sell countdown.
+            count: The number of bars in the completed setup (typically 9).
+        """
         if buy_or_sell == "B":
-            self.buySig = ((self.dataprimary.low[0] < self.dataprimary.low[-3]) and 
+            self.buySig = ((self.dataprimary.low[0] < self.dataprimary.low[-3]) and
                           (self.dataprimary.low[0] < self.dataprimary.low[-2])) or \
-                         ((self.dataprimary.low[-1] < self.dataprimary.low[-2]) and 
+                         ((self.dataprimary.low[-1] < self.dataprimary.low[-2]) and
                           (self.dataprimary.low[-1] < self.dataprimary.low[-3]))
             if self.tdsl == 9:
                 self.buy_nine = True
@@ -176,9 +210,9 @@ class TDSequentialStrategy(bt.Strategy):
             self.buy_low = min(self.dataprimary.low[n] for n in range(-(count-1), 0))
 
         if buy_or_sell == "S":
-            self.sellSig = ((self.dataprimary.high[0] > self.dataprimary.high[-2]) and 
+            self.sellSig = ((self.dataprimary.high[0] > self.dataprimary.high[-2]) and
                            (self.dataprimary.high[0] > self.dataprimary.high[-3])) or \
-                          ((self.dataprimary.high[-1] > self.dataprimary.high[-3]) and 
+                          ((self.dataprimary.high[-1] > self.dataprimary.high[-3]) and
                            (self.dataprimary.high[-1] > self.dataprimary.high[-2]))
             if self.tdss == 9:
                 self.sell_nine = True
@@ -193,6 +227,18 @@ class TDSequentialStrategy(bt.Strategy):
             self.sell_low = min(self.dataprimary.low[n] for n in range(-(count-1), 0))
 
     def next(self):
+        """Execute the main strategy logic for each bar.
+
+        Implements the TD Sequential algorithm:
+        1. Detect buy/sell triggers based on price comparisons
+        2. Track setup progression (count consecutive bars)
+        3. Transition to countdown phase when setup reaches 9
+        4. Generate buy/sell signals when countdown completes
+        5. Handle cancellation conditions
+
+        The method compares current close price with price from
+        candles_past_to_compare periods ago to identify setup initiation.
+        """
         self.bar_num += 1
         self.buySig = False
         self.sellSig = False
@@ -203,7 +249,7 @@ class TDSequentialStrategy(bt.Strategy):
 
         if len(self.dataclose) > self.p.candles_past_to_compare:
             # Buy trigger
-            if (self.dataclose[0] < self.dataclose[-self.p.candles_past_to_compare] and 
+            if (self.dataclose[0] < self.dataclose[-self.p.candles_past_to_compare] and
                 self.dataclose[-1] > self.dataclose[-(self.p.candles_past_to_compare + 1)]):
                 self.buyTrig = True
                 self.sellTrig = False
@@ -211,7 +257,7 @@ class TDSequentialStrategy(bt.Strategy):
                 self.tdss = 0
 
             # Sell trigger
-            elif (self.dataclose[0] > self.dataclose[-self.p.candles_past_to_compare] and 
+            elif (self.dataclose[0] > self.dataclose[-self.p.candles_past_to_compare] and
                   self.dataclose[-1] < self.dataclose[-(self.p.candles_past_to_compare + 1)]):
                 self.sellTrig = True
                 self.buyTrig = False
@@ -285,6 +331,11 @@ class TDSequentialStrategy(bt.Strategy):
                         self.sellCountdown = 0
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        Currently a no-op placeholder. Can be used to perform cleanup
+        or final analysis at the end of the backtest.
+        """
         pass
 
 

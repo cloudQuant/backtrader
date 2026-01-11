@@ -18,6 +18,26 @@
 #
 ###############################################################################
 
+"""Test module for the System Quality Number (SQN) analyzer.
+
+This module contains test cases for the backtrader SQN analyzer, which
+calculates the System Quality Number metric for trading strategies. The SQN
+is a performance metric developed by Van Tharp that measures the quality of
+a trading system by relating the mean reward to the standard deviation of
+rewards.
+
+The test strategy uses a Simple Moving Average (SMA) crossover system:
+- Buy when price crosses above the SMA
+- Sell/Close when price crosses below the SMA
+
+Example:
+    To run the tests with verbose output::
+        python test_analyzer-sqn.py
+
+    To run the tests programmatically::
+        test_run(main=False)
+"""
+
 import time
 
 try:
@@ -32,6 +52,35 @@ import backtrader.indicators as btind
 
 
 class RunStrategy(bt.Strategy):
+    """A simple moving average crossover trading strategy for testing SQN analyzer.
+
+    This strategy implements a basic trend-following system that:
+    1. Buys when price crosses above the SMA (bullish signal)
+    2. Closes position when price crosses below the SMA (bearish signal)
+
+    The strategy is designed to generate multiple trades to test the SQN
+    analyzer's ability to calculate the System Quality Number metric across
+    different numbers of trades.
+
+    Attributes:
+        orderid: The ID of the currently active order, or None if no order is active.
+        sma: Simple Moving Average indicator instance.
+        cross: CrossOver indicator tracking price vs SMA crossovers.
+        tstart: Timestamp when the strategy starts running.
+        buycreate: List of buy order creation prices.
+        sellcreate: List of sell/close order creation prices.
+        buyexec: List of executed buy order prices.
+        sellexec: List of executed sell order prices.
+        tradecount: Counter for the number of completed trades.
+
+    Args:
+        period: The period for the SMA calculation. Defaults to 15.
+        maxtrades: Maximum number of trades to execute. None for unlimited. Defaults to None.
+        printdata: Whether to print data bars during execution. Defaults to True.
+        printops: Whether to print order operations. Defaults to True.
+        stocklike: Whether to use stock-like commission structure. Defaults to True.
+    """
+
     params = (
         ("period", 15),
         ("maxtrades", None),
@@ -41,6 +90,13 @@ class RunStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None, nodate=False):
+        """Log a message with optional timestamp.
+
+        Args:
+            txt (str): The message text to log.
+            dt: Optional datetime object for the timestamp. If None, uses current bar.
+            nodate (bool): If True, print message without date prefix. Defaults to False.
+        """
         if not nodate:
             dt = dt or self.data.datetime[0]
             dt = bt.num2date(dt)
@@ -49,10 +105,23 @@ class RunStrategy(bt.Strategy):
             print("---------- %s" % (txt))
 
     def notify_trade(self, trade):
+        """Called when a trade is completed or updated.
+
+        Args:
+            trade: The Trade object that was notified.
+        """
         if trade.isclosed:
             self.tradecount += 1
 
     def notify_order(self, order):
+        """Called when an order status changes.
+
+        Handles order execution, logging, and tracks executed prices for
+        verification purposes.
+
+        Args:
+            order: The Order object that was notified.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return  # Await further notifications
 
@@ -79,6 +148,11 @@ class RunStrategy(bt.Strategy):
         self.orderid = None
 
     def __init__(self):
+        """Initialize the strategy with indicators and state variables.
+
+        Sets up the SMA indicator, crossover tracker, and initializes
+        lists for tracking order execution and trade counts.
+        """
         # Flag to allow new orders in the system or not
         self.orderid = None
 
@@ -86,6 +160,11 @@ class RunStrategy(bt.Strategy):
         self.cross = btind.CrossOver(self.data.close, self.sma, plot=True)
 
     def start(self):
+        """Called once before the backtesting starts.
+
+        Initializes commission structure, logs starting portfolio value,
+        and sets up timing and tracking lists.
+        """
         if not self.p.stocklike:
             self.broker.setcommission(commission=2.0, mult=10.0, margin=1000.0)
 
@@ -102,6 +181,10 @@ class RunStrategy(bt.Strategy):
         self.tradecount = 0
 
     def stop(self):
+        """Called once after the backtesting ends.
+
+        Logs execution time and final portfolio/cash values.
+        """
         tused = time_clock() - self.tstart
         if self.p.printdata:
             self.log("Time used: %s" % str(tused))
@@ -112,6 +195,14 @@ class RunStrategy(bt.Strategy):
             pass
 
     def next(self):
+        """Called for each bar of data.
+
+        Implements the trading logic:
+        1. Logs current bar data (OHLC and SMA)
+        2. Checks if an order is already active
+        3. If no position, buys on bullish crossover
+        4. If in position, closes on bearish crossover
+        """
         if self.p.printdata:
             self.log(
                 "Open, High, Low, Close, %.2f, %.2f, %.2f, %.2f, Sma, %f"
@@ -152,6 +243,27 @@ chkdatas = 1
 
 
 def test_run(main=False):
+    """Run the SQN analyzer test with various trade count scenarios.
+
+    This function tests the SQN (System Quality Number) analyzer with
+    different maximum trade limits:
+    - Unlimited trades (None): Should produce a positive SQN value
+    - 0 trades: Should produce SQN of 0
+    - 1 trade: Should produce SQN of 0
+
+    The test verifies that:
+    1. SQN is calculated correctly for different trade counts
+    2. Trade count is accurately tracked
+    3. Expected precision is maintained
+
+    Args:
+        main (bool): If True, prints detailed output and skips assertions.
+                     If False, runs assertions to verify correctness. Defaults to False.
+
+    Raises:
+        AssertionError: If SQN or trade count values don't match expected results
+                       (only when main=False).
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     for maxtrades in [None, 0, 1]:
         cerebros = testcommon.runtest(

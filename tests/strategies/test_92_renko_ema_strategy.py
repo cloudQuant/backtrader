@@ -1,10 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Test case: Renko EMA Crossover Strategy
+"""Test module for Renko EMA Crossover Strategy.
+
+This module tests a trading strategy that combines Renko chart filtering
+with Exponential Moving Average (EMA) crossover signals. The Renko filter
+smooths price data by only updating when price moves a specified brick size,
+reducing noise and potentially improving signal quality.
 
 Reference: Backtrader1.0/strategies/renko_ema_crossover.py
-Uses EMA crossover filtered by Renko chart as entry signal.
+
+Example:
+    To run the test directly:
+        python tests/strategies/test_92_renko_ema_strategy.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +24,27 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching common directories.
+
+    This function searches for a data file in multiple standard locations
+    relative to the test directory, including the current directory, parent
+    directory, and 'datas' subdirectories.
+
+    Args:
+        filename (str): The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+
+    Example:
+        >>> path = resolve_data_path("orcl-1995-2014.txt")
+        >>> print(path)
+        /path/to/tests/datas/orcl-1995-2014.txt
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -32,7 +60,10 @@ def resolve_data_path(filename: str) -> Path:
 class RenkoEmaStrategy(bt.Strategy):
     """Renko EMA Crossover Strategy.
 
-    Uses Renko filter to smooth price data, then applies EMA crossover.
+    This strategy combines Renko chart filtering with Exponential Moving Average
+    (EMA) crossover signals to generate trade entries and exits. The Renko filter
+    smooths price data by only updating when price moves by a specified brick size,
+    which can help reduce noise and false signals.
 
     Entry conditions:
         - Long: Fast EMA crosses above slow EMA
@@ -41,10 +72,18 @@ class RenkoEmaStrategy(bt.Strategy):
         - Fast EMA crosses below slow EMA
 
     Attributes:
-        stake (int): Number of shares/shares per trade. Default is 10.
-        fast_period (int): Period for fast EMA. Default is 10.
-        slow_period (int): Period for slow EMA. Default is 20.
-        renko_brick_size (float): Brick size for Renko filter. Default is 1.0.
+        order (bt.Order): Reference to the current pending order. None if no order.
+        bar_num (int): Counter for the number of bars processed.
+        buy_count (int): Total number of buy orders executed.
+        sell_count (int): Total number of sell orders executed.
+        fast_ema (bt.indicators.EMA): Fast exponential moving average indicator.
+        slow_ema (bt.indicators.EMA): Slow exponential moving average indicator.
+        crossover (bt.indicators.CrossOver): Crossover indicator for the two EMAs.
+        p (AutoOrderedDict): Strategy parameters containing:
+            - stake (int): Number of shares per trade. Default is 10.
+            - fast_period (int): Period for fast EMA. Default is 10.
+            - slow_period (int): Period for slow EMA. Default is 20.
+            - renko_brick_size (float): Brick size for Renko filter. Default is 1.0.
     """
     params = dict(
         stake=10,
@@ -54,20 +93,40 @@ class RenkoEmaStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # Add Renko filter
+        """Initialize the Renko EMA Crossover Strategy.
+
+        Sets up the Renko filter on the data feed, creates the fast and slow
+        EMA indicators, initializes the crossover indicator, and sets up
+        tracking variables for orders and bar counts.
+        """
+        # Add Renko filter to smooth price data
         self.data.addfilter(bt.filters.Renko, size=self.p.renko_brick_size)
 
-        # EMA indicators
+        # Create EMA indicators for crossover signals
         self.fast_ema = bt.indicators.EMA(self.data, period=self.p.fast_period)
         self.slow_ema = bt.indicators.EMA(self.data, period=self.p.slow_period)
         self.crossover = bt.indicators.CrossOver(self.fast_ema, self.slow_ema)
 
+        # Initialize tracking variables
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        This method is called by the backtrader engine whenever an order's
+        status changes. It tracks completed orders to maintain buy/sell counts.
+
+        Args:
+            order (bt.Order): The order object with updated status information.
+
+        Note:
+            Orders with status Submitted or Accepted are ignored as they are
+            still pending execution. Only Completed orders update the tracking
+            counters.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -78,11 +137,24 @@ class RenkoEmaStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called on every bar of data after indicator calculations.
+        It implements the core trading logic:
+
+        1. Increments the bar counter
+        2. Skips if there's a pending order
+        3. Enters long when fast EMA crosses above slow EMA (no position)
+        4. Exits position when fast EMA crosses below slow EMA
+
+        Note:
+            The strategy only takes long positions. Short positions are not used.
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
             if self.crossover[0] > 0:
                 self.order = self.buy(size=self.p.stake)
@@ -91,16 +163,34 @@ class RenkoEmaStrategy(bt.Strategy):
 
 
 def test_renko_ema_strategy():
-    """Test the Renko EMA crossover strategy.
+    """Test the Renko EMA crossover strategy with historical data.
 
     This function sets up a backtest with the RenkoEmaStrategy using
-    historical Oracle data from 2010-2014. It validates the strategy
-    performance against expected values including bar count, Sharpe ratio,
-    annual return, and maximum drawdown.
+    historical Oracle Corporation (ORCL) stock data from 2010-2014.
+    It validates the strategy performance against expected values including
+    bar count, Sharpe ratio, annual return, and maximum drawdown.
+
+    The test uses the following configuration:
+        - Initial capital: $100,000
+        - Commission: 0.1% per trade
+        - Risk-free rate: 0% (for Sharpe ratio calculation)
+        - Fast EMA period: 10
+        - Slow EMA period: 20
+        - Renko brick size: 1.0
+        - Position size: 10 shares per trade
 
     Raises:
         AssertionError: If any of the performance metrics do not match
-            expected values within tolerance.
+            expected values within tolerance. Expected values are:
+            - bar_num: 1237
+            - final_value: 100057.43 (±0.01)
+            - sharpe_ratio: 0.3225444080736762 (±1e-6)
+            - annual_return: 0.00011511425744876694 (±1e-6)
+            - max_drawdown: 0.09539954392338255 (±1e-6)
+
+    Note:
+        The test prints detailed results before assertion, making it easy
+        to diagnose failures by comparing expected vs actual values.
     """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
@@ -148,6 +238,7 @@ def test_renko_ema_strategy():
 
 
 if __name__ == "__main__":
+    # Run the test directly when executed as a script
     print("=" * 60)
     print("Renko EMA Crossover Strategy Test")
     print("=" * 60)

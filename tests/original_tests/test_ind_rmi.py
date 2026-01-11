@@ -18,20 +18,58 @@
 #
 ###############################################################################
 
+"""Test module for the Relative Momentum Index (RMI) indicator.
+
+This module contains test cases for the RMI indicator implementation in
+backtrader. The RMI is a variation of the RSI (Relative Strength Index) that
+uses momentum over a specified period instead of just price changes.
+
+The test validates that the RMI indicator produces expected values for
+given data inputs, checking against known correct outputs.
+"""
 
 import backtrader as bt
 
 import testcommon
 
-
+# Number of data feeds to use in the test
 chkdatas = 1
+
+# Expected RMI indicator values for validation
 chkvals = [["67.786097", "59.856230", "38.287526"]]
 
+# Minimum period required for the indicator to be valid
 chkmin = 25
+
+# The indicator class being tested
 chkind = bt.ind.RMI
 
 
 def test_run(main=False):
+    """Run the RMI indicator test.
+
+    This function executes a test of the RMI (Relative Momentum Index)
+    indicator by loading test data, running the indicator calculation,
+    and comparing the results against expected values.
+
+    Args:
+        main (bool): If True, runs in standalone mode with plotting enabled.
+            When False, runs in test mode without plotting. Defaults to False.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the calculated indicator values do not match
+            the expected values in chkvals.
+
+    Example:
+        Run the test in standalone mode with plotting:
+        >>> test_run(main=True)
+
+        Run the test in automated test mode:
+        >>> test_run()
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

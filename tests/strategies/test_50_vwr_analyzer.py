@@ -1,14 +1,17 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Test Case: VWR (Variability-Weighted Return) Analyzer
+"""Test Case for VWR (Variability-Weighted Return) Analyzer.
+
+This module tests the VWR analyzer implementation in the backtrader framework.
+VWR (Variability-Weighted Return) is a risk-adjusted return metric that considers
+return volatility, similar to the Sharpe ratio but uses a different calculation
+method.
+
+The test implements a dual moving average crossover strategy and validates that
+the VWR analyzer produces correct results along with other performance metrics
+including Sharpe ratio, SQN (System Quality Number), drawdown, and returns.
 
 Reference Source: backtrader-master2/samples/vwr/vwr.py
-Test the VWR analyzer
-
-VWR (Variability-Weighted Return) is a risk-adjusted return metric
-that considers return volatility, similar to the Sharpe ratio but
-uses a different calculation method.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -21,6 +24,23 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching common locations.
+
+    This function searches for a data file in several possible locations
+    relative to the test directory, including the current directory,
+    parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename (str): The name of the data file to locate.
+
+    Returns:
+        Path: The resolved Path object pointing to the data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,14 +54,36 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class VWRTestStrategy(bt.Strategy):
-    """Strategy for testing the VWR analyzer.
+    """Dual moving average crossover strategy for testing the VWR analyzer.
 
-    This strategy uses two Simple Moving Averages (SMA) with periods
-    p1 and p2 to generate crossover signals for trading.
+    This strategy implements a simple crossover trading system using two
+    Simple Moving Averages (SMA). When the shorter SMA crosses above the
+    longer SMA, a long position is entered. When the shorter SMA crosses
+    below the longer SMA, the position is closed.
+
+    The strategy is designed specifically to test the VWR analyzer and
+    other performance metrics by generating a series of trades with
+    measurable returns and volatility.
+
+    Attributes:
+        params (tuple): Strategy parameters containing:
+            - p1 (int): Period for the fast SMA (default: 10).
+            - p2 (int): Period for the slow SMA (default: 30).
+        crossover (bt.ind.CrossOver): Indicator tracking SMA crossovers.
+        order (bt.Order): Reference to the current pending order.
+        bar_num (int): Counter for the number of bars processed.
+        buy_count (int): Counter for the number of buy orders executed.
+        sell_count (int): Counter for the number of sell orders executed.
+
     """
     params = (('p1', 10), ('p2', 30))
 
     def __init__(self):
+        """Initialize the VWR test strategy.
+
+        Sets up the moving average indicators and initializes tracking
+        variables for orders and trade counts.
+        """
         ma1 = bt.ind.SMA(period=self.p.p1)
         ma2 = bt.ind.SMA(period=self.p.p2)
         self.crossover = bt.ind.CrossOver(ma1, ma2)
@@ -51,6 +93,15 @@ class VWRTestStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called when an order's status changes. Tracks completed orders
+        and updates the buy/sell counters accordingly.
+
+        Args:
+            order (bt.Order): The order object with updated status.
+
+        """
         if not order.alive():
             self.order = None
         if order.status == order.Completed:
@@ -60,6 +111,17 @@ class VWRTestStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called for each bar of data. It implements the
+        crossover strategy logic:
+        1. If fast SMA crosses above slow SMA, close any existing position
+           and enter a long position.
+        2. If fast SMA crosses below slow SMA, close the existing position.
+
+        Only one order is allowed at a time to prevent overlapping trades.
+
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -71,16 +133,38 @@ class VWRTestStrategy(bt.Strategy):
             if self.position:
                 self.order = self.close()
 
+    def stop(self):
+        """Called when the backtest is complete.
+
+        This method can be used to perform cleanup or final calculations
+        after the backtest finishes. Currently not used but maintained
+        for potential future extensions.
+
+        """
+        pass
+
 
 def test_vwr_analyzer():
-    """Test the VWR analyzer.
+    """Test the VWR analyzer with a dual moving average strategy.
 
-    This function sets up a backtest with the VWR analyzer and other
-    performance metrics analyzers, runs the backtest, and verifies
-    the results against expected values.
+    This function sets up a complete backtest environment with the VWR
+    analyzer and multiple performance metrics analyzers. It runs a
+    backtest using historical data and verifies that the calculated
+    metrics match expected values.
+
+    The test validates:
+    - VWR (Variability-Weighted Return) ratio
+    - Sharpe ratio
+    - SQN (System Quality Number)
+    - Annual returns
+    - Maximum drawdown
+    - Trade statistics
+    - Final portfolio value
 
     Raises:
-        AssertionError: If any of the test assertions fail.
+        AssertionError: If any of the calculated metrics do not match
+            the expected values within the specified tolerance.
+
     """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)

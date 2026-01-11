@@ -57,6 +57,11 @@ class MacdEmaTrueStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the MACD EMA strategy with indicators and tracking variables.
+
+        Sets up the MACD indicator components (fast EMA, slow EMA, DIF, DEA, MACD)
+        and initializes tracking variables for bar count, date, and trade statistics.
+        """
         self.bar_num = 0
         self.current_date = None
         self.buy_count = 0
@@ -71,16 +76,28 @@ class MacdEmaTrueStrategy(bt.Strategy):
         self.holding_contract_name = None
 
     def prenext(self):
-        # Since futures data has thousands of bars and each futures contract has different trading dates,
-        # they won't naturally enter next. Need to call next function in each prenext.
+        """Handle the prenext phase by calling next() directly.
+
+        Since futures data has thousands of bars and each futures contract has
+        different trading dates, they won't naturally enter next. Need to call
+        next function in each prenext to ensure strategy logic runs.
+        """
         self.next()
 
     def next(self):
+        """Execute the main trading logic for each bar.
+
+        Implements a trend-following strategy using MACD and EMA indicators:
+        1. Close existing positions when price crosses EMA
+        2. Open long positions on MACD golden cross with positive MACD
+        3. Open short positions on MACD death cross with negative MACD
+        4. Handle contract rollover when dominant contract changes
+        """
         # Increment bar_num and update trading date on each run
         self.current_date = bt.num2date(self.datas[0].datetime[0])
         self.bar_num += 1
         data = self.datas[0]
-        
+
         # Open positions, close existing positions first
         # Close long position
         if self.holding_contract_name is not None and self.getpositionbyname(self.holding_contract_name).size > 0 and data.close[0] < self.ema_1[0]:
@@ -149,6 +166,11 @@ class MacdEmaTrueStrategy(bt.Strategy):
         return target_datas[-1][0]
 
     def notify_order(self, order):
+        """Handle order status updates and log completed trades.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -158,23 +180,41 @@ class MacdEmaTrueStrategy(bt.Strategy):
                 self.log(f"SELL: data_name:{order.p.data._name} price:{order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade lifecycle events and log trade details.
+
+        Args:
+            trade: The trade object with P&L and status information.
+        """
         # Output information when a trade ends
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}' .format(
                             trade.getdataname(),trade.pnl, trade.pnlcomm))
             # self.trade_list.append([self.datas[0].datetime.date(0),trade.getdataname(),trade.pnl,trade.pnlcomm])
-            
+
         if trade.isopen:
             self.log('open symbol is : {} , price : {} ' .format(
                             trade.getdataname(),trade.price))
 
 
     def stop(self):
+        """Log final statistics when the backtest completes.
+
+        Outputs the total number of bars processed and the count of
+        buy and sell operations executed during the backtest.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 
 class RbPandasFeed(bt.feeds.PandasData):
-    """Pandas data feed for rebar futures data."""
+    """Pandas data feed for rebar futures data.
+
+    Custom data feed that maps DataFrame columns to backtrader data lines
+    for loading rebar (reinforced bar) futures data from pandas DataFrames.
+
+    Attributes:
+        params: Column mapping configuration specifying which DataFrame
+                columns correspond to OHLCV data lines.
+    """
     params = (
         ('datetime', None),
         ('open', 0),
@@ -204,8 +244,8 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
     
     # Sort file list for consistent ordering across platforms (Windows vs macOS)
     file_list = sorted(file_list, key=lambda x: x.lower())
-    
-    # 确保 rb99.csv 作为指数数据放在第一个 (case-insensitive for Windows)
+
+    # Ensure rb99.csv is placed first as index data (case-insensitive for Windows)
     rb99_file = None
     for f in file_list:
         if f.lower() == "rb99.csv":

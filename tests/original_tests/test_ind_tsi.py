@@ -18,20 +18,60 @@
 #
 ###############################################################################
 
+"""Test module for the True Strength Index (TSI) indicator.
+
+This module contains test cases for the TSI (True Strength Index) technical
+indicator implementation in backtrader. The TSI is a momentum oscillator
+that helps identify trend direction and overbought/versus oversold conditions.
+
+The test validates that the TSI indicator produces expected values when
+applied to test data, using a minimum period of 38 bars before the indicator
+produces valid results.
+
+Typical usage example:
+    test_run(main=True)  # Runs the test with plotting enabled
+"""
 
 import backtrader as bt
 
 import testcommon
 
-
+# Number of data feeds to use in the test
 chkdatas = 1
+
+# Expected TSI values at specific data points for validation
+# Format: [tsi_value, tsi_signal_value, tsi_value_2]
 chkvals = [["16.012364", "22.866307", "4.990750"]]
 
+# Minimum number of bars required before TSI produces valid output
 chkmin = 38
+
+# The TSI indicator class being tested
 chkind = bt.ind.TSI
 
 
 def test_run(main=False):
+    """Run the TSI indicator test.
+
+    This function loads test data, executes the TSI indicator test, and
+    validates that the indicator produces expected values. The test can be
+    run in main mode with plotting enabled for visual inspection.
+
+    Args:
+        main (bool): If True, enables plot generation for visual inspection
+            of the indicator behavior. Defaults to False.
+
+    Returns:
+        None: The function runs the test but does not return a value.
+
+    Raises:
+        AssertionError: If the TSI indicator values do not match the
+            expected values in chkvals.
+
+    Example:
+        >>> test_run(main=False)  # Run test without plotting
+        >>> test_run(main=True)   # Run test with plotting enabled
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

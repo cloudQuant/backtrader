@@ -1,5 +1,16 @@
 #!/usr/bin/env python
+"""Test module for backtrader broker functionality.
 
+This module contains tests for the broker component of the backtrader framework,
+including basic broker operations, cash management, portfolio value tracking,
+and commission handling.
+
+The tests verify that the broker correctly:
+- Manages initial cash and portfolio value
+- Executes orders through strategies
+- Calculates portfolio value after trades
+- Applies commission to transactions
+"""
 
 import os
 import sys
@@ -12,10 +23,34 @@ import backtrader as bt
 
 
 class BrokerTestStrategy(bt.Strategy):
+    """A simple test strategy for broker functionality testing.
+
+    This strategy implements a basic buy-and-close pattern:
+    1. Buys when no position exists
+    2. Closes the position after more than 50 bars have elapsed
+
+    Attributes:
+        order: The current pending order, or None if no order is pending.
+    """
+
     def __init__(self):
+        """Initialize the BrokerTestStrategy.
+
+        Sets up the order tracking attribute to None, indicating no
+        pending orders at initialization.
+        """
         self.order = None
 
     def next(self):
+        """Execute the strategy logic for each bar.
+
+        The strategy logic:
+        - If no position exists, submit a buy order
+        - If a position exists and more than 50 bars have elapsed,
+          submit a close order to exit the position
+
+        The order is stored in self.order for tracking purposes.
+        """
         if not self.position:
             self.order = self.buy()
         elif len(self) > 50:
@@ -23,7 +58,23 @@ class BrokerTestStrategy(bt.Strategy):
 
 
 def test_broker_basic(main=False):
-    """Test basic broker functionality"""
+    """Test basic broker functionality including cash and value management.
+
+    This test verifies that the broker correctly:
+    - Sets initial cash to 100,000.0
+    - Sets initial portfolio value to 100,000.0
+    - Executes a strategy that places orders
+    - Maintains positive portfolio value after execution
+
+    Args:
+        main (bool): If True, prints starting and final portfolio values.
+                     Defaults to False.
+
+    Raises:
+        AssertionError: If initial cash is not 100,000.0.
+        AssertionError: If initial value is not 100,000.0.
+        AssertionError: If final portfolio value is not positive.
+    """
     cerebro = bt.Cerebro()
 
     modpath = os.path.dirname(os.path.abspath(__file__))
@@ -60,7 +111,21 @@ def test_broker_basic(main=False):
 
 
 def test_broker_commission(main=False):
-    """Test broker commission settings"""
+    """Test broker commission settings and application.
+
+    This test verifies that the broker correctly:
+    - Applies a commission rate of 0.001 (0.1%) to trades
+    - Executes a strategy with commission enabled
+    - Returns valid run results
+
+    Args:
+        main (bool): If True, prints a confirmation message.
+                     Defaults to False.
+
+    Raises:
+        AssertionError: If no strategy results are returned.
+        AssertionError: If final portfolio value is not positive.
+    """
     cerebro = bt.Cerebro()
 
     modpath = os.path.dirname(os.path.abspath(__file__))

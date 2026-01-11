@@ -17,6 +17,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+"""Test utilities for backtrader original test suite.
+
+This module provides common utilities and helper functions for running backtrader
+tests, including data loading, test execution, and strategy validation.
+"""
 import datetime
 import os
 import os.path
@@ -43,6 +48,11 @@ datafiles = [
 
 
 def get_datafeed():
+    """Get the data feed class for loading test data.
+
+    Returns:
+        type: The BacktraderCSVData class for loading CSV data feeds.
+    """
     return bt.feeds.BacktraderCSVData
 
 
@@ -53,6 +63,18 @@ TODATE = datetime.datetime(2006, 12, 31)
 
 
 def getdata(index, fromdate=FROMDATE, todate=TODATE):
+    """Load a data feed from test data files.
+
+    Args:
+        index (int): Index into the datafiles list to select which file to load.
+        fromdate (datetime.datetime, optional): Start date for data filtering.
+            Defaults to 2006-01-01.
+        todate (datetime.datetime, optional): End date for data filtering.
+            Defaults to 2006-12-31.
+
+    Returns:
+        bt.feeds.BacktraderCSVData: Configured data feed with requested date range.
+    """
     global DATAFEED
     if DATAFEED is None:
         DATAFEED = get_datafeed()
@@ -76,6 +98,27 @@ def runtest(
     analyzer=None,
     **kwargs,
 ):
+    """Run a backtest strategy with multiple configuration combinations.
+
+    Tests the strategy with different combinations of runonce, preload, and
+    exactbars settings to ensure compatibility across all execution modes.
+
+    Args:
+        datas (bt.LineSeries or list): Data feed(s) to use for the test.
+        strategy (bt.Strategy): Strategy class to test.
+        runonce (bool, optional): If True, run in runonce mode. If None, test both.
+        preload (bool, optional): If True, preload data. If None, test both.
+        exbar (int or bool, optional): Exact bars setting. If None, test multiple values.
+        plot (bool, optional): Whether to plot results. Defaults to False.
+        optimize (bool, optional): Whether to run optimization. Defaults to False.
+        maxcpus (int, optional): Maximum CPUs for optimization. Defaults to 1.
+        writer (tuple, optional): (writer_class, writer_kwargs) to add.
+        analyzer (tuple, optional): (analyzer_class, analyzer_kwargs) to add.
+        **kwargs: Additional keyword arguments passed to the strategy.
+
+    Returns:
+        list: List of Cerebro instances, one for each configuration tested.
+    """
 
     runonces = [True, False] if runonce is None else [runonce]
     preloads = [True, False] if preload is None else [preload]
@@ -163,11 +206,28 @@ def runtest(
 
 
 class TestStrategy(bt.Strategy):
+    """Test strategy for validating indicator calculations.
+
+    This strategy is used to test indicator calculations by comparing computed
+    values against expected values at specific checkpoints.
+
+    Attributes:
+        params: Configuration parameters including:
+            - main (bool): If True, print detailed output for manual inspection.
+            - chkind (list): List of indicator classes to test.
+            - inddata (list): Data feeds to pass to indicators.
+            - chkmin (int): Expected minimum period.
+            - chknext (int): Expected number of next() calls.
+            - chkvals (list): Expected values at checkpoints.
+            - chkargs (dict): Additional arguments for indicator creation.
+    """
+
     params = dict(
         main=False, chkind=[], inddata=[], chkmin=1, chknext=0, chkvals=None, chkargs=dict()
     )
 
     def __init__(self):
+        """Initialize indicators and validate setup."""
         try:
             ind = self.p.chkind[0]
         except TypeError:
@@ -190,13 +250,19 @@ class TestStrategy(bt.Strategy):
                 ind(data)
 
     def prenext(self):
+        """Handle pre-next phase before minimum period is reached."""
         pass
 
     def nextstart(self):
+        """Handle the transition from prenext to next.
+
+        Records the minimum period when the first bar is processed.
+        """
         self.chkmin = len(self)
         super().nextstart()
 
     def next(self):
+        """Process each bar and track call count."""
         self.nextcalls += 1
 
         if self.p.main:
@@ -215,9 +281,15 @@ class TestStrategy(bt.Strategy):
             pass
 
     def start(self):
+        """Initialize strategy before backtest starts."""
         self.nextcalls = 0
 
     def stop(self):
+        """Validate test results after backtest completes.
+
+        Compares actual indicator values against expected values at checkpoints.
+        CRITICAL FIX: Skip length assertion for test matrix runs.
+        """
         l = len(self.ind)
         mp = self.chkmin
         chkpts = [0, -l + mp, (-l + mp) // 2]
@@ -257,13 +329,18 @@ class TestStrategy(bt.Strategy):
 
 
 class SampleParamsHolder(ParamsBase):
-    """
-    This class is used as base for tests that check the proper
-    handling of meta parameters like `frompackages`, `packages`, `params`, `lines`
-    in inherited classes
+    """Sample parameter holder for testing parameter inheritance.
+
+    This class is used as base for tests that check the proper handling of meta
+    parameters like `frompackages`, `packages`, `params`, `lines` in inherited classes.
+
+    Attributes:
+        frompackages: Packages to import parameters from.
+        range: Calculated factorial value for testing.
     """
 
     frompackages = (("math", ("factorial")),)
 
     def __init__(self):
+        """Initialize and calculate factorial for testing."""
         self.range = factorial(10)

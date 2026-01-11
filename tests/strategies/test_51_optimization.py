@@ -1,11 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Test cases for parameter optimization.
+"""Test cases for parameter optimization.
+
+This module tests the parameter optimization functionality of the backtrader
+framework. It demonstrates how to:
+
+1. Define a strategy with multiple parameters
+2. Run optimization over a parameter space
+3. Find the best-performing parameter combination based on Sharpe ratio
+4. Run a complete backtest with the optimal parameters
 
 Reference: backtrader-master2/samples/optimization/optimization.py
-Tests strategy parameter optimization functionality, returns the parameter
-combination with the maximum Sharpe ratio.
+
+The test uses a Simple Moving Average (SMA) and MACD crossover strategy,
+optimizing the SMA period parameter to maximize risk-adjusted returns.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -18,6 +26,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching common locations.
+
+    This function searches for data files in several standard locations
+    relative to the test directory, making tests more portable across
+    different project structures.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        The absolute Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -31,7 +55,32 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class OptimizeStrategy(bt.Strategy):
-    """Strategy for parameter optimization."""
+    """A dual-indicator strategy combining SMA and MACD for parameter optimization.
+
+    This strategy uses a Simple Moving Average (SMA) and Moving Average
+    Convergence Divergence (MACD) indicators to generate trading signals.
+    The primary signal comes from the MACD line crossing over its signal line.
+    The SMA parameter is optimized to find the best risk-adjusted returns.
+
+    The strategy enters a long position when the MACD line crosses above
+    the signal line (bullish crossover) and exits when it crosses below
+    (bearish crossover).
+
+    Attributes:
+        sma: Simple Moving Average indicator with configurable period.
+        macd: MACD indicator with configurable fast, slow, and signal periods.
+        crossover: CrossOver indicator detecting when MACD crosses its signal.
+        order: Reference to the current pending order, or None if no order.
+        bar_num: Counter tracking the number of bars processed.
+        buy_count: Total number of completed buy orders.
+        sell_count: Total number of completed sell orders.
+
+    Args:
+        smaperiod: Period for the Simple Moving Average. Defaults to 15.
+        macdperiod1: Fast EMA period for MACD calculation. Defaults to 12.
+        macdperiod2: Slow EMA period for MACD calculation. Defaults to 26.
+        macdperiod3: Signal line EMA period for MACD. Defaults to 9.
+    """
     params = (
         ('smaperiod', 15),
         ('macdperiod1', 12),
@@ -40,6 +89,12 @@ class OptimizeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy with indicators and tracking variables.
+
+        Creates the SMA and MACD indicators based on the configured parameters,
+        sets up the crossover detector, and initializes counters for tracking
+        trading activity.
+        """
         self.sma = bt.ind.SMA(period=self.p.smaperiod)
         self.macd = bt.ind.MACD(
             period_me1=self.p.macdperiod1,
@@ -53,6 +108,14 @@ class OptimizeStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates and track completed trades.
+
+        Called by the backtrader engine whenever an order status changes.
+        Tracks the number of completed buy and sell orders for analysis.
+
+        Args:
+            order: The order object whose status has changed.
+        """
         if not order.alive():
             self.order = None
         if order.status == order.Completed:
@@ -62,6 +125,21 @@ class OptimizeStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def next(self):
+        """Execute trading logic for the current bar.
+
+        This method is called for each bar of data. It implements the
+        following logic:
+
+        1. Increment the bar counter
+        2. Check if there's a pending order (skip trading if so)
+        3. If MACD crosses above signal (bullish), enter long if not already positioned
+        4. If MACD crosses below signal (bearish), close position if holding
+
+        The crossover indicator returns:
+        - Positive value when MACD crosses above signal (buy signal)
+        - Negative value when MACD crosses below signal (sell signal)
+        - Zero otherwise
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -74,7 +152,24 @@ class OptimizeStrategy(bt.Strategy):
 
 
 def run_optimization():
-    """Run parameter optimization and return all results."""
+    """Run parameter optimization and return all results.
+
+    This function sets up and executes a parameter optimization run using
+    backtrader's optimization capabilities. It tests multiple parameter
+    combinations in parallel and returns the complete results for analysis.
+
+    The optimization varies the SMA period from 10 to 12 while keeping
+    MACD parameters fixed to reduce computational time.
+
+    Returns:
+        A list of strategy run results from all parameter combinations.
+        Each result contains the strategy instance with attached analyzers
+        for returns and Sharpe ratio calculations.
+
+    Note:
+        maxcpus=1 ensures single-threaded execution for reproducible results.
+        In production, this could be increased for parallel optimization.
+    """
     cerebro = bt.Cerebro(maxcpus=1)
     cerebro.broker.setcash(100000.0)
 
@@ -104,14 +199,32 @@ def run_optimization():
 
 
 def run_best_strategy(best_params):
-    """Run complete backtest using the best parameters.
+    """Run a complete backtest using the optimal parameter combination.
+
+    This function executes a single backtest with the best-performing
+    parameters identified during optimization. It includes comprehensive
+    analyzers to measure strategy performance including returns, risk
+    metrics, drawdown, and trade statistics.
 
     Args:
         best_params: Dictionary containing the optimal parameter values.
+            Example: {'smaperiod': 10, 'macdperiod1': 12, ...}
 
     Returns:
-        Dictionary containing strategy metrics including Sharpe ratio,
-        annual return, max drawdown, and final portfolio value.
+        A dictionary containing comprehensive strategy metrics:
+            - strat: The strategy instance with all attributes
+            - bar_num: Number of bars processed
+            - buy_count: Total number of buy orders executed
+            - sell_count: Total number of sell orders executed
+            - sharpe_ratio: Annualized Sharpe ratio (risk-adjusted return)
+            - annual_return: Annualized return as a decimal
+            - max_drawdown: Maximum drawdown as a decimal
+            - total_trades: Total number of completed trades
+            - final_value: Final portfolio value
+
+    Note:
+        This function uses stdstats=True to enable standard observers
+        for more detailed analysis if needed.
     """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
@@ -157,11 +270,28 @@ def run_best_strategy(best_params):
 
 
 def test_optimization():
-    """Test Optimization parameter optimization.
+    """Test backtrader's parameter optimization functionality.
 
-    Tests strategy parameter optimization by running multiple backtests
-    with different parameter combinations and selecting the one with
-    the highest Sharpe ratio.
+    This test performs end-to-end validation of the parameter optimization
+    system by:
+
+    1. Running optimization over a parameter space (SMA periods 10-12)
+    2. Collecting performance metrics (Sharpe ratio, returns) for each combination
+    3. Selecting the parameter combination with maximum Sharpe ratio
+    4. Running a complete backtest with the optimal parameters
+    5. Validating all metrics against expected values
+
+    The test verifies that:
+    - Exactly 3 parameter combinations are tested
+    - The optimal SMA period is identified correctly (should be 10)
+    - Performance metrics match expected values for the optimal parameters
+
+    Raises:
+        AssertionError: If any of the validation checks fail, including:
+            - Incorrect number of optimization runs
+            - Wrong parameter identified as optimal
+            - Performance metrics don't match expected values
+            - Trading statistics don't match expected values
     """
     print("Loading data...")
     print("Starting optimization...")

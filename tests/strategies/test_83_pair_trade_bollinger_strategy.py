@@ -19,6 +19,29 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common directories.
+
+    This function searches for a data file in multiple possible locations
+    relative to the current test file directory. This allows tests to find
+    their data files regardless of whether they are run from the tests/
+    directory or the project root.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the first matching data file found.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched directories.
+
+    Search Order:
+        1. Current test directory (tests/strategies/)
+        2. Parent test directory (tests/)
+        3. Current test directory/datas/
+        4. Parent test directory/datas/
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -48,21 +71,61 @@ class PairTradeBollingerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Pair Trade Bollinger Strategy.
+
+        Sets up the strategy by:
+        - Storing references to close prices of both data feeds
+        - Initializing tracking variables for orders, statistics, and position state
+        - Creating an empty spread history list for hedge ratio calculations
+
+        Attributes:
+            data0_close: Reference to close prices of the first asset (data0).
+            data1_close: Reference to close prices of the second asset (data1).
+            order: Current pending order, or None if no orders are pending.
+            spread_history: List tracking historical spread values for Z-score calculation.
+            hedge_ratio: Current hedge ratio used to size positions in the second asset.
+                Starts at 1.0 and is updated dynamically using rolling regression.
+            bar_num: Counter for the number of bars processed.
+            buy_count: Counter for total buy orders executed.
+            sell_count: Counter for total sell orders executed.
+            position_state: Current position state encoded as:
+                0 - Flat (no position)
+                1 - Long spread (long data0, short data1)
+                -1 - Short spread (short data0, long data1)
+        """
         self.data0_close = self.datas[0].close
         self.data1_close = self.datas[1].close
         self.order = None
-        
+
         self.spread_history = []
         self.hedge_ratio = 1.0
-        
+
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
-        
+
         # Position state: 0=flat, 1=long spread, -1=short spread
         self.position_state = 0
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        This method is called by the backtrader engine whenever an order's
+        status changes. It updates the buy/sell counters when orders are
+        completed and clears the pending order reference.
+
+        Args:
+            order: The order object with updated status information.
+
+        Order Status Handling:
+            - Submitted/Acpected: No action taken, order is still pending.
+            - Completed: Increments buy_count or sell_count based on order type.
+            - Other statuses: Clears the pending order reference.
+
+        Note:
+            This method only tracks completed orders. Rejected, cancelled,
+            or expired orders will also result in clearing self.order.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -111,20 +174,45 @@ class PairTradeBollingerStrategy(bt.Strategy):
         return numerator / denominator
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called for every bar of data during the backtest.
+        It implements the core pair trading logic:
+
+        1. Updates the hedge ratio using rolling regression
+        2. Calculates the current spread between the two assets
+        3. Computes the Z-Score of the spread
+        4. Enters positions when the Z-Score exceeds entry thresholds
+        5. Exits positions when the Z-Score reverts toward the mean
+
+        Trading Logic:
+            - When flat (position_state == 0):
+                * Go long spread if Z-Score < -entry_zscore (buy data0, sell data1)
+                * Go short spread if Z-Score > entry_zscore (sell data0, buy data1)
+            - When long spread (position_state == 1):
+                * Close both legs if Z-Score > -exit_zscore
+            - When short spread (position_state == -1):
+                * Close both legs if Z-Score < exit_zscore
+
+        Note:
+            - No new orders are placed if there's a pending order
+            - The hedge ratio is recalculated each bar using rolling OLS regression
+            - Position sizing for data1 is adjusted by the hedge ratio
+        """
         self.bar_num += 1
-        
+
         # Update hedge ratio
         self.hedge_ratio = self.calculate_hedge_ratio()
 
         # Calculate spread
         spread = self.data0_close[0] - self.hedge_ratio * self.data1_close[0]
         self.spread_history.append(spread)
-        
+
         if len(self.spread_history) < self.p.lookback:
             return
-            
+
         zscore = self.calculate_zscore()
-        
+
         if self.order:
             return
 
@@ -158,8 +246,43 @@ class PairTradeBollingerStrategy(bt.Strategy):
 
 
 def test_pair_trade_bollinger_strategy():
+    """Run a backtest of the Pair Trade Bollinger strategy.
+
+    This test function sets up and executes a complete backtest using historical
+    data for two assets (ORCL and NVDA) to validate the Pair Trade Bollinger
+    strategy implementation. It verifies that the strategy produces expected
+    results for key performance metrics.
+
+    Test Setup:
+        - Initial capital: $100,000
+        - Commission: 0.1% per trade
+        - Data period: 2010-01-01 to 2014-12-31
+        - Assets: Oracle (ORCL) and NVIDIA (NVDA)
+        - Strategy parameters: lookback=20, entry_zscore=1.5, exit_zscore=0.2, stake=10
+
+    Analyzers:
+        - Sharpe Ratio: Risk-adjusted return metric
+        - Returns: Annualized normalized returns
+        - DrawDown: Maximum drawdown analysis
+
+    Assertions:
+        - bar_num equals 1257
+        - final_value equals 99877.16 (within 0.01 tolerance)
+        - sharpe_ratio equals -1.4903824617023596 (within 1e-6 tolerance)
+        - annual_return equals -0.00024639413813618824 (within 1e-6 tolerance)
+        - max_drawdown equals 0.14492238860330459 (within 1e-6 tolerance)
+
+    Raises:
+        AssertionError: If any of the expected values do not match within tolerance.
+        FileNotFoundError: If the required data files cannot be located.
+
+    Note:
+        This test uses actual historical data to produce deterministic results.
+        The assertions verify that the strategy behavior matches expected values
+        after the metaclass removal refactoring.
+    """
     cerebro = bt.Cerebro()
-    
+
     # Load two data sources (using same data but different time periods to simulate pairs)
     data_path = resolve_data_path("orcl-1995-2014.txt")
     

@@ -18,6 +18,15 @@
 #
 ###############################################################################
 
+"""Test module for the Highest indicator.
+
+This module contains test cases for the backtrader Highest indicator, which
+calculates the highest value over a specified period. The test validates that
+the indicator produces expected results when applied to sample data.
+
+The test uses a 14-period Highest indicator and verifies the output against
+pre-calculated expected values.
+"""
 
 import backtrader as bt
 
@@ -36,6 +45,21 @@ chkargs = dict(period=14)
 
 
 def test_run(main=False):
+    """Run the Highest indicator test.
+
+    This function loads test data, applies the Highest indicator with the
+    specified parameters, and verifies the results against expected values.
+
+    Args:
+        main (bool, optional): If True, enables plotting and main execution mode.
+            Defaults to False.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the indicator output does not match expected values.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

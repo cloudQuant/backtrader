@@ -19,6 +19,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching common locations.
+
+    This function searches for a data file in multiple common locations
+    relative to the test directory, including the current directory,
+    parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -52,6 +68,11 @@ class SharpeTestStrategy(bt.Strategy):
     params = (('p1', 10), ('p2', 30))
 
     def __init__(self):
+        """Initialize the SharpeTestStrategy.
+
+        Sets up the moving average indicators and initializes tracking variables
+        for orders and trading statistics.
+        """
         ma1 = bt.ind.SMA(period=self.p.p1)
         ma2 = bt.ind.SMA(period=self.p.p2)
         self.crossover = bt.ind.CrossOver(ma1, ma2)
@@ -61,6 +82,14 @@ class SharpeTestStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order notification events.
+
+        Updates the order reference when orders are completed or cancelled,
+        and tracks the count of buy and sell orders executed.
+
+        Args:
+            order: The order object that triggered this notification.
+        """
         if not order.alive():
             self.order = None
         if order.status == order.Completed:
@@ -70,6 +99,15 @@ class SharpeTestStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the dual moving average crossover strategy:
+        - When crossover > 0 (fast MA crosses above slow MA): close existing
+          position and buy
+        - When crossover < 0 (fast MA crosses below slow MA): close existing
+          position
+        - Only one order is allowed at a time
+        """
         self.bar_num += 1
         if self.order:
             return

@@ -1,10 +1,26 @@
-"""VIX Volatility Index Strategy Test Cases
+"""VIX Volatility Index Strategy Test Cases.
 
-Tests sentiment-driven strategy using SPY and VIX volatility index data.
-- Uses GenericCSVData to load local data files.
-- Accesses data via self.datas[0] following best practices.
+This module contains test cases for a sentiment-driven trading strategy that uses
+the CBOE Volatility Index (VIX) as a market fear/greed indicator. The strategy
+trades SPY (SPDR S&P 500 ETF) based on VIX levels.
 
-Reference: https://github.com/cloudQuant/sentiment-fear-and-greed.git
+The strategy logic:
+- Buy when VIX > 35 (extreme market fear, contrarian buy signal)
+- Sell when VIX < 10 (extreme market calm, exit signal)
+
+This module demonstrates:
+- Loading custom CSV data with multiple fields using GenericCSVData
+- Implementing a volatility-based trading strategy
+- Using sentiment indicators (VIX) for market timing
+- Comprehensive performance analysis with multiple analyzers
+
+Reference:
+    https://github.com/cloudQuant/sentiment-fear-and-greed.git
+
+Example:
+    Run the test directly to execute the backtest::
+
+        python tests/strategies/test_24_vix_strategy.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +35,30 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """Locate data files based on the script directory to avoid relative path failures."""
+    """Locate data files by searching multiple possible directory paths.
+
+    This function searches for data files in several common locations to avoid
+    failures due to relative path issues. It checks the script directory, parent
+    directories, and an optional environment variable.
+
+    Args:
+        filename (str): The name of the data file to locate.
+
+    Returns:
+        Path: Absolute path to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+
+    Note:
+        Search paths (in order):
+        1. Current script directory
+        2. Parent directory
+        3. Grandparent directory
+        4. tests/datas/ subdirectory
+        5. Directory specified by BACKTRADER_DATA_DIR environment variable (if set)
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -39,10 +78,33 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SPYVixData(bt.feeds.GenericCSVData):
-    """SPY + VIX volatility index data feed.
+    """Custom data feed for SPY price data with VIX and sentiment indicators.
 
-    CSV format:
-    Date,Open,High,Low,Close,Adj Close,Volume,Put Call,Fear Greed,VIX
+    This data feed extends GenericCSVData to load SPY (SPDR S&P 500 ETF) price
+    data along with additional sentiment indicators including Put/Call ratio,
+    Fear & Greed index, and the CBOE Volatility Index (VIX).
+
+    CSV Format:
+        The expected CSV file should have the following columns:
+        Date, Open, High, Low, Close, Adj Close, Volume, Put Call, Fear Greed, VIX
+
+    Attributes:
+        put_call (Line): Put/Call ratio indicator for market sentiment analysis.
+        fear_greed (Line): Fear & Greed index measuring market sentiment.
+        vix (Line): CBOE Volatility Index value for each bar.
+
+    Parameters:
+        dtformat (str): Date format string for parsing CSV dates (default: '%Y-%m-%d').
+        datetime (int): Column index for datetime field (default: 0).
+        open (int): Column index for open price (default: 1).
+        high (int): Column index for high price (default: 2).
+        low (int): Column index for low price (default: 3).
+        close (int): Column index for close price (default: 4).
+        volume (int): Column index for volume (default: 6).
+        openinterest (int): Column index for open interest (default: -1, not used).
+        put_call (int): Column index for Put/Call ratio (default: 7).
+        fear_greed (int): Column index for Fear & Greed index (default: 8).
+        vix (int): Column index for VIX value (default: 9).
     """
     lines = ('put_call', 'fear_greed', 'vix')
 
@@ -62,14 +124,38 @@ class SPYVixData(bt.feeds.GenericCSVData):
 
 
 class VIXStrategy(bt.Strategy):
-    """VIX volatility index strategy.
+    """Volatility-based trading strategy using the VIX index.
 
-    Strategy logic:
-    - Buy when VIX > 35 (extreme market fear)
-    - Sell when VIX < 10 (extreme market calm)
+    This strategy implements a contrarian approach to trading SPY based on the
+    CBOE Volatility Index (VIX). The VIX is a fear gauge that measures expected
+    market volatility over the next 30 days. The strategy takes long positions
+    when the VIX spikes (extreme fear) and exits when the VIX drops to low levels
+    (extreme complacency).
 
-    Data used:
-    - datas[0]: SPY price data + VIX indicator
+    Strategy Logic:
+        - Entry: Buy when VIX > 35 (extreme market fear indicates oversold conditions)
+        - Exit: Sell when VIX < 10 (extreme calm indicates overbought conditions)
+
+    This is a mean-reversion strategy based on the principle that periods of
+    extreme fear are often followed by market recoveries, while periods of
+    extreme complacency may precede market pullbacks.
+
+    Attributes:
+        bar_num (int): Counter for the number of bars processed.
+        buy_count (int): Number of buy orders executed.
+        sell_count (int): Number of sell orders executed.
+        sum_profit (float): Cumulative profit/loss from all closed trades.
+        win_count (int): Number of profitable trades.
+        loss_count (int): Number of unprofitable trades.
+        data0 (Data): Reference to the primary data feed (SPY).
+        vix (Line): Reference to the VIX values from the data feed.
+        close (Line): Reference to the closing prices from the data feed.
+
+    Parameters:
+        high_threshold (float): VIX level above which to enter long positions
+            (default: 35). This represents extreme market fear.
+        low_threshold (float): VIX level below which to exit positions
+            (default: 10). This represents extreme market calm.
     """
 
     params = (
@@ -78,13 +164,30 @@ class VIXStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None, force=False):
-        """Log output function."""
+        """Log strategy messages with timestamp.
+
+        This method provides controlled logging output. By default, logging is
+        disabled unless the force parameter is True, which allows selective
+        output of important messages.
+
+        Args:
+            txt (str): The message text to log.
+            dt (datetime, optional): The datetime to use for the log entry.
+                If None, uses the current bar's datetime. Defaults to None.
+            force (bool, optional): If True, output the log message; otherwise,
+                suppress output. Defaults to False.
+        """
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
+        """Initialize the VIX strategy.
+
+        Sets up data references and initializes tracking variables for strategy
+        statistics including trade counts, profit tracking, and win/loss records.
+        """
         # Record statistics
         self.bar_num = 0
         self.buy_count = 0
@@ -99,7 +202,19 @@ class VIXStrategy(bt.Strategy):
         self.close = self.data0.close
 
     def notify_trade(self, trade):
-        """Trade completion notification."""
+        """Handle trade completion events.
+
+        This method is called by Backtrader when a trade is closed. It updates
+        the strategy's statistics by tracking wins, losses, and cumulative profit.
+
+        Args:
+            trade (Trade): The trade object that has been closed. Contains
+                information about profit/loss, commission, and trade details.
+
+        Note:
+            Only processes closed trades (trade.isclosed == True). Open trades
+            are ignored.
+        """
         if not trade.isclosed:
             return
         if trade.pnl > 0:
@@ -110,7 +225,19 @@ class VIXStrategy(bt.Strategy):
         self.log(f"Trade completed: gross_profit={trade.pnl:.2f}, net_profit={trade.pnlcomm:.2f}, cumulative={self.sum_profit:.2f}")
 
     def notify_order(self, order):
-        """Order status notification."""
+        """Handle order status change events.
+
+        This method is called by Backtrader when an order's status changes.
+        It logs executed orders and orders that were canceled, rejected, or
+        had margin issues.
+
+        Args:
+            order (Order): The order object whose status has changed.
+
+        Note:
+            Ignores Submitted and Accepted status updates to reduce log noise.
+            Only logs Completed, Canceled, Margin, and Rejected orders.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -123,6 +250,19 @@ class VIXStrategy(bt.Strategy):
             self.log(f"ORDER STATUS: {order.Status[order.status]}")
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by Backtrader for each bar of data. It implements
+        the core strategy logic:
+        1. Calculate the maximum position size based on available cash
+        2. Enter long position when VIX > high_threshold (market fear)
+        3. Exit position when VIX < low_threshold (market calm)
+
+        Note:
+            - Only enters long positions when not already in a position
+            - Only exits when currently holding a position
+            - Position size is calculated as: floor(available_cash / close_price)
+        """
         self.bar_num += 1
 
         # Calculate buyable quantity
@@ -140,7 +280,16 @@ class VIXStrategy(bt.Strategy):
             self.sell_count += 1
 
     def stop(self):
-        """Output statistics when strategy ends."""
+        """Output strategy statistics when backtest completes.
+
+        This method is called by Backtrader at the end of the backtest. It
+        calculates and logs comprehensive performance statistics including
+        total bars processed, trade counts, win rate, and cumulative profit.
+
+        Note:
+            Win rate is calculated as: (win_count / total_trades) * 100
+            where total_trades = win_count + loss_count
+        """
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -151,9 +300,35 @@ class VIXStrategy(bt.Strategy):
 
 
 def test_vix_strategy():
-    """Test VIX volatility index strategy.
+    """Run backtest for the VIX volatility index strategy.
 
-    Run backtest using SPY and VIX data.
+    This test function executes a comprehensive backtest of the VIX-based trading
+    strategy using historical SPY and VIX data from 2011-2021. It verifies that
+    the strategy executes correctly and produces expected performance metrics.
+
+    The test:
+    1. Loads SPY price data with VIX indicators from CSV
+    2. Configures the strategy with buy/sell thresholds (VIX > 35, VIX < 10)
+    3. Adds performance analyzers (Sharpe Ratio, Returns, Drawdown, Trade Analysis)
+    4. Runs the backtest with $100,000 initial capital
+    5. Validates results against expected values
+
+    Raises:
+        AssertionError: If any of the performance metrics don't match expected values.
+        FileNotFoundError: If the required data file cannot be located.
+
+    Note:
+        Expected test values (based on 2011-2021 data):
+        - Bars processed: 2445
+        - Buy signals: 3
+        - Sell signals: 1
+        - Winning trades: 1
+        - Losing trades: 0
+        - Total trades: 2
+        - Sharpe Ratio: ~0.918
+        - Annual Return: ~10.4%
+        - Max Drawdown: ~33.7%
+        - Final Portfolio Value: $261,273.50
     """
     # Create cerebro
     cerebro = bt.Cerebro(stdstats=True)

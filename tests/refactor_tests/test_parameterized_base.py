@@ -1,14 +1,14 @@
-
-import backtrader as bt
-
-"""
-Tests for Enhanced ParameterizedBase (Day 34-35)
+"""Tests for Enhanced ParameterizedBase (Day 34-35).
 
 This module tests the enhanced ParameterizedBase functionality including:
-- Temporary MetaParams integration
-- Enhanced error handling and validation
-- Improved backward compatibility interfaces
-- Parameter inheritance from MetaParams-based classes
+* Temporary MetaParams integration
+* Enhanced error handling and validation
+* Improved backward compatibility interfaces
+* Parameter inheritance from MetaParams-based classes
+
+These tests ensure that the new descriptor-based parameter system maintains
+compatibility with the legacy metaclass-based system while providing enhanced
+features and better performance.
 """
 
 import os
@@ -16,6 +16,8 @@ import sys
 import warnings
 
 import pytest
+
+import backtrader as bt
 
 from backtrader.parameters import (
     Float,
@@ -33,12 +35,29 @@ from backtrader.parameters import (
 
 
 class TestParameterizedBaseLegacy:
-    """Test ParameterizedBase with legacy parameter support."""
+    """Test ParameterizedBase with legacy parameter support.
+
+    This test class validates backward compatibility with the legacy
+    params tuple format used in the original metaclass-based system.
+    """
 
     def test_pure_descriptor_class(self):
-        """Test creating a class with only parameter descriptors."""
+        """Test creating a class with only parameter descriptors.
+
+        Verifies that classes using only the new descriptor-style
+        parameter definitions work correctly.
+
+        Raises:
+            AssertionError: If descriptor-based parameters are not recognized.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class with pure descriptor-style parameters.
+
+            This class is used to verify that ParameterDescriptor objects
+            work correctly without any legacy params tuple.
+            """
+
             param1 = ParameterDescriptor(default=10, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
 
@@ -48,9 +67,22 @@ class TestParameterizedBaseLegacy:
         assert "param2" in descriptors
 
     def test_legacy_params_tuple_conversion(self):
-        """Test conversion of legacy params tuple to descriptors."""
+        """Test conversion of legacy params tuple to descriptors.
+
+        Verifies that the legacy params tuple format is automatically
+        converted to ParameterDescriptor objects.
+
+        Raises:
+            AssertionError: If legacy params are not properly converted.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class with legacy params tuple format.
+
+            This class is used to verify that legacy params tuples are
+            automatically converted to ParameterDescriptor objects.
+            """
+
             params = (("period", 14), ("multiplier", 2.0), ("name", "test_indicator"))
 
         descriptors = TestClass._compute_parameter_descriptors()
@@ -60,9 +92,22 @@ class TestParameterizedBaseLegacy:
         assert descriptors["multiplier"].default == 2.0
 
     def test_mixed_descriptors_and_legacy(self):
-        """Test mixing parameter descriptors with legacy params tuple."""
+        """Test mixing parameter descriptors with legacy params tuple.
+
+        Verifies that descriptor-style and legacy tuple-style parameters
+        can coexist in the same class.
+
+        Raises:
+            AssertionError: If mixed parameter styles cause conflicts.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class mixing descriptor and legacy parameter styles.
+
+            This class is used to verify that new-style ParameterDescriptor
+            objects can coexist with legacy params tuples.
+            """
+
             # New style descriptor
             advanced_param = ParameterDescriptor(default=100, type_=int, validator=Int(min_val=0))
 
@@ -82,12 +127,29 @@ class TestParameterizedBaseLegacy:
 
 
 class TestEnhancedParameterizedBase:
-    """Test enhanced ParameterizedBase functionality."""
+    """Test enhanced ParameterizedBase functionality.
+
+    This test class validates the new features and enhancements in the
+    descriptor-based parameter system.
+    """
 
     def test_basic_initialization(self):
-        """Test basic parameter initialization."""
+        """Test basic parameter initialization.
+
+        Verifies that parameters can be set during initialization and
+        accessed through various aliases (get_param, .params, .p).
+
+        Raises:
+            AssertionError: If parameter initialization or access fails.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for basic parameter initialization.
+
+            This class is used to verify that parameters can be initialized
+            with custom values and accessed through various methods.
+            """
+
             param1 = ParameterDescriptor(default=10, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
 
@@ -99,9 +161,22 @@ class TestEnhancedParameterizedBase:
         assert obj.p.param2 == "custom"
 
     def test_parameter_validation_on_init(self):
-        """Test parameter validation during initialization."""
+        """Test parameter validation during initialization.
+
+        Verifies that parameter validation is enforced during object
+        initialization and invalid values raise errors.
+
+        Raises:
+            AssertionError: If validation is not enforced during init.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for parameter validation.
+
+            This class is used to verify that parameter validation is
+            enforced during object initialization.
+            """
+
             range_param = ParameterDescriptor(default=50, validator=Int(min_val=0, max_val=100))
 
         # Should fail with invalid range
@@ -113,9 +188,22 @@ class TestEnhancedParameterizedBase:
         assert obj.get_param("range_param") == 75
 
     def test_enhanced_error_handling(self):
-        """Test enhanced error handling with detailed messages."""
+        """Test enhanced error handling with detailed messages.
+
+        Verifies that parameter access errors are handled gracefully
+        and that setting non-existent parameters creates them dynamically.
+
+        Raises:
+            AssertionError: If error handling doesn't work as expected.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for enhanced error handling.
+
+            This class is used to verify that parameter access errors
+            are handled gracefully with informative messages.
+            """
+
             param1 = ParameterDescriptor(default=10, type_=int)
 
         obj = TestClass()
@@ -135,9 +223,22 @@ class TestEnhancedParameterizedBase:
         assert obj.get_param("new_param") == 100
 
     def test_parameter_validation_methods(self):
-        """Test enhanced parameter validation methods."""
+        """Test enhanced parameter validation methods.
+
+        Verifies that parameter validation can be triggered explicitly
+        and that validation errors are properly reported.
+
+        Raises:
+            AssertionError: If validation methods don't detect invalid values.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for parameter validation methods.
+
+            This class is used to verify that parameter validation can be
+            triggered explicitly and validation errors are properly reported.
+            """
+
             int_param = ParameterDescriptor(default=10, type_=int, validator=Int(min_val=0))
             required_param = ParameterDescriptor(required=True, type_=str)
 
@@ -154,9 +255,23 @@ class TestEnhancedParameterizedBase:
         assert "invalid value" in errors[0]
 
     def test_parameter_info_retrieval(self):
-        """Test comprehensive parameter information retrieval."""
+        """Test comprehensive parameter information retrieval.
+
+        Verifies that get_param_info() returns complete information about
+        all parameters including current values, modification status, type,
+        and documentation.
+
+        Raises:
+            AssertionError: If parameter information is incomplete or incorrect.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for parameter information retrieval.
+
+            This class is used to verify that get_param_info() returns
+            complete and accurate information about all parameters.
+            """
+
             param1 = ParameterDescriptor(default=10, type_=int, doc="Test parameter")
             param2 = ParameterDescriptor(default="test", required=True)
 
@@ -170,9 +285,22 @@ class TestEnhancedParameterizedBase:
         assert param_info["param1"]["doc"] == "Test parameter"
 
     def test_parameter_reset_functionality(self):
-        """Test parameter reset functionality."""
+        """Test parameter reset functionality.
+
+        Verifies that individual parameters can be reset to their default
+        values and that all parameters can be reset at once.
+
+        Raises:
+            AssertionError: If parameter reset doesn't work correctly.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for parameter reset functionality.
+
+            This class is used to verify that parameters can be reset
+            individually or all at once to their default values.
+            """
+
             param1 = ParameterDescriptor(default=10)
             param2 = ParameterDescriptor(default=20)
 
@@ -193,9 +321,22 @@ class TestEnhancedParameterizedBase:
         assert obj.get_param("param2") == 20
 
     def test_modified_params_tracking(self):
-        """Test tracking of modified parameters."""
+        """Test tracking of modified parameters.
+
+        Verifies that the system tracks which parameters have been modified
+        from their default values.
+
+        Raises:
+            AssertionError: If modified parameter tracking is inaccurate.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for modified parameter tracking.
+
+            This class is used to verify that the system correctly tracks
+            which parameters have been modified from their default values.
+            """
+
             param1 = ParameterDescriptor(default=10)
             param2 = ParameterDescriptor(default=20)
             param3 = ParameterDescriptor(default=30)
@@ -209,9 +350,22 @@ class TestEnhancedParameterizedBase:
         assert "param2" not in modified
 
     def test_parameter_copying(self):
-        """Test parameter copying between objects."""
+        """Test parameter copying between objects.
+
+        Verifies that parameters can be copied from one object to another,
+        with support for selective copying and exclusion lists.
+
+        Raises:
+            AssertionError: If parameter copying doesn't work as expected.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for parameter copying.
+
+            This class is used to verify that parameters can be copied
+            between objects with various options.
+            """
+
             param1 = ParameterDescriptor(default=10)
             param2 = ParameterDescriptor(default=20)
             param3 = ParameterDescriptor(default=30)
@@ -240,9 +394,22 @@ class TestEnhancedParameterizedBase:
         assert target.get_param("param3") == 300
 
     def test_enhanced_string_representation(self):
-        """Test enhanced string representation."""
+        """Test enhanced string representation.
+
+        Verifies that the __repr__ method provides useful information
+        about the object including its class and parameter count.
+
+        Raises:
+            AssertionError: If string representation doesn't contain expected info.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for string representation.
+
+            This class is used to verify that the __repr__ method
+            provides useful information about the object.
+            """
+
             param1 = ParameterDescriptor(default=10)
             param2 = ParameterDescriptor(default=20)
 
@@ -254,10 +421,21 @@ class TestEnhancedParameterizedBase:
 
 
 class TestParamsBridge:
-    """Test the ParamsBridge class for legacy compatibility."""
+    """Test the ParamsBridge class for legacy compatibility.
+
+    This test class validates the ParamsBridge utility that converts
+    legacy parameter formats to the new descriptor-based format.
+    """
 
     def test_legacy_params_tuple_conversion(self):
-        """Test conversion of legacy params tuple."""
+        """Test conversion of legacy params tuple.
+
+        Verifies that ParamsBridge correctly converts the legacy
+        params tuple format to ParameterDescriptor objects.
+
+        Raises:
+            AssertionError: If conversion doesn't produce correct descriptors.
+        """
 
         legacy_params = (("period", 14), ("multiplier", 2.5), ("mode", "simple"))
 
@@ -274,10 +452,21 @@ class TestParamsBridge:
 
 
 class TestParameterExceptions:
-    """Test custom parameter exceptions."""
+    """Test custom parameter exceptions.
+
+    This test class validates the custom exception classes that
+    provide detailed error information for parameter-related issues.
+    """
 
     def test_parameter_validation_error(self):
-        """Test ParameterValidationError."""
+        """Test ParameterValidationError.
+
+        Verifies that ParameterValidationError properly stores and
+        formats validation error information.
+
+        Raises:
+            AssertionError: If exception doesn't store error details correctly.
+        """
 
         error = ParameterValidationError(
             "test_param", "invalid_value", expected_type=int, additional_info="Must be positive"
@@ -292,7 +481,14 @@ class TestParameterExceptions:
         assert "Must be positive" in str(error)
 
     def test_parameter_access_error(self):
-        """Test ParameterAccessError."""
+        """Test ParameterAccessError.
+
+        Verifies that ParameterAccessError properly stores and
+        formats parameter access error information.
+
+        Raises:
+            AssertionError: If exception doesn't store error details correctly.
+        """
 
         error = ParameterAccessError("missing_param", "TestClass", ["param1", "param2"])
 
@@ -305,20 +501,49 @@ class TestParameterExceptions:
 
 
 class TestParameterCompatibility:
-    """Test parameter system compatibility validation."""
+    """Test parameter system compatibility validation.
+
+    This test class validates tools for checking compatibility between
+    the old metaclass-based parameter system and the new descriptor-based system.
+    """
 
     def test_compatibility_validation(self):
-        """Test compatibility validation between old and new parameter systems."""
+        """Test compatibility validation between old and new parameter systems.
+
+        Verifies that validate_parameter_compatibility() can detect differences
+        between old and new parameter definitions.
+
+        Raises:
+            AssertionError: If compatibility validation fails to detect differences.
+        """
 
         # Mock old MetaParams class
         class MockOldClass:
+            """Mock class representing old MetaParams-based system.
+
+            This class is used to simulate the legacy metaclass-based
+            parameter system for compatibility testing.
+            """
+
             class params:
+                """Mock params class with _getitems method.
+
+                This simulates the legacy params interface for
+                compatibility validation.
+                """
+
                 @classmethod
                 def _getitems(cls):
                     return [("param1", 10), ("param2", "test"), ("old_param", 100)]
 
         # New descriptor-based class
         class NewClass(ParameterizedBase):
+            """New descriptor-based parameter class.
+
+            This class is used to verify compatibility between the old
+            and new parameter systems.
+            """
+
             param1 = ParameterDescriptor(default=10)
             param2 = ParameterDescriptor(default="test")
             new_param = ParameterDescriptor(default=50)
@@ -339,16 +564,41 @@ class TestParameterCompatibility:
 
 
 class TestAdvancedParameterFeatures:
-    """Test advanced parameter features for Day 34-35."""
+    """Test advanced parameter features for Day 34-35.
+
+    This test class validates advanced features of the parameter system
+    including complex validators, inheritance chains, and ParameterManager
+    integration.
+    """
 
     def test_parameter_with_complex_validation(self):
-        """Test parameters with complex validation logic."""
+        """Test parameters with complex validation logic.
+
+        Verifies that custom validator functions work correctly with
+        the parameter system and properly reject invalid values.
+
+        Raises:
+            AssertionError: If complex validators don't work as expected.
+        """
 
         def custom_validator(value):
-            """Value must be even and positive"""
+            """Validate that value is even and positive.
+
+            Args:
+                value: The value to validate.
+
+            Returns:
+                bool: True if value is a positive even integer, False otherwise.
+            """
             return isinstance(value, int) and value > 0 and value % 2 == 0
 
         class TestClass(ParameterizedBase):
+            """Test class with complex parameter validation.
+
+            This class is used to verify that custom validator functions
+            work correctly with the parameter system.
+            """
+
             even_param = ParameterDescriptor(
                 default=2, type_=int, validator=custom_validator, doc="Must be positive and even"
             )
@@ -365,15 +615,40 @@ class TestAdvancedParameterFeatures:
             TestClass(even_param=-2)  # Negative even number
 
     def test_parameter_inheritance_chain(self):
-        """Test parameter inheritance through class hierarchy."""
+        """Test parameter inheritance through class hierarchy.
+
+        Verifies that parameters are correctly inherited through multiple
+        levels of class inheritance and are accessible via get_param_info().
+
+        Raises:
+            AssertionError: If inheritance chain doesn't work correctly.
+        """
 
         class BaseClass(ParameterizedBase):
+            """Base class with one parameter.
+
+            This class serves as the base of the inheritance chain
+            for testing parameter inheritance.
+            """
+
             base_param = ParameterDescriptor(default=10)
 
         class MiddleClass(BaseClass):
+            """Middle class inheriting from BaseClass.
+
+            This class extends BaseClass to test multi-level
+            parameter inheritance.
+            """
+
             middle_param = ParameterDescriptor(default=20)
 
         class DerivedClass(MiddleClass):
+            """Derived class inheriting from MiddleClass.
+
+            This class extends MiddleClass to test three-level
+            parameter inheritance.
+            """
+
             derived_param = ParameterDescriptor(default=30)
 
         obj = DerivedClass(base_param=100, middle_param=200, derived_param=300)
@@ -388,9 +663,22 @@ class TestAdvancedParameterFeatures:
         assert all(param in param_info for param in ["base_param", "middle_param", "derived_param"])
 
     def test_parameter_manager_integration(self):
-        """Test integration with enhanced ParameterManager features."""
+        """Test integration with enhanced ParameterManager features.
+
+        Verifies that ParameterizedBase properly exposes and integrates
+        with advanced ParameterManager features like locking and transactions.
+
+        Raises:
+            AssertionError: If ParameterManager integration is incomplete.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for ParameterManager integration.
+
+            This class is used to verify that ParameterizedBase properly
+            exposes and integrates with advanced ParameterManager features.
+            """
+
             param1 = ParameterDescriptor(default=10)
             param2 = ParameterDescriptor(default=20)
 
@@ -413,5 +701,5 @@ class TestAdvancedParameterFeatures:
 
 
 if __name__ == "__main__":
-    # Run tests
+    # Run tests when module is executed directly
     pytest.main([__file__])

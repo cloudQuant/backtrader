@@ -18,6 +18,26 @@
 #
 ###############################################################################
 
+"""Test module for KAMA (Kaufman's Adaptive Moving Average) indicator.
+
+This module tests the KAMA indicator implementation in backtrader. KAMA is an
+adaptive moving average developed by Perry Kaufman that adjusts its smoothing
+factor based on market volatility and direction.
+
+The test validates that:
+1. The indicator produces expected values at specific checkpoints
+2. The minimum period is correctly calculated (31 bars for default parameters)
+3. The indicator works correctly across different execution modes
+
+The test uses a single data feed with 2006 daily data and validates the
+indicator output against known correct values.
+
+Module Constants:
+    chkdatas (int): Number of data feeds to use in the test (1).
+    chkvals (list): Expected indicator values at checkpoint bars for validation.
+    chkmin (int): Expected minimum period before indicator produces valid values (31).
+    chkind (type): The KAMA indicator class to test.
+"""
 
 import backtrader as bt
 
@@ -35,6 +55,27 @@ chkind = btind.KAMA
 
 
 def test_run(main=False):
+    """Run the KAMA indicator test.
+
+    This function loads the test data, creates a backtest with the TestStrategy
+    (which applies the KAMA indicator), and validates the results against
+    expected values. The test can be run in two modes:
+
+    1. Test mode (main=False): Runs assertions to validate correctness
+    2. Main mode (main=True): Displays plots for manual inspection
+
+    Args:
+        main (bool, optional): If True, run with plotting enabled for visual
+            inspection. If False, run automated tests without plotting.
+            Defaults to False.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If indicator values do not match expected values at
+            checkpoint bars (only when main=False).
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

@@ -1,11 +1,16 @@
-# Expected values after fixing cross-platform sorting inconsistency (Mac and Ubuntu consistent)
-# 2025-10-13T00:00:00, self.bar_num = 1885
-# sharpe_ratio: 0.46882103593170665
-# annual_return: 0.056615798284517765
-# max_drawdown: 0.24142378277185714
-# trade_num: 1750
+"""Test multi-asset convertible bond strategy with extended data fields.
 
+This module tests a convertible bond trading strategy that uses multiple
+data feeds with custom fields (pure bond value, conversion value, premium rates).
 
+Expected values after fixing cross-platform sorting inconsistency:
+  Date: 2025-10-13T00:00:00
+  bar_num: 1885
+  sharpe_ratio: 0.46882103593170665
+  annual_return: 0.056615798284517765
+  max_drawdown: 0.24142378277185714
+  trade_num: 1750
+"""
 import backtrader as bt
 import datetime
 import os
@@ -36,7 +41,21 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """Locate data files based on the script directory to avoid relative path reading failures"""
+    """Locate data files by searching multiple possible directory paths.
+
+    This function searches for data files in several predefined locations to
+    avoid relative path reading failures when running tests from different
+    working directories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the first matching file found.
+
+    Raises:
+        FileNotFoundError: If the file cannot be found in any of the search paths.
+    """
     search_paths = []
 
     # 1. Current directory (tests/strategies)
@@ -69,9 +88,16 @@ def resolve_data_path(filename: str) -> Path:
 
 
 def setup_chinese_font():
-    """
-    Intelligently set up cross-platform Chinese font support
-    Returns the font name that was ultimately used
+    """Intelligently set up cross-platform Chinese font support.
+
+    This function detects the operating system and attempts to configure
+    matplotlib with an appropriate Chinese font. It maintains a priority
+    list of fonts for each platform (macOS, Windows, Linux) and selects
+    the first available font.
+
+    Returns:
+        str or None: The name of the selected font, or None if no suitable
+            Chinese font was found and the system default will be used.
     """
     # Get current operating system
     system = platform.system()
@@ -141,24 +167,32 @@ warnings.filterwarnings("ignore")
 
 
 class ExtendPandasFeed(PandasData):
-    """
-    Extended Pandas data source with convertible bond-specific fields
+    """Extended Pandas data source with convertible bond-specific fields.
 
-    Important note:
-    When DataFrame uses set_index('datetime'), the datetime column becomes an index, not a data column.
-    Therefore, column indices need to be recalculated starting from 0, excluding datetime.
+    This class extends the standard PandasData feed to support additional
+    fields required for convertible bond trading strategies, including
+    pure bond values, conversion values, and premium rates.
+
+    Note:
+        When a DataFrame uses set_index('datetime'), the datetime column
+        becomes an index rather than a data column. Therefore, column indices
+        are recalculated starting from 0, excluding datetime.
 
     DataFrame structure (after set_index):
-    - Index: datetime
-    - Column 0: open
-    - Column 1: high
-    - Column 2: low
-    - Column 3: close
-    - Column 4: volume
-    - Column 5: pure_bond_value
-    - Column 6: convert_value
-    - Column 7: pure_bond_premium_rate
-    - Column 8: convert_premium_rate
+        - Index: datetime
+        - Column 0: open
+        - Column 1: high
+        - Column 2: low
+        - Column 3: close
+        - Column 4: volume
+        - Column 5: pure_bond_value
+        - Column 6: convert_value
+        - Column 7: pure_bond_premium_rate
+        - Column 8: convert_premium_rate
+
+    Attributes:
+        params: Tuple mapping data fields to DataFrame column indices.
+        lines: Tuple defining extended data lines for convertible bond metrics.
     """
 
     params = (
@@ -180,7 +214,19 @@ class ExtendPandasFeed(PandasData):
 
 
 def clean_data():
-    """Clean convertible bond data"""
+    """Clean and prepare convertible bond data from CSV file.
+
+    This function reads the merged convertible bond data file, renames columns,
+    filters data from 2018 onwards, groups by symbol, and converts each group
+    to a properly formatted DataFrame with datetime index.
+
+    Returns:
+        dict: A dictionary mapping convertible bond symbols to their
+            corresponding DataFrames. Each DataFrame has datetime as index
+            and contains columns for open, high, low, close, volume,
+            pure_bond_value, convert_value, pure_bond_premium_rate, and
+            convert_premium_rate.
+    """
     df = pd.read_csv(resolve_data_path("bond_merged_all_data.csv"))
     df.columns = [
         "symbol",
@@ -210,6 +256,29 @@ def clean_data():
 
 
 class BondConvertTwoFactor(bt.Strategy):
+    """Convertible bond double-low strategy using two-factor scoring.
+
+    This strategy implements a convertible bond trading approach based on
+    two factors: price level and conversion premium rate. Bonds are ranked
+    by a weighted combination of these factors, and the top-performing
+    bonds are selected for monthly rebalancing.
+
+    The strategy rebalances monthly and uses equal weighting across all
+    selected bonds. It tracks positions and orders to manage the portfolio.
+
+    Attributes:
+        params: Strategy parameters including:
+            - first_factor_weight (float): Weight for price factor (default: 0.5)
+            - second_factor_weight (float): Weight for premium rate factor (default: 0.5)
+            - hold_percent (int): Number or percentage of bonds to hold (default: 20)
+        bar_num (int): Counter for number of bars processed.
+        position_dict (dict): Dictionary mapping bond names to their orders.
+        stock_dict (dict): Dictionary of currently tradable bonds.
+
+    Note:
+        The first data feed is assumed to be an index used for time
+        synchronization, not for trading. Trading starts from data[1:].
+    """
     # params = (('short_window',10),('long_window',60))
     params = (
         ("first_factor_weight", 0.5),
@@ -218,7 +287,14 @@ class BondConvertTwoFactor(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
-        """Function for logging information"""
+        """Log strategy information with optional timestamp.
+
+        Args:
+            txt (str): Text message to log.
+            dt (datetime, optional): Datetime object for the log entry.
+                If None, attempts to use the current bar's datetime from
+                the first data feed.
+        """
         if dt is None:
             try:
                 dt_val = self.datas[0].datetime[0]
@@ -235,6 +311,15 @@ class BondConvertTwoFactor(bt.Strategy):
             print("%s" % txt)
 
     def __init__(self, *args, **kwargs):
+        """Initialize the BondConvertTwoFactor strategy.
+
+        Sets up instance variables for tracking bars, positions, and
+        available tradable bonds.
+
+        Args:
+            *args: Variable length argument list passed to parent class.
+            **kwargs: Arbitrary keyword arguments passed to parent class.
+        """
         # Generally used for calculating indicators or preloading data, and defining variables
         super().__init__(*args, **kwargs)
         self.bar_num = 0
@@ -244,12 +329,37 @@ class BondConvertTwoFactor(bt.Strategy):
         self.stock_dict = {}
 
     def prenext(self):
+        """Handle prenext phase by calling next directly.
+
+        This method is called when there are not yet enough bars to satisfy
+        minimum period requirements. The strategy bypasses this by calling
+        next() immediately.
+        """
         self.next()
 
     def stop(self):
+        """Log the final bar count when strategy execution stops.
+
+        This method is called at the end of the backtest to output
+        summary statistics.
+        """
         self.log(f"self.bar_num = {self.bar_num}")
 
     def next(self):
+        """Execute the main strategy logic for each bar.
+
+        This method implements monthly rebalancing based on the two-factor
+        scoring model. It:
+        1. Identifies currently tradable bonds
+        2. Checks if monthly rebalancing is needed
+        3. Closes all existing positions
+        4. Calculates factor scores for all bonds
+        5. Opens new positions in top-ranked bonds
+        6. Cleans up expired orders
+
+        The strategy assumes 1 million capital base and equal weights
+        across all selected bonds.
+        """
         # Assume we have 1 million capital, each time components are adjusted, each stock uses 10,000 yuan
         self.bar_num += 1
         if self.bar_num == 1:
@@ -341,6 +451,16 @@ class BondConvertTwoFactor(bt.Strategy):
         self.expire_order_close()
 
     def expire_order_close(self):
+        """Close or cancel orders for bonds with insufficient data.
+
+        This method checks if bonds in the position dictionary still have
+        sufficient data (at least 3 bars) for trading. If a bond has become
+        stale or doesn't have enough data, its position is closed and/or
+        its order is cancelled.
+
+        The method specifically checks if accessing close[3] raises an
+        IndexError, which indicates insufficient data availability.
+        """
         keys_list = list(self.position_dict.keys())
         for name in keys_list:
             order = self.position_dict[name]
@@ -381,6 +501,19 @@ class BondConvertTwoFactor(bt.Strategy):
                     pass
 
     def get_target_symbol(self):
+        """Calculate target symbols based on two-factor scoring model.
+
+        This method implements the double-low strategy scoring model:
+        1. Ranks all tradable bonds by close price (ascending)
+        2. Ranks all tradable bonds by conversion premium rate (ascending)
+        3. Calculates weighted composite score using configured weights
+        4. Sorts by composite score (descending) for final ranking
+
+        Returns:
+            list: A list of [symbol_name, score] pairs sorted by composite
+                score in descending order. Higher scores indicate better
+                investment opportunities according to the double-low strategy.
+        """
         # self.log("Call get_target_symbol function")
         # Score based on price and premium rate
         # Sort and score by price from low to high, sort and score by premium rate from low to high, then weight each by 50% to score convertible bonds
@@ -426,6 +559,15 @@ class BondConvertTwoFactor(bt.Strategy):
         return result
 
     def notify_order(self, order):
+        """Handle order status changes and log execution details.
+
+        This method is called by Backtrader when an order's status changes.
+        It logs information about order execution, including price, cost,
+        and commission for completed orders.
+
+        Args:
+            order: The Backtrader Order object that has changed status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             # Order has been submitted and accepted
             return
@@ -455,6 +597,15 @@ class BondConvertTwoFactor(bt.Strategy):
                 )
 
     def notify_trade(self, trade):
+        """Handle trade lifecycle events and log trade information.
+
+        This method is called when a trade opens or closes. It logs the
+        trade symbol, profit/loss, and other relevant information.
+
+        Args:
+            trade: The Backtrader Trade object representing an opened or
+                closed position.
+        """
         # Output information when a trade ends
         if trade.isclosed:
             self.log(
@@ -467,14 +618,32 @@ class BondConvertTwoFactor(bt.Strategy):
 
 
 def test_strategy(max_bonds=None, stdstats=True):
-    """
-    Run convertible bond double-low strategy backtest
+    """Run convertible bond double-low strategy backtest.
 
-    Parameters:
-        max_bonds: Maximum number of convertible bonds to add, None means add all. Can be set to a smaller value for testing
-        stdstats: Whether to enable standard statistics observers (default True)
-                 True: Display standard statistics such as cash, market value, buy/sell points
-                 False: Disable standard statistics, may slightly improve performance
+    This function sets up and executes a backtest of the BondConvertTwoFactor
+    strategy. It loads index data and convertible bond data, configures
+    the cerebro engine with appropriate analyzers, and runs the backtest
+    over the specified date range.
+
+    The backtest asserts specific expected values for:
+    - bar_num: Number of bars processed (expected: 1885)
+    - trade_num: Number of trades executed (expected: 12)
+    - sharpe_ratio: Sharpe ratio (expected: -6.232087920949364)
+    - annual_return: Annualized return (expected: -0.0006854281197833842)
+    - max_drawdown: Maximum drawdown (expected: 0.005450401808403724)
+
+    Args:
+        max_bonds (int, optional): Maximum number of convertible bonds to add
+            to the backtest. If None, all available bonds are added. Set to
+            a smaller value (e.g., 50) for faster testing. Defaults to None.
+        stdstats (bool, optional): Whether to enable standard statistics
+            observers. If True, displays standard statistics such as cash,
+            market value, and buy/sell points. If False, disables these to
+            slightly improve performance. Defaults to True.
+
+    Raises:
+        AssertionError: If any of the expected backtest metrics do not match
+            the expected values within floating point tolerance.
     """
     # Add cerebro
     # Fix note: Previously needed to set stdstats=False because ExtendPandasFeed column index definition was wrong

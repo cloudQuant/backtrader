@@ -1,15 +1,18 @@
-
-import backtrader as bt
-
-"""
-Tests for Parameter System Performance (Day 42)
+"""Tests for Parameter System Performance (Day 42).
 
 This module comprehensively tests the performance of the parameter system including:
-- Parameter access performance comparison
-- Memory usage analysis
-- Performance optimization validation
+* Parameter access performance comparison
+* Memory usage analysis
+* Performance optimization validation
 
-All tests validate the performance characteristics of the new parameter system.
+All tests validate the performance characteristics of the new parameter system
+to ensure it meets efficiency requirements and doesn't introduce performance
+regressions compared to the legacy implementation.
+
+Note:
+    Performance tests use timing assertions that may need adjustment on
+    different hardware platforms. The thresholds are set to be lenient enough
+    to pass on most systems while still catching significant performance issues.
 """
 
 import gc
@@ -22,6 +25,8 @@ from typing import Any, Dict, List
 
 import pytest
 
+import backtrader as bt
+
 from backtrader.parameters import (
     Float,
     Int,
@@ -33,30 +38,77 @@ from backtrader.parameters import (
 )
 
 # Performance measurement utilities
-PerformanceResult = namedtuple(
-    "PerformanceResult", ["operation", "iterations", "total_time", "avg_time", "ops_per_second"]
-)
 
-MemoryResult = namedtuple(
-    "MemoryResult",
-    ["operation", "objects_created", "current_memory", "peak_memory", "memory_per_object"],
-)
+
+class PerformanceResult(
+    namedtuple(
+        "PerformanceResult",
+        ["operation", "iterations", "total_time", "avg_time", "ops_per_second"],
+    )
+):
+    """Result of a performance timing measurement.
+
+    Attributes:
+        operation (str): Name of the operation that was measured.
+        iterations (int): Number of times the operation was executed.
+        total_time (float): Total time taken for all iterations in seconds.
+        avg_time (float): Average time per operation in seconds.
+        ops_per_second (float): Number of operations that can be executed per second.
+    """
+
+    pass
+
+
+class MemoryResult(
+    namedtuple(
+        "MemoryResult",
+        ["operation", "objects_created", "current_memory", "peak_memory", "memory_per_object"],
+    )
+):
+    """Result of a memory usage measurement.
+
+    Attributes:
+        operation (str): Name of the operation that was measured.
+        objects_created (int): Number of objects created during measurement.
+        current_memory (int): Current memory usage in bytes.
+        peak_memory (int): Peak memory usage during measurement in bytes.
+        memory_per_object (float): Average memory used per object in bytes.
+    """
+
+    pass
 
 
 class PerformanceTester:
-    """Utility class for performance testing."""
+    """Utility class for performance testing.
+
+    Provides static methods for timing operations and measuring memory usage
+    in a consistent manner across all performance tests.
+    """
 
     @staticmethod
     def time_operation(operation_name: str, func, iterations: int = 1000) -> PerformanceResult:
-        """Time an operation and return performance metrics."""
-        # Warm up
+        """Time an operation and return performance metrics.
+
+        Performs warm-up runs, garbage collection, and precise timing measurements
+        to get accurate performance data for the given operation.
+
+        Args:
+            operation_name: Name of the operation being timed (for result identification).
+            func: Callable to execute and time.
+            iterations: Number of times to execute the operation (default: 1000).
+
+        Returns:
+            PerformanceResult: Named tuple containing timing metrics including
+                total time, average time per operation, and operations per second.
+        """
+        # Warm up to ensure JIT compilation and CPU cache effects are stabilized
         for _ in range(min(100, iterations // 10)):
             func()
 
-        # Clear any garbage
+        # Clear any garbage to get consistent measurements
         gc.collect()
 
-        # Measure
+        # Measure with high-resolution timer
         start_time = time.perf_counter()
         for _ in range(iterations):
             func()
@@ -76,14 +128,27 @@ class PerformanceTester:
 
     @staticmethod
     def measure_memory(operation_name: str, func, object_count: int = 1000) -> MemoryResult:
-        """Measure memory usage of an operation."""
-        # Clear existing objects
+        """Measure memory usage of an operation.
+
+        Uses tracemalloc to measure memory allocation during object creation
+        and calculates per-object memory usage.
+
+        Args:
+            operation_name: Name of the operation being measured (for result identification).
+            func: Callable that creates objects to measure.
+            object_count: Number of objects to create (default: 1000).
+
+        Returns:
+            MemoryResult: Named tuple containing memory metrics including
+                current memory, peak memory, and memory per object.
+        """
+        # Clear existing objects before measurement
         gc.collect()
 
-        # Start tracing
+        # Start memory tracing
         tracemalloc.start()
 
-        # Execute operation
+        # Execute operation and collect created objects
         objects = []
         for _ in range(object_count):
             obj = func()
@@ -95,7 +160,7 @@ class PerformanceTester:
 
         memory_per_object = current / object_count if object_count > 0 else 0
 
-        # Clear objects to prevent memory leaks
+        # Clear objects to prevent memory leaks affecting subsequent tests
         del objects
         gc.collect()
 
@@ -109,18 +174,50 @@ class PerformanceTester:
 
 
 class TestParameterAccessPerformance:
-    """Test parameter access performance."""
+    """Test parameter access performance.
+
+    This test class validates that parameter access operations (get, set)
+    perform efficiently across different object sizes and parameter types.
+    """
 
     def setup_method(self):
-        """Set up test fixtures."""
+        """Set up test fixtures.
+
+        Creates test classes with varying parameter counts (small, medium, large)
+        to test performance scaling with parameter count.
+        """
 
         # Create test classes with different parameter counts
         class SmallClass(ParameterizedBase):
+            """Test class with small parameter count for performance testing.
+
+            Attributes:
+                param1 (int): First test parameter.
+                param2 (str): Second test parameter.
+                param3 (float): Third test parameter.
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
 
         class MediumClass(ParameterizedBase):
+            """Test class with medium parameter count for performance testing.
+
+            Contains a diverse set of parameter types including validators
+            to test performance with various parameter configurations.
+
+            Attributes:
+                param1 (int): Basic integer parameter.
+                param2 (str): Basic string parameter.
+                param3 (float): Basic float parameter.
+                param4 (bool): Boolean parameter.
+                param5 (list): List parameter.
+                param6 (dict): Dictionary parameter.
+                param7 (int): Integer parameter with Int validator (0-100).
+                param8 (float): Float parameter with Float validator (0.0-100.0).
+                param9 (str): String parameter with OneOf validator.
+                param10 (str): String parameter with String validator (1-50 chars).
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -141,7 +238,33 @@ class TestParameterAccessPerformance:
             )
 
         class LargeClass(ParameterizedBase):
-            # 20 parameters of various types
+            """Test class with large parameter count for performance testing.
+
+            Contains 20 parameters of various types to test performance scaling
+            with a large number of parameters including validators.
+
+            Attributes:
+                param1 (int): Basic integer parameter.
+                param2 (str): Basic string parameter.
+                param3 (float): Basic float parameter.
+                param4 (bool): Boolean parameter.
+                param5 (list): List parameter.
+                param6 (dict): Dictionary parameter.
+                param7 (int): Integer parameter with Int validator (0-100).
+                param8 (float): Float parameter with Float validator (0.0-100.0).
+                param9 (str): String parameter with OneOf validator.
+                param10 (str): String parameter with String validator (1-50 chars).
+                param11 (int): Eleventh integer parameter.
+                param12 (str): Twelfth string parameter.
+                param13 (float): Thirteenth float parameter.
+                param14 (bool): Fourteenth boolean parameter.
+                param15 (list): Fifteenth list parameter.
+                param16 (dict): Sixteenth dictionary parameter.
+                param17 (int): Integer parameter with Int validator (0-200).
+                param18 (float): Float parameter with Float validator (0.0-200.0).
+                param19 (str): String parameter with OneOf validator.
+                param20 (str): String parameter with String validator (1-100 chars).
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -184,7 +307,14 @@ class TestParameterAccessPerformance:
         self.LargeClass = LargeClass
 
     def test_object_creation_performance(self):
-        """Test object creation performance with different parameter counts."""
+        """Test object creation performance with different parameter counts.
+
+        Measures and validates that object creation remains fast (< 1 second for
+        1000 objects) even with many parameters.
+
+        Raises:
+            AssertionError: If object creation is slower than expected thresholds.
+        """
         results = []
 
         for class_name, cls in [
@@ -213,7 +343,14 @@ class TestParameterAccessPerformance:
             )
 
     def test_parameter_get_performance(self):
-        """Test parameter get operation performance."""
+        """Test parameter get operation performance.
+
+        Measures and validates that parameter get operations are fast
+        (< 0.1 seconds for 10000 accesses) regardless of object size.
+
+        Raises:
+            AssertionError: If parameter access is slower than expected thresholds.
+        """
         small_obj = self.SmallClass()
         medium_obj = self.MediumClass()
         large_obj = self.LargeClass()
@@ -252,7 +389,14 @@ class TestParameterAccessPerformance:
             )
 
     def test_parameter_set_performance(self):
-        """Test parameter set operation performance."""
+        """Test parameter set operation performance.
+
+        Measures and validates that parameter set operations are efficient
+        (< 0.5 seconds for 5000 sets) including validation overhead.
+
+        Raises:
+            AssertionError: If parameter setting is slower than expected thresholds.
+        """
         small_obj = self.SmallClass()
         medium_obj = self.MediumClass()
         large_obj = self.LargeClass()
@@ -288,13 +432,36 @@ class TestParameterAccessPerformance:
             )
 
     def test_parameter_validation_performance(self):
-        """Test parameter validation performance impact."""
+        """Test parameter validation performance impact.
+
+        Measures the overhead of parameter validation and ensures it doesn't
+        add excessive performance cost (should be < 5x slower than no validation).
+
+        Note:
+            The threshold is set to 5x to accommodate varying hardware and
+            Python implementations while still catching significant issues.
+
+        Raises:
+            AssertionError: If validation overhead is excessive (> 5x).
+        """
 
         # Create objects with and without validation
         class NoValidationClass(ParameterizedBase):
+            """Test class without parameter validation for baseline performance.
+
+            Attributes:
+                simple_param (int): Simple integer parameter without validation.
+            """
             simple_param = ParameterDescriptor(default=10, type_=int)
 
         class WithValidationClass(ParameterizedBase):
+            """Test class with parameter validation for performance comparison.
+
+            Used to measure the performance overhead of parameter validation.
+
+            Attributes:
+                validated_param (int): Integer parameter with Int validator (0-100).
+            """
             validated_param = ParameterDescriptor(
                 default=10, type_=int, validator=Int(min_val=0, max_val=100)
             )
@@ -328,17 +495,43 @@ class TestParameterAccessPerformance:
 
 
 class TestParameterMemoryUsage:
-    """Test parameter system memory usage."""
+    """Test parameter system memory usage.
+
+    This test class validates that the parameter system uses memory efficiently
+    and doesn't introduce memory leaks or excessive overhead.
+    """
 
     def test_object_memory_usage(self):
-        """Test memory usage of parameter objects."""
+        """Test memory usage of parameter objects.
+
+        Measures per-object memory usage and validates that it remains
+        reasonable (< 10KB per object on average).
+
+        Raises:
+            AssertionError: If memory usage per object exceeds thresholds.
+        """
 
         # Define test classes
         class SmallClass(ParameterizedBase):
+            """Small test class for memory usage measurement.
+
+            Attributes:
+                param1 (int): First test parameter.
+                param2 (str): Second test parameter.
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
 
         class MediumClass(ParameterizedBase):
+            """Medium test class for memory usage measurement.
+
+            Attributes:
+                param1 (int): First test parameter.
+                param2 (str): Second test parameter.
+                param3 (float): Third test parameter.
+                param4 (bool): Fourth test parameter.
+                param5 (list): Fifth test parameter.
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -366,9 +559,26 @@ class TestParameterMemoryUsage:
             )
 
     def test_parameter_manager_memory_efficiency(self):
-        """Test parameter manager memory efficiency."""
+        """Test parameter manager memory efficiency.
+
+        Verifies that parameter descriptors are shared between instances
+        rather than duplicated, which is critical for memory efficiency.
+
+        Raises:
+            AssertionError: If descriptors are not properly shared.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for parameter manager memory efficiency testing.
+
+            Used to verify that parameter descriptors are properly shared
+            between instances rather than duplicated.
+
+            Attributes:
+                param1 (int): First test parameter.
+                param2 (str): Second test parameter.
+                param3 (float): Third test parameter.
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -394,9 +604,24 @@ class TestParameterMemoryUsage:
         print(f"✓ Created {len(objects)} objects with shared descriptors")
 
     def test_memory_leak_detection(self):
-        """Test for memory leaks in parameter operations."""
+        """Test for memory leaks in parameter operations.
+
+        Creates many objects, performs operations, and verifies that memory
+        doesn't grow excessively (< 1.5x baseline) indicating no leaks.
+
+        Raises:
+            AssertionError: If memory growth suggests a leak.
+        """
 
         class TestClass(ParameterizedBase):
+            """Test class for memory leak detection.
+
+            Used to verify that parameter operations don't cause memory leaks
+            by tracking memory growth over many object creations and operations.
+
+            Attributes:
+                test_param (str): Test parameter for memory leak operations.
+            """
             test_param = ParameterDescriptor(default="initial", type_=str)
 
         # Measure baseline memory
@@ -437,25 +662,61 @@ class TestParameterMemoryUsage:
 
 
 class TestParameterInheritancePerformance:
-    """Test performance of parameter inheritance."""
+    """Test performance of parameter inheritance.
+
+    This test class validates that inheritance doesn't introduce significant
+    performance overhead in the parameter system.
+    """
 
     def test_inheritance_chain_performance(self):
-        """Test performance with inheritance chains."""
+        """Test performance with inheritance chains.
+
+        Creates a deep inheritance chain and validates that object creation
+        and parameter access remain efficient even with many levels.
+
+        Raises:
+            AssertionError: If inheritance introduces excessive overhead.
+        """
 
         # Create inheritance chain
         class Level0(ParameterizedBase):
+            """Base level class for inheritance chain performance testing.
+
+            Attributes:
+                param0 (int): Parameter at level 0.
+            """
             param0 = ParameterDescriptor(default=0, type_=int)
 
         class Level1(Level0):
+            """First level class for inheritance chain performance testing.
+
+            Attributes:
+                param1 (int): Parameter at level 1.
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
 
         class Level2(Level1):
+            """Second level class for inheritance chain performance testing.
+
+            Attributes:
+                param2 (int): Parameter at level 2.
+            """
             param2 = ParameterDescriptor(default=2, type_=int)
 
         class Level3(Level2):
+            """Third level class for inheritance chain performance testing.
+
+            Attributes:
+                param3 (int): Parameter at level 3.
+            """
             param3 = ParameterDescriptor(default=3, type_=int)
 
         class Level4(Level3):
+            """Fourth level class for inheritance chain performance testing.
+
+            Attributes:
+                param4 (int): Parameter at level 4.
+            """
             param4 = ParameterDescriptor(default=4, type_=int)
 
         # Test creation performance
@@ -496,15 +757,40 @@ class TestParameterInheritancePerformance:
             )
 
     def test_multiple_inheritance_performance(self):
-        """Test performance with multiple inheritance."""
+        """Test performance with multiple inheritance.
+
+        Validates that multiple inheritance (mixins) doesn't significantly
+        impact parameter system performance.
+
+        Raises:
+            AssertionError: If multiple inheritance is significantly slower.
+        """
 
         class Mixin1(ParameterizedBase):
+            """First mixin class for multiple inheritance performance testing.
+
+            Attributes:
+                mixin1_param (str): Parameter from first mixin.
+            """
             mixin1_param = ParameterDescriptor(default="mixin1", type_=str)
 
         class Mixin2(ParameterizedBase):
+            """Second mixin class for multiple inheritance performance testing.
+
+            Attributes:
+                mixin2_param (str): Parameter from second mixin.
+            """
             mixin2_param = ParameterDescriptor(default="mixin2", type_=str)
 
         class Combined(Mixin1, Mixin2):
+            """Combined class inheriting from multiple mixins.
+
+            Used to test performance of multiple inheritance patterns
+            commonly used in strategy composition.
+
+            Attributes:
+                combined_param (str): Parameter specific to this combined class.
+            """
             combined_param = ParameterDescriptor(default="combined", type_=str)
 
         # Test creation performance
@@ -525,12 +811,35 @@ class TestParameterInheritancePerformance:
 
 
 class TestParameterSystemOptimizations:
-    """Test parameter system optimizations."""
+    """Test parameter system optimizations.
+
+    This test class validates that performance optimizations like caching
+    are working correctly and providing measurable benefits.
+    """
 
     def test_caching_effectiveness(self):
-        """Test effectiveness of parameter value caching."""
+        """Test effectiveness of parameter value caching.
+
+        Measures whether repeated parameter access benefits from caching
+        and maintains acceptable performance (median time < 10x first access).
+
+        Note:
+            Uses median of multiple runs to account for timing variance
+            and ensure stable measurements.
+
+        Raises:
+            AssertionError: If cached access is significantly slower than expected.
+        """
 
         class CacheTestClass(ParameterizedBase):
+            """Test class for caching effectiveness measurement.
+
+            Used to verify that parameter value caching provides performance
+            benefits for repeated access patterns.
+
+            Attributes:
+                cached_param (str): Test parameter for caching performance.
+            """
             cached_param = ParameterDescriptor(default="initial", type_=str)
 
         obj = CacheTestClass()
@@ -584,9 +893,28 @@ class TestParameterSystemOptimizations:
         print(f"Performance ratio: {performance_ratio:.2f}x")
 
     def test_bulk_operations_performance(self):
-        """Test performance of bulk parameter operations."""
+        """Test performance of bulk parameter operations.
+
+        Measures the performance of setting multiple parameters and accessing
+        all parameter keys, which are common operations in production code.
+
+        Raises:
+            AssertionError: If bulk operations are slower than expected.
+        """
 
         class BulkTestClass(ParameterizedBase):
+            """Test class for bulk operations performance testing.
+
+            Contains multiple parameter types to test performance of setting
+            multiple parameters at once and accessing all parameter keys.
+
+            Attributes:
+                param1 (int): First test parameter.
+                param2 (str): Second test parameter.
+                param3 (float): Third test parameter.
+                param4 (bool): Fourth test parameter.
+                param5 (list): Fifth test parameter.
+            """
             param1 = ParameterDescriptor(default=1, type_=int)
             param2 = ParameterDescriptor(default="test", type_=str)
             param3 = ParameterDescriptor(default=1.0, type_=float)
@@ -625,5 +953,19 @@ class TestParameterSystemOptimizations:
         )
 
 
-if __name__ == "__main__":
+def run_tests():
+    """Run performance tests when module is executed directly.
+
+    This function allows the test module to be run as a script for quick
+    performance testing. It uses pytest with verbose output and captures
+    print statements to display performance metrics.
+
+    Note:
+        The -s flag is used to show print statements with performance metrics,
+        which is essential for analyzing the results of performance tests.
+    """
     pytest.main([__file__, "-v", "-s"])
+
+
+if __name__ == "__main__":
+    run_tests()

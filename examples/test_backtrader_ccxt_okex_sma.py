@@ -1,4 +1,22 @@
+"""CCXT OKEX SMA Trading Strategy Example.
+
+This module demonstrates how to use Backtrader with the CCXT library to connect
+to the OKEX cryptocurrency exchange and implement a Simple Moving Average (SMA)
+trading strategy.
+
+The example shows:
+- Setting up a CCXTStore for OKEX exchange connection
+- Creating a custom strategy with SMA indicator
+- Managing live data feeds for multiple trading pairs
+- Handling order execution and trade notifications
+- Monitoring wallet balances and portfolio value
+
+Note: This script requires API credentials for OKEX exchange stored in a
+JSON configuration file.
+"""
+
 import json
+import time
 from datetime import datetime, timedelta
 
 import backtrader as bt
@@ -9,12 +27,39 @@ from backtrader.stores.ccxtstore import *
 
 
 class TestStrategy(bt.Strategy):
+    """A simple trading strategy using SMA indicator for cryptocurrency trading.
+
+    This strategy demonstrates how to:
+    - Calculate a Simple Moving Average (SMA) indicator
+    - Monitor live data feed status
+    - Check wallet balances across multiple cryptocurrencies
+    - Log price and balance information
+    - Handle order and trade notifications
+
+    Attributes:
+        sma: Simple Moving Average indicator with period of 21.
+        bought: Boolean flag indicating if a buy order has been executed.
+        live_data: Boolean flag indicating if the data feed is in live mode.
+    """
 
     def __init__(self):
+        """Initialize the TestStrategy.
+
+        Sets up the SMA indicator and initializes the bought flag to False.
+        The live_data attribute will be set dynamically based on data feed status.
+        """
         self.sma = bt.indicators.SMA(self.data, period=21)
         self.bought = False
 
     def timestamp2datetime(timestamp):
+        """Convert a Unix timestamp to a formatted datetime string.
+
+        Args:
+            timestamp (float): Unix timestamp to convert.
+
+        Returns:
+            str: Formatted datetime string in the format "YYYY-MM-DD HH:MM:SS.ffffff".
+        """
         # Convert timestamp to datetime object
         dt_object = datetime.fromtimestamp(timestamp)
         # Format datetime object as string
@@ -22,10 +67,26 @@ class TestStrategy(bt.Strategy):
         return formatted_time
 
     def log(self, msg):
+        """Log a message with a timestamp prefix.
+
+        Args:
+            msg (str): The message to log.
+        """
         now_time = datetime.fromtimestamp(time.time()).strftime("%Y-%m-%d %H:%M:%S.%f")
         print(f"{now_time} === {msg}")
 
     def next(self):
+        """Execute the main strategy logic for each bar.
+
+        This method is called by Backtrader for each new data bar. It:
+        1. Retrieves wallet balances for BTC, ETH, EOS, and USDT
+        2. Logs current cash balance and price data
+        3. Optionally executes a buy order (commented out in this example)
+
+        Note:
+            The buy order execution is currently disabled. When enabled,
+            it would place a market buy order for a cryptocurrency pair.
+        """
         # Get cash and balance
         # New broker method that will let you get the cash and balance for
         # any wallet. It also means we can disable the getcash() and getvalue()
@@ -73,6 +134,14 @@ class TestStrategy(bt.Strategy):
             )
 
     def notify_data(self, data, status, *args, **kwargs):
+        """Receive notifications about data feed status changes.
+
+        Args:
+            data: The data feed object that triggered the notification.
+            status: The status code indicating the current state of the data feed.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
         dn = data._name
         dt = datetime.now()
         msg = f"Data Status: {data._getstatusname(status)}"
@@ -83,6 +152,11 @@ class TestStrategy(bt.Strategy):
             self.live_data = False
 
     def notify_order(self, order):
+        """Receive notifications about order status changes.
+
+        Args:
+            order (Order): The order object that triggered the notification.
+        """
         if order.status in [order.Completed, order.Cancelled, order.Rejected]:
             self.order = None
         print("-" * 50, "ORDER BEGIN", datetime.now())
@@ -90,19 +164,38 @@ class TestStrategy(bt.Strategy):
         print("-" * 50, "ORDER END")
 
     def notify_trade(self, trade):
+        """Receive notifications about trade execution.
+
+        Args:
+            trade: The trade object that triggered the notification.
+        """
         print("-" * 50, "TRADE BEGIN", datetime.now())
         print(trade)
         print("-" * 50, "TRADE END")
 
     def notify_cashvalue(self, cash, value):
-        """
-        Receives the current fund value, value status of the strategy's broker
+        """Receive notifications about cash and value changes.
+
+        This method is called by the broker to update the strategy about
+        the current cash and portfolio value.
+
+        Args:
+            cash (float): The current available cash.
+            value (float): The current portfolio value.
         """
         pass
 
     def notify_fund(self, cash, value, fundvalue, shares):
-        """
-        Receives the current cash, value, fundvalue and fund shares
+        """Receive notifications about fund-related metrics.
+
+        This method is called by the broker to update the strategy about
+        fund-related metrics when using fund-like brokers.
+
+        Args:
+            cash (float): The current available cash.
+            value (float): The current portfolio value.
+            fundvalue (float): The current fund value.
+            shares (float): The number of fund shares.
         """
         pass
 

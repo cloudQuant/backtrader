@@ -18,42 +18,138 @@
 #
 ###############################################################################
 
+"""Test suite for order execution and pending order tracking.
+
+This module contains tests to verify that order execution properly maintains
+the correct iterpending sequence. When orders are partially executed and
+cloned for each notification, the pending bits should be reported relative
+to the previous notification (clone).
+
+The test verifies that:
+1. Partial order execution creates pending execution records
+2. Cloned orders maintain the correct pending sequence
+3. Multiple partial executions are tracked correctly
+4. The pending records always reflect the most recent notifications
+"""
+
 import backtrader as bt
 
 
 class FakeCommInfo:
+    """Fake commission info object for testing purposes.
+
+    This class provides a minimal implementation of the commission info
+    interface used by backtrader, returning zero values for all calculations.
+    It allows tests to run without requiring a full commission info setup.
+    """
+
     def getvaluesize(self, size, price):
+        """Calculate the value size for a given position size and price.
+
+        Args:
+            size (float): The position size.
+            price (float): The price per unit.
+
+        Returns:
+            float: Always returns 0 for testing purposes.
+        """
         return 0
 
     def profitandloss(self, size, price, newprice):
+        """Calculate the profit and loss for a position.
+
+        Args:
+            size (float): The position size.
+            price (float): The original price.
+            newprice (float): The current price.
+
+        Returns:
+            float: Always returns 0 for testing purposes.
+        """
         return 0
 
     def getoperationcost(self, size, price):
+        """Calculate the operation cost for a trade.
+
+        Args:
+            size (float): The position size.
+            price (float): The price per unit.
+
+        Returns:
+            float: Always returns 0.0 for testing purposes.
+        """
         return 0.0
 
     def getcommission(self, size, price):
+        """Calculate the commission for a trade.
+
+        Args:
+            size (float): The position size.
+            price (float): The price per unit.
+
+        Returns:
+            float: Always returns 0.0 for testing purposes.
+        """
         return 0.0
 
 
 class FakeData:
-    """
-    Minimal interface to avoid errors when trade tries to get information from
-    the data during the test
+    """Fake data feed object for testing purposes.
+
+    This class provides a minimal interface to avoid errors when a trade
+    tries to get information from the data feed during testing. It returns
+    default zero values for all properties.
     """
 
     def __len__(self):
+        """Return the length of the data feed.
+
+        Returns:
+            int: Always returns 0 for testing purposes.
+        """
         return 0
 
     @property
     def datetime(self):
+        """Get the datetime values of the data feed.
+
+        Returns:
+            list: Always returns [0.0] for testing purposes.
+        """
         return [0.0]
 
     @property
     def close(self):
+        """Get the close prices of the data feed.
+
+        Returns:
+            list: Always returns [0.0] for testing purposes.
+        """
         return [0.0]
 
 
 def _execute(position, order, size, price, partial):
+    """Execute a trade order and update the position and order status.
+
+    This helper function performs a real order execution, updating the position
+    and recording all relevant trade information including commissions, profit
+    and loss, and margin requirements.
+
+    Args:
+        position (bt.Position): The position object to update.
+        order (bt.Order): The order being executed.
+        size (float): The size of the execution.
+        price (float): The price of the execution.
+        partial (bool): Whether this is a partial execution (True) or complete
+            execution (False).
+
+    The function calculates:
+    - Position updates (size, price, opened, closed amounts)
+    - Closed value and commission
+    - Opened value and commission
+    - Profit and loss
+    - Margin requirements
+    """
     # Find position and do a real update - accounting happens here
     pprice_orig = position.price
     psize, pprice, opened, closed = position.update(size, price)
@@ -91,6 +187,26 @@ def _execute(position, order, size, price, partial):
 
 
 def test_run(main=False):
+    """Test that partially updating order maintains correct iterpending sequence.
+
+    This test verifies that when orders are cloned for each notification,
+    the pending bits are correctly reported relative to the previous
+    notification (clone).
+
+    The test performs two rounds of partial executions:
+    1. First round: Execute 10 and 20 units, verify 2 pending records
+    2. Second round: Execute 30 and 40 units, verify 2 pending records
+
+    Each round validates that the cloned order's pending records match
+    the most recent executions.
+
+    Args:
+        main (bool): Whether this is being run as the main script.
+            Defaults to False.
+
+    Raises:
+        AssertionError: If any of the pending record assertions fail.
+    """
     position = bt.Position()
     comminfo = FakeCommInfo()
     order = bt.BuyOrder(

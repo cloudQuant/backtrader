@@ -17,6 +17,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    This function searches for a data file in multiple possible locations
+    relative to the test file directory, including the current directory,
+    parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        Path: The resolved path to the data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -39,6 +55,11 @@ class ReplayEMAStrategy(bt.Strategy):
     params = (('fast_period', 12), ('slow_period', 26))
 
     def __init__(self):
+        """Initialize the EMA crossover strategy with indicators and tracking variables.
+
+        Sets up the exponential moving averages, crossover indicator, and
+        initializes counters for tracking strategy execution.
+        """
         self.fast_ema = bt.ind.EMA(period=self.p.fast_period)
         self.slow_ema = bt.ind.EMA(period=self.p.slow_period)
         self.crossover = bt.ind.CrossOver(self.fast_ema, self.slow_ema)
@@ -48,11 +69,26 @@ class ReplayEMAStrategy(bt.Strategy):
         self.sell_count = 0
 
     def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
+        """Log strategy messages with timestamps.
+
+        Args:
+            txt: The message text to log.
+            dt: Optional datetime object. If not provided, uses the current
+                bar's datetime from the first data feed.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def notify_order(self, order):
+        """Handle order status updates and log order execution details.
+
+        Called by the backtrader engine when an order changes status. Logs
+        order events including rejections, cancellations, partial fills, and
+        completed executions. Tracks buy and sell order counts.
+
+        Args:
+            order: The order object with updated status information.
+        """
         if not order.alive():
             self.order = None
 
@@ -83,6 +119,15 @@ class ReplayEMAStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
+        """Handle trade status updates and log trade performance metrics.
+
+        Called by the backtrader engine when a trade changes status. Logs
+        profit/loss information when trades are closed and entry prices when
+        trades are opened.
+
+        Args:
+            trade: The trade object with updated status information.
+        """
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -92,6 +137,17 @@ class ReplayEMAStrategy(bt.Strategy):
                 trade.getdataname(), trade.price))
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the EMA crossover strategy:
+        - When fast EMA crosses above slow EMA (crossover > 0): close any existing
+          position and open a new long position
+        - When fast EMA crosses below slow EMA (crossover < 0): close any
+          existing position
+
+        Only one order is allowed at a time. The bar counter is incremented
+        on each call for test verification purposes.
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -105,7 +161,31 @@ class ReplayEMAStrategy(bt.Strategy):
 
 
 def test_data_replay_ema():
-    """Tests Data Replay functionality with EMA strategy."""
+    """Test data replay functionality using EMA dual moving average strategy.
+
+    This test validates that backtrader's data replay feature works correctly
+    by replaying daily data as weekly bars and applying an EMA crossover
+    strategy. The test:
+
+    1. Loads daily price data from a CSV file
+    2. Replays the data at weekly timeframe using cerebro.replaydata()
+    3. Runs an EMA(12,26) crossover strategy
+    4. Collects performance metrics (Sharpe ratio, returns, drawdown, trades)
+    5. Asserts that results match expected values
+
+    The replay feature compresses multiple bars into a single bar with
+    aggregated data (open, high, low, close, volume), allowing strategies
+    to be tested at different timeframes than the original data.
+
+    Raises:
+        AssertionError: If any of the test assertions fail, including:
+            - Incorrect bar count
+            - Final portfolio value mismatch
+            - Sharpe ratio deviation
+            - Annual return deviation
+            - Maximum drawdown deviation
+            - Incorrect trade count
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 

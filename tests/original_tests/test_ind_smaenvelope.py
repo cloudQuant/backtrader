@@ -18,6 +18,32 @@
 #
 ###############################################################################
 
+"""Test module for SMAEnvelope indicator validation.
+
+This module contains tests for the Simple Moving Average Envelope (SMAEnvelope)
+indicator, which creates bands around a Simple Moving Average at a specified
+percentage distance. The test validates that the indicator correctly calculates
+the upper envelope, SMA middle line, and lower envelope values.
+
+The test loads historical price data, applies the SMAEnvelope indicator with
+default parameters, and verifies that the calculated values match expected
+results at specific checkpoint indices.
+
+Module Constants:
+    chkdatas (int): Number of data feeds to test (1).
+    chkvals (list): Expected indicator values at checkpoints for validation.
+        Each inner list contains string representations of the upper band,
+        middle SMA, and lower band values.
+    chkmin (int): Expected minimum period for the indicator (30).
+    chkind (type): The SMAEnvelope indicator class to test.
+
+Typical Usage:
+    Run the test directly with main=True for plotting:
+        python test_ind_smaenvelope.py
+
+    Run the test programmatically:
+        test_run(main=False)
+"""
 
 import backtrader as bt
 
@@ -37,6 +63,31 @@ chkind = btind.SMAEnvelope
 
 
 def test_run(main=False):
+    """Run the SMAEnvelope indicator test.
+
+    Loads test data, executes the backtest with the TestStrategy, and validates
+    that the SMAEnvelope indicator produces expected values. The test is run
+    across multiple configuration combinations (runonce, preload, exactbars)
+    to ensure compatibility.
+
+    Args:
+        main (bool, optional): If True, enables plot output for visual inspection.
+            When run as the main script, this is set to True. Defaults to False.
+
+    Returns:
+        list: List of Cerebro instances, one for each test configuration.
+
+    Raises:
+        AssertionError: If the calculated indicator values do not match the
+            expected values at any checkpoint.
+
+    Note:
+        The function uses testcommon.runtest() which executes the strategy
+        across multiple configuration combinations:
+        - runonce: True/False (vectorized vs iterative calculation)
+        - preload: True/False (preloading data vs streaming)
+        - exactbars: -2, -1, False (different memory management modes)
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

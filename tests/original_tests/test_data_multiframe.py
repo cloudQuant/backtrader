@@ -18,6 +18,17 @@
 #
 ###############################################################################
 
+"""Test module for multi-frame data feeds in backtrader.
+
+This module tests the functionality of running backtrader strategies with multiple
+data feeds operating on different timeframes (e.g., daily and weekly data). It
+verifies that indicators correctly calculate across different timeframe granularities
+and that the strategy can handle data alignment between timeframes.
+
+The test uses two data feeds and validates that SMA indicators work correctly
+when data has different periodicities. The minimum bar count is set to 151
+to accommodate the weekly data timeframe requirements.
+"""
 
 import backtrader as bt
 
@@ -34,6 +45,25 @@ chkargs = dict()
 
 
 def test_run(main=False):
+    """Run the multi-frame data test.
+
+    This function loads multiple data feeds with different timeframes and
+    executes a backtest using the TestStrategy from testcommon. It validates
+    that indicators and strategies work correctly when data has different
+    periodicities.
+
+    Args:
+        main (bool, optional): If True, enables plotting for visual inspection.
+            Defaults to False, which runs the test without plotting.
+
+    Returns:
+        None: The function executes the test and prints/comparares results
+            but does not return a value.
+
+    Raises:
+        AssertionError: If indicator values do not match expected results.
+        Exception: If data loading or backtest execution fails.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,
@@ -48,4 +78,5 @@ def test_run(main=False):
 
 
 if __name__ == "__main__":
+    # Run the test with plotting enabled when executed as a script
     test_run(main=True)

@@ -18,6 +18,16 @@
 #
 ###############################################################################
 
+"""Test module for Bollinger Bands indicator.
+
+This module contains test cases for the Bollinger Bands (BBands) indicator
+in the backtrader framework. It verifies that the indicator correctly calculates
+the upper band, middle band (simple moving average), and lower band based on
+the input data.
+
+The test uses predefined expected values to validate the indicator's output
+across different data feeds and ensures the minimum period requirement is met.
+"""
 
 import backtrader as bt
 
@@ -25,18 +35,42 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to test
 chkdatas = 1
+
+# Expected values for BBands indicator: [mid, top, bot]
+# Each inner array represents expected values for a different data feed
 chkvals = [
     ["4065.884000", "3621.185000", "3582.895500"],
     ["4190.782310", "3712.008864", "3709.453081"],
     ["3940.985690", "3530.361136", "3456.337919"],
 ]
 
+# Minimum period required for BBands calculation (default period is 20)
 chkmin = 20
+
+# The indicator class being tested
 chkind = btind.BBands
 
 
 def test_run(main=False):
+    """Run the Bollinger Bands indicator test.
+
+    This function executes the test for the BBands indicator by loading test
+    data, running the test strategy, and comparing the results against expected
+    values.
+
+    Args:
+        main (bool): If True, enables plotting and runs in main execution mode.
+            Defaults to False.
+
+    Returns:
+        None: The function runs the test but does not return a value. Results
+            are asserted through the testcommon.runtest function.
+
+    Raises:
+        AssertionError: If the indicator values do not match the expected values.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

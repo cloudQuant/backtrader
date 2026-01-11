@@ -60,6 +60,11 @@ class SimpleMAStrategy(bt.Strategy):
     params = (('fast_period', 10), ('slow_period', 30))
 
     def __init__(self):
+        """Initialize the strategy with indicators and tracking variables.
+
+        Sets up the fast and slow moving averages, crossover indicator,
+        and initializes counters for orders and bars.
+        """
         self.fast_ma = bt.ind.SMA(period=self.p.fast_period)
         self.slow_ma = bt.ind.SMA(period=self.p.slow_period)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
@@ -69,6 +74,14 @@ class SimpleMAStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called when an order's status changes. Tracks completed buy/sell orders
+        and clears the pending order reference when the order is no longer alive.
+
+        Args:
+            order: The order object with updated status.
+        """
         if not order.alive():
             self.order = None
         if order.status == order.Completed:
@@ -77,7 +90,26 @@ class SimpleMAStrategy(bt.Strategy):
             else:
                 self.sell_count += 1
 
+    def notify_trade(self, trade):
+        """Handle trade notifications.
+
+        Called when a trade is opened or closed. This method is required by the
+        Strategy interface but is currently unused in this implementation.
+
+        Args:
+            trade: The trade object containing trade information.
+        """
+
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the dual moving average crossover strategy:
+        1. Increment bar counter
+        2. Skip if there's a pending order
+        3. If crossover is positive (fast MA above slow MA), close any existing
+           position and open a long position
+        4. If crossover is negative (fast MA below slow MA), close any position
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -88,6 +120,14 @@ class SimpleMAStrategy(bt.Strategy):
         elif self.crossover < 0:
             if self.position:
                 self.order = self.close()
+
+    def stop(self):
+        """Called when the backtest is finished.
+
+        This method is required by the Strategy interface but is currently
+        unused in this implementation. It can be used for cleanup or final
+        logging operations.
+        """
 
 
 def test_data_pandas():

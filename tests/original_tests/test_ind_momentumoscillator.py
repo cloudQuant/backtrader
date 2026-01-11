@@ -18,6 +18,20 @@
 #
 ###############################################################################
 
+"""Test module for MomentumOscillator indicator.
+
+This module tests the MomentumOscillator indicator implementation in backtrader.
+It validates that the indicator calculates values correctly across different
+execution modes (runonce/preload combinations) and checks the minimum period
+requirements.
+
+The test loads historical price data, applies the MomentumOscillator indicator,
+and verifies that computed values match expected results at specific checkpoints.
+
+Typical usage example:
+    test_run()  # Run the test with default parameters
+    test_run(main=True)  # Run with plotting enabled
+"""
 
 import backtrader as bt
 
@@ -25,16 +39,42 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to use for testing
 chkdatas = 1
+
+# Expected values at checkpoint positions (beginning, middle, end)
+# These values are used to validate indicator calculations
 chkvals = [
     ["101.654375", "99.052251", "101.904990"],
 ]
 
+# Expected minimum period for the MomentumOscillator indicator
 chkmin = 13
+
+# The indicator class being tested
 chkind = btind.MomentumOscillator
 
 
 def test_run(main=False):
+    """Run the MomentumOscillator indicator test.
+
+    This function loads test data, creates a test strategy with the
+    MomentumOscillator indicator, and runs the backtest across multiple
+    configuration combinations (runonce/preload modes) to ensure
+    compatibility.
+
+    Args:
+        main (bool, optional): If True, enable plotting for visual inspection.
+            Defaults to False, which runs the test without visualization.
+
+    Returns:
+        list: A list of Cerebro instances, one for each test configuration
+            (runonce/preload/exactbars combinations).
+
+    Raises:
+        AssertionError: If indicator values do not match expected results
+            at the checkpoint positions.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

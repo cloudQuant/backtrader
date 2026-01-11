@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Slope 斜率策略
+"""Test suite for Slope strategy.
 
-参考来源: https://github.com/backtrader/backhacker
-基于均线斜率方向的趋势策略
+This module tests a trend-following strategy based on the slope direction
+of a simple moving average.
+
+Reference: https://github.com/backtrader/backhacker
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +18,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve data file path by searching common locations.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any search path.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -30,10 +42,27 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SlopeStrategy(bt.Strategy):
-    """斜率策略
-    
-    - 均线上升时买入
-    - 均线下降时卖出
+    """Slope strategy based on moving average direction.
+
+    This strategy identifies trend direction by monitoring the slope of a
+    simple moving average. It buys when the MA is rising and sells when falling.
+
+    Trading Rules:
+        - Buy when current MA value > previous MA value (rising slope)
+        - Sell when current MA value < previous MA value (falling slope)
+
+    Attributes:
+        dataclose: Close price data series.
+        ma: Simple moving average indicator.
+        order: Current pending order.
+        last_operation: Last executed operation ("BUY" or "SELL").
+        bar_num: Number of bars processed.
+        buy_count: Total buy orders executed.
+        sell_count: Total sell orders executed.
+
+    Args:
+        stake: Number of shares per trade (default: 10).
+        ma_period: Period for moving average calculation (default: 14).
     """
     params = dict(
         stake=10,
@@ -41,17 +70,23 @@ class SlopeStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy indicators and state variables."""
         self.dataclose = self.datas[0].close
         self.ma = bt.ind.SMA(self.datas[0], period=self.p.ma_period)
-        
+
         self.order = None
         self.last_operation = "SELL"
-        
+
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -64,22 +99,34 @@ class SlopeStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Monitors MA slope and generates buy/sell signals based on direction.
+        """
         self.bar_num += 1
         if self.order:
             return
 
-        # 买入: 均线上升
+        # Buy signal: MA is rising (current > previous)
         if self.last_operation != "BUY":
             if self.ma[0] > self.ma[-1]:
                 self.order = self.buy(size=self.p.stake)
-        
-        # 卖出: 均线下降
+
+        # Sell signal: MA is falling (current < previous)
         if self.last_operation != "SELL":
             if self.ma[0] < self.ma[-1]:
                 self.order = self.sell(size=self.p.stake)
 
 
 def test_slope_strategy():
+    """Test the Slope strategy backtest.
+
+    This test runs a backtest on Oracle stock data (2010-2014) and validates
+    that the strategy produces expected performance metrics.
+
+    Raises:
+        AssertionError: If any performance metric deviates from expected values.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -105,7 +152,7 @@ def test_slope_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Slope 斜率策略回测结果:")
+    print("Slope Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -115,19 +162,19 @@ def test_slope_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1244, f"Expected bar_num=1244, got {strat.bar_num}"
     assert abs(final_value - 100028.49) < 0.01, f"Expected final_value=100028.49, got {final_value}"
     assert abs(sharpe_ratio - (0.1695410381912545)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (5.7106820628634245e-05)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.1038409434070222) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Slope 斜率策略测试")
+    print("Slope Strategy Test")
     print("=" * 60)
     test_slope_strategy()

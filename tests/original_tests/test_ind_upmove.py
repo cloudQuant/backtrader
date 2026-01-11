@@ -18,6 +18,15 @@
 #
 ###############################################################################
 
+"""Test module for the UpMove indicator.
+
+This module contains test cases for the UpMove technical indicator, which
+measures upward price movements in financial data. The test validates that
+the indicator correctly calculates and reports upward price changes.
+
+The test uses a single data feed and verifies the indicator values against
+expected results for different time periods.
+"""
 
 import backtrader as bt
 
@@ -25,16 +34,43 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to use in the test
 chkdatas = 1
+
+# Expected output values for the UpMove indicator at different periods
 chkvals = [
     ["-10.720000", "10.010000", "14.000000"],
 ]
 
+# Minimum period required for the indicator to produce valid output
 chkmin = 2
+
+# The indicator class being tested
 chkind = btind.UpMove
 
 
 def test_run(main=False):
+    """Execute the UpMove indicator test.
+
+    This function loads test data, runs the backtest using the TestStrategy,
+    and validates that the UpMove indicator produces the expected values.
+
+    Args:
+        main (bool, optional): If True, enables plotting and runs as the main
+            test execution. If False, runs in automated test mode without
+            plotting. Defaults to False.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the indicator values do not match the expected
+            results defined in chkvals.
+
+    Example:
+        >>> test_run(main=False)  # Run automated test
+        >>> test_run(main=True)   # Run with plot output
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

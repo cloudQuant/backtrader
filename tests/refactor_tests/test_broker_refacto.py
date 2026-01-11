@@ -1,8 +1,25 @@
 #!/usr/bin/env python
 """
-Broker系统重构测试套件 (Day 46-48)
+Broker System Refactoring Test Suite.
 
-测试重构后的Broker系统是否保持功能完整性和向后兼容性。
+This module contains comprehensive tests for the refactored Broker system to ensure
+functional integrity and backward compatibility are maintained after the metaclass
+removal refactoring. The test suite covers:
+
+    * BrokerBase initialization and parameter access
+    * BackBroker simulation broker functionality
+    * Parameter validation and edge cases
+    * Inheritance chain and compatibility
+    * Performance characteristics
+    * Commission management
+    * Order management interface
+
+The tests verify that the refactored broker system maintains the same API and
+behavior as the original metaclass-based implementation.
+
+Typical usage example:
+    >>> pytest tests/refactor_tests/test_broker_refacto.py -v
+    >>> python tests/refactor_tests/test_broker_refacto.py
 """
 
 import datetime
@@ -20,10 +37,26 @@ from backtrader.brokers import bbroker
 
 
 class TestBrokerBaseFunctionality:
-    """Test basic BrokerBase functionality"""
+    """Tests for basic BrokerBase functionality.
+
+    This test class verifies that the BrokerBase class initializes correctly
+    and provides the expected interface for commission management and parameter
+    access after the refactoring.
+
+    Attributes:
+        None: This class uses only instance attributes created during test setup.
+    """
 
     def test_brokerbase_initialization(self):
-        """Test BrokerBase can be initialized properly"""
+        """Tests that BrokerBase can be initialized properly.
+
+        This test verifies that a BrokerBase instance has all required attributes
+        including comminfo dictionary and parameter access objects.
+
+        Raises:
+            AssertionError: If broker doesn't have expected attributes or if
+                comminfo is not a dictionary.
+        """
         broker = bt_broker.BrokerBase()
 
         # Should have basic attributes
@@ -35,7 +68,14 @@ class TestBrokerBaseFunctionality:
         assert hasattr(broker.p, "commission")
 
     def test_parameter_access_methods(self):
-        """Test parameter access compatibility"""
+        """Tests parameter access compatibility with both .p and .params.
+
+        Verifies that parameter values can be accessed through both the .p and
+        .params attributes for backward compatibility with existing code.
+
+        Raises:
+            AssertionError: If parameter access attributes are not available.
+        """
         broker = bt_broker.BrokerBase()
 
         # Test .p access (backward compatibility)
@@ -45,7 +85,14 @@ class TestBrokerBaseFunctionality:
         assert hasattr(broker, "params")
 
     def test_commission_info_management(self):
-        """Test commission info management functionality"""
+        """Tests commission info management functionality.
+
+        Verifies that commission schemes can be set and retrieved correctly,
+        including both default and asset-specific commission configurations.
+
+        Raises:
+            AssertionError: If commission info is not stored correctly.
+        """
         broker = bt_broker.BrokerBase()
 
         # Test setting commission
@@ -60,10 +107,25 @@ class TestBrokerBaseFunctionality:
 
 
 class TestBackBrokerFunctionality:
-    """Test BackBroker (simulation broker) functionality"""
+    """Tests for BackBroker (simulation broker) functionality.
+
+    This test class verifies that the BackBroker class, which provides
+    backtesting simulation capabilities, initializes correctly and maintains
+    all expected functionality after refactoring.
+
+    Attributes:
+        None: This class uses only instance attributes created during test setup.
+    """
 
     def test_backbroker_initialization(self):
-        """Test BackBroker initialization with parameters"""
+        """Tests BackBroker initialization with default parameters.
+
+        Verifies that all default parameter values are set correctly upon
+        initialization, including cash, order submission checks, and slippage.
+
+        Raises:
+            AssertionError: If default parameter values don't match expected values.
+        """
         broker = bbroker.BackBroker()
 
         # Should have all parameter defaults
@@ -74,7 +136,14 @@ class TestBackBrokerFunctionality:
         assert broker.p.slip_fixed == 0.0
 
     def test_parameter_setting_methods(self):
-        """Test parameter setting methods"""
+        """Tests parameter setting methods for various broker configurations.
+
+        Verifies that cash, slippage, and order execution parameters can be
+        set correctly through the respective setter methods.
+
+        Raises:
+            AssertionError: If parameters are not set to the expected values.
+        """
         broker = bbroker.BackBroker()
 
         # Test cash setting
@@ -99,7 +168,14 @@ class TestBackBrokerFunctionality:
         assert broker.p.coo == True
 
     def test_cash_and_value_operations(self):
-        """Test cash and value calculations"""
+        """Tests cash and value calculation operations.
+
+        Verifies that broker cash and total portfolio value can be retrieved
+        and modified correctly, including fund mode operations.
+
+        Raises:
+            AssertionError: If cash/value operations don't work as expected.
+        """
         broker = bbroker.BackBroker()
         broker.init()
 
@@ -117,7 +193,14 @@ class TestBackBrokerFunctionality:
         assert broker.get_fundmode() == True
 
     def test_order_management_interface(self):
-        """Test order management interface methods exist"""
+        """Tests that order management interface methods exist and are callable.
+
+        Verifies that all required order management methods (submit, cancel,
+        buy, sell, getposition) are available on the broker instance.
+
+        Raises:
+            AssertionError: If required methods are missing or not callable.
+        """
         broker = bbroker.BackBroker()
 
         # Should have order management methods
@@ -135,10 +218,26 @@ class TestBackBrokerFunctionality:
 
 
 class TestBrokerParameterValidation:
-    """Test parameter validation in broker classes"""
+    """Tests for parameter validation in broker classes.
+
+    This test class verifies that broker parameters accept valid values and
+    handle edge cases appropriately, including negative cash, zero slippage,
+    and boolean flag configurations.
+
+    Attributes:
+        None: This class uses only instance attributes created during test setup.
+    """
 
     def test_cash_validation(self):
-        """Test cash parameter validation"""
+        """Tests cash parameter validation with various values.
+
+        Verifies that the broker accepts positive, zero, and negative cash
+        values to support different trading scenarios (e.g., short selling
+        or margin accounts may allow negative cash).
+
+        Raises:
+            AssertionError: If cash values are not accepted correctly.
+        """
         broker = bbroker.BackBroker()
 
         # Should accept positive cash
@@ -154,7 +253,14 @@ class TestBrokerParameterValidation:
         assert broker.cash == -1000.0
 
     def test_slippage_validation(self):
-        """Test slippage parameter validation"""
+        """Tests slippage parameter validation.
+
+        Verifies that both percentage and fixed slippage parameters can be set
+        correctly, including zero slippage for perfect fill simulations.
+
+        Raises:
+            AssertionError: If slippage values are not set correctly.
+        """
         broker = bbroker.BackBroker()
 
         # Should accept valid slippage values
@@ -169,7 +275,14 @@ class TestBrokerParameterValidation:
         assert broker.p.slip_perc == 0.0
 
     def test_boolean_parameter_validation(self):
-        """Test boolean parameter validation"""
+        """Tests boolean parameter validation for various flags.
+
+        Verifies that boolean parameters controlling order execution behavior
+        (checksubmit, eosbar, coc, coo) can be set correctly.
+
+        Raises:
+            AssertionError: If boolean parameters are not set correctly.
+        """
         broker = bbroker.BackBroker()
 
         # Test boolean parameters
@@ -187,10 +300,25 @@ class TestBrokerParameterValidation:
 
 
 class TestBrokerInheritanceAndCompatibility:
-    """Test broker inheritance and compatibility"""
+    """Tests for broker inheritance and backward compatibility.
+
+    This test class verifies that the refactored broker classes maintain
+    proper inheritance chains and that method aliases work correctly for
+    backward compatibility.
+
+    Attributes:
+        None: This class uses only instance attributes created during test setup.
+    """
 
     def test_inheritance_chain(self):
-        """Test that inheritance chain is correct"""
+        """Tests that the inheritance chain is correct.
+
+        Verifies that BackBroker properly inherits from BrokerBase and
+        that the Method Resolution Order (MRO) is correct.
+
+        Raises:
+            AssertionError: If inheritance chain is broken or incorrect.
+        """
         broker = bbroker.BackBroker()
 
         # Should inherit from BrokerBase
@@ -202,7 +330,14 @@ class TestBrokerInheritanceAndCompatibility:
         assert "BrokerBase" in mro_classes
 
     def test_method_aliases(self):
-        """Test method aliases work correctly"""
+        """Tests that method aliases work correctly.
+
+        Verifies that both snake_case and camelCase method aliases produce
+        the same results (e.g., getcash() vs get_cash()).
+
+        Raises:
+            AssertionError: If method aliases don't return identical values.
+        """
         broker = bbroker.BackBroker()
         broker.init()
 
@@ -213,7 +348,15 @@ class TestBrokerInheritanceAndCompatibility:
         assert broker.getvalue() == broker.get_value()
 
     def test_commission_info_inheritance(self):
-        """Test commission info inheritance from BrokerBase"""
+        """Tests commission info inheritance from BrokerBase.
+
+        Verifies that BackBroker properly inherits commission management
+        methods from BrokerBase.
+
+        Raises:
+            AssertionError: If commission methods are not available or
+                commission info is not stored correctly.
+        """
         broker = bbroker.BackBroker()
 
         # Should inherit commission management methods
@@ -227,10 +370,26 @@ class TestBrokerInheritanceAndCompatibility:
 
 
 class TestBrokerCompatibilityLogic:
-    """Test complex broker compatibility logic"""
+    """Tests for complex broker compatibility logic.
+
+    This test class verifies that parameter defaults and complex parameter
+    interactions work correctly after refactoring, ensuring that existing
+    strategies continue to function without modification.
+
+    Attributes:
+        None: This class uses only instance attributes created during test setup.
+    """
 
     def test_parameter_defaults_compatibility(self):
-        """Test parameter defaults match expected values"""
+        """Tests that parameter defaults match expected values.
+
+        Verifies all default parameter values for cash, fund mode, order
+        execution, slippage, and other broker settings match the expected
+        values from the original implementation.
+
+        Raises:
+            AssertionError: If any default parameter value is incorrect.
+        """
         broker = bbroker.BackBroker()
 
         # Cash and financial parameters
@@ -258,7 +417,15 @@ class TestBrokerCompatibilityLogic:
         assert broker.p.filler is None
 
     def test_parameter_setting_chain(self):
-        """Test parameter setting chains work correctly"""
+        """Tests that parameter setting chains work correctly.
+
+        Verifies that multiple slippage parameters can be set together
+        and that they interact correctly without overwriting each other
+        unexpectedly.
+
+        Raises:
+            AssertionError: If parameter chain doesn't set all values correctly.
+        """
         broker = bbroker.BackBroker()
 
         # Test slippage setting with all options
@@ -275,10 +442,26 @@ class TestBrokerCompatibilityLogic:
 
 
 class TestBrokerPerformance:
-    """Test broker performance characteristics"""
+    """Tests for broker performance characteristics.
+
+    This test class verifies that parameter access and method calls remain
+    performant after refactoring, ensuring that the removal of metaclasses
+    did not introduce significant performance regressions.
+
+    Attributes:
+        None: This class uses only instance attributes created during test setup.
+    """
 
     def test_parameter_access_performance(self):
-        """Test parameter access is performant"""
+        """Tests that parameter access is performant.
+
+        Measures the speed of parameter access operations and ensures that
+        40,000 accesses complete in less than 0.2 seconds (more than 50,000
+        operations per second).
+
+        Raises:
+            AssertionError: If parameter access is slower than expected thresholds.
+        """
         import time
 
         broker = bbroker.BackBroker()
@@ -300,7 +483,14 @@ class TestBrokerPerformance:
         assert ops_per_second > 50000, f"Parameter access too slow: {ops_per_second:.1f} ops/sec"
 
     def test_method_call_performance(self):
-        """Test method call performance"""
+        """Tests method call performance.
+
+        Measures the speed of broker method calls (getcash, getvalue) and
+        ensures that 2,000 method calls complete in less than 0.05 seconds.
+
+        Raises:
+            AssertionError: If method calls are slower than expected thresholds.
+        """
         import time
 
         broker = bbroker.BackBroker()
@@ -319,10 +509,25 @@ class TestBrokerPerformance:
 
 
 class TestBrokerEdgeCases:
-    """Test broker edge cases and error conditions"""
+    """Tests for broker edge cases and error conditions.
+
+    This test class verifies that the broker handles unusual scenarios
+    gracefully, including multiple initializations and commission info
+    fallback behavior.
+
+    Attributes:
+        None: This class uses only instance attributes created during test setup.
+    """
 
     def test_initialization_edge_cases(self):
-        """Test broker initialization edge cases"""
+        """Tests broker initialization edge cases.
+
+        Verifies that calling init() multiple times doesn't cause issues
+        and that the broker maintains consistent state.
+
+        Raises:
+            AssertionError: If multiple initializations cause unexpected state.
+        """
         # Multiple initialization should not cause issues
         broker = bbroker.BackBroker()
         broker.init()
@@ -331,7 +536,18 @@ class TestBrokerEdgeCases:
         assert broker.cash == 10000.0
 
     def test_commission_edge_cases(self):
-        """Test commission handling edge cases"""
+        """Tests commission handling edge cases.
+
+        Verifies that commission info can be set for specific assets and
+        that the broker falls back to default commission when an asset-
+        specific commission is not available.
+
+        Args:
+            None: This test uses mock data objects created internally.
+
+        Raises:
+            AssertionError: If commission fallback behavior is incorrect.
+        """
         broker = bt_broker.BrokerBase()
 
         # Mock data for testing
@@ -353,10 +569,25 @@ class TestBrokerEdgeCases:
 
 
 class TestBrokerUsageExamples:
-    """Test typical broker usage patterns"""
+    """Tests for typical broker usage patterns.
+
+    This test class provides examples of common broker configuration
+    patterns and verifies they work correctly after refactoring.
+
+    Attributes:
+        None: This class uses only instance attributes created during test setup.
+    """
 
     def test_basic_broker_setup(self):
-        """Test basic broker setup example"""
+        """Tests basic broker setup example.
+
+        Demonstrates a typical broker configuration workflow including
+        setting initial cash, configuring commissions for stocks and
+        futures, setting slippage, and enabling cheat-on-close.
+
+        Raises:
+            AssertionError: If broker configuration doesn't match expected values.
+        """
         # Create a broker
         broker = bbroker.BackBroker()
 
@@ -382,7 +613,14 @@ class TestBrokerUsageExamples:
         assert broker.p.coc == True
 
     def test_fund_mode_example(self):
-        """Test fund mode usage"""
+        """Tests fund mode usage.
+
+        Demonstrates how to enable and configure fund mode for fund-like
+        trading simulations, where the broker tracks fund shares and values.
+
+        Raises:
+            AssertionError: If fund mode is not enabled or shares are not allocated.
+        """
         broker = bbroker.BackBroker()
         broker.init()  # Need to initialize to set up fund values
 
@@ -398,7 +636,30 @@ class TestBrokerUsageExamples:
 
 
 def test_comprehensive_broker_compatibility():
-    """Run comprehensive broker compatibility test suite"""
+    """Runs comprehensive broker compatibility test suite.
+
+    This function executes all broker compatibility tests in sequence,
+    providing a comprehensive verification that the refactored broker
+    system maintains functional integrity. It tests all major test
+    classes and prints progress indicators.
+
+    The test suite covers:
+        * BrokerBase functionality (initialization, parameters, commission)
+        * BackBroker functionality (parameters, cash/value, order interface)
+        * Parameter validation (cash, slippage, booleans)
+        * Inheritance and compatibility (chain, aliases, commission)
+        * Compatibility logic (defaults, parameter chains)
+        * Performance characteristics (parameter access, method calls)
+        * Edge cases (initialization, commission)
+        * Usage examples (basic setup, fund mode)
+
+    Returns:
+        None: This function only runs tests and prints results.
+
+    Raises:
+        AssertionError: If any individual test fails, execution will stop
+            at that point with an error message.
+    """
     print("\n🚀 Running comprehensive Broker compatibility tests...")
 
     # Test basic functionality
@@ -458,5 +719,7 @@ def test_comprehensive_broker_compatibility():
 
 
 if __name__ == "__main__":
+    # Run comprehensive tests when executed directly
     test_comprehensive_broker_compatibility()
+    # Also run pytest for full test reporting
     pytest.main([__file__, "-v"])

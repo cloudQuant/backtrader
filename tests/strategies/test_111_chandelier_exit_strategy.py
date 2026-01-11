@@ -17,6 +17,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching common directories.
+
+    This function searches for data files in several standard locations
+    relative to the test file directory, including the current directory,
+    parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the first found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -48,6 +64,15 @@ class ChandelierExitIndicator(bt.Indicator):
     plotinfo = dict(subplot=False)
 
     def __init__(self):
+        """Initialize the Chandelier Exit indicator.
+
+        Sets up the calculation pipeline by:
+        1. Computing the Highest high over the lookback period
+        2. Computing the Lowest low over the lookback period
+        3. Computing Average True Range (ATR) over the lookback period
+        4. Calculating long exit as Highest high - (ATR * multiplier)
+        5. Calculating short exit as Lowest low + (ATR * multiplier)
+        """
         highest = bt.ind.Highest(self.data.high, period=self.p.period)
         lowest = bt.ind.Lowest(self.data.low, period=self.p.period)
         atr = self.p.multip * bt.ind.ATR(self.data, period=self.p.period)
@@ -92,18 +117,35 @@ class ChandelierExitStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Chandelier Exit strategy.
+
+        Sets up the required indicators and initializes tracking variables:
+        - Fast and slow Simple Moving Averages for trend detection
+        - Chandelier Exit indicator for trailing stop levels
+        - Order tracking to prevent duplicate orders
+        - Counters for bars processed and trades executed
+        """
         self.sma_fast = bt.indicators.SMA(self.data, period=self.p.sma_fast)
         self.sma_slow = bt.indicators.SMA(self.data, period=self.p.sma_slow)
         self.ce = ChandelierExitIndicator(
             self.data, period=self.p.ce_period, multip=self.p.ce_mult
         )
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Updates trade counters when orders are completed and clears the
+        pending order reference. Ignores orders that are still pending
+        (Submitted or Accepted status).
+
+        Args:
+            order: The Order object with updated status information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -114,11 +156,24 @@ class ChandelierExitStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute the strategy logic for each bar.
+
+        This method is called on every bar during the backtest. It:
+        1. Increments the bar counter
+        2. Skips trading if an order is already pending
+        3. If no position: Enters long when SMA fast > SMA slow AND
+           price > Chandelier short exit level
+        4. If in position: Exits when SMA fast < SMA slow AND
+           price < Chandelier long exit level
+
+        The Chandelier Exit acts as a volatility-adjusted trailing stop,
+        helping to protect profits during adverse price movements.
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
             # SMA golden cross AND price above Chandelier Short
             if self.sma_fast[0] > self.sma_slow[0] and self.data.close[0] > self.ce.short[0]:

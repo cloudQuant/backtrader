@@ -49,11 +49,26 @@ class DonchianChannelIndicator(bt.Indicator):
 
     The Donchian Channel is a trend-following indicator that calculates
     the highest high and lowest low over a specified period.
+
+    Attributes:
+        dch: Donchian Channel High (upper band) - highest high over period.
+        dcl: Donchian Channel Low (lower band) - lowest low over period.
+        dcm: Donchian Channel Middle (middle band) - average of upper and lower.
+
+    Parameters:
+        period: Number of bars to use for calculating the channel (default: 20).
     """
     lines = ('dch', 'dcl', 'dcm')
     params = dict(period=20)
 
     def __init__(self):
+        """Initialize the Donchian Channel indicator.
+
+        Sets up the three channel lines using the Highest and Lowest indicators:
+        - Upper channel (dch): Highest high over the period
+        - Lower channel (dcl): Lowest low over the period
+        - Middle channel (dcm): Average of upper and lower channels
+        """
         self.lines.dch = bt.indicators.Highest(self.data.high, period=self.p.period)
         self.lines.dcl = bt.indicators.Lowest(self.data.low, period=self.p.period)
         self.lines.dcm = (self.lines.dch + self.lines.dcl) / 2
@@ -76,6 +91,10 @@ class DonchianChannelStrategy(bt.Strategy):
         bar_num: Number of bars processed.
         buy_count: Number of buy orders executed.
         sell_count: Number of sell orders executed.
+
+    Parameters:
+        stake: Number of shares/contracts per trade (default: 10).
+        period: Lookback period for Donchian Channel calculation (default: 20).
     """
     params = dict(
         stake=10,
@@ -83,9 +102,14 @@ class DonchianChannelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Donchian Channel strategy.
+
+        Sets up the indicator, data references, and tracking variables for
+        orders and statistics.
+        """
         self.dataclose = self.datas[0].close
         self.indicator = DonchianChannelIndicator(self.datas[0], period=self.p.period)
-        
+
         self.order = None
         self.last_operation = "SELL"
 
@@ -95,6 +119,15 @@ class DonchianChannelStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called by the backtrader engine when an order's status changes.
+        Updates buy/sell counters and tracks the last operation when orders
+        are completed. Clears the pending order reference when done.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -109,6 +142,14 @@ class DonchianChannelStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by the backtrader engine for each new bar.
+        Implements the Donchian Channel breakout strategy:
+        - Buy when close price breaks above the upper channel
+        - Sell when close price breaks below the lower channel
+        - Only allows one position at a time (no reverse orders)
+        """
         self.bar_num += 1
 
         if self.order:
@@ -120,6 +161,11 @@ class DonchianChannelStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.stake)
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        This method is called by the backtrader engine after all data
+        has been processed. Can be used for cleanup or final reporting.
+        """
         pass
 
 

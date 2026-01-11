@@ -1,3 +1,13 @@
+"""Tests for crypto data feed functionality.
+
+This module contains tests for validating data loading from various cryptocurrency
+exchanges including Binance and OKX. Tests cover both historical data retrieval
+and live data streaming capabilities.
+
+The tests use the CryptoStore and CryptoFeed classes to connect to exchange
+APIs and verify that data can be loaded correctly in both historical and
+real-time modes.
+"""
 import time
 from datetime import datetime, timedelta
 
@@ -11,6 +21,18 @@ from backtrader.stores.cryptostore import CryptoStore
 
 
 def get_from_time_and_end_time():
+    """Calculate time range for data fetching.
+
+    Computes a time range starting from one hour before the current time
+    up to the current time. All times are in UTC to ensure consistency
+    with exchange APIs.
+
+    Returns:
+        tuple: A tuple containing two timezone-aware datetime objects:
+            - start_time: datetime object one hour before current time
+            - end_time: datetime object representing current time
+            Both times are in UTC timezone.
+    """
     # Get current local time (with timezone info)
     local_time = datetime.now().astimezone()
 
@@ -25,7 +47,30 @@ def get_from_time_and_end_time():
 
 
 class TestStrategy(bt.BtApiStrategy):
+    """Test strategy for validating crypto data feed functionality.
+
+    This strategy is used to verify that both historical and live data
+    are loaded correctly from cryptocurrency exchange data feeds. It tracks
+    the loading process and validates that data transitions from historical
+    to live mode as expected.
+
+    Attributes:
+        next_runs (int): Counter for number of times next() has been called.
+        historical_data_loaded (bool): Flag indicating historical data loaded.
+        realtime_data_loaded (bool): Flag indicating realtime data loaded.
+        debug (bool): Enable debug logging.
+        now_live_data (bool): Flag indicating currently receiving live data.
+        live_data (bool): Flag indicating live data status.
+        live_bar_num (int): Counter for live bars received.
+        logger: Logger instance for outputting messages.
+    """
+
     def __init__(self):
+        """Initialize the TestStrategy instance.
+
+        Sets up all tracking attributes for monitoring data feed status
+        and initializes the logger for outputting test messages.
+        """
         super().__init__()
         self.next_runs = 0
         self.historical_data_loaded = False
@@ -40,6 +85,23 @@ class TestStrategy(bt.BtApiStrategy):
     #     self.next()
 
     def next(self, dt=None):
+        """Execute strategy logic on each bar.
+
+        This method is called on each new bar of data. It logs the current
+        price and time for all data feeds, tracks the transition from
+        historical to live data, and stops the backtest after receiving
+        a specified number of live bars.
+
+        Args:
+            dt (datetime, optional): Datetime parameter for backtesting mode.
+                Not used in this implementation.
+
+        Behavior:
+            - Logs current bar data for all data feeds
+            - Sets historical_data_loaded flag on first bar
+            - Sets realtime_data_loaded flag when live data arrives
+            - Stops backtest after 3 live bars
+        """
         # Check if historical data is loaded
         for data in self.datas:
             now_time = bt.num2date(data.datetime[0], tz=pytz.timezone("Asia/Shanghai"))
@@ -62,6 +124,25 @@ class TestStrategy(bt.BtApiStrategy):
         self.log(f"live bar number: {self.live_bar_num}")
 
     def notify_data(self, data, status, *args, **kwargs):
+        """Handle data feed status updates.
+
+        Called when the status of a data feed changes. This method tracks
+        when data feeds transition from historical to live mode.
+
+        Args:
+            data: Data feed object that triggered the notification.
+            status: Integer status code indicating the data feed state.
+            *args: Additional positional arguments (unused).
+            **kwargs: Additional keyword arguments (unused).
+
+        Status Codes:
+            Status codes are defined by backtrader and indicate states such as:
+            - DELAYED: Data is delayed
+            - LIVE: Realtime live data
+            - NOTSUBSCRIBED: Not subscribed to data
+            - OVERSAMPLED: Data is being oversampled
+            - CONCURRENT: Concurrent data reception
+        """
         dn = data.get_name()
         msg = f"{dn} Data Status: {data._getstatusname(status)}"
         self.log(msg)
@@ -73,11 +154,43 @@ class TestStrategy(bt.BtApiStrategy):
 
 
 def get_account_config():
+    """Load account configuration from YAML file.
+
+    Reads the account configuration file which contains API credentials
+    for various cryptocurrency exchanges (Binance, OKX, etc.).
+
+    Returns:
+        dict: Dictionary containing account configuration with keys for
+            each exchange including public_key, private_key, and passphrase
+            (for exchanges that require it).
+
+    Raises:
+        FileNotFoundError: If account_config.yaml file does not exist.
+        KeyError: If required configuration keys are missing.
+    """
     account_config_data = read_yaml_file("account_config.yaml")
     return account_config_data
 
 
 def test_binance_three_data_strategy():
+    """Test Binance data feed with three trading pairs.
+
+    This test validates loading both historical and live data from Binance
+    exchange for three different perpetual swap trading pairs:
+    BNB-USDT, BTC-USDT, and ETH-USDT.
+
+    The test:
+    1. Creates a Cerebro engine with TestStrategy
+    2. Loads account credentials from configuration
+    3. Creates CryptoStore with Binance API credentials
+    4. Adds three data feeds for different trading pairs
+    5. Runs the backtest in live mode
+    6. Asserts that both historical and live data were loaded
+
+    Raises:
+        AssertionError: If historical or realtime data loading fails.
+        ConnectionError: If connection to Binance API fails.
+    """
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
@@ -132,6 +245,23 @@ def test_binance_three_data_strategy():
 
 
 def test_binance_one_data_strategy():
+    """Test Binance data feed with single trading pair.
+
+    This test validates loading both historical and live data from Binance
+    exchange for the BTC-USDT perpetual swap trading pair.
+
+    The test:
+    1. Creates a Cerebro engine with TestStrategy
+    2. Loads account credentials from configuration
+    3. Creates CryptoStore with Binance API credentials
+    4. Adds one data feed for BTC-USDT
+    5. Runs the backtest in live mode
+    6. Asserts that both historical and live data were loaded
+
+    Raises:
+        AssertionError: If historical or realtime data loading fails.
+        ConnectionError: If connection to Binance API fails.
+    """
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
@@ -163,6 +293,23 @@ def test_binance_one_data_strategy():
 
 
 def test_okx_one_data_strategy():
+    """Test OKX data feed with single trading pair.
+
+    This test validates loading both historical and live data from OKX
+    exchange for the BTC-USDT perpetual swap trading pair.
+
+    The test:
+    1. Creates a Cerebro engine with TestStrategy
+    2. Loads account credentials from configuration (includes passphrase)
+    3. Creates CryptoStore with OKX API credentials
+    4. Adds one data feed for BTC-USDT
+    5. Runs the backtest in live mode
+    6. Asserts that both historical and live data were loaded
+
+    Raises:
+        AssertionError: If historical or realtime data loading fails.
+        ConnectionError: If connection to OKX API fails.
+    """
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
@@ -195,6 +342,24 @@ def test_okx_one_data_strategy():
 
 
 def test_okx_two_data_strategy():
+    """Test OKX data feed with two trading pairs.
+
+    This test validates loading both historical and live data from OKX
+    exchange for two different perpetual swap trading pairs:
+    BTC-USDT and ETH-USDT.
+
+    The test:
+    1. Creates a Cerebro engine with TestStrategy
+    2. Loads account credentials from configuration (includes passphrase)
+    3. Creates CryptoStore with OKX API credentials
+    4. Adds two data feeds for BTC-USDT and ETH-USDT
+    5. Runs the backtest in live mode
+    6. Asserts that both historical and live data were loaded
+
+    Raises:
+        AssertionError: If historical or realtime data loading fails.
+        ConnectionError: If connection to OKX API fails.
+    """
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()
@@ -246,6 +411,25 @@ def test_okx_two_data_strategy():
 
 
 def test_binance_one_okx_one_data_strategy():
+    """Test mixed exchange data feeds with Binance and OKX.
+
+    This test validates loading both historical and live data from two
+    different cryptocurrency exchanges simultaneously: Binance and OKX.
+    Each exchange provides data for the BTC-USDT perpetual swap pair.
+
+    The test:
+    1. Creates a Cerebro engine with TestStrategy
+    2. Loads account credentials for both exchanges from configuration
+    3. Creates CryptoStore with credentials for both Binance and OKX
+    4. Adds one data feed from OKX for BTC-USDT
+    5. Adds one data feed from Binance for BTC-USDT
+    6. Runs the backtest in live mode
+    7. Asserts that both historical and live data were loaded
+
+    Raises:
+        AssertionError: If historical or realtime data loading fails.
+        ConnectionError: If connection to either exchange API fails.
+    """
     cerebro = bt.Cerebro()
     cerebro.addstrategy(TestStrategy)
     account_config_data = get_account_config()

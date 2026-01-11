@@ -1,3 +1,9 @@
+"""Sample backtrader CTP strategy implementation.
+
+This module demonstrates a simple trading strategy using backtrader with
+CTP (Commodity Futures Trading Protocol) data feed for Chinese futures markets.
+"""
+
 import json
 from datetime import datetime, time
 
@@ -8,9 +14,22 @@ import backtrader as bt
 
 # Do not delete Origin definition, ctpbee interface requires it
 class Origin:
-    """ """
+    """Origin class for CTP order identification.
+
+    This class is required by the ctpbee interface to identify the
+    symbol and exchange for order placement.
+
+    Attributes:
+        symbol: The futures contract symbol (e.g., 'rb2405').
+        exchange: The exchange code (e.g., 'SHFE').
+    """
 
     def __init__(self, data):
+        """Initialize Origin with data feed information.
+
+        Args:
+            data: Backtrader data feed object.
+        """
         self.symbol = data._dataname.split(".")[0]
         self.exchange = data._name.split(".")[1]
 
@@ -26,7 +45,11 @@ NIGHT_END = time(2, 45)  # Night session ends at 2:45 AM
 
 # Check if currently in trading period
 def is_trading_period():
-    """ """
+    """Check if current time is within trading hours.
+
+    Returns:
+        bool: True if current time is within day or night trading sessions.
+    """
     current_time = datetime.now().time()
     trading = False
     if (
@@ -39,6 +62,17 @@ def is_trading_period():
 
 
 class SmaCross(bt.Strategy):
+    """Simple moving average crossover strategy for CTP futures trading.
+
+    This strategy demonstrates basic data access and order placement
+    using the CTP store for live futures trading.
+
+    Attributes:
+        beeapi: CTP bee API interface for order management.
+        buy_order: Reference to current buy order.
+        live_data: Flag indicating if live data is being received.
+    """
+
     lines = ("sma",)
     params = dict(
         smaperiod=5,
@@ -46,12 +80,14 @@ class SmaCross(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy with CTP API reference."""
         self.beeapi = self.p.store.main_ctpbee_api
         self.buy_order = None
         self.live_data = False
         # self.move_average = bt.ind.MovingAverageSimple(self.data, period=self.params.smaperiod)
 
     def prenext(self):
+        """Called before minimum period is reached."""
         print("in prenext")
         for d in self.datas:
             print(
@@ -67,6 +103,11 @@ class SmaCross(bt.Strategy):
             )
 
     def next(self):
+        """Called on each bar with data.
+
+        Prints market data, position, trades, and account information.
+        Only executes trading logic when live data is received.
+        """
         print("------------------------------------------ next start")
 
         for d in self.datas:
@@ -102,9 +143,22 @@ class SmaCross(bt.Strategy):
         print("---------------------------------------------------")
 
     def notify_order(self, order):
+        """Called when order status changes.
+
+        Args:
+            order: Order object with updated status.
+        """
         print("Order status %s" % order.getstatusname())
 
     def notify_data(self, data, status, *args, **kwargs):
+        """Called when data feed status changes.
+
+        Args:
+            data: Data feed object.
+            status: New status code.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        """
         dn = data._name
         dt = datetime.now()
         msg = f"notify_data Data Status: {data._getstatusname(status)}"
@@ -116,15 +170,43 @@ class SmaCross(bt.Strategy):
 
     # Following are order placement functions
     def open_long(self, price, size, data):
+        """Open a long position.
+
+        Args:
+            price: Order price.
+            size: Order size.
+            data: Data feed object.
+        """
         self.beeapi.action.buy(price, size, Origin(data))
 
     def open_short(self, price, size, data):
+        """Open a short position.
+
+        Args:
+            price: Order price.
+            size: Order size.
+            data: Data feed object.
+        """
         self.beeapi.action.short(price, size, Origin(data))
 
     def close_long(self, price, size, data):
+        """Close a long position.
+
+        Args:
+            price: Order price.
+            size: Order size.
+            data: Data feed object.
+        """
         self.beeapi.action.cover(price, size, Origin(data))
 
     def close_short(self, price, size, data):
+        """Close a short position.
+
+        Args:
+            price: Order price.
+            size: Order size.
+            data: Data feed object.
+        """
         self.beeapi.action.sell(price, size, Origin(data))
 
 

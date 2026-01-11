@@ -18,6 +18,26 @@
 #
 ###############################################################################
 
+"""Test module for SMA Oscillator indicator.
+
+This module contains tests for the SMAOsc (Simple Moving Average Oscillator)
+indicator, which measures the deviation of price from its simple moving average.
+The oscillator is calculated as the difference between the data source and
+its SMA, providing insight into overbought/oversold conditions.
+
+The test validates that the indicator produces expected values at specific
+checkpoints when run with various Backtrader configuration combinations
+(runonce, preload, exactbars settings).
+
+Typical usage example:
+    >>> test_run(main=True)
+
+Module-level variables:
+    chkdatas: Number of data feeds to use in the test.
+    chkvals: Expected indicator values at checkpoint positions.
+    chkmin: Expected minimum period before indicator produces valid values.
+    chkind: The indicator class being tested (SMAOsc).
+"""
 
 import backtrader as bt
 
@@ -33,6 +53,32 @@ chkind = btind.SMAOsc
 
 
 def test_run(main=False):
+    """Execute the SMA Oscillator indicator test.
+
+    Runs the test strategy with the SMAOsc indicator using a single data feed.
+    The test validates indicator calculations against expected values at
+    specific checkpoint positions. When run with main=True, plots the results.
+
+    The function loads test data, creates a backtest with the TestStrategy,
+    and runs it through multiple configuration combinations (runonce, preload,
+    exactbars) to ensure compatibility across all execution modes.
+
+    Args:
+        main (bool, optional): If True, enables plotting and verbose output
+            for manual inspection. Defaults to False.
+
+    Returns:
+        None: The function executes the test but does not return a value.
+            Results are validated internally by the TestStrategy.
+
+    Raises:
+        None: This function does not raise exceptions directly. Test failures
+            are handled by the underlying test framework.
+
+    Example:
+        >>> test_run(main=True)  # Run with plotting enabled
+        >>> test_run()  # Run in automated test mode
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

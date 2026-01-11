@@ -75,6 +75,15 @@ class FeiStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the Fei A'li strategy instance.
+
+        Sets up instance variables for tracking:
+        - Bar counters and trade counts
+        - Bollinger Bands indicator for filtering signals
+        - Current market position state
+        - Daily OHLC price tracking
+        - Historical daily high, low, and close lists
+        """
         self.bar_num = 0
         self.day_bar_num = 0
         self.buy_count = 0
@@ -96,9 +105,26 @@ class FeiStrategy(bt.Strategy):
         self.day_close_list = []
 
     def prenext(self):
+        """Called before the minimum period of indicators is reached.
+
+        This method is called during the warmup period when not enough data
+        bars are available for the strategy's indicators to calculate values.
+        No action is taken during this period.
+        """
         pass
 
     def next(self):
+        """Main strategy logic called on each bar.
+
+        Implements the Fei A'li four-price strategy with Bollinger Band filtering:
+        - Tracks daily OHLC prices and updates historical lists at market close
+        - Opens long positions when price breaks above BB upper band, mid band trending up,
+          and price breaks above previous day's high
+        - Opens short positions when price breaks below BB lower band, mid band trending down,
+          and price breaks below previous day's low
+        - Closes all positions at 14:55 before market close
+        - Trading only allowed during 21:00-23:00 and 9:00-11:00
+        """
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
         self.current_hour = self.current_datetime.hour
         self.current_minute = self.current_datetime.minute
@@ -164,6 +190,13 @@ class FeiStrategy(bt.Strategy):
                 self.marketposition = 0
 
     def notify_order(self, order):
+        """Called when an order status changes.
+
+        Logs executed buy/sell orders when they complete.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -173,10 +206,21 @@ class FeiStrategy(bt.Strategy):
                 self.log(f"SELL: price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Called when a trade is completed.
+
+        Logs the profit/loss of completed trades.
+
+        Args:
+            trade: The trade object with PnL information.
+        """
         if trade.isclosed:
             self.log(f"Trade completed: pnl={trade.pnl:.2f}, pnlcomm={trade.pnlcomm:.2f}")
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        Logs final statistics including total bars processed and trade counts.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 

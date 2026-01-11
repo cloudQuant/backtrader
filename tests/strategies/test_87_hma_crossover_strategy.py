@@ -3,8 +3,24 @@
 """
 Test Case: HMA Crossover Hull Moving Average Strategy
 
+This module tests a trading strategy based on Hull Moving Average (HMA) crossovers.
+The strategy uses fast and slow HMAs to generate entry and exit signals.
+
 Reference: https://github.com/Backtrader1.0/strategies/hma_crossover.py
-Uses fast and slow Hull Moving Average crossovers as entry signals.
+
+Strategy Logic:
+    - Long Entry: Fast HMA crosses above slow HMA
+    - Short Entry: Fast HMA crosses below slow HMA
+    - Long Exit: Fast HMA falls below slow HMA
+    - Short Exit: Fast HMA rises above slow HMA
+
+The strategy also uses Average True Range (ATR) as a volatility reference
+indicator, though it is not directly used in the trading logic.
+
+Test Data:
+    - Uses Oracle Corporation (ORCL) historical data from 2010-2014
+    - Initial capital: $100,000
+    - Commission: 0.1% per trade
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +33,27 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching common locations.
+
+    This function searches for a data file in several possible directories
+    relative to the current test file location. It checks the current directory,
+    parent directory, and 'datas' subdirectories in both locations.
+
+    Args:
+        filename (str): The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the first matching file found.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched locations.
+
+    Example:
+        >>> path = resolve_data_path("orcl-1995-2014.txt")
+        >>> print(path)
+        /path/to/tests/strategies/datas/orcl-1995-2014.txt
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -32,11 +69,41 @@ def resolve_data_path(filename: str) -> Path:
 class HmaCrossoverStrategy(bt.Strategy):
     """HMA Crossover Hull Moving Average Strategy.
 
-    Entry conditions:
-        - Long: Fast HMA crosses above slow HMA
-        - Short: Fast HMA crosses below slow HMA
+    This strategy implements a dual moving average crossover system using
+    Hull Moving Averages (HMA), which are known for reducing lag compared
+    to traditional moving averages.
 
-    Uses ATR as a volatility reference.
+    Trading Logic:
+        Long Entry:
+            - Fast HMA crosses above slow HMA (bullish signal)
+        Short Entry:
+            - Fast HMA crosses below slow HMA (bearish signal)
+        Long Exit:
+            - Fast HMA falls below slow HMA
+        Short Exit:
+            - Fast HMA rises above slow HMA
+
+    The strategy also calculates Average True Range (ATR) as a reference
+    for market volatility, though it is not directly used in position sizing
+    or stop-loss logic in this implementation.
+
+    Attributes:
+        dataclose: Reference to the close price of the primary data feed.
+        hma_fast: Fast Hull Moving Average indicator.
+        hma_slow: Slow Hull Moving Average indicator.
+        atr: Average True Range indicator for volatility measurement.
+        order: Reference to the current pending order.
+        prev_rel: Boolean indicating if fast HMA was above slow HMA on
+            the previous bar.
+        bar_num: Counter for the number of bars processed.
+        buy_count: Counter for the number of buy orders executed.
+        sell_count: Counter for the number of sell orders executed.
+
+    Parameters:
+        stake (int): Number of shares/contracts per trade. Default is 10.
+        hma_fast (int): Period for the fast HMA. Default is 60.
+        hma_slow (int): Period for the slow HMA. Default is 90.
+        atr_period (int): Period for the ATR indicator. Default is 14.
     """
     params = dict(
         stake=10,
@@ -46,6 +113,12 @@ class HmaCrossoverStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the HMA Crossover strategy.
+
+        Sets up the indicators and tracking variables for the strategy.
+        Initializes fast and slow Hull Moving Averages, ATR indicator,
+        and counters for tracking trades and bars.
+        """
         self.dataclose = self.datas[0].close
 
         # Hull Moving Average indicators
@@ -67,6 +140,21 @@ class HmaCrossoverStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        This method is called by the backtrader engine when an order's
+        status changes. It tracks completed orders by incrementing the
+        buy_count or sell_count counters and clears the pending order
+        reference when the order is no longer active.
+
+        Args:
+            order (bt.Order): The order object with updated status.
+
+        Order Status Handling:
+            - Submitted/Accepted: Order is pending, no action needed.
+            - Completed: Order was filled, increment the appropriate counter.
+            - Other statuses: Clear the order reference to allow new trades.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -77,8 +165,25 @@ class HmaCrossoverStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by the backtrader engine for each bar of data.
+        It implements the core crossover logic to generate entry and exit signals.
+
+        The strategy:
+        1. Checks if there's a pending order (if so, waits)
+        2. Compares fast and slow HMA values to detect crossovers
+        3. Enters long when fast HMA crosses above slow HMA
+        4. Enters short when fast HMA crosses below slow HMA
+        5. Exits positions when the crossover reverses
+
+        Note:
+            The crossover is detected by comparing the current relationship
+            (rel_now) with the previous bar's relationship (prev_rel). A
+            crossover occurs when these values differ.
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
 
@@ -111,6 +216,35 @@ class HmaCrossoverStrategy(bt.Strategy):
 
 
 def test_hma_crossover_strategy():
+    """Test the HMA Crossover strategy with historical data.
+
+    This function runs a backtest of the HMA Crossover strategy using
+    Oracle Corporation (ORCL) historical price data from 2010-2014.
+    It validates the strategy's performance against expected results.
+
+    Test Configuration:
+        - Data: ORCL daily prices from 2010-01-01 to 2014-12-31
+        - Initial Capital: $100,000
+        - Commission: 0.1% per trade
+        - Strategy Parameters: Default (stake=10, hma_fast=60, hma_slow=90)
+
+    Expected Results:
+        - Bars processed: 1160
+        - Final portfolio value: $100,081.45
+        - Sharpe Ratio: 0.5100011168586044
+        - Annual Return: 0.00016323774473640581
+        - Maximum Drawdown: 10.33%
+
+    Analyzers:
+        - SharpeRatio: Risk-adjusted return metric
+        - Returns: Annualized normalized return
+        - DrawDown: Maximum peak-to-trough decline
+
+    Raises:
+        AssertionError: If any of the performance metrics do not match
+            expected values within specified tolerances.
+        FileNotFoundError: If the required data file cannot be located.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(

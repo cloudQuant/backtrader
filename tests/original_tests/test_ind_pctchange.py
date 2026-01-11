@@ -18,6 +18,22 @@
 #
 ###############################################################################
 
+"""Test module for the PctChange (Percentage Change) indicator.
+
+This module contains test cases for the PctChange indicator, which calculates
+the percentage change between consecutive data points. The test validates that
+the indicator produces expected values at specific checkpoints in the data.
+
+The test uses standard backtrader test data files and runs the indicator through
+multiple execution modes (runonce/preload combinations) to ensure compatibility.
+
+Example:
+    To run this test directly:
+        python test_ind_pctchange.py
+
+    To run via pytest:
+        pytest test_ind_pctchange.py -v
+"""
 
 import backtrader as bt
 
@@ -25,15 +41,53 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to use in the test
 chkdatas = 1
+
+# Expected values at checkpoints for validation
+# Format: list of lists, where each inner list contains string representations
+# of expected values for each line of the indicator at specific checkpoint bars
 chkvals = [["0.002704", "0.034162", "0.043717"]]
 
+# Expected minimum period before indicator starts producing values
 chkmin = 31
+
+# The indicator class being tested
 chkind = btind.PctChange
 
 
 def test_run(main=False):
+    """Run the PctChange indicator test.
+
+    This function executes a comprehensive test of the PctChange indicator by:
+    1. Loading test data from predefined data files
+    2. Running the indicator through the TestStrategy
+    3. Validating output against expected values at checkpoints
+
+    The test can run in two modes:
+    - main=False: Runs silently without plotting (for automated testing)
+    - main=True: Enables plotting and detailed output (for manual inspection)
+
+    Args:
+        main (bool, optional): If True, run in interactive mode with plotting.
+            Defaults to False, which runs silently for automated testing.
+
+    Returns:
+        None. The function executes the test and raises assertions if
+        validation fails.
+
+    Raises:
+        AssertionError: If the indicator values do not match expected values
+            at the checkpoint bars.
+
+    Example:
+        >>> test_run(main=False)  # Silent mode for automated testing
+        >>> test_run(main=True)   # Interactive mode with plotting
+    """
+    # Load data feeds for the test
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
+
+    # Run the test with the configured parameters
     testcommon.runtest(
         datas,
         testcommon.TestStrategy,

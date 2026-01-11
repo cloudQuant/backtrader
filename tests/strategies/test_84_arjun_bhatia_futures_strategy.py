@@ -17,6 +17,28 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching multiple possible locations.
+
+    This function searches for a data file in several common locations relative
+    to the current test file directory, making the test suite more portable across
+    different project structures.
+
+    Args:
+        filename: Name of the data file to locate (e.g., 'orcl-1995-2014.txt').
+
+    Returns:
+        Path: Absolute path to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched locations.
+
+    Search Order:
+        1. Current test directory (tests/strategies/)
+        2. Parent tests directory (tests/)
+        3. Current test directory/datas (tests/strategies/datas/)
+        4. Parent tests directory/datas (tests/datas/)
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -50,6 +72,12 @@ class AlligatorIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize the Alligator indicator with three smoothed moving averages.
+
+        Creates three Smoothed Moving Average (SMMA) lines representing the
+        jaw, teeth, and lips of the Alligator indicator. Each line is calculated
+        from the close price using its respective period parameter.
+        """
         self.lines.jaw = bt.indicators.SmoothedMovingAverage(
             self.data.close, period=self.p.jaw_period
         )
@@ -79,24 +107,45 @@ class SuperTrendIndicator(bt.Indicator):
     )
 
     def __init__(self):
+        """Initialize the SuperTrend indicator with ATR and mid-price calculations.
+
+        Sets up the Average True Range (ATR) indicator for volatility measurement
+        and calculates the mid-price (HL/2) for SuperTrend band calculations.
+        """
         self.atr = bt.indicators.ATR(self.data, period=self.p.period)
         self.hl2 = (self.data.high + self.data.low) / 2.0
 
     def next(self):
+        """Calculate the SuperTrend value and direction for the current bar.
+
+        This method implements the SuperTrend algorithm:
+        1. Calculates upper and lower bands using ATR and mid-price
+        2. Determines trend direction based on price crossover
+        3. Maintains trend persistence to avoid frequent whipsaws
+
+        The algorithm uses the previous bar's direction to determine whether
+        to use upper or lower bands, and only changes direction when price
+        crosses the previous SuperTrend line.
+
+        Logic:
+        - If bullish (direction=1): Use max(lower_band, prev_supertrend)
+        - If bearish (direction=-1): Use min(upper_band, prev_supertrend)
+        - Flip direction when close price crosses the SuperTrend line
+        """
         if len(self) < self.p.period + 1:
             self.lines.supertrend[0] = self.hl2[0]
             self.lines.direction[0] = 1
             return
-            
+
         atr = self.atr[0]
         hl2 = self.hl2[0]
-        
+
         upper_band = hl2 + self.p.multiplier * atr
         lower_band = hl2 - self.p.multiplier * atr
-        
+
         prev_supertrend = self.lines.supertrend[-1]
         prev_direction = self.lines.direction[-1]
-        
+
         if prev_direction == 1:
             if self.data.close[0] < prev_supertrend:
                 self.lines.supertrend[0] = upper_band
@@ -144,35 +193,76 @@ class ArjunBhatiaFuturesStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Arjun Bhatia Futures Trading Strategy.
+
+        Sets up all required indicators and initializes tracking variables for
+        order management and position monitoring.
+
+        Indicators created:
+        - Alligator: Trend identification using jaw, teeth, and lips lines
+        - SuperTrend: Trend direction and volatility-based bands
+        - ATR (14-period): For stop loss and take profit calculations
+
+        Tracking variables initialized:
+        - order: Current pending order (None if no pending order)
+        - entry_price: Price at which current position was entered
+        - stop_loss: Stop loss price level for risk management
+        - take_profit: Take profit price level for profit taking
+        - bar_num: Counter for total bars processed
+        - buy_count: Counter for total buy orders executed
+        - sell_count: Counter for total sell orders executed
+        """
         self.dataclose = self.datas[0].close
         self.datahigh = self.datas[0].high
         self.datalow = self.datas[0].low
-        
+
         self.alligator = AlligatorIndicator(
             self.datas[0],
             jaw_period=self.p.jaw_period,
             teeth_period=self.p.teeth_period,
             lips_period=self.p.lips_period
         )
-        
+
         self.supertrend = SuperTrendIndicator(
             self.datas[0],
             period=self.p.supertrend_period,
             multiplier=self.p.supertrend_multiplier
         )
-        
+
         self.atr = bt.indicators.ATR(self.datas[0], period=14)
-        
+
         self.order = None
         self.entry_price = 0
         self.stop_loss = 0
         self.take_profit = 0
-        
+
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates and manage position tracking.
+
+        Called by the backtrader engine when an order changes status. This method
+        tracks completed orders and calculates risk management levels for new positions.
+
+        For buy orders (long positions):
+        - Increments buy_count
+        - Records entry price from the executed order
+        - Calculates stop loss using ATR: entry - (ATR * atr_sl_mult)
+        - Calculates take profit using ATR: entry + (ATR * atr_tp_mult)
+
+        For sell orders (short position exits):
+        - Increments sell_count
+        - No stop loss/take profit calculation (only long positions are traded)
+
+        Args:
+            order: The order object with updated status from the broker.
+
+        Note:
+            Pending orders (Submitted/Accepted) are ignored. Only Completed
+            orders trigger position tracking updates.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -186,8 +276,26 @@ class ArjunBhatiaFuturesStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute the trading logic for each bar.
+
+        This method is called for every bar in the data feed and implements
+        the core strategy logic:
+
+        Entry conditions (no position):
+        - Price is above Alligator jaw line (bullish trend)
+        - SuperTrend direction is bullish (direction == 1)
+        - If both conditions met, execute a buy order
+
+        Exit conditions (has position):
+        - Stop loss hit: Low price <= stop_loss level
+        - Take profit hit: High price >= take_profit level
+        - Trend reversal: Either Alligator or SuperTrend turns bearish
+
+        The strategy only takes long positions and uses ATR-based risk management
+        to limit downside while capturing upside potential.
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
 

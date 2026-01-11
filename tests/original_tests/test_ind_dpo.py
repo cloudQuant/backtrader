@@ -18,6 +18,17 @@
 #
 ###############################################################################
 
+"""Test module for the Detrended Price Oscillator (DPO) indicator.
+
+This module contains test cases for the DPO indicator implementation in
+backtrader. The DPO is designed to remove trends from prices, making it
+easier to identify cycles and overbought/oversold conditions.
+
+The test validates:
+* Indicator calculation accuracy against expected values
+* Minimum period requirements for the indicator
+* Proper data feed handling
+"""
 
 import backtrader as bt
 
@@ -25,16 +36,49 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to use in the test
 chkdatas = 1
+
+# Expected values for the DPO indicator at specific bars
+# These are the reference values that the test will validate against
 chkvals = [
     ["83.271000", "105.625000", "1.187000"],
 ]
 
+# Minimum period required before the DPO indicator produces valid values
+# The DPO needs enough data to calculate the moving average for detrending
 chkmin = 29
+
+# The indicator class being tested
 chkind = btind.DPO
 
 
 def test_run(main=False):
+    """Execute the DPO indicator test.
+
+    This function sets up the test environment by loading data feeds,
+    running the test strategy, and validating the indicator output
+    against expected values.
+
+    Args:
+        main (bool): If True, enables plotting and runs in standalone mode.
+            When False (default), runs in test mode without visualization.
+            Defaults to False.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the calculated indicator values do not match
+            the expected values in chkvals.
+
+    Example:
+        Run the test in normal mode:
+        >>> test_run()
+
+        Run the test with plotting:
+        >>> test_run(main=True)
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

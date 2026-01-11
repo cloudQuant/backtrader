@@ -71,25 +71,58 @@ def generate_random_ohlcv_data(num_bars=100, seed=42):
 
 
 class RandomDataFeed(bt.feeds.DataBase):
-    """Custom data feed using randomly generated data"""
-    
+    """Custom data feed using randomly generated OHLCV data.
+
+    This data feed extends bt.feeds.DataBase to provide test data from a
+    pre-generated list of OHLCV bars. It supports all standard data fields
+    including datetime, open, high, low, close, volume, and openinterest.
+
+    Attributes:
+        _data_list: List of dictionaries containing OHLCV data for each bar.
+        _idx: Current index in the data list being processed.
+
+    Parameters:
+        data_list: List of dictionaries with keys: datetime, open, high, low,
+            close, volume, openinterest. If None, defaults to empty list.
+    """
+
     params = (
         ('data_list', None),
     )
-    
+
     def __init__(self):
+        """Initialize the RandomDataFeed.
+
+        Sets up internal data storage and initializes the parent DataBase class.
+        The data_list parameter is accessed from self.p.data_list.
+        """
         super(RandomDataFeed, self).__init__()
         self._data_list = self.p.data_list or []
         self._idx = 0
-    
+
     def start(self):
+        """Start the data feed and reset the data index.
+
+        Called by cerebro when starting the backtest. Resets the index to 0
+        so data streaming begins from the first bar.
+        """
         super(RandomDataFeed, self).start()
         self._idx = 0
-    
+
     def _load(self):
+        """Load the next bar of data.
+
+        This method is called by backtrader to fetch the next bar of data.
+        It populates the data lines (datetime, open, high, low, close, volume,
+        openinterest) from the current position in the data list.
+
+        Returns:
+            bool: True if a bar was successfully loaded, False if end of data
+                has been reached (when index exceeds data list length).
+        """
         if self._idx >= len(self._data_list):
             return False
-        
+
         bar = self._data_list[self._idx]
         self.lines.datetime[0] = bt.date2num(bar['datetime'])
         self.lines.open[0] = bar['open']
@@ -98,7 +131,7 @@ class RandomDataFeed(bt.feeds.DataBase):
         self.lines.close[0] = bar['close']
         self.lines.volume[0] = bar['volume']
         self.lines.openinterest[0] = bar['openinterest']
-        
+
         self._idx += 1
         return True
 
@@ -107,19 +140,48 @@ class RandomDataFeed(bt.feeds.DataBase):
 # Test case 1: MACD EMA indicator calculation
 # ============================================================================
 class MacdEmaTestStrategy(bt.Strategy):
-    """Test MACD EMA indicator vector operations
+    """Test MACD EMA indicator vector operations.
 
-    self.ema_1 - self.ema_2 (indicator minus indicator)
-    self.dif - self.dea (indicator minus indicator)
-    (self.dif - self.dea) * 2 (indicator times constant)
+    This strategy tests line arithmetic operations between indicators:
+    - Subtraction: ema_1 - ema_2 (indicator minus indicator)
+    - Subtraction: dif - dea (indicator minus indicator)
+    - Multiplication: (dif - dea) * 2 (indicator times constant)
+
+    The MACD (Moving Average Convergence Divergence) is calculated as:
+    1. Fast EMA (ema_1) with period_me1
+    2. Slow EMA (ema_2) with period_me2
+    3. DIF (Difference) = ema_1 - ema_2
+    4. DEA (Difference EMA) = EMA of DIF with period_dif
+    5. MACD = (DIF - DEA) * 2
+
+    Attributes:
+        bar_num: Counter for number of bars processed in next().
+        recorded_values: List of dictionaries containing indicator values for
+            each valid bar (after warmup period).
+        ema_1: Fast exponential moving average indicator.
+        ema_2: Slow exponential moving average indicator.
+        dif: Difference between fast and slow EMAs (line operation).
+        dea: EMA of the DIF line.
+        macd: MACD histogram calculated as (dif - dea) * 2.
+
+    Parameters:
+        period_me1: Period for fast EMA (default: 10).
+        period_me2: Period for slow EMA (default: 20).
+        period_dif: Period for DIF EMA (default: 9).
     """
+
     params = (
         ("period_me1", 10),
         ("period_me2", 20),
         ("period_dif", 9),
     )
-    
+
     def __init__(self):
+        """Initialize the MACD EMA test strategy.
+
+        Creates indicators using vector arithmetic operations to test
+        line-to-line and line-to-scalar operations.
+        """
         self.bar_num = 0
         self.recorded_values = []
 
@@ -135,8 +197,16 @@ class MacdEmaTestStrategy(bt.Strategy):
             self.dif, period=self.p.period_dif
         )
         self.macd = (self.dif - self.dea) * 2
-    
+
     def next(self):
+        """Process each bar and record indicator values.
+
+        Called for each bar after indicator warmup period. Records the
+        values of all MACD-related indicators if they are valid (not NaN).
+
+        Skips recording during the initial warmup period when indicators
+        are still calculating and returning NaN values.
+        """
         self.bar_num += 1
 
         # Record indicator values (skip NaN values during warmup period)
@@ -149,7 +219,7 @@ class MacdEmaTestStrategy(bt.Strategy):
         # Check if value is valid
         def is_valid(v):
             return v is not None and not (isinstance(v, float) and math.isnan(v))
-        
+
         if is_valid(ema1_val) and is_valid(ema2_val) and is_valid(dif_val):
             self.recorded_values.append({
                 'bar_num': self.bar_num,
@@ -166,18 +236,47 @@ class MacdEmaTestStrategy(bt.Strategy):
 # Test case 2: Keltner Channel indicator calculation
 # ============================================================================
 class KeltnerTestStrategy(bt.Strategy):
-    """Test Keltner Channel indicator vector operations
+    """Test Keltner Channel indicator vector operations.
 
-    (high + low + close) / 3 (multiple lines added and divided by constant)
-    middle_line + atr * mult (indicator plus indicator times constant)
-    middle_line - atr * mult (indicator minus indicator times constant)
+    This strategy tests line arithmetic operations for Keltner Channel calculation:
+    - Addition and division: (high + low + close) / 3 (multiple lines added and
+      divided by constant)
+    - Addition: middle_line + atr * mult (indicator plus indicator times constant)
+    - Subtraction: middle_line - atr * mult (indicator minus indicator times constant)
+
+    The Keltner Channel is calculated as:
+    1. Middle price = (high + low + close) / 3
+    2. Middle line = SMA of middle price
+    3. ATR = Average True Range
+    4. Upper line = middle_line + atr * atr_multi
+    5. Lower line = middle_line - atr * atr_multi
+
+    Attributes:
+        bar_num: Counter for number of bars processed in next().
+        recorded_values: List of dictionaries containing indicator values for
+            each valid bar (after warmup period).
+        middle_price: Calculated typical price (high + low + close) / 3.
+        middle_line: SMA of the middle price.
+        atr: Average True Range indicator.
+        upper_line: Upper Keltner Channel band.
+        lower_line: Lower Keltner Channel band.
+
+    Parameters:
+        avg_period: Period for SMA and ATR calculations (default: 20).
+        atr_multi: Multiplier for ATR bands (default: 2).
     """
+
     params = (
         ("avg_period", 20),
         ("atr_multi", 2),
     )
-    
+
     def __init__(self):
+        """Initialize the Keltner Channel test strategy.
+
+        Creates Keltner Channel indicators using vector arithmetic operations
+        to test line-to-line and line-to-scalar operations.
+        """
         self.bar_num = 0
         self.recorded_values = []
 
@@ -193,19 +292,24 @@ class KeltnerTestStrategy(bt.Strategy):
         )
         self.upper_line = self.middle_line + self.atr * self.p.atr_multi
         self.lower_line = self.middle_line - self.atr * self.p.atr_multi
-    
+
     def next(self):
+        """Process each bar and record indicator values.
+
+        Called for each bar after indicator warmup period. Records the
+        values of all Keltner Channel indicators if they are valid (not NaN).
+        """
         self.bar_num += 1
-        
+
         def is_valid(v):
             return v is not None and not (isinstance(v, float) and math.isnan(v))
-        
+
         middle_price_val = self.middle_price[0]
         middle_line_val = self.middle_line[0]
         atr_val = self.atr[0]
         upper_val = self.upper_line[0]
         lower_val = self.lower_line[0]
-        
+
         if is_valid(middle_line_val) and is_valid(atr_val):
             self.recorded_values.append({
                 'bar_num': self.bar_num,
@@ -221,14 +325,40 @@ class KeltnerTestStrategy(bt.Strategy):
 # Test case 3: TimeLine + SMA indicator calculation
 # ============================================================================
 class TimeLine(bt.Indicator):
-    """Time-weighted average price indicator"""
+    """Time-weighted average price indicator.
+
+    This custom indicator calculates a cumulative running average of close
+    prices from the beginning of the data feed. It serves as a test case
+    for combining custom indicators with standard backtrader indicators.
+
+    The indicator maintains a running sum and count of all prices seen
+    so far, updating the average with each new bar.
+
+    Attributes:
+        lines.day_avg_price: Output line containing the cumulative average price.
+        price_sum: Running sum of all close prices.
+        price_count: Count of bars processed.
+
+    Note:
+        This indicator implements both next() (bar-by-bar) and once()
+        (vectorized) calculation modes for testing both execution paths.
+    """
     lines = ('day_avg_price',)
-    
+
     def __init__(self):
+        """Initialize the TimeLine indicator.
+
+        Sets up the running sum and count for calculating cumulative average.
+        """
         self.price_sum = 0.0
         self.price_count = 0
-    
+
     def next(self):
+        """Calculate the cumulative average for the current bar.
+
+        Updates the running sum and count, then calculates the average.
+        This is called for each bar in bar-by-bar execution mode.
+        """
         self.price_count += 1
         self.price_sum += self.data.close[0]
         self.lines.day_avg_price[0] = self.price_sum / self.price_count
@@ -238,16 +368,24 @@ class TimeLine(bt.Indicator):
         day_end_hour, day_end_minute, _ = self.p.day_end_time
         if self.current_hour == day_end_hour and self.current_minute == day_end_minute:
             self.day_close_price_list = []
-            
+
     def once(self, start, end):
-        """Vectorized calculation for runonce mode"""
+        """Vectorized calculation for runonce mode.
+
+        Calculates all cumulative averages in a batch for improved performance.
+        This is called when cerebro runs with runonce=True.
+
+        Args:
+            start: Starting index for calculation (typically 0).
+            end: Ending index for calculation (length of data).
+        """
         close_array = self.data.close.array
         dst = self.lines.day_avg_price.array
-        
+
         # Ensure destination array is sized
         while len(dst) < end:
             dst.append(0.0)
-        
+
         # Calculate running average for each bar
         price_sum = 0.0
         for i in range(min(end, len(close_array))):
@@ -256,29 +394,54 @@ class TimeLine(bt.Indicator):
 
 
 class TimeLineSmaTestStrategy(bt.Strategy):
-    """Test TimeLine + SMA indicator"""
+    """Test TimeLine + SMA indicator combination.
+
+    This strategy tests combining a custom indicator (TimeLine) with a
+    standard backtrader indicator (SMA). It verifies that custom indicators
+    work correctly when used alongside built-in indicators.
+
+    Attributes:
+        bar_num: Counter for number of bars processed in next().
+        recorded_values: List of dictionaries containing indicator values for
+            each valid bar (after warmup period).
+        day_avg_price: Custom TimeLine indicator (cumulative average).
+        ma_value: Simple Moving Average of close prices.
+
+    Parameters:
+        ma_period: Period for SMA calculation (default: 20).
+    """
     params = (
         ("ma_period", 20),
     )
-    
+
     def __init__(self):
+        """Initialize the TimeLine + SMA test strategy.
+
+        Creates both custom TimeLine indicator and standard SMA indicator
+        to test interoperability between custom and built-in indicators.
+        """
         self.bar_num = 0
         self.recorded_values = []
-        
+
         self.day_avg_price = TimeLine(self.datas[0])
         self.ma_value = bt.indicators.SMA(
             self.datas[0].close, period=self.p.ma_period
         )
-    
+
     def next(self):
+        """Process each bar and record indicator values.
+
+        Called for each bar after indicator warmup period. Records the
+        values of both TimeLine and SMA indicators if they are valid (not NaN).
+        """
         self.bar_num += 1
-        
+
         def is_valid(v):
             return v is not None and not (isinstance(v, float) and math.isnan(v))
-        
+
         avg_price_val = self.day_avg_price[0]
         ma_val = self.ma_value[0]
-        
+
         if is_valid(avg_price_val) and is_valid(ma_val):
             self.recorded_values.append({
                 'bar_num': self.bar_num,
@@ -292,31 +455,56 @@ class TimeLineSmaTestStrategy(bt.Strategy):
 # Test case 4: Highest/Lowest indicator calculation
 # ============================================================================
 class HighestLowestTestStrategy(bt.Strategy):
-    """Test Highest/Lowest indicator"""
+    """Test Highest/Lowest indicator calculation.
+
+    This strategy tests the Highest and Lowest indicators, which track
+    the maximum and minimum values over a rolling window. These are
+    commonly used for breakout strategies and support/resistance levels.
+
+    Attributes:
+        bar_num: Counter for number of bars processed in next().
+        recorded_values: List of dictionaries containing indicator values for
+            each valid bar (after warmup period).
+        highest_high: Highest indicator tracking maximum high prices.
+        lowest_low: Lowest indicator tracking minimum low prices.
+
+    Parameters:
+        period: Rolling window period for Highest/Lowest calculation (default: 20).
+    """
     params = (
         ("period", 20),
     )
-    
+
     def __init__(self):
+        """Initialize the Highest/Lowest test strategy.
+
+        Creates Highest and Lowest indicators to test rolling window
+        maximum and minimum calculations.
+        """
         self.bar_num = 0
         self.recorded_values = []
-        
+
         self.highest_high = bt.indicators.Highest(
             self.datas[0].high, period=self.p.period
         )
         self.lowest_low = bt.indicators.Lowest(
             self.datas[0].low, period=self.p.period
         )
-    
+
     def next(self):
+        """Process each bar and record indicator values.
+
+        Called for each bar after indicator warmup period. Records the
+        values of Highest and Lowest indicators if they are valid (not NaN).
+        """
         self.bar_num += 1
-        
+
         def is_valid(v):
             return v is not None and not (isinstance(v, float) and math.isnan(v))
-        
+
         highest_val = self.highest_high[0]
         lowest_val = self.lowest_low[0]
-        
+
         if is_valid(highest_val) and is_valid(lowest_val):
             self.recorded_values.append({
                 'bar_num': self.bar_num,
@@ -330,8 +518,23 @@ class HighestLowestTestStrategy(bt.Strategy):
 # ============================================================================
 # Test functions
 # ============================================================================
+
 def run_strategy(strategy_class, num_bars=100, seed=42, **kwargs):
-    """Run strategy and return strategy instance"""
+    """Run a strategy with randomly generated data and return the strategy instance.
+
+    Helper function that creates a cerebro instance, generates random OHLCV data,
+    adds the specified strategy, runs the backtest, and returns the strategy
+    instance for validation.
+
+    Args:
+        strategy_class: The strategy class to instantiate and run.
+        num_bars: Number of bars to generate (default: 100).
+        seed: Random seed for reproducibility (default: 42).
+        **kwargs: Additional keyword arguments to pass to the strategy.
+
+    Returns:
+        bt.Strategy: The strategy instance after backtest completion.
+    """
     cerebro = bt.Cerebro()
 
     # Generate random data
@@ -348,7 +551,19 @@ def run_strategy(strategy_class, num_bars=100, seed=42, **kwargs):
 
 
 def test_macd_ema_line_operations():
-    """Test MACD EMA indicator vector operations"""
+    """Test MACD EMA indicator vector operations.
+
+    Validates that indicator arithmetic operations (subtraction, multiplication)
+    produce correct results by comparing against known baseline values.
+
+    The test verifies:
+    - Bar count matches expected value
+    - First recorded indicator values match expected
+    - Last recorded indicator values match expected
+
+    Raises:
+        AssertionError: If any indicator values don't match expected baseline.
+    """
     strategy = run_strategy(MacdEmaTestStrategy, num_bars=100, seed=42)
 
     # Verify bar count (actual bars entering next() will be less than 100 due to indicator warmup period)
@@ -407,7 +622,19 @@ def test_macd_ema_line_operations():
 
 
 def test_keltner_line_operations():
-    """Test Keltner Channel indicator vector operations"""
+    """Test Keltner Channel indicator vector operations.
+
+    Validates that Keltner Channel calculations involving addition, subtraction,
+    and division of data lines and indicators produce correct results.
+
+    The test verifies:
+    - Bar count matches expected value
+    - First recorded indicator values match expected
+    - Last recorded indicator values match expected
+
+    Raises:
+        AssertionError: If any indicator values don't match expected baseline.
+    """
     strategy = run_strategy(KeltnerTestStrategy, num_bars=100, seed=42)
 
     # Verify bar count (actual bars entering next() will be less than 100 due to indicator warmup period)
@@ -459,7 +686,19 @@ def test_keltner_line_operations():
 
 
 def test_timeline_sma_line_operations():
-    """Test TimeLine + SMA indicator"""
+    """Test TimeLine + SMA indicator combination.
+
+    Validates that custom indicators (TimeLine) work correctly when combined
+    with standard backtrader indicators (SMA).
+
+    The test verifies:
+    - Bar count matches expected value
+    - First recorded indicator values match expected
+    - Last recorded indicator values match expected
+
+    Raises:
+        AssertionError: If any indicator values don't match expected baseline.
+    """
     strategy = run_strategy(TimeLineSmaTestStrategy, num_bars=100, seed=42)
 
     # Verify bar count (actual bars entering next() will be less than 100 due to indicator warmup period)
@@ -505,7 +744,19 @@ def test_timeline_sma_line_operations():
 
 
 def test_highest_lowest_line_operations():
-    """Test Highest/Lowest indicator"""
+    """Test Highest/Lowest indicator calculation.
+
+    Validates that rolling window maximum and minimum indicators (Highest,
+    Lowest) produce correct results.
+
+    The test verifies:
+    - Bar count matches expected value
+    - First recorded indicator values match expected
+    - Last recorded indicator values match expected
+
+    Raises:
+        AssertionError: If any indicator values don't match expected baseline.
+    """
     strategy = run_strategy(HighestLowestTestStrategy, num_bars=100, seed=42)
 
     # Verify bar count (actual bars entering next() will be less than 100 due to indicator warmup period)
@@ -553,13 +804,22 @@ def test_highest_lowest_line_operations():
 
 
 def collect_baseline_values():
-    """Collect baseline values - Run this function on master branch to get expected values
+    """Collect baseline values from the master branch.
+
+    This function runs all test strategies and prints the expected values
+    for the first and last recorded bars. These values should be used as
+    the baseline for comparison in the test functions.
 
     Usage:
-    1. Switch to master branch: git checkout master
-    2. Install master version: pip install -U .
-    3. Run: python tests/add_tests/test_line_operations.py --collect-baseline
-    4. Copy the output values to corresponding test functions
+        1. Switch to master branch: git checkout master
+        2. Install master version: pip install -U .
+        3. Run: python tests/add_tests/test_line_operations.py --collect-baseline
+        4. Copy the output values to corresponding test functions
+
+    The function outputs:
+        - Total bar count for each strategy
+        - First valid record values
+        - Last valid record values
     """
     print("=" * 80)
     print("COLLECTING BASELINE VALUES FROM MASTER BRANCH")
@@ -611,7 +871,18 @@ def collect_baseline_values():
 
 
 def test_run():
-    """pytest entry point - Run all line operations tests"""
+    """pytest entry point - Run all line operations tests.
+
+    This function serves as the main test runner when executed via pytest.
+    It runs all four line operation tests in sequence:
+    1. MACD EMA test
+    2. Keltner Channel test
+    3. TimeLine + SMA test
+    4. Highest/Lowest test
+
+    Raises:
+        AssertionError: If any test fails.
+    """
     test_macd_ema_line_operations()
     test_keltner_line_operations()
     test_timeline_sma_line_operations()

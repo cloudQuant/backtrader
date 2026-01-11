@@ -1,40 +1,79 @@
-"""Test the efficiency of backtrader running on cross-sectional data"""
+"""Test the efficiency of backtrader running on cross-sectional data.
+
+This module tests the cross-sectional (CS) mode of backtrader, which is designed
+for multi-asset portfolio backtesting with cross-sectional signals. It demonstrates
+a long-short equity strategy using the NewDiff indicator applied to multiple
+futures contracts.
+
+The module includes:
+- CloseMaCs strategy: A cross-sectional momentum strategy
+- run() function: Sets up and executes the backtest with multiple data feeds
+- Performance testing with configurable data size and duration
+
+Example:
+    To run the default test with 100 data feeds and 10000 bars each::
+        python test_backtrader_cs.py
+"""
 
 import math
-
-# from multiprocessing import Pool
 import time
 
 import numpy as np
-
-# import numpy as np
 import pandas as pd
 
-# import os
 import backtrader as bt
-
-# from itertools import product
-# from backtrader.vectors.cal_functions import get_symbol
-from backtrader.comminfo import (  # Commission fees for futures trading, by percentage or fixed amount
-    ComminfoFuturesPercent,
-)
+from backtrader.comminfo import ComminfoFuturesPercent
 
 
-# Write backtrader strategy
 class CloseMaCs(bt.Strategy):
+    """Cross-sectional momentum strategy based on NewDiff indicator.
+
+    This strategy implements a long-short equity approach that:
+    1. Calculates the NewDiff indicator for all data feeds
+    2. Ranks securities by the indicator value
+    3. Goes long on top percentile and short on bottom percentile
+    4. Rebalances every hold_days
+
+    The strategy is designed for futures trading with cross-sectional signals,
+    making it suitable for portfolio-level backtesting with multiple assets.
+
+    Attributes:
+        author: Strategy author identifier.
+        params: Strategy parameters including look_back_days, hold_days, and percent.
+        bar_num: Counter for the number of bars processed.
+        data_factor: Dictionary mapping data names to their NewDiff indicators.
+        data_new_factor: Dictionary for storing calculated factor values.
+        signals: Dictionary storing trading signals by datetime.
+        returns: Dictionary storing returns by datetime.
+
+    Args:
+        look_back_days: Number of days to look back for indicator calculation.
+        hold_days: Number of days to hold positions before rebalancing.
+        percent: Fraction of securities to go long/short (e.g., 0.3 = 30%).
+    """
+
     # Strategy author
     author = "yunjinqi"
     # Strategy parameters
     params = (("look_back_days", 40), ("hold_days", 70), ("percent", 0.3))
 
-    # Log corresponding information
     def log(self, txt, dt=None):
+        """Log strategy information with timestamp.
+
+        Args:
+            txt: Text message to log.
+            dt: datetime object for the log entry. If None, uses current bar's datetime.
+        """
         # Logging function fot this strategy
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print("{}, {}".format(dt.isoformat(), txt))
 
-    # Initialize strategy data
     def __init__(self):
+        """Initialize the strategy with indicators and data structures.
+
+        Sets up the NewDiff indicator for each data feed and initializes
+        dictionaries for storing signals and returns.
+        """
         # Number of bars run
         self.bar_num = 0
         # Calculate MA indicator
@@ -50,6 +89,12 @@ class CloseMaCs(bt.Strategy):
         # self.trade_num = 0
 
     def prenext(self):
+        """Handle prenext phase by calling next().
+
+        Since there are thousands of futures data with different trading dates,
+        they won't naturally enter next. Need to call next function in each
+        prenext to run.
+        """
         # Since there are thousands of futures data with different trading dates,
         # they won't naturally enter next
         # Need to call next function in each prenext to run
@@ -57,6 +102,17 @@ class CloseMaCs(bt.Strategy):
         # pass
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method:
+        1. Calculates factor values for all data feeds with current datetime
+        2. Ranks securities by factor value
+        3. Rebalances portfolio every hold_days by:
+           - Closing all existing positions
+           - Going long on top percentile (highest factor values)
+           - Going short on bottom percentile (lowest factor values)
+        4. Position sizes are calculated based on equal allocation
+        """
         data = self.datas[0]
         self.current_datetime = bt.num2date(data.datetime[0])
         # Calculate factor and sort
@@ -118,6 +174,11 @@ class CloseMaCs(bt.Strategy):
         self.bar_num = self.bar_num + 1
 
     def notify_order(self, order):
+        """Handle order status changes and log order execution details.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -146,8 +207,12 @@ class CloseMaCs(bt.Strategy):
                     f" cost : {order.executed.value} , commission : {order.executed.comm}"
                 )
 
-    #
     def notify_trade(self, trade):
+        """Handle trade status changes and log trade details.
+
+        Args:
+            trade: The trade object with updated status.
+        """
         # Output information when a trade ends
         if trade.isclosed:
             self.log(
@@ -158,6 +223,11 @@ class CloseMaCs(bt.Strategy):
             self.log(f"open symbol is: {trade.getdataname()} , price: {trade.price} ")
 
     def stop(self):
+        """Execute cleanup logic when strategy stops.
+
+        This method is called when the backtest finishes. Currently empty,
+        but can be used to save signals or returns to files.
+        """
         pass
         # signal_df = pd.DataFrame(self.signals)
         # signal_df.to_csv("d:/result/backtrader_signal.csv")
@@ -168,6 +238,28 @@ class CloseMaCs(bt.Strategy):
 
 
 def run(n_rows=10000, n_data=1000):
+    """Run a backtest with multiple synthetic data feeds.
+
+    This function creates a backtesting environment with:
+    - Multiple randomly generated data feeds representing futures contracts
+    - Futures commission structure with percentage-based fees
+    - Comprehensive analyzers for performance evaluation
+    - The CloseMaCs cross-sectional strategy
+
+    Args:
+        n_rows: Number of bars (time periods) for each data feed. Default is 10000.
+        n_data: Number of data feeds (securities) to create. Default is 1000.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the portfolio value over time,
+            indexed by date with a single 'value' column.
+
+    Notes:
+        - Each data feed uses random walk price data
+        - Commission is set to 0.0002 (0.02%) of trade value
+        - Initial cash is set to 100,000,000
+        - Multiple analyzers are attached including Sharpe Ratio, DrawDown, etc.
+    """
     # print(params)
     new_params = {"look_back_days": 200, "hold_days": 200, "percent": 0.2}
     cerebro = bt.Cerebro()
@@ -260,6 +352,11 @@ def run(n_rows=10000, n_data=1000):
 
 
 if __name__ == "__main__":
+    """Run the cross-sectional backtest when module is executed directly.
+
+    This block executes a performance test with 100 data feeds and 10000 bars each,
+    measuring execution time and displaying the final portfolio values.
+    """
     begin_time = time.perf_counter()
     total_value = run(n_rows=10000, n_data=100)
     end_time = time.perf_counter()

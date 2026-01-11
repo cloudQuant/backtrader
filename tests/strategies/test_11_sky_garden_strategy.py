@@ -56,6 +56,16 @@ class SkyGardenStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the Sky Garden strategy.
+
+        Sets up all instance variables for tracking:
+        - Bar counters (total and daily)
+        - Trade counters (buy/sell)
+        - Daily price data (high, low, close, open)
+        - Historical price lists
+        - Market position status
+        - First candlestick high/low prices
+        """
         self.bar_num = 0
         self.day_bar_num = 0
         self.buy_count = 0
@@ -77,9 +87,30 @@ class SkyGardenStrategy(bt.Strategy):
         self.first_bar_low_price = 0
 
     def prenext(self):
+        """Called before minimum period is reached.
+
+        This method is called for each bar before the strategy's minimum
+        period is satisfied. No trading logic is needed here.
+        """
         pass
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the Sky Garden strategy logic:
+        1. Track daily high/low/close prices
+        2. At market close (15:00), store daily data and reset
+        3. When sufficient data exists:
+           - Record first candlestick high/low
+           - Check gap opening conditions (k1 for bullish, k2 for bearish)
+           - Enter long if open gaps up and breaks first candlestick high
+           - Enter short if open gaps down and breaks first candlestick low
+        4. Close all positions at 14:55 before market close
+
+        Trading hours:
+        - Evening session: 21:00-23:00
+        - Day session: 9:00-11:00
+        """
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
         self.current_hour = self.current_datetime.hour
         self.current_minute = self.current_datetime.minute
@@ -139,6 +170,14 @@ class SkyGardenStrategy(bt.Strategy):
             self.marketposition = 0
 
     def notify_order(self, order):
+        """Called when order status changes.
+
+        Args:
+            order: The order object with updated status.
+
+        Logs buy/sell orders when they are completed. Orders in Submitted or
+        Accepted status are ignored as they haven't been filled yet.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -148,10 +187,23 @@ class SkyGardenStrategy(bt.Strategy):
                 self.log(f"SELL: price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Called when a trade is closed.
+
+        Args:
+            trade: The trade object that was closed.
+
+        Logs the profit/loss (pnl) and profit/loss after commission (pnlcomm)
+        when a trade is completed.
+        """
         if trade.isclosed:
             self.log(f"Trade completed: pnl={trade.pnl:.2f}, pnlcomm={trade.pnlcomm:.2f}")
 
     def stop(self):
+        """Called when backtesting is complete.
+
+        Logs final statistics including total bars processed and
+        total buy/sell orders executed during the backtest.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 

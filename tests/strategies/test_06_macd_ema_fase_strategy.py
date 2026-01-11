@@ -71,6 +71,11 @@ class MacdEmaStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the MACD EMA strategy.
+
+        Sets up counters for bars, buy/sell orders, and initializes the
+        MACD and EMA indicators with the configured parameters.
+        """
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -87,9 +92,22 @@ class MacdEmaStrategy(bt.Strategy):
         )
 
     def prenext(self):
+        """Handle the prenext phase before minimum period is reached.
+
+        This method is called for each bar before the indicator's minimum
+        period has been reached. No action is taken during this phase.
+        """
         pass
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the MACD + EMA trend trading strategy:
+        - Close long positions when price falls below EMA
+        - Close short positions when price rises above EMA
+        - Open long when DIF crosses from negative to positive with MACD bar > 0
+        - Open short when DIF crosses from positive to negative with MACD bar < 0
+        """
         self.bar_num += 1
         # Get MACD indicator values
         dif = self.bt_macd_indicator.macd
@@ -123,6 +141,14 @@ class MacdEmaStrategy(bt.Strategy):
             self.sell_count += 1
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Logs executed orders when they are completed. Orders that are
+        submitted or accepted are ignored.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -132,10 +158,22 @@ class MacdEmaStrategy(bt.Strategy):
                 self.log(f"SELL: price={order.executed.price:.2f}, cost={order.executed.value:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Logs profit and loss information when a trade is closed.
+
+        Args:
+            trade: The trade object with P&L information.
+        """
         if trade.isclosed:
             self.log(f"Trade completed: gross_profit={trade.pnl:.2f}, net_profit={trade.pnlcomm:.2f}")
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        Logs final statistics including the total number of bars processed
+        and the total buy/sell order counts.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 

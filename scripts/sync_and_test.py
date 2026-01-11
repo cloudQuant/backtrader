@@ -1,17 +1,26 @@
 #!/usr/bin/env python
-"""
-Sync test files to master branch and run tests on both branches.
+"""Sync test files to master branch and run tests on both branches.
+
+This script automates the process of syncing a test file from the current
+branch to both master and origin branches, running tests on each, and
+comparing results. It handles git branch switching, file copying, test
+execution, and log management.
 
 Core improvements:
-1. No git commit needed to sync files - directly copy file content
-2. Use PYTHONPATH to run tests - ensures using current working directory code instead of pip-installed version
-3. Automatically run tests on master and origin branches and output logs
-
-Usage:
-    python sync_and_test.py <test_file_path>
+1. No git commit needed - directly copies file content between branches
+2. Uses PYTHONPATH to ensure tests run against current working directory code
+   instead of pip-installed version
+3. Automatically backs up and restores modified files
+4. Executes pip install after branch switches to update environment
 
 Example:
-    python sync_and_test.py tests/strategies/test_120_data_replay_macd.py
+    >>> python sync_and_test.py tests/strategies/test_120_data_replay_macd.py
+
+The script will:
+1. Save current branch and test file content
+2. Switch to master, copy test file, run test
+3. Switch to origin, copy test file, run test
+4. Switch back to original branch and restore files
 """
 
 import argparse
@@ -25,7 +34,19 @@ from pathlib import Path
 
 
 def get_git_root():
-    """Get git repository root directory."""
+    """Get git repository root directory.
+
+    Uses 'git rev-parse --show-toplevel' to find the repository root.
+    Falls back to current working directory if git command fails.
+
+    Returns:
+        str: Absolute path to git repository root directory.
+
+    Example:
+        >>> root = get_git_root()
+        >>> print(root)
+        /Users/user/project
+    """
     try:
         result = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
@@ -39,7 +60,20 @@ def get_git_root():
 
 
 def get_git_branch():
-    """Get current git branch name."""
+    """Get current git branch name.
+
+    Attempts to get branch name using 'git branch --show-toplevel'.
+    Falls back to 'git rev-parse --abbrev-ref HEAD' if first command fails.
+    Returns 'unknown' if both commands fail.
+
+    Returns:
+        str: Current branch name, or 'unknown' if detection fails.
+
+    Example:
+        >>> branch = get_git_branch()
+        >>> print(branch)
+        development
+    """
     try:
         result = subprocess.run(
             ["git", "branch", "--show-current"],
@@ -62,7 +96,23 @@ def get_git_branch():
 
 
 def switch_branch(branch_name):
-    """Switch git branch, using --force to ignore uncommitted changes."""
+    """Switch git branch, using force to ignore uncommitted changes.
+
+    Switches to the specified branch using 'git checkout --force' which
+    discards local changes. After switching, runs 'pip install -U .' to
+    update the environment with the new branch's code.
+
+    Args:
+        branch_name (str): Name of branch to switch to.
+
+    Returns:
+        bool: True if branch switch succeeded, False otherwise.
+
+    Example:
+        >>> success = switch_branch("master")
+        >>> if success:
+        ...     print("Switched to master")
+    """
     print(f"\n{'='*60}")
     print(f"Switching to branch: {branch_name}")
     print(f"{'='*60}")
@@ -99,28 +149,39 @@ def switch_branch(branch_name):
 def run_test_with_pythonpath(script_path, branch_name, log_dir="logs"):
     """Run tests using PYTHONPATH, ensuring current working directory code is used.
 
+    Sets PYTHONPATH to git root to ensure tests import from the current
+    working directory instead of any pip-installed version. Captures output
+    to log files with timestamps.
+
     Args:
-        script_path: Test script path
-        branch_name: Branch name (used for log filename)
-        log_dir: Log directory
+        script_path (str): Path to test script to run.
+        branch_name (str): Branch name used for log filename.
+        log_dir (str, optional): Directory for log files. Defaults to "logs".
 
     Returns:
-        tuple: (return_code, log_path)
+        tuple: (return_code, log_path) where:
+            - return_code (int): Exit code from test execution (0=success)
+            - log_path (str): Path to log file with test output
+
+    Example:
+        >>> code, log = run_test_with_pythonpath("test_file.py", "master")
+        >>> if code == 0:
+        ...     print("Test passed")
     """
     git_root = get_git_root()
 
-    # Create log directory
+    # Create log directory if it doesn't exist
     log_dir_path = os.path.join(git_root, log_dir)
     if not os.path.exists(log_dir_path):
         os.makedirs(log_dir_path)
 
-    # Generate log filename
+    # Generate unique log filename with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     script_name = os.path.splitext(os.path.basename(script_path))[0]
     log_filename = f"{script_name}_{branch_name}_{timestamp}.log"
     log_path = os.path.join(log_dir_path, log_filename)
 
-    # Clean up old logs for same branch
+    # Clean up old logs for same branch to avoid clutter
     import glob
     pattern = os.path.join(log_dir_path, f"{script_name}_{branch_name}_*.log")
     for old_log in glob.glob(pattern):
@@ -137,13 +198,13 @@ def run_test_with_pythonpath(script_path, branch_name, log_dir="logs"):
     print(f"PYTHONPATH: {git_root}")
     print(f"{'='*60}\n")
 
-    # Set environment variable to use current directory code
+    # Set environment variables to control Python execution
     env = os.environ.copy()
-    env["PYTHONPATH"] = git_root
-    env["PYTHONUNBUFFERED"] = "1"
-    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONPATH"] = git_root  # Import from working directory, not pip install
+    env["PYTHONUNBUFFERED"] = "1"  # Disable output buffering for real-time logs
+    env["PYTHONIOENCODING"] = "utf-8"  # Ensure UTF-8 encoding
 
-    # Open log file
+    # Open log file and write header
     with open(log_path, "w", encoding="utf-8") as log_file:
         log_file.write(f"{'='*60}\n")
         log_file.write(f"Test script: {script_path}\n")
@@ -154,20 +215,20 @@ def run_test_with_pythonpath(script_path, branch_name, log_dir="logs"):
         log_file.flush()
 
         try:
-            # Run test script
+            # Run test script with unbuffered output
             process = subprocess.Popen(
-                [sys.executable, "-u", script_path],
+                [sys.executable, "-u", script_path],  # -u for unbuffered output
                 stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stderr=subprocess.STDOUT,  # Combine stderr with stdout
                 text=True,
                 encoding="utf-8",
-                errors="replace",
+                errors="replace",  # Handle encoding errors gracefully
                 bufsize=0,
                 env=env,
                 cwd=git_root
             )
 
-            # Real-time output and write to log
+            # Real-time output to console and log file
             output, _ = process.communicate()
             print(output, end="")
             log_file.write(output)
@@ -175,7 +236,7 @@ def run_test_with_pythonpath(script_path, branch_name, log_dir="logs"):
 
             return_code = process.returncode
 
-            # Write end information
+            # Write completion information to log
             end_msg = f"\n{'='*60}\n"
             end_msg += f"Test completed\n"
             end_msg += f"Exit code: {return_code}\n"
@@ -206,6 +267,17 @@ def sync_and_test(test_file_path):
     6. Copy test file to origin
     7. Run test on origin
     8. Switch back to original branch and restore files
+
+    Args:
+        test_file_path (str): Path to test file (relative or absolute).
+
+    Returns:
+        bool: True if process completed successfully, False otherwise.
+
+    Example:
+        >>> success = sync_and_test("tests/strategies/test_my_strategy.py")
+        >>> if success:
+        ...     print("Sync and test completed")
     """
     git_root = get_git_root()
     original_branch = get_git_branch()
@@ -229,13 +301,13 @@ def sync_and_test(test_file_path):
         print(f"Error: Test file does not exist: {abs_test_path}")
         return False
 
-    # Read test file content into memory
+    # Read test file content into memory (avoids git commit)
     print(f"\nReading test file content...")
     with open(abs_test_path, 'rb') as f:
         test_file_content = f.read()
     print(f"  File size: {len(test_file_content)} bytes")
 
-    # Also save all modified files on current branch (for restoration)
+    # Also save all modified files on current branch (for restoration after branch switches)
     modified_files = {}
     try:
         result = subprocess.run(
@@ -268,14 +340,14 @@ def sync_and_test(test_file_path):
             print("Cannot switch to master branch")
             return False
 
-        # Copy test file to master
+        # Copy test file to master (direct file write, no git commit)
         target_path = os.path.join(git_root, rel_test_path)
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
         with open(target_path, 'wb') as f:
             f.write(test_file_content)
         print(f"Copied test file to master: {rel_test_path}")
 
-        # Run test
+        # Run test on master branch
         return_code1, master_log = run_test_with_pythonpath(target_path, "master")
         print(f"Master branch test completed, return code: {return_code1}")
 
@@ -289,14 +361,14 @@ def sync_and_test(test_file_path):
             switch_branch(original_branch)
             return False
 
-        # Copy test file to origin
+        # Copy test file to origin (direct file write, no git commit)
         target_path = os.path.join(git_root, rel_test_path)
         os.makedirs(os.path.dirname(target_path), exist_ok=True)
         with open(target_path, 'wb') as f:
             f.write(test_file_content)
         print(f"Copied test file to origin: {rel_test_path}")
 
-        # Run test
+        # Run test on origin branch
         return_code2, origin_log = run_test_with_pythonpath(target_path, "origin")
         print(f"Origin branch test completed, return code: {return_code2}")
 
@@ -310,8 +382,8 @@ def sync_and_test(test_file_path):
             print(f"  Origin: {origin_log}")
 
         print("\nResult comparison:")
-        print(f"  Master return code: {return_code1} {'✓ Pass' if return_code1 == 0 else '✗ Fail'}")
-        print(f"  Origin return code: {return_code2} {'✓ Pass' if return_code2 == 0 else '✗ Fail'}")
+        print(f"  Master return code: {return_code1} {'PASS' if return_code1 == 0 else 'FAIL'}")
+        print(f"  Origin return code: {return_code2} {'PASS' if return_code2 == 0 else 'FAIL'}")
 
         return True
 
@@ -321,10 +393,11 @@ def sync_and_test(test_file_path):
         print(f"Restoring original state, switching back to branch: {original_branch}")
         print(f"{'='*60}")
 
+        # Always try to switch back to original branch, even if errors occurred
         if not switch_branch(original_branch):
             print("Warning: Failed to switch back to original branch!")
 
-        # Restore modified files
+        # Restore all modified files that were backed up
         for rel_path, content in modified_files.items():
             try:
                 full_path = os.path.join(git_root, rel_path)
@@ -339,6 +412,18 @@ def sync_and_test(test_file_path):
 
 
 def main():
+    """Main entry point for sync and test script.
+
+    Parses command line arguments and initiates the sync and test process.
+    Uses argparse to provide helpful usage information and examples.
+
+    Returns:
+        None
+
+    Example:
+        >>> # From command line
+        >>> $ python sync_and_test.py tests/strategies/test_my_strategy.py
+    """
     parser = argparse.ArgumentParser(
         description="Sync test file to master branch and run tests on both branches",
         formatter_class=argparse.RawDescriptionHelpFormatter,

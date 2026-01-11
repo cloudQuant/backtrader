@@ -72,20 +72,34 @@ class TwoPeriodRSIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Two Period RSI strategy.
+
+        Sets up the indicators and tracking variables for the strategy.
+        Initializes the RSI indicator, short and long SMAs, and order tracking.
+        """
         self.dataclose = self.datas[0].close
         self.rsi = bt.indicators.RSI_Safe(self.datas[0], period=self.p.rsi_period)
         self.sma5 = bt.ind.SMA(self.datas[0], period=self.p.sma_short)
         self.sma200 = bt.ind.SMA(self.datas[0], period=self.p.sma_long)
-        
+
         self.order = None
         self.last_operation = "SELL"
-        
+
         # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Updates the buy/sell counters and tracks the last operation when
+        orders are completed. Resets the order reference when the order
+        is no longer active.
+
+        Args:
+            order: The order object containing status and execution information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -100,6 +114,15 @@ class TwoPeriodRSIStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements Larry Connor's 2-Period RSI strategy:
+        1. Buy when price is above the 200-day MA and 2-period RSI is below 5
+        2. Sell when price crosses above the 5-day MA
+
+        Only one order can be active at a time. The strategy tracks the
+        last operation to prevent duplicate entries.
+        """
         self.bar_num += 1
 
         if self.order:
@@ -109,13 +132,18 @@ class TwoPeriodRSIStrategy(bt.Strategy):
         if self.last_operation != "BUY":
             if self.dataclose[0] > self.sma200[0] and self.rsi[0] < self.p.rsi_buy_threshold:
                 self.order = self.buy(size=self.p.stake)
-        
+
         # Sell condition: Price crosses above 5-day MA
         if self.last_operation != "SELL":
             if self.dataclose[0] > self.sma5[0]:
                 self.order = self.sell(size=self.p.stake)
 
     def stop(self):
+        """Called when the backtesting is finished.
+
+        This method is called after the cerebro run has completed.
+        Can be used for cleanup, final calculations, or logging results.
+        """
         pass
 
 

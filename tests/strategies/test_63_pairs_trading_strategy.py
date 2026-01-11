@@ -87,9 +87,30 @@ class PairsTradingStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
+        """Log trading messages with timestamp.
+
+        Args:
+            txt: Text message to log.
+            dt: Datetime object for the log entry. If None, uses current
+                bar's datetime.
+
+        Returns:
+            None
+        """
         dt = dt or self.data.datetime[0]
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Updates buy/sell counters when orders are completed and resets
+        the order ID when orders are finished.
+
+        Args:
+            order: Order object with status information.
+
+        Returns:
+            None
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -105,6 +126,15 @@ class PairsTradingStrategy(bt.Strategy):
         self.orderid = None
 
     def __init__(self):
+        """Initialize the pairs trading strategy.
+
+        Sets up instance variables, parameters, and indicators including
+        simple moving averages and the OLS transformation for calculating
+        the Z-score between the two assets.
+
+        Returns:
+            None
+        """
         self.orderid = None
         self.qty1 = self.p.qty1
         self.qty2 = self.p.qty2
@@ -130,6 +160,19 @@ class PairsTradingStrategy(bt.Strategy):
         self.zscore = self.transform.zscore
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the pairs trading strategy:
+        - Short the spread when Z-score exceeds upper limit
+        - Long the spread when Z-score falls below lower limit
+        - Close positions when Z-score returns to mean range
+
+        Position sizes are calculated based on portfolio allocation
+        and deviation from moving averages.
+
+        Returns:
+            None
+        """
         self.bar_num += 1
         x = 0
         y = 0
@@ -182,6 +225,14 @@ class PairsTradingStrategy(bt.Strategy):
             self.close(self.data1)
 
     def stop(self):
+        """Called when the strategy execution is stopped.
+
+        This method is called by Backtrader when the backtest completes.
+        Currently a placeholder method for potential cleanup or finalization.
+
+        Returns:
+            None
+        """
         pass
 
 

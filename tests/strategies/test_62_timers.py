@@ -17,6 +17,27 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    This function searches for a data file in multiple standard locations
+    relative to the test directory, including the current directory, parent
+    directory, and 'datas' subdirectories.
+
+    Args:
+        filename (str): The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the first found matching file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+
+    Example:
+        >>> path = resolve_data_path("2005-2006-day-001.txt")
+        >>> print(path)
+        /path/to/tests/strategies/datas/2005-2006-day-001.txt
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -45,6 +66,26 @@ class TimerStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the TimerStrategy with indicators and tracking variables.
+
+        This method sets up the dual moving average crossover indicators,
+        optionally adds a timer based on strategy parameters, and initializes
+        counters for tracking strategy execution.
+
+        The strategy uses two Simple Moving Averages (SMA):
+        - Fast SMA: Shorter period for tracking recent price movements
+        - Slow SMA: Longer period for tracking overall trend
+
+        A crossover indicator detects when the fast line crosses above or
+        below the slow line, generating trading signals.
+
+        Additional tracking variables:
+        - bar_num: Total number of bars processed
+        - timer_count: Number of timer events triggered
+        - buy_count: Total buy orders executed
+        - sell_count: Total sell orders executed
+        - order: Reference to the current pending order
+        """
         self.fast_ma = bt.ind.SMA(period=self.p.fast_period)
         self.slow_ma = bt.ind.SMA(period=self.p.slow_period)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
@@ -59,6 +100,23 @@ class TimerStrategy(bt.Strategy):
         self.order = None
 
     def notify_order(self, order):
+        """Handle order status updates and track executed trades.
+
+        This callback method is invoked by the backtrader engine whenever
+        an order's status changes. It clears the order reference when the
+        order is no longer alive and tracks the number of completed buy
+        and sell orders.
+
+        Args:
+            order (bt.Order): The order object with updated status information.
+
+        Order States Handled:
+            - When order is not alive (completed, canceled, or expired):
+              Clears self.order to allow new orders to be placed
+            - When order status is Completed:
+              Increments buy_count if the order was a buy order
+              Increments sell_count if the order was a sell order
+        """
         if not order.alive():
             self.order = None
         if order.status == order.Completed:
@@ -68,6 +126,27 @@ class TimerStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def next(self):
+        """Execute the main strategy logic on each bar.
+
+        This method is called by the backtrader engine for each new data bar.
+        It implements a dual moving average crossover trading strategy with
+        the following logic:
+
+        Trading Rules:
+            1. Increment bar counter for each new bar processed
+            2. Skip trading if there's a pending order
+            3. Bullish crossover (fast > slow):
+               - Close any existing position
+               - Open a new long position (buy)
+            4. Bearish crossover (fast < slow):
+               - Close any existing position
+               - No short selling (strategy only goes long)
+
+        The crossover indicator values:
+            - > 0: Fast line has crossed above slow line (bullish signal)
+            - < 0: Fast line has crossed below slow line (bearish signal)
+            - = 0: No crossover (neutral)
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -80,11 +159,74 @@ class TimerStrategy(bt.Strategy):
                 self.order = self.close()
 
     def notify_timer(self, timer, when, *args, **kwargs):
+        """Handle timer events and track timer notifications.
+
+        This callback method is invoked by the backtrader engine when a timer
+        added via add_timer() is triggered. The timer can be configured to fire
+        at specific times during trading sessions (e.g., session start, session end,
+        or at specific intervals).
+
+        Args:
+            timer (bt.Timer): The timer object that triggered this callback.
+            when: The timing information indicating when the timer fired.
+                Format depends on the timer configuration (e.g., SESSION_START).
+            *args: Additional positional arguments passed from the timer.
+            **kwargs: Additional keyword arguments passed from the timer.
+
+        Note:
+            This implementation simply increments the timer_count variable to
+            verify that timers are functioning correctly. In a production strategy,
+            this method could be used to perform periodic tasks such as:
+            - Rebalancing portfolios at specific times
+            - Checking market conditions
+            - Adjusting position sizes
+            - Logging or monitoring activities
+        """
         self.timer_count += 1
 
 
 def test_timers():
-    """Test Timers functionality."""
+    """Test the timer functionality in backtrader strategies.
+
+    This test function validates that the timer system works correctly by:
+    1. Loading historical price data for 2005-2006
+    2. Running a dual moving average crossover strategy with timers enabled
+    3. Verifying that timer events are triggered at the expected frequency
+    4. Checking that the strategy executes trades correctly
+    5. Analyzing performance metrics (Sharpe ratio, returns, drawdown)
+
+    Test Configuration:
+        - Initial Cash: 100,000
+        - Strategy: TimerStrategy with fast_period=10, slow_period=30
+        - Sizer: FixedSize with stake=10 shares per trade
+        - Timer: Enabled at SESSION_START
+        - Data: Daily timeframe with session hours 9:00-17:30
+
+    Expected Results:
+        - bar_num: 482 (total data bars processed)
+        - timer_count: 512 (timer events triggered)
+        - buy_count: Number of buy orders executed
+        - sell_count: Number of sell orders executed
+        - total_trades: 9 (completed round-trip trades)
+        - sharpe_ratio: ~0.721 (annualized)
+        - annual_return: ~0.024 (2.4%)
+        - max_drawdown: ~3.43%
+        - final_value: ~104,966.80
+
+    Raises:
+        AssertionError: If any of the expected values don't match within
+            the specified tolerance.
+
+    Example:
+        >>> test_timers()
+        ==================================================
+        Timers Test
+        ==================================================
+        Loading data...
+        Starting backtest...
+        [... output ...]
+        All tests passed!
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 

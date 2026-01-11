@@ -17,7 +17,15 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
+"""Test module for Exponential Moving Average (EMA) indicator.
 
+This module contains tests for the EMA indicator implementation in backtrader.
+It validates that the EMA calculations produce expected results at specific
+checkpoints when tested against historical data.
+
+The test uses 2006 daily price data and verifies EMA values at multiple
+time points to ensure the indicator's smoothing calculations are correct.
+"""
 
 import backtrader as bt
 
@@ -35,6 +43,26 @@ chkind = btind.EMA
 
 
 def test_run(main=False):
+    """Run the EMA indicator test.
+
+    This function loads test data, executes a backtest with the EMA indicator,
+    and validates the calculated values against expected results.
+
+    The test is run with multiple configuration combinations (runonce, preload,
+    exactbars) to ensure the EMA indicator works correctly across all execution
+    modes.
+
+    Args:
+        main (bool, optional): If True, enables plotting and detailed output.
+            Defaults to False.
+
+    Returns:
+        list: A list of Cerebro instances, one for each configuration tested.
+
+    Raises:
+        AssertionError: If the calculated EMA values do not match expected values.
+        IOError: If test data files cannot be loaded.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

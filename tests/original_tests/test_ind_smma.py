@@ -18,6 +18,11 @@
 #
 ###############################################################################
 
+"""Test module for the SMMA (Smoothed Moving Average) indicator.
+
+This module contains test cases to verify the correctness of the SMMA
+indicator implementation in backtrader.
+"""
 
 import backtrader as bt
 
@@ -25,16 +30,31 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to use in the test
 chkdatas = 1
+
+# Expected SMMA values for verification
 chkvals = [
     ["4021.569725", "3644.444667", "3616.427648"],
 ]
 
+# Minimum period required for the indicator
 chkmin = 30
+
+# Indicator class to test
 chkind = btind.SMMA
 
 
 def test_run(main=False):
+    """Run the SMMA indicator test.
+
+    Args:
+        main (bool): If True, runs in main mode with plotting enabled.
+            Defaults to False.
+
+    Returns:
+        None
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

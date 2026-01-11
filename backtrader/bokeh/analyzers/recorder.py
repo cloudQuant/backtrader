@@ -33,8 +33,13 @@ class RecorderAnalyzer(bt.Analyzer):
         ('indicators', True),   # Whether to record indicators
         ('observers', False),   # Whether to record observers
     )
-    
+
     def __init__(self):
+        """Initialize recorder analyzer.
+
+        Sets up storage for data sources, indicators, and observers based
+        on parameter configuration.
+        """
         super().__init__()
         
         # Data storage

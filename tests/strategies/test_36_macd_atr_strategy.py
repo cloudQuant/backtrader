@@ -77,6 +77,17 @@ class MACDATRStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the MACD ATR strategy.
+
+        Sets up the technical indicators used for trading signals and initializes
+        the tracking variables for orders, trades, and statistics.
+
+        The strategy uses:
+        - MACD (Moving Average Convergence Divergence) for trend momentum
+        - CrossOver of MACD and signal line for entry signals
+        - ATR (Average True Range) for dynamic stop loss calculation
+        - SMA (Simple Moving Average) for trend direction filtering
+        """
         self.macd = bt.indicators.MACD(
             self.data,
             period_me1=self.p.macd1,
@@ -100,6 +111,14 @@ class MACDATRStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Updates the buy/sell order counters when orders are completed and
+        clears the pending order reference when the order is no longer alive.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -109,6 +128,13 @@ class MACDATRStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Updates profit/loss statistics and win/loss counters when a trade is closed.
+
+        Args:
+            trade: The trade object with profit/loss information.
+        """
         if trade.isclosed:
             self.sum_profit += trade.pnlcomm
             if trade.pnlcomm > 0:
@@ -117,6 +143,20 @@ class MACDATRStrategy(bt.Strategy):
                 self.loss_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called for each bar in the data feed and implements the
+        core strategy logic:
+
+        Entry conditions:
+        - MACD line crosses above signal line (bullish signal)
+        - SMA direction is negative (counter-trend entry)
+
+        Exit conditions:
+        - Close price falls below the ATR-based trailing stop loss
+
+        The stop loss is dynamically adjusted based on ATR to track price movement.
+        """
         self.bar_num += 1
 
         if self.order:
@@ -138,6 +178,12 @@ class MACDATRStrategy(bt.Strategy):
                 self.pstop = max(pstop, pclose - pdist)
 
     def stop(self):
+        """Print final strategy statistics when backtesting completes.
+
+        Calculates and displays the win rate and total profit/loss along with
+        trading statistics including number of bars processed, buy/sell counts,
+        and win/loss counts.
+        """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "

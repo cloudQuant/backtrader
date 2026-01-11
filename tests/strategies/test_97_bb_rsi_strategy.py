@@ -1,12 +1,36 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Test case for Bollinger Bands + RSI strategy.
+"""Bollinger Bands + RSI Strategy Test Module.
 
-This test implements a trading strategy that combines Bollinger Bands and
-Relative Strength Index (RSI) to generate trading signals.
+This module tests the BbRsi (Bollinger Bands + Relative Strength Index) strategy,
+which combines mean-reversion signals from Bollinger Bands with momentum
+confirmation from RSI to generate trading signals.
 
-Reference: backtrader-strategies-compendium/strategies/BbAndRsi.py
-Uses Bollinger Bands lower band + RSI oversold as buy signal.
+Strategy Overview:
+    This is a mean-reversion strategy that buys when price is oversold (below
+    lower Bollinger Band AND RSI < 30) and sells when price is overbought (above
+    upper Bollinger Band OR RSI > 70). The strategy only takes long positions.
+
+Entry Logic:
+    - Buy when: RSI < rsi_oversold (default 30) AND close < lower Bollinger Band
+    - This identifies oversold conditions with price support
+
+Exit Logic:
+    - Sell when: RSI > rsi_overbought (default 70) OR close > upper Bollinger Band
+    - This exits on overbought conditions or price resistance
+
+Test Data:
+    - Symbol: Oracle Corporation (ORCL)
+    - Period: 2010-01-01 to 2014-12-31
+    - Data source: orcl-1995-2014.txt CSV file
+
+Reference:
+    backtrader-strategies-compendium/strategies/BbAndRsi.py
+
+Example:
+    >>> test_bb_rsi_strategy()
+    Bollinger Bands + RSI Strategy Backtest Results:
+    ...
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,6 +43,32 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Locate data files by searching multiple directory paths.
+
+    Searches for data files in several common locations relative to the
+    current script directory, avoiding relative path failures when tests
+    are run from different working directories.
+
+    Search order:
+        1. Same directory as script
+        2. Parent directory
+        3. datas/ subdirectory of script directory
+        4. datas/ subdirectory of parent directory
+
+    Args:
+        filename (str): Name of the data file to locate (e.g., "orcl-1995-2014.txt").
+
+    Returns:
+        Path: Absolute Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any search path.
+
+    Example:
+        >>> path = resolve_data_path("orcl-1995-2014.txt")
+        >>> print(path)
+        /path/to/tests/strategies/datas/orcl-1995-2014.txt
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -32,54 +82,97 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class BbRsiStrategy(bt.Strategy):
-    """Bollinger Bands + RSI strategy.
+    """Bollinger Bands + RSI mean-reversion strategy.
 
-    This strategy generates buy signals when price is below the lower Bollinger
-    Band and RSI is oversold, and sell signals when RSI is overbought or price
-    exceeds the upper Bollinger Band.
+    This strategy implements a classic mean-reversion approach combining two
+    complementary technical indicators:
+    - Bollinger Bands: Identify price extremes relative to recent volatility
+    - RSI: Identify momentum extremes (overbought/oversold conditions)
 
-    Entry conditions:
-        - Long: RSI < 30 AND price < lower Bollinger Band
+    Strategy Logic:
+        Long-only mean reversion that buys on oversold conditions and exits
+        on overbought conditions or price returning to the mean.
 
-    Exit conditions:
-        - RSI > 70 OR price > upper Bollinger Band
+    Entry Conditions (Long):
+        - RSI < rsi_oversold (default 30): Indicates oversold momentum
+        - Close < lower Bollinger Band: Indicates price below statistical range
+        - Both conditions must be true simultaneously (AND logic)
+
+    Exit Conditions:
+        - RSI > rsi_overbought (default 70): Indicates overbought momentum
+        - Close > upper Bollinger Band: Indicates price above statistical range
+        - Either condition triggers exit (OR logic)
+
+    Position Management:
+        - Fixed position size: stake parameter (default 10 shares/contracts)
+        - Only one position at a time (long-only)
+        - No pyramiding or partial exits
 
     Attributes:
-        rsi: RSI indicator instance.
-        bbands: Bollinger Bands indicator instance.
-        order: Current pending order.
-        bar_num: Number of bars processed.
-        buy_count: Number of buy orders executed.
-        sell_count: Number of sell orders executed.
+        rsi (bt.indicators.RSI): RSI indicator with configurable period.
+        bbands (bt.indicators.BollingerBands): Bollinger Bands indicator with
+            configurable period and deviation factor.
+        order (bt.Order | None): Reference to pending order, or None if no order.
+        bar_num (int): Counter for number of bars processed.
+        buy_count (int): Total number of buy orders executed.
+        sell_count (int): Total number of sell orders executed.
+
+    Parameters:
+        stake (int): Fixed position size for each trade (default: 10).
+        bb_period (int): Bollinger Bands period in bars (default: 20).
+        bb_devfactor (float): Standard deviation multiplier for bands (default: 2.0).
+        rsi_period (int): RSI calculation period in bars (default: 14).
+        rsi_oversold (float): RSI threshold for oversold condition (default: 30).
+        rsi_overbought (float): RSI threshold for overbought condition (default: 70).
+
+    Note:
+        This strategy uses simple OR logic for exits, meaning positions will
+        be closed as soon as either RSI becomes overbought OR price exceeds
+        the upper band. This can lead to early exits during strong trends.
     """
     params = dict(
-        stake=10,
-        bb_period=20,
-        bb_devfactor=2.0,
-        rsi_period=14,
-        rsi_oversold=30,
-        rsi_overbought=70,
+        stake=10,              # Fixed position size (shares/contracts per trade)
+        bb_period=20,          # Bollinger Bands lookback period
+        bb_devfactor=2.0,      # Standard deviation multiplier (2.0 = 2 sigma)
+        rsi_period=14,         # RSI calculation period
+        rsi_oversold=30,       # RSI threshold for buy signal (oversold)
+        rsi_overbought=70,     # RSI threshold for sell signal (overbought)
     )
 
     def __init__(self):
+        """Initialize the BbRsi strategy.
+
+        Creates indicators and initializes tracking variables for orders
+        and trade statistics.
+        """
+        # Create RSI indicator for momentum analysis
         self.rsi = bt.indicators.RSI(self.data, period=self.p.rsi_period)
+        # Create Bollinger Bands for volatility-based price range
         self.bbands = bt.indicators.BollingerBands(
             self.data, period=self.p.bb_period, devfactor=self.p.bb_devfactor
         )
-        
-        self.order = None
-        self.bar_num = 0
-        self.buy_count = 0
-        self.sell_count = 0
+
+        # Initialize tracking variables
+        self.order = None      # Track pending order
+        self.bar_num = 0       # Count bars processed
+        self.buy_count = 0     # Count buy orders executed
+        self.sell_count = 0    # Count sell orders executed
 
     def notify_order(self, order):
         """Handle order status updates.
 
-        Updates buy/sell counters when orders are completed and clears the
-        pending order reference.
+        Called by backtrader when order status changes. Updates buy/sell counters
+        when orders are completed and clears the pending order reference to allow
+        new orders to be placed.
 
         Args:
-            order: The order object with updated status.
+            order (bt.Order): The order object with updated status. Contains
+                            information about execution price, status, etc.
+
+        Note:
+            - Ignores Submitted and Accepted statuses (order still pending)
+            - Only processes Completed orders to update statistics
+            - Always clears self.order reference to allow new orders
         """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
@@ -93,36 +186,79 @@ class BbRsiStrategy(bt.Strategy):
     def next(self):
         """Execute trading logic for each bar.
 
-        Implements the Bollinger Bands + RSI strategy:
-        - Buy when RSI is oversold and price is below lower band
-        - Sell when RSI is overbought or price is above upper band
+        Implements the core Bollinger Bands + RSI mean-reversion strategy.
+
+        Flow:
+            1. Increment bar counter
+            2. Check if pending order exists - if so, wait for execution
+            3. If no position: Check entry conditions (oversold)
+            4. If has position: Check exit conditions (overbought)
+
+        Entry Logic:
+            - Buy when RSI < rsi_oversold AND close < lower Bollinger Band
+            - Fixed position size: stake parameter
+
+        Exit Logic:
+            - Sell when RSI > rsi_overbought OR close > upper Bollinger Band
+            - Closes entire position (no partial exits)
+
+        Raises:
+            None: All exceptions handled by backtrader framework.
         """
         self.bar_num += 1
 
+        # Only proceed if no pending order
         if self.order:
             return
 
         if not self.position:
-            # RSI oversold AND price below lower Bollinger Band
+            # ENTRY LOGIC: No position, look for buy opportunity
+            # Buy when both oversold conditions are met
             if self.rsi[0] < self.p.rsi_oversold and self.data.close[0] < self.bbands.bot[0]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # RSI overbought OR price above upper Bollinger Band
+            # EXIT LOGIC: Have position, look for exit signal
+            # Exit when either overbought condition is met (OR logic)
             if self.rsi[0] > self.p.rsi_overbought or self.data.close[0] > self.bbands.top[0]:
                 self.order = self.close()
 
 
 def test_bb_rsi_strategy():
-    """Test the Bollinger Bands + RSI strategy.
+    """Test the Bollinger Bands + RSI mean-reversion strategy.
 
-    This test function:
-    1. Sets up a Cerebro backtesting engine
-    2. Loads Oracle stock data from 2010-2014
-    3. Runs the BbRsiStrategy with default parameters
-    4. Validates performance metrics against expected values
+    This test validates the BbRsiStrategy implementation by running a historical
+    backtest on Oracle stock data and verifying performance metrics match
+    expected values.
+
+    Test Process:
+        1. Create Cerebro backtesting engine
+        2. Load Oracle (ORCL) stock data from 2010-2014
+        3. Add BbRsiStrategy with default parameters
+        4. Set initial capital to 100,000
+        5. Configure commission (0.1% per trade)
+        6. Attach performance analyzers (Sharpe, Returns, DrawDown)
+        7. Run backtest
+        8. Validate results against expected values
+
+    Expected Results:
+        - bar_num: 1238
+        - final_value: 100120.94 (slight profit over 5 years)
+        - sharpe_ratio: 1.1614145060616812
+        - annual_return: 0.0002423417652493005 (~0.024% annualized)
+        - max_drawdown: 0.033113065059066485 (~3.3%)
+
+    Interpretation:
+        The strategy shows minimal returns during this 5-year period, suggesting
+        that the simple mean-reversion approach may not be effective for this
+        stock/time period without optimization. Low drawdown indicates low risk.
 
     Raises:
-        AssertionError: If any performance metric deviates from expected values.
+        AssertionError: If any performance metric deviates from expected value.
+        FileNotFoundError: If orcl-1995-2014.txt data file cannot be located.
+
+    Note:
+        Test uses strict tolerance (1e-6) for most metrics, 0.01 for final_value
+        to account for floating-point precision differences.
     """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
@@ -148,6 +284,7 @@ def test_bb_rsi_strategy():
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
     final_value = cerebro.broker.getvalue()
 
+    # Display results
     print("=" * 50)
     print("Bollinger Bands + RSI Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
@@ -159,7 +296,7 @@ def test_bb_rsi_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
+    # Assert expected values with specified tolerances
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
     assert abs(final_value - 100120.94) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (1.1614145060616812)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"

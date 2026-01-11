@@ -1,8 +1,18 @@
-"""Test cases for Put/Call ratio strategy.
+"""Test cases for Put/Call ratio sentiment strategy.
 
-Test sentiment-driven strategy using SPY and Put/Call ratio data.
-- Load local data files using GenericCSVData
-- Access data through self.datas[0]
+This module implements and tests a sentiment-driven trading strategy that uses
+the Put/Call ratio as a market sentiment indicator. The strategy is based on
+the contrarian trading principle that extreme market sentiment often precedes
+reversals.
+
+The module contains:
+- SPYPutCallData: Custom data feed for loading SPY price data with Put/Call ratio
+- PutCallStrategy: Trading strategy implementing sentiment-based logic
+- test_put_call_strategy: Test function validating strategy behavior
+
+Strategy Logic:
+- High Put/Call ratio (> 1.0) indicates market fear -> Buy signal (contrarian)
+- Low Put/Call ratio (< 0.45) indicates market greed -> Sell signal
 
 Reference: https://github.com/cloudQuant/sentiment-fear-and-greed.git
 """
@@ -19,7 +29,29 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """Locate data files based on script directory to avoid relative path failures."""
+    """Locate data files by searching multiple potential directory locations.
+
+    This function searches for data files in several predefined locations to
+    avoid relative path issues when running tests from different directories.
+    It checks the current directory, parent directories, and an optional
+    environment variable-specified directory.
+
+    Args:
+        filename: Name of the data file to locate (e.g., 'spy-put-call-fear-greed-vix.csv').
+
+    Returns:
+        Path object pointing to the first matching data file found.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the search paths.
+
+    Search Paths (in order):
+        1. BASE_DIR / filename (current test directory)
+        2. BASE_DIR.parent / filename (parent directory)
+        3. BASE_DIR.parent.parent / filename (grandparent directory)
+        4. BASE_DIR.parent.parent / "tests" / "datas" / filename
+        5. Path(BACKTRADER_DATA_DIR) / filename (if env var is set)
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -39,10 +71,33 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SPYPutCallData(bt.feeds.GenericCSVData):
-    """SPY + Put/Call ratio data source.
+    """Custom data feed for loading SPY price data with sentiment indicators.
 
-    CSV format:
-    Date,Open,High,Low,Close,Adj Close,Volume,Put Call,Fear Greed,VIX
+    This class extends GenericCSVData to load SPY (SPDR S&P 500 ETF) price data
+    along with market sentiment indicators including the Put/Call ratio,
+    Fear & Greed index, and VIX volatility index.
+
+    CSV Format Requirements:
+        Date,Open,High,Low,Close,Adj Close,Volume,Put Call,Fear Greed,VIX
+
+    Attributes:
+        lines: Additional data lines beyond standard OHLCV:
+            - put_call: Put/Call ratio indicating market sentiment
+            - fear_greed: Fear & Greed index value
+            - vix: CBOE Volatility Index value
+
+    Parameters:
+        dtformat: Date format string (default: '%Y-%m-%d').
+        datetime: Column index for date/time (default: 0).
+        open: Column index for open price (default: 1).
+        high: Column index for high price (default: 2).
+        low: Column index for low price (default: 3).
+        close: Column index for close price (default: 4).
+        volume: Column index for volume (default: 6).
+        openinterest: Column index for open interest (default: -1, unused).
+        put_call: Column index for Put/Call ratio (default: 7).
+        fear_greed: Column index for Fear & Greed index (default: 8).
+        vix: Column index for VIX value (default: 9).
     """
     lines = ('put_call', 'fear_greed', 'vix')
 
@@ -62,14 +117,45 @@ class SPYPutCallData(bt.feeds.GenericCSVData):
 
 
 class PutCallStrategy(bt.Strategy):
-    """Put/Call ratio strategy.
+    """Contrarian sentiment strategy based on Put/Call ratio.
 
-    Strategy logic:
-    - Buy when Put/Call > 1 (more put options than call options, market fear)
-    - Sell when Put/Call < 0.45 (far more call options than put options, excessive market optimism)
+    This strategy implements a contrarian trading approach using the Put/Call
+    ratio as a market sentiment indicator. The Put/Call ratio measures the
+    trading volume of put options versus call options and is used as a gauge
+    of market sentiment:
 
-    Data used:
-    - datas[0]: SPY price data + Put/Call indicator
+    - High ratio (> 1.0): Indicates fear, more puts being bought -> Buy signal
+    - Low ratio (< 0.45): Indicates greed/optimism, more calls being bought -> Sell signal
+
+    The strategy assumes that extreme sentiment precedes market reversals,
+    allowing for contrarian positioning when the crowd is overly bearish
+    or bullish.
+
+    Attributes:
+        bar_num: Counter for the number of bars processed.
+        buy_count: Counter for total buy orders executed.
+        sell_count: Counter for total sell orders executed.
+        sum_profit: Cumulative profit/loss from all closed trades.
+        win_count: Number of profitable trades.
+        loss_count: Number of unprofitable trades.
+        data0: Reference to the primary data feed (SPY + indicators).
+        put_call: Reference to the Put/Call ratio data line.
+        close: Reference to the close price data line.
+
+    Parameters:
+        high_threshold: Put/Call ratio threshold for buy signals (default: 1.0).
+            When ratio exceeds this value, market is considered fearful.
+        low_threshold: Put/Call ratio threshold for sell signals (default: 0.45).
+            When ratio falls below this value, market is considered greedy.
+
+    Data Requirements:
+        datas[0]: Must contain SPY price data with Put/Call ratio line.
+            Accessible via self.data0.put_call and self.data0.close.
+
+    Trading Logic:
+        - Entry: Buy when Put/Call ratio > high_threshold and not in position
+        - Exit: Sell entire position when Put/Call ratio < low_threshold
+        - Position sizing: Use all available cash (full investment)
     """
 
     params = (
@@ -78,14 +164,28 @@ class PutCallStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None, force=False):
-        """Log output function."""
+        """Log strategy messages with timestamp.
+
+        Args:
+            txt: Message text to log.
+            dt: Optional datetime for the log entry. If None, uses current bar's datetime.
+            force: If True, always log. If False, suppress logging (default: False).
+
+        Returns:
+            None
+        """
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # Record statistics
+        """Initialize strategy attributes and data references.
+
+        Sets up tracking variables for trade statistics and creates convenient
+        references to the data feed's lines for easier access in the strategy logic.
+        """
+        # Initialize statistics counters
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -93,13 +193,28 @@ class PutCallStrategy(bt.Strategy):
         self.win_count = 0
         self.loss_count = 0
 
-        # Get data references - access through datas list
+        # Create data references for easier access
         self.data0 = self.datas[0]
         self.put_call = self.data0.put_call
         self.close = self.data0.close
 
     def notify_trade(self, trade):
-        """Trade completion notification."""
+        """Handle trade completion events and update statistics.
+
+        Called by Backtrader when a trade is closed. Updates win/loss counters
+        and cumulative profit based on the trade's P&L.
+
+        Args:
+            trade: Trade object containing information about the completed trade.
+
+        Returns:
+            None
+
+        Notes:
+            - Only processes closed trades (trade.isclosed == True)
+            - Updates win_count if trade.pnl > 0, otherwise updates loss_count
+            - Logs trade details including gross P&L, net P&L, and cumulative profit
+        """
         if not trade.isclosed:
             return
         if trade.pnl > 0:
@@ -110,7 +225,22 @@ class PutCallStrategy(bt.Strategy):
         self.log(f"Trade completed: gross_profit={trade.pnl:.2f}, net_profit={trade.pnlcomm:.2f}, cumulative={self.sum_profit:.2f}")
 
     def notify_order(self, order):
-        """Order status notification."""
+        """Handle order status changes and log execution details.
+
+        Called by Backtrader when an order's status changes. Logs order execution
+        details for filled orders and warnings for failed orders.
+
+        Args:
+            order: Order object containing status and execution information.
+
+        Returns:
+            None
+
+        Notes:
+            - Ignores Submitted and Accepted status (order pending)
+            - Logs execution price and size for Completed orders
+            - Logs warnings for Canceled, Margin, or Rejected orders
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
 
@@ -123,24 +253,56 @@ class PutCallStrategy(bt.Strategy):
             self.log(f"Order status: {order.Status[order.status]}")
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by Backtrader for each new bar. Implements the
+        core strategy logic:
+        1. Calculates position size based on available cash
+        2. Generates buy signal when Put/Call ratio exceeds high_threshold (fear)
+        3. Generates sell signal when Put/Call ratio falls below low_threshold (greed)
+
+        Returns:
+            None
+
+        Trading Rules:
+            - Buy: Put/Call ratio > high_threshold AND no current position
+            - Sell: Put/Call ratio < low_threshold AND currently holding position
+            - Position sizing: Full cash investment (size = cash / close_price)
+        """
         self.bar_num += 1
 
-        # Calculate buyable quantity
+        # Calculate position size based on available cash
         size = int(self.broker.getcash() / self.close[0])
 
-        # Buy when Put/Call is high (market fear)
+        # Buy signal: High Put/Call ratio indicates market fear (contrarian buy)
         if self.put_call[0] > self.p.high_threshold and not self.position:
             if size > 0:
                 self.buy(size=size)
                 self.buy_count += 1
 
-        # Sell when Put/Call is low (excessive market optimism)
+        # Sell signal: Low Put/Call ratio indicates market greed (contrarian sell)
         if self.put_call[0] < self.p.low_threshold and self.position.size > 0:
             self.sell(size=self.position.size)
             self.sell_count += 1
 
     def stop(self):
-        """Output statistics when strategy ends."""
+        """Calculate and log final strategy performance statistics.
+
+        Called by Backtrader when the backtest completes. Computes and displays
+        comprehensive statistics including trade counts, win rate, and total profit.
+
+        Returns:
+            None
+
+        Statistics Logged:
+            - bar_num: Total number of bars processed
+            - buy_count: Total buy orders executed
+            - sell_count: Total sell orders executed
+            - win_count: Number of profitable trades
+            - loss_count: Number of unprofitable trades
+            - win_rate: Percentage of profitable trades (wins / total trades * 100)
+            - sum_profit: Cumulative profit/loss from all trades
+        """
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -151,17 +313,41 @@ class PutCallStrategy(bt.Strategy):
 
 
 def test_put_call_strategy():
-    """Test Put/Call ratio strategy.
+    """Run comprehensive backtest of Put/Call ratio sentiment strategy.
 
-    Run backtest using SPY and Put/Call data.
+    This test function validates the PutCallStrategy implementation by running
+    a backtest on historical SPY data from 2011-2021. It verifies that the
+    strategy correctly interprets sentiment signals and produces expected results.
+
+    Test Setup:
+        - Initial capital: $100,000
+        - Data period: 2011-01-01 to 2021-12-31
+        - Strategy parameters: high_threshold=1.0, low_threshold=0.45
+        - Data source: SPY with Put/Call ratio, Fear & Greed, and VIX
+
+    Expected Results:
+        - 2,445 bars processed
+        - 6 buy orders, 3 sell orders
+        - 3 winning trades, 0 losing trades
+        - 100% win rate, $140,069.35 profit
+        - Sharpe ratio: ~0.827
+        - Annual return: ~9.45%
+        - Max drawdown: ~24.77%
+
+    Raises:
+        AssertionError: If any of the expected results don't match actual values.
+        FileNotFoundError: If the required data file cannot be located.
+
+    Returns:
+        None
     """
-    # Create cerebro
+    # Create cerebro engine
     cerebro = bt.Cerebro(stdstats=True)
 
     # Set initial capital
     cerebro.broker.setcash(100000.0)
 
-    # Load data (datas[0])
+    # Load SPY + Put/Call ratio data
     print("Loading SPY + Put/Call data...")
     data_path = resolve_data_path("spy-put-call-fear-greed-vix.csv")
     data_feed = SPYPutCallData(
@@ -171,14 +357,14 @@ def test_put_call_strategy():
     )
     cerebro.adddata(data_feed, name="SPY")
 
-    # Add strategy
+    # Add strategy with default parameters
     cerebro.addstrategy(
         PutCallStrategy,
         high_threshold=1.0,
         low_threshold=0.45,
     )
 
-    # Add analyzers
+    # Add performance analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
@@ -189,7 +375,7 @@ def test_put_call_strategy():
     print("Starting backtest...")
     results = cerebro.run()
 
-    # Get results
+    # Extract results
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
     annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
@@ -199,7 +385,7 @@ def test_put_call_strategy():
     total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
 
-    # Print results
+    # Print results summary
     print("\n" + "=" * 50)
     print("Put/Call Ratio Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
@@ -215,7 +401,7 @@ def test_put_call_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # Assert - ensure strategy runs correctly
+    # Validate results against expected values
     assert strat.bar_num == 2445, f"Expected bar_num=2445, got {strat.bar_num}"
     assert strat.buy_count == 6, f"Expected buy_count=6, got {strat.buy_count}"
     assert strat.sell_count == 3, f"Expected sell_count=3, got {strat.sell_count}"

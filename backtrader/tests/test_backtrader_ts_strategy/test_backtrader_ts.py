@@ -1,4 +1,12 @@
-"""Test module for backtrader efficiency in time series mode"""
+"""Test module for backtrader efficiency in time series mode.
+
+This module tests and demonstrates the performance of backtrader when operating
+in time series (TS) mode. It generates synthetic OHLCV data and runs a simple
+SMA crossover strategy to measure execution time and results.
+
+The module can be run directly to execute a backtest with 1000 data points
+and print the execution time and final results.
+"""
 
 import time
 
@@ -9,19 +17,60 @@ import backtrader as bt
 
 
 class SmaStrategy(bt.Strategy):
+    """Simple Moving Average (SMA) crossover trading strategy.
+
+    This strategy implements a classic dual moving average crossover system:
+    - When the short SMA crosses above the long SMA, go long (buy signal)
+    - When the short SMA crosses below the long SMA, close position (sell signal)
+
+    The strategy uses 10% of available account value for each trade and
+    logs all trading activity including orders, trades, and account values.
+
+    Attributes:
+        short_ma: The short-term SMA indicator (default period: 10)
+        long_ma: The long-term SMA indicator (default period: 60)
+
+    Args:
+        short_window: Period for the short-term SMA. Defaults to 10.
+        long_window: Period for the long-term SMA. Defaults to 60.
+    """
+
     # params = (('short_window',10),('long_window',60))
     params = {"short_window": 10, "long_window": 60}
 
     def log(self, txt, dt=None):
+        """Log a message with a timestamp.
+
+        Args:
+            txt: The text message to log.
+            dt: Optional datetime object for the timestamp. If not provided,
+                uses the current bar's datetime from the first data feed.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print("%s, %s" % (dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the strategy by creating indicators.
+
+        This method is called once before the backtest starts. It sets up
+        the short and long moving average indicators based on the close price
+        of the first data feed.
+        """
         # Typically used for calculating indicators or preloading data, and defining variables
         self.short_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.short_window)
         self.long_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.long_window)
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called on every bar during the backtest. It implements
+        the dual SMA crossover strategy:
+        - Logs current indicator values and account status
+        - Enters long position when short MA crosses above long MA
+        - Closes position when short MA crosses below long MA
+
+        Position sizing uses 10% of current account value.
+        """
         # Simply log the closing price of the series from the reference
         # self.log(f"ICBC,{self.datas[0].datetime.date(0)},closing price:{self.datas[0].close[0]}")
         # Get current position size
@@ -44,6 +93,15 @@ class SmaStrategy(bt.Strategy):
             self.close(self.datas[0])
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        This method is called whenever an order's status changes. It logs
+        information about order execution, rejection, cancellation, or
+        partial fills.
+
+        Args:
+            order: The order object that has been updated.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             # Order has been submitted and accepted
             return
@@ -73,6 +131,15 @@ class SmaStrategy(bt.Strategy):
                 )
 
     def notify_trade(self, trade):
+        """Handle trade lifecycle events.
+
+        This method is called when a trade is opened or closed. It logs
+        information about the trade including profit/loss when the trade
+        is closed.
+
+        Args:
+            trade: The trade object that has been updated.
+        """
         # Output information when a trade is completed
         if trade.isclosed:
             self.log(
@@ -92,6 +159,27 @@ class SmaStrategy(bt.Strategy):
 
 
 def run_strategy(n_rows=1000):
+    """Run a backtest with the SMA crossover strategy on synthetic data.
+
+    This function creates a complete backtesting environment:
+    1. Generates synthetic OHLCV data with random values
+    2. Sets up the Cerebro engine with the SmaStrategy
+    3. Adds analyzers for performance tracking
+    4. Runs the backtest and returns the results
+
+    Args:
+        n_rows: Number of data rows to generate for the backtest.
+            Defaults to 1000.
+
+    Returns:
+        pd.DataFrame: A DataFrame containing the total value of the
+            account over time, indexed by datetime.
+
+    Note:
+        The synthetic data uses a fixed random seed (seed=1) for
+        reproducibility. Values are shifted by +3 to avoid negative
+        prices.
+    """
     # Add cerebro
     cerebro = bt.Cerebro()
     # Add strategy

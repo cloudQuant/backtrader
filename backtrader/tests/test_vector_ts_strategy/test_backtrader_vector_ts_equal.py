@@ -1,4 +1,14 @@
-"""Test the efficiency of backtrader and ts on time series, and the performance improvement after rewriting specific functions with python, numba, and cython"""
+"""Test the efficiency of backtrader and ts on time series, and the performance improvement after rewriting specific functions with python, numba, and cython.
+
+This module compares the performance and results of:
+1. Traditional backtrader strategy execution
+2. Time series (TS) strategy with Python engine
+3. Time series (TS) strategy with Numba JIT compilation
+4. Time series (TS) strategy with Cython compilation
+
+The test uses a simple moving average crossover strategy to verify that all four
+approaches produce equivalent results while measuring execution time differences.
+"""
 
 import time
 
@@ -11,6 +21,24 @@ from backtrader.vectors.ts import AlphaTs
 
 
 class AlphaTs001(AlphaTs):
+    """Alpha time series strategy implementation for testing.
+
+    This class extends AlphaTs to provide a concrete implementation for testing
+    the time series vectorized backtesting engine. The strategy implements a
+    simple moving average crossover approach.
+
+    Note:
+        Currently this is a placeholder class that inherits from AlphaTs.
+        The actual signal calculation logic is commented out but shows how
+        to implement a moving average crossover strategy.
+
+    Example:
+        To calculate signals based on moving average crossover:
+        - Calculate short-term moving average
+        - Calculate long-term moving average
+        - Generate signal: 1 when short MA >= long MA, 0 otherwise
+    """
+
     # params = (('short_window',10),('long_window',60))
     # def cal_signal(self):
     #     short_ma = np.convolve(self.close_arr,
@@ -25,6 +53,29 @@ class AlphaTs001(AlphaTs):
 
 
 def run_ts_strategy(n_rows=1000, engine="python"):
+    """Run a time series strategy with the specified computation engine.
+
+    This function generates synthetic market data, calculates moving average
+    crossover signals, and executes a backtest using the AlphaTs001 strategy
+    with the specified computation engine (python, numba, or cython).
+
+    Args:
+        n_rows (int, optional): Number of data rows to generate. Defaults to 1000.
+        engine (str, optional): Computation engine to use. Must be one of:
+            'python', 'numba', or 'cython'. Defaults to 'python".
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the total value over time
+            with a single column named 'ts'.
+
+    Note:
+        The function uses a fixed random seed (1) to ensure reproducibility
+        across multiple runs with the same parameters.
+
+    Example:
+        >>> total_value = run_ts_strategy(n_rows=10000, engine='numba')
+        >>> print(total_value.head())
+    """
     # Prepare data
     # Use numpy to generate n_rows of data
     np.random.seed(1)
@@ -69,19 +120,60 @@ def run_ts_strategy(n_rows=1000, engine="python"):
 
 
 class SmaStrategy(bt.Strategy):
+    """Simple Moving Average crossover strategy for backtrader.
+
+    This strategy implements a classic moving average crossover trading system:
+    - When the short-term MA crosses above the long-term MA, go long (buy)
+    - When the short-term MA crosses below the long-term MA, close the position
+
+    Attributes:
+        params (dict): Strategy parameters containing:
+            - short_window (int): Period for the short-term moving average (default: 10)
+            - long_window (int): Period for the long-term moving average (default: 60)
+        short_ma (bt.indicators.SMA): Short-term simple moving average indicator
+        long_ma (bt.indicators.SMA): Long-term simple moving average indicator
+
+    Example:
+        >>> cerebro = bt.Cerebro()
+        >>> cerebro.addstrategy(SmaStrategy, short_window=10, long_window=60)
+    """
+
     # params = (('short_window',10),('long_window',60))
     params = {"short_window": 10, "long_window": 60}
 
     def log(self, txt, dt=None):
+        """Log a message with an optional timestamp.
+
+        Args:
+            txt (str): The message text to log.
+            dt (datetime, optional): datetime object for the timestamp.
+                If None, uses the current bar's datetime. Defaults to None.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print("%s, %s" % (dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the strategy and set up indicators.
+
+        This method is called once when the strategy is created. It sets up
+        the moving average indicators that will be used for generating
+        trading signals.
+        """
         # Generally used for calculating indicators or preloading data, and defining variables
         self.short_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.short_window)
         self.long_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.long_window)
 
     def next(self):
+        """Execute trading logic for the current bar.
+
+        This method is called for each bar of data after all indicators have
+        been calculated. It implements the moving average crossover logic:
+        - Enter long when short MA crosses above long MA (with no position)
+        - Close position when short MA crosses below long MA (with position)
+
+        The position size is calculated based on 1% of account value divided
+        by the contract price multiplied by the contract multiplier.
+        """
         # Simply log the closing price of the series from the reference
         # self.log(f"ICBC,{self.datas[0].datetime.date(0)},closing price:{self.datas[0].close[0]}")
         # Get current position size
@@ -146,6 +238,28 @@ class SmaStrategy(bt.Strategy):
 
 
 def run_backtrader_strategy(n_rows=1000):
+    """Run a backtrader strategy with synthetic market data.
+
+    This function generates synthetic market data and executes a backtest using
+    the traditional backtrader engine with the SmaStrategy. It sets up the
+    cerebro engine, adds the strategy, data feed, and analyzers, then runs
+    the backtest and returns the total value over time.
+
+    Args:
+        n_rows (int, optional): Number of data rows to generate. Defaults to 1000.
+
+    Returns:
+        pandas.DataFrame: A DataFrame containing the total value over time
+            with a single column named 'backtrader'.
+
+    Note:
+        The function uses a fixed random seed (1) to ensure reproducibility
+        and generates data that is offset by +100 to avoid negative values.
+
+    Example:
+        >>> total_value = run_backtrader_strategy(n_rows=10000)
+        >>> print(total_value.head())
+    """
     # Add cerebro
     cerebro = bt.Cerebro()
     # Add strategy

@@ -18,6 +18,33 @@
 #
 ###############################################################################
 
+"""Test module for the DMA (Displaced Moving Average) indicator.
+
+This module contains tests for the DMA indicator, which calculates a displaced
+moving average that can be shifted forward or backward in time. The test validates
+that the indicator produces expected values at specific checkpoints and that
+the minimum period is correctly calculated.
+
+The DMA indicator is useful for:
+* Identifying trends by comparing moving averages with different displacements
+* Reducing lag in trading signals by displacing the moving average
+* Creating crossover systems with displaced averages
+
+Test Configuration:
+    * Data Source: 2006-day-001.txt (daily OHLCV data)
+    * Indicator: btind.DMA (Displaced Moving Average)
+    * Expected Minimum Period: 30 bars
+    * Checkpoint Values: Pre-calculated DMA values at specific indices
+
+Example:
+    To run this test directly::
+
+        python test_ind_dma.py
+
+    To run via pytest::
+
+        pytest tests/original_tests/test_ind_dma.py -v
+"""
 
 import backtrader as bt
 
@@ -25,15 +52,49 @@ import testcommon
 
 import backtrader.indicators as btind
 
+# Number of data feeds to use for testing
 chkdatas = 1
+
+# Expected DMA values at checkpoints (end, middle, start of valid period)
+# Format: [value_at_end, value_at_middle, value_at_start]
 chkvals = [["4121.903804", "3677.634675", "3579.962958"]]
 
 
+# Expected minimum period for the DMA indicator
 chkmin = 30
+
+# The indicator class being tested
 chkind = btind.DMA
 
 
 def test_run(main=False):
+    """Run the DMA indicator test with configurable execution mode.
+
+    This function loads test data, creates a backtest strategy with the DMA
+    indicator, and runs the test across multiple configurations (runonce,
+    preload, exactbars) to ensure compatibility.
+
+    The test validates:
+        * Minimum period calculation (30 bars)
+        * Indicator values at three checkpoints
+        * Proper execution in all backtest modes
+
+    Args:
+        main (bool, optional): If True, enables plotting and detailed output
+            for manual inspection. When run as the main script, this is set
+            to True. Defaults to False.
+
+    Returns:
+        None. The test is executed and results are validated internally.
+
+    Raises:
+        AssertionError: If indicator values don't match expected results or
+            if minimum period is incorrectly calculated.
+
+    Example:
+        >>> test_run(main=True)  # Run with plotting
+        >>> test_run(main=False)  # Run silently for automated testing
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

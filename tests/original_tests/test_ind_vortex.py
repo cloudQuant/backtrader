@@ -18,6 +18,25 @@
 #
 ###############################################################################
 
+"""Test module for Vortex indicator.
+
+This module contains test cases for the Vortex indicator implementation in
+backtrader. The Vortex indicator is a technical analysis tool used to identify
+trend reversals and confirm current trends. It consists of two oscillators:
+- Plus Vortex (VI+): Measures upward trend movement
+- Minus Vortex (VI-): Measures downward trend movement
+
+The test module validates that the Vortex indicator produces expected values
+for given data feeds under specified conditions.
+
+Module Variables:
+    chkdatas (int): Number of data feeds to test (set to 1).
+    chkvals (list): Expected values for the Vortex indicator lines. Contains
+        two sublists with expected values for [vi_plus, vi_minus, diff] for
+        each data feed.
+    chkmin (int): Minimum period required for the indicator (set to 15).
+    chkind (type): The Vortex indicator class being tested.
+"""
 
 import backtrader as bt
 
@@ -33,6 +52,26 @@ chkind = btind.Vortex
 
 
 def test_run(main=False):
+    """Execute the Vortex indicator test.
+
+    This function loads test data, runs the test strategy with the Vortex
+    indicator, and validates the results against expected values. The test
+    compares the actual indicator output with predefined expected values to
+    ensure correct implementation.
+
+    Args:
+        main (bool): If True, enables plot visualization for the test results.
+            When False, runs the test without generating plots. Default is False.
+
+    Returns:
+        None
+
+    Raises:
+        AssertionError: If the actual indicator values do not match the expected
+            values specified in chkvals.
+        Exception: Any exceptions raised during data loading, strategy execution,
+            or indicator calculation.
+    """
     datas = [testcommon.getdata(i) for i in range(chkdatas)]
     testcommon.runtest(
         datas,

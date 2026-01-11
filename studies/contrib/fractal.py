@@ -20,16 +20,75 @@
 #
 ###############################################################################
 
+"""Fractal Indicator for Backtrader.
+
+This module implements the Fractal indicator, which identifies potential
+reversal points in price action. Fractals are patterns that consist of
+five consecutive bars, where the middle bar represents either a local
+high (bearish fractal) or a local low (bullish fractal).
+
+The indicator is based on the concept developed by Bill Williams and
+provides visual signals on price charts to help traders identify
+potential turning points in the market.
+
+Reference:
+    http://www.investopedia.com/articles/trading/06/fractals.asp
+"""
+
 import backtrader as bt
 
 __all__ = ["Fractal"]
 
 
 class Fractal(bt.ind.PeriodN):
-    """
-    References:
-        [Ref 1] http://www.investopedia.com/articles/trading/06/fractals.asp
+    """Fractal Indicator for identifying potential market reversals.
 
+    The Fractal indicator identifies potential reversal points by looking
+    for specific patterns in price action. A bearish fractal occurs when
+    there is a pattern with the highest high in the middle and two lower
+    highs on each side. A bullish fractal occurs when there is a pattern
+    with the lowest low in the middle and two higher lows on each side.
+
+    Attributes:
+        lines.fractal_bearish: Line containing bearish fractal values.
+            Values are plotted above the high price at fractal points.
+        lines.fractal_bullish: Line containing bullish fractal values.
+            Values are plotted below the low price at fractal points.
+        plotinfo: Dictionary controlling plotting behavior.
+            - subplot: False (plots on main price chart)
+            - plotlinelabels: False (no line labels)
+            - plot: True (enable plotting)
+        plotlines: Dictionary controlling line appearance.
+            - fractal_bearish: Triangle marker (^), light blue, size 4.0
+            - fractal_bullish: Inverted triangle marker (v), light blue, size 4.0
+        params:
+            period (int): Number of bars to analyze for fractal patterns.
+                Default is 5, which looks for standard fractal patterns.
+            bardist (float): Distance percentage to offset fractal markers
+                from the high/low price. Default is 0.015 (1.5%).
+                Positive values place bearish fractals above highs and
+                bullish fractals below lows.
+            shift_to_potential_fractal (int): Index offset within the period
+                where the fractal point should be located. Default is 2,
+                which places the fractal at the center of a 5-bar pattern.
+
+    Example:
+        ::
+
+            import backtrader as bt
+
+            class MyStrategy(bt.Strategy):
+                def __init__(self):
+                    self.fractal = bt.indicators.Fractal(self.data)
+
+                def next(self):
+                    if self.fractal.fractal_bearish[0] > 0:
+                        # Bearish fractal detected - potential reversal downward
+                        self.sell()
+
+                    if self.fractal.fractal_bullish[0] > 0:
+                        # Bullish fractal detected - potential reversal upward
+                        self.buy()
     """
 
     lines = ("fractal_bearish", "fractal_bullish")
@@ -46,13 +105,36 @@ class Fractal(bt.ind.PeriodN):
     )
     params = (
         ("period", 5),
-        ("bardist", 0.015),  # distance to max/min in absolute perc
+        ("bardist", 0.015),  # Distance to max/min in absolute percentage
         ("shift_to_potential_fractal", 2),
     )
 
     def next(self):
+        """Calculate fractal patterns for the current bar.
+
+        This method analyzes the last 'period' bars to identify fractal patterns.
+        A bearish fractal is detected when the middle bar has the highest high
+        in the pattern. A bullish fractal is detected when the middle bar has
+        the lowest low in the pattern.
+
+        The fractal values are written to position [-2] (two bars back) because
+        fractals can only be confirmed after the full pattern is complete,
+        and we want to mark the center bar of the pattern.
+
+        The method operates by:
+        1. Extracting the last 'period' high prices
+        2. Finding the maximum value and its index
+        3. If the maximum is at the expected position, marking a bearish fractal
+        4. Repeating the process for low prices to find bullish fractals
+
+        Side Effects:
+            - Writes fractal values to self.lines.fractal_bearish[-2] or
+              self.lines.fractal_bullish[-2] when patterns are detected
+            - Values are offset by the bardist parameter for visual clarity
+        """
         # A bearish turning point occurs when there is a pattern with the
-        # highest high in the middle and two lower highs on each side. [Ref 1]
+        # highest high in the middle and two lower highs on each side.
+        # Reference: http://www.investopedia.com/articles/trading/06/fractals.asp
 
         last_five_highs = self.data.high.get(size=self.p.period)
         max_val = max(last_five_highs)
@@ -62,7 +144,8 @@ class Fractal(bt.ind.PeriodN):
             self.lines.fractal_bearish[-2] = max_val * (1 + self.p.bardist)
 
         # A bullish turning point occurs when there is a pattern with the
-        # lowest low in the middle and two higher lowers on each side. [Ref 1]
+        # lowest low in the middle and two higher lows on each side.
+        # Reference: http://www.investopedia.com/articles/trading/06/fractals.asp
         last_five_lows = self.data.low.get(size=self.p.period)
         min_val = min(last_five_lows)
         min_idx = last_five_lows.index(min_val)

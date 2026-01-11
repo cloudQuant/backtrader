@@ -1,9 +1,26 @@
 #!/usr/bin/env python
-"""
-CommInfo系统重构测试套件 (Day 44-45)
+"""Test suite for CommInfo system refactoring (Day 44-45).
 
-测试重构后的CommInfo系统是否保持功能完整性和向后兼容性。
-不依赖原始实现的比较，而是基于已知正确的行为进行测试。
+This module tests the refactored CommInfo system to ensure functional
+completeness and backward compatibility are maintained. The tests are
+based on known correct behaviors rather than comparisons with the
+original implementation.
+
+The CommInfo system handles commission calculations, margin requirements,
+and operation costs for different asset types including stocks, futures,
+and digital currencies.
+
+Test Categories:
+    Base Functionality: Core commission and profit/loss calculations
+    Specialized Classes: DC, FuturesPercent, FuturesFixed implementations
+    Validation: Parameter validation and edge cases
+    Compatibility Logic: Auto-detection and conversion behaviors
+    Performance: Parameter access and calculation speed
+    Edge Cases: Zero values, automargin, interest calculations
+    Documentation: Usage examples and patterns
+
+Example:
+    >>> pytest tests/refactor_tests/test_comminfo_refactor.py -v
 """
 
 import datetime
@@ -19,19 +36,51 @@ from backtrader import comminfo as refactored_comminfo
 
 
 class MockPosition:
-    """Mock position for testing"""
+    """Mock position object for testing commission calculations.
+
+    Attributes:
+        size: Position size (positive for long, negative for short).
+        price: Entry price of the position.
+        datetime: Timestamp when the position was opened.
+    """
 
     def __init__(self, size, price, datetime_obj=None):
+        """Initialize a mock position.
+
+        Args:
+            size: Position size (float). Positive for long, negative for short.
+            price: Entry price (float).
+            datetime_obj: Optional datetime object for the position timestamp.
+                Defaults to current time if not provided.
+        """
         self.size = size
         self.price = price
         self.datetime = datetime_obj or datetime.datetime.now()
 
 
 class TestCommInfoBaseFunctionality:
-    """Test basic CommInfo functionality"""
+    """Test basic CommInfo functionality.
+
+    These tests verify that the core commission calculation methods
+    work correctly for both stock-like and futures-like instruments.
+    """
 
     def test_basic_stock_commission_compatibility(self):
-        """Test basic stock commission calculation"""
+        """Test basic stock commission calculation.
+
+        Verifies that CommissionInfo correctly calculates commission,
+        operation cost, position value, and profit/loss for stock-like
+        instruments.
+
+        Test calculations:
+            - Commission: abs(size) * price * commission_rate
+            - Operation cost: abs(size) * price
+            - Position value: size * price
+            - P&L: size * (new_price - old_price) * multiplier
+
+        Raises:
+            AssertionError: If any calculated values don't match expected.
+        """
         # Stock-like commission (default behavior)
         comm = refactored_comminfo.CommissionInfo(commission=0.5)
 
@@ -59,7 +108,20 @@ class TestCommInfoBaseFunctionality:
         assert comm.profitandloss(size, price, newprice) == expected_pnl
 
     def test_futures_commission_compatibility(self):
-        """Test futures commission calculation"""
+        """Test futures commission calculation.
+
+        Verifies that CommissionInfo correctly handles futures-like instruments
+        with fixed commission per contract and margin requirements.
+
+        Test calculations:
+            - Commission: abs(size) * fixed_commission
+            - Margin: Fixed margin per contract
+            - Operation cost: abs(size) * margin
+            - Cash adjustment: size * (new_price - old_price) * multiplier
+
+        Raises:
+            AssertionError: If any calculated values don't match expected.
+        """
         # Test parameters
         commission = 2.0
         margin = 1000.0
@@ -89,7 +151,14 @@ class TestCommInfoBaseFunctionality:
         assert comm.cashadjust(size, price, newprice) == expected_adjustment
 
     def test_parameter_access_compatibility(self):
-        """Test parameter access methods"""
+        """Test parameter access methods.
+
+        Verifies backward compatibility of parameter access through multiple
+        interfaces: .p, .params, and get_param() method.
+
+        Raises:
+            AssertionError: If any parameter access returns incorrect values.
+        """
         params = {
             "commission": 0.1,  # For CommissionInfo with percabs=True, this stays 0.1
             "mult": 5.0,
@@ -121,7 +190,14 @@ class TestCommInfoBaseFunctionality:
         assert comm.stocklike == False
 
     def test_inheritance_compatibility(self):
-        """Test inheritance behavior"""
+        """Test inheritance behavior.
+
+        Verifies that specialized CommInfo classes correctly inherit
+        and override parameters from the base classes.
+
+        Raises:
+            AssertionError: If inheritance doesn't work as expected.
+        """
         # Test CommissionInfo (inherits from bt.CommInfoBase)
         info = refactored_comminfo.CommissionInfo(commission=0.2)
 
@@ -140,10 +216,26 @@ class TestCommInfoBaseFunctionality:
 
 
 class TestCommInfoSpecializedClasses:
-    """Test specialized CommInfo classes"""
+    """Test specialized CommInfo classes.
+
+    These tests verify the functionality of specialized CommInfo implementations
+    for different asset types: digital currencies, futures with percentage-based
+    commission, and futures with fixed commission.
+    """
 
     def test_comminfo_dc_functionality(self):
-        """Test digital currency CommInfo functionality"""
+        """Test digital currency CommInfo functionality.
+
+        Verifies that ComminfoDC correctly calculates commission and margin
+        for digital currency instruments like Bitcoin.
+
+        DC-specific behavior:
+            - Commission: abs(size) * price * multiplier * commission_rate
+            - Margin: price * multiplier * margin_rate
+
+        Raises:
+            AssertionError: If DC-specific calculations are incorrect.
+        """
         params = {"commission": 0.1, "mult": 1.0, "margin": 0.1}
 
         dc = refactored_comminfo.ComminfoDC(**params)
@@ -165,7 +257,18 @@ class TestCommInfoSpecializedClasses:
         assert dc.get_margin(price) == expected_margin
 
     def test_futures_percent_functionality(self):
-        """Test futures percent CommInfo functionality"""
+        """Test futures percent CommInfo functionality.
+
+        Verifies that ComminfoFuturesPercent correctly calculates commission
+        and margin for futures instruments with percentage-based commission.
+
+        FuturesPercent-specific behavior:
+            - Commission: abs(size) * price * multiplier * commission_rate
+            - Margin: price * multiplier * margin_rate
+
+        Raises:
+            AssertionError: If FuturesPercent calculations are incorrect.
+        """
         params = {"commission": 0.02, "mult": 10.0, "margin": 0.08}
 
         fut = refactored_comminfo.ComminfoFuturesPercent(**params)
@@ -187,7 +290,18 @@ class TestCommInfoSpecializedClasses:
         assert fut.get_margin(price) == expected_margin
 
     def test_futures_fixed_functionality(self):
-        """Test futures fixed CommInfo functionality"""
+        """Test futures fixed CommInfo functionality.
+
+        Verifies that ComminfoFuturesFixed correctly calculates commission
+        and margin for futures instruments with fixed per-contract commission.
+
+        FuturesFixed-specific behavior:
+            - Commission: abs(size) * fixed_commission
+            - Margin: price * multiplier * margin_rate
+
+        Raises:
+            AssertionError: If FuturesFixed calculations are incorrect.
+        """
         params = {"commission": 5.0, "mult": 10.0, "margin": 0.08}
 
         fut = refactored_comminfo.ComminfoFuturesFixed(**params)
@@ -207,10 +321,21 @@ class TestCommInfoSpecializedClasses:
 
 
 class TestCommInfoValidation:
-    """Test parameter validation in refactored CommInfo"""
+    """Test parameter validation in refactored CommInfo.
+
+    These tests verify that the refactored CommInfo system properly validates
+    input parameters and rejects invalid values with appropriate errors.
+    """
 
     def test_positive_commission_validation(self):
-        """Test commission must be non-negative"""
+        """Test commission must be non-negative.
+
+        Verifies that commission accepts zero and positive values but
+        rejects negative values.
+
+        Raises:
+            AssertionError: If validation doesn't work correctly.
+        """
         # Should work with positive commission
         comm = refactored_comminfo.CommissionInfo(commission=0.1)
         assert comm.get_param("commission") == 0.1  # Stays 0.1 because percabs=True
@@ -224,7 +349,14 @@ class TestCommInfoValidation:
             refactored_comminfo.CommissionInfo(commission=-0.1)
 
     def test_positive_mult_validation(self):
-        """Test mult must be positive"""
+        """Test mult must be positive.
+
+        Verifies that multiplier accepts positive values but rejects
+        zero and negative values.
+
+        Raises:
+            AssertionError: If validation doesn't work correctly.
+        """
         # Should work with positive mult
         comm = refactored_comminfo.CommissionInfo(mult=2.0)
         assert comm.get_param("mult") == 2.0
@@ -242,7 +374,14 @@ class TestCommInfoValidation:
             refactored_comminfo.CommissionInfo(mult=-1.0)
 
     def test_margin_validation(self):
-        """Test margin validation"""
+        """Test margin validation.
+
+        Verifies that margin accepts positive values or None, but rejects
+        negative values.
+
+        Raises:
+            AssertionError: If validation doesn't work correctly.
+        """
         # Should work with positive margin
         comm = refactored_comminfo.CommissionInfo(margin=1000.0)
         assert comm.get_param("margin") == 1000.0
@@ -256,7 +395,14 @@ class TestCommInfoValidation:
             refactored_comminfo.CommissionInfo(margin=-100.0)
 
     def test_leverage_validation(self):
-        """Test leverage must be positive"""
+        """Test leverage must be positive.
+
+        Verifies that leverage accepts positive values but rejects
+        zero and negative values.
+
+        Raises:
+            AssertionError: If validation doesn't work correctly.
+        """
         # Should work with positive leverage
         comm = refactored_comminfo.CommissionInfo(leverage=2.0)
         assert comm.get_param("leverage") == 2.0
@@ -275,10 +421,25 @@ class TestCommInfoValidation:
 
 
 class TestCommInfoCompatibilityLogic:
-    """Test complex compatibility logic"""
+    """Test complex compatibility logic.
+
+    These tests verify that the refactored system maintains backward
+    compatibility through automatic detection and adjustment behaviors.
+    """
 
     def test_commtype_auto_detection(self):
-        """Test automatic commtype detection based on margin"""
+        """Test automatic commtype detection based on margin.
+
+        Verifies that the system automatically detects whether to use
+        percentage or fixed commission based on margin parameter.
+
+        Auto-detection rules:
+            - margin=None → COMM_PERC, stocklike=True
+            - margin provided → COMM_FIXED, stocklike=False
+
+        Raises:
+            AssertionError: If auto-detection doesn't work correctly.
+        """
         # When margin is None, should be COMM_PERC and stocklike=True
         comm1 = refactored_comminfo.CommInfoBase(margin=None)
         assert comm1._commtype == refactored_comminfo.CommInfoBase.COMM_PERC
@@ -297,7 +458,14 @@ class TestCommInfoCompatibilityLogic:
         assert comm3._stocklike == True
 
     def test_margin_auto_adjustment(self):
-        """Test automatic margin adjustment for futures"""
+        """Test automatic margin adjustment for futures.
+
+        Verifies that margin is automatically set to 1.0 for non-stocklike
+        instruments when margin is not provided.
+
+        Raises:
+            AssertionError: If auto-adjustment doesn't work correctly.
+        """
         # For non-stocklike with no margin, should set margin to 1.0
         comm = refactored_comminfo.CommInfoBase(
             commtype=refactored_comminfo.CommInfoBase.COMM_FIXED, stocklike=False, margin=None
@@ -305,7 +473,18 @@ class TestCommInfoCompatibilityLogic:
         assert comm.get_param("margin") == 1.0
 
     def test_commission_percentage_conversion(self):
-        """Test commission percentage conversion"""
+        """Test commission percentage conversion.
+
+        Verifies that commission rates are automatically converted from
+        percentage to decimal when percabs=False.
+
+        Conversion rules:
+            - percabs=False, commtype=COMM_PERC → divide by 100
+            - percabs=True → no conversion
+
+        Raises:
+            AssertionError: If conversion doesn't work correctly.
+        """
         # When percabs=False and commtype=COMM_PERC, should divide by 100
         comm = refactored_comminfo.CommInfoBase(
             commission=5.0, commtype=refactored_comminfo.CommInfoBase.COMM_PERC, percabs=False  # 5%
@@ -322,10 +501,25 @@ class TestCommInfoCompatibilityLogic:
 
 
 class TestCommInfoPerformance:
-    """Test performance characteristics of refactored CommInfo"""
+    """Test performance characteristics of refactored CommInfo.
+
+    These tests verify that the refactored implementation maintains
+    acceptable performance for parameter access and calculations.
+    """
 
     def test_parameter_access_performance(self):
-        """Test parameter access is performant"""
+        """Test parameter access is performant.
+
+        Verifies that parameter access through get_param() is fast enough
+        for high-frequency operations.
+
+        Performance requirements:
+            - Median time < 0.15 seconds for 40,000 operations
+            - > 75,000 operations per second
+
+        Raises:
+            AssertionError: If performance is below threshold.
+        """
         import time
 
         comm = refactored_comminfo.CommissionInfo(
@@ -359,7 +553,18 @@ class TestCommInfoPerformance:
         assert ops_per_second > 75000, f"Parameter access too slow: {ops_per_second:.1f} ops/sec"
 
     def test_commission_calculation_performance(self):
-        """Test commission calculation performance"""
+        """Test commission calculation performance.
+
+        Verifies that commission calculations are fast enough for
+        high-frequency trading scenarios.
+
+        Performance requirements:
+            - Median time < 0.2 seconds for 10,000 operations
+            - > 10,000 operations per second
+
+        Raises:
+            AssertionError: If performance is below threshold.
+        """
         import time
 
         comm = refactored_comminfo.CommissionInfo(commission=0.001)
@@ -388,10 +593,21 @@ class TestCommInfoPerformance:
 
 
 class TestCommInfoEdgeCases:
-    """Test edge cases and error conditions"""
+    """Test edge cases and error conditions.
+
+    These tests verify correct behavior for unusual inputs and
+    special calculation modes.
+    """
 
     def test_zero_size_operations(self):
-        """Test operations with zero size"""
+        """Test operations with zero size.
+
+        Verifies that operations with zero size correctly return zero
+        commission and operation cost.
+
+        Raises:
+            AssertionError: If zero-size operations don't return zero.
+        """
         comm = refactored_comminfo.CommissionInfo(commission=0.001)
 
         # Zero size should result in zero commission
@@ -399,7 +615,19 @@ class TestCommInfoEdgeCases:
         assert comm.getoperationcost(0.0, 100.0) == 0.0
 
     def test_automargin_calculation(self):
-        """Test automargin calculation modes"""
+        """Test automargin calculation modes.
+
+        Verifies that automargin parameter correctly controls margin
+        calculation in different modes.
+
+        Automargin modes:
+            - automargin=False: Use margin parameter directly
+            - automargin < 0: Use mult * price
+            - automargin > 0: Use automargin * price
+
+        Raises:
+            AssertionError: If automargin calculations are incorrect.
+        """
         price = 1000.0
 
         # automargin = False, should use margin parameter
@@ -415,7 +643,18 @@ class TestCommInfoEdgeCases:
         assert comm3.get_margin(price) == 100.0  # 0.1 * 1000.0
 
     def test_interest_calculation(self):
-        """Test interest calculation edge cases"""
+        """Test interest calculation edge cases.
+
+        Verifies that interest calculations work correctly for short
+        positions with credit rates.
+
+        Interest calculation:
+            - Credit rate: annual_rate / 365
+            - Interest: days * credit_rate * abs(size) * price
+
+        Raises:
+            AssertionError: If interest calculations are incorrect.
+        """
         comm = refactored_comminfo.CommInfoBase(interest=0.05)  # 5% annual
 
         # Test internal credit rate calculation
@@ -434,10 +673,21 @@ class TestCommInfoEdgeCases:
 
 
 class TestCommInfoDocumentationAndUsage:
-    """Test usage patterns and documentation examples"""
+    """Test usage patterns and documentation examples.
+
+    These tests verify that the documented usage patterns work correctly
+    and serve as executable examples.
+    """
 
     def test_basic_usage_example(self):
-        """Test basic usage example from documentation"""
+        """Test basic usage example from documentation.
+
+        Demonstrates creating a commission info object for stocks
+        and calculating basic commission and cost.
+
+        Raises:
+            AssertionError: If example doesn't work as documented.
+        """
         # Create a commission info for stocks with 0.1% commission
         comm = refactored_comminfo.CommissionInfo(commission=0.001)
 
@@ -450,7 +700,14 @@ class TestCommInfoDocumentationAndUsage:
         assert cost == 5000.0  # 100 * 50 (for stocks)
 
     def test_futures_usage_example(self):
-        """Test futures usage example"""
+        """Test futures usage example.
+
+        Demonstrates creating a commission info object for futures
+        with margin requirements.
+
+        Raises:
+            AssertionError: If example doesn't work as documented.
+        """
         # Create futures commission with margin
         comm = refactored_comminfo.CommissionInfo(
             commission=2.0,  # $2 per contract
@@ -468,11 +725,25 @@ class TestCommInfoDocumentationAndUsage:
 
 
 def test_comprehensive_compatibility():
-    """Run comprehensive compatibility test suite"""
-    print("\n🚀 Running comprehensive CommInfo compatibility tests...")
+    """Run comprehensive compatibility test suite.
+
+    This function executes all test categories in sequence to verify
+    complete compatibility of the refactored CommInfo system.
+
+    Prints:
+        Progress messages and completion status for each test category.
+
+    Example:
+        >>> test_comprehensive_compatibility()
+        Running comprehensive CommInfo compatibility tests...
+        Testing basic functionality compatibility
+        Testing specialized class compatibility
+        ...
+    """
+    print("\nRunning comprehensive CommInfo compatibility tests...")
 
     # Test original functionality preservation
-    print("✓ Testing basic functionality compatibility")
+    print("Testing basic functionality compatibility")
     test_basic = TestCommInfoBaseFunctionality()
     test_basic.test_basic_stock_commission_compatibility()
     test_basic.test_futures_commission_compatibility()
@@ -480,14 +751,14 @@ def test_comprehensive_compatibility():
     test_basic.test_inheritance_compatibility()
 
     # Test specialized classes
-    print("✓ Testing specialized class compatibility")
+    print("Testing specialized class compatibility")
     test_special = TestCommInfoSpecializedClasses()
     test_special.test_comminfo_dc_functionality()
     test_special.test_futures_percent_functionality()
     test_special.test_futures_fixed_functionality()
 
     # Test validation improvements
-    print("✓ Testing parameter validation")
+    print("Testing parameter validation")
     test_validation = TestCommInfoValidation()
     test_validation.test_positive_commission_validation()
     test_validation.test_positive_mult_validation()
@@ -495,32 +766,32 @@ def test_comprehensive_compatibility():
     test_validation.test_leverage_validation()
 
     # Test compatibility logic
-    print("✓ Testing compatibility logic")
+    print("Testing compatibility logic")
     test_compat = TestCommInfoCompatibilityLogic()
     test_compat.test_commtype_auto_detection()
     test_compat.test_margin_auto_adjustment()
     test_compat.test_commission_percentage_conversion()
 
     # Test performance
-    print("✓ Testing performance characteristics")
+    print("Testing performance characteristics")
     test_perf = TestCommInfoPerformance()
     test_perf.test_parameter_access_performance()
     test_perf.test_commission_calculation_performance()
 
     # Test edge cases
-    print("✓ Testing edge cases")
+    print("Testing edge cases")
     test_edge = TestCommInfoEdgeCases()
     test_edge.test_zero_size_operations()
     test_edge.test_automargin_calculation()
     test_edge.test_interest_calculation()
 
     # Test usage examples
-    print("✓ Testing usage examples")
+    print("Testing usage examples")
     test_usage = TestCommInfoDocumentationAndUsage()
     test_usage.test_basic_usage_example()
     test_usage.test_futures_usage_example()
 
-    print("\n🎉 All CommInfo compatibility tests passed!")
+    print("\nAll CommInfo compatibility tests passed!")
 
 
 if __name__ == "__main__":

@@ -1,10 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Test Case: Commission Schemes
+"""Test Case: Commission Schemes.
+
+This module tests different commission calculation schemes using a dual moving
+average crossover strategy. It verifies that commission calculations work correctly
+across different commission types (percentage-based, fixed, etc.) and ensures that
+the broker properly tracks and deducts commissions from trading operations.
 
 Reference source: backtrader-master2/samples/commission-schemes/commission-schemes.py
-Tests different commission calculation schemes using a dual moving average crossover strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +20,21 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in multiple directories.
+
+    This function searches for a data file in several common locations relative
+    to the current test directory, including the current directory, parent directory,
+    and 'datas' subdirectories.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        The absolute Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -49,6 +67,11 @@ class CommissionStrategy(bt.Strategy):
     params = (('stake', 10), ('fast_period', 10), ('slow_period', 30))
 
     def __init__(self):
+        """Initialize the CommissionStrategy.
+
+        Creates the fast and slow moving average indicators, the crossover indicator,
+        and initializes counters for tracking trades and commissions.
+        """
         self.fast_ma = bt.ind.SMA(period=self.p.fast_period)
         self.slow_ma = bt.ind.SMA(period=self.p.slow_period)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
@@ -58,6 +81,14 @@ class CommissionStrategy(bt.Strategy):
         self.total_commission = 0.0
 
     def notify_order(self, order):
+        """Handle order status changes and track commission.
+
+        This method is called by the broker whenever an order changes status.
+        It counts completed buy/sell orders and accumulates the total commission paid.
+
+        Args:
+            order: The order object that has changed status.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -66,6 +97,16 @@ class CommissionStrategy(bt.Strategy):
             self.total_commission += order.executed.comm
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called for each bar of data. It implements a moving average
+        crossover strategy where:
+        - When fast MA crosses above slow MA (crossover > 0), buy after closing any existing position
+        - When fast MA crosses below slow MA (crossover < 0), close the position
+
+        The strategy maintains only one position at a time by closing any existing
+        position before entering a new one.
+        """
         self.bar_num += 1
         if self.crossover > 0:
             if self.position:
@@ -79,13 +120,25 @@ class CommissionStrategy(bt.Strategy):
 def test_commission_schemes():
     """Test different commission schemes using a dual moving average crossover strategy.
 
-    This test function sets up a backtesting environment with percentage-based
-    commission (0.1%) and runs a strategy to verify the commission calculations
-    are working correctly.
+    This test function sets up a complete backtesting environment with percentage-based
+    commission (0.1%) and runs the CommissionStrategy to verify that commission
+    calculations are working correctly. It validates:
+
+    1. The correct number of bars are processed
+    2. Final portfolio value matches expectations
+    3. Sharpe ratio is calculated correctly
+    4. Annual return is within expected range
+    5. Maximum drawdown is recorded accurately
+    6. Total number of trades is correct
+    7. Total commission paid matches expected amount
+
+    The test uses historical data from 2005-2006 with daily bars and applies a
+    0.1% commission on all trades to verify the commission calculation logic.
 
     Raises:
-        AssertionError: If any of the test assertions fail (bar count, final value,
-            Sharpe ratio, annual return, max drawdown, total trades, or commission).
+        AssertionError: If any of the test assertions fail, including bar count,
+            final value, Sharpe ratio, annual return, max drawdown, total trades,
+            or total commission not matching expected values.
     """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)

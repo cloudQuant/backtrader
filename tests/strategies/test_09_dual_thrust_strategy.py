@@ -72,6 +72,11 @@ class DualThrustStrategy(bt.Strategy):
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the Dual Thrust strategy with tracking variables.
+
+        Sets up variables for tracking bar counts, buy/sell orders,
+        daily price data (high, low, close), and current market position.
+        """
         self.bar_num = 0
         self.pre_date = None
         self.buy_count = 0
@@ -89,9 +94,24 @@ class DualThrustStrategy(bt.Strategy):
         self.marketposition = 0
 
     def prenext(self):
+        """Handle prenext phase when minimum period is not yet reached.
+
+        This method is called for bars before the strategy's minimum period
+        is satisfied. Currently does nothing as this strategy processes all bars.
+        """
         pass
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the Dual Thrust strategy:
+        1. Update daily high/low/close prices
+        2. At market close (15:00), save daily data to history
+        3. Calculate upper/lower bands using N-day lookback period
+        4. Generate entry signals during trading hours (9-11, 21-23)
+        5. Handle position reversals when price crosses bands
+        6. Close all positions before market close (14:55)
+        """
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
         self.current_hour = self.current_datetime.hour
         self.current_minute = self.current_datetime.minute
@@ -163,6 +183,13 @@ class DualThrustStrategy(bt.Strategy):
                 self.marketposition = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Args:
+            order: Order object containing execution details.
+
+        Logs executed buy/sell orders with their execution price.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -172,10 +199,21 @@ class DualThrustStrategy(bt.Strategy):
                 self.log(f"SELL: price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Args:
+            trade: Trade object containing P&L information.
+
+        Logs the profit/loss when a trade is closed.
+        """
         if trade.isclosed:
             self.log(f"Trade completed: pnl={trade.pnl:.2f}, pnlcomm={trade.pnlcomm:.2f}")
 
     def stop(self):
+        """Log final statistics when backtesting completes.
+
+        Outputs the total number of bars processed and buy/sell order counts.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 

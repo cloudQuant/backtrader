@@ -18,6 +18,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    This function searches for a data file in multiple possible locations
+    relative to the current test file directory. It checks the current
+    directory, parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -40,6 +56,11 @@ class ReplayBollingerStrategy(bt.Strategy):
     params = (('period', 20), ('devfactor', 2.0))
 
     def __init__(self):
+        """Initialize the ReplayBollingerStrategy.
+
+        Sets up the Bollinger Bands indicator and initializes tracking
+        variables for orders, bars, and trade counts.
+        """
         self.boll = bt.ind.BollingerBands(period=self.p.period, devfactor=self.p.devfactor)
         self.order = None
         self.bar_num = 0
@@ -47,11 +68,25 @@ class ReplayBollingerStrategy(bt.Strategy):
         self.sell_count = 0
 
     def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
+        """Log strategy messages with timestamp.
+
+        Args:
+            txt: The message text to log.
+            dt: Optional datetime object for the log entry. If None, uses the
+                current bar's datetime from the first data feed.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def notify_order(self, order):
+        """Handle order status changes and updates.
+
+        Called by the backtrader engine when an order's status changes.
+        Logs order events and updates the buy/sell counters.
+
+        Args:
+            order: The order object with updated status information.
+        """
         if not order.alive():
             self.order = None
 
@@ -82,6 +117,14 @@ class ReplayBollingerStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
+        """Handle trade lifecycle events.
+
+        Called when a trade is opened or closed. Logs the trade status,
+        profit/loss information, and price details.
+
+        Args:
+            trade: The trade object with updated status and P&L information.
+        """
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -91,6 +134,15 @@ class ReplayBollingerStrategy(bt.Strategy):
                 trade.getdataname(), trade.price))
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by the backtrader engine for each bar of data.
+        Implements the Bollinger Bands breakout strategy:
+        - Buy when price breaks above the upper band (no existing position)
+        - Close position when price falls below the middle band (existing position)
+
+        Only one order is allowed at a time to prevent over-trading.
+        """
         self.bar_num += 1
         if self.order:
             return

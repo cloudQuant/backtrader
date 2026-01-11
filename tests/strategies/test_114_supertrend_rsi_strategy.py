@@ -2,8 +2,22 @@
 # -*- coding: utf-8 -*-
 """Test case: Supertrend RSI strategy.
 
-This test implements a strategy that combines SuperTrend and RSI indicators
-to determine entry and exit points.
+This module implements a comprehensive test for a trading strategy that combines
+the SuperTrend trend-following indicator with the Relative Strength Index (RSI)
+momentum oscillator to generate long-only trading signals.
+
+The strategy:
+    - Enters long positions when price is above the SuperTrend line AND RSI
+      exceeds a specified threshold (indicating both trend and momentum alignment)
+    - Exits positions when price falls below the SuperTrend line (trend reversal)
+
+The SuperTrend indicator is calculated using Average True Range (ATR) to determine
+dynamic support and resistance levels based on price volatility.
+
+Test Data:
+    - Oracle Corporation (ORCL) historical price data
+    - Date range: January 1, 2010 to December 31, 2014
+    - Data format: CSV with OHLCV columns
 
 Reference:
     backtrader-strategies-compendium/strategies/SupertrendRSI.py
@@ -43,28 +57,65 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SupertrendIndicator(bt.Indicator):
-    """SuperTrend indicator.
+    """SuperTrend indicator for trend-following analysis.
 
     The SuperTrend indicator is a trend-following indicator that uses
     Average True Range (ATR) to determine the direction of the trend.
     It provides dynamic support and resistance levels based on price volatility.
+
+    The indicator calculates:
+        1. Basic Upper Band: (High + Low) / 2 - (ATR Multiplier * ATR)
+        2. Basic Lower Band: (High + Low) / 2 + (ATR Multiplier * ATR)
+        3. Final Bands: Incorporates previous period values for smoothness
+        4. SuperTrend Line: Switches between final bands based on price action
+
+    Attributes:
+        atr: Average True Range indicator instance
+        avg: Average of high and low prices (HL/2)
+        basic_up: Basic upper band calculation
+        basic_down: Basic lower band calculation
+
+    Args:
+        atr_period: Period for ATR calculation (default: 14)
+        atr_multiplier: Multiplier for ATR bands (default: 3)
     """
     lines = ('supertrend', 'final_up', 'final_down')
     params = dict(atr_period=14, atr_multiplier=3)
     plotinfo = dict(subplot=False)
 
     def __init__(self):
+        """Initialize the SuperTrend indicator.
+
+        Calculates the ATR and basic bands needed for SuperTrend calculation.
+        """
         self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
         self.avg = (self.data.high + self.data.low) / 2
         self.basic_up = self.avg - self.p.atr_multiplier * self.atr
         self.basic_down = self.avg + self.p.atr_multiplier * self.atr
 
     def prenext(self):
+        """Initialize indicator values before minimum period is reached.
+
+        Sets all line values to zero during the warmup period before
+        enough data is available for ATR calculation.
+        """
         self.l.final_up[0] = 0
         self.l.final_down[0] = 0
         self.l.supertrend[0] = 0
 
     def next(self):
+        """Calculate SuperTrend values for the current bar.
+
+        The calculation logic:
+        1. Update final_up band: If previous close > previous final_up,
+           use max(basic_up, previous final_up) for continuity
+        2. Update final_down band: If previous close < previous final_down,
+           use min(basic_down, previous final_down) for continuity
+        3. Determine SuperTrend line:
+           - If current close > previous final_down: uptrend (use final_up)
+           - If current close < previous final_up: downtrend (use final_down)
+           - Otherwise: maintain previous SuperTrend value
+        """
         if self.data.close[-1] > self.l.final_up[-1]:
             self.l.final_up[0] = max(self.basic_up[0], self.l.final_up[-1])
         else:
@@ -119,11 +170,16 @@ class SupertrendRsiStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Supertrend RSI strategy.
+
+        Creates the SuperTrend and RSI indicators with configured parameters
+        and initializes tracking variables for orders and statistics.
+        """
         self.supertrend = SupertrendIndicator(
             self.data, atr_period=self.p.atr_period, atr_multiplier=self.p.atr_mult
         )
         self.rsi = bt.indicators.RSI(self.data, period=self.p.rsi_period)
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
@@ -131,6 +187,9 @@ class SupertrendRsiStrategy(bt.Strategy):
 
     def notify_order(self, order):
         """Handle order status updates.
+
+        Called by the backtrader engine when an order's status changes.
+        Tracks completed buy and sell orders for performance statistics.
 
         Args:
             order: The order object with updated status
@@ -150,6 +209,9 @@ class SupertrendRsiStrategy(bt.Strategy):
         Implements the strategy logic:
         - Enter long when price > SuperTrend AND RSI > threshold
         - Exit when price < SuperTrend
+
+        Only one active order is allowed at a time. The bar counter
+        is incremented on each call to track total bars processed.
         """
         self.bar_num += 1
 
@@ -167,17 +229,28 @@ class SupertrendRsiStrategy(bt.Strategy):
 
 
 def test_supertrend_rsi_strategy():
-    """Test the Supertrend RSI strategy.
+    """Test the Supertrend RSI strategy with historical data.
 
-    This function:
+    This function performs a comprehensive backtest of the Supertrend RSI strategy:
+
     1. Sets up a Cerebro backtesting engine
-    2. Loads Oracle historical data (2010-2014)
-    3. Runs the Supertrend RSI strategy
-    4. Analyzes performance metrics (Sharpe ratio, returns, drawdown)
-    5. Asserts that results match expected values
+    2. Loads Oracle Corporation (ORCL) historical price data from 2010-2014
+    3. Configures the strategy with default parameters (ATR period=14,
+       ATR multiplier=2, RSI period=14, RSI threshold=40)
+    4. Sets initial capital to $100,000 and commission to 0.1%
+    5. Runs the backtest and collects performance metrics
+    6. Asserts that results match expected values within tolerance
+
+    Expected Results:
+        - Bars processed: 1243
+        - Final portfolio value: $100,085.04
+        - Sharpe ratio: 0.8987542282805036
+        - Annual return: 0.0001704277101155587
+        - Maximum drawdown: 7.72%
 
     Raises:
         AssertionError: If any performance metric does not match expected value
+        FileNotFoundError: If the Oracle data file cannot be found
     """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")

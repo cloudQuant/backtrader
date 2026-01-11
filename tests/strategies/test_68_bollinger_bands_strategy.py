@@ -1,10 +1,22 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Test Case: Bollinger Bands Strategy
+"""Test module for Bollinger Bands mean reversion strategy.
+
+This module implements and tests a mean reversion trading strategy based on
+Bollinger Bands technical indicator. The strategy buys when price rises back
+above the middle band after breaking below the lower band, and sells when price
+falls back below the middle band after breaking above the upper band.
 
 Reference: https://github.com/backtrader/backhacker
-Mean reversion strategy based on Bollinger Bands
+
+Example:
+    To run the test::
+
+        python -m pytest tests/strategies/test_68_bollinger_bands_strategy.py -v
+
+    Or run directly::
+
+        python tests/strategies/test_68_bollinger_bands_strategy.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -47,12 +59,31 @@ def resolve_data_path(filename: str) -> Path:
 class BollingerBandsStrategy(bt.Strategy):
     """Bollinger Bands mean reversion strategy.
 
-    This strategy implements a mean reversion approach using Bollinger Bands:
+    This strategy implements a mean reversion approach using Bollinger Bands
+    technical indicator. The strategy identifies overbought and oversold
+    conditions and executes trades when price reverts to the mean.
 
-    - Marks a buy signal when price breaks below the lower band
-    - Executes buy when price rises back above the middle band
-    - Marks a sell signal when price breaks above the upper band
-    - Executes sell when price falls back below the middle band
+    Trading Logic:
+        - Marks a buy signal when price breaks below the lower band (oversold)
+        - Executes buy when price rises back above the middle band
+        - Marks a sell signal when price breaks above the upper band (overbought)
+        - Executes sell when price falls back below the middle band
+
+    Attributes:
+        dataclose: LineSeries object providing access to close prices.
+        bband: Bollinger Bands indicator with top, mid, and bottom lines.
+        redline (bool): Flag indicating price broke below lower band.
+        blueline (bool): Flag indicating price broke above upper band.
+        order: Reference to the current pending order.
+        last_operation (str): Last executed operation, either "BUY" or "SELL".
+        bar_num (int): Counter for the number of bars processed.
+        buy_count (int): Total number of buy orders executed.
+        sell_count (int): Total number of sell orders executed.
+
+    Args:
+        stake (int): Number of shares/units per trade. Default is 10.
+        bbands_period (int): Period for Bollinger Bands calculation. Default is 20.
+        devfactor (float): Standard deviation multiplier for band width. Default is 2.0.
     """
     params = dict(
         stake=10,
@@ -61,21 +92,38 @@ class BollingerBandsStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Bollinger Bands strategy.
+
+        Sets up the Bollinger Bands indicator, initializes state variables for
+        tracking signals and orders, and prepares counters for trade statistics.
+        """
         self.dataclose = self.datas[0].close
-        self.bband = bt.indicators.BBands(self.datas[0], period=self.p.bbands_period, devfactor=self.p.devfactor)
-        
+        self.bband = bt.indicators.BBands(
+            self.datas[0],
+            period=self.p.bbands_period,
+            devfactor=self.p.devfactor
+        )
+
         self.redline = False  # Price has broken below lower band
         self.blueline = False  # Price has broken above upper band
-        
+
         self.order = None
         self.last_operation = "SELL"
-        
+
         # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called when an order status changes. Tracks completed orders and updates
+        the last operation and trade counters accordingly.
+
+        Args:
+            order: The order object with updated status information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -89,7 +137,31 @@ class BollingerBandsStrategy(bt.Strategy):
 
         self.order = None
 
+    def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Called when a trade is closed. This method can be extended to track
+        trade P&L or other trade-level metrics.
+
+        Args:
+            trade: The trade object containing trade details.
+        """
+        pass
+
     def next(self):
+        """Execute the strategy logic for each bar.
+
+        This method is called for each bar of data. It implements the mean
+        reversion logic by monitoring price relative to Bollinger Bands and
+        executing trades when appropriate signals are generated.
+
+        The strategy follows these rules:
+            1. If price breaks below lower band, set buy signal flag
+            2. If price breaks above upper band, set sell signal flag
+            3. If price rises above middle band after buy signal, execute buy
+            4. If price breaks above upper band, buy immediately (momentum)
+            5. If price falls below middle band after sell signal, execute sell
+        """
         self.bar_num += 1
 
         if self.order:
@@ -119,19 +191,41 @@ class BollingerBandsStrategy(bt.Strategy):
             self.order = self.sell(size=self.p.stake)
 
     def stop(self):
+        """Called when the strategy execution is complete.
+
+        This method can be used to perform cleanup or print final statistics.
+        Currently a placeholder for future extensions.
+        """
         pass
 
 
 def test_bollinger_bands_strategy():
-    """Test the Bollinger Bands strategy.
+    """Test the Bollinger Bands mean reversion strategy.
 
     This function sets up and executes a backtest of the Bollinger Bands
     mean reversion strategy using historical Oracle stock data from 2010-2014.
-    It validates the strategy performance against expected metrics.
+    It validates the strategy performance against expected metrics including
+    Sharpe ratio, annual returns, maximum drawdown, and final portfolio value.
+
+    The test configuration:
+        - Initial capital: $100,000
+        - Commission: 0.1% per trade
+        - Data period: 2010-01-01 to 2014-12-31
+        - Bollinger Bands period: 20
+        - Standard deviation factor: 2.0
+
+    Expected Results:
+        - Bars processed: 1238
+        - Final portfolio value: $100,275.98
+        - Sharpe ratio: ~1.25
+        - Annual return: ~0.055%
+        - Maximum drawdown: ~8.52%
 
     Raises:
         AssertionError: If any of the performance metrics do not match expected
-            values within specified tolerance.
+            values within specified tolerance (0.01 for final_value, 1e-6 for others).
+        FileNotFoundError: If the required data file 'orcl-1995-2014.txt' cannot
+            be located.
     """
     cerebro = bt.Cerebro()
 
@@ -184,12 +278,21 @@ def test_bollinger_bands_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
+    # Validate results with specified tolerances
     # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
-    assert abs(final_value - 100275.98) < 0.01, f"Expected final_value=100275.98, got {final_value}"
-    assert abs(sharpe_ratio - (1.2477776453402647)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
-    assert abs(annual_return - (0.0005526698863482884)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
-    assert abs(max_drawdown - 0.08517200936602952) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
+    assert abs(final_value - 100275.98) < 0.01, (
+        f"Expected final_value=100275.98, got {final_value}"
+    )
+    assert abs(sharpe_ratio - 1.2477776453402647) < 1e-6, (
+        f"Expected sharpe_ratio=1.2477776453402647, got {sharpe_ratio}"
+    )
+    assert abs(annual_return - 0.0005526698863482884) < 1e-6, (
+        f"Expected annual_return=0.0005526698863482884, got {annual_return}"
+    )
+    assert abs(max_drawdown - 0.08517200936602952) < 1e-6, (
+        f"Expected max_drawdown=0.08517200936602952, got {max_drawdown}"
+    )
 
     print("\nTest passed!")
 

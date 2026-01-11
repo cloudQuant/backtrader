@@ -1,10 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Test case: Ichimoku Cloud strategy.
+"""Test module for Ichimoku Cloud trading strategy.
+
+This module tests the Ichimoku Cloud strategy implementation, which uses
+the Ichimoku Kinko Hyo technical indicator to generate trading signals based
+on price position relative to the cloud (Kumo).
 
 Reference: backtrader-strategies-compendium/strategies/Ichimoku.py
-Uses Ichimoku cloud breakout as entry signal.
+
+The strategy enters long positions when price is above the cloud and exits
+when price breaks below the cloud boundaries.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +22,27 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the full path to a data file by searching multiple locations.
+
+    This function searches for a data file in several common locations relative
+    to the test directory, allowing flexibility in test file organization.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        The absolute Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched locations.
+
+    Search Locations:
+        1. Current test directory (tests/strategies/)
+        2. Parent tests directory (tests/)
+        3. Current test directory/datas/
+        4. Parent tests directory/datas/
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -30,13 +56,36 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class IchimokuCloudStrategy(bt.Strategy):
-    """Ichimoku Cloud strategy.
+    """Ichimoku Cloud trading strategy.
 
-    Entry conditions:
-    - Long: Price > Senkou Span A > Senkou Span B (above cloud)
+    This strategy implements a trend-following approach using the Ichimoku Kinko
+    Hyo technical indicator. The Ichimoku Cloud (Kumo) is used to determine
+    market trend direction and generate trading signals based on price position
+    relative to the cloud boundaries.
 
-    Exit conditions:
-    - Price breaks below either cloud boundary
+    Entry Conditions:
+        - Long: Price > Senkou Span A and Price > Senkou Span B (price is above
+          the cloud, indicating bullish trend)
+
+    Exit Conditions:
+        - Price < Senkou Span A and Price < Senkou Span B (price breaks below
+          both cloud boundaries, indicating trend reversal)
+
+    Attributes:
+        ichimoku: The Ichimoku indicator instance providing cloud calculations.
+        order: Reference to the current pending order, or None if no order is
+            pending.
+        bar_num: Counter tracking the total number of bars processed.
+        buy_count: Counter tracking the number of executed buy orders.
+        sell_count: Counter tracking the number of executed sell orders.
+
+    Parameters:
+        stake: Number of shares/units per trade (default: 10).
+        tenkan: Tenkan-sen (Conversion Line) period in bars (default: 9).
+        kijun: Kijun-sen (Base Line) period in bars (default: 26).
+        senkou: Senkou Span B period in bars (default: 52).
+        senkou_lead: Forward displacement for cloud in bars (default: 26).
+        chikou: Chikou Span (Lagging Line) displacement in bars (default: 26).
     """
     params = dict(
         stake=10,
@@ -48,6 +97,11 @@ class IchimokuCloudStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Ichimoku Cloud strategy.
+
+        Sets up the Ichimoku indicator with configurable parameters and
+        initializes tracking variables for order management and statistics.
+        """
         self.ichimoku = bt.indicators.Ichimoku(
             self.data,
             tenkan=self.p.tenkan,
@@ -56,13 +110,22 @@ class IchimokuCloudStrategy(bt.Strategy):
             senkou_lead=self.p.senkou_lead,
             chikou=self.p.chikou,
         )
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates and track trade execution statistics.
+
+        This method is called by the backtrader engine when an order's status
+        changes. It updates the buy/sell counters when orders are completed
+        and resets the order reference when the order is no longer active.
+
+        Args:
+            order: The backtrader Order object with updated status information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -73,15 +136,28 @@ class IchimokuCloudStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by the backtrader engine for each new bar.
+        It implements the core strategy logic:
+        1. Checks for pending orders and returns if one exists
+        2. Retrieves current price and Ichimoku cloud values
+        3. Enters long position when price is above cloud
+        4. Exits position when price breaks below cloud
+
+        Trading Logic:
+            - No position: Enter long if close > senkou_a AND close > senkou_b
+            - Has position: Close position if close < senkou_a AND close < senkou_b
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         close = self.data.close[0]
         senkou_a = self.ichimoku.senkou_span_a[0]
         senkou_b = self.ichimoku.senkou_span_b[0]
-        
+
         if not self.position:
             # Price is above cloud (relaxed condition)
             if close > senkou_a and close > senkou_b:
@@ -93,6 +169,37 @@ class IchimokuCloudStrategy(bt.Strategy):
 
 
 def test_ichimoku_cloud_strategy():
+    """Test the Ichimoku Cloud strategy implementation.
+
+    This function sets up a complete backtesting environment with historical
+    Oracle Corporation stock data, runs the Ichimoku Cloud strategy, and
+    validates the results against expected performance metrics.
+
+    The test:
+    1. Loads historical price data for Oracle (2010-2014)
+    2. Configures the backtest with initial capital and commission
+    3. Adds performance analyzers (Sharpe Ratio, Returns, Drawdown)
+    4. Runs the backtest and collects results
+    5. Validates metrics against expected values with tight tolerances
+
+    Test Data:
+        - Symbol: Oracle Corporation (ORCL)
+        - Period: 2010-01-01 to 2014-12-31
+        - Initial Capital: $100,000
+        - Commission: 0.1% per trade
+
+    Expected Results:
+        - Bars processed: 1180
+        - Final portfolio value: $100,088.51
+        - Sharpe Ratio: 0.9063632909371556
+        - Annual return: 0.00017737921024728437
+        - Maximum drawdown: 10.32%
+
+    Raises:
+        AssertionError: If any performance metric deviates from expected values
+            beyond the specified tolerance. Final value tolerance is 0.01,
+            other metrics use 1e-6 tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(

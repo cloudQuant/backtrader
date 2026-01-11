@@ -1,3 +1,9 @@
+"""Tests for crypto futures funding rate trading.
+
+This module tests the implementation of funding rate arbitrage strategies
+for crypto futures, including data loading, strategy execution, and value
+calculation validation.
+"""
 import datetime
 from pathlib import Path
 
@@ -8,9 +14,18 @@ import backtrader as bt
 from backtrader.comminfo import ComminfoFundingRate
 
 
-# Additional indicators added beyond trading information
 class GenericFundingRateCsv(bt.feeds.GenericCSVData):
-    # Add two lines, each line name is the name of the additional columns in the CSV file
+    """CSV data feed with funding rate columns.
+
+    Extends GenericCSVData to include additional columns for crypto futures
+    trading data including funding rates, mark prices, and volume metrics.
+
+    Attributes:
+        lines: Additional data lines beyond standard OHLCV.
+        params: Column indices for each field in the CSV file.
+    """
+
+    # Add lines for additional columns in the CSV file
     lines = (
         "quote_volume",
         "count",
@@ -21,7 +36,7 @@ class GenericFundingRateCsv(bt.feeds.GenericCSVData):
         "current_funding_rate",
     )
 
-    # The index of each new variable should be determined based on your CSV file, starting from 0
+    # Column indices start from 0, based on CSV file structure
     params = (
         ("quote_volume", 6),
         ("count", 7),
@@ -33,34 +48,52 @@ class GenericFundingRateCsv(bt.feeds.GenericCSVData):
     )
 
     def get_name(self):
+        """Return the name of this data feed."""
         return self._name
 
 
 def get_data_root(symbol):
-    # Get absolute path of current file
+    """Get the data file path for a given symbol.
+
+    Args:
+        symbol (str): Trading symbol name (e.g., 'gasusdt', 'tokenusdt').
+
+    Returns:
+        Path: Absolute path to the data file for the symbol.
+    """
+    # Navigate from current file to parent directory's datas folder
     current_file_path = Path(__file__).resolve()
-    # Get directory of current file
-    current_dir_path = current_file_path.parent
-    # Get parent directory
-    parent_dir_path = current_dir_path.parent
-    # Join parent directory and datas directory
+    parent_dir_path = current_file_path.parent.parent
     data_root = parent_dir_path.joinpath("datas")
-    # Join datas directory and symbol file name
     data_file_path = data_root.joinpath(f"fake_kline_{symbol}.csv")
     print("data_file_path", data_file_path)
     return data_file_path
 
 
-# When using, we can directly use our new class to read data
 class FundingRateStrategy(bt.Strategy):
+    """Trading strategy based on funding rate arbitrage.
+
+    This strategy implements a basic funding rate arbitrage by buying and selling
+    crypto futures based on their funding rates to capture the funding fee.
+
+    Attributes:
+        params: Strategy parameters (empty for now).
+        data_name_list: List of data feed names to trade.
+    """
     params = ()
 
     def log(self, txt, dt=None):
-        """Logging function for this strategy"""
+        """Log strategy messages with timestamp.
+
+        Args:
+            txt (str): Message text to log.
+            dt (datetime, optional): Datetime for the log entry.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
+        """Initialize the funding rate strategy."""
         self.bar_num = 0
         # self.gas_avg_funding_rate = bt.indicators.SMA(
         #     self.getdatabyname("gasusdt").current_funding_rate, period=30)
@@ -69,6 +102,7 @@ class FundingRateStrategy(bt.Strategy):
         self.data_name_list = ["gasusdt", "tokenusdt"]
 
     def prenext(self):
+        """Handle pre-next phase before minimum period is reached."""
         pass
         # for name in self.data_name_list:
         #     data = self.getdatabyname(name)
@@ -78,6 +112,13 @@ class FundingRateStrategy(bt.Strategy):
         #         f"funding_rate:{data.current_funding_rate[0]},")
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Logs order execution details for completed orders.
+
+        Args:
+            order: Order object with status information.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             # Order submitted and accepted
             return
@@ -111,6 +152,13 @@ class FundingRateStrategy(bt.Strategy):
                 )
 
     def notify_trade(self, trade):
+        """Handle trade updates.
+
+        Logs information when trades are opened or closed.
+
+        Args:
+            trade: Trade object with position information.
+        """
         # Output information when a trade ends
         if trade.isclosed:
             self.log(
@@ -122,6 +170,13 @@ class FundingRateStrategy(bt.Strategy):
             self.log(f"open symbol is : {trade.getdataname()} , price : {trade.price} ")
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements a simple funding rate arbitrage strategy by opening
+        positions when funding rates are favorable.
+
+        Note: This is a simplified example for demonstration purposes.
+        """
         # Some simplified advanced usage is not used, just to demonstrate basic usage
         # When trading, buy/sell fake_gasusdt and fake_tokenusdt based on conditions
         self.bar_num += 1
@@ -188,6 +243,14 @@ class FundingRateStrategy(bt.Strategy):
 
 
 def run_strategy():
+    """Run the funding rate arbitrage backtest.
+
+    Sets up and executes a backtest for the funding rate strategy with
+    multiple crypto futures data feeds.
+
+    Returns:
+        pd.DataFrame: Daily portfolio values with datetime index.
+    """
     cerebro = bt.Cerebro()
     symbol_list = ["gasusdt", "tokenusdt"]
     for symbol in symbol_list:
@@ -242,6 +305,14 @@ def run_strategy():
 
 
 def get_expected_value():
+    """Calculate expected portfolio values from funding rate data.
+
+    Computes the expected portfolio value based on funding rate payments
+    for a simple arbitrage strategy.
+
+    Returns:
+        pd.DataFrame: Expected cumulative portfolio values with date index.
+    """
     # Read data
     gas_data_file_path = get_data_root("gasusdt")
     token_data_file_path = get_data_root("tokenusdt")
@@ -292,6 +363,14 @@ def get_expected_value():
 
 
 def test_base_funding_rate():
+    """Test the funding rate strategy backtest results.
+
+    Compares actual backtest results against expected values calculated
+    from the funding rate data. Asserts that values match within tolerance.
+
+    Raises:
+        AssertionError: If actual and expected values differ by more than 1e-6.
+    """
     actual_value_df = run_strategy()
     actual_value_list = actual_value_df["value"].tolist()
     expected_value_df = get_expected_value()
