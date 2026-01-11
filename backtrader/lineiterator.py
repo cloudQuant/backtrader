@@ -423,7 +423,7 @@ class LineIteratorMixin:
         # When indicators are created in dict comprehensions, findowner() fails because
         # 'self' is not in f_locals of the dict comprehension's frame. In this case,
         # _owner gets lazily set to MinimalOwner which doesn't have addindicator().
-        # Solution: Try to find the real owner through the data source's owner chain.
+        # Solution: Use OwnerContext first, then fallback to other methods.
         owner = None
         try:
             owner = _obj._owner
@@ -433,11 +433,9 @@ class LineIteratorMixin:
         except AttributeError:
             pass
 
-        # If no valid owner found, try to find through call stack using sys._getframe
-        # This is specifically for indicators created in dict/list comprehensions
-        # where findowner() fails because 'self' is not in f_locals of the comprehension frame
-        # CRITICAL: Only do this for indicators (objects with _ltype == IndType)
-        # PERFORMANCE: Use sys._getframe() instead of inspect.stack() - much faster
+        # If no valid owner found, try OwnerContext first (preferred method)
+        # This handles indicators created in dict/list comprehensions when
+        # Strategy.__init__ uses OwnerContext.set_owner()
         if owner is None:
             try:
                 # Only apply this fix for indicators, not for all LineIterators
@@ -448,22 +446,33 @@ class LineIteratorMixin:
             if is_indicator:
                 try:
                     from .strategy import Strategy
-                    import sys
-                    # Walk up the call stack using sys._getframe (fast)
-                    # Start at frame 2 to skip this function and dopostinit
-                    for depth in range(2, 20):  # Max 20 frames to avoid infinite loop
-                        try:
-                            frame = sys._getframe(depth)
-                        except ValueError:
-                            break
-                        self_obj = frame.f_locals.get("self")
-                        if self_obj is not None and self_obj is not _obj:
-                            if isinstance(self_obj, Strategy):
-                                owner = self_obj
-                                _obj._owner = owner
-                                break
+                    # PRIORITY 1: Try OwnerContext first (no stack frame inspection)
+                    context_owner = metabase.OwnerContext.get_current_owner(Strategy)
+                    if context_owner is not None and context_owner is not _obj:
+                        owner = context_owner
+                        _obj._owner = owner
                 except Exception:
                     pass
+                
+                # PRIORITY 2: Fallback to sys._getframe for backward compatibility
+                # This handles cases where OwnerContext is not used
+                if owner is None:
+                    try:
+                        # Walk up the call stack using sys._getframe (fast)
+                        # Start at frame 2 to skip this function and dopostinit
+                        for depth in range(2, 20):  # Max 20 frames to avoid infinite loop
+                            try:
+                                frame = sys._getframe(depth)
+                            except ValueError:
+                                break
+                            self_obj = frame.f_locals.get("self")
+                            if self_obj is not None and self_obj is not _obj:
+                                if isinstance(self_obj, Strategy):
+                                    owner = self_obj
+                                    _obj._owner = owner
+                                    break
+                    except Exception:
+                        pass
 
         # Register with owner if found
         # CRITICAL FIX: Check if already registered to avoid duplicates
