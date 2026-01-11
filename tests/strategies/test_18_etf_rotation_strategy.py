@@ -473,14 +473,14 @@ def test_etf_rotation_strategy():
     # Assert test results - using exact assertions
     # final_value tolerance: 0.01, other indicators tolerance: 1e-6
     assert strat.bar_num == 2600, f"Expected bar_num=2600, got {strat.bar_num}"
-    assert strat.buy_count > 0, f"Expected buy_count > 0, got {strat.buy_count}"
-    assert strat.sell_count > 0, f"Expected sell_count > 0, got {strat.sell_count}"
-    assert total_trades > 0, f"Expected total_trades > 0, got {total_trades}"
+    assert strat.buy_count == 266, f"Expected buy_count > 0, got {strat.buy_count}"
+    assert strat.sell_count == 129, f"Expected sell_count > 0, got {strat.sell_count}"
+    assert total_trades == 265, f"Expected total_trades > 0, got {total_trades}"
     # Note: sharpe_ratio may vary slightly due to platform differences, using looser tolerance
-    assert sharpe_ratio is None or abs(sharpe_ratio - 0.54) < 0.5, f"Expected sharpe_ratio around 0.54, got {sharpe_ratio}"
-    assert abs(annual_return - 0.16) < 0.02, f"Expected annual_return=0.16, got {annual_return}"
-    assert abs(max_drawdown - 0.32) < 0.05, f"Expected max_drawdown=0.32, got {max_drawdown}"
-    assert abs(final_value - 235146) < 5000, f"Expected final_value=235146, got {final_value}"
+    assert abs(sharpe_ratio - 0.5429576897026931) < 1e-6, f"Expected sharpe_ratio around 0.54, got {sharpe_ratio}"
+    assert abs(annual_return - 0.16189795444232807) < 1e-6, f"Expected annual_return=0.16, got {annual_return}"
+    assert abs(max_drawdown - 0.3202798124215756) < 1e-6, f"Expected max_drawdown=0.32, got {max_drawdown}"
+    assert abs(final_value - 235146.28691140004) < 0.01, f"Expected final_value=235146, got {final_value}"
 
     print("\nAll tests passed!")
 
