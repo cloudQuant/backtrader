@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Sharpe TimeReturn 夏普比率和时间收益
+Test case for Sharpe ratio and TimeReturn analyzers.
 
-参考来源: backtrader-master2/samples/sharpe-timereturn/sharpe-timereturn.py
-测试夏普比率和时间收益分析器，使用双均线交叉策略
+This test module evaluates the Sharpe ratio and TimeReturn analyzers using a
+dual moving average crossover strategy.
+
+Reference: backtrader-master2/samples/sharpe-timereturn/sharpe-timereturn.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,7 +32,23 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SharpeTestStrategy(bt.Strategy):
-    """测试夏普比率的策略 - 双均线交叉"""
+    """Test strategy for Sharpe ratio analysis using dual moving average crossover.
+
+    This strategy implements a simple moving average crossover system where:
+    - Buy signal occurs when the fast MA crosses above the slow MA
+    - Sell signal occurs when the fast MA crosses below the slow MA
+
+    Attributes:
+        crossover: Indicator tracking MA crossover signals
+        order: Current pending order
+        bar_num: Counter for processed bars
+        buy_count: Number of buy orders executed
+        sell_count: Number of sell orders executed
+
+    Args:
+        p1: Period for the fast moving average (default: 10)
+        p2: Period for the slow moving average (default: 30)
+    """
     params = (('p1', 10), ('p2', 30))
 
     def __init__(self):
@@ -65,11 +83,25 @@ class SharpeTestStrategy(bt.Strategy):
 
 
 def test_sharpe_timereturn():
-    """测试 Sharpe TimeReturn"""
+    """Test Sharpe ratio and TimeReturn analyzers.
+
+    This function sets up a backtesting environment with the SharpeTestStrategy,
+    runs the backtest, and verifies the results against expected values.
+
+    The test validates:
+        - Sharpe ratio calculation
+        - Annual return rate
+        - Maximum drawdown
+        - Total number of trades
+        - Final portfolio value
+
+    Raises:
+        AssertionError: If any of the test assertions fail
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(
         dataname=str(data_path),
@@ -81,7 +113,7 @@ def test_sharpe_timereturn():
     cerebro.addstrategy(SharpeTestStrategy)
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 添加完整分析器 - 使用日线级别计算夏普率
+    # Add comprehensive analyzers - calculate Sharpe ratio using daily timeframe
     cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Years, _name="yearly")
     cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Months, _name="monthly")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
@@ -90,11 +122,11 @@ def test_sharpe_timereturn():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     yearly = strat.analyzers.yearly.get_analysis()
     monthly = strat.analyzers.monthly.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
@@ -108,9 +140,9 @@ def test_sharpe_timereturn():
     total_trades = trades.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Sharpe TimeReturn 回测结果:")
+    print("Sharpe TimeReturn Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -122,7 +154,7 @@ def test_sharpe_timereturn():
     print(f"  Yearly Returns: {yearly}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 482, f"Expected bar_num=482, got {strat.bar_num}"
     assert abs(final_value - 104966.80) < 0.01, f"Expected final_value=104966.80, got {final_value}"
     assert abs(sharpe_ratio - 0.7210685207398165) < 1e-6, f"Expected sharpe_ratio=0.7210685207398165, got {sharpe_ratio}"
@@ -130,11 +162,11 @@ def test_sharpe_timereturn():
     assert abs(max_drawdown - 3.430658473286522) < 1e-6, f"Expected max_drawdown=3.430658473286522, got {max_drawdown}"
     assert total_trades == 9, f"Expected total_trades=9, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Sharpe TimeReturn 测试")
+    print("Sharpe TimeReturn Test")
     print("=" * 60)
     test_sharpe_timereturn()

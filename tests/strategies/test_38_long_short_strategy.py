@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Long Short 多空策略
+Test case: Long Short Strategy
 
-参考来源: backtrader-master2/samples/analyzer-annualreturn/analyzer-annualreturn.py
-基于价格与SMA交叉的多空策略
+Reference: backtrader-master2/samples/analyzer-annualreturn/analyzer-annualreturn.py
+A long-short strategy based on price and SMA crossover.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data file based on the script directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,9 +45,20 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class LongShortStrategy(bt.Strategy):
-    """多空策略
-    
-    当价格上穿SMA时做多，下穿SMA时做空
+    """Long Short Strategy.
+
+    This strategy goes long when price crosses above SMA, and goes short
+    when price crosses below SMA.
+
+    Attributes:
+        orderid: ID of the current pending order.
+        signal: Crossover signal indicator.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+        win_count: Number of profitable trades.
+        loss_count: Number of losing trades.
+        sum_profit: Total profit/loss from all closed trades.
     """
     params = dict(
         period=15,
@@ -49,7 +71,7 @@ class LongShortStrategy(bt.Strategy):
         sma = bt.ind.SMA(self.data, period=self.p.period)
         self.signal = bt.ind.CrossOver(self.data.close, sma)
 
-        # 统计变量
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -108,11 +130,21 @@ class LongShortStrategy(bt.Strategy):
 
 
 def test_long_short_strategy():
-    """测试 Long Short 多空策略"""
+    """Test the Long Short Strategy.
+
+    This test function runs a backtest of the LongShortStrategy with
+    historical price data and verifies that the strategy produces
+    expected results including trade counts, win/loss ratios, and
+    performance metrics.
+
+    Raises:
+        AssertionError: If any of the expected values do not match the
+            actual results within the specified tolerance.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(
         dataname=str(data_path),
@@ -130,7 +162,7 @@ def test_long_short_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
     cerebro.addanalyzer(bt.analyzers.SQN, _name="my_sqn")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
@@ -144,7 +176,7 @@ def test_long_short_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Long Short 多空策略回测结果:")
+    print("Long Short Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -164,18 +196,18 @@ def test_long_short_strategy():
     assert strat.win_count == 17, f"Expected win_count=17, got {strat.win_count}"
     assert strat.loss_count == 39, f"Expected loss_count=39, got {strat.loss_count}"
     assert total_trades == 57, f"Expected total_trades=57, got {total_trades}"
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert abs(final_value - 102093.5) < 0.01, f"Expected final_value=102093.50, got {final_value}"
     assert abs(sharpe_ratio - (0.10840186537088062)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.010249743255163991)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 3.1589101255944287) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Long Short 多空策略测试")
+    print("Long Short Strategy Test")
     print("=" * 60)
     test_long_short_strategy()

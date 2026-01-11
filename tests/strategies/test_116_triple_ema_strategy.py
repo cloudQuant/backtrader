@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Triple EMA 三重指数均线策略
+Test Case: Triple EMA (Triple Exponential Moving Average) Strategy.
 
-使用三条EMA的排列判断趋势
+This strategy uses the alignment of three EMAs to determine trends.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -29,13 +29,16 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TripleEmaStrategy(bt.Strategy):
-    """Triple EMA 三重指数均线策略
-    
-    入场条件:
-    - 多头: EMA5 > EMA10 > EMA20 (多头排列)
-    
-    出场条件:
-    - EMA5 < EMA10 < EMA20 (空头排列)
+    """Triple EMA (Triple Exponential Moving Average) Strategy.
+
+    This strategy uses three EMAs with different periods to identify trend
+    direction and generate trading signals based on their alignment.
+
+    Entry conditions:
+    - Long: EMA5 > EMA10 > EMA20 (bullish alignment)
+
+    Exit conditions:
+    - Exit long when EMA5 < EMA10 < EMA20 (bearish alignment)
     """
     params = dict(
         stake=10,
@@ -66,16 +69,16 @@ class TripleEmaStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # 多头排列
+            # Bullish alignment
             if self.ema_fast[0] > self.ema_mid[0] > self.ema_slow[0]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 空头排列
+            # Bearish alignment
             if self.ema_fast[0] < self.ema_mid[0] < self.ema_slow[0]:
                 self.order = self.close()
 
@@ -106,7 +109,7 @@ def test_triple_ema_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Triple EMA 三重指数均线策略回测结果:")
+    print("Triple EMA Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -116,19 +119,19 @@ def test_triple_ema_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
     assert abs(final_value - 100065.31) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (0.3757309556964078)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.00013090572633809417)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.09539203307003034) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Triple EMA 三重指数均线策略测试")
+    print("Triple EMA Strategy Test")
     print("=" * 60)
     test_triple_ema_strategy()

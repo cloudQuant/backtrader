@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Price Channel 价格通道策略
+Test case: Price Channel strategy.
 
-使用价格通道突破判断趋势
+Uses price channel breakout to determine trend.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -29,13 +29,13 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class PriceChannelStrategy(bt.Strategy):
-    """Price Channel 价格通道策略
-    
-    入场条件:
-    - 多头: 价格创N日新高
-    
-    出场条件:
-    - 价格跌破N日最低价
+    """Price Channel strategy.
+
+    Entry conditions:
+    - Long: Price creates N-day high
+
+    Exit conditions:
+    - Price falls below N-day low
     """
     params = dict(
         stake=10,
@@ -69,11 +69,11 @@ class PriceChannelStrategy(bt.Strategy):
             return
         
         if not self.position:
-            # 价格创新高
+            # Price creates new high
             if self.data.high[0] >= self.highest_entry[-1]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 价格创新低
+            # Price creates new low
             if self.data.low[0] <= self.lowest_exit[-1]:
                 self.order = self.close()
 
@@ -104,7 +104,7 @@ def test_price_channel_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Price Channel 价格通道策略回测结果:")
+    print("Price Channel strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -114,19 +114,19 @@ def test_price_channel_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
     assert abs(final_value - 100050.36) < 0.01, f"Expected final_value=100050.36, got {final_value}"
     assert abs(sharpe_ratio - (0.5592202866492985)) < 1e-6, f"Expected sharpe_ratio=0.5592202866492985, got {sharpe_ratio}"
     assert abs(annual_return - (0.00010094130513364865)) < 1e-6, f"Expected annual_return=0.00010094130513364865, got {annual_return}"
     assert abs(max_drawdown - 0.06631886254244598) < 1e-6, f"Expected max_drawdown=0.06631886254244598, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Price Channel 价格通道策略测试")
+    print("Price Channel strategy test")
     print("=" * 60)
     test_price_channel_strategy()

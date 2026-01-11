@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: MACD ATR 策略
+Test Case: MACD ATR Strategy
 
-参考来源: backtrader-master2/samples/macd-settings/macd-settings.py
-基于MACD交叉和SMA方向过滤，使用ATR动态止损
+Reference: backtrader-master2/samples/macd-settings/macd-settings.py
+Based on MACD crossover and SMA direction filtering, using ATR dynamic stop loss.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,10 +45,26 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class MACDATRStrategy(bt.Strategy):
-    """MACD ATR策略
-    
-    入场条件：MACD线上穿信号线 且 SMA方向向下（逆势入场）
-    出场条件：价格跌破ATR动态止损价
+    """MACD ATR Strategy.
+
+    Entry condition: MACD line crosses above signal line AND SMA direction is
+        downward (counter-trend entry).
+    Exit condition: Price falls below ATR dynamic stop loss price.
+
+    Attributes:
+        macd: MACD indicator instance.
+        mcross: CrossOver indicator for MACD and signal line.
+        atr: ATR indicator instance.
+        sma: SMA indicator instance.
+        smadir: SMA direction indicator.
+        order: Current pending order.
+        pstop: Current stop loss price.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+        win_count: Number of profitable trades.
+        loss_count: Number of losing trades.
+        sum_profit: Total profit/loss from all closed trades.
     """
     params = (
         ('macd1', 12),
@@ -64,7 +91,7 @@ class MACDATRStrategy(bt.Strategy):
         self.order = None
         self.pstop = 0
 
-        # 统计变量
+        # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -121,11 +148,18 @@ class MACDATRStrategy(bt.Strategy):
 
 
 def test_macd_atr_strategy():
-    """测试 MACD ATR 策略"""
+    """Test the MACD ATR strategy.
+
+    This function runs a backtest of the MACD ATR strategy on Yahoo stock data
+    from 2005-2014 and verifies the results match expected values.
+
+    Raises:
+        AssertionError: If any of the backtest metrics do not match expected values.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(50000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("yhoo-1996-2014.txt")
     data = bt.feeds.YahooFinanceCSVData(
         dataname=str(data_path),
@@ -142,7 +176,7 @@ def test_macd_atr_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
@@ -156,7 +190,7 @@ def test_macd_atr_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("MACD ATR 策略回测结果:")
+    print("MACD ATR Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -181,12 +215,12 @@ def test_macd_atr_strategy():
     assert abs(annual_return - (-1.2861156358361e-05)) < 1e-9, f"Expected annual_return=-1.2861156358361e-05, got {annual_return}"
     assert abs(max_drawdown - 0.07560831095513623) < 1e-6, f"Expected max_drawdown=0.07560831095513623, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("MACD ATR 策略测试")
+    print("MACD ATR Strategy Test")
     print("=" * 60)
     test_macd_atr_strategy()

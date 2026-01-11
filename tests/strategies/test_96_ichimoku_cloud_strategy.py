@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Ichimoku Cloud 一目均衡表策略
+Test case: Ichimoku Cloud strategy.
 
-参考来源: backtrader-strategies-compendium/strategies/Ichimoku.py
-使用一目均衡表云层突破作为入场信号
+Reference: backtrader-strategies-compendium/strategies/Ichimoku.py
+Uses Ichimoku cloud breakout as entry signal.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,13 +30,13 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class IchimokuCloudStrategy(bt.Strategy):
-    """Ichimoku Cloud 一目均衡表策略
-    
-    入场条件:
-    - 多头: 价格 > Senkou Span A > Senkou Span B (云层上方)
-    
-    出场条件:
-    - 价格跌破云层任一边界
+    """Ichimoku Cloud strategy.
+
+    Entry conditions:
+    - Long: Price > Senkou Span A > Senkou Span B (above cloud)
+
+    Exit conditions:
+    - Price breaks below either cloud boundary
     """
     params = dict(
         stake=10,
@@ -83,11 +83,11 @@ class IchimokuCloudStrategy(bt.Strategy):
         senkou_b = self.ichimoku.senkou_span_b[0]
         
         if not self.position:
-            # 价格在云层上方 (放宽条件)
+            # Price is above cloud (relaxed condition)
             if close > senkou_a and close > senkou_b:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 价格跌破云层两边
+            # Price breaks below both cloud boundaries
             if close < senkou_a and close < senkou_b:
                 self.order = self.close()
 
@@ -118,7 +118,7 @@ def test_ichimoku_cloud_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Ichimoku Cloud 一目均衡表策略回测结果:")
+    print("Ichimoku Cloud strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -128,19 +128,19 @@ def test_ichimoku_cloud_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1180, f"Expected bar_num=1180, got {strat.bar_num}"
     assert abs(final_value - 100088.51) < 0.01, f"Expected final_value=100088.51, got {final_value}"
     assert abs(sharpe_ratio - (0.9063632909371556)) < 1e-6, f"Expected sharpe_ratio=0.9063632909371556, got {sharpe_ratio}"
     assert abs(annual_return - (0.00017737921024728437)) < 1e-6, f"Expected annual_return=0.00017737921024728437, got {annual_return}"
     assert abs(max_drawdown - 0.10317697620290582) < 1e-6, f"Expected max_drawdown=0.10317697620290582, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Ichimoku Cloud 一目均衡表策略测试")
+    print("Ichimoku Cloud strategy test")
     print("=" * 60)
     test_ichimoku_cloud_strategy()

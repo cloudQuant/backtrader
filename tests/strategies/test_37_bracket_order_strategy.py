@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Bracket Order 括号订单策略
+Test Case: Bracket Order Strategy
 
-参考来源: backtrader-master2/samples/bracket/bracket.py
-使用括号订单（主订单+止损+止盈）进行交易
+Reference: backtrader-master2/samples/bracket/bracket.py
+Trading using bracket orders (main order + stop loss + take profit)
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,9 +45,10 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class BracketOrderStrategy(bt.Strategy):
-    """括号订单策略
-    
-    当均线金叉时，使用限价单入场，同时设置止损和止盈订单
+    """Bracket Order Strategy.
+
+    Enters using limit orders when moving averages cross over, while
+    simultaneously setting stop loss and take profit orders.
     """
     params = dict(
         p1=5,
@@ -54,7 +66,7 @@ class BracketOrderStrategy(bt.Strategy):
         self.orefs = list()
         self.holdstart = 0
 
-        # 统计变量
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -133,11 +145,11 @@ class BracketOrderStrategy(bt.Strategy):
 
 
 def test_bracket_order_strategy():
-    """测试 Bracket Order 括号订单策略"""
+    """Test the Bracket Order Strategy."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(
         dataname=str(data_path),
@@ -155,7 +167,7 @@ def test_bracket_order_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
@@ -169,7 +181,7 @@ def test_bracket_order_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Bracket Order 括号订单策略回测结果:")
+    print("Bracket Order Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -189,18 +201,18 @@ def test_bracket_order_strategy():
     assert strat.win_count == 4, f"Expected win_count=4, got {strat.win_count}"
     assert strat.loss_count == 4, f"Expected loss_count=4, got {strat.loss_count}"
     assert total_trades == 8, f"Expected total_trades=8, got {total_trades}"
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert abs(final_value - 99875.56) < 0.01, f"Expected final_value=99875.56, got {final_value}"
     assert abs(sharpe_ratio - (-1.4294780971098613)) < 1e-6, f"Expected sharpe_ratio=-1.4294780971098613, got {sharpe_ratio}"
     assert abs(annual_return - (-0.00061268161526827)) < 1e-6, f"Expected annual_return=-0.00061268161526827, got {annual_return}"
     assert abs(max_drawdown - 2.5691583906006734) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Bracket Order 括号订单策略测试")
+    print("Bracket Order Strategy Test")
     print("=" * 60)
     test_bracket_order_strategy()
