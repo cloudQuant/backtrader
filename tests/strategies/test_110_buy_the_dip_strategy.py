@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Buy The Dip 逢低买入策略
+Test case: Buy The Dip Strategy.
 
-参考来源: backtrader-strategies-compendium/strategies/BuyTheDip.py
-连续下跌后买入，持有N天后卖出
+Reference: backtrader-strategies-compendium/strategies/BuyTheDip.py
+Buy after consecutive down days, sell after holding for N days.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,14 +30,30 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class BuyTheDipStrategy(bt.Strategy):
-    """Buy The Dip 逢低买入策略
-    
-    入场条件:
-    - 连续3天下跌
-    
-    出场条件:
-    - 持有N天后卖出
+    """Buy The Dip Strategy.
+
+    This strategy buys after consecutive down days and sells after holding
+    for a specified number of days.
+
+    Entry conditions:
+        - Consecutive 3 days of decline
+
+    Exit conditions:
+        - Sell after holding for N days
+
+    Attributes:
+        order: Current pending order.
+        bar_executed: The bar number when the last order was executed.
+        bar_num: Total number of bars processed.
+        buy_count: Total number of buy orders executed.
+        sell_count: Total number of sell orders executed.
+
+    Args:
+        stake: Number of shares to buy/sell (default: 10).
+        hold_days: Number of days to hold before selling (default: 5).
+        consecutive_down: Number of consecutive down days to trigger buy (default: 3).
     """
+
     params = dict(
         stake=10,
         hold_days=5,
@@ -64,30 +80,41 @@ class BuyTheDipStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if len(self) < self.p.consecutive_down + 1:
             return
-        
+
         if not self.position:
-            # 检查连续下跌
+            # Check for consecutive down days
             all_down = True
             for i in range(self.p.consecutive_down):
                 if self.data.close[-i] >= self.data.close[-i-1]:
                     all_down = False
                     break
-            
+
             if all_down:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 持有N天后卖出
+            # Sell after holding for N days
             if len(self) >= self.bar_executed + self.p.hold_days:
                 self.order = self.close()
 
 
 def test_buy_the_dip_strategy():
+    """Test the Buy The Dip strategy.
+
+    This function sets up a backtest using the BuyTheDipStrategy with
+    Oracle stock data from 2010-2014. It verifies that the strategy
+    produces expected results including bar count, trades executed,
+    Sharpe ratio, annual return, and maximum drawdown.
+
+    Raises:
+        AssertionError: If any of the expected values do not match the
+            actual results within the specified tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -113,7 +140,7 @@ def test_buy_the_dip_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Buy The Dip 逢低买入策略回测结果:")
+    print("Buy The Dip Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -123,20 +150,20 @@ def test_buy_the_dip_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1257, f"Expected bar_num=1257, got {strat.bar_num}"
     assert abs(final_value - 100151.25) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (1.0281051590758732)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.0003030289116772613)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.049493103885201756) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Buy The Dip 逢低买入策略测试")
+    print("Buy The Dip Strategy Test")
     print("=" * 60)
     test_buy_the_dip_strategy()

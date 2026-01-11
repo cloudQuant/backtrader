@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: SMA Cross Signal 均线交叉信号策略
+Test case: SMA Cross Signal moving average crossover strategy.
 
-参考来源: backtrader-master2/samples/sigsmacross/sigsmacross.py
-使用SignalStrategy基于SMA交叉生成交易信号
+Reference: backtrader-master2/samples/sigsmacross/sigsmacross.py
+Uses SignalStrategy to generate trading signals based on SMA crossover.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script's directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,10 +45,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SmaCrossSignalStrategy(bt.Strategy):
-    """SMA交叉信号策略
-    
-    当短期均线上穿长期均线时产生买入信号
-    当短期均线下穿长期均线时产生卖出信号
+    """SMA crossover signal strategy.
+
+    Generates a buy signal when the short-term moving average crosses above
+    the long-term moving average. Generates a sell signal when the short-term
+    moving average crosses below the long-term moving average.
     """
     params = dict(
         sma1=10,
@@ -50,7 +62,7 @@ class SmaCrossSignalStrategy(bt.Strategy):
         self.crossover = bt.ind.CrossOver(sma1, sma2)
 
         self.order = None
-        # 统计变量
+        # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -98,11 +110,16 @@ class SmaCrossSignalStrategy(bt.Strategy):
 
 
 def test_sma_cross_signal_strategy():
-    """测试 SMA Cross Signal 均线交叉信号策略"""
+    """Test the SMA Cross Signal moving average crossover strategy.
+
+    This test sets up a backtesting environment with the SmaCrossSignalStrategy,
+    runs the backtest on historical data, and verifies the results match expected
+    values for various performance metrics.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(
         dataname=str(data_path),
@@ -120,7 +137,7 @@ def test_sma_cross_signal_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
@@ -134,7 +151,7 @@ def test_sma_cross_signal_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("SMA Cross Signal 均线交叉信号策略回测结果:")
+    print("SMA Cross Signal moving average crossover strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -154,18 +171,18 @@ def test_sma_cross_signal_strategy():
     assert strat.win_count == 6, f"Expected win_count=6, got {strat.win_count}"
     assert strat.loss_count == 7, f"Expected loss_count=7, got {strat.loss_count}"
     assert total_trades == 14, f"Expected total_trades=14, got {total_trades}"
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert abs(final_value - 105288.6) < 0.01, f"Expected final_value=105288.60, got {final_value}"
     assert abs(sharpe_ratio - (1.6727759789938865)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.02568929107574943)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 3.1366613257893725) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("SMA Cross Signal 均线交叉信号策略测试")
+    print("SMA Cross Signal moving average crossover strategy test")
     print("=" * 60)
     test_sma_cross_signal_strategy()

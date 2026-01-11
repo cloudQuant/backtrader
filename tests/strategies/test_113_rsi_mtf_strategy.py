@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: RSI MTF 多周期RSI策略
+Test case: RSI MTF (Multiple Time Frame) Strategy.
 
-参考来源: backtrader-strategies-compendium/strategies/RsiMtf.py
-使用长短周期RSI结合判断入场时机
+Reference: backtrader-strategies-compendium/strategies/RsiMtf.py
+Uses a combination of long and short period RSI to determine entry timing.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,13 +30,24 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class RsiMtfStrategy(bt.Strategy):
-    """RSI MTF 多周期RSI策略
-    
-    入场条件:
-    - 多头: 长周期RSI > 50 且 短周期RSI > 70
-    
-    出场条件:
-    - 短周期RSI < 35
+    """RSI MTF (Multiple Time Frame) Strategy.
+
+    This strategy uses a combination of long and short period RSI indicators
+    to generate trading signals.
+
+    Entry conditions:
+        - Long: Long period RSI > 50 AND Short period RSI > 70
+
+    Exit conditions:
+        - Short period RSI < 35
+
+    Attributes:
+        rsi_long (bt.indicators.RSI): Long period RSI indicator.
+        rsi_short (bt.indicators.RSI): Short period RSI indicator.
+        order (bt.Order): Current pending order.
+        bar_num (int): Number of bars processed.
+        buy_count (int): Number of buy orders executed.
+        sell_count (int): Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -57,6 +68,11 @@ class RsiMtfStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Args:
+            order (bt.Order): The order object with status updates.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -67,22 +83,39 @@ class RsiMtfStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the RSI MTF strategy:
+        - Entry when long period RSI is strong and short period RSI is strong
+        - Exit when short period RSI declines
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # 长周期RSI强势 且 短周期RSI强势
+            # Long period RSI strong AND Short period RSI strong
             if self.rsi_long[0] > self.p.buy_rsi_long and self.rsi_short[0] > self.p.buy_rsi_short:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 短周期RSI回落
+            # Short period RSI declines
             if self.rsi_short[0] < self.p.sell_rsi_short:
                 self.order = self.close()
 
 
 def test_rsi_mtf_strategy():
+    """Test the RSI MTF strategy implementation.
+
+    This test:
+        1. Loads historical Oracle stock data
+        2. Runs the RSI MTF strategy with specified parameters
+        3. Collects performance metrics (Sharpe ratio, returns, drawdown)
+        4. Validates results against expected values
+
+    Raises:
+        AssertionError: If any performance metric does not match expected values.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -108,7 +141,7 @@ def test_rsi_mtf_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("RSI MTF 多周期RSI策略回测结果:")
+    print("RSI MTF (Multiple Time Frame) Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -118,19 +151,19 @@ def test_rsi_mtf_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - Using precise assertions
+    # final_value tolerance: 0.01, other indicators tolerance: 1e-6
     assert strat.bar_num == 1243, f"Expected bar_num=1243, got {strat.bar_num}"
     assert abs(final_value - 99944.33) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (-0.2930928685297336)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (-0.00011163604936501658)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.14506963091824412) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("RSI MTF 多周期RSI策略测试")
+    print("RSI MTF (Multiple Time Frame) Strategy Test")
     print("=" * 60)
     test_rsi_mtf_strategy()

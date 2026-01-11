@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Keltner Channel 肯特纳通道策略
+Test Case: Keltner Channel Strategy
 
-使用肯特纳通道的突破判断趋势
+Uses Keltner Channel breakouts to determine trend direction.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -16,6 +16,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the full path to a data file by searching common locations.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -29,7 +41,23 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class KeltnerChannelIndicator(bt.Indicator):
-    """Keltner Channel 肯特纳通道指标"""
+    """Keltner Channel indicator.
+
+    The Keltner Channel is a volatility-based indicator that consists of
+    three lines: a middle line (EMA), an upper band, and a lower band.
+    The bands are calculated by adding/subtracting a multiple of ATR
+    from the middle line.
+
+    Lines:
+        mid: Middle line (Exponential Moving Average).
+        top: Upper band (mid + atr_mult * ATR).
+        bot: Lower band (mid - atr_mult * ATR).
+
+    Params:
+        period: Period for the EMA middle line (default: 20).
+        atr_mult: Multiplier for ATR band width (default: 2.0).
+        atr_period: Period for ATR calculation (default: 14).
+    """
     lines = ('mid', 'top', 'bot')
     params = dict(period=20, atr_mult=2.0, atr_period=14)
 
@@ -41,13 +69,21 @@ class KeltnerChannelIndicator(bt.Indicator):
 
 
 class KeltnerChannelStrategy(bt.Strategy):
-    """Keltner Channel 肯特纳通道策略
-    
-    入场条件:
-    - 多头: 价格突破上轨
-    
-    出场条件:
-    - 价格跌破中轨
+    """Keltner Channel strategy.
+
+    This strategy uses Keltner Channel breakouts to determine entry and
+    exit points for long positions.
+
+    Entry Conditions:
+        - Long: Price breaks above the upper band.
+
+    Exit Conditions:
+        - Close position when price falls below the middle band.
+
+    Params:
+        stake: Number of shares/shares per trade (default: 10).
+        period: Period for EMA middle line (default: 20).
+        atr_mult: Multiplier for ATR band width (default: 2.0).
     """
     params = dict(
         stake=10,
@@ -56,16 +92,22 @@ class KeltnerChannelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy and set up indicators."""
         self.kc = KeltnerChannelIndicator(
             self.data, period=self.p.period, atr_mult=self.p.atr_mult
         )
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -76,22 +118,38 @@ class KeltnerChannelStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the Keltner Channel breakout strategy:
+        - Enter long when price breaks above upper band
+        - Exit when price falls below middle band
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # 价格突破上轨
+            # Price breaks above upper band
             if self.data.close[0] > self.kc.top[0]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 价格跌破中轨
+            # Price falls below middle band
             if self.data.close[0] < self.kc.mid[0]:
                 self.order = self.close()
 
 
 def test_keltner_channel_strategy():
+    """Test the Keltner Channel strategy backtest.
+
+    This function sets up and runs a backtest of the Keltner Channel strategy
+    using historical Oracle stock data. It verifies the strategy performance
+    against expected values.
+
+    Raises:
+        AssertionError: If any of the performance metrics do not match the
+            expected values within the specified tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -117,7 +175,7 @@ def test_keltner_channel_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Keltner Channel 肯特纳通道策略回测结果:")
+    print("Keltner Channel Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -127,20 +185,20 @@ def test_keltner_channel_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
     assert abs(final_value - 100039.51) < 0.01, f"Expected final_value=100039.51, got {final_value}"
     assert abs(sharpe_ratio - (0.2795635163868808)) < 1e-6, f"Expected sharpe_ratio=0.2795635163868808, got {sharpe_ratio}"
     assert abs(annual_return - (7.919528281735741e-05)) < 1e-6, f"Expected annual_return=7.919528281735741e-05, got {annual_return}"
     assert abs(max_drawdown - 0.05497965839460319) < 1e-6, f"Expected max_drawdown=0.05497965839460319, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Keltner Channel 肯特纳通道策略测试")
+    print("Keltner Channel Strategy Test")
     print("=" * 60)
     test_keltner_channel_strategy()

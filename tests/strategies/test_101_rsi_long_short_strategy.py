@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: RSI Long/Short 双RSI策略
+Test Case: RSI Long/Short Dual RSI Strategy
 
-参考来源: backtrader-strategies-compendium/strategies/RsiLongShort.py
-使用长短周期RSI结合判断入场时机
+Reference: backtrader-strategies-compendium/strategies/RsiLongShort.py
+Uses a combination of long and short period RSI to determine entry timing
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,13 +30,29 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class RsiLongShortStrategy(bt.Strategy):
-    """RSI Long/Short 双RSI策略
-    
-    入场条件:
-    - 多头: 长周期RSI > 50 且 短周期RSI > 65
-    
-    出场条件:
-    - 短周期RSI < 45
+    """RSI Long/Short Dual RSI Strategy.
+
+    Entry conditions:
+    - Long: Long period RSI > 50 AND Short period RSI > 65
+
+    Exit conditions:
+    - Short period RSI < 45
+
+    Args:
+        stake (int): Number of shares/shares per trade. Default is 10.
+        period_long (int): Period for long-term RSI calculation. Default is 14.
+        period_short (int): Period for short-term RSI calculation. Default is 5.
+        buy_rsi_long (float): RSI threshold for long period to trigger buy. Default is 50.
+        buy_rsi_short (float): RSI threshold for short period to trigger buy. Default is 65.
+        sell_rsi_short (float): RSI threshold for short period to trigger sell. Default is 45.
+
+    Attributes:
+        rsi_long: Long period RSI indicator.
+        rsi_short: Short period RSI indicator.
+        order: Current pending order.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -68,21 +84,33 @@ class RsiLongShortStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # 长周期RSI强势 且 短周期RSI强势
+            # Long period RSI strong AND Short period RSI strong
             if self.rsi_long[0] > self.p.buy_rsi_long and self.rsi_short[0] > self.p.buy_rsi_short:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 短周期RSI回落
+            # Short period RSI falls back
             if self.rsi_short[0] < self.p.sell_rsi_short:
                 self.order = self.close()
 
 
 def test_rsi_long_short_strategy():
+    """Test the RSI Long/Short strategy with historical data.
+
+    This test function:
+    1. Loads historical Oracle stock data from 2010-2014
+    2. Applies the RSI Long/Short strategy
+    3. Runs the backtest with analyzers for Sharpe Ratio, Returns, and DrawDown
+    4. Prints backtest results
+    5. Validates results against expected values
+
+    Raises:
+        AssertionError: If any of the backtest metrics don't match expected values.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -108,7 +136,7 @@ def test_rsi_long_short_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("RSI Long/Short 双RSI策略回测结果:")
+    print("RSI Long/Short Dual RSI Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -118,20 +146,20 @@ def test_rsi_long_short_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1243, f"Expected bar_num=1243, got {strat.bar_num}"
     assert abs(final_value - 100023.95) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (0.12109913246951494)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (4.800683696093361e-05)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.09601330432360433) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("RSI Long/Short 双RSI策略测试")
+    print("RSI Long/Short Dual RSI Strategy Test")
     print("=" * 60)
     test_rsi_long_short_strategy()

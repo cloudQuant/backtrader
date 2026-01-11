@@ -1,10 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Bollinger Bands + RSI 布林带RSI策略
+"""Test case for Bollinger Bands + RSI strategy.
 
-参考来源: backtrader-strategies-compendium/strategies/BbAndRsi.py
-使用布林带下轨+RSI超卖作为买入信号
+This test implements a trading strategy that combines Bollinger Bands and
+Relative Strength Index (RSI) to generate trading signals.
+
+Reference: backtrader-strategies-compendium/strategies/BbAndRsi.py
+Uses Bollinger Bands lower band + RSI oversold as buy signal.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,13 +32,25 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class BbRsiStrategy(bt.Strategy):
-    """Bollinger Bands + RSI 布林带RSI策略
-    
-    入场条件:
-    - 多头: RSI < 30 且 价格 < 布林带下轨
-    
-    出场条件:
-    - RSI > 70 或 价格 > 布林带上轨
+    """Bollinger Bands + RSI strategy.
+
+    This strategy generates buy signals when price is below the lower Bollinger
+    Band and RSI is oversold, and sell signals when RSI is overbought or price
+    exceeds the upper Bollinger Band.
+
+    Entry conditions:
+        - Long: RSI < 30 AND price < lower Bollinger Band
+
+    Exit conditions:
+        - RSI > 70 OR price > upper Bollinger Band
+
+    Attributes:
+        rsi: RSI indicator instance.
+        bbands: Bollinger Bands indicator instance.
+        order: Current pending order.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -59,6 +73,14 @@ class BbRsiStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Updates buy/sell counters when orders are completed and clears the
+        pending order reference.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -69,22 +91,39 @@ class BbRsiStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the Bollinger Bands + RSI strategy:
+        - Buy when RSI is oversold and price is below lower band
+        - Sell when RSI is overbought or price is above upper band
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # RSI超卖 且 价格低于布林带下轨
+            # RSI oversold AND price below lower Bollinger Band
             if self.rsi[0] < self.p.rsi_oversold and self.data.close[0] < self.bbands.bot[0]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # RSI超买 或 价格高于布林带上轨
+            # RSI overbought OR price above upper Bollinger Band
             if self.rsi[0] > self.p.rsi_overbought or self.data.close[0] > self.bbands.top[0]:
                 self.order = self.close()
 
 
 def test_bb_rsi_strategy():
+    """Test the Bollinger Bands + RSI strategy.
+
+    This test function:
+    1. Sets up a Cerebro backtesting engine
+    2. Loads Oracle stock data from 2010-2014
+    3. Runs the BbRsiStrategy with default parameters
+    4. Validates performance metrics against expected values
+
+    Raises:
+        AssertionError: If any performance metric deviates from expected values.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -110,7 +149,7 @@ def test_bb_rsi_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Bollinger Bands + RSI 布林带RSI策略回测结果:")
+    print("Bollinger Bands + RSI Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -120,19 +159,19 @@ def test_bb_rsi_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
     assert abs(final_value - 100120.94) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (1.1614145060616812)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.0002423417652493005)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.033113065059066485) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Bollinger Bands + RSI 布林带RSI策略测试")
+    print("Bollinger Bands + RSI Strategy Test")
     print("=" * 60)
     test_bb_rsi_strategy()

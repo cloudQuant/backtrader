@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: DEMA Crossover 双指数均线交叉策略
+Test case: DEMA Crossover Double Exponential Moving Average Strategy
 
-参考来源: backtrader-strategies-compendium/strategies/dema.py
-使用快速和慢速DEMA交叉作为入场信号
+Reference: backtrader-strategies-compendium/strategies/dema.py
+Uses fast and slow DEMA crossover as entry signals
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,13 +30,13 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class DemaCrossoverStrategy(bt.Strategy):
-    """DEMA Crossover 双指数均线交叉策略
-    
-    入场条件:
-    - 多头: 快速DEMA >= 慢速DEMA
-    
-    出场条件:
-    - 快速DEMA < 慢速DEMA
+    """DEMA Crossover Double Exponential Moving Average Strategy.
+
+    Entry conditions:
+    - Long: Fast DEMA >= Slow DEMA
+
+    Exit conditions:
+    - Fast DEMA < Slow DEMA
     """
     params = dict(
         stake=10,
@@ -66,16 +66,16 @@ class DemaCrossoverStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # DEMA金叉
+            # DEMA golden cross
             if self.crossover[0] > 0:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # DEMA死叉
+            # DEMA death cross
             if self.crossover[0] < 0:
                 self.order = self.close()
 
@@ -106,7 +106,7 @@ def test_dema_crossover_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("DEMA Crossover 双指数均线交叉策略回测结果:")
+    print("DEMA Crossover Double Exponential Moving Average Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -116,19 +116,19 @@ def test_dema_crossover_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1216, f"Expected bar_num=1216, got {strat.bar_num}"
     assert abs(final_value - 100010.66) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (0.08380775797931977)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (2.1377028602817796e-05)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.09484526475149473) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("DEMA Crossover 双指数均线交叉策略测试")
+    print("DEMA Crossover Double Exponential Moving Average Strategy Test")
     print("=" * 60)
     test_dema_crossover_strategy()

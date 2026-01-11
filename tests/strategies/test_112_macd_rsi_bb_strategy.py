@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: MACD + RSI + BB 多指标策略
+Test Case: MACD + RSI + BB Multi-Indicator Strategy
 
-参考来源: backtrader_NUPL_strategy/hope/Hope_bbands.py
-结合MACD、RSI和布林带的多重确认策略
+Reference: backtrader_NUPL_strategy/hope/Hope_bbands.py
+A multi-confirmation strategy combining MACD, RSI, and Bollinger Bands
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,13 +30,13 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class MacdRsiBbStrategy(bt.Strategy):
-    """MACD + RSI + BB 多指标策略
-    
-    入场条件:
-    - 多头: 价格突破布林带下轨 且 RSI < 35
-    
-    出场条件:
-    - 价格突破布林带上轨 且 RSI > 65
+    """MACD + RSI + BB Multi-Indicator Strategy.
+
+    Entry conditions:
+    - Long: Price breaks above lower Bollinger Band and RSI < 35
+
+    Exit conditions:
+    - Price breaks above upper Bollinger Band and RSI > 65
     """
     params = dict(
         stake=10,
@@ -79,13 +79,13 @@ class MacdRsiBbStrategy(bt.Strategy):
             return
         
         if not self.position:
-            # 价格从下轨下方回升 且 RSI超卖
-            if (self.data.close[-1] < self.bbands.bot[-1] and 
-                self.data.close[0] > self.bbands.bot[0] and 
+            # Price recovers from below lower band and RSI is oversold
+            if (self.data.close[-1] < self.bbands.bot[-1] and
+                self.data.close[0] > self.bbands.bot[0] and
                 self.rsi[0] < self.p.rsi_oversold):
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 价格触及上轨 且 RSI超买
+            # Price touches upper band and RSI is overbought
             if self.data.close[0] > self.bbands.top[0] and self.rsi[0] > self.p.rsi_overbought:
                 self.order = self.close()
 
@@ -116,7 +116,7 @@ def test_macd_rsi_bb_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("MACD + RSI + BB 多指标策略回测结果:")
+    print("MACD + RSI + BB Multi-Indicator Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -126,20 +126,20 @@ def test_macd_rsi_bb_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1224, f"Expected bar_num=1224, got {strat.bar_num}"
     assert abs(final_value - 100170.29) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (1.17015947201324)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.0003411510229375079)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.029197450472779395) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("MACD + RSI + BB 多指标策略测试")
+    print("MACD + RSI + BB Multi-Indicator Strategy Test")
     print("=" * 60)
     test_macd_rsi_bb_strategy()

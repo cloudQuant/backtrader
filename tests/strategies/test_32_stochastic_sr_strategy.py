@@ -1,9 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Stochastic SR 随机指标支撑阻力策略
+"""Test case: Stochastic SR (Stochastic Support/Resistance) strategy.
 
-参考来源: backtrader-backtests/StochasticSR/Stochastic_SR_Backtest.py
+Reference: backtrader-backtests/StochasticSR/Stochastic_SR_Backtest.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +18,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Resolve data file path based on script directory to avoid relative path failures.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -42,7 +51,7 @@ class StochasticSRStrategy(bt.Strategy):
         ('pslow', 3),
         ('upperLimit', 80),
         ('lowerLimit', 20),
-        ('stop_pips', 0.5),  # 调整为股票价格的止损点数
+        ('stop_pips', 0.5),  # Stop loss in points adjusted for stock prices
     )
 
     def __init__(self):
@@ -62,7 +71,7 @@ class StochasticSRStrategy(bt.Strategy):
             lowerband=self.params.lowerLimit
         )
 
-        # 统计变量
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -126,7 +135,7 @@ class StochasticSRStrategy(bt.Strategy):
                 self.close(oco=self.stop_price)
 
     def stop(self):
-        """输出统计信息"""
+        """Output statistics information when the strategy stops."""
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "
@@ -137,11 +146,18 @@ class StochasticSRStrategy(bt.Strategy):
 
 
 def test_stochastic_sr_strategy():
-    """测试 Stochastic SR 随机指标支撑阻力策略"""
+    """Test the Stochastic SR (Stochastic Support/Resistance) strategy.
+
+    This test function:
+    1. Loads Shanghai Stock Exchange data (SH600000)
+    2. Runs the Stochastic SR strategy with specified parameters
+    3. Analyzes performance using various analyzers (Sharpe, Returns, DrawDown, Trade)
+    4. Validates results against expected values
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载上证股票数据...")
+    print("Loading Shanghai Stock Exchange data...")
     data_path = resolve_data_path("sh600000.csv")
     df = pd.read_csv(data_path)
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -172,11 +188,11 @@ def test_stochastic_sr_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析器结果
+    # Get analyzer results
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)
     returns = strat.analyzers.my_returns.get_analysis()
     annual_return = returns.get('rnorm', 0)
@@ -187,7 +203,7 @@ def test_stochastic_sr_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Stochastic SR 随机指标支撑阻力策略回测结果:")
+    print("Stochastic SR Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -201,25 +217,24 @@ def test_stochastic_sr_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 确保策略正常运行
+    # Assertions - Ensure the strategy runs correctly
     assert strat.bar_num == 5398, f"Expected bar_num=5398, got {strat.bar_num}"
     assert strat.buy_count == 309, f"Expected buy_count=309, got {strat.buy_count}"
     assert strat.sell_count == 309, f"Expected sell_count=309, got {strat.sell_count}"
     assert strat.win_count == 112, f"Expected win_count=112, got {strat.win_count}"
     assert strat.loss_count == 197, f"Expected loss_count=197, got {strat.loss_count}"
     assert total_trades == 309, f"Expected total_trades=309, got {total_trades}"
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert abs(final_value - 99989.23) < 0.01, f"Expected final_value=99989.23, got {final_value}"
     assert abs(sharpe_ratio - (-493.17567594903824)) < 1e-6, f"Expected sharpe_ratio=-493.17567594903824, got {sharpe_ratio}"
     assert abs(annual_return - (-5.012334920267567e-06)) < 1e-10, f"Expected annual_return=-5.012334920267567e-06, got {annual_return}"
     assert abs(max_drawdown - 0.02176998911502407) < 1e-6, f"Expected max_drawdown=0.02176998911502407, got {max_drawdown}"
 
-    print("\n测试通过!")
-
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Stochastic SR 随机指标支撑阻力策略测试")
+    print("Stochastic SR Strategy Test")
     print("=" * 60)
     test_stochastic_sr_strategy()
