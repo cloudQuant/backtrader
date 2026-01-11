@@ -1,10 +1,10 @@
-"""Boll 布林带策略测试用例
+"""Bollinger Band Strategy Test Case
 
-使用上证股票数据 sh600000.csv 测试布林带策略
-- 使用 GenericCSVData 加载本地数据文件
-- 通过 self.datas[0] 规范访问数据
+Tests the Bollinger Band strategy using Shanghai Stock Exchange data sh600000.csv
+- Uses GenericCSVData to load local data files
+- Accesses data via self.datas[0]
 
-参考来源: backtrader-example/strategies/boll.py
+Reference: backtrader-example/strategies/boll.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locates data files based on the script directory to avoid relative path failures."""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -36,35 +36,35 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class BollStrategy(bt.Strategy):
-    """Boll 布林带策略
+    """Bollinger Band Strategy.
 
-    策略逻辑：
-    - 价格连续两根K线收盘价高于上轨时开多
-    - 价格连续两根K线收盘价低于下轨时开空
-    - 价格穿越中轨时平仓
-    
-    使用数据：
-    - datas[0]: 股票价格数据
+    Strategy Logic:
+    - Open long position when closing price exceeds upper band for two consecutive bars
+    - Open short position when closing price falls below lower band for two consecutive bars
+    - Close position when price crosses the middle band
+
+    Data Used:
+    - datas[0]: Stock price data
     """
 
     params = (
         ("period_boll", 245),
-        ("price_diff", 0.5),  # 止损价差
+        ("price_diff", 0.5),  # Stop loss price difference
     )
 
     def log(self, txt, dt=None, force=False):
-        """日志输出功能"""
+        """Log output function."""
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # 记录统计数据
+        # Record statistical data
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -73,18 +73,18 @@ class BollStrategy(bt.Strategy):
         self.loss_count = 0
         self.trade_count = 0
 
-        # 获取数据引用
+        # Get data reference
         self.data0 = self.datas[0]
 
-        # 布林带指标
+        # Bollinger Band indicator
         self.boll = bt.indicators.BollingerBands(self.data0, period=self.p.period_boll)
 
-        # 交易状态
+        # Trading status
         self.marketposition = 0
         self.position_price = 0
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Trade completion notification."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -95,29 +95,29 @@ class BollStrategy(bt.Strategy):
         self.sum_profit += trade.pnl
 
     def notify_order(self, order):
-        """订单状态通知"""
+        """Order status notification."""
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
             self.position_price = order.executed.price
 
     def close_gt_up(self):
-        """收盘价连续高于上轨"""
+        """Closing price continuously above upper band."""
         data = self.data0
         return data.close[0] > self.boll.top[0] and data.close[-1] > self.boll.top[-1]
 
     def close_lt_dn(self):
-        """收盘价连续低于下轨"""
+        """Closing price continuously below lower band."""
         data = self.data0
         return data.close[0] < self.boll.bot[0] and data.close[-1] < self.boll.bot[-1]
 
     def down_across_mid(self):
-        """向下穿越中轨"""
+        """Crossing middle band downward."""
         data = self.data0
         return data.close[-1] > self.boll.mid[-1] and data.close[0] < self.boll.mid[0]
 
     def up_across_mid(self):
-        """向上穿越中轨"""
+        """Crossing middle band upward."""
         data = self.data0
         return data.close[-1] < self.boll.mid[-1] and data.close[0] > self.boll.mid[0]
 
@@ -125,7 +125,7 @@ class BollStrategy(bt.Strategy):
         self.bar_num += 1
         data = self.data0
 
-        # 开仓
+        # Open position
         if self.marketposition == 0:
             if self.close_gt_up():
                 size = int(self.broker.getcash() / data.close[0])
@@ -139,33 +139,33 @@ class BollStrategy(bt.Strategy):
                     self.sell(data, size=size)
                     self.marketposition = -1
                     self.sell_count += 1
-        # 多头持仓
+        # Long position
         elif self.marketposition > 0:
-            # 止损
+            # Stop loss
             if self.position_price - data.close[0] > self.p.price_diff:
                 self.close()
                 self.marketposition = 0
                 self.sell_count += 1
-            # 穿越中轨平仓
+            # Close position when crossing middle band
             elif self.down_across_mid():
                 self.close()
                 self.marketposition = 0
                 self.sell_count += 1
-        # 空头持仓
+        # Short position
         elif self.marketposition < 0:
-            # 止损
+            # Stop loss
             if data.close[0] - self.position_price > self.p.price_diff:
                 self.close()
                 self.marketposition = 0
                 self.buy_count += 1
-            # 穿越中轨平仓
+            # Close position when crossing middle band
             elif self.up_across_mid():
                 self.close()
                 self.marketposition = 0
                 self.buy_count += 1
 
     def stop(self):
-        """策略结束时输出统计"""
+        """Output statistics when strategy ends."""
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -176,11 +176,11 @@ class BollStrategy(bt.Strategy):
 
 
 def test_boll_strategy():
-    """测试 Boll 布林带策略"""
+    """Test Bollinger Band strategy."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载上证股票数据...")
+    print("Loading Shanghai Stock Exchange data...")
     data_path = resolve_data_path("sh600000.csv")
     df = pd.read_csv(data_path)
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -211,7 +211,7 @@ def test_boll_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
 
     strat = results[0]
@@ -224,7 +224,7 @@ def test_boll_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("\n" + "=" * 50)
-    print("Boll 布林带策略回测结果:")
+    print("Bollinger Band Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -249,12 +249,12 @@ def test_boll_strategy():
     assert abs(annual_return - (0.05647903475651481)) < 1e-6, f"Expected annual_return=0.05647903475651481, got {annual_return}"
     assert abs(max_drawdown - 0.45736836540827375) < 1e-6, f"Expected max_drawdown=0.45736836540827375, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Boll 布林带策略测试")
+    print("Bollinger Band Strategy Test")
     print("=" * 60)
     test_boll_strategy()

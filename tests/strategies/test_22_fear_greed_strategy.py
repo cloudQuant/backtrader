@@ -1,10 +1,10 @@
-"""Fear & Greed 情绪指标策略测试用例
+"""Fear & Greed Sentiment Indicator Strategy Test Case
 
-使用 SPY 和 Fear & Greed 情绪指标数据测试情绪驱动策略
-- 使用 GenericCSVData 加载本地数据文件
-- 通过 self.datas[0] 规范访问数据
+Tests sentiment-driven strategy using SPY and Fear & Greed sentiment indicator data.
+- Uses GenericCSVData to load local data files
+- Accesses data via self.datas[0] for consistency
 
-参考来源: https://github.com/cloudQuant/sentiment-fear-and-greed.git
+Reference: https://github.com/cloudQuant/sentiment-fear-and-greed.git
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script's directory to avoid relative path failures."""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -35,13 +35,13 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class SPYFearGreedData(bt.feeds.GenericCSVData):
-    """SPY + Fear & Greed 情绪指标数据源
-    
-    CSV 格式:
+    """SPY + Fear & Greed Sentiment Indicator Data Feed.
+
+    CSV format:
     Date,Open,High,Low,Close,Adj Close,Volume,Put Call,Fear Greed,VIX
     """
     lines = ('put_call', 'fear_greed', 'vix')
@@ -62,30 +62,30 @@ class SPYFearGreedData(bt.feeds.GenericCSVData):
 
 
 class FearGreedStrategy(bt.Strategy):
-    """Fear & Greed 情绪指标策略
+    """Fear & Greed Sentiment Indicator Strategy.
 
-    策略逻辑：
-    - 当 Fear & Greed 指数 < 10 (极度恐惧) 时买入
-    - 当 Fear & Greed 指数 > 94 (极度贪婪) 时卖出
-    
-    使用数据：
-    - datas[0]: SPY 价格数据 + Fear & Greed 指标
+    Strategy logic:
+    - Buy when Fear & Greed index < 10 (extreme fear)
+    - Sell when Fear & Greed index > 94 (extreme greed)
+
+    Data used:
+    - datas[0]: SPY price data + Fear & Greed indicator
     """
 
     params = (
-        ("fear_threshold", 10),   # 恐惧阈值，低于此值买入
-        ("greed_threshold", 94),  # 贪婪阈值，高于此值卖出
+        ("fear_threshold", 10),   # Fear threshold, buy when below this value
+        ("greed_threshold", 94),  # Greed threshold, sell when above this value
     )
 
     def log(self, txt, dt=None, force=False):
-        """日志输出功能"""
+        """Logging function."""
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # 记录统计数据
+        # Record statistics
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -93,13 +93,13 @@ class FearGreedStrategy(bt.Strategy):
         self.win_count = 0
         self.loss_count = 0
 
-        # 获取数据引用 - 通过 datas 列表规范访问
+        # Get data references - access via datas list for consistency
         self.data0 = self.datas[0]
         self.fear_greed = self.data0.fear_greed
         self.close = self.data0.close
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Trade completion notification."""
         if not trade.isclosed:
             return
         if trade.pnl > 0:
@@ -107,40 +107,40 @@ class FearGreedStrategy(bt.Strategy):
         else:
             self.loss_count += 1
         self.sum_profit += trade.pnl
-        self.log(f"交易完成: 毛利润={trade.pnl:.2f}, 净利润={trade.pnlcomm:.2f}, 累计={self.sum_profit:.2f}")
+        self.log(f"Trade completed: Gross profit={trade.pnl:.2f}, Net profit={trade.pnlcomm:.2f}, Cumulative={self.sum_profit:.2f}")
 
     def notify_order(self, order):
-        """订单状态通知"""
+        """Order status notification."""
         if order.status in [order.Submitted, order.Accepted]:
             return
 
         if order.status == order.Completed:
             if order.isbuy():
-                self.log(f"买入执行: 价格={order.executed.price:.2f}, 数量={order.executed.size}")
+                self.log(f"Buy executed: Price={order.executed.price:.2f}, Size={order.executed.size}")
             else:
-                self.log(f"卖出执行: 价格={order.executed.price:.2f}, 数量={order.executed.size}")
+                self.log(f"Sell executed: Price={order.executed.price:.2f}, Size={order.executed.size}")
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log(f"订单状态: {order.Status[order.status]}")
+            self.log(f"Order status: {order.Status[order.status]}")
 
     def next(self):
         self.bar_num += 1
 
-        # 计算可买入数量
+        # Calculate buyable quantity
         size = int(self.broker.getcash() / self.close[0])
 
-        # 极度恐惧时买入
+        # Buy when extremely fearful
         if self.fear_greed[0] < self.p.fear_threshold and not self.position:
             if size > 0:
                 self.buy(size=size)
                 self.buy_count += 1
 
-        # 极度贪婪时卖出
+        # Sell when extremely greedy
         if self.fear_greed[0] > self.p.greed_threshold and self.position.size > 0:
             self.sell(size=self.position.size)
             self.sell_count += 1
 
     def stop(self):
-        """策略结束时输出统计"""
+        """Output statistics when strategy ends."""
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -151,18 +151,18 @@ class FearGreedStrategy(bt.Strategy):
 
 
 def test_fear_greed_strategy():
-    """测试 Fear & Greed 情绪指标策略
+    """Test Fear & Greed Sentiment Indicator Strategy.
 
-    使用 SPY 和 Fear & Greed 数据进行回测
+    Performs backtesting using SPY and Fear & Greed data.
     """
-    # 创建 cerebro
+    # Create cerebro
     cerebro = bt.Cerebro(stdstats=True)
 
-    # 设置初始资金
+    # Set initial capital
     cerebro.broker.setcash(100000.0)
 
-    # 加载数据 (datas[0])
-    print("正在加载 SPY + Fear & Greed 数据...")
+    # Load data (datas[0])
+    print("Loading SPY + Fear & Greed data...")
     data_path = resolve_data_path("spy-put-call-fear-greed-vix.csv")
     data_feed = SPYFearGreedData(
         dataname=str(data_path),
@@ -171,25 +171,25 @@ def test_fear_greed_strategy():
     )
     cerebro.adddata(data_feed, name="SPY")
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(
         FearGreedStrategy,
         fear_threshold=10,
         greed_threshold=94,
     )
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    # 运行回测
-    print("开始运行回测...")
+    # Run backtest
+    print("Starting backtest...")
     results = cerebro.run()
 
-    # 获取结果
+    # Get results
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
     annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
@@ -199,9 +199,9 @@ def test_fear_greed_strategy():
     total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印结果
+    # Print results
     print("\n" + "=" * 50)
-    print("Fear & Greed 策略回测结果:")
+    print("Fear & Greed Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -215,7 +215,7 @@ def test_fear_greed_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 确保策略正常运行
+    # Assertions - ensure strategy runs correctly
     assert strat.bar_num == 2445, f"Expected bar_num=2445, got {strat.bar_num}"
     assert strat.buy_count == 6, f"Expected buy_count=6, got {strat.buy_count}"
     assert strat.sell_count == 2, f"Expected sell_count=2, got {strat.sell_count}"
@@ -227,12 +227,12 @@ def test_fear_greed_strategy():
     assert abs(max_drawdown - 0.2428350846476322) < 1e-6, f"Expected max_drawdown=0.2428350846476322, got {max_drawdown}"
     assert abs(final_value - 280859.6) < 0.01, f"Expected final_value=280859.60, got {final_value}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Fear & Greed 情绪指标策略测试")
+    print("Fear & Greed Sentiment Indicator Strategy Test")
     print("=" * 60)
     test_fear_greed_strategy()

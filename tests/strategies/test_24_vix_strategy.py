@@ -1,10 +1,10 @@
-"""VIX 波动率指数策略测试用例
+"""VIX Volatility Index Strategy Test Cases
 
-使用 SPY 和 VIX 波动率指数数据测试情绪驱动策略
-- 使用 GenericCSVData 加载本地数据文件
-- 通过 self.datas[0] 规范访问数据
+Tests sentiment-driven strategy using SPY and VIX volatility index data.
+- Uses GenericCSVData to load local data files.
+- Accesses data via self.datas[0] following best practices.
 
-参考来源: https://github.com/cloudQuant/sentiment-fear-and-greed.git
+Reference: https://github.com/cloudQuant/sentiment-fear-and-greed.git
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script directory to avoid relative path failures."""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -35,13 +35,13 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class SPYVixData(bt.feeds.GenericCSVData):
-    """SPY + VIX 波动率指数数据源
-    
-    CSV 格式:
+    """SPY + VIX volatility index data feed.
+
+    CSV format:
     Date,Open,High,Low,Close,Adj Close,Volume,Put Call,Fear Greed,VIX
     """
     lines = ('put_call', 'fear_greed', 'vix')
@@ -62,30 +62,30 @@ class SPYVixData(bt.feeds.GenericCSVData):
 
 
 class VIXStrategy(bt.Strategy):
-    """VIX 波动率指数策略
+    """VIX volatility index strategy.
 
-    策略逻辑：
-    - 当 VIX > 35 (市场极度恐慌) 时买入
-    - 当 VIX < 10 (市场极度平静) 时卖出
-    
-    使用数据：
-    - datas[0]: SPY 价格数据 + VIX 指标
+    Strategy logic:
+    - Buy when VIX > 35 (extreme market fear)
+    - Sell when VIX < 10 (extreme market calm)
+
+    Data used:
+    - datas[0]: SPY price data + VIX indicator
     """
 
     params = (
-        ("high_threshold", 35),  # 高阈值，高于此值买入（恐慌）
-        ("low_threshold", 10),   # 低阈值，低于此值卖出（平静）
+        ("high_threshold", 35),  # High threshold: buy above this level (fear)
+        ("low_threshold", 10),   # Low threshold: sell below this level (calm)
     )
 
     def log(self, txt, dt=None, force=False):
-        """日志输出功能"""
+        """Log output function."""
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # 记录统计数据
+        # Record statistics
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -93,13 +93,13 @@ class VIXStrategy(bt.Strategy):
         self.win_count = 0
         self.loss_count = 0
 
-        # 获取数据引用 - 通过 datas 列表规范访问
+        # Get data references - access via datas list following best practices
         self.data0 = self.datas[0]
         self.vix = self.data0.vix
         self.close = self.data0.close
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Trade completion notification."""
         if not trade.isclosed:
             return
         if trade.pnl > 0:
@@ -107,40 +107,40 @@ class VIXStrategy(bt.Strategy):
         else:
             self.loss_count += 1
         self.sum_profit += trade.pnl
-        self.log(f"交易完成: 毛利润={trade.pnl:.2f}, 净利润={trade.pnlcomm:.2f}, 累计={self.sum_profit:.2f}")
+        self.log(f"Trade completed: gross_profit={trade.pnl:.2f}, net_profit={trade.pnlcomm:.2f}, cumulative={self.sum_profit:.2f}")
 
     def notify_order(self, order):
-        """订单状态通知"""
+        """Order status notification."""
         if order.status in [order.Submitted, order.Accepted]:
             return
 
         if order.status == order.Completed:
             if order.isbuy():
-                self.log(f"买入执行: 价格={order.executed.price:.2f}, 数量={order.executed.size}")
+                self.log(f"BUY EXECUTED: price={order.executed.price:.2f}, size={order.executed.size}")
             else:
-                self.log(f"卖出执行: 价格={order.executed.price:.2f}, 数量={order.executed.size}")
+                self.log(f"SELL EXECUTED: price={order.executed.price:.2f}, size={order.executed.size}")
         elif order.status in [order.Canceled, order.Margin, order.Rejected]:
-            self.log(f"订单状态: {order.Status[order.status]}")
+            self.log(f"ORDER STATUS: {order.Status[order.status]}")
 
     def next(self):
         self.bar_num += 1
 
-        # 计算可买入数量
+        # Calculate buyable quantity
         size = int(self.broker.getcash() / self.close[0])
 
-        # VIX 高时买入（市场恐慌）
+        # Buy when VIX is high (market fear)
         if self.vix[0] > self.p.high_threshold and not self.position:
             if size > 0:
                 self.buy(size=size)
                 self.buy_count += 1
 
-        # VIX 低时卖出（市场平静）
+        # Sell when VIX is low (market calm)
         if self.vix[0] < self.p.low_threshold and self.position.size > 0:
             self.sell(size=self.position.size)
             self.sell_count += 1
 
     def stop(self):
-        """策略结束时输出统计"""
+        """Output statistics when strategy ends."""
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -151,18 +151,18 @@ class VIXStrategy(bt.Strategy):
 
 
 def test_vix_strategy():
-    """测试 VIX 波动率指数策略
+    """Test VIX volatility index strategy.
 
-    使用 SPY 和 VIX 数据进行回测
+    Run backtest using SPY and VIX data.
     """
-    # 创建 cerebro
+    # Create cerebro
     cerebro = bt.Cerebro(stdstats=True)
 
-    # 设置初始资金
+    # Set initial cash
     cerebro.broker.setcash(100000.0)
 
-    # 加载数据 (datas[0])
-    print("正在加载 SPY + VIX 数据...")
+    # Load data (datas[0])
+    print("Loading SPY + VIX data...")
     data_path = resolve_data_path("spy-put-call-fear-greed-vix.csv")
     data_feed = SPYVixData(
         dataname=str(data_path),
@@ -171,25 +171,25 @@ def test_vix_strategy():
     )
     cerebro.adddata(data_feed, name="SPY")
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(
         VIXStrategy,
         high_threshold=35,
         low_threshold=10,
     )
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    # 运行回测
-    print("开始运行回测...")
+    # Run backtest
+    print("Starting backtest...")
     results = cerebro.run()
 
-    # 获取结果
+    # Get results
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
     annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
@@ -199,9 +199,9 @@ def test_vix_strategy():
     total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印结果
+    # Print results
     print("\n" + "=" * 50)
-    print("VIX 波动率指数策略回测结果:")
+    print("VIX Volatility Index Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -215,7 +215,7 @@ def test_vix_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 确保策略正常运行
+    # Assertions - ensure strategy runs correctly
     assert strat.bar_num == 2445, f"Expected bar_num=2445, got {strat.bar_num}"
     assert strat.buy_count == 3, f"Expected buy_count=3, got {strat.buy_count}"
     assert strat.sell_count == 1, f"Expected sell_count=1, got {strat.sell_count}"
@@ -227,12 +227,12 @@ def test_vix_strategy():
     assert abs(max_drawdown - 0.3367517000981378) < 1e-6, f"Expected max_drawdown=0.3367517000981378, got {max_drawdown}"
     assert abs(final_value - 261273.5) < 0.01, f"Expected final_value=261273.50, got {final_value}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("VIX 波动率指数策略测试")
+    print("VIX Volatility Index Strategy Test")
     print("=" * 60)
     test_vix_strategy()
