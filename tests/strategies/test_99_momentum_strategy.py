@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Momentum 动量策略
+Test Cases: Momentum Strategy
 
-参考来源: Time_Series_Backtesting/策略库/MOM策略1.0.py
-使用价格动量指标作为入场信号
+Reference: Time_Series_Backtesting/策略库/MOM策略1.0.py
+Uses price momentum indicator as entry signal.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,15 +30,15 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class MomentumStrategy(bt.Strategy):
-    """Momentum 动量策略
-    
-    使用Momentum指标判断趋势
-    
-    入场条件:
-    - 多头: Momentum从负变正
-    
-    出场条件:
-    - Momentum从正变负
+    """Momentum Strategy.
+
+    Uses the Momentum indicator to determine trends.
+
+    Entry conditions:
+        - Long: Momentum changes from negative to positive.
+
+    Exit conditions:
+        - Exit: Momentum changes from positive to negative.
     """
     params = dict(
         stake=10,
@@ -65,19 +65,19 @@ class MomentumStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if len(self) < 2:
             return
-        
+
         if not self.position:
-            # Momentum从负变正
+            # Momentum changes from negative to positive
             if self.momentum[-1] <= 0 and self.momentum[0] > 0:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # Momentum从正变负
+            # Momentum changes from positive to negative
             if self.momentum[-1] > 0 and self.momentum[0] <= 0:
                 self.order = self.close()
 
@@ -108,7 +108,7 @@ def test_momentum_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Momentum 动量策略回测结果:")
+    print("Momentum Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -118,19 +118,19 @@ def test_momentum_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1237, f"Expected bar_num=1237, got {strat.bar_num}"
     assert abs(final_value - 100040.76) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (0.26328384417769385)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (8.169647692811904e-05)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.08327600866592394) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Momentum 动量策略测试")
+    print("Momentum Strategy Test")
     print("=" * 60)
     test_momentum_strategy()

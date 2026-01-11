@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Forex EMA 三均线策略
+Test Case: Forex EMA Triple Moving Average Strategy.
 
-参考来源: backtrader-strategies/forexema.py
-使用短期、中期、长期EMA的排列和交叉作为入场信号
+Reference: backtrader-strategies/forexema.py
+Uses alignment and crossovers of short-term, medium-term, and long-term EMAs
+as entry signals.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,14 +31,16 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class ForexEmaStrategy(bt.Strategy):
-    """Forex EMA 三均线策略
-    
-    入场条件:
-    - 多头: 短期EMA上穿中期EMA，且价格低点>长期EMA，且短期>中期>长期
-    - 空头: 短期EMA下穿中期EMA，且价格高点<长期EMA，且短期<中期<长期
-    
-    出场条件:
-    - 反向交叉信号
+    """Forex EMA Triple Moving Average Strategy.
+
+    Entry conditions:
+    - Long: Short-term EMA crosses above medium-term EMA, price low > long-term EMA,
+      and short > medium > long
+    - Short: Short-term EMA crosses below medium-term EMA, price high < long-term EMA,
+      and short < medium < long
+
+    Exit conditions:
+    - Reverse crossover signal
     """
     params = dict(
         stake=10,
@@ -81,20 +84,20 @@ class ForexEmaStrategy(bt.Strategy):
             return
         
         if not self.position:
-            # 多头入场条件
-            if (self.shortemacrossover > 0 and 
-                self.data.low[0] > self.longema[0] and 
-                self.mediumema[0] > self.longema[0] and 
+            # Long entry condition
+            if (self.shortemacrossover > 0 and
+                self.data.low[0] > self.longema[0] and
+                self.mediumema[0] > self.longema[0] and
                 self.shortema[0] > self.longema[0]):
                 self.order = self.buy(size=self.p.stake)
-            # 空头入场条件
-            elif (self.shortemacrossover < 0 and 
-                  self.data.high[0] < self.longema[0] and 
-                  self.mediumema[0] < self.longema[0] and 
+            # Short entry condition
+            elif (self.shortemacrossover < 0 and
+                  self.data.high[0] < self.longema[0] and
+                  self.mediumema[0] < self.longema[0] and
                   self.shortema[0] < self.longema[0]):
                 self.order = self.sell(size=self.p.stake)
         else:
-            # 平仓条件: 反向交叉
+            # Exit condition: reverse crossover
             if self.position.size > 0 and self.shortemacrossover < 0:
                 self.order = self.close()
             elif self.position.size < 0 and self.shortemacrossover > 0:
@@ -127,7 +130,7 @@ def test_forex_ema_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Forex EMA 三均线策略回测结果:")
+    print("Forex EMA Triple Moving Average Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -137,19 +140,19 @@ def test_forex_ema_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1208, f"Expected bar_num=1208, got {strat.bar_num}"
     assert abs(final_value - 99898.69) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (-0.6859889019155611)) < 1e-6, f"Expected sharpe_ratio=-0.6859889019155611, got {sharpe_ratio}"
     assert abs(annual_return - (-0.00020318349900697326)) < 1e-12, f"Expected annual_return=-0.00020318349900697326, got {annual_return}"
     assert abs(max_drawdown - 0.15891968567586484) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Forex EMA 三均线策略测试")
+    print("Forex EMA Triple Moving Average Strategy Test")
     print("=" * 60)
     test_forex_ema_strategy()

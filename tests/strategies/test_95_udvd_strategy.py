@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: UDVD 上下影线差值策略
+Test Case: UDVD (Upper/Lower Shadow Difference) Strategy.
 
-参考来源: Time_Series_Backtesting/有效策略库/UDVD策略1.0.py
-使用上下影线差值判断趋势方向
+Reference: Time_Series_Backtesting/有效策略库/UDVD策略1.0.py
+Uses the difference between upper and lower shadows to determine trend direction.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,15 +30,25 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class UdvdStrategy(bt.Strategy):
-    """UDVD 上下影线差值策略 (简化版)
-    
-    使用价格与开盘价的关系判断趋势
-    
-    入场条件:
-    - 多头: 收盘价 > 开盘价 (阳线)
-    
-    出场条件:
-    - 收盘价 < 开盘价 (阴线)
+    """UDVD (Upper/Lower Shadow Difference) Strategy (Simplified Version).
+
+    Uses the relationship between price and opening price to determine trend.
+
+    Entry Conditions:
+    - Long: Close price > Open price (bullish candle)
+
+    Exit Conditions:
+    - Close price < Open price (bearish candle)
+
+    Attributes:
+        order: Current pending order.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+
+    Args:
+        stake: Number of shares/contracts per trade. Defaults to 10.
+        period: Period for SMA calculation. Defaults to 3.
     """
     params = dict(
         stake=10,
@@ -46,10 +56,10 @@ class UdvdStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # 计算阳线/阴线信号
+        # Calculate bullish/bearish candle signal
         self.candle_body = self.data.close - self.data.open
         self.signal = bt.indicators.SMA(self.candle_body, period=self.p.period)
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
@@ -67,21 +77,29 @@ class UdvdStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # 信号为正 (整体看涨)
+            # Signal is positive (overall bullish)
             if self.signal[0] > 0:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 信号为负
+            # Signal is negative
             if self.signal[0] <= 0:
                 self.order = self.close()
 
 
 def test_udvd_strategy():
+    """Test the UDVD strategy with historical data.
+
+    This function runs a backtest of the UDVD strategy using Oracle stock data
+    from 2010-2014 and verifies that the performance metrics match expected values.
+
+    Raises:
+        AssertionError: If any of the performance metrics do not match expected values.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -107,7 +125,7 @@ def test_udvd_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("UDVD 上下影线差值策略回测结果:")
+    print("UDVD Upper/Lower Shadow Difference Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -117,19 +135,19 @@ def test_udvd_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1255, f"Expected bar_num=1255, got {strat.bar_num}"
     assert abs(final_value - 99939.44) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (-0.21533281426868578)) < 1e-6, f"Expected sharpe_ratio=-0.21533281426868578, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0001214372697148802)) < 1e-12, f"Expected annual_return=-0.0001214372697148802, got {annual_return}"
     assert abs(max_drawdown - 0.20019346669376056) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("UDVD 上下影线差值策略测试")
+    print("UDVD Upper/Lower Shadow Difference Strategy Test")
     print("=" * 60)
     test_udvd_strategy()

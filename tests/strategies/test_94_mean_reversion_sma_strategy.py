@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Mean Reversion SMA 均值回归策略
+Test Case: Mean Reversion SMA Strategy
 
-参考来源: backtrader-strategies-compendium/strategies/MeanReversion.py
-当价格跌破SMA一定比例时买入，回归SMA时卖出
+Reference: backtrader-strategies-compendium/strategies/MeanReversion.py
+Buy when price drops below SMA by a certain percentage, sell when it returns to SMA.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -31,13 +31,13 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class MeanReversionSmaStrategy(bt.Strategy):
-    """均值回归SMA策略
-    
-    入场条件:
-    - 价格跌破SMA超过dip_size比例时买入
-    
-    出场条件:
-    - 价格回归到SMA以上时卖出
+    """Mean Reversion SMA Strategy.
+
+    Entry Conditions:
+        - Buy when price drops below SMA by more than dip_size percentage.
+
+    Exit Conditions:
+        - Sell when price returns above SMA.
     """
     params = dict(
         period=20,
@@ -53,7 +53,7 @@ class MeanReversionSmaStrategy(bt.Strategy):
         self.sell_count = 0
 
     def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
+        """Logging function for this strategy."""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
@@ -88,7 +88,7 @@ class MeanReversionSmaStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        """Log information when a trade is closed or opened."""
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -105,7 +105,7 @@ class MeanReversionSmaStrategy(bt.Strategy):
             return
         
         if not self.position:
-            # 价格跌破SMA超过dip_size比例
+            # Price drops below SMA by more than dip_size percentage
             dip_ratio = (self.data.close[0] / self.sma[0]) - 1
             if dip_ratio <= -self.p.dip_size:
                 amount = self.p.order_percentage * self.broker.cash
@@ -113,12 +113,22 @@ class MeanReversionSmaStrategy(bt.Strategy):
                 if size > 0:
                     self.order = self.buy(size=size)
         else:
-            # 价格回归SMA
+            # Price returns to SMA
             if self.data.close[0] >= self.sma[0]:
                 self.order = self.close()
 
 
 def test_mean_reversion_sma_strategy():
+    """Test the Mean Reversion SMA strategy.
+
+    This test:
+        1. Loads historical Oracle stock data from 2010-2014
+        2. Runs the Mean Reversion SMA strategy with default parameters
+        3. Validates performance metrics against expected values
+
+    Raises:
+        AssertionError: If any of the performance metrics don't match expected values.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -144,7 +154,7 @@ def test_mean_reversion_sma_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Mean Reversion SMA 均值回归策略回测结果:")
+    print("Mean Reversion SMA Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -154,19 +164,19 @@ def test_mean_reversion_sma_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
     assert abs(final_value - 172375.61) < 0.01, f"Expected final_value=172375.61, got {final_value}"
     assert abs(sharpe_ratio - (1.2716817661545428)) < 1e-6, f"Expected sharpe_ratio=1.2716817661545428, got {sharpe_ratio}"
     assert abs(annual_return - (0.11534195315155864)) < 1e-6, f"Expected annual_return=0.11534195315155864, got {annual_return}"
     assert abs(max_drawdown - 18.967205229875198) < 1e-6, f"Expected max_drawdown=18.967205229875198, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Mean Reversion SMA 均值回归策略测试")
+    print("Mean Reversion SMA Strategy Test")
     print("=" * 60)
     test_mean_reversion_sma_strategy()

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Renko EMA Crossover 砖形图EMA交叉策略
+Test case: Renko EMA Crossover Strategy
 
-参考来源: Backtrader1.0/strategies/renko_ema_crossover.py
-使用Renko砖形图过滤后的EMA交叉作为入场信号
+Reference: Backtrader1.0/strategies/renko_ema_crossover.py
+Uses EMA crossover filtered by Renko chart as entry signal.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,15 +30,21 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class RenkoEmaStrategy(bt.Strategy):
-    """Renko EMA Crossover 砖形图EMA交叉策略
-    
-    使用Renko过滤器平滑价格，然后应用EMA交叉
-    
-    入场条件:
-    - 多头: 快速EMA上穿慢速EMA
-    
-    出场条件:
-    - 快速EMA下穿慢速EMA
+    """Renko EMA Crossover Strategy.
+
+    Uses Renko filter to smooth price data, then applies EMA crossover.
+
+    Entry conditions:
+        - Long: Fast EMA crosses above slow EMA
+
+    Exit conditions:
+        - Fast EMA crosses below slow EMA
+
+    Attributes:
+        stake (int): Number of shares/shares per trade. Default is 10.
+        fast_period (int): Period for fast EMA. Default is 10.
+        slow_period (int): Period for slow EMA. Default is 20.
+        renko_brick_size (float): Brick size for Renko filter. Default is 1.0.
     """
     params = dict(
         stake=10,
@@ -48,14 +54,14 @@ class RenkoEmaStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # 添加Renko过滤器
+        # Add Renko filter
         self.data.addfilter(bt.filters.Renko, size=self.p.renko_brick_size)
-        
-        # EMA指标
+
+        # EMA indicators
         self.fast_ema = bt.indicators.EMA(self.data, period=self.p.fast_period)
         self.slow_ema = bt.indicators.EMA(self.data, period=self.p.slow_period)
         self.crossover = bt.indicators.CrossOver(self.fast_ema, self.slow_ema)
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
@@ -85,6 +91,17 @@ class RenkoEmaStrategy(bt.Strategy):
 
 
 def test_renko_ema_strategy():
+    """Test the Renko EMA crossover strategy.
+
+    This function sets up a backtest with the RenkoEmaStrategy using
+    historical Oracle data from 2010-2014. It validates the strategy
+    performance against expected values including bar count, Sharpe ratio,
+    annual return, and maximum drawdown.
+
+    Raises:
+        AssertionError: If any of the performance metrics do not match
+            expected values within tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -110,7 +127,7 @@ def test_renko_ema_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Renko EMA Crossover 砖形图EMA交叉策略回测结果:")
+    print("Renko EMA Crossover Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -120,19 +137,18 @@ def test_renko_ema_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1237, f"Expected bar_num=1237, got {strat.bar_num}"
     assert abs(final_value - 100057.43) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (0.3225444080736762)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.00011511425744876694)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.09539954392338255) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
-
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Renko EMA Crossover 砖形图EMA交叉策略测试")
+    print("Renko EMA Crossover Strategy Test")
     print("=" * 60)
     test_renko_ema_strategy()

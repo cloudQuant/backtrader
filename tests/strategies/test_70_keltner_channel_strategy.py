@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Keltner Channel 肯特纳通道策略
+Test case: Keltner Channel strategy.
 
-使用肯特纳通道的突破判断趋势
+Uses Keltner Channel breakout to determine trend.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -29,7 +29,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class KeltnerChannelIndicator(bt.Indicator):
-    """Keltner Channel 肯特纳通道指标"""
+    """Keltner Channel indicator.
+
+    Calculates the Keltner Channel, which consists of a middle line (EMA),
+    an upper band, and a lower band based on Average True Range (ATR).
+    """
     lines = ('mid', 'top', 'bot')
     params = dict(period=20, atr_mult=2.0, atr_period=14)
 
@@ -41,13 +45,13 @@ class KeltnerChannelIndicator(bt.Indicator):
 
 
 class KeltnerChannelStrategy(bt.Strategy):
-    """Keltner Channel 肯特纳通道策略
+    """Keltner Channel strategy.
 
-    入场条件:
-    - 多头: 价格突破上轨
+    Entry conditions:
+        - Long: Price breaks above upper band
 
-    出场条件:
-    - 价格跌破中轨
+    Exit conditions:
+        - Price falls below middle band
     """
     params = dict(
         stake=10,
@@ -82,17 +86,26 @@ class KeltnerChannelStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 价格突破上轨
+            # Price breaks above upper band
             if self.data.close[0] > self.kc.top[0]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 价格跌破中轨
+            # Price falls below middle band
             if self.data.close[0] < self.kc.mid[0]:
                 self.order = self.close()
 
 
 def test_keltner_channel_strategy():
-    """测试肯特纳通道策略"""
+    """Test the Keltner Channel strategy.
+
+    This test runs a backtest of the Keltner Channel strategy on Oracle
+    stock data from 2010-2014, validating various performance metrics
+    including Sharpe ratio, returns, drawdown, and trade statistics.
+
+    Raises:
+        AssertionError: If any of the expected backtest results do not
+            match within the specified tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -121,7 +134,7 @@ def test_keltner_channel_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Keltner Channel 肯特纳通道策略回测结果:")
+    print("Keltner Channel strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -132,20 +145,20 @@ def test_keltner_channel_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - Using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
     assert abs(final_value - 100039.51) < 0.01, f"Expected final_value=100039.51, got {final_value}"
     assert abs(sharpe_ratio - 0.2795635163868808) < 1e-6, f"Expected sharpe_ratio=0.2795635163868808, got {sharpe_ratio}"
     assert abs(annual_return - (7.919528281735741e-05)) < 1e-6, f"Expected annual_return=7.919528281735741e-05, got {annual_return}"
     assert abs(max_drawdown - 0.05497965839460319) < 1e-6, f"Expected max_drawdown=0.05497965839460319, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Keltner Channel 肯特纳通道策略测试")
+    print("Keltner Channel strategy test")
     print("=" * 60)
     test_keltner_channel_strategy()

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Up Down Candles 上下蜡烛图策略
+Test case: Up Down Candles Strategy
 
-参考来源: https://github.com/backtrader-stuff/strategies
-基于蜡烛图强度和收益率的均值回归策略
+Reference: https://github.com/backtrader-stuff/strategies
+Mean reversion strategy based on candlestick strength and returns
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +17,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        Path: The absolute path to the first matching data file found.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -30,9 +42,9 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class UpDownCandleStrength(bt.Indicator):
-    """上下蜡烛图强度指标
-    
-    计算一段时间内上涨/下跌蜡烛的比例
+    """Up Down Candle Strength Indicator.
+
+    Calculates the ratio of up/down candles over a period.
     """
     lines = ('strength',)
     params = dict(period=20,)
@@ -57,7 +69,7 @@ class UpDownCandleStrength(bt.Indicator):
 
 
 class PercentReturnsPeriod(bt.Indicator):
-    """周期收益率指标"""
+    """Period Percentage Returns Indicator."""
     lines = ('returns',)
     params = dict(period=40,)
 
@@ -72,11 +84,12 @@ class PercentReturnsPeriod(bt.Indicator):
 
 
 class UpDownCandlesStrategy(bt.Strategy):
-    """上下蜡烛图策略
-    
-    - 计算蜡烛图强度和周期收益率
-    - 收益率为正且超过阈值时做空（均值回归）
-    - 收益率为负且超过阈值时做多（均值回归）
+    """Up Down Candles Strategy.
+
+    This strategy implements mean reversion based on candlestick patterns:
+    - Calculates candlestick strength and period returns
+    - Goes short when returns are positive and exceed threshold (mean reversion)
+    - Goes long when returns are negative and exceed threshold (mean reversion)
     """
     params = dict(
         stake=10,
@@ -126,13 +139,13 @@ class UpDownCandlesStrategy(bt.Strategy):
             return
 
         if not self.position:
-            # 均值回归: 涨多了做空，跌多了做多
+            # Mean reversion: short when overbought, long when oversold
             if returns < -self.p.returns_threshold:
                 self.order = self.buy(size=self.p.stake)
             elif returns > self.p.returns_threshold:
                 self.order = self.sell(size=self.p.stake)
         else:
-            # 收益率回归到阈值内时平仓
+            # Close position when returns revert to within threshold
             if self.position.size > 0 and returns > 0:
                 self.order = self.close()
             elif self.position.size < 0 and returns < 0:
@@ -140,6 +153,17 @@ class UpDownCandlesStrategy(bt.Strategy):
 
 
 def test_up_down_candles_strategy():
+    """Test the Up Down Candles strategy.
+
+    This test function:
+    1. Loads historical price data from a CSV file
+    2. Runs the UpDownCandlesStrategy with default parameters
+    3. Validates backtest results against expected values
+
+    Raises:
+        AssertionError: If any of the backtest metrics do not match expected values
+            within the specified tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -165,7 +189,7 @@ def test_up_down_candles_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Up Down Candles 上下蜡烛图策略回测结果:")
+    print("Up Down Candles Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -175,19 +199,19 @@ def test_up_down_candles_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1218, f"Expected bar_num=1218, got {strat.bar_num}"
     assert abs(final_value - 99976.91) < 0.01, f"Expected final_value=99976.91, got {final_value}"
     assert abs(sharpe_ratio - (-0.11438879840513524)) < 1e-6, f"Expected sharpe_ratio=-0.11438879840513524, got {sharpe_ratio}"
     assert abs(annual_return - (-4.629057819258505e-05)) < 1e-12, f"Expected annual_return=-4.629057819258505e-05, got {annual_return}"
     assert abs(max_drawdown - 0.13256895983198377) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Up Down Candles 上下蜡烛图策略测试")
+    print("Up Down Candles Strategy Test")
     print("=" * 60)
     test_up_down_candles_strategy()
