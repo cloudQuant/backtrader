@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Writer 输出测试
+"""Test cases for Writer output functionality.
 
-参考来源: backtrader-master2/samples/writer-test/
-测试Writer输出功能，使用价格与SMA交叉策略
+Reference: backtrader-master2/samples/writer-test/
+Tests Writer output functionality using a price and SMA crossover strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,11 +29,17 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class WriterTestStrategy(bt.Strategy):
-    """测试Writer的策略 - 价格与SMA交叉
+    """Strategy to test Writer - price and SMA crossover.
 
-    策略逻辑:
-    - 价格上穿SMA时买入
-    - 价格下穿SMA时卖出平仓
+    Strategy logic:
+    - Buy when price crosses above SMA
+    - Sell and close position when price crosses below SMA
+
+    Attributes:
+        crossover: CrossOver indicator tracking price vs SMA.
+        bar_num: Counter for the number of bars processed.
+        buy_count: Counter for buy orders executed.
+        sell_count: Counter for sell orders executed.
     """
     params = (('period', 15),)
 
@@ -61,11 +66,15 @@ class WriterTestStrategy(bt.Strategy):
 
 
 def test_writer():
-    """测试 Writer 输出功能"""
+    """Test Writer output functionality.
+
+    This function tests the Writer functionality by running a backtest
+    with a price-SMA crossover strategy and verifying the results.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(
         dataname=str(data_path),
@@ -77,21 +86,21 @@ def test_writer():
     cerebro.addstrategy(WriterTestStrategy, period=15)
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 添加Writer（不输出CSV，只用于测试功能）
+    # Add Writer (no CSV output, only for testing functionality)
     cerebro.addwriter(bt.WriterFile, csv=False, rounding=4)
 
-    # 添加完整分析器 - 使用日线级别计算夏普率
+    # Add complete analyzers - use daily timeframe to calculate Sharpe ratio
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe = strat.analyzers.sharpe.get_analysis()
     ret = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -103,9 +112,9 @@ def test_writer():
     total_trades = trades.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Writer 输出功能回测结果:")
+    print("Writer Output Functionality Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -116,7 +125,7 @@ def test_writer():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 240, f"Expected bar_num=240, got {strat.bar_num}"
     assert abs(final_value - 102841.00) < 0.01, f"Expected final_value=102841.00, got {final_value}"
     assert abs(sharpe_ratio - 0.8252115748419219) < 1e-6, f"Expected sharpe_ratio=0.8252115748419219, got {sharpe_ratio}"
@@ -124,11 +133,11 @@ def test_writer():
     assert abs(max_drawdown - 2.615813541154893) < 1e-6, f"Expected max_drawdown=2.615813541154893, got {max_drawdown}"
     assert total_trades == 12, f"Expected total_trades=12, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Writer 输出功能测试")
+    print("Writer Output Functionality Test")
     print("=" * 60)
     test_writer()

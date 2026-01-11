@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Donchian Channel 唐奇安通道策略
+Test Case: Donchian Channel Strategy
 
-参考来源: https://github.com/backtrader/backhacker
-经典的唐奇安通道突破策略
+Reference: https://github.com/backtrader/backhacker
+Classic Donchian Channel breakout strategy
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data file based on the script directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,7 +45,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class DonchianChannelIndicator(bt.Indicator):
-    """唐奇安通道指标"""
+    """Donchian Channel indicator.
+
+    The Donchian Channel is a trend-following indicator that calculates
+    the highest high and lowest low over a specified period.
+    """
     lines = ('dch', 'dcl', 'dcm')
     params = dict(period=20)
 
@@ -45,10 +60,22 @@ class DonchianChannelIndicator(bt.Indicator):
 
 
 class DonchianChannelStrategy(bt.Strategy):
-    """唐奇安通道突破策略
-    
-    - 价格突破上轨做多
-    - 价格跌破下轨做空
+    """Donchian Channel breakout strategy.
+
+    This strategy implements a classic trend-following approach using the
+    Donchian Channel indicator:
+
+    - Go long when price breaks above the upper channel
+    - Go short when price breaks below the lower channel
+
+    Attributes:
+        dataclose: Reference to the close price data.
+        indicator: Donchian Channel indicator instance.
+        order: Current pending order.
+        last_operation: Last executed operation ("BUY" or "SELL").
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -61,8 +88,8 @@ class DonchianChannelStrategy(bt.Strategy):
         
         self.order = None
         self.last_operation = "SELL"
-        
-        # 统计变量
+
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -97,7 +124,19 @@ class DonchianChannelStrategy(bt.Strategy):
 
 
 def test_donchian_channel_strategy():
-    """测试唐奇安通道策略"""
+    """Test the Donchian Channel strategy.
+
+    This test function runs a backtest of the Donchian Channel strategy
+    on Oracle stock data from 2010-2014 and verifies the results match
+    expected values.
+
+    The test validates:
+    - Number of bars processed
+    - Final portfolio value
+    - Sharpe ratio
+    - Annual return
+    - Maximum drawdown
+    """
     cerebro = bt.Cerebro()
 
     data_path = resolve_data_path("orcl-1995-2014.txt")
@@ -120,7 +159,7 @@ def test_donchian_channel_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -129,7 +168,7 @@ def test_donchian_channel_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -138,7 +177,7 @@ def test_donchian_channel_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Donchian Channel 唐奇安通道策略回测结果:")
+    print("Donchian Channel Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -149,20 +188,20 @@ def test_donchian_channel_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
     assert abs(final_value - 100000.0) < 0.01, f"Expected final_value=100000.0, got {final_value}"
-    # 没有交易，sharpe_ratio为空
+    # No trades executed, sharpe_ratio is None
     assert sharpe_ratio is None or sharpe_ratio == 0, f"Expected sharpe_ratio=None/0, got {sharpe_ratio}"
     assert abs(annual_return - (0.0)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.0) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Donchian Channel 唐奇安通道策略测试")
+    print("Donchian Channel Strategy Test")
     print("=" * 60)
     test_donchian_channel_strategy()

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: HMA Crossover Hull均线交叉策略
+Test Case: HMA Crossover Hull Moving Average Strategy
 
-参考来源: https://github.com/Backtrader1.0/strategies/hma_crossover.py
-使用快速和慢速Hull均线交叉作为入场信号
+Reference: https://github.com/Backtrader1.0/strategies/hma_crossover.py
+Uses fast and slow Hull Moving Average crossovers as entry signals.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,13 +30,13 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class HmaCrossoverStrategy(bt.Strategy):
-    """HMA Crossover Hull均线交叉策略
-    
-    入场条件:
-    - 多头: 快速HMA上穿慢速HMA
-    - 空头: 快速HMA下穿慢速HMA
-    
-    使用ATR作为波动性参考
+    """HMA Crossover Hull Moving Average Strategy.
+
+    Entry conditions:
+        - Long: Fast HMA crosses above slow HMA
+        - Short: Fast HMA crosses below slow HMA
+
+    Uses ATR as a volatility reference.
     """
     params = dict(
         stake=10,
@@ -47,21 +47,21 @@ class HmaCrossoverStrategy(bt.Strategy):
 
     def __init__(self):
         self.dataclose = self.datas[0].close
-        
-        # Hull均线指标
+
+        # Hull Moving Average indicators
         self.hma_fast = bt.indicators.HullMovingAverage(
             self.data.close, period=self.p.hma_fast
         )
         self.hma_slow = bt.indicators.HullMovingAverage(
             self.data.close, period=self.p.hma_slow
         )
-        
-        # ATR
+
+        # ATR indicator
         self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
-        
+
         self.order = None
         self.prev_rel = None  # fast > slow on previous bar
-        
+
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -91,19 +91,19 @@ class HmaCrossoverStrategy(bt.Strategy):
 
         pos_sz = self.position.size
 
-        # 多头入场: 快线从下方穿越慢线
+        # Long entry: fast line crosses above slow line from below
         if pos_sz == 0 and (not self.prev_rel) and rel_now:
             self.order = self.buy(size=self.p.stake)
 
-        # 空头入场: 快线从上方穿越慢线
+        # Short entry: fast line crosses below slow line from above
         elif pos_sz == 0 and self.prev_rel and (not rel_now):
             self.order = self.sell(size=self.p.stake)
 
-        # 多头平仓: 快线跌破慢线
+        # Long exit: fast line falls below slow line
         elif pos_sz > 0 and not rel_now:
             self.order = self.close()
-        
-        # 空头平仓: 快线突破慢线
+
+        # Short exit: fast line rises above slow line
         elif pos_sz < 0 and rel_now:
             self.order = self.close()
 
@@ -136,7 +136,7 @@ def test_hma_crossover_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("HMA Crossover Hull均线交叉策略回测结果:")
+    print("HMA Crossover Hull Moving Average Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -146,19 +146,19 @@ def test_hma_crossover_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1160, f"Expected bar_num=1160, got {strat.bar_num}"
     assert abs(final_value - 100081.45) < 0.01, f"Expected final_value=100081.45, got {final_value}"
     assert abs(sharpe_ratio - (0.5100011168586044)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.00016323774473640581)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.10334345093914488) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("HMA Crossover Hull均线交叉策略测试")
+    print("HMA Crossover Hull Moving Average Strategy Test")
     print("=" * 60)
     test_hma_crossover_strategy()

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Alligator 鳄鱼线策略
+Test Case: Alligator Strategy
 
-参考来源: https://github.com/Backtesting/strategies
-Bill Williams的鳄鱼线指标策略
+Reference: https://github.com/Backtesting/strategies
+Bill Williams Alligator indicator strategy
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,11 +30,17 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class AlligatorIndicator(bt.Indicator):
-    """鳄鱼线指标 - Bill Williams
-    
-    - Jaw (颚线): 13周期SMMA，向未来偏移8根
-    - Teeth (齿线): 8周期SMMA，向未来偏移5根
-    - Lips (唇线): 5周期SMMA，向未来偏移3根
+    """Alligator Indicator - Bill Williams.
+
+    The Alligator indicator consists of three smoothed moving averages:
+    - Jaw (蓝线): 13-period SMMA, shifted forward 8 bars
+    - Teeth (红线): 8-period SMMA, shifted forward 5 bars
+    - Lips (绿线): 5-period SMMA, shifted forward 3 bars
+
+    Attributes:
+        jaw: The jaw line (13-period SMMA)
+        teeth: The teeth line (8-period SMMA)
+        lips: The lips line (5-period SMMA)
     """
     lines = ('jaw', 'teeth', 'lips')
     params = dict(
@@ -44,7 +50,7 @@ class AlligatorIndicator(bt.Indicator):
     )
 
     def __init__(self):
-        # 使用SMMA (Smoothed Moving Average) = EMA with alpha = 1/period
+        # Use SMMA (Smoothed Moving Average) = EMA with alpha = 1/period
         self.lines.jaw = bt.indicators.SmoothedMovingAverage(
             self.data.close, period=self.p.jaw_period
         )
@@ -57,10 +63,19 @@ class AlligatorIndicator(bt.Indicator):
 
 
 class AlligatorStrategy(bt.Strategy):
-    """鳄鱼线策略
-    
-    - 价格突破颚线向上时买入
-    - 价格跌破颚线时卖出
+    """Alligator trading strategy.
+
+    This strategy implements a simple Alligator-based trading approach:
+    - Buy when price breaks above the jaw line
+    - Sell when price breaks below the jaw line
+
+    Attributes:
+        dataclose: Reference to close prices
+        alligator: Alligator indicator instance
+        order: Current pending order
+        bar_num: Number of bars processed
+        buy_count: Number of buy orders executed
+        sell_count: Number of sell orders executed
     """
     params = dict(
         stake=10,
@@ -98,17 +113,33 @@ class AlligatorStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 价格在颚线上方买入
+        # Buy when price is above the jaw line
         if not self.position:
             if self.dataclose[0] > self.alligator.jaw[0]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 价格跌破颚线卖出
+            # Sell when price breaks below the jaw line
             if self.dataclose[0] < self.alligator.jaw[0]:
                 self.order = self.sell(size=self.p.stake)
 
 
 def test_alligator_strategy():
+    """Test the Alligator strategy.
+
+    This function sets up and runs a backtest of the Alligator strategy
+    using historical Oracle stock data from 2010-2014. It validates
+    the strategy performance against expected values.
+
+    The test uses:
+    - Oracle stock data (2010-2014)
+    - Initial cash: $100,000
+    - Commission: 0.1%
+    - Position size: 10 shares per trade
+
+    Raises:
+        AssertionError: If any of the performance metrics don't match
+            expected values within specified tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -134,7 +165,7 @@ def test_alligator_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Alligator 鳄鱼线策略回测结果:")
+    print("Alligator Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -144,19 +175,19 @@ def test_alligator_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1245, f"Expected bar_num=1245, got {strat.bar_num}"
     assert abs(final_value - 100011.2) < 0.01, f"Expected final_value=100011.2, got {final_value}"
     assert abs(sharpe_ratio - (0.04724483526577409)) < 1e-6, f"Expected sharpe_ratio=0.04724483526577409, got {sharpe_ratio}"
     assert abs(annual_return - (2.2461836991998968e-05)) < 1e-6, f"Expected annual_return=2.2461836991998968e-05, got {annual_return}"
     assert abs(max_drawdown - 0.1353106121383434) < 1e-6, f"Expected max_drawdown=0.1353106121383434, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Alligator 鳄鱼线策略测试")
+    print("Alligator Strategy Test")
     print("=" * 60)
     test_alligator_strategy()

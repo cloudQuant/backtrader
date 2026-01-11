@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Calmar Analyzer 卡尔马分析器
+Test Case: Calmar Analyzer.
 
-参考来源: backtrader-master2/samples/calmar/calmar-test.py
-测试Calmar比率分析器
+Reference: backtrader-master2/samples/calmar/calmar-test.py
+Tests the Calmar ratio analyzer.
 
-Calmar比率 = 年化收益率 / 最大回撤
-用于衡量策略的风险调整后收益
+Calmar ratio = Annualized return / Maximum drawdown
+Used to measure risk-adjusted returns of a strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -33,7 +33,8 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class CalmarTestStrategy(bt.Strategy):
-    """测试Calmar分析器的策略"""
+    """Strategy for testing the Calmar analyzer."""
+
     params = (('p1', 15), ('p2', 50))
 
     def __init__(self):
@@ -68,11 +69,11 @@ class CalmarTestStrategy(bt.Strategy):
 
 
 def test_calmar_analyzer():
-    """测试 Calmar Analyzer"""
+    """Test the Calmar Analyzer."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("yhoo-1996-2014.txt")
     data = bt.feeds.YahooFinanceCSVData(
         dataname=str(data_path),
@@ -84,7 +85,7 @@ def test_calmar_analyzer():
     cerebro.addstrategy(CalmarTestStrategy)
     cerebro.addsizer(bt.sizers.FixedSize, stake=100)
 
-    # 添加分析器 - 使用日线级别计算夏普率
+    # Add analyzers - calculate Sharpe ratio using daily timeframe
     cerebro.addanalyzer(bt.analyzers.Calmar, _name="calmar")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
@@ -92,13 +93,13 @@ def test_calmar_analyzer():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     calmar_analysis = strat.analyzers.calmar.get_analysis()
-    # Calmar返回OrderedDict，键是日期，值是当期的Calmar比率
+    # Calmar returns OrderedDict, keys are dates, values are Calmar ratios for that period
     if calmar_analysis:
         last_date = list(calmar_analysis.keys())[-1]
         calmar_ratio = calmar_analysis[last_date]
@@ -113,9 +114,9 @@ def test_calmar_analyzer():
     total_trades = trade_analysis.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Calmar Analyzer 回测结果:")
+    print("Calmar Analyzer Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -127,22 +128,22 @@ def test_calmar_analyzer():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 1460, f"Expected bar_num=1460, got {strat.bar_num}"
     assert abs(final_value - 98020.00) < 0.01, f"Expected final_value=98020.00, got {final_value}"
     assert abs(sharpe_ratio - (-0.4689333841227036)) < 1e-6, f"Expected sharpe_ratio=-0.4689333841227036, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0033319591262466032)) < 1e-6, f"Expected annual_return=-0.0033319591262466032, got {annual_return}"
     assert abs(max_drawdown - 3.2398371164458886) < 1e-6, f"Expected max_drawdown=3.2398371164458886, got {max_drawdown}"
     assert total_trades == 16, f"Expected total_trades=16, got {total_trades}"
-    # Calmar比率断言
+    # Calmar ratio assertions
     assert calmar_ratio is not None, "Calmar ratio should not be None"
     assert abs(calmar_ratio - (-4.713556837089328e-05)) < 1e-6, f"Expected calmar_ratio=-4.713556837089328e-05, got {calmar_ratio}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Calmar Analyzer 测试")
+    print("Calmar Analyzer Test")
     print("=" * 60)
     test_calmar_analyzer()

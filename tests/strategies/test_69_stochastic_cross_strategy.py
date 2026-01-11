@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Stochastic Cross 随机指标交叉策略
+Test Case: Stochastic Cross Strategy
 
-参考来源: https://github.com/backtrader/backhacker
-结合SMA趋势和Stochastic超买超卖的策略
+Reference: https://github.com/backtrader/backhacker
+A strategy combining SMA trend and Stochastic overbought/oversold signals.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script's directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,10 +45,23 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class StochasticCrossStrategy(bt.Strategy):
-    """随机指标交叉策略
-    
-    - 短期均线在长期均线上方 + Stochastic低于20时买入
-    - 短期均线在长期均线下方 + Stochastic高于80时卖出
+    """Stochastic indicator crossover strategy.
+
+    This strategy combines SMA trend and Stochastic oscillator signals:
+
+    - Buy when short-term MA is above long-term MA AND Stochastic is below 20 (oversold)
+    - Sell when short-term MA is below long-term MA AND Stochastic is above 80 (overbought)
+
+    Attributes:
+        dataclose: Reference to the close price data feed.
+        ma1: Short-term Simple Moving Average indicator.
+        ma2: Long-term Simple Moving Average indicator.
+        stoch: Stochastic oscillator indicator.
+        order: Current pending order.
+        last_operation: Last executed operation ("BUY" or "SELL").
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -56,8 +80,8 @@ class StochasticCrossStrategy(bt.Strategy):
         
         self.order = None
         self.last_operation = "SELL"
-        
-        # 统计变量
+
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -82,12 +106,12 @@ class StochasticCrossStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 买入条件: 短期MA > 长期MA + Stochastic超卖
+        # Buy condition: short-term MA > long-term MA AND Stochastic oversold
         if self.last_operation != "BUY":
             if self.ma1[0] > self.ma2[0] and self.stoch.percK[0] < self.p.oversold:
                 self.order = self.buy(size=self.p.stake)
-        
-        # 卖出条件: 短期MA < 长期MA + Stochastic超买
+
+        # Sell condition: short-term MA < long-term MA AND Stochastic overbought
         if self.last_operation != "SELL":
             if self.ma1[0] < self.ma2[0] and self.stoch.percK[0] > self.p.overbought:
                 self.order = self.sell(size=self.p.stake)
@@ -97,7 +121,19 @@ class StochasticCrossStrategy(bt.Strategy):
 
 
 def test_stochastic_cross_strategy():
-    """测试随机指标交叉策略"""
+    """Test the Stochastic crossover strategy.
+
+    This test sets up a backtest environment with historical Oracle data,
+    runs the StochasticCrossStrategy, and verifies that the performance
+    metrics match expected values.
+
+    The test validates:
+        - Number of bars processed
+        - Final portfolio value
+        - Sharpe ratio
+        - Annual return
+        - Maximum drawdown
+    """
     cerebro = bt.Cerebro()
 
     data_path = resolve_data_path("orcl-1995-2014.txt")
@@ -120,7 +156,7 @@ def test_stochastic_cross_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -129,7 +165,7 @@ def test_stochastic_cross_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -138,7 +174,7 @@ def test_stochastic_cross_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Stochastic Cross 随机指标交叉策略回测结果:")
+    print("Stochastic Cross Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -149,19 +185,19 @@ def test_stochastic_cross_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1228, f"Expected bar_num=1228, got {strat.bar_num}"
     assert abs(final_value - 100183.85) < 0.01, f"Expected final_value=100183.85, got {final_value}"
     assert abs(sharpe_ratio - (0.8140783317581928)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.00036830689381886077)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.07746163959163185) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Stochastic Cross 随机指标交叉策略测试")
+    print("Stochastic Cross Strategy Test")
     print("=" * 60)
     test_stochastic_cross_strategy()

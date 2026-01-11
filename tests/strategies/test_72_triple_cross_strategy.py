@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Triple Cross 三均线交叉策略
+Test Case: Triple Cross Moving Average Crossover Strategy.
 
-参考来源: https://github.com/backtrader/backhacker
-基于三条均线排列的趋势策略
+Reference: https://github.com/backtrader/backhacker
+Trend strategy based on the alignment of three moving averages.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script's directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,10 +45,25 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TripleCrossStrategy(bt.Strategy):
-    """三均线交叉策略
-    
-    - 短期 > 中期 > 长期均线时买入
-    - 短期 < 中期 < 长期均线时卖出
+    """Triple Moving Average Crossover Strategy.
+
+    This strategy implements a trend-following approach using three simple
+    moving averages (SMA) with different periods.
+
+    Trading Logic:
+        - Buy when short-term MA > medium-term MA > long-term MA (bullish alignment)
+        - Sell when short-term MA < medium-term MA < long-term MA (bearish alignment)
+
+    Attributes:
+        dataclose: Close price data series.
+        ma1: Short-term simple moving average.
+        ma2: Medium-term simple moving average.
+        ma3: Long-term simple moving average.
+        order: Current pending order.
+        last_operation: Last executed operation ("BUY" or "SELL").
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -54,8 +80,8 @@ class TripleCrossStrategy(bt.Strategy):
         
         self.order = None
         self.last_operation = "SELL"
-        
-        # 统计变量
+
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -80,12 +106,12 @@ class TripleCrossStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 买入条件: MA1 > MA2 > MA3 (多头排列)
+        # Buy condition: MA1 > MA2 > MA3 (bullish alignment)
         if self.last_operation != "BUY":
             if self.ma1[0] > self.ma2[0] > self.ma3[0]:
                 self.order = self.buy(size=self.p.stake)
-        
-        # 卖出条件: MA1 < MA2 < MA3 (空头排列)
+
+        # Sell condition: MA1 < MA2 < MA3 (bearish alignment)
         if self.last_operation != "SELL":
             if self.ma1[0] < self.ma2[0] < self.ma3[0]:
                 self.order = self.sell(size=self.p.stake)
@@ -95,7 +121,17 @@ class TripleCrossStrategy(bt.Strategy):
 
 
 def test_triple_cross_strategy():
-    """测试三均线交叉策略"""
+    """Test the triple moving average crossover strategy.
+
+    This test function:
+        1. Loads historical Oracle stock data (2010-2014)
+        2. Runs the TripleCrossStrategy with default parameters
+        3. Validates performance metrics against expected values
+
+    Raises:
+        AssertionError: If any of the performance metrics don't match
+            expected values within tolerance.
+    """
     cerebro = bt.Cerebro()
 
     data_path = resolve_data_path("orcl-1995-2014.txt")
@@ -118,7 +154,7 @@ def test_triple_cross_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -127,7 +163,7 @@ def test_triple_cross_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -136,7 +172,7 @@ def test_triple_cross_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Triple Cross 三均线交叉策略回测结果:")
+    print("Triple Cross Moving Average Crossover Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -147,19 +183,19 @@ def test_triple_cross_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1245, f"Expected bar_num=1245, got {strat.bar_num}"
     assert abs(final_value - 100063.63) < 0.01, f"Expected final_value=100063.63, got {final_value}"
     assert abs(sharpe_ratio - (0.3608428642726115)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (0.00012752914318585638)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.10941659904491363) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Triple Cross 三均线交叉策略测试")
+    print("Triple Cross Moving Average Crossover Strategy Test")
     print("=" * 60)
     test_triple_cross_strategy()

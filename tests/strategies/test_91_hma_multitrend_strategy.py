@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: HMA MultiTrend 多周期Hull均线趋势策略
+Test case: HMA MultiTrend multi-period Hull Moving Average trend strategy.
 
-参考来源: Backtrader1.0/strategies/hma_multitrend.py
-使用4条不同周期的Hull均线判断趋势方向
+Reference source: Backtrader1.0/strategies/hma_multitrend.py
+Uses 4 Hull Moving Averages with different periods to determine trend direction.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,14 +30,14 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class HmaMultiTrendStrategy(bt.Strategy):
-    """HMA MultiTrend 多周期Hull均线趋势策略
-    
-    入场条件:
-    - 多头: fast > mid1 > mid2 > mid3 (所有HMA递增排列)
-    - 空头: fast < mid1 < mid2 < mid3 (所有HMA递减排列)
-    
-    出场条件:
-    - 反向趋势信号
+    """HMA MultiTrend multi-period Hull Moving Average trend strategy.
+
+    Entry conditions:
+        - Long: fast > mid1 > mid2 > mid3 (all HMAs in ascending order)
+        - Short: fast < mid1 < mid2 < mid3 (all HMAs in descending order)
+
+    Exit conditions:
+        - Reverse trend signal
     """
     params = dict(
         stake=10,
@@ -47,7 +47,7 @@ class HmaMultiTrendStrategy(bt.Strategy):
         mid3=50,
         atr_period=14,
         adx_period=14,
-        adx_threshold=0.0,  # 禁用ADX过滤
+        adx_threshold=0.0,  # Disable ADX filter
     )
 
     def __init__(self):
@@ -84,27 +84,27 @@ class HmaMultiTrendStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
-        # ADX过滤
+
+        # ADX filter
         if self.adx[0] < self.p.adx_threshold:
             return
-        
-        # 趋势条件
-        long_cond = (self.hma_fast[0] > self.hma_mid1[0] > 
+
+        # Trend conditions
+        long_cond = (self.hma_fast[0] > self.hma_mid1[0] >
                      self.hma_mid2[0] > self.hma_mid3[0])
-        short_cond = (self.hma_fast[0] < self.hma_mid1[0] < 
+        short_cond = (self.hma_fast[0] < self.hma_mid1[0] <
                       self.hma_mid2[0] < self.hma_mid3[0])
-        
+
         if not self.position:
             if long_cond:
                 self.order = self.buy(size=self.p.stake)
             elif short_cond:
                 self.order = self.sell(size=self.p.stake)
         else:
-            # 反向信号平仓
+            # Close position on reverse signal
             if self.position.size > 0 and short_cond:
                 self.order = self.close()
             elif self.position.size < 0 and long_cond:
@@ -137,7 +137,7 @@ def test_hma_multitrend_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("HMA MultiTrend 多周期Hull均线趋势策略回测结果:")
+    print("HMA MultiTrend multi-period Hull Moving Average trend strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -147,19 +147,19 @@ def test_hma_multitrend_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1202, f"Expected bar_num=1202, got {strat.bar_num}"
     assert abs(final_value - 100003.09) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (0.006181944585090366)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (6.194873476064192e-06)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.258774207577785) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("HMA MultiTrend 多周期Hull均线趋势策略测试")
+    print("HMA MultiTrend multi-period Hull Moving Average trend strategy test")
     print("=" * 60)
     test_hma_multitrend_strategy()

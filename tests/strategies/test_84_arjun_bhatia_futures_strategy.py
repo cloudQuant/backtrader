@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Arjun Bhatia Futures 期货策略
+Test case: Arjun Bhatia Futures Trading Strategy.
 
-参考来源: https://github.com/Backtesting/strategies
-结合Alligator指标和SuperTrend指标的期货交易策略
+Reference: https://github.com/Backtesting/strategies
+A futures trading strategy combining the Alligator indicator and SuperTrend indicator.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,7 +30,18 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class AlligatorIndicator(bt.Indicator):
-    """鳄鱼线指标"""
+    """Alligator indicator.
+
+    The Alligator indicator consists of three smoothed moving averages:
+    - Jaw: Blue line (13-period Smoothed MA)
+    - Teeth: Red line (8-period Smoothed MA)
+    - Lips: Green line (5-period Smoothed MA)
+
+    Attributes:
+        jaw: Jaw line of the Alligator indicator.
+        teeth: Teeth line of the Alligator indicator.
+        lips: Lips line of the Alligator indicator.
+    """
     lines = ('jaw', 'teeth', 'lips')
     params = dict(
         jaw_period=13,
@@ -51,7 +62,16 @@ class AlligatorIndicator(bt.Indicator):
 
 
 class SuperTrendIndicator(bt.Indicator):
-    """超级趋势指标"""
+    """SuperTrend indicator.
+
+    A trend-following indicator that uses Average True Range (ATR) to identify
+    market trend direction. It provides buy and sell signals based on price
+    action relative to the calculated SuperTrend line.
+
+    Attributes:
+        supertrend: The SuperTrend line value.
+        direction: Trend direction (1 for bullish, -1 for bearish).
+    """
     lines = ('supertrend', 'direction')
     params = dict(
         period=10,
@@ -94,12 +114,23 @@ class SuperTrendIndicator(bt.Indicator):
 
 
 class ArjunBhatiaFuturesStrategy(bt.Strategy):
-    """Arjun Bhatia期货策略
-    
-    结合Alligator和SuperTrend指标:
-    - 价格在Alligator颚线上方且SuperTrend看多时买入
-    - 价格在Alligator颚线下方且SuperTrend看空时卖出
-    - 使用ATR计算止损和止盈
+    """Arjun Bhatia Futures Trading Strategy.
+
+    A trading strategy that combines the Alligator and SuperTrend indicators:
+    - Buy when price is above Alligator jaw line and SuperTrend is bullish
+    - Sell when price is below Alligator jaw line and SuperTrend is bearish
+    - Use ATR to calculate stop loss and take profit levels
+
+    Attributes:
+        alligator: Alligator indicator instance.
+        supertrend: SuperTrend indicator instance.
+        atr: Average True Range indicator for risk management.
+        entry_price: Price at which the current position was entered.
+        stop_loss: Stop loss price for the current position.
+        take_profit: Take profit price for the current position.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -164,21 +195,35 @@ class ArjunBhatiaFuturesStrategy(bt.Strategy):
         is_supertrend_bullish = self.supertrend.direction[0] == 1
 
         if not self.position:
-            # 多头入场: Alligator和SuperTrend同时看多
+            # Long entry: Both Alligator and SuperTrend are bullish
             if is_alligator_bullish and is_supertrend_bullish:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 止损或止盈
+            # Stop loss or take profit
             if self.datalow[0] <= self.stop_loss:
                 self.order = self.close()
             elif self.datahigh[0] >= self.take_profit:
                 self.order = self.close()
-            # 或者指标反转
+            # Or indicator reversal
             elif not is_alligator_bullish or not is_supertrend_bullish:
                 self.order = self.close()
 
 
 def test_arjun_bhatia_futures_strategy():
+    """Test the Arjun Bhatia Futures Trading Strategy.
+
+    This test runs a backtest of the Arjun Bhatia strategy on historical data
+    and verifies that key performance metrics match expected values.
+
+    The test:
+    1. Loads Oracle stock data from 2010-2014
+    2. Runs the Arjun Bhatia strategy with default parameters
+    3. Calculates performance metrics (Sharpe ratio, returns, drawdown)
+    4. Asserts that results match expected values within tolerance
+
+    Raises:
+        AssertionError: If any performance metric falls outside expected tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -204,7 +249,7 @@ def test_arjun_bhatia_futures_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Arjun Bhatia Futures 期货策略回测结果:")
+    print("Arjun Bhatia Futures Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -214,19 +259,19 @@ def test_arjun_bhatia_futures_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1243, f"Expected bar_num=1243, got {strat.bar_num}"
     assert abs(final_value - 100008.3) < 0.01, f"Expected final_value=100008.3, got {final_value}"
     assert abs(sharpe_ratio - (0.03545852568934664)) < 1e-6, f"Expected sharpe_ratio=0.03545852568934664, got {sharpe_ratio}"
     assert abs(annual_return - (1.6643997595262782e-05)) < 1e-6, f"Expected annual_return=1.6643997595262782e-05, got {annual_return}"
     assert abs(max_drawdown - 0.13555290823752497) < 1e-6, f"Expected max_drawdown=0.13555290823752497, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Arjun Bhatia Futures 期货策略测试")
+    print("Arjun Bhatia Futures Strategy Test")
     print("=" * 60)
     test_arjun_bhatia_futures_strategy()
