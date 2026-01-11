@@ -18,6 +18,7 @@ Example:
 """
 
 import argparse
+import ast
 import datetime
 import inspect
 import random
@@ -92,6 +93,144 @@ TIMEFRAMES = dict(
 )
 
 
+def _safe_parse_kwargs(kwtext: str) -> dict:
+    """Safely parse kwargs string without using eval().
+
+    Parses a string like "a=1,b=2,c='hello'" into a dictionary.
+    Uses ast.literal_eval for safe evaluation of values.
+
+    Args:
+        kwtext: String containing key=value pairs separated by commas.
+            Values can be integers, floats, booleans, strings, or None.
+
+    Returns:
+        dict: Parsed keyword arguments.
+
+    Example:
+        >>> _safe_parse_kwargs("a=1,b=2.5,c=True,d='hello'")
+        {'a': 1, 'b': 2.5, 'c': True, 'd': 'hello'}
+    """
+    if not kwtext or not kwtext.strip():
+        return {}
+
+    result = {}
+
+    # Try ast.literal_eval first for the entire dict expression
+    try:
+        # Wrap in dict() and try literal_eval
+        parsed = ast.literal_eval(f"dict({kwtext})")
+        if isinstance(parsed, dict):
+            return parsed
+    except (ValueError, SyntaxError, TypeError):
+        pass
+
+    # Fall back to manual parsing
+    # Handle nested parentheses and quoted strings properly
+    items = _split_kwargs(kwtext)
+
+    for item in items:
+        item = item.strip()
+        if not item:
+            continue
+
+        if "=" not in item:
+            continue
+
+        key, value = item.split("=", 1)
+        key = key.strip()
+        value = value.strip()
+
+        result[key] = _convert_value(value)
+
+    return result
+
+
+def _split_kwargs(kwtext: str) -> list:
+    """Split kwargs string by commas, respecting quotes and parentheses.
+
+    Args:
+        kwtext: String containing key=value pairs.
+
+    Returns:
+        list: List of individual key=value strings.
+    """
+    items = []
+    current = []
+    depth = 0
+    in_string = False
+    string_char = None
+
+    for char in kwtext:
+        if char in ('"', "'") and (not current or current[-1] != '\\'):
+            if not in_string:
+                in_string = True
+                string_char = char
+            elif char == string_char:
+                in_string = False
+                string_char = None
+            current.append(char)
+        elif char in ('(', '[', '{') and not in_string:
+            depth += 1
+            current.append(char)
+        elif char in (')', ']', '}') and not in_string:
+            depth -= 1
+            current.append(char)
+        elif char == ',' and depth == 0 and not in_string:
+            items.append(''.join(current))
+            current = []
+        else:
+            current.append(char)
+
+    if current:
+        items.append(''.join(current))
+
+    return items
+
+
+def _convert_value(value: str):
+    """Convert a string value to its appropriate Python type.
+
+    Args:
+        value: String representation of a value.
+
+    Returns:
+        The value converted to int, float, bool, None, or string.
+    """
+    # Try ast.literal_eval first (handles most cases safely)
+    try:
+        return ast.literal_eval(value)
+    except (ValueError, SyntaxError):
+        pass
+
+    # Handle boolean values (case-insensitive)
+    if value.lower() == 'true':
+        return True
+    if value.lower() == 'false':
+        return False
+    if value.lower() == 'none':
+        return None
+
+    # Handle integers
+    try:
+        return int(value)
+    except ValueError:
+        pass
+
+    # Handle floats
+    try:
+        return float(value)
+    except ValueError:
+        pass
+
+    # Remove surrounding quotes if present
+    if len(value) >= 2:
+        if (value[0] == '"' and value[-1] == '"') or (value[0] == "'" and value[-1] == "'"):
+            return value[1:-1]
+
+    # Return as string
+    return value
+
+
 def btrun(pargs=""):
     """Run a backtest with the specified configuration.
 
@@ -121,7 +260,7 @@ def btrun(pargs=""):
     stdstats = not args.nostdstats
 
     cer_kwargs_str = args.cerebro
-    cer_kwargs = eval("dict(" + cer_kwargs_str + ")")
+    cer_kwargs = _safe_parse_kwargs(cer_kwargs_str)
     if "stdstats" not in cer_kwargs:
         cer_kwargs.update(stdstats=stdstats)
 
@@ -176,7 +315,7 @@ def btrun(pargs=""):
     setbroker(args, cerebro)
 
     for wrkwargs_str in args.writers or []:
-        wrkwargs = eval("dict(" + wrkwargs_str + ")")
+        wrkwargs = _safe_parse_kwargs(wrkwargs_str)
         cerebro.addwriter(WriterFile, **wrkwargs)
 
     ans = getfunctions(args.hooks, Cerebro)
@@ -203,7 +342,7 @@ def btrun(pargs=""):
         pkwargs = dict(style="bar")
         if args.plot is not True:
             # evaluates to True but is not "True" - args were passed
-            ekwargs = eval("dict(" + args.plot + ")")
+            ekwargs = _safe_parse_kwargs(args.plot)
             pkwargs.update(ekwargs)
 
         # cerebro.plot(numfigs=args.plotfigs, style=args.plotstyle)
@@ -529,8 +668,7 @@ def getobjects(iterable, clsbase, modbase, issignal=False):
                 kwargs = dict()
             else:
                 name = kwtokens[0]
-                kwtext = "dict(" + kwtokens[1] + ")"
-                kwargs = eval(kwtext)
+                kwargs = _safe_parse_kwargs(kwtokens[1])
 
         if modpath:
             mod, e = loadmodule(modpath)
@@ -595,8 +733,7 @@ def getfunctions(iterable, modbase):
                 kwargs = dict()
             else:
                 name = kwtokens[0]
-                kwtext = "dict(" + kwtokens[1] + ")"
-                kwargs = eval(kwtext)
+                kwargs = _safe_parse_kwargs(kwtokens[1])
 
         if modpath:
             mod, e = loadmodule(modpath)
