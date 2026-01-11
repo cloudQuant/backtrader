@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-可转债溢价率均线交叉策略测试
+Convertible bond premium rate moving average crossover strategy test.
 
-使用转股溢价率计算移动平均线，短期均线上穿长期均线时买入，
-下穿时卖出平仓。
+Calculates moving averages using conversion premium rate. Buy when the
+short-term moving average crosses above the long-term moving average,
+and sell to close positions when it crosses below.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -21,7 +22,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script directory to avoid relative path failures.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path: Absolute path to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any search path.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -36,17 +47,18 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class ExtendPandasFeed(bt.feeds.PandasData):
-    """扩展的Pandas数据源，添加可转债特有的字段
+    """Extended Pandas data feed with convertible bond-specific fields.
 
-    DataFrame结构（set_index后）：
-    - 索引：datetime
-    - 列0：open, 列1：high, 列2：low, 列3：close, 列4：volume
-    - 列5：pure_bond_value, 列6：convert_value
-    - 列7：pure_bond_premium_rate, 列8：convert_premium_rate
+    DataFrame structure (after set_index):
+        - Index: datetime
+        - Column 0: open, Column 1: high, Column 2: low, Column 3: close,
+          Column 4: volume
+        - Column 5: pure_bond_value, Column 6: convert_value
+        - Column 7: pure_bond_premium_rate, Column 8: convert_premium_rate
     """
 
     params = (
@@ -68,12 +80,15 @@ class ExtendPandasFeed(bt.feeds.PandasData):
 
 
 class PremiumRateCrossoverStrategy(bt.Strategy):
-    """转股溢价率均线交叉策略
+    """Conversion premium rate moving average crossover strategy.
 
-    策略逻辑：
-    - 使用转股溢价率（convert_premium_rate）计算移动平均线
-    - 短期均线（默认10日）上穿长期均线（默认60日）时买入
-    - 短期均线下穿长期均线时卖出平仓
+    Strategy logic:
+        - Use conversion premium rate (convert_premium_rate) to calculate
+          moving averages
+        - Buy when short-term moving average (default 10-day) crosses above
+          long-term moving average (default 60-day)
+        - Sell to close positions when short-term moving average crosses below
+          long-term moving average
     """
 
     params = (
@@ -121,13 +136,13 @@ class PremiumRateCrossoverStrategy(bt.Strategy):
 
 
 def load_bond_data(csv_file: str) -> pd.DataFrame:
-    """加载可转债数据
+    """Load convertible bond data from CSV file.
 
     Args:
-        csv_file: CSV文件路径
+        csv_file: Path to the CSV file.
 
     Returns:
-        处理后的DataFrame
+        pd.DataFrame: Processed DataFrame with bond data.
     """
     df = pd.read_csv(csv_file)
     df.columns = ['BOND_CODE', 'BOND_SYMBOL', 'datetime', 'open', 'high', 'low',
@@ -144,41 +159,42 @@ def load_bond_data(csv_file: str) -> pd.DataFrame:
 
 
 def test_premium_rate_strategy():
-    """测试可转债溢价率均线交叉策略
+    """Test convertible bond premium rate moving average crossover strategy.
 
-    使用113013.csv数据进行回测，验证策略指标是否符合预期
+    Uses 113013.csv data for backtesting to verify strategy metrics
+    meet expected values.
     """
     cerebro = bt.Cerebro()
 
-    # 加载数据
-    print("正在加载可转债数据...")
+    # Load data
+    print("Loading convertible bond data...")
     data_path = resolve_data_path("113013.csv")
     df = load_bond_data(str(data_path))
-    print(f"数据范围: {df.index[0]} 至 {df.index[-1]}, 共 {len(df)} 条")
+    print(f"Data range: {df.index[0]} to {df.index[-1]}, total {len(df)} records")
 
     data = ExtendPandasFeed(dataname=df)
     cerebro.adddata(data)
 
-    # 设置初始资金和手续费
+    # Set initial capital and commission
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.0003)
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(PremiumRateCrossoverStrategy)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe',
                         annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
-    # 运行回测
-    print("开始运行回测...")
+    # Run backtest
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio')
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm100')
     max_drawdown = strat.analyzers.drawdown.get_analysis()['max']['drawdown']
@@ -186,9 +202,9 @@ def test_premium_rate_strategy():
     total_trades = trade_analysis.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印结果
+    # Print results
     print("\n" + "=" * 50)
-    print("可转债溢价率均线交叉策略回测结果:")
+    print("Convertible Bond Premium Rate Crossover Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -199,11 +215,11 @@ def test_premium_rate_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # 断言测试结果（基于113013.csv完整数据）
+    # Assert test results (based on complete 113013.csv data)
     assert strat.bar_num == 1384, f"Expected bar_num=1384, got {strat.bar_num}"
     assert abs(final_value - 104275.87) < 0.01, \
         f"Expected final_value=104275.87, got {final_value}"
-    assert sharpe_ratio is not None, "夏普比率不应为None"
+    assert sharpe_ratio is not None, "Sharpe ratio should not be None"
     assert abs(sharpe_ratio - 0.11457095300469224) < 1e-6, \
         f"Expected sharpe_ratio=0.11457095300469224, got {sharpe_ratio}"
     assert abs(annual_return - 0.733367887488441) < 1e-6, \
@@ -212,11 +228,11 @@ def test_premium_rate_strategy():
         f"Expected max_drawdown=17.413, got {max_drawdown}"
     assert total_trades == 21, f"Expected total_trades=21, got {total_trades}"
 
-    print("\n所有测试通过!")
+    print("\nAll tests passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("可转债溢价率均线交叉策略测试")
+    print("Convertible Bond Premium Rate Crossover Strategy Test")
     print("=" * 60)
     test_premium_rate_strategy()

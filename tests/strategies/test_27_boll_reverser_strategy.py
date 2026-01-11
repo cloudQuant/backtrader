@@ -1,10 +1,10 @@
-"""BollReverser 布林带反转策略测试用例
+"""Test cases for BollReverser Bollinger Band reversal strategy.
 
-使用上证股票数据 sh600000.csv 测试布林带反转策略
-- 使用 GenericCSVData 加载本地数据文件
-- 通过 self.datas[0] 规范访问数据
+Tests the Bollinger Band reversal strategy using Shanghai stock data sh600000.csv:
+- Uses GenericCSVData to load local data files
+- Accesses data via self.datas[0]
 
-参考来源: backtrader-example/strategies/boll_reverser.py
+Reference: backtrader-example/strategies/boll_reverser.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data file based on script directory to avoid relative path failures.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path: Absolute path to the data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any search path.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -36,19 +46,19 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class BollReverserStrategy(bt.Strategy):
-    """BollReverser 布林带反转策略
+    """BollReverser Bollinger Band reversal strategy.
 
-    策略逻辑（反转思路）：
-    - 价格连续高于上轨时开空（超买反转）
-    - 价格连续低于下轨时开多（超卖反转）
-    - 价格穿越轨道时平仓
-    
-    使用数据：
-    - datas[0]: 股票价格数据
+    Strategy logic (reversal approach):
+    - Open short position when price continuously exceeds upper band (overbought reversal)
+    - Open long position when price continuously falls below lower band (oversold reversal)
+    - Close position when price crosses bands
+
+    Data used:
+    - datas[0]: Stock price data
     """
 
     params = (
@@ -56,14 +66,20 @@ class BollReverserStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None, force=False):
-        """日志输出功能"""
+        """Log output function.
+
+        Args:
+            txt: Text content to log.
+            dt: Datetime for the log entry. Defaults to current data datetime.
+            force: Whether to force output. If False, logging is skipped.
+        """
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # 记录统计数据
+        # Record statistics
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -72,14 +88,18 @@ class BollReverserStrategy(bt.Strategy):
         self.loss_count = 0
         self.trade_count = 0
 
-        # 获取数据引用
+        # Get data reference
         self.data0 = self.datas[0]
 
-        # 布林带指标
+        # Bollinger Band indicator
         self.boll = bt.indicators.BollingerBands(self.data0, period=self.p.period_boll)
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Trade completion notification.
+
+        Args:
+            trade: Trade object containing trade information.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -90,22 +110,38 @@ class BollReverserStrategy(bt.Strategy):
         self.sum_profit += trade.pnl
 
     def close_gt_up(self):
-        """收盘价连续高于上轨"""
+        """Check if closing price is continuously above upper band.
+
+        Returns:
+            bool: True if current and previous close are above upper band.
+        """
         data = self.data0
         return data.close[0] > self.boll.top[0] and data.close[-1] > self.boll.top[-1]
 
     def close_lt_dn(self):
-        """收盘价连续低于下轨"""
+        """Check if closing price is continuously below lower band.
+
+        Returns:
+            bool: True if current and previous close are below lower band.
+        """
         data = self.data0
         return data.close[0] < self.boll.bot[0] and data.close[-1] < self.boll.bot[-1]
 
     def close_across_top(self):
-        """向上穿越上轨"""
+        """Check if price crosses above upper band.
+
+        Returns:
+            bool: True if previous close was below and current close is above upper band.
+        """
         data = self.data0
         return data.close[-1] < self.boll.top[-1] and data.close[0] > self.boll.top[0]
 
     def close_across_bot(self):
-        """向下穿越下轨"""
+        """Check if price crosses below lower band.
+
+        Returns:
+            bool: True if previous close was above and current close is below lower band.
+        """
         data = self.data0
         return data.close[-1] > self.boll.bot[-1] and data.close[0] < self.boll.bot[0]
 
@@ -114,31 +150,31 @@ class BollReverserStrategy(bt.Strategy):
         position = self.getposition()
 
         if position.size == 0:
-            # 超买开空
+            # Open short on overbought
             if self.close_gt_up():
                 size = int(self.broker.getcash() / self.data0.close[0])
                 if size > 0:
                     self.sell(size=size)
                     self.sell_count += 1
-            # 超卖开多
+            # Open long on oversold
             elif self.close_lt_dn():
                 size = int(self.broker.getcash() / self.data0.close[0])
                 if size > 0:
                     self.buy(size=size)
                     self.buy_count += 1
         elif position.size > 0:
-            # 多头平仓：向上穿越上轨
+            # Close long position: cross above upper band
             if self.close_across_top():
                 self.close()
                 self.sell_count += 1
         elif position.size < 0:
-            # 空头平仓：向下穿越下轨
+            # Close short position: cross below lower band
             if self.close_across_bot():
                 self.close()
                 self.buy_count += 1
 
     def stop(self):
-        """策略结束时输出统计"""
+        """Output statistics when strategy ends."""
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -149,11 +185,11 @@ class BollReverserStrategy(bt.Strategy):
 
 
 def test_boll_reverser_strategy():
-    """测试 BollReverser 布林带反转策略"""
+    """Test the BollReverser Bollinger Band reversal strategy."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载上证股票数据...")
+    print("Loading Shanghai stock data...")
     data_path = resolve_data_path("sh600000.csv")
     df = pd.read_csv(data_path)
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -184,7 +220,7 @@ def test_boll_reverser_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
 
     strat = results[0]
@@ -197,7 +233,7 @@ def test_boll_reverser_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("\n" + "=" * 50)
-    print("BollReverser 布林带反转策略回测结果:")
+    print("BollReverser Bollinger Band reversal strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -222,12 +258,12 @@ def test_boll_reverser_strategy():
     assert abs(annual_return - (-0.07243305202540544)) < 1e-6, f"Expected annual_return=-0.07243305202540544, got {annual_return}"
     assert abs(max_drawdown - 3.9763680700930992) < 1e-6, f"Expected max_drawdown=0.8679098802262411, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("BollReverser 布林带反转策略测试")
+    print("BollReverser Bollinger Band reversal strategy test")
     print("=" * 60)
     test_boll_reverser_strategy()

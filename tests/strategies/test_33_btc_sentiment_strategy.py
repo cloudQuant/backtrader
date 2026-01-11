@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: BtcSentiment 比特币情绪策略
+Test Case: BtcSentiment Bitcoin Sentiment Strategy
 
-参考来源: Backtrader-Guide-AlgoTrading101/bt_main_btc.py 和 strategies.py
-使用布林带指标基于Google Trends情绪数据进行BTC交易
+Reference source: Backtrader-Guide-AlgoTrading101/bt_main_btc.py and strategies.py
+Uses Bollinger Bands indicator to trade BTC based on Google Trends sentiment data
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script directory to avoid relative path failures.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,9 +44,23 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class BtcSentimentStrategy(bt.Strategy):
-    """基于Google Trends情绪数据的BTC交易策略
-    
-    当情绪指标超过布林带上轨时做多，跌破下轨时做空，回到中间区域时平仓
+    """BTC trading strategy based on Google Trends sentiment data.
+
+    This strategy goes long when the sentiment indicator exceeds the upper Bollinger Band,
+    goes short when it falls below the lower band, and closes positions when returning to
+    the middle region.
+
+    Attributes:
+        btc_price: BTC price data from the first data feed.
+        google_sentiment: Google Trends sentiment data from the second data feed.
+        bbands: Bollinger Bands indicator calculated on sentiment data.
+        order: Current pending order.
+        bar_num: Counter for the number of bars processed.
+        buy_count: Counter for buy orders executed.
+        sell_count: Counter for sell orders executed.
+        win_count: Counter for profitable trades.
+        loss_count: Counter for unprofitable trades.
+        sum_profit: Total profit/loss from all closed trades.
     """
     params = (
         ('period', 10),
@@ -53,7 +77,7 @@ class BtcSentimentStrategy(bt.Strategy):
         )
         self.order = None
 
-        # 统计变量
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -90,23 +114,27 @@ class BtcSentimentStrategy(bt.Strategy):
         if self.order:
             return
 
-        # Long signal - 情绪指标超过布林带上轨
+        # Long signal - sentiment indicator exceeds upper Bollinger Band
         if self.google_sentiment > self.bbands.lines.top[0]:
             if not self.position:
                 self.order = self.buy()
 
-        # Short signal - 情绪指标跌破布林带下轨
+        # Short signal - sentiment indicator falls below lower Bollinger Band
         elif self.google_sentiment < self.bbands.lines.bot[0]:
             if not self.position:
                 self.order = self.sell()
 
-        # Neutral signal - 平仓
+        # Neutral signal - close position
         else:
             if self.position:
                 self.order = self.close()
 
     def stop(self):
-        """输出统计信息"""
+        """Output statistics when the strategy stops.
+
+        Prints the final statistics including bar count, trade counts, win rate,
+        and total profit/loss.
+        """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "
@@ -117,13 +145,27 @@ class BtcSentimentStrategy(bt.Strategy):
 
 
 def test_btc_sentiment_strategy():
-    """测试 BtcSentiment 比特币情绪策略"""
+    """Test the BtcSentiment Bitcoin sentiment strategy.
+
+    This test loads BTC price data and Google Trends sentiment data,
+    runs the BtcSentiment strategy with Bollinger Bands, and verifies
+    the backtest results including trade statistics and performance metrics.
+
+    The test asserts that:
+        - The strategy processes exactly 189 bars
+        - Executes 16 buy and 16 sell orders
+        - Achieves 8 winning and 8 losing trades
+        - Final portfolio value is approximately 15301.43
+        - Sharpe ratio is approximately 0.801
+        - Annual return is approximately 23.7%
+        - Maximum drawdown is approximately 17.49%
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(10000.0)
     cerebro.broker.setcommission(commission=0.0025)
 
-    print("正在加载BTC价格数据...")
-    # 第一个数据源 - BTC价格数据 (Yahoo Finance CSV格式)
+    print("Loading BTC price data...")
+    # First data source - BTC price data (Yahoo Finance CSV format)
     btc_price_path = resolve_data_path("BTCUSD_Weekly.csv")
     data1 = bt.feeds.YahooFinanceCSVData(
         dataname=str(btc_price_path),
@@ -133,8 +175,8 @@ def test_btc_sentiment_strategy():
     )
     cerebro.adddata(data1, name="BTCUSD")
 
-    print("正在加载Google Trends情绪数据...")
-    # 第二个数据源 - Google Trends情绪数据
+    print("Loading Google Trends sentiment data...")
+    # Second data source - Google Trends sentiment data
     gtrends_path = resolve_data_path("BTC_Gtrends.csv")
     data2 = bt.feeds.GenericCSVData(
         dataname=str(gtrends_path),
@@ -162,11 +204,11 @@ def test_btc_sentiment_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析器结果
+    # Get analyzer results
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)
     returns = strat.analyzers.my_returns.get_analysis()
     annual_return = returns.get('rnorm', 0)
@@ -177,7 +219,7 @@ def test_btc_sentiment_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("BtcSentiment 比特币情绪策略回测结果:")
+    print("BtcSentiment Bitcoin Sentiment Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -191,7 +233,7 @@ def test_btc_sentiment_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 确保策略正常运行
+    # Assertions - ensure the strategy runs correctly
     assert strat.bar_num == 189, f"Expected bar_num=189, got {strat.bar_num}"
     assert strat.buy_count == 16, f"Expected buy_count=16, got {strat.buy_count}"
     assert strat.sell_count == 16, f"Expected sell_count=16, got {strat.sell_count}"
@@ -203,12 +245,12 @@ def test_btc_sentiment_strategy():
     assert abs(annual_return - (0.2369894360907055)) < 1e-6, f"Expected annual_return=0.2369894360907055, got {annual_return}"
     assert abs(max_drawdown - 17.49122338684014) < 1e-6, f"Expected max_drawdown=17.49122338684014, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("BtcSentiment 比特币情绪策略测试")
+    print("BtcSentiment Bitcoin Sentiment Strategy Test")
     print("=" * 60)
     test_btc_sentiment_strategy()

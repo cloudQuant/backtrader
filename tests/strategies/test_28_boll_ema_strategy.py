@@ -1,10 +1,11 @@
-"""BollEMA 布林带+EMA策略测试用例
+"""BollEMA Bollinger Bands + EMA Strategy Test Case
 
-使用上证股票数据 sh600000.csv 测试布林带+EMA组合策略
-- 使用 GenericCSVData 加载本地数据文件
-- 通过 self.datas[0] 规范访问数据
+Tests the Bollinger Bands + EMA combination strategy using Shanghai stock data
+(sh600000.csv).
+- Uses GenericCSVData to load local data files
+- Accesses data through self.datas[0] standard interface
 
-参考来源: backtrader-example/strategies/bollema.py
+Reference: backtrader-example/strategies/bollema.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +21,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script directory to avoid relative path failures.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path: The resolved path to the data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any search path.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -36,37 +47,56 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class BollEMAStrategy(bt.Strategy):
-    """BollEMA 布林带+EMA策略
+    """BollEMA Bollinger Bands + EMA Strategy.
 
-    策略逻辑：
-    - 价格突破上轨 + EMA > 中轨 + 前3根K线在中轨之上 -> 开多
-    - 价格突破下轨 + EMA < 中轨 + 前3根K线在中轨之下 -> 开空
-    - 止损或EMA穿越中轨时平仓
-    
-    使用数据：
-    - datas[0]: 股票价格数据
+    Strategy Logic:
+        - Price breaks above upper band + EMA > middle band + last 3 bars above
+          middle band -> Open long position
+        - Price breaks below lower band + EMA < middle band + last 3 bars below
+          middle band -> Open short position
+        - Close position on stop loss or EMA crossing middle band
+
+    Data Used:
+        - datas[0]: Stock price data
+
+    Attributes:
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+        sum_profit: Total profit from all trades.
+        win_count: Number of winning trades.
+        loss_count: Number of losing trades.
+        trade_count: Total number of trades completed.
+        marketposition: Current market position (0=flat, 1=long, -1=short).
+        last_price: Last executed order price.
     """
 
     params = (
         ("period_boll", 136),
         ("period_ema", 99),
-        ("boll_diff", 0.5),    # 布林带宽度阈值
-        ("price_diff", 0.3),   # 止损价差
+        ("boll_diff", 0.5),    # Bollinger Bands width threshold
+        ("price_diff", 0.3),   # Stop loss price difference
     )
 
     def log(self, txt, dt=None, force=False):
-        """日志输出功能"""
+        """Log output function.
+
+        Args:
+            txt: Text message to log.
+            dt: datetime object for the log entry. If None, uses current bar's datetime.
+            force: If True, forces output regardless of other conditions.
+        """
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # 记录统计数据
+        # Initialize statistical counters
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -75,20 +105,24 @@ class BollEMAStrategy(bt.Strategy):
         self.loss_count = 0
         self.trade_count = 0
 
-        # 获取数据引用
+        # Get data reference
         self.data0 = self.datas[0]
 
-        # 布林带指标
+        # Bollinger Bands indicator
         self.boll = bt.indicators.BollingerBands(self.data0, period=self.p.period_boll)
-        # EMA指标
+        # EMA indicator
         self.ema = bt.indicators.ExponentialMovingAverage(self.data0.close, period=self.p.period_ema)
 
-        # 交易状态
+        # Trading state
         self.marketposition = 0
         self.last_price = 0
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Trade completion notification callback.
+
+        Args:
+            trade: Trade object that has been completed.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -99,31 +133,51 @@ class BollEMAStrategy(bt.Strategy):
         self.sum_profit += trade.pnl
 
     def notify_order(self, order):
-        """订单状态通知"""
+        """Order status notification callback.
+
+        Args:
+            order: Order object with status update.
+        """
         if order.status == order.Completed:
             self.last_price = order.executed.price
 
     def gt_last_mid(self):
-        """前3根K线收盘价在中轨之上"""
+        """Check if last 3 bars' close prices are above middle band.
+
+        Returns:
+            bool: True if last 3 bars closed above middle band, False otherwise.
+        """
         data = self.data0
         return (data.close[-1] > self.boll.mid[-1] and 
                 data.close[-2] > self.boll.mid[-2] and 
                 data.close[-3] > self.boll.mid[-3])
 
     def lt_last_mid(self):
-        """前3根K线收盘价在中轨之下"""
+        """Check if last 3 bars' close prices are below middle band.
+
+        Returns:
+            bool: True if last 3 bars closed below middle band, False otherwise.
+        """
         data = self.data0
         return (data.close[-1] < self.boll.mid[-1] and 
                 data.close[-2] < self.boll.mid[-2] and 
                 data.close[-3] < self.boll.mid[-3])
 
     def close_gt_up(self):
-        """收盘价连续高于上轨"""
+        """Check if close price is consecutively above upper band.
+
+        Returns:
+            bool: True if current and previous close are above upper band, False otherwise.
+        """
         data = self.data0
         return data.close[0] > self.boll.top[0] and data.close[-1] > self.boll.top[-1]
 
     def close_lt_dn(self):
-        """收盘价连续低于下轨"""
+        """Check if close price is consecutively below lower band.
+
+        Returns:
+            bool: True if current and previous close are below lower band, False otherwise.
+        """
         data = self.data0
         return data.close[0] < self.boll.bot[0] and data.close[-1] < self.boll.bot[-1]
 
@@ -138,14 +192,14 @@ class BollEMAStrategy(bt.Strategy):
         diff = up - dn
 
         if self.marketposition == 0:
-            # 开多条件
+            # Long entry conditions
             if self.close_gt_up() and ema > mid and self.gt_last_mid() and diff > self.p.boll_diff:
                 size = int(self.broker.getcash() / data.close[0])
                 if size > 0:
                     self.buy(data, size=size)
                     self.marketposition = 1
                     self.buy_count += 1
-            # 开空条件
+            # Short entry conditions
             if self.close_lt_dn() and ema < mid and self.lt_last_mid() and diff > self.p.boll_diff:
                 size = int(self.broker.getcash() / data.close[0])
                 if size > 0:
@@ -153,20 +207,24 @@ class BollEMAStrategy(bt.Strategy):
                     self.marketposition = -1
                     self.sell_count += 1
         elif self.marketposition == 1:
-            # 多头止损或EMA<=中轨平仓
+            # Long position stop loss or EMA <= mid exit
             if self.last_price - data.close[0] > self.p.price_diff or ema <= mid:
                 self.close()
                 self.marketposition = 0
                 self.sell_count += 1
         elif self.marketposition == -1:
-            # 空头止损或EMA>=中轨平仓
+            # Short position stop loss or EMA >= mid exit
             if data.close[0] - self.last_price > self.p.price_diff or ema >= mid:
                 self.close()
                 self.marketposition = 0
                 self.buy_count += 1
 
     def stop(self):
-        """策略结束时输出统计"""
+        """Output statistics when strategy ends.
+
+        Prints summary statistics including bar count, trade counts, win/loss
+        ratio, and total profit.
+        """
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -177,11 +235,22 @@ class BollEMAStrategy(bt.Strategy):
 
 
 def test_boll_ema_strategy():
-    """测试 BollEMA 布林带+EMA策略"""
+    """Test the BollEMA Bollinger Bands + EMA strategy.
+
+    This test function:
+        1. Loads Shanghai stock data (sh600000.csv)
+        2. Initializes the BollEMAStrategy with specified parameters
+        3. Runs a backtest from 2000-01-01 to 2022-12-31
+        4. Analyzes performance metrics (Sharpe ratio, returns, drawdown)
+        5. Asserts expected values for validation
+
+    Raises:
+        AssertionError: If any of the expected values don't match.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载上证股票数据...")
+    print("Loading Shanghai stock data...")
     data_path = resolve_data_path("sh600000.csv")
     df = pd.read_csv(data_path)
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -212,7 +281,7 @@ def test_boll_ema_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
 
     strat = results[0]
@@ -225,7 +294,7 @@ def test_boll_ema_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("\n" + "=" * 50)
-    print("BollEMA 布林带+EMA策略回测结果:")
+    print("BollEMA Bollinger Bands + EMA Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -250,12 +319,12 @@ def test_boll_ema_strategy():
     assert abs(annual_return-0.09519461079565394)<1e-6, f"annual_return={annual_return} out of range"
     assert abs(max_drawdown-0.4537757234136652)<1e-6, f"max_drawdown={max_drawdown} out of range"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("BollEMA 布林带+EMA策略测试")
+    print("BollEMA Bollinger Bands + EMA Strategy Test")
     print("=" * 60)
     test_boll_ema_strategy()

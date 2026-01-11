@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Turtle 海龟交易策略
+Test case: Turtle trading strategy.
 
-参考来源: weekend-backtrader/strategy/turtle.py 和 main.py
-基于价格突破和趋势跟踪的经典海龟交易策略
+Reference: weekend-backtrader/strategy/turtle.py and main.py
+Classic turtle trading strategy based on price breakout and trend following.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on script directory to avoid relative path failures."""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,19 +34,19 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TurtleStrategy(bt.Strategy):
-    """海龟交易策略
-    
-    基于价格突破和移动平均线的趋势跟踪策略:
-    - 使用移动平均线作为趋势过滤器
-    - 当价格突破N日高点且处于牛市时买入
-    - 使用跟踪止损保护利润
+    """Turtle trading strategy.
+
+    A trend-following strategy based on price breakout and moving averages:
+    - Uses moving average as trend filter
+    - Buys when price breaks out above N-day high and in bull market
+    - Uses trailing stop loss to protect profits
     """
     params = (
         ('maperiod', 15),
-        ('breakout_period_days', 20),  # 突破周期，原为100，调整为20以适应数据
-        ('price_rate_of_change_perc', 0.1),  # 价格变化率阈值
-        ('regime_filter_ma_period', 200),  # 趋势过滤MA周期
-        ('trailing_stop_loss_perc', 0.1),  # 跟踪止损比例
+        ('breakout_period_days', 20),  # Breakout period, originally 100, adjusted to 20 for data
+        ('price_rate_of_change_perc', 0.1),  # Price rate of change threshold
+        ('regime_filter_ma_period', 200),  # Trend filter MA period
+        ('trailing_stop_loss_perc', 0.1),  # Trailing stop loss percentage
     )
 
     def __init__(self):
@@ -55,17 +55,17 @@ class TurtleStrategy(bt.Strategy):
         self.buyprice = None
         self.buycomm = None
 
-        # 移动平均线指标
+        # Moving average indicators
         self.sma = bt.indicators.SimpleMovingAverage(
-            self.datas[0], 
+            self.datas[0],
             period=self.params.maperiod
         )
         self.sma_regime = bt.indicators.SimpleMovingAverage(
-            self.datas[0], 
+            self.datas[0],
             period=self.params.regime_filter_ma_period
         )
 
-        # 统计变量
+        # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -74,7 +74,7 @@ class TurtleStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def _is_bull_regime(self):
-        """判断是否处于牛市趋势"""
+        """Determine if currently in a bull market trend."""
         return self.data.close[0] > self.sma_regime[0]
 
     def notify_order(self, order):
@@ -108,36 +108,36 @@ class TurtleStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 计算价格变化率
+        # Calculate price rate of change
         if len(self.data) <= self.params.breakout_period_days:
             return
 
         past_price = self.data.close[-self.params.breakout_period_days]
         yesterdays_price = self.data.close[-1]
-        
+
         if yesterdays_price == 0 or past_price == 0:
             return
-            
+
         rate_of_change = (yesterdays_price - past_price) / yesterdays_price
 
         if not self.position:
-            # 入场条件: 牛市趋势 + 价格突破
+            # Entry conditions: bull market trend + price breakout
             if self._is_bull_regime() and rate_of_change > self.params.price_rate_of_change_perc:
                 self.order = self.buy()
-                # 设置跟踪止损
+                # Set trailing stop loss
                 self.stop_order = self.sell(
                     exectype=bt.Order.StopTrail,
                     trailpercent=self.params.trailing_stop_loss_perc
                 )
         else:
-            # 出场条件: 跌破趋势线
+            # Exit condition: break below trend line
             if not self._is_bull_regime():
                 self.order = self.close()
                 if self.stop_order and self.stop_order.alive():
                     self.cancel(self.stop_order)
 
     def stop(self):
-        """输出统计信息"""
+        """Output statistical information."""
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "
@@ -148,12 +148,12 @@ class TurtleStrategy(bt.Strategy):
 
 
 def test_turtle_strategy():
-    """测试 Turtle 海龟交易策略"""
+    """Test Turtle trading strategy."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.001)
 
-    print("正在加载上证股票数据...")
+    print("Loading Shanghai stock data...")
     data_path = resolve_data_path("sh600000.csv")
     df = pd.read_csv(data_path)
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -191,11 +191,11 @@ def test_turtle_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析器结果
+    # Get analyzer results
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)
     returns = strat.analyzers.my_returns.get_analysis()
     annual_return = returns.get('rnorm', 0)
@@ -206,7 +206,7 @@ def test_turtle_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Turtle 海龟交易策略回测结果:")
+    print("Turtle trading strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -220,8 +220,8 @@ def test_turtle_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 5216, f"Expected bar_num=5216, got {strat.bar_num}"
     assert strat.buy_count == 46, f"Expected buy_count=46, got {strat.buy_count}"
     assert strat.sell_count == 46, f"Expected sell_count=46, got {strat.sell_count}"
@@ -233,12 +233,12 @@ def test_turtle_strategy():
     assert abs(annual_return - (4.1691151679622e-06)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.02450295600930705) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Turtle 海龟交易策略测试")
+    print("Turtle trading strategy test")
     print("=" * 60)
     test_turtle_strategy()

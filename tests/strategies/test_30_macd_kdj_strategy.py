@@ -1,10 +1,14 @@
-"""MACDKDJ MACD+KDJ策略测试用例
+"""Test cases for MACD+KDJ combined strategy.
 
-使用上证股票数据 sh600000.csv 测试MACD+KDJ组合策略
-- 使用 GenericCSVData 加载本地数据文件
-- 通过 self.datas[0] 规范访问数据
+This module tests the MACD+KDJ combined strategy using Shanghai Stock Exchange
+data (sh600000.csv).
 
-参考来源: backtrader-example/strategies/macdkdj.py
+Features:
+    - Loads local data files using GenericCSVData
+    - Accesses data via self.datas[0] convention
+
+Reference:
+    backtrader-example/strategies/macdkdj.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +24,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script directory to avoid relative path failures.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any search path.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -36,14 +50,18 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class KDJ(bt.Indicator):
-    """KDJ 指标
-    
-    重构说明：使用 next() 方法替代 line binding (self.l.K = self.kd.percD)
-    因为 line binding 在当前架构中存在 idx 不同步问题
+    """KDJ Indicator.
+
+    This indicator implements the KDJ (Stochastic) technical analysis indicator.
+
+    Refactoring Note:
+        Uses the next() method instead of line binding (self.l.K = self.kd.percD)
+        because line binding has idx synchronization issues in the current
+        architecture.
     """
     lines = ('K', 'D', 'J')
 
@@ -68,15 +86,16 @@ class KDJ(bt.Indicator):
 
 
 class MACDKDJStrategy(bt.Strategy):
-    """MACDKDJ MACD+KDJ策略
+    """MACD+KDJ Combined Trading Strategy.
 
-    策略逻辑：
-    - MACD金叉 -> 买入
-    - KDJ死叉 -> 卖出
-    - MACD金叉平空，KDJ死叉平多
-    
-    使用数据：
-    - datas[0]: 股票价格数据
+    Strategy Logic:
+        - MACD golden cross -> Buy signal
+        - KDJ death cross -> Sell signal
+        - MACD golden cross closes short positions
+        - KDJ death cross closes long positions
+
+    Data Usage:
+        - datas[0]: Stock price data
     """
 
     params = (
@@ -88,14 +107,20 @@ class MACDKDJStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None, force=False):
-        """日志输出功能"""
+        """Logging utility for strategy output.
+
+        Args:
+            txt: Text message to log.
+            dt: Datetime object for the log entry. Defaults to current bar's datetime.
+            force: If True, force output; otherwise suppress logging.
+        """
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # 记录统计数据
+        # Record statistics
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -104,17 +129,17 @@ class MACDKDJStrategy(bt.Strategy):
         self.loss_count = 0
         self.trade_count = 0
 
-        # 获取数据引用
+        # Get data reference
         self.data0 = self.datas[0]
 
-        # MACD指标
+        # MACD indicator
         self.macd = bt.indicators.MACD(
             self.data0,
             period_me1=self.p.macd_fast_period,
             period_me2=self.p.macd_slow_period,
             period_signal=self.p.macd_signal_period
         )
-        # KDJ指标
+        # KDJ indicator
         self.kdj = KDJ(
             self.data0,
             period=self.p.kdj_fast_period,
@@ -122,11 +147,15 @@ class MACDKDJStrategy(bt.Strategy):
             period_dslow=self.p.kdj_slow_period
         )
 
-        # 交易状态
+        # Trading status
         self.marketposition = 0
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Callback when a trade is completed.
+
+        Args:
+            trade: Trade object containing information about the completed trade.
+        """
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -140,22 +169,22 @@ class MACDKDJStrategy(bt.Strategy):
         self.bar_num += 1
         data = self.data0
 
-        # MACD金叉条件
-        macd_golden_cross = (self.macd.macd[0] > self.macd.signal[0] and 
+        # MACD golden cross condition
+        macd_golden_cross = (self.macd.macd[0] > self.macd.signal[0] and
                             self.macd.macd[-1] < self.macd.signal[-1])
-        # KDJ死叉条件
-        kdj_death_cross = (self.kdj.K[0] < self.kdj.D[0] and 
+        # KDJ death cross condition
+        kdj_death_cross = (self.kdj.K[0] < self.kdj.D[0] and
                           self.kdj.K[-1] > self.kdj.D[-1])
 
         if self.marketposition == 0:
-            # MACD金叉买入
+            # MACD golden cross buy signal
             if macd_golden_cross:
                 size = int(self.broker.getcash() / data.close[0])
                 if size > 0:
                     self.buy(size=size)
                     self.marketposition = 1
                     self.buy_count += 1
-            # KDJ死叉卖出
+            # KDJ death cross sell signal
             elif kdj_death_cross:
                 size = int(self.broker.getcash() / data.close[0])
                 if size > 0:
@@ -163,20 +192,20 @@ class MACDKDJStrategy(bt.Strategy):
                     self.marketposition = -1
                     self.sell_count += 1
         elif self.marketposition == -1:
-            # 空头：MACD金叉平仓
+            # Short position: MACD golden cross to close
             if macd_golden_cross:
                 self.close()
                 self.marketposition = 0
                 self.buy_count += 1
         elif self.marketposition == 1:
-            # 多头：KDJ死叉平仓
+            # Long position: KDJ death cross to close
             if kdj_death_cross:
                 self.close()
                 self.marketposition = 0
                 self.sell_count += 1
 
     def stop(self):
-        """策略结束时输出统计"""
+        """Output statistics when strategy execution stops."""
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -187,11 +216,11 @@ class MACDKDJStrategy(bt.Strategy):
 
 
 def test_macd_kdj_strategy():
-    """测试 MACDKDJ MACD+KDJ策略"""
+    """Test the MACD+KDJ combined trading strategy."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载上证股票数据...")
+    print("Loading Shanghai Stock Exchange data...")
     data_path = resolve_data_path("sh600000.csv")
     df = pd.read_csv(data_path)
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -229,7 +258,7 @@ def test_macd_kdj_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
 
     strat = results[0]
@@ -242,7 +271,7 @@ def test_macd_kdj_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("\n" + "=" * 50)
-    print("MACDKDJ MACD+KDJ策略回测结果:")
+    print("MACD+KDJ Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -265,12 +294,12 @@ def test_macd_kdj_strategy():
     assert abs(annual_return - (-0.12361020751082702)) < 1e-6, f"Expected annual_return=-0.12361020751082702, got {annual_return}"
     assert abs(max_drawdown - 0.9863327709363255) < 1e-6, f"Expected max_drawdown=0.9863327709363255, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nAll tests passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("MACDKDJ MACD+KDJ策略测试")
+    print("MACD+KDJ Strategy Test")
     print("=" * 60)
     test_macd_kdj_strategy()

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Optimization 参数优化
+Test cases for parameter optimization.
 
-参考来源: backtrader-master2/samples/optimization/optimization.py
-测试策略参数优化功能，返回夏普率最大的参数组合
+Reference: backtrader-master2/samples/optimization/optimization.py
+Tests strategy parameter optimization functionality, returns the parameter
+combination with the maximum Sharpe ratio.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,7 +31,7 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class OptimizeStrategy(bt.Strategy):
-    """用于参数优化的策略"""
+    """Strategy for parameter optimization."""
     params = (
         ('smaperiod', 15),
         ('macdperiod1', 12),
@@ -73,7 +74,7 @@ class OptimizeStrategy(bt.Strategy):
 
 
 def run_optimization():
-    """运行参数优化，返回所有结果"""
+    """Run parameter optimization and return all results."""
     cerebro = bt.Cerebro(maxcpus=1)
     cerebro.broker.setcash(100000.0)
 
@@ -85,10 +86,10 @@ def run_optimization():
     )
     cerebro.adddata(data)
 
-    # 使用小范围参数优化以加快测试速度
+    # Use small parameter range to speed up testing
     cerebro.optstrategy(
         OptimizeStrategy,
-        smaperiod=range(10, 13),  # 3个值: 10, 11, 12
+        smaperiod=range(10, 13),  # 3 values: 10, 11, 12
         macdperiod1=[12],
         macdperiod2=[26],
         macdperiod3=[9],
@@ -103,7 +104,15 @@ def run_optimization():
 
 
 def run_best_strategy(best_params):
-    """使用最佳参数运行完整回测"""
+    """Run complete backtest using the best parameters.
+
+    Args:
+        best_params: Dictionary containing the optimal parameter values.
+
+    Returns:
+        Dictionary containing strategy metrics including Sharpe ratio,
+        annual return, max drawdown, and final portfolio value.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
@@ -115,10 +124,10 @@ def run_best_strategy(best_params):
     )
     cerebro.adddata(data)
 
-    # 使用最佳参数
+    # Use the best parameters
     cerebro.addstrategy(OptimizeStrategy, **best_params)
 
-    # 添加完整分析器
+    # Add complete analyzers
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
@@ -128,7 +137,7 @@ def run_best_strategy(best_params):
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     ret = strat.analyzers.returns.get_analysis()
     sharpe = strat.analyzers.sharpe.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -148,12 +157,17 @@ def run_best_strategy(best_params):
 
 
 def test_optimization():
-    """测试 Optimization 参数优化"""
-    print("正在加载数据...")
-    print("开始运行优化...")
+    """Test Optimization parameter optimization.
+
+    Tests strategy parameter optimization by running multiple backtests
+    with different parameter combinations and selecting the one with
+    the highest Sharpe ratio.
+    """
+    print("Loading data...")
+    print("Starting optimization...")
     results = run_optimization()
 
-    # 收集所有参数组合的结果
+    # Collect results from all parameter combinations
     all_results = []
     for stratrun in results:
         for strat in stratrun:
@@ -170,29 +184,29 @@ def test_optimization():
                 'annual_return': annual_return,
             })
 
-    # 打印所有优化结果
+    # Print all optimization results
     print("\n" + "=" * 50)
-    print("参数优化结果:")
+    print("Parameter optimization results:")
     for r in all_results:
         print(f"  smaperiod={r['smaperiod']}: sharpe_ratio={r['sharpe_ratio']}, annual_return={r['annual_return']}")
-    print(f"  优化组合数: {len(all_results)}")
+    print(f"  Number of combinations: {len(all_results)}")
     print("=" * 50)
 
-    # 找到夏普率最大的参数组合
+    # Find parameter combination with maximum Sharpe ratio
     best_result = max(all_results, key=lambda x: x['sharpe_ratio'] or -999)
     best_params = {'smaperiod': best_result['smaperiod']}
 
-    print(f"\n最佳参数组合: {best_params}")
-    print(f"  夏普率: {best_result['sharpe_ratio']}")
-    print(f"  年化收益: {best_result['annual_return']}")
+    print(f"\nBest parameter combination: {best_params}")
+    print(f"  Sharpe ratio: {best_result['sharpe_ratio']}")
+    print(f"  Annual return: {best_result['annual_return']}")
 
-    # 使用最佳参数运行完整回测
-    print("\n使用最佳参数运行完整回测...")
+    # Run complete backtest with best parameters
+    print("\nRunning complete backtest with best parameters...")
     best_metrics = run_best_strategy(best_params)
 
-    # 打印最佳策略的完整指标
+    # Print complete metrics for best strategy
     print("\n" + "=" * 50)
-    print("最佳策略回测结果:")
+    print("Best strategy backtest results:")
     print(f"  params: smaperiod={best_params['smaperiod']}")
     print(f"  bar_num: {best_metrics['bar_num']}")
     print(f"  buy_count: {best_metrics['buy_count']}")
@@ -204,10 +218,10 @@ def test_optimization():
     print(f"  final_value: {best_metrics['final_value']:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert len(all_results) == 3, f"Expected 3 optimization runs, got {len(all_results)}"
 
-    # 验证最佳策略指标
+    # Verify best strategy metrics
     assert best_metrics['bar_num'] == 221, f"Expected bar_num=221, got {best_metrics['bar_num']}"
     assert abs(best_metrics['final_value'] - 100150.06) < 0.01, f"Expected final_value=100150.06, got {best_metrics['final_value']}"
     assert abs(best_metrics['sharpe_ratio'] - 0.4979380802957602) < 1e-6, f"Expected sharpe_ratio=0.4979380802957602, got {best_metrics['sharpe_ratio']}"
@@ -215,14 +229,14 @@ def test_optimization():
     assert abs(best_metrics['max_drawdown'] - 0.2686681581344764) < 1e-6, f"Expected max_drawdown=0.2686681581344764, got {best_metrics['max_drawdown']}"
     assert best_metrics['total_trades'] == 10, f"Expected total_trades=10, got {best_metrics['total_trades']}"
 
-    # 验证最佳参数是 smaperiod=10
+    # Verify best parameter is smaperiod=10
     assert best_params['smaperiod'] == 10, f"Expected best smaperiod=10, got {best_params['smaperiod']}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Optimization 参数优化测试")
+    print("Optimization Parameter Optimization Test")
     print("=" * 60)
     test_optimization()
