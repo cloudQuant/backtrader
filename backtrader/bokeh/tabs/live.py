@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-"""\nLive configuration tab.\n\nFor configuration adjustments in live plotting mode.\n"""
+"""
+Live configuration tab.
+For configuration adjustments in live plotting mode.
+"""
 
 from ..tab import BokehTab
 
