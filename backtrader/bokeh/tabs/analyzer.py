@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-分析器标签页
+Analyzer tab.
 
-显示所有分析器的结果
+Displays results of all analyzers.
 """
 
 from ..tab import BokehTab
@@ -18,15 +18,15 @@ except ImportError:
 
 
 class AnalyzerTab(BokehTab):
-    """分析器标签页
+    """Analyzer tab.
     
-    显示策略中所有分析器的分析结果。
+    Displays analysis results of all analyzers in the strategy.
     """
     
     def _is_useable(self):
-        """判断是否可用
+        """Check if useable.
         
-        当策略有分析器时可用
+        Useable when strategy has analyzers.
         """
         if not BOKEH_AVAILABLE:
             return False
@@ -36,7 +36,7 @@ class AnalyzerTab(BokehTab):
         return len(getattr(strategy, 'analyzers', [])) > 0
     
     def _get_panel(self):
-        """获取面板内容
+        """Get panel content.
         
         Returns:
             tuple: (widget, title)
@@ -44,26 +44,26 @@ class AnalyzerTab(BokehTab):
         strategy = self.strategy
         scheme = self.scheme
         
-        # 创建分析器结果展示
+        # Create analyzer results display
         widgets = []
         
         for analyzer in strategy.analyzers:
             analyzer_name = analyzer.__class__.__name__
             
-            # 获取分析结果
+            # Get analysis results
             try:
                 analysis = analyzer.get_analysis()
             except Exception:
                 analysis = {}
             
-            # 创建标题
+            # Create title
             title_div = Div(
                 text=f'<h3 style="color: {scheme.text_color if scheme else "#333"};">{analyzer_name}</h3>',
                 sizing_mode='stretch_width'
             )
             widgets.append(title_div)
             
-            # 将分析结果转换为表格数据
+            # Convert analysis results to table data
             data = self._flatten_analysis(analysis)
             
             if data:
@@ -93,14 +93,14 @@ class AnalyzerTab(BokehTab):
         return content, 'Analyzers'
     
     def _flatten_analysis(self, analysis, prefix=''):
-        """将嵌套的分析结果扁平化
+        """Flatten nested analysis results.
         
         Args:
-            analysis: 分析结果字典
-            prefix: 键前缀
+            analysis: Analysis result dictionary
+            prefix: Key prefix
             
         Returns:
-            dict: 扁平化后的字典
+            dict: Flattened dictionary
         """
         result = {}
         

@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-源码标签页
+Source code tab.
 
-显示策略源代码
+Displays strategy source code.
 """
 
 import inspect
@@ -18,19 +18,19 @@ except ImportError:
 
 
 class SourceTab(BokehTab):
-    """源码标签页
+    """Source code tab.
     
-    显示策略的 Python 源代码。
+    Displays the strategy's Python source code.
     """
     
     def _is_useable(self):
-        """当有策略时可用"""
+        """Useable when strategy exists."""
         if not BOKEH_AVAILABLE:
             return False
         return self.strategy is not None
     
     def _get_panel(self):
-        """获取面板内容
+        """Get panel content.
         
         Returns:
             tuple: (widget, title)
@@ -40,24 +40,24 @@ class SourceTab(BokehTab):
         
         widgets = []
         
-        # 获取主题颜色
+        # Get theme colors
         bg_color = scheme.tag_pre_background_color if scheme else '#f5f5f5'
         text_color = scheme.tag_pre_text_color if scheme else '#333'
         title_color = scheme.text_color if scheme else '#333'
         
-        # 标题
+        # Title
         widgets.append(Div(
             text=f'<h3 style="color: {title_color};">Strategy Source Code</h3>',
             sizing_mode='stretch_width'
         ))
         
-        # 获取源代码
+        # Get source code
         try:
             source_code = inspect.getsource(strategy.__class__)
         except (TypeError, OSError):
             source_code = '# Source code not available'
         
-        # 创建源码显示组件
+        # Create source code display component
         source_pre = PreText(
             text=source_code,
             width=800,

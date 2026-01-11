@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-数据记录分析器
+Data recording analyzer.
 
-记录策略运行过程中的数据，用于后续绘图或分析
+Records data during strategy execution for subsequent plotting or analysis.
 """
 
 import backtrader as bt
@@ -11,35 +11,36 @@ from collections import OrderedDict
 
 
 class RecorderAnalyzer(bt.Analyzer):
-    """数据记录分析器
-    
-    记录策略运行过程中的 OHLCV 数据和指标数据。
-    
-    参数:
-        indicators: 是否记录指标数据
-        observers: 是否记录观察器数据
-    
-    使用示例:
+    """
+    Data recording analyzer.
+
+    Records OHLCV data and indicator data during strategy execution.
+
+    Args:
+        indicators: Whether to record indicator data
+        observers: Whether to record observer data
+
+    Example:
         cerebro.addanalyzer(RecorderAnalyzer, indicators=True)
-        
-        # 运行后获取数据
+
+        # Get data after running
         result = cerebro.run()
         recorder = result[0].analyzers.recorderanalyzer
         data = recorder.get_analysis()
     """
     
     params = (
-        ('indicators', True),   # 是否记录指标
-        ('observers', False),   # 是否记录观察器
+        ('indicators', True),   # Whether to record indicators
+        ('observers', False),   # Whether to record observers
     )
     
     def __init__(self):
         super().__init__()
         
-        # 数据存储
+        # Data storage
         self._data = OrderedDict()
         
-        # 初始化数据源存储
+        # Initialize data source storage
         for i, data in enumerate(self.strategy.datas):
             name = getattr(data, '_name', None) or f'data{i}'
             self._data[name] = {
@@ -51,21 +52,21 @@ class RecorderAnalyzer(bt.Analyzer):
                 'volume': [],
             }
         
-        # 初始化指标存储
+        # Initialize indicator storage
         if self.p.indicators:
             self._indicators = OrderedDict()
         
-        # 初始化观察器存储
+        # Initialize observer storage
         if self.p.observers:
             self._observers = OrderedDict()
     
     def start(self):
-        """分析器启动"""
+        """Analyzer start."""
         pass
     
     def next(self):
-        """记录每个 bar 的数据"""
-        # 记录数据源
+        """Record data for each bar."""
+        # Record data sources
         for i, data in enumerate(self.strategy.datas):
             name = getattr(data, '_name', f'data{i}')
             
@@ -80,7 +81,7 @@ class RecorderAnalyzer(bt.Analyzer):
                 except Exception:
                     pass
         
-        # 记录指标
+        # Record indicators
         if self.p.indicators and hasattr(self.strategy, '_lineiterators'):
             indicators = self.strategy._lineiterators.get(1, [])  # IndType = 1
             
@@ -89,11 +90,11 @@ class RecorderAnalyzer(bt.Analyzer):
                 
                 if ind_name not in self._indicators:
                     self._indicators[ind_name] = OrderedDict()
-                    # 初始化线存储
+                    # Initialize line storage
                     for line_name in ind.lines._getlinealiases():
                         self._indicators[ind_name][line_name] = []
                 
-                # 记录每条线的值
+                # Record value for each line
                 for line_name in ind.lines._getlinealiases():
                     try:
                         line = getattr(ind.lines, line_name)
@@ -102,7 +103,7 @@ class RecorderAnalyzer(bt.Analyzer):
                     except Exception:
                         self._indicators[ind_name][line_name].append(None)
         
-        # 记录观察器
+        # Record observers
         if self.p.observers and hasattr(self.strategy, '_lineiterators'):
             observers = self.strategy._lineiterators.get(2, [])  # ObsType = 2
             
@@ -123,14 +124,14 @@ class RecorderAnalyzer(bt.Analyzer):
                         self._observers[obs_name][line_name].append(None)
     
     def stop(self):
-        """分析器停止"""
+        """Analyzer stop."""
         pass
     
     def get_analysis(self):
-        """返回记录的数据
-        
+        """Return recorded data.
+
         Returns:
-            OrderedDict: 包含数据、指标和观察器的字典
+            OrderedDict: Dictionary containing data, indicators and observers
         """
         result = OrderedDict()
         
@@ -145,13 +146,13 @@ class RecorderAnalyzer(bt.Analyzer):
         return result
     
     def get_dataframe(self, data_name=None):
-        """将数据转换为 pandas DataFrame
-        
+        """Convert data to pandas DataFrame.
+
         Args:
-            data_name: 数据源名称，None 表示第一个数据源
-            
+            data_name: Data source name, None means first data source
+
         Returns:
-            pandas.DataFrame 或 None
+            pandas.DataFrame or None
         """
         try:
             import pandas as pd

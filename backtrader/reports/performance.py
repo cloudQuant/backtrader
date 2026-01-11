@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-性能指标计算器
+Performance metrics calculator.
 
-从策略和分析器中提取并计算所有性能指标
+Extracts and calculates all performance metrics from strategies and analyzers.
 """
 
 import math
@@ -11,38 +11,38 @@ from datetime import datetime
 
 
 class PerformanceCalculator:
-    """统一的性能指标计算器
+    """Unified performance metrics calculator.
     
-    从策略和分析器中提取并计算所有性能指标，包括：
-    - PnL指标：总收益、年化收益、累计收益率
-    - 风险指标：最大回撤、夏普比率、SQN、卡玛比率
-    - 交易统计：胜率、盈亏比、平均盈利/亏损
+    Extracts and calculates all performance metrics from strategies and analyzers, including:
+    - PnL metrics: total return, annual return, cumulative return
+    - Risk metrics: max drawdown, Sharpe ratio, SQN, Calmar ratio
+    - Trade statistics: win rate, profit/loss ratio, average profit/loss
     
-    属性:
-        strategy: 策略实例
+    Attributes:
+        strategy: Strategy instance
         
-    使用示例:
+    Usage example:
         calc = PerformanceCalculator(strategy)
         metrics = calc.get_all_metrics()
-        print(f"夏普比率: {metrics['sharpe_ratio']}")
-        print(f"SQN评级: {metrics['sqn_human']}")
+        print(f"Sharpe ratio: {metrics['sharpe_ratio']}")
+        print(f"SQN rating: {metrics['sqn_human']}")
     """
     
     def __init__(self, strategy):
-        """初始化性能计算器
+        """Initialize the performance calculator.
         
         Args:
-            strategy: backtrader 策略实例（run()返回的结果）
+            strategy: backtrader strategy instance (result from run())
         """
         self.strategy = strategy
         self._analyzers = getattr(strategy, 'analyzers', None)
         self._broker = getattr(strategy, 'broker', None)
     
     def get_all_metrics(self):
-        """返回所有性能指标的字典
+        """Return dictionary of all performance metrics.
         
         Returns:
-            dict: 包含所有性能指标的字典
+            dict: Dictionary containing all performance metrics
         """
         metrics = {}
         metrics.update(self.get_pnl_metrics())
@@ -52,24 +52,24 @@ class PerformanceCalculator:
         return metrics
     
     def get_pnl_metrics(self):
-        """获取收益相关指标
+        """Get profit and loss related metrics.
         
         Returns:
-            dict: 收益指标字典
+            dict: PnL metrics dictionary
         """
         metrics = {
             'start_cash': self._get_start_cash(),
             'end_value': self._get_end_value(),
-            'rpl': None,  # 已实现盈亏
-            'total_return': None,  # 总收益率 %
-            'annual_return': None,  # 年化收益率 %
+            'rpl': None,  # Realized profit/loss
+            'total_return': None,  # Total return %
+            'annual_return': None,  # Annual return %
             'result_won_trades': None,
             'result_lost_trades': None,
             'profit_factor': None,
             'rpl_per_trade': None,
         }
         
-        # 计算基本收益
+        # Calculate basic returns
         start_cash = metrics['start_cash']
         end_value = metrics['end_value']
         
@@ -77,7 +77,7 @@ class PerformanceCalculator:
             metrics['rpl'] = end_value - start_cash
             metrics['total_return'] = 100 * (end_value / start_cash - 1)
         
-        # 从 TradeAnalyzer 获取交易统计
+        # Get trade statistics from TradeAnalyzer
         trade_analysis = self._get_analyzer_result('tradeanalyzer')
         if trade_analysis:
             pnl = trade_analysis.get('pnl', {})
@@ -95,20 +95,20 @@ class PerformanceCalculator:
             metrics['result_won_trades'] = won_pnl.get('total')
             metrics['result_lost_trades'] = lost_pnl.get('total')
             
-            # 计算盈利因子
+            # Calculate profit factor
             if metrics['result_won_trades'] and metrics['result_lost_trades']:
                 if metrics['result_lost_trades'] != 0:
                     metrics['profit_factor'] = abs(
                         metrics['result_won_trades'] / metrics['result_lost_trades']
                     )
             
-            # 每笔交易平均盈亏
+            # Average profit/loss per trade
             total = trade_analysis.get('total', {})
             closed = total.get('closed', 0)
             if closed > 0 and metrics['rpl']:
                 metrics['rpl_per_trade'] = metrics['rpl'] / closed
         
-        # 计算年化收益
+        # Calculate annual return
         bt_period_days = self._get_backtest_days()
         if bt_period_days and bt_period_days > 0 and metrics['total_return'] is not None:
             total_return_decimal = metrics['total_return'] / 100
@@ -119,10 +119,10 @@ class PerformanceCalculator:
         return metrics
     
     def get_risk_metrics(self):
-        """获取风险相关指标
+        """Get risk-related metrics.
         
         Returns:
-            dict: 风险指标字典
+            dict: Risk metrics dictionary
         """
         metrics = {
             'max_money_drawdown': None,
@@ -130,14 +130,14 @@ class PerformanceCalculator:
             'calmar_ratio': None,
         }
         
-        # 从 DrawDown 分析器获取
+        # Get from DrawDown analyzer
         drawdown = self._get_analyzer_result('drawdown')
         if drawdown:
             max_dd = drawdown.get('max', {})
             metrics['max_money_drawdown'] = max_dd.get('moneydown')
             metrics['max_pct_drawdown'] = max_dd.get('drawdown')
         
-        # 计算卡玛比率
+        # Calculate Calmar ratio
         pnl_metrics = self.get_pnl_metrics()
         if pnl_metrics.get('annual_return') and metrics.get('max_pct_drawdown'):
             if metrics['max_pct_drawdown'] != 0:
@@ -148,10 +148,10 @@ class PerformanceCalculator:
         return metrics
     
     def get_trade_metrics(self):
-        """获取交易统计指标
+        """Get trade statistics metrics.
         
         Returns:
-            dict: 交易统计字典
+            dict: Trade statistics dictionary
         """
         metrics = {
             'total_number_trades': 0,
@@ -179,12 +179,12 @@ class PerformanceCalculator:
             metrics['trades_won'] = won.get('total', 0)
             metrics['trades_lost'] = lost.get('total', 0)
             
-            # 胜率
+            # Win rate
             if metrics['trades_closed'] > 0:
                 metrics['pct_winning'] = 100 * metrics['trades_won'] / metrics['trades_closed']
                 metrics['pct_losing'] = 100 * metrics['trades_lost'] / metrics['trades_closed']
             
-            # 平均盈亏
+            # Average profit/loss
             won_pnl = won.get('pnl', {})
             lost_pnl = lost.get('pnl', {})
             
@@ -193,7 +193,7 @@ class PerformanceCalculator:
             metrics['best_winning_trade'] = won_pnl.get('max')
             metrics['worst_losing_trade'] = lost_pnl.get('max')
             
-            # 平均持仓时间
+            # Average trade duration
             len_info = trade_analysis.get('len', {})
             if isinstance(len_info, dict):
                 total_len = len_info.get('total', {})
@@ -203,10 +203,10 @@ class PerformanceCalculator:
         return metrics
     
     def get_kpi_metrics(self):
-        """获取关键性能指标
+        """Get key performance indicators.
         
         Returns:
-            dict: KPI指标字典
+            dict: KPI metrics dictionary
         """
         metrics = {
             'sharpe_ratio': None,
@@ -215,7 +215,7 @@ class PerformanceCalculator:
             'sortino_ratio': None,
         }
         
-        # 夏普比率
+        # Sharpe ratio
         sharpe = self._get_analyzer_result('sharperatio')
         if sharpe:
             metrics['sharpe_ratio'] = sharpe.get('sharperatio')
@@ -228,7 +228,7 @@ class PerformanceCalculator:
             if sqn_score is not None:
                 metrics['sqn_human'] = self.sqn_to_rating(sqn_score)
         
-        # Sortino 比率
+        # Sortino ratio
         sortino = self._get_analyzer_result('sortinoratio')
         if sortino:
             metrics['sortino_ratio'] = sortino.get('sortinoratio')
@@ -236,10 +236,10 @@ class PerformanceCalculator:
         return metrics
     
     def get_equity_curve(self):
-        """获取权益曲线数据
+        """Get equity curve data.
         
         Returns:
-            tuple: (dates, values) 日期和权益值列表
+            tuple: (dates, values) Lists of dates and equity values
         """
         try:
             import pandas as pd
@@ -249,7 +249,7 @@ class PerformanceCalculator:
         dates = []
         values = []
         
-        # 尝试从 Broker observer 获取
+        # Try to get from Broker observer
         if hasattr(self.strategy, 'observers'):
             for obs in self.strategy.observers:
                 if obs.__class__.__name__ == 'Broker':
@@ -257,11 +257,11 @@ class PerformanceCalculator:
                         value_line = obs.lines.value
                         length = len(value_line)
                         
-                        # 获取日期
+                        # Get dates
                         if hasattr(self.strategy, 'data'):
                             data = self.strategy.data
                             from ..utils.date import num2date
-                            # 正确的索引: 从 1-length 到 0
+                            # Correct indexing: from 1-length to 0
                             for i in range(length):
                                 idx = 1 - length + i
                                 try:
@@ -273,7 +273,7 @@ class PerformanceCalculator:
                         break
         
         if not values:
-            # 尝试从 TimeReturn 分析器获取并计算累计权益
+            # Try to get from TimeReturn analyzer and calculate cumulative equity
             time_return = self._get_analyzer_result('timereturn')
             if time_return:
                 start_cash = self._get_start_cash() or 100000
@@ -284,21 +284,21 @@ class PerformanceCalculator:
                     values.append(cumulative_value)
         
         if not values:
-            # 如果仍然没有数据，从数据源计算买入持有的权益曲线作为替代
+            # If still no data, calculate buy-and-hold equity curve from data source as fallback
             benchmark_dates, benchmark_values = self.get_buynhold_curve()
             if benchmark_dates and benchmark_values:
                 start_cash = self._get_start_cash() or 100000
                 dates = benchmark_dates
-                # 将归一化值转换为实际权益值
+                # Convert normalized values to actual equity values
                 values = [start_cash * v / 100 for v in benchmark_values]
         
         return dates, values
     
     def get_buynhold_curve(self):
-        """获取买入持有对比曲线
+        """Get buy-and-hold comparison curve.
         
         Returns:
-            tuple: (dates, values) 日期和买入持有值列表
+            tuple: (dates, values) Lists of dates and buy-and-hold values
         """
         if not hasattr(self.strategy, 'data'):
             return None, None
@@ -312,12 +312,12 @@ class PerformanceCalculator:
             if length == 0:
                 return None, None
             
-            # 获取开盘价作为买入持有基准
+            # Get open price as buy-and-hold benchmark
             first_price = None
             
             from ..utils.date import num2date
             
-            # 正确的索引: 从 1-length 到 0
+            # Correct indexing: from 1-length to 0
             for i in range(length):
                 idx = 1 - length + i
                 try:
@@ -328,7 +328,7 @@ class PerformanceCalculator:
                     if first_price is None:
                         first_price = price
                     
-                    # 归一化到100
+                    # Normalize to 100
                     values.append(100 * price / first_price if first_price else 100)
                 except Exception:
                     pass
@@ -339,15 +339,15 @@ class PerformanceCalculator:
     
     @staticmethod
     def sqn_to_rating(sqn_score):
-        """SQN分数转人类评级
+        """Convert SQN score to human-readable rating.
         
-        参考: http://www.vantharp.com/tharp-concepts/sqn.asp
+        Reference: http://www.vantharp.com/tharp-concepts/sqn.asp
         
         Args:
-            sqn_score: SQN分数
+            sqn_score: SQN score
             
         Returns:
-            str: 人类可读的评级
+            str: Human-readable rating
         """
         if sqn_score is None or math.isnan(sqn_score):
             return "N/A"
@@ -368,19 +368,19 @@ class PerformanceCalculator:
             return "Holy Grail"
     
     def _get_start_cash(self):
-        """获取初始资金"""
+        """Get starting cash."""
         if self._broker:
             return getattr(self._broker, 'startingcash', None)
         return None
     
     def _get_end_value(self):
-        """获取最终价值"""
+        """Get final portfolio value."""
         if self._broker:
             return self._broker.getvalue()
         return None
     
     def _get_backtest_days(self):
-        """获取回测天数"""
+        """Get number of backtest days."""
         if not hasattr(self.strategy, 'data'):
             return None
         
@@ -392,7 +392,7 @@ class PerformanceCalculator:
             if length < 2:
                 return None
             
-            # 正确的索引: 0是当前(最后)bar, 1-length是第一个bar
+            # Correct indexing: 0 is current (last) bar, 1-length is first bar
             start_dt = num2date(data.datetime[1 - length])
             end_dt = num2date(data.datetime[0])
             
@@ -402,32 +402,32 @@ class PerformanceCalculator:
             return None
     
     def _get_analyzer_result(self, name):
-        """获取分析器结果
+        """Get analyzer result.
         
         Args:
-            name: 分析器名称（不区分大小写）
+            name: Analyzer name (case-insensitive)
             
         Returns:
-            dict: 分析器结果，如果不存在则返回 None
+            dict: Analyzer result, or None if not found
         """
         if self._analyzers is None:
             return None
         
-        # 尝试直接通过名称获取
+        # Try to get directly by name
         name_lower = name.lower()
         
-        # 遍历所有分析器
+        # Iterate through all analyzers
         for analyzer in self._analyzers:
             analyzer_name = analyzer.__class__.__name__.lower()
             
-            # 检查名称匹配
+            # Check name match
             if analyzer_name == name_lower or name_lower in analyzer_name:
                 try:
                     return analyzer.get_analysis()
                 except Exception:
                     pass
             
-            # 检查 _name 属性
+            # Check _name attribute
             custom_name = getattr(analyzer, '_name', '').lower()
             if name_lower in custom_name:
                 try:
@@ -438,17 +438,17 @@ class PerformanceCalculator:
         return None
     
     def get_strategy_info(self):
-        """获取策略信息
+        """Get strategy information.
         
         Returns:
-            dict: 策略信息字典
+            dict: Strategy information dictionary
         """
         info = {
             'strategy_name': self.strategy.__class__.__name__,
             'params': {},
         }
         
-        # 获取策略参数
+        # Get strategy parameters
         if hasattr(self.strategy, 'params'):
             params = self.strategy.params
             for name in dir(params):
@@ -463,10 +463,10 @@ class PerformanceCalculator:
         return info
     
     def get_data_info(self):
-        """获取数据信息
+        """Get data information.
         
         Returns:
-            dict: 数据信息字典
+            dict: Data information dictionary
         """
         info = {
             'data_name': None,
@@ -480,7 +480,7 @@ class PerformanceCalculator:
         
         data = self.strategy.data
         
-        # 数据名称
+        # Data name
         info['data_name'] = getattr(data, '_name', None) or 'Data'
         
         try:
@@ -490,7 +490,7 @@ class PerformanceCalculator:
             info['bars'] = length
             
             if length > 0:
-                # 正确的索引: 0是当前(最后)bar, 1-length是第一个bar
+                # Correct indexing: 0 is current (last) bar, 1-length is first bar
                 info['start_date'] = num2date(data.datetime[1 - length])
                 info['end_date'] = num2date(data.datetime[0])
         except Exception:

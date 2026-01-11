@@ -1,20 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-辅助工具函数
+Helper utility functions.
 """
 
 import re
 
 
 def get_datanames(strategy):
-    """获取策略中所有数据源的名称
+    """Get names of all data sources in strategy.
     
     Args:
-        strategy: 策略实例
+        strategy: Strategy instance
         
     Returns:
-        list: 数据源名称列表
+        list: List of data source names
     """
     datanames = []
     
@@ -31,13 +31,13 @@ def get_datanames(strategy):
 
 
 def get_strategy_label(strategy):
-    """获取策略标签
+    """Get strategy label.
     
     Args:
-        strategy: 策略实例
+        strategy: Strategy instance
         
     Returns:
-        str: 策略标签
+        str: Strategy label
     """
     if strategy is None:
         return 'Unknown Strategy'
@@ -46,21 +46,21 @@ def get_strategy_label(strategy):
 
 
 def sanitize_source_name(name):
-    """清理数据源名称，移除非法字符
+    """Sanitize data source name, remove illegal characters.
     
     Args:
-        name: 原始名称
+        name: Original name
         
     Returns:
-        str: 清理后的名称
+        str: Sanitized name
     """
     if name is None:
         return 'unnamed'
     
-    # 移除非字母数字和下划线的字符
+    # Remove non-alphanumeric and underscore characters
     sanitized = re.sub(r'[^a-zA-Z0-9_]', '_', str(name))
     
-    # 确保不以数字开头
+    # Ensure it doesn't start with a digit
     if sanitized and sanitized[0].isdigit():
         sanitized = '_' + sanitized
     
@@ -68,20 +68,20 @@ def sanitize_source_name(name):
 
 
 def get_indicator_label(indicator):
-    """获取指标标签
+    """Get indicator label.
     
     Args:
-        indicator: 指标实例
+        indicator: Indicator instance
         
     Returns:
-        str: 指标标签
+        str: Indicator label
     """
     if indicator is None:
         return 'Unknown Indicator'
     
     label = indicator.__class__.__name__
     
-    # 添加参数信息（如果有）
+    # Add parameter info (if available)
     if hasattr(indicator, 'params'):
         params = []
         for name in dir(indicator.params):
@@ -93,20 +93,20 @@ def get_indicator_label(indicator):
                 except Exception:
                     pass
         if params:
-            label += f' ({", ".join(params[:3])})'  # 最多显示3个参数
+            label += f' ({", ".join(params[:3])})'  # Show max 3 parameters
     
     return label
 
 
 def format_datetime(dt, fmt='%Y-%m-%d %H:%M'):
-    """格式化日期时间
+    """Format datetime.
     
     Args:
-        dt: datetime 对象
-        fmt: 格式字符串
+        dt: datetime object
+        fmt: Format string
         
     Returns:
-        str: 格式化后的字符串
+        str: Formatted string
     """
     if dt is None:
         return ''
@@ -118,14 +118,14 @@ def format_datetime(dt, fmt='%Y-%m-%d %H:%M'):
 
 
 def format_number(value, precision=2):
-    """格式化数字
+    """Format number.
     
     Args:
-        value: 数值
-        precision: 小数精度
+        value: Numeric value
+        precision: Decimal precision
         
     Returns:
-        str: 格式化后的字符串
+        str: Formatted string
     """
     if value is None:
         return 'N/A'
@@ -137,16 +137,16 @@ def format_number(value, precision=2):
 
 
 def get_color_from_value(value, up_color='#26a69a', down_color='#ef5350', neutral_color='#666666'):
-    """根据值获取颜色
+    """Get color based on value.
     
     Args:
-        value: 数值
-        up_color: 正值颜色
-        down_color: 负值颜色
-        neutral_color: 零值颜色
+        value: Numeric value
+        up_color: Color for positive values
+        down_color: Color for negative values
+        neutral_color: Color for zero values
         
     Returns:
-        str: 颜色值
+        str: Color value
     """
     if value is None:
         return neutral_color

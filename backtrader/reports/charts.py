@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-报告专用图表生成器
+Report-specific chart generator.
 
-生成报告所需的静态图表，区别于交互式绘图
+Generates static charts for reports, distinct from interactive plotting.
 """
 
 import io
@@ -11,7 +11,7 @@ import base64
 
 try:
     import matplotlib
-    matplotlib.use('Agg')  # 使用非交互式后端
+    matplotlib.use('Agg')  # Use non-interactive backend
     import matplotlib.pyplot as plt
     import matplotlib.dates as mdates
     MATPLOTLIB_AVAILABLE = True
@@ -26,24 +26,24 @@ except ImportError:
 
 
 class ReportChart:
-    """报告专用图表生成器
+    """Report-specific chart generator.
     
-    生成报告所需的静态图表，包括：
-    - 权益曲线图（含买入持有对比线）
-    - 收益率柱状图（自动周期判断）
-    - 回撤面积图
+    Generates static charts for reports, including:
+    - Equity curve chart (with buy-and-hold comparison line)
+    - Return bars chart (automatic period detection)
+    - Drawdown area chart
     
-    属性:
-        figsize: 图表默认尺寸
-        dpi: 图表分辨率
+    Attributes:
+        figsize: Default chart size
+        dpi: Chart resolution
     """
     
     def __init__(self, figsize=(10, 3), dpi=100):
-        """初始化图表生成器
+        """Initialize the chart generator.
         
         Args:
-            figsize: 图表尺寸 (宽, 高)
-            dpi: 图表分辨率
+            figsize: Chart size (width, height)
+            dpi: Chart resolution
         """
         self.figsize = figsize
         self.dpi = dpi
@@ -51,36 +51,36 @@ class ReportChart:
     
     def plot_equity_curve(self, dates, values, benchmark_dates=None, 
                           benchmark_values=None, title='Equity Curve'):
-        """绘制权益曲线图
+        """Plot equity curve chart.
         
         Args:
-            dates: 日期列表
-            values: 权益值列表
-            benchmark_dates: 基准日期列表（可选）
-            benchmark_values: 基准值列表（可选，如买入持有）
-            title: 图表标题
+            dates: List of dates
+            values: List of equity values
+            benchmark_dates: List of benchmark dates (optional)
+            benchmark_values: List of benchmark values (optional, e.g., buy-and-hold)
+            title: Chart title
             
         Returns:
-            matplotlib.figure.Figure 或 None
+            matplotlib.figure.Figure or None
         """
         if not MATPLOTLIB_AVAILABLE or not dates or not values:
             return None
         
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
         
-        # 归一化到100
+        # Normalize to 100
         start_value = values[0] if values[0] != 0 else 1
         normalized_values = [100 * v / start_value for v in values]
         
-        # 绘制权益曲线
+        # Plot equity curve
         ax.plot(dates, normalized_values, label='Strategy', linewidth=1.5, color='#3498DB')
         
-        # 绘制买入持有对比线
+        # Plot buy-and-hold comparison line
         if benchmark_dates and benchmark_values:
             ax.plot(benchmark_dates, benchmark_values, label='Buy & Hold', 
                    linewidth=1, color='gray', linestyle='--')
         
-        # 绘制基准线 (100)
+        # Plot baseline (100)
         ax.axhline(y=100, color='gray', linestyle=':', linewidth=0.8, alpha=0.7)
         
         ax.set_ylabel('Net Asset Value (start=100)')
@@ -88,7 +88,7 @@ class ReportChart:
         ax.legend(loc='upper left')
         ax.grid(True, alpha=0.3)
         
-        # 格式化x轴日期
+        # Format x-axis dates
         if len(dates) > 0:
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
             plt.xticks(rotation=45)
@@ -99,16 +99,16 @@ class ReportChart:
         return fig
     
     def plot_return_bars(self, dates, values, period='auto', title=None):
-        """绘制收益率柱状图
+        """Plot return bars chart.
         
         Args:
-            dates: 日期列表
-            values: 权益值列表
-            period: 周期 ('auto', 'daily', 'weekly', 'monthly', 'yearly')
-            title: 图表标题
+            dates: List of dates
+            values: List of equity values
+            period: Period ('auto', 'daily', 'weekly', 'monthly', 'yearly')
+            title: Chart title
             
         Returns:
-            matplotlib.figure.Figure 或 None
+            matplotlib.figure.Figure or None
         """
         if not MATPLOTLIB_AVAILABLE or not PANDAS_AVAILABLE:
             return None
@@ -116,10 +116,10 @@ class ReportChart:
         if not dates or not values:
             return None
         
-        # 创建 Series
+        # Create Series
         series = pd.Series(data=values, index=pd.to_datetime(dates))
         
-        # 自动判断周期
+        # Auto-detect period
         if period == 'auto':
             period_name, period_code = self._get_periodicity(dates)
         else:
@@ -131,7 +131,7 @@ class ReportChart:
             }
             period_name, period_code = period_map.get(period, ('Daily', 'D'))
         
-        # 重采样计算收益率
+        # Resample and calculate returns
         try:
             resampled = series.resample(period_code).last()
             returns = 100 * resampled.pct_change().dropna()
@@ -143,20 +143,20 @@ class ReportChart:
         
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
         
-        # 根据正负值设置颜色
+        # Set colors based on positive/negative values
         colors = ['green' if r > 0 else 'red' for r in returns.values]
         
-        # 绘制柱状图
+        # Plot bar chart
         x_labels = [d.strftime('%Y-%m-%d') if hasattr(d, 'strftime') else str(d) 
                    for d in returns.index]
         ax.bar(range(len(returns)), returns.values, color=colors, alpha=0.7)
         
-        # 设置x轴标签
+        # Set x-axis labels
         if len(x_labels) <= 20:
             ax.set_xticks(range(len(returns)))
             ax.set_xticklabels(x_labels, rotation=45, ha='right')
         else:
-            # 太多标签时只显示部分
+            # Show only partial labels when too many
             step = len(x_labels) // 10
             ax.set_xticks(range(0, len(returns), step))
             ax.set_xticklabels(x_labels[::step], rotation=45, ha='right')
@@ -172,20 +172,20 @@ class ReportChart:
         return fig
     
     def plot_drawdown(self, dates, values, title='Drawdown'):
-        """绘制回撤面积图
+        """Plot drawdown area chart.
         
         Args:
-            dates: 日期列表
-            values: 权益值列表
-            title: 图表标题
+            dates: List of dates
+            values: List of equity values
+            title: Chart title
             
         Returns:
-            matplotlib.figure.Figure 或 None
+            matplotlib.figure.Figure or None
         """
         if not MATPLOTLIB_AVAILABLE or not dates or not values:
             return None
         
-        # 计算回撤
+        # Calculate drawdown
         running_max = values[0]
         drawdowns = []
         
@@ -197,7 +197,7 @@ class ReportChart:
         
         fig, ax = plt.subplots(1, 1, figsize=self.figsize, dpi=self.dpi)
         
-        # 绘制回撤面积
+        # Plot drawdown area
         ax.fill_between(dates, drawdowns, 0, alpha=0.3, color='red', label='Drawdown')
         ax.plot(dates, drawdowns, color='red', linewidth=1)
         
@@ -205,7 +205,7 @@ class ReportChart:
         ax.set_title(title)
         ax.grid(True, alpha=0.3)
         
-        # 显示最大回撤
+        # Show maximum drawdown
         max_dd = min(drawdowns)
         max_dd_idx = drawdowns.index(max_dd)
         ax.annotate(f'Max: {max_dd:.2f}%', 
@@ -213,7 +213,7 @@ class ReportChart:
                    xytext=(10, 10), textcoords='offset points',
                    fontsize=9, color='red')
         
-        # 格式化x轴日期
+        # Format x-axis dates
         if len(dates) > 0:
             ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
             plt.xticks(rotation=45)
@@ -224,13 +224,13 @@ class ReportChart:
         return fig
     
     def _get_periodicity(self, dates):
-        """智能判断最佳显示周期
+        """Intelligently determine the best display period.
         
         Args:
-            dates: 日期列表
+            dates: List of dates
             
         Returns:
-            tuple: (周期名称, 周期代码)
+            tuple: (period name, period code)
         """
         if not dates or len(dates) < 2:
             return ('Daily', 'D')
@@ -246,7 +246,7 @@ class ReportChart:
                 if isinstance(start_date, datetime):
                     time_interval_days = (end_date - start_date).days
                 else:
-                    time_interval_days = 30  # 默认
+                    time_interval_days = 30  # Default
             
             if time_interval_days > 5 * 365.25:
                 return ('Yearly', 'YE')
@@ -264,12 +264,12 @@ class ReportChart:
             return ('Daily', 'D')
     
     def save_to_file(self, fig, filename, format='png'):
-        """保存图表到文件
+        """Save chart to file.
         
         Args:
-            fig: matplotlib figure 对象
-            filename: 输出文件名
-            format: 图片格式 ('png', 'jpg', 'svg', 'pdf')
+            fig: matplotlib figure object
+            filename: Output filename
+            format: Image format ('png', 'jpg', 'svg', 'pdf')
         """
         if fig is None:
             return
@@ -277,14 +277,14 @@ class ReportChart:
         fig.savefig(filename, format=format, dpi=self.dpi, bbox_inches='tight')
     
     def to_base64(self, fig, format='png'):
-        """将图表转换为 base64 编码
+        """Convert chart to base64 encoding.
         
         Args:
-            fig: matplotlib figure 对象
-            format: 图片格式
+            fig: matplotlib figure object
+            format: Image format
             
         Returns:
-            str: base64 编码的图片数据
+            str: base64 encoded image data
         """
         if fig is None:
             return ''
@@ -299,7 +299,7 @@ class ReportChart:
         return f'data:image/{format};base64,{img_base64}'
     
     def close_all(self):
-        """关闭所有图表，释放内存"""
+        """Close all charts and release memory."""
         for fig in self._figures:
             plt.close(fig)
         self._figures = []

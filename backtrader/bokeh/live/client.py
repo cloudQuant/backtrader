@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-实时客户端
+Live client.
 
-管理 Bokeh 文档和用户交互
+Manages Bokeh documents and user interactions.
 """
 
 import logging
@@ -23,31 +23,31 @@ _logger = logging.getLogger(__name__)
 
 
 class LiveClient:
-    """实时客户端
+    """Live client.
     
-    提供实时绘图功能，包括：
-    - 数据过滤
-    - 导航控制（暂停/播放/前进/后退）
-    - 数据更新
+    Provides real-time plotting functionality, including:
+    - Data filtering
+    - Navigation controls (pause/play/forward/backward)
+    - Data updates
     
-    属性:
-        doc: Bokeh 文档实例
-        model: Bokeh 根模型
-        lookback: 历史数据保留量
-        fill_gaps: 是否填充数据间隙
-        plotgroup: 过滤用的 plot group
+    Attributes:
+        doc: Bokeh document instance
+        model: Bokeh root model
+        lookback: Historical data retention
+        fill_gaps: Whether to fill data gaps
+        plotgroup: Plot group for filtering
     """
     
     NAV_BUTTON_WIDTH = 38
     
     def __init__(self, doc, app, strategy, lookback):
-        """初始化实时客户端
+        """Initialize live client.
         
         Args:
-            doc: Bokeh 文档实例
-            app: BacktraderBokeh 应用实例
-            strategy: 策略实例
-            lookback: 历史数据保留量
+            doc: Bokeh document instance
+            app: BacktraderBokeh application instance
+            strategy: Strategy instance
+            lookback: Historical data retention
         """
         self._app = app
         self._strategy = strategy
@@ -90,7 +90,7 @@ class LiveClient:
         self.updatemodel()
     
     def _createmodel(self):
-        """创建 Bokeh 模型
+        """Create Bokeh model.
         
         Returns:
             tuple: (model, refresh_function)
@@ -226,7 +226,7 @@ class LiveClient:
         return model, refresh
     
     def updatemodel(self):
-        """更新模型"""
+        """Update model."""
         if not BOKEH_AVAILABLE or self.doc is None:
             return
         
@@ -268,10 +268,10 @@ class LiveClient:
         self.doc.unhold()
     
     def _get_filter(self):
-        """获取当前过滤设置
+        """Get current filter settings.
         
         Returns:
-            dict: 过滤配置
+            dict: Filter configuration
         """
         res = {}
         if self._filter.startswith('D'):
@@ -281,11 +281,11 @@ class LiveClient:
         return res
     
     def _pause(self):
-        """暂停数据更新"""
+        """Pause data updates."""
         self._paused = True
     
     def _resume(self):
-        """恢复数据更新"""
+        """Resume data updates."""
         if not self._paused:
             return
         if self._datahandler is not None:
@@ -293,18 +293,18 @@ class LiveClient:
         self._paused = False
     
     def _set_data_by_idx(self, idx=None):
-        """根据索引设置数据
+        """Set data by index.
         
         Args:
-            idx: 数据索引（可选）
+            idx: Data index (optional)
         """
         if idx is not None:
-            # 确保索引在有效范围内
+            # Ensure index is within valid range
             last_avail_idx = self._app.get_last_idx(self._figid)
             idx = min(idx, last_avail_idx)
             idx = max(idx, self.lookback - 1)
         
-        # 生成数据
+        # Generate data
         df = self._app.generate_data(
             figid=self._figid,
             end=idx,
@@ -317,15 +317,15 @@ class LiveClient:
             self._datahandler.set(df)
     
     def _get_tabs(self):
-        """获取 Tabs 组件
+        """Get Tabs component.
         
         Returns:
-            Tabs 实例或 None
+            Tabs instance or None
         """
         if self.model is None:
             return None
         
-        # 查找名为 'tabs' 的组件
+        # Find component named 'tabs'
         for child in self.model.children:
             if hasattr(child, '__iter__'):
                 for item in child:
@@ -337,9 +337,9 @@ class LiveClient:
         return None
     
     def next(self):
-        """接收新数据并更新
+        """Receive new data and update.
         
-        由 LivePlotAnalyzer.next() 调用
+        Called by LivePlotAnalyzer.next()
         """
         if not self._paused and self._datahandler is not None:
             self._datahandler.update()
@@ -348,6 +348,6 @@ class LiveClient:
             self._refresh_fnc()
     
     def stop(self):
-        """停止客户端"""
+        """Stop client."""
         if self._datahandler is not None:
             self._datahandler.stop()

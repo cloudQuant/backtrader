@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-主报告生成器
+Main report generator.
 
-生成 HTML、PDF、JSON 格式的回测报告
+Generates backtest reports in HTML, PDF, and JSON formats.
 """
 
 import os
@@ -13,14 +13,14 @@ from datetime import datetime
 from .performance import PerformanceCalculator
 from .charts import ReportChart
 
-# 尝试导入 Jinja2
+# Try to import Jinja2
 try:
     from jinja2 import Environment, BaseLoader, FileSystemLoader
     JINJA2_AVAILABLE = True
 except ImportError:
     JINJA2_AVAILABLE = False
 
-# 尝试导入 weasyprint（PDF 生成）
+# Try to import weasyprint (PDF generation)
 try:
     from weasyprint import HTML as WeasyHTML
     WEASYPRINT_AVAILABLE = True
@@ -28,7 +28,7 @@ except ImportError:
     WEASYPRINT_AVAILABLE = False
 
 
-# 默认 HTML 模板
+# Default HTML template
 DEFAULT_TEMPLATE = '''<!DOCTYPE html>
 <html>
 <head>
@@ -314,16 +314,16 @@ DEFAULT_TEMPLATE = '''<!DOCTYPE html>
 
 
 class ReportGenerator:
-    """主报告生成器
+    """Main report generator.
     
-    生成 HTML、PDF、JSON 格式的回测报告。
+    Generates backtest reports in HTML, PDF, and JSON formats.
     
-    属性:
-        strategy: 策略实例
-        calculator: 性能计算器
-        charts: 图表生成器
+    Attributes:
+        strategy: Strategy instance
+        calculator: Performance calculator
+        charts: Chart generator
         
-    使用示例:
+    Usage example:
         report = ReportGenerator(strategy)
         report.generate_html('report.html')
         report.generate_pdf('report.pdf')
@@ -331,32 +331,32 @@ class ReportGenerator:
     """
     
     def __init__(self, strategy, template='default'):
-        """初始化报告生成器
+        """Initialize the report generator.
         
         Args:
-            strategy: backtrader 策略实例
-            template: 模板名称或模板字符串
+            strategy: backtrader strategy instance
+            template: Template name or template string
         """
         self.strategy = strategy
         self.calculator = PerformanceCalculator(strategy)
         self.charts = ReportChart()
         self.template = template
         
-        # 用户信息
+        # User information
         self._user = None
         self._memo = None
     
     def generate_html(self, output_path, user=None, memo=None, **kwargs):
-        """生成 HTML 报告
+        """Generate HTML report.
         
         Args:
-            output_path: 输出文件路径
-            user: 用户名
-            memo: 备注
-            **kwargs: 额外的模板变量
+            output_path: Output file path
+            user: Username
+            memo: Notes
+            **kwargs: Additional template variables
             
         Returns:
-            str: 输出文件路径
+            str: Output file path
         """
         if not JINJA2_AVAILABLE:
             raise ImportError("jinja2 is required for HTML report generation. "
@@ -365,32 +365,32 @@ class ReportGenerator:
         self._user = user
         self._memo = memo
         
-        # 收集所有数据
+        # Collect all data
         context = self._build_context(**kwargs)
         
-        # 渲染模板
+        # Render template
         html_content = self._render_template(context)
         
-        # 写入文件
+        # Write to file
         with open(output_path, 'w', encoding='utf-8') as f:
             f.write(html_content)
         
-        # 清理图表
+        # Clean up charts
         self.charts.close_all()
         
         return output_path
     
     def generate_pdf(self, output_path, user=None, memo=None, **kwargs):
-        """生成 PDF 报告
+        """Generate PDF report.
         
         Args:
-            output_path: 输出文件路径
-            user: 用户名
-            memo: 备注
-            **kwargs: 额外的模板变量
+            output_path: Output file path
+            user: Username
+            memo: Notes
+            **kwargs: Additional template variables
             
         Returns:
-            str: 输出文件路径
+            str: Output file path
         """
         if not WEASYPRINT_AVAILABLE:
             raise ImportError("weasyprint is required for PDF report generation. "
@@ -399,37 +399,37 @@ class ReportGenerator:
         self._user = user
         self._memo = memo
         
-        # 收集所有数据
+        # Collect all data
         context = self._build_context(**kwargs)
         
-        # 渲染模板
+        # Render template
         html_content = self._render_template(context)
         
-        # 转换为 PDF
+        # Convert to PDF
         WeasyHTML(string=html_content).write_pdf(output_path)
         
-        # 清理图表
+        # Clean up charts
         self.charts.close_all()
         
         return output_path
     
     def generate_json(self, output_path, indent=2, **kwargs):
-        """生成 JSON 报告
+        """Generate JSON report.
         
         Args:
-            output_path: 输出文件路径
-            indent: JSON 缩进
-            **kwargs: 额外数据
+            output_path: Output file path
+            indent: JSON indentation
+            **kwargs: Additional data
             
         Returns:
-            str: 输出文件路径
+            str: Output file path
         """
-        # 获取所有指标
+        # Get all metrics
         metrics = self.calculator.get_all_metrics()
         strategy_info = self.calculator.get_strategy_info()
         data_info = self.calculator.get_data_info()
         
-        # 构建 JSON 结构
+        # Build JSON structure
         report_data = {
             'generated_at': datetime.now().isoformat(),
             'strategy': strategy_info,
@@ -471,27 +471,27 @@ class ReportGenerator:
             **kwargs
         }
         
-        # 处理非序列化值
+        # Handle non-serializable values
         report_data = self._make_json_serializable(report_data)
         
-        # 写入文件
+        # Write to file
         with open(output_path, 'w', encoding='utf-8') as f:
             json.dump(report_data, f, indent=indent, ensure_ascii=False)
         
         return output_path
     
     def _build_context(self, **kwargs):
-        """构建模板上下文
+        """Build template context.
         
         Returns:
-            dict: 模板变量字典
+            dict: Template variables dictionary
         """
-        # 获取指标
+        # Get metrics
         metrics = self.calculator.get_all_metrics()
         strategy_info = self.calculator.get_strategy_info()
         data_info = self.calculator.get_data_info()
         
-        # 生成图表
+        # Generate charts
         dates, values = self.calculator.get_equity_curve()
         benchmark_dates, benchmark_values = self.calculator.get_buynhold_curve()
         
@@ -500,7 +500,7 @@ class ReportGenerator:
         drawdown_img = ''
         
         if dates and values:
-            # 权益曲线
+            # Equity curve
             fig_equity = self.charts.plot_equity_curve(
                 dates, values, 
                 benchmark_dates, benchmark_values
@@ -508,39 +508,39 @@ class ReportGenerator:
             if fig_equity:
                 equity_curve_img = self.charts.to_base64(fig_equity)
             
-            # 收益率柱状图
+            # Return bars chart
             fig_returns = self.charts.plot_return_bars(dates, values)
             if fig_returns:
                 return_bars_img = self.charts.to_base64(fig_returns)
             
-            # 回撤图
+            # Drawdown chart
             fig_drawdown = self.charts.plot_drawdown(dates, values)
             if fig_drawdown:
                 drawdown_img = self.charts.to_base64(fig_drawdown)
         
-        # 构建上下文
+        # Build context
         context = {
-            # 策略信息
+            # Strategy information
             'strategy_name': strategy_info.get('strategy_name', 'Strategy'),
             'params': strategy_info.get('params', {}),
             
-            # 数据信息
+            # Data information
             'data_name': data_info.get('data_name', 'Data'),
             'start_date': str(data_info.get('start_date', ''))[:10] if data_info.get('start_date') else 'N/A',
             'end_date': str(data_info.get('end_date', ''))[:10] if data_info.get('end_date') else 'N/A',
             'bars': data_info.get('bars', 0),
             
-            # 用户信息
+            # User information
             'user': self._user,
             'memo': self._memo,
             'report_date': datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
             
-            # 图表
+            # Charts
             'equity_curve_img': equity_curve_img,
             'return_bars_img': return_bars_img,
             'drawdown_img': drawdown_img,
             
-            # 指标
+            # Metrics
             **metrics,
             **kwargs,
         }
@@ -548,40 +548,40 @@ class ReportGenerator:
         return context
     
     def _render_template(self, context):
-        """渲染模板
+        """Render template.
         
         Args:
-            context: 模板变量字典
+            context: Template variables dictionary
             
         Returns:
-            str: 渲染后的 HTML
+            str: Rendered HTML
         """
         if self.template == 'default':
-            # 使用默认模板
+            # Use default template
             env = Environment(loader=BaseLoader())
             template = env.from_string(DEFAULT_TEMPLATE)
         else:
-            # 尝试作为文件路径加载
+            # Try to load as file path
             if os.path.isfile(self.template):
                 template_dir = os.path.dirname(self.template)
                 template_name = os.path.basename(self.template)
                 env = Environment(loader=FileSystemLoader(template_dir))
                 template = env.get_template(template_name)
             else:
-                # 作为模板字符串处理
+                # Handle as template string
                 env = Environment(loader=BaseLoader())
                 template = env.from_string(self.template)
         
         return template.render(**context)
     
     def _make_json_serializable(self, obj):
-        """使对象可 JSON 序列化
+        """Make object JSON serializable.
         
         Args:
-            obj: 要处理的对象
+            obj: Object to process
             
         Returns:
-            可序列化的对象
+            Serializable object
         """
         import math
         
@@ -601,15 +601,15 @@ class ReportGenerator:
             return obj
     
     def get_metrics(self):
-        """获取所有性能指标
+        """Get all performance metrics.
         
         Returns:
-            dict: 性能指标字典
+            dict: Performance metrics dictionary
         """
         return self.calculator.get_all_metrics()
     
     def print_summary(self):
-        """打印性能摘要到控制台"""
+        """Print performance summary to console."""
         metrics = self.calculator.get_all_metrics()
         strategy_info = self.calculator.get_strategy_info()
         

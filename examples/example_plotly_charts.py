@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-Plotly 交互式图表示例
+Plotly interactive chart examples.
 
-本示例展示如何使用 Plotly 后端绑制高性能交互式图表：
-1. 基本用法 - 使用 cerebro.plot(backend='plotly')
-2. 自定义配色方案 - Tableau10/Tableau20 等
-3. 自定义小数位数和图例宽度
-4. 保存为 HTML 文件
+This example demonstrates how to use the Plotly backend for high-performance interactive charts:
+1. Basic usage - using cerebro.plot(backend='plotly')
+2. Custom color schemes - Tableau10/Tableau20, etc.
+3. Custom decimal places and legend width
+4. Save as HTML file
 
-运行方式：
+Usage:
     python examples/example_plotly_charts.py
 """
 
@@ -17,23 +17,25 @@ import datetime
 import os
 import sys
 
-# 添加项目路径
+# Add project path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import backtrader as bt
 
 
 class PlotlySMAStrategy(bt.Strategy):
-    """双均线交叉策略"""
+    """Dual moving average crossover strategy."""
     params = (('fast_period', 10), ('slow_period', 30),)
     
     def __init__(self):
+        """Initialize strategy."""
         self.sma_fast = bt.indicators.SMA(self.data.close, period=self.p.fast_period)
         self.sma_slow = bt.indicators.SMA(self.data.close, period=self.p.slow_period)
         self.crossover = bt.indicators.CrossOver(self.sma_fast, self.sma_slow)
         self.rsi = bt.indicators.RSI(self.data.close, period=14)
     
     def next(self):
+        """Execute strategy logic on each bar."""
         if not self.position:
             if self.crossover > 0:
                 self.buy()
@@ -42,17 +44,17 @@ class PlotlySMAStrategy(bt.Strategy):
 
 
 def example_basic_plotly():
-    """示例1: 基本 Plotly 绑图"""
+    """Example 1: Basic Plotly plotting."""
     print("\n" + "=" * 60)
-    print("示例1: 基本 Plotly 绑图")
+    print("Example 1: Basic Plotly Plotting")
     print("=" * 60)
     
     cerebro = bt.Cerebro()
     
-    # 加载数据
+    # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
+        print(f"Data file does not exist: {data_path}")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -66,29 +68,29 @@ def example_basic_plotly():
     cerebro.addstrategy(SMACrossStrategy)
     cerebro.broker.setcash(100000)
     
-    print("运行策略...")
+    print("Running strategy...")
     cerebro.run()
     
-    # 使用 Plotly 后端绑图
-    print("使用 Plotly 后端绑图...")
+    # Plot using Plotly backend
+    print("Plotting with Plotly backend...")
     cerebro.plot(backend='plotly', style='candle')
-    print("✓ 基本 Plotly 绑图完成")
+    print("✓ Basic Plotly plotting completed")
 
 
 def example_custom_scheme():
-    """示例2: 自定义配色方案"""
+    """Example 2: Custom color scheme."""
     print("\n" + "=" * 60)
-    print("示例2: 自定义配色方案")
+    print("Example 2: Custom Color Scheme")
     print("=" * 60)
     
     from backtrader.plot.plot_plotly import PlotlyPlot, PlotlyScheme
     
     cerebro = bt.Cerebro()
     
-    # 加载数据
+    # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
+        print(f"Data file does not exist: {data_path}")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -103,38 +105,38 @@ def example_custom_scheme():
     
     results = cerebro.run()
     
-    # 创建自定义配色方案
+    # Create custom color scheme
     scheme = PlotlyScheme(
-        decimal_places=2,           # 价格显示2位小数
-        max_legend_text_width=20,   # 图例最大宽度
-        color_scheme='tableau20',   # 使用 Tableau20 配色
-        fillalpha=0.3,              # 填充透明度
+        decimal_places=2,           # Display price with 2 decimal places
+        max_legend_text_width=20,   # Maximum legend width
+        color_scheme='tableau20',   # Use Tableau20 color scheme
+        fillalpha=0.3,              # Fill transparency
     )
     
-    # 使用自定义方案绑图
+    # Plot with custom scheme
     plotter = PlotlyPlot(scheme=scheme, style='candle')
     figs = plotter.plot(results[0])
     
-    # 保存为 HTML
+    # Save as HTML
     output_file = 'plotly_custom_scheme.html'
     figs[0].write_html(output_file)
-    print(f"✓ 自定义配色图表已保存到: {output_file}")
+    print(f"✓ Custom color chart saved to: {output_file}")
 
 
 def example_save_html():
-    """示例3: 保存为 HTML 文件"""
+    """Example 3: Save as HTML file."""
     print("\n" + "=" * 60)
-    print("示例3: 保存为 HTML 文件")
+    print("Example 3: Save as HTML File")
     print("=" * 60)
     
     from backtrader.plot.plot_plotly import PlotlyPlot
     
     cerebro = bt.Cerebro()
     
-    # 加载数据
+    # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
+        print(f"Data file does not exist: {data_path}")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -149,60 +151,60 @@ def example_save_html():
     
     results = cerebro.run()
     
-    # 创建绑图器并绑图
+    # Create plotter and plot
     plotter = PlotlyPlot(style='candle', decimal_places=2)
     figs = plotter.plot(results[0])
     
-    # 保存为独立 HTML 文件
+    # Save as standalone HTML file
     output_file = os.path.join(os.path.dirname(__file__), 'output', 'plotly_chart.html')
     os.makedirs(os.path.dirname(output_file), exist_ok=True)
     figs[0].write_html(output_file, include_plotlyjs=True)
-    print(f"✓ 图表已保存到: {output_file}")
-    print("  可以用浏览器打开查看交互式图表")
+    print(f"✓ Chart saved to: {output_file}")
+    print("  Can be opened in browser to view interactive chart")
 
 
 def example_color_schemes():
-    """示例4: 展示不同配色方案"""
+    """Example 4: Display different color schemes."""
     print("\n" + "=" * 60)
-    print("示例4: 展示不同配色方案")
+    print("Example 4: Display Different Color Schemes")
     print("=" * 60)
     
     from backtrader.plot.plot_plotly import (
         TABLEAU10, TABLEAU20, TABLEAU10_LIGHT, get_color_scheme
     )
     
-    print("\nTableau10 配色方案 (10色):")
+    print("\nTableau10 color scheme (10 colors):")
     for i, color in enumerate(TABLEAU10):
         print(f"  {i}: {color}")
     
-    print("\nTableau20 配色方案 (20色):")
+    print("\nTableau20 color scheme (20 colors):")
     for i, color in enumerate(TABLEAU20[:10]):
         print(f"  {i}: {color}")
-    print("  ... (共20色)")
+    print("  ... (20 colors total)")
     
-    print("\nTableau10 Light 配色方案 (10色浅色):")
+    print("\nTableau10 Light color scheme (10 light colors):")
     for i, color in enumerate(TABLEAU10_LIGHT[:5]):
         print(f"  {i}: {color}")
-    print("  ... (共10色)")
+    print("  ... (10 colors total)")
     
-    # 测试获取配色方案
-    print("\n使用 get_color_scheme() 获取配色:")
-    print(f"  get_color_scheme('tableau10'): {len(get_color_scheme('tableau10'))} 色")
-    print(f"  get_color_scheme('tableau20'): {len(get_color_scheme('tableau20'))} 色")
+    # Test getting color schemes
+    print("\nUsing get_color_scheme() to get colors:")
+    print(f"  get_color_scheme('tableau10'): {len(get_color_scheme('tableau10'))} colors")
+    print(f"  get_color_scheme('tableau20'): {len(get_color_scheme('tableau20'))} colors")
 
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("Plotly 交互式图表示例")
+    print("Plotly Interactive Chart Examples")
     print("=" * 60)
     
-    # 运行所有示例
+    # Run all examples
     example_color_schemes()
-    example_save_html()  # 生成 plotly_chart.html 文件
+    example_save_html()  # Generate plotly_chart.html file
     
     print("\n" + "=" * 60)
-    print("示例运行完成！")
+    print("Examples completed!")
     output_dir = os.path.join(os.path.dirname(__file__), 'output')
-    print(f"生成的文件位于: {output_dir}")
+    print(f"Generated files located at: {output_dir}")
     print("  - plotly_chart.html")
     print("=" * 60)

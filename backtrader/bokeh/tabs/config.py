@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-配置标签页
+Configuration tab.
 
-显示策略和数据的配置信息
+Displays configuration info for strategy and data.
 """
 
 from ..tab import BokehTab
@@ -18,17 +18,17 @@ except ImportError:
 
 
 class ConfigTab(BokehTab):
-    """配置标签页
+    """Configuration tab.
     
-    显示策略参数、数据配置等信息。
+    Displays strategy parameters, data configuration and other info.
     """
     
     def _is_useable(self):
-        """配置标签页始终可用"""
+        """Config tab is always useable."""
         return BOKEH_AVAILABLE
     
     def _get_panel(self):
-        """获取面板内容
+        """Get panel content.
         
         Returns:
             tuple: (widget, title)
@@ -39,16 +39,16 @@ class ConfigTab(BokehTab):
         widgets = []
         text_color = scheme.text_color if scheme else '#333'
         
-        # 策略参数
+        # Strategy parameters
         if strategy is not None:
-            # 策略名称
+            # Strategy name
             strategy_name = strategy.__class__.__name__
             widgets.append(Div(
                 text=f'<h3 style="color: {text_color};">Strategy: {strategy_name}</h3>',
                 sizing_mode='stretch_width'
             ))
             
-            # 策略参数
+            # Strategy parameters
             params = {}
             if hasattr(strategy, 'params'):
                 for name in dir(strategy.params):
@@ -80,7 +80,7 @@ class ConfigTab(BokehTab):
                 )
                 widgets.append(table)
             
-            # 数据源信息
+            # Data source info
             if hasattr(strategy, 'datas') and strategy.datas:
                 widgets.append(Div(
                     text=f'<h3 style="color: {text_color};">Data Feeds</h3>',

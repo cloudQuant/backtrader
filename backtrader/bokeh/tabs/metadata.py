@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-元数据标签页
+Metadata tab.
 
-显示策略和回测的元数据信息
+Displays metadata info for strategy and backtest.
 """
 
 import datetime
@@ -19,17 +19,17 @@ except ImportError:
 
 
 class MetadataTab(BokehTab):
-    """元数据标签页
+    """Metadata tab.
     
-    显示策略、数据、指标等元数据信息。
+    Displays metadata info for strategy, data, indicators, etc.
     """
     
     def _is_useable(self):
-        """元数据标签页始终可用"""
+        """Metadata tab is always useable."""
         return BOKEH_AVAILABLE
     
     def _get_panel(self):
-        """获取面板内容
+        """Get panel content.
         
         Returns:
             tuple: (widget, title)
@@ -40,7 +40,7 @@ class MetadataTab(BokehTab):
         
         widgets = []
         
-        # 基本信息
+        # Basic info
         widgets.append(Div(
             text=f'<h3 style="color: {text_color};">Backtest Metadata</h3>',
             sizing_mode='stretch_width'
@@ -48,22 +48,22 @@ class MetadataTab(BokehTab):
         
         metadata = {}
         
-        # 时间信息
+        # Time info
         metadata['Generated'] = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
         
         if strategy is not None:
-            # 策略信息
+            # Strategy info
             metadata['Strategy'] = strategy.__class__.__name__
             
-            # 数据信息
+            # Data info
             if hasattr(strategy, 'datas') and strategy.datas:
                 metadata['Data Feeds'] = len(strategy.datas)
                 
-                # 数据范围
+                # Data range
                 data = strategy.datas[0]
                 if hasattr(data, 'datetime') and len(data) > 0:
                     try:
-                        # 获取开始和结束日期
+                        # Get start and end dates
                         start_dt = data.datetime.date(0)
                         if hasattr(data.datetime, 'date'):
                             end_dt = data.datetime.date(-1) if len(data) > 1 else start_dt
@@ -75,18 +75,18 @@ class MetadataTab(BokehTab):
                     except Exception:
                         pass
             
-            # 指标信息
+            # Indicator info
             if hasattr(strategy, '_lineiterators'):
                 ind_count = len(strategy._lineiterators.get(1, []))  # IndType = 1
                 obs_count = len(strategy._lineiterators.get(2, []))  # ObsType = 2
                 metadata['Indicators'] = ind_count
                 metadata['Observers'] = obs_count
             
-            # 分析器信息
+            # Analyzer info
             if hasattr(strategy, 'analyzers'):
                 metadata['Analyzers'] = len(strategy.analyzers)
             
-            # Broker 信息
+            # Broker info
             if hasattr(strategy, 'broker'):
                 broker = strategy.broker
                 try:
@@ -95,7 +95,7 @@ class MetadataTab(BokehTab):
                 except Exception:
                     pass
         
-        # 创建表格
+        # Create table
         if metadata:
             source = ColumnDataSource(data={
                 'property': list(metadata.keys()),
@@ -116,7 +116,7 @@ class MetadataTab(BokehTab):
             )
             widgets.append(table)
         
-        # 指标列表
+        # Indicator list
         if strategy is not None and hasattr(strategy, '_lineiterators'):
             indicators = strategy._lineiterators.get(1, [])
             if indicators:

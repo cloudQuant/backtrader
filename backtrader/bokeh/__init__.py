@@ -3,14 +3,14 @@
 """
 Backtrader Bokeh Module
 
-提供基于 Bokeh 的实时绘图功能，包括：
-- 实时数据推送和图表更新
-- 可扩展的标签页系统
-- 导航控制（暂停/播放/前进/后退）
-- 主题系统（黑色/白色主题）
-- 内存优化（lookback 控制）
+Provides Bokeh-based live plotting functionality, including:
+- Real-time data push and chart updates
+- Extensible tab system
+- Navigation controls (pause/play/forward/backward)
+- Theme system (black/white themes)
+- Memory optimization (lookback control)
 
-使用示例:
+Example:
     import backtrader as bt
     from backtrader.bokeh import LivePlotAnalyzer, Blackly
     
@@ -18,7 +18,7 @@ Backtrader Bokeh Module
     cerebro.adddata(data)
     cerebro.addstrategy(MyStrategy)
     
-    # 添加实时绘图分析器
+    # Add live plot analyzer
     cerebro.addanalyzer(LivePlotAnalyzer,
                        scheme=Blackly(),
                        lookback=100)
@@ -31,15 +31,15 @@ from .tab import BokehTab
 from . import tabs
 from .utils import get_datanames, get_strategy_label, sanitize_source_name
 
-# 自定义标签页注册表
+# Custom tab registry
 _custom_tabs = []
 
 
 def register_tab(tab_class):
-    """注册自定义标签页
+    """Register a custom tab.
     
     Args:
-        tab_class: 继承自 BokehTab 的标签页类
+        tab_class: Tab class that inherits from BokehTab
     """
     if not issubclass(tab_class, BokehTab):
         raise ValueError("tab_class must be a subclass of BokehTab")
@@ -47,13 +47,13 @@ def register_tab(tab_class):
 
 
 def get_registered_tabs():
-    """获取所有注册的自定义标签页"""
+    """Get all registered custom tabs."""
     return _custom_tabs.copy()
 
 
-# 延迟导入以避免循环依赖
+# Lazy import to avoid circular dependencies
 def __getattr__(name):
-    """延迟加载模块属性"""
+    """Lazy load module attributes."""
     if name == 'BacktraderBokeh':
         from .app import BacktraderBokeh
         return BacktraderBokeh

@@ -1,10 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-"""
-实时配置标签页
-
-用于实时绘图模式下的配置调整
-"""
+"""\nLive configuration tab.\n\nFor configuration adjustments in live plotting mode.\n"""
 
 from ..tab import BokehTab
 
@@ -17,22 +13,22 @@ except ImportError:
 
 
 class LiveTab(BokehTab):
-    """实时配置标签页
+    """Live configuration tab.
     
-    提供实时绘图模式下的配置选项：
-    - Lookback 调整
-    - 自动刷新间隔
-    - 过滤选项
+    Provides configuration options for live plotting mode:
+    - Lookback adjustment
+    - Auto-refresh interval
+    - Filter options
     """
     
     def _is_useable(self):
-        """在实时模式下可用"""
+        """Useable in live mode."""
         if not BOKEH_AVAILABLE:
             return False
         return self._client is not None
     
     def _get_panel(self):
-        """获取面板内容
+        """Get panel content.
         
         Returns:
             tuple: (widget, title)
@@ -42,13 +38,13 @@ class LiveTab(BokehTab):
         
         widgets = []
         
-        # 标题
+        # Title
         widgets.append(Div(
             text=f'<h3 style="color: {text_color};">Live Plot Settings</h3>',
             sizing_mode='stretch_width'
         ))
         
-        # Lookback 设置
+        # Lookback settings
         lookback_value = getattr(self._client, 'lookback', 100) if self._client else 100
         lookback_slider = Slider(
             start=10,
@@ -66,7 +62,7 @@ class LiveTab(BokehTab):
         lookback_slider.on_change('value', on_lookback_change)
         widgets.append(lookback_slider)
         
-        # Fill Gaps 选项
+        # Fill Gaps option
         fill_gaps = getattr(self._client, 'fill_gaps', False) if self._client else False
         fill_gaps_select = Select(
             title='Fill Gaps',
@@ -82,17 +78,17 @@ class LiveTab(BokehTab):
         fill_gaps_select.on_change('value', on_fill_gaps_change)
         widgets.append(fill_gaps_select)
         
-        # Plot Group 设置
+        # Plot Group settings
         plotgroup = getattr(self._client, 'plotgroup', '') if self._client else ''
         plotgroup_select = Select(
             title='Plot Group',
             value=plotgroup or 'All',
-            options=['All'],  # 可以动态添加更多选项
+            options=['All'],  # Can dynamically add more options
             width=200
         )
         widgets.append(plotgroup_select)
         
-        # 刷新按钮
+        # Refresh button
         refresh_btn = Button(label='Refresh', button_type='primary', width=100)
         
         def on_refresh_click():
@@ -102,7 +98,7 @@ class LiveTab(BokehTab):
         refresh_btn.on_click(on_refresh_click)
         widgets.append(refresh_btn)
         
-        # 状态信息
+        # Status info
         status_text = 'Running' if self._client and not getattr(self._client, '_paused', True) else 'Paused'
         status_div = Div(
             text=f'<p style="color: {text_color};">Status: <strong>{status_text}</strong></p>',

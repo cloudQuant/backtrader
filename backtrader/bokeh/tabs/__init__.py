@@ -1,15 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-内置标签页模块
+Built-in tabs module.
 
-提供以下内置标签页：
-- AnalyzerTab: 分析器结果展示
-- ConfigTab: 配置信息展示
-- LogTab: 日志展示
-- MetadataTab: 元数据展示
-- SourceTab: 源码展示
-- LiveTab: 实时配置标签页
+Provides the following built-in tabs:
+- AnalyzerTab: Analyzer results display
+- ConfigTab: Configuration info display
+- LogTab: Log display
+- MetadataTab: Metadata display
+- SourceTab: Source code display
+- LiveTab: Live configuration tab
 """
 
 from .analyzer import AnalyzerTab

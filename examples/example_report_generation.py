@@ -1,42 +1,44 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-回测报告生成示例
+Backtest report generation examples.
 
-本示例展示如何使用报告生成模块：
-1. 一键生成 HTML 报告
-2. 生成 JSON 报告导出数据
-3. 使用 PerformanceCalculator 获取性能指标
-4. 打印性能摘要
+This example demonstrates how to use the report generation module:
+1. One-click HTML report generation
+2. Generate JSON report to export data
+3. Use PerformanceCalculator to get performance metrics
+4. Print performance summary
 
-运行方式：
+Usage:
     python examples/example_report_generation.py
 
-依赖：
-    pip install jinja2  # HTML 报告
-    pip install weasyprint  # PDF 报告 (可选)
+Dependencies:
+    pip install jinja2  # HTML reports
+    pip install weasyprint  # PDF reports (optional)
 """
 
 import datetime
 import os
 import sys
 
-# 添加项目路径
+# Add project path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import backtrader as bt
 
 
 class ReportSMAStrategy(bt.Strategy):
-    """双均线交叉策略"""
+    """Dual moving average crossover strategy."""
     params = (('fast_period', 10), ('slow_period', 30),)
     
     def __init__(self):
+        """Initialize strategy."""
         self.sma_fast = bt.indicators.SMA(self.data.close, period=self.p.fast_period)
         self.sma_slow = bt.indicators.SMA(self.data.close, period=self.p.slow_period)
         self.crossover = bt.indicators.CrossOver(self.sma_fast, self.sma_slow)
     
     def next(self):
+        """Execute strategy logic on each bar."""
         if not self.position:
             if self.crossover > 0:
                 self.buy()
@@ -45,17 +47,17 @@ class ReportSMAStrategy(bt.Strategy):
 
 
 def example_quick_report():
-    """示例1: 一键生成报告"""
+    """Example 1: One-click report generation."""
     print("\n" + "=" * 60)
-    print("示例1: 一键生成 HTML 报告")
+    print("Example 1: One-click HTML Report Generation")
     print("=" * 60)
     
     cerebro = bt.Cerebro()
     
-    # 加载数据
+    # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
+        print(f"Data file does not exist: {data_path}")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -69,38 +71,38 @@ def example_quick_report():
     cerebro.addstrategy(ReportSMAStrategy)
     cerebro.broker.setcash(100000)
     
-    # 添加报告所需的分析器
+    # Add analyzers required for reports
     cerebro.add_report_analyzers()
     
-    print("运行策略...")
+    print("Running strategy...")
     cerebro.run()
     
-    # 一键生成报告
+    # One-click report generation
     output_dir = os.path.join(os.path.dirname(__file__), 'output')
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, 'backtest_report.html')
     cerebro.generate_report(
         output_file,
         format='html',
-        user='示例用户',
-        memo='双均线交叉策略回测'
+        user='Example User',
+        memo='Dual Moving Average Crossover Strategy Backtest'
     )
     
-    print(f"✓ HTML 报告已生成: {output_file}")
+    print(f"✓ HTML report generated: {output_file}")
 
 
 def example_json_export():
-    """示例2: JSON 数据导出"""
+    """Example 2: JSON data export."""
     print("\n" + "=" * 60)
-    print("示例2: JSON 数据导出")
+    print("Example 2: JSON Data Export")
     print("=" * 60)
     
     cerebro = bt.Cerebro()
     
-    # 加载数据
+    # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
+        print(f"Data file does not exist: {data_path}")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -116,43 +118,43 @@ def example_json_export():
     
     cerebro.run()
     
-    # 生成 JSON 报告
+    # Generate JSON report
     output_dir = os.path.join(os.path.dirname(__file__), 'output')
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, 'backtest_report.json')
     cerebro.generate_report(output_file, format='json')
     
-    # 读取并显示部分内容
+    # Read and display partial content
     import json
     with open(output_file, 'r', encoding='utf-8') as f:
         report_data = json.load(f)
     
-    print(f"\nJSON 报告结构:")
+    print(f"\nJSON report structure:")
     for key in report_data.keys():
         print(f"  - {key}")
     
-    print(f"\n策略信息:")
+    print(f"\nStrategy information:")
     strategy = report_data.get('strategy', {})
-    print(f"  策略名称: {strategy.get('strategy_name')}")
-    print(f"  策略参数: {strategy.get('params')}")
+    print(f"  Strategy name: {strategy.get('strategy_name')}")
+    print(f"  Strategy params: {strategy.get('params')}")
     
-    print(f"\n✓ JSON 报告已生成: {output_file}")
+    print(f"\n✓ JSON report generated: {output_file}")
 
 
 def example_performance_calculator():
-    """示例3: 使用 PerformanceCalculator"""
+    """Example 3: Using PerformanceCalculator."""
     print("\n" + "=" * 60)
-    print("示例3: 使用 PerformanceCalculator 获取性能指标")
+    print("Example 3: Using PerformanceCalculator to Get Performance Metrics")
     print("=" * 60)
     
     from backtrader.reports import PerformanceCalculator
     
     cerebro = bt.Cerebro()
     
-    # 加载数据
+    # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
+        print(f"Data file does not exist: {data_path}")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -170,49 +172,49 @@ def example_performance_calculator():
     results = cerebro.run()
     strategy = results[0]
     
-    # 创建性能计算器
+    # Create performance calculator
     calc = PerformanceCalculator(strategy)
     
-    # 获取各类指标
-    print("\n收益指标 (PnL):")
+    # Get various metrics
+    print("\nProfit & Loss Metrics (PnL):")
     pnl = calc.get_pnl_metrics()
-    print(f"  初始资金: ${pnl.get('start_cash', 0):,.2f}")
-    print(f"  最终价值: ${pnl.get('end_value', 0):,.2f}")
-    print(f"  净利润: ${pnl.get('net_profit', 0):,.2f}")
-    print(f"  总收益率: {pnl.get('total_return', 0):.2%}")
+    print(f"  Initial capital: ${pnl.get('start_cash', 0):,.2f}")
+    print(f"  Final value: ${pnl.get('end_value', 0):,.2f}")
+    print(f"  Net profit: ${pnl.get('net_profit', 0):,.2f}")
+    print(f"  Total return: {pnl.get('total_return', 0):.2%}")
     
-    print("\n风险指标:")
+    print("\nRisk Metrics:")
     risk = calc.get_risk_metrics()
-    print(f"  最大回撤: {risk.get('max_pct_drawdown', 0):.2%}")
-    print(f"  夏普比率: {risk.get('sharpe_ratio', 'N/A')}")
+    print(f"  Max drawdown: {risk.get('max_pct_drawdown', 0):.2%}")
+    print(f"  Sharpe ratio: {risk.get('sharpe_ratio', 'N/A')}")
     
-    print("\n交易统计:")
+    print("\nTrade Statistics:")
     trades = calc.get_trade_metrics()
-    print(f"  交易总数: {trades.get('total_trades', 0)}")
-    print(f"  胜率: {trades.get('win_rate', 'N/A')}")
+    print(f"  Total trades: {trades.get('total_trades', 0)}")
+    print(f"  Win rate: {trades.get('win_rate', 'N/A')}")
     
-    print("\nSQN 评级:")
+    print("\nSQN Rating:")
     kpi = calc.get_kpi_metrics()
-    print(f"  SQN 分数: {kpi.get('sqn_score', 'N/A')}")
-    print(f"  SQN 评级: {kpi.get('sqn_human', 'N/A')}")
+    print(f"  SQN score: {kpi.get('sqn_score', 'N/A')}")
+    print(f"  SQN rating: {kpi.get('sqn_human', 'N/A')}")
     
-    print("\n✓ 性能指标获取完成")
+    print("\n✓ Performance metrics retrieval completed")
 
 
 def example_print_summary():
-    """示例4: 打印性能摘要"""
+    """Example 4: Print performance summary."""
     print("\n" + "=" * 60)
-    print("示例4: 打印性能摘要")
+    print("Example 4: Print Performance Summary")
     print("=" * 60)
     
     from backtrader.reports import ReportGenerator
     
     cerebro = bt.Cerebro()
     
-    # 加载数据
+    # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
+        print(f"Data file does not exist: {data_path}")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -229,41 +231,41 @@ def example_print_summary():
     
     results = cerebro.run()
     
-    # 打印摘要
+    # Print summary
     report = ReportGenerator(results[0])
     report.print_summary()
     
-    print("\n✓ 性能摘要打印完成")
+    print("\n✓ Performance summary printing completed")
 
 
 def example_sqn_rating():
-    """示例5: SQN 评级说明"""
+    """Example 5: SQN rating explanation."""
     print("\n" + "=" * 60)
-    print("示例5: SQN 评级说明")
+    print("Example 5: SQN Rating Explanation")
     print("=" * 60)
     
     from backtrader.reports import PerformanceCalculator
     
-    print("\nSQN (System Quality Number) 评级标准:")
+    print("\nSQN (System Quality Number) Rating Standards:")
     print("-" * 40)
     
     ratings = [
-        (1.0, "Poor (差)"),
-        (1.7, "Below Average (低于平均)"),
-        (2.0, "Average (平均)"),
-        (2.5, "Good (良好)"),
-        (3.5, "Excellent (优秀)"),
-        (6.0, "Superb (卓越)"),
-        (7.5, "Holy Grail (圣杯)"),
+        (1.0, "Poor"),
+        (1.7, "Below Average"),
+        (2.0, "Average"),
+        (2.5, "Good"),
+        (3.5, "Excellent"),
+        (6.0, "Superb"),
+        (7.5, "Holy Grail"),
     ]
     
     for sqn, expected in ratings:
         actual = PerformanceCalculator.sqn_to_rating(sqn)
         print(f"  SQN = {sqn:.1f} -> {actual}")
     
-    print("\nSQN 计算公式:")
-    print("  SQN = sqrt(交易次数) * (平均收益 / 收益标准差)")
-    print("\n评级范围:")
+    print("\nSQN Calculation Formula:")
+    print("  SQN = sqrt(number_of_trades) * (average_profit / profit_std_dev)")
+    print("\nRating Ranges:")
     print("  < 1.6:       Poor")
     print("  1.6 - 1.9:   Below Average")
     print("  1.9 - 2.4:   Average")
@@ -272,21 +274,21 @@ def example_sqn_rating():
     print("  5.0 - 6.9:   Superb")
     print("  >= 7.0:      Holy Grail")
     
-    print("\n✓ SQN 评级说明完成")
+    print("\n✓ SQN rating explanation completed")
 
 
 def example_pdf_report():
-    """示例6: 生成 PDF 报告"""
+    """Example 6: Generate PDF report."""
     print("\n" + "=" * 60)
-    print("示例6: 生成 PDF 报告")
+    print("Example 6: Generate PDF Report")
     print("=" * 60)
     
     cerebro = bt.Cerebro()
     
-    # 加载数据
+    # Load data
     data_path = os.path.join(os.path.dirname(__file__), '..', 'tests', 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print(f"数据文件不存在: {data_path}")
+        print(f"Data file does not exist: {data_path}")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -301,10 +303,10 @@ def example_pdf_report():
     cerebro.broker.setcash(100000)
     cerebro.add_report_analyzers()
     
-    print("运行策略...")
+    print("Running strategy...")
     cerebro.run()
     
-    # 生成 PDF 报告
+    # Generate PDF report
     output_dir = os.path.join(os.path.dirname(__file__), 'output')
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, 'backtest_report.pdf')
@@ -312,35 +314,35 @@ def example_pdf_report():
         cerebro.generate_report(
             output_file,
             format='pdf',
-            user='示例用户',
-            memo='双均线交叉策略回测 - PDF报告'
+            user='Example User',
+            memo='Dual Moving Average Crossover Strategy Backtest - PDF Report'
         )
-        print(f"✓ PDF 报告已生成: {output_file}")
+        print(f"✓ PDF report generated: {output_file}")
     except ImportError as e:
-        print(f"⚠ PDF 生成需要 weasyprint: pip install weasyprint")
-        print(f"  错误: {e}")
-        print("  提示: weasyprint 可能需要系统级依赖 (GTK, Pango 等)")
+        print(f"⚠ PDF generation requires weasyprint: pip install weasyprint")
+        print(f"  Error: {e}")
+        print("  Note: weasyprint may require system-level dependencies (GTK, Pango, etc.)")
     except Exception as e:
-        print(f"⚠ PDF 生成失败: {e}")
+        print(f"⚠ PDF generation failed: {e}")
 
 
 if __name__ == '__main__':
     print("=" * 60)
-    print("回测报告生成示例")
+    print("Backtest Report Generation Examples")
     print("=" * 60)
     
-    # 运行所有示例
-    example_sqn_rating()           # SQN 评级说明
-    example_quick_report()         # 生成 HTML 报告
-    example_json_export()          # 生成 JSON 报告
-    example_performance_calculator()  # 性能指标计算
-    example_print_summary()        # 打印性能摘要
-    example_pdf_report()           # 生成 PDF 报告
+    # Run all examples
+    example_sqn_rating()           # SQN rating explanation
+    example_quick_report()         # Generate HTML report
+    example_json_export()          # Generate JSON report
+    example_performance_calculator()  # Performance metrics calculation
+    example_print_summary()        # Print performance summary
+    example_pdf_report()           # Generate PDF report
     
     print("\n" + "=" * 60)
-    print("示例运行完成！")
+    print("Examples completed!")
     output_dir = os.path.join(os.path.dirname(__file__), 'output')
-    print(f"生成的文件位于: {output_dir}")
+    print(f"Generated files located at: {output_dir}")
     print("  - backtest_report.html")
     print("  - backtest_report.json")
     print("  - backtest_report.pdf")

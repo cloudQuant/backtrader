@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-实时功能模块
+Live functionality module.
 
-提供实时数据处理和客户端管理功能
+Provides real-time data processing and client management functionality.
 """
 
 from .client import LiveClient

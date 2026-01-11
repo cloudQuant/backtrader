@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-Bokeh 分析器模块
+Bokeh analyzers module.
 
-提供以下分析器：
-- LivePlotAnalyzer: 实时绘图分析器
-- RecorderAnalyzer: 数据记录分析器
+Provides the following analyzers:
+- LivePlotAnalyzer: Live plotting analyzer
+- RecorderAnalyzer: Data recording analyzer
 """
 
 from .plot import LivePlotAnalyzer

@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-Bokeh 主题系统
+Bokeh theme system.
 
-提供多种主题配置：
-- Blackly: 黑色主题
-- Tradimo: 白色主题
+Provides multiple theme configurations:
+- Blackly: Dark theme
+- Tradimo: Light theme
 """
 
 from .scheme import Scheme
