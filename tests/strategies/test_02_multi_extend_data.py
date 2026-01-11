@@ -1,4 +1,4 @@
-# 修复跨平台排序不一致后的预期值 (Mac和Ubuntu一致)
+# Expected values after fixing cross-platform sorting inconsistency (Mac and Ubuntu consistent)
 # 2025-10-13T00:00:00, self.bar_num = 1885
 # sharpe_ratio: 0.46882103593170665
 # annual_return: 0.056615798284517765
@@ -23,7 +23,7 @@ import numpy as np
 import pandas as pd
 import seaborn as sns
 
-# 设置中文字体
+# Set up Chinese font
 from matplotlib.font_manager import FontManager, FontProperties
 from matplotlib.ticker import FuncFormatter
 
@@ -36,22 +36,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script directory to avoid relative path reading failures"""
     search_paths = []
 
-    # 1. 当前目录（tests/strategies）
+    # 1. Current directory (tests/strategies)
     search_paths.append(BASE_DIR / filename)
 
-    # 2. tests 目录以及项目根目录
+    # 2. tests directory and project root directory
     search_paths.append(BASE_DIR.parent / filename)
     repo_root = BASE_DIR.parent.parent
     search_paths.append(repo_root / filename)
 
-    # 3. 常见的数据目录（examples、tests/datas）
+    # 3. Common data directories (examples, tests/datas)
     search_paths.append(repo_root / "examples" / filename)
     search_paths.append(repo_root / "tests" / "datas" / filename)
 
-    # 4. 环境变量 BACKTRADER_DATA_DIR 指定的目录
+    # 4. Directory specified by environment variable BACKTRADER_DATA_DIR
     data_dir = os.environ.get("BACKTRADER_DATA_DIR")
     if data_dir:
         search_paths.append(Path(data_dir) / filename)
@@ -65,63 +65,63 @@ def resolve_data_path(filename: str) -> Path:
         return fallback
 
     searched = " , ".join(str(path) for path in search_paths + [fallback.resolve()])
-    raise FileNotFoundError(f"未找到数据文件: {filename}. 已尝试路径: {searched}")
+    raise FileNotFoundError(f"Data file not found: {filename}. Tried paths: {searched}")
 
 
 def setup_chinese_font():
     """
-    智能设置跨平台的中文字体支持
-    返回最终使用的字体名称
+    Intelligently set up cross-platform Chinese font support
+    Returns the font name that was ultimately used
     """
-    # 获取当前操作系统
+    # Get current operating system
     system = platform.system()
 
-    # 定义各平台的字体优先级列表
+    # Define font priority list for each platform
     font_priority = {
         "Darwin": [  # macOS
-            "PingFang SC",  # 苹方，macOS 现代字体
-            "Heiti SC",  # 黑体-简，macOS
-            "Heiti TC",  # 黑体-繁
-            "STHeiti",  # 华文黑体
-            "Arial Unicode MS",  # 包含中文字符
+            "PingFang SC",  # PingFang, modern macOS font
+            "Heiti SC",  # Heiti-SC, macOS
+            "Heiti TC",  # Heiti-TC
+            "STHeiti",  # STHeiti
+            "Arial Unicode MS",  # Contains Chinese characters
         ],
         "Windows": [
-            "SimHei",  # 黑体，Windows
-            "Microsoft YaHei",  # 微软雅黑
-            "KaiTi",  # 楷体
-            "SimSun",  # 宋体
-            "FangSong",  # 仿宋
+            "SimHei",  # SimHei, Windows
+            "Microsoft YaHei",  # Microsoft YaHei
+            "KaiTi",  # KaiTi
+            "SimSun",  # SimSun
+            "FangSong",  # FangSong
         ],
         "Linux": [
-            "WenQuanYi Micro Hei",  # 文泉驿微米黑
-            "WenQuanYi Zen Hei",  # 文泉驿正黑
-            "Noto Sans CJK SC",  # 思源黑体
-            "DejaVu Sans",  # 备选
-            "AR PL UMing CN",  # 文鼎明体
+            "WenQuanYi Micro Hei",  # WenQuanYi Micro Hei
+            "WenQuanYi Zen Hei",  # WenQuanYi Zen Hei
+            "Noto Sans CJK SC",  # Noto Sans CJK SC
+            "DejaVu Sans",  # Fallback
+            "AR PL UMing CN",  # AR PL UMing CN
         ],
     }
 
-    # 获取系统所有可用字体
+    # Get all available fonts on the system
     fm = FontManager()
     available_fonts = [f.name for f in fm.ttflist]
 
-    # 根据当前平台选择字体列表
+    # Select font list based on current platform
     candidate_fonts = font_priority.get(system, [])
 
-    # 在可用字体中查找第一个匹配的候选字体
+    # Find the first matching candidate font among available fonts
     selected_font = None
     for font in candidate_fonts:
         if font in available_fonts:
             selected_font = font
             break
 
-    # 设置字体配置
+    # Set font configuration
     if selected_font:
         plt.rcParams["font.sans-serif"] = [selected_font] + plt.rcParams["font.sans-serif"]
         print(f"OK - Font set: {selected_font}")
         return selected_font
     else:
-        # 回退方案：使用系统默认 sans-serif 字体
+        # Fallback: Use system default sans-serif font
         fallback_fonts = ["DejaVu Sans", "Arial", "Liberation Sans"]
         available_fallback = [f for f in fallback_fonts if f in available_fonts]
 
@@ -134,53 +134,53 @@ def setup_chinese_font():
             return None
 
 
-plt.rcParams["font.sans-serif"] = [setup_chinese_font()]  # 用来正常显示中文标签
-plt.rcParams["axes.unicode_minus"] = False  # 用来正常显示负号
-# 忽略警告
+plt.rcParams["font.sans-serif"] = [setup_chinese_font()]  # Used to display Chinese labels properly
+plt.rcParams["axes.unicode_minus"] = False  # Used to display minus sign properly
+# Ignore warnings
 warnings.filterwarnings("ignore")
 
 
 class ExtendPandasFeed(PandasData):
     """
-    扩展的Pandas数据源，添加可转债特有的字段
+    Extended Pandas data source with convertible bond-specific fields
 
-    重要说明：
-    当DataFrame使用 set_index('datetime') 后，datetime列变成索引而非数据列。
-    因此列索引需要从0开始重新计算，不包括datetime。
+    Important note:
+    When DataFrame uses set_index('datetime'), the datetime column becomes an index, not a data column.
+    Therefore, column indices need to be recalculated starting from 0, excluding datetime.
 
-    DataFrame结构（set_index后）：
-    - 索引：datetime
-    - 列0：open
-    - 列1：high
-    - 列2：low
-    - 列3：close
-    - 列4：volume
-    - 列5：pure_bond_value
-    - 列6：convert_value
-    - 列7：pure_bond_premium_rate
-    - 列8：convert_premium_rate
+    DataFrame structure (after set_index):
+    - Index: datetime
+    - Column 0: open
+    - Column 1: high
+    - Column 2: low
+    - Column 3: close
+    - Column 4: volume
+    - Column 5: pure_bond_value
+    - Column 6: convert_value
+    - Column 7: pure_bond_premium_rate
+    - Column 8: convert_premium_rate
     """
 
     params = (
-        ("datetime", None),  # datetime是索引，不是数据列
-        ("open", 0),  # 第1列 -> 索引0
-        ("high", 1),  # 第2列 -> 索引1
-        ("low", 2),  # 第3列 -> 索引2
-        ("close", 3),  # 第4列 -> 索引3
-        ("volume", 4),  # 第5列 -> 索引4
-        ("openinterest", -1),  # 不存在该列
-        ("pure_bond_value", 5),  # 第6列 -> 索引5
-        ("convert_value", 6),  # 第7列 -> 索引6
-        ("pure_bond_premium_rate", 7),  # 第8列 -> 索引7
-        ("convert_premium_rate", 8),  # 第9列 -> 索引8
+        ("datetime", None),  # datetime is the index, not a data column
+        ("open", 0),  # Column 1 -> Index 0
+        ("high", 1),  # Column 2 -> Index 1
+        ("low", 2),  # Column 3 -> Index 2
+        ("close", 3),  # Column 4 -> Index 3
+        ("volume", 4),  # Column 5 -> Index 4
+        ("openinterest", -1),  # This column does not exist
+        ("pure_bond_value", 5),  # Column 6 -> Index 5
+        ("convert_value", 6),  # Column 7 -> Index 6
+        ("pure_bond_premium_rate", 7),  # Column 8 -> Index 7
+        ("convert_premium_rate", 8),  # Column 9 -> Index 8
     )
 
-    # 定义扩展的数据线
+    # Define extended data lines
     lines = ("pure_bond_value", "convert_value", "pure_bond_premium_rate", "convert_premium_rate")
 
 
 def clean_data():
-    """清洗可转债数据"""
+    """Clean convertible bond data"""
     df = pd.read_csv(resolve_data_path("bond_merged_all_data.csv"))
     df.columns = [
         "symbol",
@@ -218,7 +218,7 @@ class BondConvertTwoFactor(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
-        """log信息的功能"""
+        """Function for logging information"""
         if dt is None:
             try:
                 dt_val = self.datas[0].datetime[0]
@@ -235,12 +235,12 @@ class BondConvertTwoFactor(bt.Strategy):
             print("%s" % txt)
 
     def __init__(self, *args, **kwargs):
-        # 一般用于计算指标或者预先加载数据，定义变量使用
+        # Generally used for calculating indicators or preloading data, and defining variables
         super().__init__(*args, **kwargs)
         self.bar_num = 0
-        # 保存仓位
+        # Save positions
         self.position_dict = {}
-        # 当前有哪些可转债
+        # Current convertible bonds
         self.stock_dict = {}
 
     def prenext(self):
@@ -250,12 +250,12 @@ class BondConvertTwoFactor(bt.Strategy):
         self.log(f"self.bar_num = {self.bar_num}")
 
     def next(self):
-        # 假设有100万资金，每次成份股调整，每个股票使用1万元
+        # Assume we have 1 million capital, each time components are adjusted, each stock uses 10,000 yuan
         self.bar_num += 1
         if self.bar_num == 1:
             print(f"DEBUG: next() called, bar_num = {self.bar_num}")
         # self.log(f"self.bar_num = {self.bar_num}")
-        # 前一交易日和当前的交易日
+        # Previous trading day and current trading day
         pre_date = self.datas[0].datetime.date(-1).strftime("%Y-%m-%d")
         current_date = self.datas[0].datetime.date(0).strftime("%Y-%m-%d")
         # 2025-01-01
@@ -272,51 +272,51 @@ class BondConvertTwoFactor(bt.Strategy):
             # Log the exception for debugging
             next_month = current_month
             print(f"Unexpected exception in next_month calculation: {e}")
-        # 总的价值
+        # Total value
         total_value = self.broker.get_value()
         total_cash = self.broker.get_cash()
         # self.log(f"total_value : {total_value}")
-        # 第一个数据是指数，校正时间使用，不能用于交易
-        # 循环所有的股票,计算股票的数目
+        # The first data is the index, used for time correction, not for trading
+        # Loop through all stocks and calculate the number of stocks
         self.stock_dict = {}
         for data in self.datas[1:]:
             data_date = data.datetime.date(0).strftime("%Y-%m-%d")
-            # 如果两个日期相等，说明股票在交易
+            # If the two dates are equal, the stock is trading
             if current_date == data_date:
                 stock_name = data._name
                 if stock_name not in self.stock_dict:
                     self.stock_dict[stock_name] = 1
 
-        # # 如果入选的股票小于100支，不使用策略
+        # # If selected stocks are less than 100, do not use the strategy
         # if len(self.stock_dict) < 30:
         #     return
         total_target_stock_num = len(self.stock_dict)
-        # 现在持仓的股票数目
+        # Current number of holding stocks
         total_holding_stock_num = len(self.position_dict)
 
-        # 如果今天是调仓日
+        # If today is rebalancing day
         # self.log(f"current_month={current_month}, next_month={next_month}")
         if current_month != next_month:
-            # self.log(f"当前可交易的资产数目为:{total_target_stock_num}, 当前持仓的资产数目:{total_holding_stock_num}")
-            # 循环资产
+            # self.log(f"Current number of tradable assets: {total_target_stock_num}, Current number of holding assets: {total_holding_stock_num}")
+            # Loop through assets
             position_name_list = list(self.position_dict.keys())
             for asset_name in position_name_list:
                 data = self.getdatabyname(asset_name)
                 size = self.getposition(data).size
-                # 如果有仓位
+                # If there is a position
                 if size != 0:
                     self.close(data)
                     if data._name in self.position_dict:
                         self.position_dict.pop(data._name)
 
-                # 已经下单，但是订单没有成交
+                # Order has been placed but not executed
                 if data._name in self.position_dict and size == 0:
                     order = self.position_dict[data._name]
                     self.cancel(order)
                     self.position_dict.pop(data._name)
-            # 计算因子值
+            # Calculate factor values
             result = self.get_target_symbol()
-            # 根据计算出来的累计收益率进行排序，选出前10%的股票做多，后10%的股票做空
+            # Sort by calculated cumulative return, select top 10% stocks to go long, bottom 10% stocks to go short
             # new_result = sorted(result, key=lambda x: x[1])
             # self.log(f"target_result: {new_result}")
             if self.p.hold_percent > 1:
@@ -327,17 +327,17 @@ class BondConvertTwoFactor(bt.Strategy):
             self.log(
                 f"len(self.datas)={len(self.datas)}, total_holding_stock_num={total_holding_stock_num}, len(result) = {len(result)}, len(buy_list) = {len(buy_list)}"
             )
-            # 根据计算出来的信号，买卖相应的资产
+            # Buy and sell corresponding assets based on calculated signals
             for data_name, _cumsum_rate in buy_list:
                 data = self.getdatabyname(data_name)
-                # 计算理论上的手数
+                # Calculate theoretical number of lots
                 now_value = total_value / num
                 lots = now_value / data.close[0]
-                # lots = int(lots / 100) * 100  # 计算能下的手数，取整数
+                # lots = int(lots / 100) * 100  # Calculate the number of lots that can be placed, take integer
                 # self.log(f"buy {data_name} : {lots}, {bt.num2date(data.datetime[0])}")
                 order = self.buy(data, size=lots)
                 self.position_dict[data_name] = order
-        # 过期订单关闭
+        # Close expired orders
         self.expire_order_close()
 
     def expire_order_close(self):
@@ -381,10 +381,10 @@ class BondConvertTwoFactor(bt.Strategy):
                     pass
 
     def get_target_symbol(self):
-        # self.log("调用get_target_symbol函数")
-        # 根据价格和溢价率进行打分
-        # 按照价格从低到高进行排序打分,按照溢价率从低到高进行排序打分,然后按照每个50%的权重进行打分，根据打分对可转债进行排序
-        # 返回结果是一个list of list, [[data1, score1], [data2, score2] ... ]
+        # self.log("Call get_target_symbol function")
+        # Score based on price and premium rate
+        # Sort and score by price from low to high, sort and score by premium rate from low to high, then weight each by 50% to score convertible bonds
+        # Return result is a list of lists, [[data1, score1], [data2, score2] ... ]
         data_name_list = []
         close_list = []
         rate_list = []
@@ -397,29 +397,29 @@ class BondConvertTwoFactor(bt.Strategy):
             close_list.append(close)
             rate_list.append(rate)
 
-        # 创建DataFrame
+        # Create DataFrame
         df = pd.DataFrame({"data_name": data_name_list, "close": close_list, "rate": rate_list})
 
-        # # 对价格进行排序并打分（从低到高，排名越靠前分数越低）
+        # # Sort and score price (from low to high, lower ranking gets lower score)
         # df['close_score'] = df['close'].rank(method='min')
         #
-        # # 对溢价率进行排序并打分（从低到高，排名越靠前分数越低）
+        # # Sort and score premium rate (from low to high, lower ranking gets lower score)
         # df['rate_score'] = df['rate'].rank(method='min')
-        # 对价格进行排序并打分（从低到高，排名越靠前分数越低）
+        # Sort and score price (from low to high, lower ranking gets lower score)
         df["close_score"] = df["close"].rank(method="average")
-        # 对溢价率进行排序并打分（从低到高，排名越靠前分数越低）
+        # Sort and score premium rate (from low to high, lower ranking gets lower score)
         df["rate_score"] = df["rate"].rank(method="average")
-        # 计算综合得分（使用权重）
+        # Calculate comprehensive score (using weights)
         df["total_score"] = (
             df["close_score"] * self.p.first_factor_weight
             + df["rate_score"] * self.p.second_factor_weight
         )
         df = df.sort_values(by=["total_score", "data_name"], ascending=[False, True])
         # print(df)
-        # 转换成需要的结果格式 [[data, score], ...]
+        # Convert to required result format [[data, score], ...]
         result = []
         for _, row in df.iterrows():
-            # 通过data_name找回对应的data对象
+            # Find corresponding data object through data_name
             # data = self.getdatabyname(row['data_name'])
             result.append([row["data_name"], row["total_score"]])
 
@@ -427,7 +427,7 @@ class BondConvertTwoFactor(bt.Strategy):
 
     def notify_order(self, order):
         if order.status in [order.Submitted, order.Accepted]:
-            # order被提交和接受
+            # Order has been submitted and accepted
             return
         if order.status == order.Rejected:
             self.log(f"order is rejected : order_ref:{order.ref}  order_info:{order.info}")
@@ -455,7 +455,7 @@ class BondConvertTwoFactor(bt.Strategy):
                 )
 
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        # Output information when a trade ends
         if trade.isclosed:
             self.log(
                 "closed symbol is : {} , total_profit : {} , net_profit : {}".format(
@@ -468,20 +468,20 @@ class BondConvertTwoFactor(bt.Strategy):
 
 def test_strategy(max_bonds=None, stdstats=True):
     """
-    运行可转债双低策略回测
+    Run convertible bond double-low strategy backtest
 
-    参数:
-        max_bonds: 最大添加的可转债数量，None表示添加所有。用于测试时可设置较小值
-        stdstats: 是否启用标准统计观察者（默认True）
-                 True: 显示现金、市值、买卖点等标准统计
-                 False: 禁用标准统计，可能稍微提升性能
+    Parameters:
+        max_bonds: Maximum number of convertible bonds to add, None means add all. Can be set to a smaller value for testing
+        stdstats: Whether to enable standard statistics observers (default True)
+                 True: Display standard statistics such as cash, market value, buy/sell points
+                 False: Disable standard statistics, may slightly improve performance
     """
-    # 添加cerebro
-    # 修复说明：之前需要设置stdstats=False是因为ExtendPandasFeed的列索引定义错误
-    # 现已修复，可以正常使用stdstats=True
+    # Add cerebro
+    # Fix note: Previously needed to set stdstats=False because ExtendPandasFeed column index definition was wrong
+    # Now fixed, can use stdstats=True normally
     cerebro = bt.Cerebro(stdstats=stdstats)
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(BondConvertTwoFactor)
     params = dict(
         fromdate=datetime.datetime(2023, 1, 1),
@@ -489,49 +489,49 @@ def test_strategy(max_bonds=None, stdstats=True):
         timeframe=bt.TimeFrame.Days,
         dtformat="%Y-%m-%d",
     )
-    # 添加指数数据
-    print("正在加载指数数据...")
+    # Add index data
+    print("Loading index data...")
     index_data = pd.read_csv(resolve_data_path("bond_index_000000.csv"))
     index_data.index = pd.to_datetime(index_data["datetime"])
     index_data = index_data[index_data.index > pd.to_datetime("2023-01-01")]
     index_data = index_data.drop(["datetime"], axis=1)
-    print(f"指数数据范围: {index_data.index[0]} 至 {index_data.index[-1]}, 共 {len(index_data)} 条")
+    print(f"Index data range: {index_data.index[0]} to {index_data.index[-1]}, total {len(index_data)} records")
 
     feed = ExtendPandasFeed(dataname=index_data)
     cerebro.adddata(feed, name="000000")
 
-    # 清洗数据并添加可转债数据
-    print("\n正在加载可转债数据...")
+    # Clean data and add convertible bond data
+    print("\nLoading convertible bond data...")
     datas = clean_data()
-    print(f"总共有 {len(datas)} 只可转债")
+    print(f"Total {len(datas)} convertible bonds")
 
     added_count = 0
     for symbol, data in datas.items():
         if len(data) > 30:
-            # 如果设置了最大数量限制，达到限制后停止添加
+            # If maximum count limit is set, stop adding when limit is reached
             if max_bonds is not None and added_count >= max_bonds:
                 break
 
             feed = ExtendPandasFeed(dataname=data)
-            # 添加合约数据
+            # Add contract data
             cerebro.adddata(feed, name=symbol)
             added_count += 1
             if added_count > 10:
                 break
-            # 添加交易费用
+            # Add transaction fees
             comm = ComminfoFuturesPercent(commission=0.0001, margin=0.1, mult=1)
             cerebro.broker.addcommissioninfo(comm, name=symbol)
 
-            # 每添加100个打印一次进度
+            # Print progress every 100 additions
             if added_count % 100 == 0:
-                print(f"已添加 {added_count} 只可转债...")
+                print(f"Added {added_count} convertible bonds...")
 
-    print(f"\n成功添加 {added_count} 只可转债数据")
+    print(f"\nSuccessfully added {added_count} convertible bonds")
 
-    # 添加资金
+    # Add capital
     cerebro.broker.setcash(100000000.0)
-    print("\n开始运行回测...")
-    # 添加分析器
+    print("\nStarting backtest...")
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
@@ -539,7 +539,7 @@ def test_strategy(max_bonds=None, stdstats=True):
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
     cerebro.addanalyzer(bt.analyzers.PyFolio, _name="pyfolio")
     # cerebro.addanalyzer(bt.analyzers.PyFolio)
-    # 运行回测
+    # Run backtest
     print(f"DEBUG: About to run cerebro with {len(cerebro.datas)} data feeds")
     try:
         results = cerebro.run()
@@ -556,7 +556,7 @@ def test_strategy(max_bonds=None, stdstats=True):
     value_df["date"] = [i.date() for i in value_df["datetime"]]
     value_df = value_df.drop_duplicates("date", keep="last")
     value_df = value_df[["value"]]
-    # value_df.to_csv("./result/参数优化结果/" + file_name + ".csv")
+    # value_df.to_csv("./result/parameter_optimization_results/" + file_name + ".csv")
     sharpe_ratio = results[0].analyzers.my_sharpe.get_analysis()["sharperatio"]
     annual_return = results[0].analyzers.my_returns.get_analysis()["rnorm"]
     max_drawdown = results[0].analyzers.my_drawdown.get_analysis()["max"]["drawdown"] / 100
@@ -573,85 +573,85 @@ def test_strategy(max_bonds=None, stdstats=True):
     assert abs(sharpe_ratio - (-6.232087920949364)) < 1e-6, f"Expected sharpe_ratio=-6.232087920949364, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0006854281197833842)) < 1e-6, f"Expected annual_return=-0.0006854281197833842, got {annual_return}"
     assert abs(max_drawdown - 0.005450401808403724) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
-    # 注意：测试函数不应返回值，否则pytest会警告
+    # Note: Test function should not return value, otherwise pytest will warn
 
 
 if __name__ == "__main__":
-    # 如果需要生成指数数据，取消下面的注释
-    # from 清洗数据 import generate_index_data
+    # If you need to generate index data, uncomment the following
+    # from clean_data import generate_index_data
     # generate_index_data(input_file='bond_merged_all_data.csv', output_file='bond_index_000000.csv')
 
-    # 运行回测策略
-    # 参数说明:
-    #   max_bonds=None: 添加所有可转债（可能比较慢）
-    #   max_bonds=50: 只添加前50只可转债（用于快速测试）
-    #   max_bonds=200: 添加200只可转债（推荐用于正式回测）
+    # Run backtest strategy
+    # Parameter description:
+    #   max_bonds=None: Add all convertible bonds (may be slow)
+    #   max_bonds=50: Add only the first 50 convertible bonds (for quick testing)
+    #   max_bonds=200: Add 200 convertible bonds (recommended for formal backtesting)
 
     print("=" * 60)
-    print("可转债双低策略回测系统")
+    print("Convertible Bond Double-Low Strategy Backtest System")
     print("=" * 60)
 
-    # 运行回测 - 添加所有可转债
-    # 注意：由于有958只可转债，运行可能需要较长时间
+    # Run backtest - add all convertible bonds
+    # Note: With 958 convertible bonds, running may take a long time
     test_strategy(max_bonds=None)
     # value_df = value_df[(value_df.index>pd.to_datetime("2025-01-01"))&(value_df.index<pd.to_datetime("2025-07-31"))]
     print("\n" + "=" * 60)
-    print("回测结束")
+    print("Backtest completed")
     print("=" * 60)
-    # # 创建图形
+    # # Create figure
     # plt.figure(figsize=(14, 7))
     #
-    # # 绘制价值曲线
+    # # Plot value curve
     # plt.plot(value_df.index, value_df['value'], linewidth=2, color='#1f77b4')
     #
-    # # 设置标题和标签
-    # plt.title('投资组合价值曲线', fontsize=16, pad=20)
-    # plt.xlabel('日期', fontsize=12)
-    # plt.ylabel('组合价值 (元)', fontsize=12)
+    # # Set title and labels
+    # plt.title('Portfolio Value Curve', fontsize=16, pad=20)
+    # plt.xlabel('Date', fontsize=12)
+    # plt.ylabel('Portfolio Value (Yuan)', fontsize=12)
     #
     #
-    # # 设置y轴格式为科学计数法
+    # # Set y-axis format to scientific notation
     # def format_sci(x, pos):
-    #     return f"{x / 1e8:.2f}亿"
+    #     return f"{x / 1e8:.2f}Yi"
     #
     #
     # plt.gca().yaxis.set_major_formatter(FuncFormatter(format_sci))
     #
-    # # 设置x轴日期格式
+    # # Set x-axis date format
     # plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
     # plt.gca().xaxis.set_major_locator(mdates.YearLocator())
-    # plt.gcf().autofmt_xdate()  # 自动旋转日期标签
+    # plt.gcf().autofmt_xdate()  # Auto-rotate date labels
     #
-    # # 添加网格
+    # # Add grid
     # plt.grid(True, linestyle='--', alpha=0.6)
     #
-    # # 添加起始和结束点的标注
+    # # Add start and end point annotations
     # start_date = value_df.index[0].strftime('%Y-%m-%d')
     # end_date = value_df.index[-1].strftime('%Y-%m-%d')
-    # start_value = f"{value_df['value'].iloc[0] / 1e8:.2f}亿"
-    # end_value = f"{value_df['value'].iloc[-1] / 1e8:.2f}亿"
+    # start_value = f"{value_df['value'].iloc[0] / 1e8:.2f}Yi"
+    # end_value = f"{value_df['value'].iloc[-1] / 1e8:.2f}Yi"
     #
-    # plt.annotate(f'起始: {start_date}\n{start_value}',
+    # plt.annotate(f'Start: {start_date}\n{start_value}',
     #              xy=(value_df.index[0], value_df['value'].iloc[0]),
     #              xytext=(10, 10), textcoords='offset points',
     #              bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
     #
-    # plt.annotate(f'结束: {end_date}\n{end_value}',
+    # plt.annotate(f'End: {end_date}\n{end_value}',
     #              xy=(value_df.index[-1], value_df['value'].iloc[-1]),
     #              xytext=(-100, 10), textcoords='offset points',
     #              bbox=dict(boxstyle='round,pad=0.5', fc='yellow', alpha=0.5))
     #
-    # # 计算并显示收益率
+    # # Calculate and display returns
     # total_return = (value_df['value'].iloc[-1] / value_df['value'].iloc[0] - 1) * 100
     # annual_return = (value_df['value'].iloc[-1] / value_df['value'].iloc[0]) ** (252 / len(value_df)) - 1
     # annual_return = annual_return * 100
     #
     # plt.figtext(0.15, 0.15,
-    #             f"累计收益率: {total_return:.2f}%\n年化收益率: {annual_return:.2f}%",
+    #             f"Cumulative Return: {total_return:.2f}%\nAnnual Return: {annual_return:.2f}%",
     #             bbox=dict(facecolor='white', alpha=0.8, edgecolor='gray', boxstyle='round,pad=0.5'))
     #
-    # # 调整布局
+    # # Adjust layout
     # plt.tight_layout()
     #
-    # # 显示图形
+    # # Show figure
     # plt.show()

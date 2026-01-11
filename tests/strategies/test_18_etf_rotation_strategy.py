@@ -1,8 +1,8 @@
-"""ETF轮动策略测试用例
+"""ETF Rotation Strategy Test Case
 
-使用上证50ETF和创业板ETF数据测试轮动策略
-- 使用 PandasDirectData 加载ETF日线数据
-- 基于均线比值的ETF轮动策略
+Tests rotation strategy using SSE 50 ETF and ChiNext ETF data
+- Uses PandasDirectData to load ETF daily data
+- ETF rotation strategy based on moving average ratio
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -18,7 +18,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on script directory to avoid relative path failures"""
     repo_root = BASE_DIR.parent.parent
     search_paths = [
         BASE_DIR / "datas" / filename,
@@ -35,27 +35,27 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class EtfRotationStrategy(bt.Strategy):
-    # 策略作者
+    # Strategy author
     author = 'yunjinqi'
-    # 策略的参数
-    params = (  ("ma_period",20),                
+    # Strategy parameters
+    params = (  ("ma_period",20),
             )
-    # log相应的信息
+    # Log corresponding information
     def log(self, txt, dt=None):
         ''' Logging function fot this strategy'''
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
-    # 初始化策略的数据
+    # Initialize strategy data
     def __init__(self):
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
-        # 计算两个均线,直接写出，太多可以用字典保存遍历结果，参考以前的股票文章
+        # Calculate two moving averages, written directly. For many indicators, use a dictionary to save iteration results, refer to previous stock articles
         self.sz_ma = bt.indicators.SMA(self.datas[0].close, period=self.p.ma_period)
         self.cy_ma = bt.indicators.SMA(self.datas[1].close, period=self.p.ma_period)
         
@@ -63,88 +63,88 @@ class EtfRotationStrategy(bt.Strategy):
         
         
     def prenext(self):
-        # 由于期货数据有几千个，每个期货交易日期不同，并不会自然进入next
-        # 需要在每个prenext中调用next函数进行运行
+        # Since futures data has thousands of records and each futures trading date is different, it won't naturally enter next
+        # Need to call next function in each prenext to run
         self.next() 
         
         
-    # 在next中添加相应的策略逻辑
+    # Add corresponding strategy logic in next
     def next(self):
         self.bar_num += 1
-        # 两个ETF的数据
+        # Data for the two ETFs
         sz_data = self.datas[0]
         cy_data = self.datas[1]
-        # 计算当前是否有持仓
+        # Calculate current positions
         self.sz_pos = self.getposition(sz_data).size
         self.cy_pos = self.getposition(cy_data).size
-        # 获取两个当前的价格
+        # Get current prices for both
         sz_close = sz_data.close[0]
         cy_close = cy_data.close[0]
         # self.log(f"{sz_close/self.sz_ma[0]},{cy_close/self.cy_ma[0]}")
-        # 分析是否都小于均线，如果都小于均线，并且有持仓，平仓
+        # Analyze if both are below moving averages. If both below MA and have positions, close positions
         if sz_close<self.sz_ma[0] and cy_close<self.cy_ma[0]:
             if self.sz_pos>0:
                 self.close(sz_data)
             if self.cy_pos>0:
                 self.close(cy_data)
-        # 如果两个中有一个大于均线
+        # If one of the two is above the moving average
         if sz_close>self.sz_ma[0] or cy_close>self.cy_ma[0]:
-            # 如果当前sz动量指标比较大
+            # If current sz momentum indicator is larger
             if sz_close/self.sz_ma[0]>cy_close/self.cy_ma[0]:
-                
-                # 如果当前没有仓位，那么，就直接买入sz
+
+                # If currently has no position, buy sz directly
                 if self.sz_pos==0 and self.cy_pos==0:
-                    # 获取账户价值
+                    # Get account value
                     total_value = self.broker.get_value()
-                    # 计算买入的量
+                    # Calculate buy quantity
                     lots = int(0.95*total_value/sz_close)
-                    # 买入
+                    # Buy
                     self.buy(sz_data, size=lots)
                     self.buy_count += 1
                 
-                # 如果现在不是持有的sz,而是持有的cy,那么，就平掉创业板，然后买入sz
+                # If currently not holding sz but holding cy, close ChiNext position and buy sz
                 if self.sz_pos == 0 and self.cy_pos > 0:
-                    # 平仓创业板ETF
+                    # Close ChiNext ETF position
                     self.close(cy_data)
                     self.sell_count += 1
-                    # 获取账户价值
+                    # Get account value
                     total_value = self.broker.get_value()
-                    # 计算买入的量
+                    # Calculate buy quantity
                     lots = int(0.95 * total_value / sz_close)
-                    # 买入
+                    # Buy
                     self.buy(sz_data, size=lots)
                     self.buy_count += 1
                 
-                # 如果当前已经买入了sz,忽略
+                # If already holding sz, ignore
                 if self.sz_pos > 0:
                     pass
-                
-            # 如果当前cy动量指标比较大
+
+            # If current cy momentum indicator is larger
             if sz_close / self.sz_ma[0] < cy_close / self.cy_ma[0]:
-                # 如果当前没有仓位，那么，就直接买入cy
+                # If currently has no position, buy cy directly
                 if self.sz_pos == 0 and self.cy_pos == 0:
-                    # 获取账户价值
+                    # Get account value
                     total_value = self.broker.get_value()
-                    # 计算买入的量
+                    # Calculate buy quantity
                     lots = int(0.95 * total_value / cy_close)
-                    # 买入
+                    # Buy
                     self.buy(cy_data, size=lots)
                     self.buy_count += 1
                 
-                # 如果现在不是持有的sz,而是持有的cy,那么，就平掉上证50，然后买入cy
+                # If currently not holding cy but holding sz, close SSE 50 position and buy cy
                 if self.sz_pos > 0 and self.cy_pos == 0:
-                    # 平仓上证50ETF
+                    # Close SSE 50 ETF position
                     self.close(sz_data)
                     self.sell_count += 1
-                    # 获取账户价值
+                    # Get account value
                     total_value = self.broker.get_value()
-                    # 计算买入的量
+                    # Calculate buy quantity
                     lots = int(0.95 * total_value / cy_close)
-                    # 买入
+                    # Buy
                     self.buy(cy_data, size=lots)
                     self.buy_count += 1
-                
-                # 如果当前已经买入了cy,忽略
+
+                # If already holding cy, ignore
                 if self.cy_pos > 0:
                     pass
             
@@ -179,7 +179,7 @@ class EtfRotationStrategy(bt.Strategy):
                 self.log(f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
     
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        # Output information when a trade ends
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}' .format(
                             trade.getdataname(),trade.pnl, trade.pnlcomm))
@@ -195,9 +195,9 @@ class EtfRotationStrategy(bt.Strategy):
 
 
 def load_etf_data(filename: str) -> pd.DataFrame:
-    """加载ETF数据
-    
-    数据格式: FSRQ(日期), 收盘价
+    """Load ETF data
+
+    Data format: FSRQ(date), closing price
     """
     df = pd.read_csv(resolve_data_path(filename), skiprows=1, header=None)
     df.columns = ['datetime', 'close']
@@ -213,46 +213,46 @@ def load_etf_data(filename: str) -> pd.DataFrame:
 
 
 def test_etf_rotation_strategy():
-    """测试ETF轮动策略
-    
-    使用上证50ETF和创业板ETF数据进行回测
+    """Test ETF rotation strategy
+
+    Backtest using SSE 50 ETF and ChiNext ETF data
     """
     cerebro = bt.Cerebro(stdstats=True)
 
-    # 加载上证50ETF数据
-    print("正在加载上证50ETF数据...")
+    # Load SSE 50 ETF data
+    print("Loading SSE 50 ETF data...")
     df1 = load_etf_data("上证50ETF.csv")
     df1 = df1[df1.index >= pd.to_datetime("2011-09-20")]
-    print(f"上证50ETF数据范围: {df1.index[0]} 至 {df1.index[-1]}, 共 {len(df1)} 条")
+    print(f"SSE 50 ETF data range: {df1.index[0]} to {df1.index[-1]}, total {len(df1)} records")
     feed1 = bt.feeds.PandasDirectData(dataname=df1)
     cerebro.adddata(feed1, name="sz")
 
-    # 加载创业板ETF数据
-    print("正在加载创业板ETF数据...")
+    # Load ChiNext ETF data
+    print("Loading ChiNext ETF data...")
     df2 = load_etf_data("易方达创业板ETF.csv")
-    print(f"创业板ETF数据范围: {df2.index[0]} 至 {df2.index[-1]}, 共 {len(df2)} 条")
+    print(f"ChiNext ETF data range: {df2.index[0]} to {df2.index[-1]}, total {len(df2)} records")
     feed2 = bt.feeds.PandasDirectData(dataname=df2)
     cerebro.adddata(feed2, name="cy")
 
-    # 设置初始资金和手续费
+    # Set initial capital and commission
     cerebro.broker.setcash(50000.0)
     cerebro.broker.setcommission(commission=0.0002, stocklike=True)
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(EtfRotationStrategy, ma_period=20)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    # 运行回测
-    print("\n开始运行回测...")
+    # Run backtest
+    print("\nStarting backtest...")
     results = cerebro.run()
 
-    # 获取结果
+    # Get results
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
     annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
@@ -261,9 +261,9 @@ def test_etf_rotation_strategy():
     total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印结果
+    # Print results
     print("\n" + "=" * 50)
-    print("ETF轮动策略回测结果:")
+    print("ETF Rotation Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -274,23 +274,23 @@ def test_etf_rotation_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # 断言测试结果 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assert test results - using exact assertions
+    # final_value tolerance: 0.01, other indicators tolerance: 1e-6
     assert strat.bar_num == 2600, f"Expected bar_num=2600, got {strat.bar_num}"
     assert strat.buy_count > 0, f"Expected buy_count > 0, got {strat.buy_count}"
     assert strat.sell_count > 0, f"Expected sell_count > 0, got {strat.sell_count}"
     assert total_trades > 0, f"Expected total_trades > 0, got {total_trades}"
-    # 注意: sharpe_ratio 可能因平台差异略有不同，使用较宽松的容差
+    # Note: sharpe_ratio may vary slightly due to platform differences, using looser tolerance
     assert sharpe_ratio is None or abs(sharpe_ratio - 0.54) < 0.5, f"Expected sharpe_ratio around 0.54, got {sharpe_ratio}"
     assert abs(annual_return - 0.16) < 0.02, f"Expected annual_return=0.16, got {annual_return}"
     assert abs(max_drawdown - 0.32) < 0.05, f"Expected max_drawdown=0.32, got {max_drawdown}"
     assert abs(final_value - 235146) < 5000, f"Expected final_value=235146, got {final_value}"
 
-    print("\n所有测试通过!")
+    print("\nAll tests passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("ETF轮动策略测试")
+    print("ETF Rotation Strategy Test")
     print("=" * 60)
     test_etf_rotation_strategy()

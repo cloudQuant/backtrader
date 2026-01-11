@@ -1,13 +1,13 @@
 """Line Operations Test Cases
 
-测试 backtrader 指标之间的向量操作（加减乘除）
-使用随机生成的数据，设定seed确保可重复性
+Tests vector operations (addition, subtraction, multiplication, division) between backtrader indicators.
+Uses randomly generated data with a fixed seed to ensure reproducibility.
 
-测试用例:
-1. MACD EMA 指标计算 (ema1 - ema2, dif - dea, * 2)
-2. Keltner Channel 指标计算 ((high + low + close) / 3, middle_line + atr * mult)
-3. TimeLine + SMA 指标计算
-4. Highest/Lowest 指标计算
+Test cases:
+1. MACD EMA indicator calculation (ema1 - ema2, dif - dea, * 2)
+2. Keltner Channel indicator calculation ((high + low + close) / 3, middle_line + atr * mult)
+3. TimeLine + SMA indicator calculation
+4. Highest/Lowest indicator calculation
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,17 +20,17 @@ import backtrader as bt
 
 
 # ============================================================================
-# 辅助函数：生成随机 OHLCV 数据
+# Helper function: Generate random OHLCV data
 # ============================================================================
 def generate_random_ohlcv_data(num_bars=100, seed=42):
-    """生成随机的 OHLCV 数据
-    
+    """Generate random OHLCV data
+
     Args:
-        num_bars: 生成的bar数量
-        seed: 随机种子，确保可重复性
-        
+        num_bars: Number of bars to generate
+        seed: Random seed to ensure reproducibility
+
     Returns:
-        list of dict: OHLCV 数据列表
+        list of dict: List of OHLCV data
     """
     random.seed(seed)
     
@@ -39,17 +39,17 @@ def generate_random_ohlcv_data(num_bars=100, seed=42):
     base_date = datetime.datetime(2020, 1, 1, 9, 0, 0)
     
     for i in range(num_bars):
-        # 生成随机价格变动
+        # Generate random price changes
         change = random.uniform(-2, 2)
-        base_price = max(50, base_price + change)  # 确保价格不会太低
-        
-        # 生成 OHLC
+        base_price = max(50, base_price + change)  # Ensure price doesn't get too low
+
+        # Generate OHLC
         open_price = base_price + random.uniform(-1, 1)
         high_price = max(open_price, base_price) + random.uniform(0, 2)
         low_price = min(open_price, base_price) - random.uniform(0, 2)
         close_price = base_price + random.uniform(-1, 1)
-        
-        # 确保 high >= open, close 且 low <= open, close
+
+        # Ensure high >= open, close and low <= open, close
         high_price = max(high_price, open_price, close_price)
         low_price = min(low_price, open_price, close_price)
         
@@ -71,7 +71,7 @@ def generate_random_ohlcv_data(num_bars=100, seed=42):
 
 
 class RandomDataFeed(bt.feeds.DataBase):
-    """自定义数据源，使用随机生成的数据"""
+    """Custom data feed using randomly generated data"""
     
     params = (
         ('data_list', None),
@@ -104,14 +104,14 @@ class RandomDataFeed(bt.feeds.DataBase):
 
 
 # ============================================================================
-# 测试用例 1: MACD EMA 指标计算
+# Test case 1: MACD EMA indicator calculation
 # ============================================================================
 class MacdEmaTestStrategy(bt.Strategy):
-    """测试 MACD EMA 指标的向量操作
-    
-    self.ema_1 - self.ema_2 (指标减指标)
-    self.dif - self.dea (指标减指标)
-    (self.dif - self.dea) * 2 (指标乘常数)
+    """Test MACD EMA indicator vector operations
+
+    self.ema_1 - self.ema_2 (indicator minus indicator)
+    self.dif - self.dea (indicator minus indicator)
+    (self.dif - self.dea) * 2 (indicator times constant)
     """
     params = (
         ("period_me1", 10),
@@ -122,8 +122,8 @@ class MacdEmaTestStrategy(bt.Strategy):
     def __init__(self):
         self.bar_num = 0
         self.recorded_values = []
-        
-        # MACD 指标计算
+
+        # MACD indicator calculation
         self.ema_1 = bt.indicators.ExponentialMovingAverage(
             self.datas[0].close, period=self.p.period_me1
         )
@@ -138,15 +138,15 @@ class MacdEmaTestStrategy(bt.Strategy):
     
     def next(self):
         self.bar_num += 1
-        
-        # 记录指标值（跳过warmup期间的NaN值）
+
+        # Record indicator values (skip NaN values during warmup period)
         ema1_val = self.ema_1[0]
         ema2_val = self.ema_2[0]
         dif_val = self.dif[0]
         dea_val = self.dea[0]
         macd_val = self.macd[0]
-        
-        # 检查是否为有效值
+
+        # Check if value is valid
         def is_valid(v):
             return v is not None and not (isinstance(v, float) and math.isnan(v))
         
@@ -163,14 +163,14 @@ class MacdEmaTestStrategy(bt.Strategy):
 
 
 # ============================================================================
-# 测试用例 2: Keltner Channel 指标计算
+# Test case 2: Keltner Channel indicator calculation
 # ============================================================================
 class KeltnerTestStrategy(bt.Strategy):
-    """测试 Keltner Channel 指标的向量操作
-    
-    (high + low + close) / 3 (多个line相加除以常数)
-    middle_line + atr * mult (指标加指标乘常数)
-    middle_line - atr * mult (指标减指标乘常数)
+    """Test Keltner Channel indicator vector operations
+
+    (high + low + close) / 3 (multiple lines added and divided by constant)
+    middle_line + atr * mult (indicator plus indicator times constant)
+    middle_line - atr * mult (indicator minus indicator times constant)
     """
     params = (
         ("avg_period", 20),
@@ -180,8 +180,8 @@ class KeltnerTestStrategy(bt.Strategy):
     def __init__(self):
         self.bar_num = 0
         self.recorded_values = []
-        
-        # Keltner Channel 指标计算
+
+        # Keltner Channel indicator calculation
         self.middle_price = (
             self.datas[0].high + self.datas[0].low + self.datas[0].close
         ) / 3
@@ -218,10 +218,10 @@ class KeltnerTestStrategy(bt.Strategy):
 
 
 # ============================================================================
-# 测试用例 3: TimeLine + SMA 指标计算
+# Test case 3: TimeLine + SMA indicator calculation
 # ============================================================================
 class TimeLine(bt.Indicator):
-    """分时均价线指标"""
+    """Time-weighted average price indicator"""
     lines = ('day_avg_price',)
     
     def __init__(self):
@@ -256,7 +256,7 @@ class TimeLine(bt.Indicator):
 
 
 class TimeLineSmaTestStrategy(bt.Strategy):
-    """测试 TimeLine + SMA 指标"""
+    """Test TimeLine + SMA indicator"""
     params = (
         ("ma_period", 20),
     )
@@ -289,10 +289,10 @@ class TimeLineSmaTestStrategy(bt.Strategy):
 
 
 # ============================================================================
-# 测试用例 4: Highest/Lowest 指标计算
+# Test case 4: Highest/Lowest indicator calculation
 # ============================================================================
 class HighestLowestTestStrategy(bt.Strategy):
-    """测试 Highest/Lowest 指标"""
+    """Test Highest/Lowest indicator"""
     params = (
         ("period", 20),
     )
@@ -328,60 +328,60 @@ class HighestLowestTestStrategy(bt.Strategy):
 
 
 # ============================================================================
-# 测试函数
+# Test functions
 # ============================================================================
 def run_strategy(strategy_class, num_bars=100, seed=42, **kwargs):
-    """运行策略并返回策略实例"""
+    """Run strategy and return strategy instance"""
     cerebro = bt.Cerebro()
-    
-    # 生成随机数据
+
+    # Generate random data
     data_list = generate_random_ohlcv_data(num_bars=num_bars, seed=seed)
     data = RandomDataFeed(data_list=data_list)
     cerebro.adddata(data)
-    
-    # 添加策略
+
+    # Add strategy
     cerebro.addstrategy(strategy_class, **kwargs)
-    
-    # 运行
+
+    # Run
     results = cerebro.run()
     return results[0]
 
 
 def test_macd_ema_line_operations():
-    """测试 MACD EMA 指标的向量操作"""
+    """Test MACD EMA indicator vector operations"""
     strategy = run_strategy(MacdEmaTestStrategy, num_bars=100, seed=42)
-    
-    # 验证bar数量 (由于指标warmup期，实际进入next的bar数量会少于100)
+
+    # Verify bar count (actual bars entering next() will be less than 100 due to indicator warmup period)
     assert strategy.bar_num > 0, f"Expected positive bar count, got {strategy.bar_num}"
     print(f"Total bars processed in next(): {strategy.bar_num}")
-    
-    # 验证有记录的值
+
+    # Verify recorded values exist
     assert len(strategy.recorded_values) > 0, "No valid indicator values recorded"
-    
-    # 预期值 (从master版本获取) - 验证特定bar的关键指标值
+
+    # Expected values (from master version) - verify key indicator values for specific bars
     EXPECTED_BAR_NUM = 73
     EXPECTED_FIRST_RECORD = {
-        'bar_num': 1, 'ema_1': 103.716294, 'ema_2': 102.189275, 
+        'bar_num': 1, 'ema_1': 103.716294, 'ema_2': 102.189275,
         'dif': 1.527019, 'dea': 0.819102, 'macd': 1.415833
     }
     EXPECTED_LAST_RECORD = {
         'bar_num': 73, 'ema_1': 102.306701, 'ema_2': 101.658218,
         'dif': 0.648483, 'dea': 0.388373, 'macd': 0.520219
     }
-    
-    # 获取实际记录
+
+    # Get actual records
     first_valid = strategy.recorded_values[0] if strategy.recorded_values else None
     last_valid = strategy.recorded_values[-1] if strategy.recorded_values else None
-    
+
     print(f"First valid record: {first_valid}")
     print(f"Last valid record: {last_valid}")
     print(f"Total valid records: {len(strategy.recorded_values)}")
-    
-    # 验证bar数量
+
+    # Verify bar count
     assert strategy.bar_num == EXPECTED_BAR_NUM, \
         f"Bar count mismatch: expected {EXPECTED_BAR_NUM}, got {strategy.bar_num}"
-    
-    # 验证第一条记录的 ema_1 值
+
+    # Verify ema_1 value of first record
     if first_valid:
         assert abs(first_valid['ema_1'] - EXPECTED_FIRST_RECORD['ema_1']) < 1e-4, \
             f"First ema_1 mismatch: expected {EXPECTED_FIRST_RECORD['ema_1']}, got {first_valid['ema_1']}"
@@ -389,8 +389,8 @@ def test_macd_ema_line_operations():
             f"First ema_2 mismatch: expected {EXPECTED_FIRST_RECORD['ema_2']}, got {first_valid['ema_2']}"
         assert abs(first_valid['dif'] - EXPECTED_FIRST_RECORD['dif']) < 1e-4, \
             f"First dif mismatch: expected {EXPECTED_FIRST_RECORD['dif']}, got {first_valid['dif']}"
-    
-    # 验证最后一条记录的所有指标值
+
+    # Verify all indicator values of last record
     if last_valid:
         assert abs(last_valid['ema_1'] - EXPECTED_LAST_RECORD['ema_1']) < 1e-4, \
             f"Last ema_1 mismatch: expected {EXPECTED_LAST_RECORD['ema_1']}, got {last_valid['ema_1']}"
@@ -407,17 +407,17 @@ def test_macd_ema_line_operations():
 
 
 def test_keltner_line_operations():
-    """测试 Keltner Channel 指标的向量操作"""
+    """Test Keltner Channel indicator vector operations"""
     strategy = run_strategy(KeltnerTestStrategy, num_bars=100, seed=42)
-    
-    # 验证bar数量 (由于指标warmup期，实际进入next的bar数量会少于100)
+
+    # Verify bar count (actual bars entering next() will be less than 100 due to indicator warmup period)
     assert strategy.bar_num > 0, f"Expected positive bar count, got {strategy.bar_num}"
     print(f"Total bars processed in next(): {strategy.bar_num}")
-    
-    # 验证有记录的值
+
+    # Verify recorded values exist
     assert len(strategy.recorded_values) > 0, "No valid indicator values recorded"
-    
-    # 预期值 (从master版本获取)
+
+    # Expected values (from master version)
     EXPECTED_BAR_NUM = 80
     EXPECTED_FIRST_RECORD = {
         'bar_num': 1, 'middle_price': 102.743291, 'middle_line': 99.783775,
@@ -427,20 +427,20 @@ def test_keltner_line_operations():
         'bar_num': 80, 'middle_price': 104.871328, 'middle_line': 101.915361,
         'atr': 2.951128, 'upper_line': 107.817617, 'lower_line': 96.013105
     }
-    
-    # 获取实际记录
+
+    # Get actual records
     first_valid = strategy.recorded_values[0] if strategy.recorded_values else None
     last_valid = strategy.recorded_values[-1] if strategy.recorded_values else None
-    
+
     print(f"First valid record: {first_valid}")
     print(f"Last valid record: {last_valid}")
     print(f"Total valid records: {len(strategy.recorded_values)}")
-    
-    # 验证bar数量
+
+    # Verify bar count
     assert strategy.bar_num == EXPECTED_BAR_NUM, \
         f"Bar count mismatch: expected {EXPECTED_BAR_NUM}, got {strategy.bar_num}"
-    
-    # 验证第一条和最后一条记录的指标值
+
+    # Verify indicator values of first and last records
     if first_valid:
         assert abs(first_valid['middle_line'] - EXPECTED_FIRST_RECORD['middle_line']) < 1e-4, \
             f"First middle_line mismatch: expected {EXPECTED_FIRST_RECORD['middle_line']}, got {first_valid['middle_line']}"
@@ -448,7 +448,7 @@ def test_keltner_line_operations():
             f"First upper_line mismatch: expected {EXPECTED_FIRST_RECORD['upper_line']}, got {first_valid['upper_line']}"
         assert abs(first_valid['lower_line'] - EXPECTED_FIRST_RECORD['lower_line']) < 1e-4, \
             f"First lower_line mismatch: expected {EXPECTED_FIRST_RECORD['lower_line']}, got {first_valid['lower_line']}"
-    
+
     if last_valid:
         assert abs(last_valid['middle_line'] - EXPECTED_LAST_RECORD['middle_line']) < 1e-4, \
             f"Last middle_line mismatch: expected {EXPECTED_LAST_RECORD['middle_line']}, got {last_valid['middle_line']}"
@@ -459,17 +459,17 @@ def test_keltner_line_operations():
 
 
 def test_timeline_sma_line_operations():
-    """测试 TimeLine + SMA 指标"""
+    """Test TimeLine + SMA indicator"""
     strategy = run_strategy(TimeLineSmaTestStrategy, num_bars=100, seed=42)
-    
-    # 验证bar数量 (由于指标warmup期，实际进入next的bar数量会少于100)
+
+    # Verify bar count (actual bars entering next() will be less than 100 due to indicator warmup period)
     assert strategy.bar_num > 0, f"Expected positive bar count, got {strategy.bar_num}"
     print(f"Total bars processed in next(): {strategy.bar_num}")
-    
-    # 验证有记录的值
+
+    # Verify recorded values exist
     assert len(strategy.recorded_values) > 0, "No valid indicator values recorded"
-    
-    # 预期值 (从master版本获取)
+
+    # Expected values (from master version)
     EXPECTED_BAR_NUM = 81
     EXPECTED_FIRST_RECORD = {
         'bar_num': 1, 'close': 100.964345, 'day_avg_price': 99.517016, 'ma_value': 99.517016
@@ -477,26 +477,26 @@ def test_timeline_sma_line_operations():
     EXPECTED_LAST_RECORD = {
         'bar_num': 81, 'close': 104.674652, 'day_avg_price': 100.662885, 'ma_value': 101.992377
     }
-    
-    # 获取实际记录
+
+    # Get actual records
     first_valid = strategy.recorded_values[0] if strategy.recorded_values else None
     last_valid = strategy.recorded_values[-1] if strategy.recorded_values else None
-    
+
     print(f"First valid record: {first_valid}")
     print(f"Last valid record: {last_valid}")
     print(f"Total valid records: {len(strategy.recorded_values)}")
-    
-    # 验证bar数量
+
+    # Verify bar count
     assert strategy.bar_num == EXPECTED_BAR_NUM, \
         f"Bar count mismatch: expected {EXPECTED_BAR_NUM}, got {strategy.bar_num}"
-    
-    # 验证第一条和最后一条记录
+
+    # Verify first and last records
     if first_valid:
         assert abs(first_valid['day_avg_price'] - EXPECTED_FIRST_RECORD['day_avg_price']) < 1e-4, \
             f"First day_avg_price mismatch: expected {EXPECTED_FIRST_RECORD['day_avg_price']}, got {first_valid['day_avg_price']}"
         assert abs(first_valid['ma_value'] - EXPECTED_FIRST_RECORD['ma_value']) < 1e-4, \
             f"First ma_value mismatch: expected {EXPECTED_FIRST_RECORD['ma_value']}, got {first_valid['ma_value']}"
-    
+
     if last_valid:
         assert abs(last_valid['day_avg_price'] - EXPECTED_LAST_RECORD['day_avg_price']) < 1e-4, \
             f"Last day_avg_price mismatch: expected {EXPECTED_LAST_RECORD['day_avg_price']}, got {last_valid['day_avg_price']}"
@@ -505,46 +505,46 @@ def test_timeline_sma_line_operations():
 
 
 def test_highest_lowest_line_operations():
-    """测试 Highest/Lowest 指标"""
+    """Test Highest/Lowest indicator"""
     strategy = run_strategy(HighestLowestTestStrategy, num_bars=100, seed=42)
-    
-    # 验证bar数量 (由于指标warmup期，实际进入next的bar数量会少于100)
+
+    # Verify bar count (actual bars entering next() will be less than 100 due to indicator warmup period)
     assert strategy.bar_num > 0, f"Expected positive bar count, got {strategy.bar_num}"
     print(f"Total bars processed in next(): {strategy.bar_num}")
-    
-    # 验证有记录的值
+
+    # Verify recorded values exist
     assert len(strategy.recorded_values) > 0, "No valid indicator values recorded"
-    
-    # 预期值 (从master版本获取)
+
+    # Expected values (from master version)
     EXPECTED_BAR_NUM = 81
     EXPECTED_FIRST_RECORD = {
-        'bar_num': 1, 'high': 102.885526, 'low': 100.605869, 
+        'bar_num': 1, 'high': 102.885526, 'low': 100.605869,
         'highest_high': 102.885526, 'lowest_low': 95.794978
     }
     EXPECTED_LAST_RECORD = {
         'bar_num': 81, 'high': 106.508498, 'low': 103.430834,
         'highest_high': 106.609724, 'lowest_low': 95.691099
     }
-    
-    # 获取实际记录
+
+    # Get actual records
     first_valid = strategy.recorded_values[0] if strategy.recorded_values else None
     last_valid = strategy.recorded_values[-1] if strategy.recorded_values else None
-    
+
     print(f"First valid record: {first_valid}")
     print(f"Last valid record: {last_valid}")
     print(f"Total valid records: {len(strategy.recorded_values)}")
-    
-    # 验证bar数量
+
+    # Verify bar count
     assert strategy.bar_num == EXPECTED_BAR_NUM, \
         f"Bar count mismatch: expected {EXPECTED_BAR_NUM}, got {strategy.bar_num}"
-    
-    # 验证第一条和最后一条记录
+
+    # Verify first and last records
     if first_valid:
         assert abs(first_valid['highest_high'] - EXPECTED_FIRST_RECORD['highest_high']) < 1e-4, \
             f"First highest_high mismatch: expected {EXPECTED_FIRST_RECORD['highest_high']}, got {first_valid['highest_high']}"
         assert abs(first_valid['lowest_low'] - EXPECTED_FIRST_RECORD['lowest_low']) < 1e-4, \
             f"First lowest_low mismatch: expected {EXPECTED_FIRST_RECORD['lowest_low']}, got {first_valid['lowest_low']}"
-    
+
     if last_valid:
         assert abs(last_valid['highest_high'] - EXPECTED_LAST_RECORD['highest_high']) < 1e-4, \
             f"Last highest_high mismatch: expected {EXPECTED_LAST_RECORD['highest_high']}, got {last_valid['highest_high']}"
@@ -553,13 +553,13 @@ def test_highest_lowest_line_operations():
 
 
 def collect_baseline_values():
-    """收集基准值 - 在master分支运行此函数获取预期值
-    
-    使用方法:
-    1. 切换到 master 分支: git checkout master
-    2. 安装 master 版本: pip install -U .
-    3. 运行: python tests/add_tests/test_line_operations.py --collect-baseline
-    4. 复制输出的值到对应的测试函数中
+    """Collect baseline values - Run this function on master branch to get expected values
+
+    Usage:
+    1. Switch to master branch: git checkout master
+    2. Install master version: pip install -U .
+    3. Run: python tests/add_tests/test_line_operations.py --collect-baseline
+    4. Copy the output values to corresponding test functions
     """
     print("=" * 80)
     print("COLLECTING BASELINE VALUES FROM MASTER BRANCH")
@@ -611,7 +611,7 @@ def collect_baseline_values():
 
 
 def test_run():
-    """pytest入口 - 运行所有line操作测试"""
+    """pytest entry point - Run all line operations tests"""
     test_macd_ema_line_operations()
     test_keltner_line_operations()
     test_timeline_sma_line_operations()

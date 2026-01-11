@@ -1,8 +1,8 @@
-"""国债期货跨期套利策略测试用例
+"""Test cases for treasury bond futures inter-delivery spread arbitrage strategy
 
-使用中金所期货合约数据测试跨期套利策略
-- 使用 PandasDirectData 加载期货数据
-- 基于价差的跨期套利策略，支持移仓换月
+Test spread arbitrage strategy using CFFEX futures contract data
+- Load futures data using PandasDirectData
+- Spread-based inter-delivery arbitrage strategy with rollover support
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on script directory to avoid relative path failures"""
     repo_root = BASE_DIR.parent.parent
     search_paths = [
         BASE_DIR / "datas" / filename,
@@ -36,44 +36,44 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
-    # 策略作者
+    # Strategy author
     author = 'yunjinqi'
-    # 策略的参数
+    # Strategy parameters
     params = (
-        ("spread_low", 0.06),   # 价差下限，低于此值开多
-        ("spread_high", 0.52),  # 价差上限，高于此值开空
+        ("spread_low", 0.06),   # Spread lower threshold, open long below this value
+        ("spread_high", 0.52),  # Spread upper threshold, open short above this value
     )
 
-    # log相应的信息
+    # Log corresponding information
     def log(self, txt, dt=None):
         ''' Logging function fot this strategy'''
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
-    # 初始化策略的数据
+    # Initialize strategy data
     def __init__(self):
-        # 基本上常用的部分属性变量
-        self.bar_num = 0  # next运行了多少个bar
+        # Common attribute variables
+        self.bar_num = 0  # Number of bars run in next
         self.buy_count = 0
         self.sell_count = 0
-        self.current_date = None  # 当前交易日
-        # 保存现在持仓的合约是哪一个
+        self.current_date = None  # Current trading day
+        # Save which contract is currently held
         self.holding_contract_name = None
         self.market_position = 0
 
     def prenext(self):
-        # 由于期货数据有几千个，每个期货交易日期不同，并不会自然进入next
-        # 需要在每个prenext中调用next函数进行运行
+        # Since futures data has thousands of bars and each futures contract has different trading dates, it won't naturally enter next
+        # Need to call next function in each prenext to run
         self.next()
         # pass
 
-    # 在next中添加相应的策略逻辑
+    # Add corresponding strategy logic in next
     def next(self):
-        # 每次运行一次，bar_num自然加1,并更新交易日
+        # Increment bar_num by 1 each time it runs, and update trading day
         self.current_date = bt.num2date(self.datas[0].datetime[0])
         self.bar_num += 1
         near_data, far_data = self.get_near_far_data()
@@ -89,10 +89,10 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
 #             self.log(f"{near_data._name},{far_data._name},{near_name},{far_name},{self.market_position},{near_data.close[0]-far_data.close[0]}")
         else:
             self.log(f"near data is None------------------------------------------")
-         
-        # 开仓
+
+        # Open position
         if self.market_position == 0:
-            # 开多
+            # Open long
             if near_data.close[0] - far_data.close[0] < self.p.spread_low:
                 self.buy(near_data, size=1)
                 self.sell(far_data, size=1)
@@ -100,8 +100,8 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
                 self.sell_count += 1
                 self.market_position = 1
                 self.holding_contract_name = [near_data, far_data]
-                self.log(f"开仓，买：{near_data._name},卖：{far_data._name}")
-            # 开空
+                self.log(f"Open position, buy: {near_data._name}, sell: {far_data._name}")
+            # Open short
             if near_data.close[0] - far_data.close[0] > self.p.spread_high:
                 self.sell(near_data, size=1)
                 self.buy(far_data, size=1)
@@ -109,8 +109,8 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
                 self.sell_count += 1
                 self.market_position = -1
                 self.holding_contract_name = [near_data, far_data]
-                self.log(f"开空仓，买：{far_data._name},卖：{near_data._name}")
-        # 平仓
+                self.log(f"Open short position, buy: {far_data._name}, sell: {near_data._name}")
+        # Close position
         if self.market_position == 1:
             near_data = self.holding_contract_name[0]
             far_data = self.holding_contract_name[1]
@@ -130,15 +130,15 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
                 self.holding_contract_name = [None, None]
 
 
-        # 移仓换月
+        # Roll over to new contract
         if self.market_position != 0:
             hold_near_data = self.holding_contract_name[0]
             hold_far_data = self.holding_contract_name[1]
             near_data, far_data = self.get_near_far_data()
             if near_data is not None:
-#                 self.log(f"{near_data._name},{far_data._name}，{hold_near_data._name},{hold_far_data._name}")
+#                 self.log(f"{near_data._name},{far_data._name}, {hold_near_data._name},{hold_far_data._name}")
                 if hold_near_data._name != near_data._name or hold_far_data._name != far_data._name:
-#                     self.log("----------------发生换月-------------------")
+#                     self.log("----------------Contract rollover occurred-------------------")
                     near_size = self.getposition(hold_near_data).size
                     far_size = self.getposition(hold_far_data).size
                     self.close(hold_far_data)
@@ -153,7 +153,7 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
                         self.holding_contract_name = [near_data, far_data]
 
     def get_near_far_data(self):
-        # 计算近月合约和远月合约的价格
+        # Calculate prices of near-month and far-month contracts
         target_datas = []
         for data in self.datas[1:]:
             # self.log(self.current_date)
@@ -164,7 +164,7 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
                 if self.current_date == data_date:
                     target_datas.append([data._name, data.openinterest[0], data])
             except:
-                self.log(f"{data._name}还未上市交易")
+                self.log(f"{data._name} is not yet listed for trading")
 
         target_datas = sorted(target_datas, key=lambda x: x[1])
         if len(target_datas)>=2:
@@ -180,10 +180,10 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
 
     def get_dominant_contract(self):
 
-        # 以持仓量最大的合约作为主力合约,返回数据的名称
-        # 可以根据需要，自己定义主力合约怎么计算
+        # Use the contract with the largest open interest as the dominant contract, return the data name
+        # You can define how to calculate the dominant contract according to your needs
 
-        # 获取当前在交易的品种
+        # Get the varieties currently trading
         target_datas = []
         for data in self.datas[1:]:
             # self.log(self.current_date)
@@ -194,7 +194,7 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
                 if self.current_date == data_date:
                     target_datas.append([data._name, data.openinterest[0]])
             except:
-                self.log(f"{data._name}还未上市交易")
+                self.log(f"{data._name} is not yet listed for trading")
 
         target_datas = sorted(target_datas, key=lambda x: x[1])
         print(target_datas)
@@ -227,7 +227,7 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        # Output information when a trade ends
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -242,21 +242,21 @@ class TreasuryFuturesSpreadArbitrageStrategy(bt.Strategy):
 
 
 def load_futures_data(variety: str = "T"):
-    """加载期货数据并构建指数合约
-    
+    """Load futures data and construct index contract
+
     Args:
-        variety: 品种代码，默认为T（国债期货）
-    
+        variety: Variety code, default is T (treasury bond futures)
+
     Returns:
-        index_df: 指数合约DataFrame
-        data: 原始数据DataFrame
+        index_df: Index contract DataFrame
+        data: Original data DataFrame
     """
-    data = pd.read_csv(resolve_data_path("中金所期货合约数据.csv"), index_col=0)
+    data = pd.read_csv(resolve_data_path("CFFEX Futures Contract Data.csv"), index_col=0)
     data = data[data['variety'] == variety]
     data['datetime'] = pd.to_datetime(data['date'], format="%Y%m%d")
     data = data.dropna()
-    
-    # 根据持仓量加权合成指数合约
+
+    # Synthesize index contract by weighting with open interest
     result = []
     for index, df in data.groupby("datetime"):
         total_open_interest = df['open_interest'].sum()
@@ -276,24 +276,24 @@ def load_futures_data(variety: str = "T"):
 
 
 def test_treasury_futures_spread_arbitrage_strategy():
-    """测试国债期货跨期套利策略
-    
-    使用中金所期货合约数据进行回测
+    """Test treasury bond futures inter-delivery spread arbitrage strategy
+
+    Backtest using CFFEX futures contract data
     """
     cerebro = bt.Cerebro(stdstats=True)
 
-    # 加载期货数据
-    print("正在加载期货数据...")
+    # Load futures data
+    print("Loading futures data...")
     index_df, data = load_futures_data("T")
-    print(f"指数数据范围: {index_df.index[0]} 至 {index_df.index[-1]}, 共 {len(index_df)} 条")
+    print(f"Index data range: {index_df.index[0]} to {index_df.index[-1]}, total {len(index_df)} bars")
 
-    # 加载指数合约
+    # Load index contract
     feed = bt.feeds.PandasDirectData(dataname=index_df)
     cerebro.adddata(feed, name='index')
     comm = ComminfoFuturesPercent(commission=0.0002, margin=0.02, mult=10000)
     cerebro.broker.addcommissioninfo(comm, name="index")
 
-    # 加载具体合约数据
+    # Load specific contract data
     contract_count = 0
     for symbol, df in data.groupby("symbol"):
         df.index = pd.to_datetime(df['datetime'])
@@ -304,27 +304,27 @@ def test_treasury_futures_spread_arbitrage_strategy():
         comm = ComminfoFuturesPercent(commission=0.0002, margin=0.02, mult=10000)
         cerebro.broker.addcommissioninfo(comm, name=symbol)
         contract_count += 1
-    
-    print(f"成功加载 {contract_count} 个合约")
 
-    # 设置初始资金
+    print(f"Successfully loaded {contract_count} contracts")
+
+    # Set initial capital
     cerebro.broker.setcash(1000000.0)
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(TreasuryFuturesSpreadArbitrageStrategy, spread_low=0.06, spread_high=0.52)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    # 运行回测
-    print("\n开始运行回测...")
+    # Run backtest
+    print("\nStarting backtest...")
     results = cerebro.run()
 
-    # 获取结果
+    # Get results
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
     annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
@@ -333,9 +333,9 @@ def test_treasury_futures_spread_arbitrage_strategy():
     total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印结果
+    # Print results
     print("\n" + "=" * 50)
-    print("国债期货跨期套利策略回测结果:")
+    print("Treasury Bond Futures Inter-Delivery Spread Arbitrage Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -346,22 +346,22 @@ def test_treasury_futures_spread_arbitrage_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # 断言测试结果（精确值）
+    # Assert test results (exact values)
     assert strat.bar_num == 1990, f"Expected bar_num=1990, got {strat.bar_num}"
     assert strat.buy_count == 6, f"Expected buy_count=6, got {strat.buy_count}"
     assert strat.sell_count == 6, f"Expected sell_count=6, got {strat.sell_count}"
     assert total_trades == 86, f"Expected total_trades=86, got {total_trades}"
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert abs(sharpe_ratio - (-2.2441169934564518)) < 1e-6, f"Expected sharpe_ratio=-2.2441169934564518, got {sharpe_ratio}"
     assert abs(annual_return - (-0.010775454009696908)) < 1e-6, f"Expected annual_return=-0.010775454009696908, got {annual_return}"
     assert abs(max_drawdown - 0.08693210999999486) < 1e-6, f"Expected max_drawdown=0.08693210999999486, got {max_drawdown}"
     assert abs(final_value - 918003.8900000055) < 0.01, f"Expected final_value=918003.8900000055, got {final_value}"
 
-    print("\n所有测试通过!")
+    print("\nAll tests passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("国债期货跨期套利策略测试")
+    print("Treasury Bond Futures Inter-Delivery Spread Arbitrage Strategy Test")
     print("=" * 60)
     test_treasury_futures_spread_arbitrage_strategy()

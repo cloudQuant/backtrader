@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-报告生成模块测试
+Report Generation Module Tests
 
-测试迭代44中添加的报告生成功能
+Tests the report generation functionality added in iteration 44
 """
 
 import sys
@@ -11,14 +11,14 @@ import os
 import datetime
 import tempfile
 
-# 添加项目路径
+# Add project path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import backtrader as bt
 
 
 class SMACrossStrategy(bt.Strategy):
-    """简单移动平均线交叉策略"""
+    """Simple Moving Average Crossover Strategy"""
     
     params = (
         ('fast_period', 10),
@@ -39,38 +39,38 @@ class SMACrossStrategy(bt.Strategy):
 
 
 def test_performance_calculator_import():
-    """测试 PerformanceCalculator 导入"""
+    """Test PerformanceCalculator import"""
     from backtrader.reports import PerformanceCalculator
-    
+
     assert PerformanceCalculator is not None
-    print("✓ PerformanceCalculator 导入测试通过")
+    print("✓ PerformanceCalculator import test passed")
 
 
 def test_report_chart_import():
-    """测试 ReportChart 导入"""
+    """Test ReportChart import"""
     from backtrader.reports import ReportChart
-    
+
     assert ReportChart is not None
     chart = ReportChart()
     assert hasattr(chart, 'plot_equity_curve')
     assert hasattr(chart, 'plot_return_bars')
     assert hasattr(chart, 'plot_drawdown')
-    print("✓ ReportChart 导入测试通过")
+    print("✓ ReportChart import test passed")
 
 
 def test_report_generator_import():
-    """测试 ReportGenerator 导入"""
+    """Test ReportGenerator import"""
     from backtrader.reports import ReportGenerator
-    
+
     assert ReportGenerator is not None
-    print("✓ ReportGenerator 导入测试通过")
+    print("✓ ReportGenerator import test passed")
 
 
 def test_sqn_to_rating():
-    """测试 SQN 评级转换"""
+    """Test SQN rating conversion"""
     from backtrader.reports import PerformanceCalculator
-    
-    # 测试各级别评级
+
+    # Test ratings at each level
     assert PerformanceCalculator.sqn_to_rating(1.0) == "Poor"
     assert PerformanceCalculator.sqn_to_rating(1.7) == "Below Average"
     assert PerformanceCalculator.sqn_to_rating(2.0) == "Average"
@@ -78,40 +78,40 @@ def test_sqn_to_rating():
     assert PerformanceCalculator.sqn_to_rating(3.5) == "Excellent"
     assert PerformanceCalculator.sqn_to_rating(6.0) == "Superb"
     assert PerformanceCalculator.sqn_to_rating(7.5) == "Holy Grail"
-    
-    # 测试 None 和 NaN
+
+    # Test None and NaN
     assert PerformanceCalculator.sqn_to_rating(None) == "N/A"
-    
+
     import math
     assert PerformanceCalculator.sqn_to_rating(math.nan) == "N/A"
-    
-    print("✓ SQN 评级转换测试通过")
+
+    print("✓ SQN rating conversion test passed")
 
 
 def test_cerebro_add_report_analyzers():
-    """测试 Cerebro 添加报告分析器"""
+    """Test Cerebro adding report analyzers"""
     cerebro = bt.Cerebro()
-    
-    # 添加报告分析器
+
+    # Add report analyzers
     cerebro.add_report_analyzers(riskfree_rate=0.02)
-    
-    # 检查分析器已添加
+
+    # Check that analyzers have been added
     assert len(cerebro.analyzers) > 0
-    
-    print("✓ Cerebro 添加报告分析器测试通过")
+
+    print("✓ Cerebro add report analyzers test passed")
 
 
 def test_integration_with_strategy():
-    """测试与策略的集成"""
+    """Test integration with strategy"""
     from backtrader.reports import PerformanceCalculator, ReportGenerator
-    
-    # 创建 cerebro
+
+    # Create cerebro
     cerebro = bt.Cerebro()
-    
-    # 添加数据
+
+    # Add data
     data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print("⚠ 测试数据文件不存在，跳过集成测试")
+        print("⚠ Test data file does not exist, skipping integration test")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -129,50 +129,50 @@ def test_integration_with_strategy():
     )
     cerebro.adddata(data)
     cerebro.addstrategy(SMACrossStrategy)
-    
-    # 添加报告分析器
+
+    # Add report analyzers
     cerebro.add_report_analyzers()
-    
-    # 运行策略
+
+    # Run strategy
     results = cerebro.run()
     strategy = results[0]
-    
-    # 测试 PerformanceCalculator
+
+    # Test PerformanceCalculator
     calc = PerformanceCalculator(strategy)
-    
-    # 测试获取所有指标
+
+    # Test getting all metrics
     metrics = calc.get_all_metrics()
     assert isinstance(metrics, dict)
     assert 'start_cash' in metrics
     assert 'total_return' in metrics
     assert 'sharpe_ratio' in metrics
-    
-    print(f"  - 初始资金: {metrics.get('start_cash')}")
-    print(f"  - 总收益率: {metrics.get('total_return', 'N/A')}")
-    print(f"  - 夏普比率: {metrics.get('sharpe_ratio', 'N/A')}")
-    
-    # 测试策略信息
+
+    print(f"  - Initial capital: {metrics.get('start_cash')}")
+    print(f"  - Total return: {metrics.get('total_return', 'N/A')}")
+    print(f"  - Sharpe ratio: {metrics.get('sharpe_ratio', 'N/A')}")
+
+    # Test strategy information
     strategy_info = calc.get_strategy_info()
     assert strategy_info['strategy_name'] == 'SMACrossStrategy'
-    
-    # 测试数据信息
+
+    # Test data information
     data_info = calc.get_data_info()
     assert data_info.get('bars', 0) > 0
-    
-    print("✓ 策略集成测试通过")
+
+    print("✓ Strategy integration test passed")
 
 
 def test_html_report_generation():
-    """测试 HTML 报告生成"""
+    """Test HTML report generation"""
     from backtrader.reports import ReportGenerator
-    
-    # 创建 cerebro
+
+    # Create cerebro
     cerebro = bt.Cerebro()
-    
-    # 添加数据
+
+    # Add data
     data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print("⚠ 测试数据文件不存在，跳过 HTML 报告测试")
+        print("⚠ Test data file does not exist, skipping HTML report test")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -193,43 +193,43 @@ def test_html_report_generation():
     cerebro.add_report_analyzers()
     
     results = cerebro.run()
-    
-    # 生成 HTML 报告
+
+    # Generate HTML report
     with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
         output_path = f.name
-    
+
     try:
         report = ReportGenerator(results[0])
         report.generate_html(output_path, user='Test User', memo='Test memo')
-        
-        # 检查文件已创建
+
+        # Check that file was created
         assert os.path.exists(output_path)
-        
-        # 检查文件内容
+
+        # Check file contents
         with open(output_path, 'r', encoding='utf-8') as f:
             content = f.read()
             assert 'SMACrossStrategy' in content
             assert 'Test User' in content
             assert 'Test memo' in content
-        
-        print("✓ HTML 报告生成测试通过")
+
+        print("✓ HTML report generation test passed")
     finally:
         if os.path.exists(output_path):
             os.remove(output_path)
 
 
 def test_json_report_generation():
-    """测试 JSON 报告生成"""
+    """Test JSON report generation"""
     from backtrader.reports import ReportGenerator
     import json
-    
-    # 创建 cerebro
+
+    # Create cerebro
     cerebro = bt.Cerebro()
-    
-    # 添加数据
+
+    # Add data
     data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print("⚠ 测试数据文件不存在，跳过 JSON 报告测试")
+        print("⚠ Test data file does not exist, skipping JSON report test")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -250,40 +250,40 @@ def test_json_report_generation():
     cerebro.add_report_analyzers()
     
     results = cerebro.run()
-    
-    # 生成 JSON 报告
+
+    # Generate JSON report
     with tempfile.NamedTemporaryFile(suffix='.json', delete=False) as f:
         output_path = f.name
-    
+
     try:
         report = ReportGenerator(results[0])
         report.generate_json(output_path)
-        
-        # 检查文件已创建
+
+        # Check that file was created
         assert os.path.exists(output_path)
-        
-        # 检查 JSON 内容
+
+        # Check JSON content
         with open(output_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
             assert 'strategy' in data
             assert 'metrics' in data
             assert data['strategy']['strategy_name'] == 'SMACrossStrategy'
-        
-        print("✓ JSON 报告生成测试通过")
+
+        print("✓ JSON report generation test passed")
     finally:
         if os.path.exists(output_path):
             os.remove(output_path)
 
 
 def test_cerebro_generate_report():
-    """测试 Cerebro.generate_report() 方法"""
-    # 创建 cerebro
+    """Test Cerebro.generate_report() method"""
+    # Create cerebro
     cerebro = bt.Cerebro()
-    
-    # 添加数据
+
+    # Add data
     data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print("⚠ 测试数据文件不存在，跳过 Cerebro.generate_report 测试")
+        print("⚠ Test data file does not exist, skipping Cerebro.generate_report test")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -304,37 +304,37 @@ def test_cerebro_generate_report():
     cerebro.add_report_analyzers()
     
     cerebro.run()
-    
-    # 测试通过 Cerebro 生成报告
+
+    # Test report generation through Cerebro
     with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as f:
         output_path = f.name
-    
+
     try:
         cerebro.generate_report(output_path, format='html', user='Cerebro Test')
-        
+
         assert os.path.exists(output_path)
-        
+
         with open(output_path, 'r', encoding='utf-8') as f:
             content = f.read()
             assert 'SMACrossStrategy' in content
-        
-        print("✓ Cerebro.generate_report() 测试通过")
+
+        print("✓ Cerebro.generate_report() test passed")
     finally:
         if os.path.exists(output_path):
             os.remove(output_path)
 
 
 def test_print_summary():
-    """测试打印摘要"""
+    """Test printing summary"""
     from backtrader.reports import ReportGenerator
-    
-    # 创建 cerebro
+
+    # Create cerebro
     cerebro = bt.Cerebro()
-    
-    # 添加数据
+
+    # Add data
     data_path = os.path.join(os.path.dirname(__file__), 'datas', 'nvda-1999-2014.txt')
     if not os.path.exists(data_path):
-        print("⚠ 测试数据文件不存在，跳过打印摘要测试")
+        print("⚠ Test data file does not exist, skipping print summary test")
         return
     
     data = bt.feeds.GenericCSVData(
@@ -355,18 +355,18 @@ def test_print_summary():
     cerebro.add_report_analyzers()
     
     results = cerebro.run()
-    
-    # 打印摘要
+
+    # Print summary
     report = ReportGenerator(results[0])
     report.print_summary()
-    
-    print("✓ 打印摘要测试通过")
+
+    print("✓ Print summary test passed")
 
 
 def run_all_tests():
-    """运行所有测试"""
+    """Run all tests"""
     print("=" * 60)
-    print("报告生成模块测试")
+    print("Report Generation Module Tests")
     print("=" * 60)
     
     tests = [
@@ -391,13 +391,13 @@ def run_all_tests():
             test()
             passed += 1
         except Exception as e:
-            print(f"✗ 测试失败: {e}")
+            print(f"✗ Test failed: {e}")
             import traceback
             traceback.print_exc()
             failed += 1
-    
+
     print("\n" + "=" * 60)
-    print(f"测试完成: {passed} 通过, {failed} 失败")
+    print(f"Test completed: {passed} passed, {failed} failed")
     print("=" * 60)
     
     return failed == 0
