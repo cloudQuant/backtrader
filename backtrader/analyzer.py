@@ -105,22 +105,15 @@ class Analyzer(ParameterizedBase):
     # Save results to csv
     csv = True
 
-    def __new__(cls, *args, **kwargs):
-        """
-        Custom __new__ to implement the functionality previously in MetaAnalyzer.donew
-        """
-        # Create the object using parent's __new__
-        _obj = super().__new__(cls)
-
-        # Initialize children list
-        _obj._children = list()
-
-        return _obj
-
     def __init__(self, *args, **kwargs):
         """
-        Initialize Analyzer with basic functionality
+        Initialize Analyzer with basic functionality.
+        
+        Note: __new__ removed - _children initialization moved here.
         """
+        # Initialize children list (moved from __new__)
+        self._children = list()
+        
         # Initialize parent first
         super().__init__(*args, **kwargs)
 

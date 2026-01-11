@@ -54,22 +54,15 @@ class Observer(ObserverBase):
     # Plot settings options
     plotinfo = dict(plot=False, subplot=True)
 
-    def __new__(cls, *args, **kwargs):
-        """
-        Custom __new__ to implement the functionality previously in MetaObserver.donew
-        """
-        # Create the instance using parent's __new__
-        _obj = super(Observer, cls).__new__(cls)
-
-        # Initialize _analyzers list (previously done in MetaObserver.donew)
-        _obj._analyzers = list()  # keep children analyzers
-
-        return _obj
-
     def __init__(self, *args, **kwargs):
         """
-        Initialize Observer with functionality previously in MetaObserver.dopreinit
+        Initialize Observer with functionality previously in MetaObserver.dopreinit.
+        
+        Note: __new__ removed - _analyzers initialization moved here.
         """
+        # Initialize _analyzers list (moved from __new__)
+        self._analyzers = list()  # keep children analyzers
+        
         # Initialize parent first
         super(Observer, self).__init__(*args, **kwargs)
 
