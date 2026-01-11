@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-性能基准测试工具 - 为去除元编程项目建立性能基线
+Performance benchmark tool - Establish performance baseline for metaprogramming removal project.
 """
 
 import gc
@@ -20,20 +20,20 @@ import backtrader as bt
 
 
 class PerformanceBenchmark:
-    """性能基准测试"""
+    """Performance benchmark testing."""
 
     def __init__(self):
         self.results = {}
         self.memory_baseline = None
 
     def measure_memory_start(self):
-        """开始内存测量"""
+        """Start memory measurement."""
         gc.collect()
         process = psutil.Process()
         self.memory_baseline = process.memory_info().rss / 1024 / 1024  # MB
 
     def measure_memory_end(self, operation_name):
-        """结束内存测量"""
+        """End memory measurement."""
         gc.collect()
         process = psutil.Process()
         current_memory = process.memory_info().rss / 1024 / 1024  # MB
@@ -41,8 +41,8 @@ class PerformanceBenchmark:
         return memory_used
 
     def benchmark_strategy_creation(self, iterations=1000):
-        """策略创建性能基准"""
-        print("正在测试策略创建性能...")
+        """Strategy creation performance benchmark."""
+        print("Testing strategy creation performance...")
 
         class TestStrategy(bt.Strategy):
             params = (
@@ -63,7 +63,7 @@ class PerformanceBenchmark:
 
         strategies = []
         for _ in range(iterations):
-            # 模拟策略创建过程
+            # Simulate strategy creation process
             cerebro = bt.Cerebro()
             cerebro.addstrategy(TestStrategy)
             strategies.append(cerebro)
@@ -81,19 +81,19 @@ class PerformanceBenchmark:
             "iterations": iterations,
         }
 
-        print(f"  - 总时间: {total_time:.4f}s")
-        print(f"  - 平均时间: {avg_time:.4f}ms/次")
-        print(f"  - 内存使用: {memory_used:.2f}MB")
+        print(f"  - Total time: {total_time:.4f}s")
+        print(f"  - Average time: {avg_time:.4f}ms/iteration")
+        print(f"  - Memory usage: {memory_used:.2f}MB")
 
-        # 清理
+        # Cleanup
         del strategies
         gc.collect()
 
     def benchmark_indicator_calculation(self, data_points=10000):
-        """指标计算性能基准"""
-        print("正在测试指标计算性能...")
+        """Indicator calculation performance benchmark."""
+        print("Testing indicator calculation performance...")
 
-        # 生成测试数据
+        # Generate test data
         dates = pd.date_range("2020-01-01", periods=data_points, freq="D")
         prices = 100 + np.cumsum(np.random.randn(data_points) * 0.01)
 
@@ -112,7 +112,7 @@ class PerformanceBenchmark:
 
         class IndicatorTestStrategy(bt.Strategy):
             def __init__(self):
-                # 测试多个指标
+                # Test multiple indicators
                 self.sma = bt.indicators.SimpleMovingAverage(self.data.close, period=20)
                 self.ema = bt.indicators.ExponentialMovingAverage(self.data.close, period=20)
                 self.rsi = bt.indicators.RSI(self.data.close, period=14)
@@ -142,16 +142,16 @@ class PerformanceBenchmark:
             "memory_mb": memory_used,
         }
 
-        print(f"  - 总时间: {total_time:.4f}s")
-        print(f"  - 数据点数: {data_points}")
-        print(f"  - 处理速度: {points_per_second:.0f} 点/秒")
-        print(f"  - 内存使用: {memory_used:.2f}MB")
+        print(f"  - Total time: {total_time:.4f}s")
+        print(f"  - Data points: {data_points}")
+        print(f"  - Processing speed: {points_per_second:.0f} points/sec")
+        print(f"  - Memory usage: {memory_used:.2f}MB")
 
     def benchmark_data_access(self, iterations=100000):
-        """数据访问性能基准"""
-        print("正在测试数据访问性能...")
+        """Data access performance benchmark."""
+        print("Testing data access performance...")
 
-        # 创建测试数据
+        # Create test data
         dates = pd.date_range("2020-01-01", periods=1000, freq="D")
         prices = 100 + np.cumsum(np.random.randn(1000) * 0.01)
 
@@ -173,21 +173,21 @@ class PerformanceBenchmark:
                 self.access_times = []
 
             def next(self):
-                # 测试各种数据访问方式
+                # Test various data access methods
                 start = time.time()
 
-                # Line访问
+                # Line access
                 close = self.data.close[0]
                 open_price = self.data.open[0]
                 high = self.data.high[0]
                 low = self.data.low[0]
 
-                # 历史数据访问
+                # Historical data access
                 close_1 = self.data.close[-1] if len(self.data) > 1 else 0
                 close_5 = self.data.close[-5] if len(self.data) > 5 else 0
 
                 end = time.time()
-                self.access_times.append((end - start) * 1000000)  # 微秒
+                self.access_times.append((end - start) * 1000000)  # microseconds
 
         cerebro = bt.Cerebro()
         cerebro.adddata(data_feed)
@@ -214,13 +214,13 @@ class PerformanceBenchmark:
             "data_points": 1000,
         }
 
-        print(f"  - 总时间: {end_time - start_time:.4f}s")
-        print(f"  - 平均访问时间: {avg_access_time:.2f}μs")
-        print(f"  - 内存使用: {memory_used:.2f}MB")
+        print(f"  - Total time: {end_time - start_time:.4f}s")
+        print(f"  - Average access time: {avg_access_time:.2f}μs")
+        print(f"  - Memory usage: {memory_used:.2f}MB")
 
     def benchmark_parameter_access(self, iterations=1000000):
-        """参数访问性能基准"""
-        print("正在测试参数访问性能...")
+        """Parameter access performance benchmark."""
+        print("Testing parameter access performance...")
 
         class ParamTestStrategy(bt.Strategy):
             params = (
@@ -236,7 +236,7 @@ class PerformanceBenchmark:
         start_time = time.time()
 
         for _ in range(iterations):
-            # 测试参数访问
+            # Test parameter access
             period = strategy.params.period
             threshold = strategy.params.threshold
             enabled = strategy.params.enable_feature
@@ -246,7 +246,7 @@ class PerformanceBenchmark:
         memory_used = self.measure_memory_end("parameter_access")
 
         total_time = end_time - start_time
-        avg_time = total_time / iterations * 1000000  # 微秒
+        avg_time = total_time / iterations * 1000000  # microseconds
 
         self.results["parameter_access"] = {
             "total_time": total_time,
@@ -255,19 +255,19 @@ class PerformanceBenchmark:
             "iterations": iterations,
         }
 
-        print(f"  - 总时间: {total_time:.4f}s")
-        print(f"  - 平均时间: {avg_time:.4f}μs/次")
-        print(f"  - 内存使用: {memory_used:.2f}MB")
+        print(f"  - Total time: {total_time:.4f}s")
+        print(f"  - Average time: {avg_time:.4f}μs/iteration")
+        print(f"  - Memory usage: {memory_used:.2f}MB")
 
     def run_all_benchmarks(self):
-        """运行所有基准测试"""
+        """Run all benchmarks."""
         print("=" * 60)
-        print("BACKTRADER 性能基准测试")
+        print("BACKTRADER PERFORMANCE BENCHMARK")
         print("=" * 60)
-        print(f"Python版本: {sys.version}")
-        print(f"系统: {psutil.Platform}")
-        print(f"CPU核心数: {psutil.cpu_count()}")
-        print(f"内存: {psutil.virtual_memory().total / 1024 / 1024 / 1024:.1f}GB")
+        print(f"Python version: {sys.version}")
+        print(f"System: {psutil.Platform}")
+        print(f"CPU cores: {psutil.cpu_count()}")
+        print(f"Memory: {psutil.virtual_memory().total / 1024 / 1024 / 1024:.1f}GB")
         print("=" * 60)
 
         try:
@@ -281,16 +281,16 @@ class PerformanceBenchmark:
             print()
 
         except Exception as e:
-            print(f"基准测试出错: {e}")
+            print(f"Benchmark error: {e}")
             import traceback
 
             traceback.print_exc()
 
     def save_results(self, filename="performance_baseline.json"):
-        """保存结果到文件"""
+        """Save results to file."""
         import json
 
-        # 添加系统信息
+        # Add system information
         self.results["system_info"] = {
             "python_version": sys.version,
             "cpu_count": psutil.cpu_count(),
@@ -301,33 +301,33 @@ class PerformanceBenchmark:
         with open(filename, "w") as f:
             json.dump(self.results, f, indent=2)
 
-        print(f"基准测试结果已保存到: {filename}")
+        print(f"Benchmark results saved to: {filename}")
 
     def print_summary(self):
-        """打印结果摘要"""
+        """Print results summary."""
         print("=" * 60)
-        print("性能基准测试结果摘要")
+        print("Performance Benchmark Results Summary")
         print("=" * 60)
 
         if "strategy_creation" in self.results:
             r = self.results["strategy_creation"]
-            print(f"策略创建: {r['avg_time_ms']:.2f}ms/次")
+            print(f"Strategy creation: {r['avg_time_ms']:.2f}ms/iteration")
 
         if "indicator_calculation" in self.results:
             r = self.results["indicator_calculation"]
-            print(f"指标计算: {r['points_per_second']:.0f} 点/秒")
+            print(f"Indicator calculation: {r['points_per_second']:.0f} points/sec")
 
         if "data_access" in self.results:
             r = self.results["data_access"]
-            print(f"数据访问: {r['avg_access_time_us']:.2f}μs/次")
+            print(f"Data access: {r['avg_access_time_us']:.2f}μs/access")
 
         if "parameter_access" in self.results:
             r = self.results["parameter_access"]
-            print(f"参数访问: {r['avg_time_us']:.4f}μs/次")
+            print(f"Parameter access: {r['avg_time_us']:.4f}μs/access")
 
 
 def main():
-    """主函数"""
+    """Main function."""
     benchmark = PerformanceBenchmark()
     benchmark.run_all_benchmarks()
     benchmark.print_summary()

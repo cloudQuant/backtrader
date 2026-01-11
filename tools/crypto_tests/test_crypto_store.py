@@ -30,9 +30,9 @@ def test_init_two_time():
             "private_key": account_config_data["binance"]["private_key"],
         }
     }
-    # 第一次初始化
+    # First initialization
     crypto_store_1 = CryptoStore(exchange_params_1, debug=True)
-    # 第二次初始化
+    # Second initialization
     crypto_store_2 = CryptoStore(exchange_params_2, debug=True)
     assert "OKX___SWAP" in crypto_store_1.kwargs
     assert "BINANCE___SWAP" in crypto_store_2.kwargs

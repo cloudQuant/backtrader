@@ -15,16 +15,16 @@ from backtrader.utils.log_message import SpdLogManager
 
 
 def get_from_time_and_end_time():
-    # 获取当前的本地时间（带有时区信息）
+    # Get current local time (with timezone info)
     local_time = datetime.now().astimezone()
 
-    # 设置微秒为 0，保留分钟和秒
+    # Set microseconds to 0, keep minutes and seconds
     local_time_rounded = local_time.replace(microsecond=0)
 
-    # 将本地时间转换为 UTC 时间
+    # Convert local time to UTC time
     utc_time = local_time_rounded.astimezone(pytz.UTC)
 
-    # 返回从当前时间的前一小时到当前时间的范围
+    # Return range from one hour before current time to current time
     return utc_time - timedelta(hours=1), utc_time
 
 
@@ -96,7 +96,7 @@ class TestStrategy(bt.BtApiStrategy):
                 self.env.runstop()
 
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        # Output information when a trade ends
         data = trade.data
         data_name = data.get_name()
         new_trade = trade.bt_api_data
@@ -149,7 +149,7 @@ def test_binance_buy_sell_order():
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)
-    # 获取第一个策略实例
+    # Get first strategy instance
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
     for cancel_order in strategy_instance.cancel_order_dict.values():
@@ -190,7 +190,7 @@ def test_okx_buy_and_sell():
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)
-    # 获取第一个策略实例
+    # Get first strategy instance
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
     for cancel_order in strategy_instance.cancel_order_dict.values():
@@ -244,7 +244,7 @@ def test_okx_and_binance_buy_sell_order():
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)
-    # 获取第一个策略实例
+    # Get first strategy instance
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
     for cancel_order in strategy_instance.cancel_order_dict.values():
@@ -254,9 +254,9 @@ def test_okx_and_binance_buy_sell_order():
 
 
 if __name__ == "__main__":
-    print("--------------进行第一个测试-------------------")
+    print("--------------First test-------------------")
     test_binance_buy_sell_order()
-    print("--------------进行第二个测试-------------------")
+    print("--------------Second test-------------------")
     test_okx_buy_and_sell()
-    print("--------------进行第三个测试-------------------")
+    print("--------------Third test-------------------")
     test_okx_and_binance_buy_sell_order()

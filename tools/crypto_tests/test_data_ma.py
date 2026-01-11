@@ -13,16 +13,16 @@ from backtrader.utils.log_message import SpdLogManager
 
 
 def get_from_time_and_end_time():
-    # 获取当前的本地时间（带有时区信息）
+    # Get current local time (with timezone info)
     local_time = datetime.now().astimezone()
 
-    # 设置微秒为 0，保留分钟和秒
+    # Set microseconds to 0, keep minutes and seconds
     local_time_rounded = local_time.replace(microsecond=0)
 
-    # 将本地时间转换为 UTC 时间
+    # Convert local time to UTC time
     utc_time = local_time_rounded.astimezone(pytz.UTC)
 
-    # 返回从当前时间的前一小时到当前时间的范围
+    # Return range from one hour before current time to current time
     return utc_time - timedelta(hours=1), utc_time
 
 
@@ -60,7 +60,7 @@ class TestStrategy(bt.BtApiStrategy):
         for data in self.datas:
             cash = self.broker.getcash(data)
             value = self.broker.getvalue(data)
-            # now_time = bt.num2date(data.datetime[0]).astimezone()   # 先将数字时间转换为无时区的 datetime 对象
+            # now_time = bt.num2date(data.datetime[0]).astimezone()   # First convert numeric time to timezone-naive datetime object
             now_time = bt.num2date(data.datetime[0], tz=get_localzone())
             now_ma = self.sma_dict[data.get_name()][0]
             self.log(
@@ -139,7 +139,7 @@ def test_binance_ma():
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)
-    # 获取第一个策略实例
+    # Get first strategy instance
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
     # assert strategy_instance.update_cash is True
@@ -177,7 +177,7 @@ def test_okx_ma():
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)
-    # 获取第一个策略实例
+    # Get first strategy instance
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
     # assert strategy_instance.update_cash is True
@@ -230,7 +230,7 @@ def test_okx_and_binance():
 
     # Enable live mode for realtime data
     strategies = cerebro.run(live=True)
-    # 获取第一个策略实例
+    # Get first strategy instance
     strategy_instance = strategies[0]
     assert strategy_instance.now_live_data is True
     # assert strategy_instance.update_cash is True
@@ -239,9 +239,9 @@ def test_okx_and_binance():
 
 
 if __name__ == "__main__":
-    print("-----------第一个进行测试---------------")
+    print("-----------First test---------------")
     test_binance_ma()
-    print("-----------第二个进行测试---------------")
+    print("-----------Second test---------------")
     test_okx_ma()
-    print("-----------第三个进行测试---------------")
+    print("-----------Third test---------------")
     test_okx_and_binance()
