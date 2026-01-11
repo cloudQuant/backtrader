@@ -44,7 +44,7 @@ import operator
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
 from .lineseries import LineSeriesStub
-from .metabase import ItemCollection, findowner
+from .metabase import ItemCollection, findowner, OwnerContext
 from .order import Order
 from .signal import (
     SIGNAL_LONG,
@@ -277,6 +277,7 @@ class Strategy(StrategyBase):
 
         # CRITICAL FIX: For TestStrategy, we need to call its __init__ method directly
         # without filtering parameters since TestStrategy.__init__ doesn't take kwargs
+        # Use OwnerContext to ensure indicators created in __init__ find this strategy as owner
         if self.__class__.__name__ == "TestStrategy":
             # For TestStrategy, call its __init__ directly - it takes no kwargs
             # Look for TestStrategy's __init__ method
@@ -287,7 +288,9 @@ class Strategy(StrategyBase):
                     and "__init__" in cls.__dict__
                 ):
                     user_init = cls.__dict__["__init__"]
-                    user_init(self)  # TestStrategy.__init__ takes only self
+                    # Use OwnerContext so indicators find this strategy as owner
+                    with OwnerContext.set_owner(self):
+                        user_init(self)  # TestStrategy.__init__ takes only self
                     break
         elif self.__class__ != Strategy:
             # For other strategy subclasses, filter kwargs before calling
@@ -327,12 +330,15 @@ class Strategy(StrategyBase):
                         else:
                             user_init = cls.__dict__["__init__"]
                         try:
-                            user_init(self)
+                            # Use OwnerContext so indicators find this strategy as owner
+                            with OwnerContext.set_owner(self):
+                                user_init(self)
                             break
                         except Exception:
                             # If user init fails, try with filtered_kwargs
                             if filtered_kwargs:
-                                user_init(self, **filtered_kwargs)
+                                with OwnerContext.set_owner(self):
+                                    user_init(self, **filtered_kwargs)
                             break
 
         # Initialize critical attributes that are expected by strategy execution

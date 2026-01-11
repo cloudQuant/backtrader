@@ -36,7 +36,9 @@ Note:
 import itertools
 import math
 import sys
+import threading
 from collections import OrderedDict
+from contextlib import contextmanager
 
 from .utils.py3 import string_types, zip
 
@@ -46,6 +48,97 @@ _type_check_cache = {}
 
 # PERFORMANCE OPTIMIZATION: One-time guard for indicator alias initialization
 _INDICATOR_ALIASES_INITIALIZED = False
+
+# Thread-local storage for owner context
+# This replaces sys._getframe() based owner lookup with explicit context management
+_owner_context = threading.local()
+
+
+class OwnerContext:
+    """Context manager for tracking owner objects during indicator creation.
+
+    This class provides an alternative to sys._getframe() based owner lookup
+    by maintaining an explicit owner stack in thread-local storage.
+
+    Usage:
+        with OwnerContext.set_owner(strategy):
+            # All indicators created here will have strategy as their owner
+            sma = SMA(data, period=20)
+
+    The owner stack allows nested contexts, so indicators creating sub-indicators
+    will correctly assign ownership.
+    """
+
+    @staticmethod
+    def get_current_owner(cls_filter=None):
+        """Get the current owner from the context stack.
+
+        Args:
+            cls_filter: Optional class type to filter owners. If provided,
+                only returns an owner that is an instance of this class.
+
+        Returns:
+            The current owner object, or None if no owner is set or
+            no owner matches the filter.
+        """
+        stack = getattr(_owner_context, 'owner_stack', None)
+        if not stack:
+            return None
+
+        # Return the topmost owner matching the filter
+        for owner in reversed(stack):
+            if cls_filter is None or isinstance(owner, cls_filter):
+                return owner
+        return None
+
+    @staticmethod
+    @contextmanager
+    def set_owner(owner):
+        """Set the current owner for indicator creation.
+
+        Args:
+            owner: The owner object (typically a Strategy or Indicator).
+
+        Yields:
+            None. The owner is available via get_current_owner() within the context.
+        """
+        if not hasattr(_owner_context, 'owner_stack'):
+            _owner_context.owner_stack = []
+
+        _owner_context.owner_stack.append(owner)
+        try:
+            yield
+        finally:
+            _owner_context.owner_stack.pop()
+
+    @staticmethod
+    def push_owner(owner):
+        """Push an owner onto the stack (non-context-manager version).
+
+        Args:
+            owner: The owner object to push.
+        """
+        if not hasattr(_owner_context, 'owner_stack'):
+            _owner_context.owner_stack = []
+        _owner_context.owner_stack.append(owner)
+
+    @staticmethod
+    def pop_owner():
+        """Pop the current owner from the stack.
+
+        Returns:
+            The popped owner, or None if the stack was empty.
+        """
+        stack = getattr(_owner_context, 'owner_stack', None)
+        if stack:
+            return stack.pop()
+        return None
+
+    @staticmethod
+    def clear():
+        """Clear the owner stack (useful for testing)."""
+        if hasattr(_owner_context, 'owner_stack'):
+            _owner_context.owner_stack.clear()
 
 
 def is_class_type(cls, type_name):
@@ -260,9 +353,10 @@ def findbases(kls, topclass):
 
 
 def findowner(owned, cls, startlevel=2, skip=None):
-    """Find the owner object in the call stack.
+    """Find the owner object in the call stack or context.
 
-    This function traverses the call stack to find an object that:
+    This function first checks the OwnerContext for an explicitly set owner,
+    then falls back to traversing the call stack to find an object that:
     1. Is an instance of the specified class (cls)
     2. Is not the owned object itself
     3. Is not the skip object (if provided)
@@ -281,11 +375,19 @@ def findowner(owned, cls, startlevel=2, skip=None):
         The owner object if found, None otherwise.
 
     Note:
-        Uses sys._getframe() to inspect the call stack. The search examines
-        both 'self' (regular method calls) and '_obj' (metaclass-style calls)
-        in each frame's local variables.
+        First checks OwnerContext for an explicitly set owner (preferred).
+        Falls back to sys._getframe() to inspect the call stack for
+        backward compatibility.
     """
-    # Skip this frame and the caller's -> start at 2
+    # PRIORITY 1: Check OwnerContext first (explicit owner management)
+    # This is the preferred method - no stack frame inspection needed
+    context_owner = OwnerContext.get_current_owner(cls)
+    if context_owner is not None:
+        if context_owner is not owned and context_owner is not skip:
+            return context_owner
+
+    # PRIORITY 2: Fall back to stack frame inspection for backward compatibility
+    # This handles cases where OwnerContext is not used
     for framelevel in itertools.count(startlevel):
         try:
             frame = sys._getframe(framelevel)
