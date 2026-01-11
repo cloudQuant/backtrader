@@ -6,7 +6,7 @@ from ctpbeebt import CTPStore
 import backtrader as bt
 
 
-# Origin定义不要删除,ctpbee接口需要它
+# Do not delete Origin definition, ctpbee interface requires it
 class Origin:
     """ """
 
@@ -15,15 +15,16 @@ class Origin:
         self.exchange = data._name.split(".")[1]
 
 
-# 说明在交易日上午8点45到下午3点，以及晚上8点45到凌晨2点45分，可进行实时行情模拟交易。
-# 中国期货交易时段(日盘/夜盘)，只有在交易时段才能进行实时模拟仿真，其他时段只能进行非实时模拟仿真。双休日不能进行模拟仿真
-DAY_START = time(8, 45)  # 日盘8点45开始
-DAY_END = time(15, 0)  # 下午3点结束
-NIGHT_START = time(20, 45)  # 夜盘晚上8点45开始
-NIGHT_END = time(2, 45)  # 凌晨2点45结束
+# Trading hours: 8:45 AM to 3:00 PM, and 8:45 PM to 2:45 AM for live simulation trading.
+# Chinese futures trading hours (day session/night session), live simulation is only available during trading hours.
+# Other times only support non-real-time simulation. Weekends do not support simulation.
+DAY_START = time(8, 45)  # Day session starts at 8:45
+DAY_END = time(15, 0)  # Day session ends at 3:00 PM
+NIGHT_START = time(20, 45)  # Night session starts at 8:45 PM
+NIGHT_END = time(2, 45)  # Night session ends at 2:45 AM
 
 
-# 是否在交易时段
+# Check if currently in trading period
 def is_trading_period():
     """ """
     current_time = datetime.now().time()
@@ -85,22 +86,23 @@ class SmaCross(bt.Strategy):
             )
             pos = self.beeapi.app.center.get_position(d._dataname)
             print("position", pos)
-            # 可以访问持仓、成交、订单等各种实盘信息，如何访问参考http://docs.ctpbee.com/modules/rec.html
+            # Can access position, trades, orders and other live trading information
+            # Refer to http://docs.ctpbee.com/modules/rec.html for access methods
             trades = self.beeapi.app.center.trades
             print("trades", trades)
             account = self.beeapi.app.center.account
             print("account", account)
 
-        if not self.live_data:  # 不是实时数据(还处于历史数据回填中),不进入下单逻辑
+        if not self.live_data:  # Not live data (still in historical data backfilling), skip order logic
             return
 
-        # 开多仓
+        # Open long position
         print("live buy")
         # self.open_long(self.data0.close[0] + 3, 1, self.data0)
         print("---------------------------------------------------")
 
     def notify_order(self, order):
-        print("订单状态 %s" % order.getstatusname())
+        print("Order status %s" % order.getstatusname())
 
     def notify_data(self, data, status, *args, **kwargs):
         dn = data._name
@@ -112,7 +114,7 @@ class SmaCross(bt.Strategy):
         else:
             self.live_data = False
 
-    # 以下是下单函数
+    # Following are order placement functions
     def open_long(self, price, size, data):
         self.beeapi.action.buy(price, size, Origin(data))
 
@@ -126,7 +128,7 @@ class SmaCross(bt.Strategy):
         self.beeapi.action.sell(price, size, Origin(data))
 
 
-# 主程序开始
+# Main program starts
 if __name__ == "__main__":
     with open("./params_01.json") as f:
         ctp_setting = json.load(f)
@@ -136,20 +138,21 @@ if __name__ == "__main__":
     store = CTPStore(ctp_setting, debug=True)
     cerebro.addstrategy(SmaCross, store=store)
 
-    # 由于历史回填数据从akshare拿，最细1分钟bar，所以以下实盘也只接收1分钟bar
+    # Since historical backfill data comes from akshare, finest granularity is 1-minute bar
+    # So live trading also only receives 1-minute bars
     # https://www.akshare.xyz/zh_CN/latest/data/futures/futures.html#id106
 
     data0 = store.getdata(
         dataname="ag2112.SHFE",
-        timeframe=bt.TimeFrame.Minutes,  # 注意符号必须带交易所代码。
+        timeframe=bt.TimeFrame.Minutes,  # Note: symbol must include exchange code.
         num_init_backfill=100 if is_trading_period() else 0,
-    )  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
+    )  # Initial backfill bar count, set to 0 when using TEST server for simulation
 
     data1 = store.getdata(
         dataname="rb2201.SHFE",
-        timeframe=bt.TimeFrame.Minutes,  # 注意符号必须带交易所代码。
+        timeframe=bt.TimeFrame.Minutes,  # Note: symbol must include exchange code.
         num_init_backfill=100 if is_trading_period() else 0,
-    )  # 初始回填bar数，使用TEST服务器进行模拟实盘时，要设为0
+    )  # Initial backfill bar count, set to 0 when using TEST server for simulation
 
     cerebro.adddata(data0)
     cerebro.adddata(data1)

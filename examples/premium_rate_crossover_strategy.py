@@ -9,7 +9,7 @@ Strategy logic:
 
 References:
 - examples/sma_crossover.py
-- examples/优化策略1.py
+- examples/optimized_strategy_1.py
 """
 import datetime
 import sys

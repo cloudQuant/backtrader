@@ -15,9 +15,9 @@ class TestStrategy(bt.Strategy):
         self.bought = False
 
     def timestamp2datetime(timestamp):
-        # 将时间戳转换为datetime对象
+        # Convert timestamp to datetime object
         dt_object = datetime.fromtimestamp(timestamp)
-        # 将datetime对象格式化为字符串形式
+        # Format datetime object as string
         formatted_time = dt_object.strftime("%Y-%m-%d %H:%M:%S.%f")
         return formatted_time
 
@@ -44,11 +44,11 @@ class TestStrategy(bt.Strategy):
                 # self.order = self.sell(size=0.002, exectype=Order.Market)
                 # self.order = self.buy(size=0.001, exectype=Order.Limit, price=50000)
 
-                # 对于火币和OKEX这类的交易所,他们现货的市价买单size字段其实传入的是`要花费的金额`,而不是要购买的数量,
-                # 但是ccxt库在实现的时候为了统一接口,玩了点小技巧,仍然是按size=购买数量,price=购买价格来传参数,
-                # 然后在内部计算size*price=`要花费的金额`后,再把真正的参数`要花费的金额`传给交易所.
-                # 记住,因为是市价成交所以最后实际成交数量不一定等于传入的size数量!
-                # 所以在这种情况下,backtrader平台内部的order.executed.remsize不可信,详见backtrader代码
+                # For exchanges like Huobi and OKEX, the size field for spot market buy orders is actually the `amount to spend`, not the quantity to buy
+                # However, the ccxt library implemented a unified interface trick, still using size=quantity, price=price as parameters
+                # Then internally calculates size*price=`amount to spend`, and passes the actual parameter `amount to spend` to the exchange
+                # Remember, since it's a market order, the final executed quantity may not equal the input size!
+                # In this case, order.executed.remsize within backtrader is not reliable, see backtrader code for details
                 # self.order = self.buy(size=0.001, exectype=Order.Market, price=50000)
                 # And immediately cancel the buy order
                 # self.cancel(self.order)
