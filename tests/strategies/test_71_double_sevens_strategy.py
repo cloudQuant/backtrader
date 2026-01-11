@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Double Sevens 双七策略
+"""Test case: Double Sevens Strategy.
 
-参考来源: https://github.com/backtrader/backhacker
-Larry Connor的Double 7's策略
+Reference: https://github.com/backtrader/backhacker
+Larry Connor's Double 7's strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +19,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script's directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,16 +44,16 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class DoubleSevensStrategy(bt.Strategy):
-    """双七策略
-    
-    Larry Connor的策略:
-    1. 价格在200日或70日均线上方
-    2. 价格创N日新低时买入
-    3. 价格创N日新高时卖出
+    """Double Sevens Strategy.
+
+    Larry Connor's strategy:
+    1. Price is above the 200-day or 70-day moving average
+    2. Buy when price makes a new N-day low
+    3. Sell when price makes a new N-day high
     """
     params = dict(
         stake=10,
-        period=7,  # N日高低点周期
+        period=7,  # N-day high/low period
         sma_short=70,
         sma_long=200,
     )
@@ -57,8 +67,8 @@ class DoubleSevensStrategy(bt.Strategy):
         
         self.order = None
         self.last_operation = "SELL"
-        
-        # 统计变量
+
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -83,14 +93,14 @@ class DoubleSevensStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 买入条件: 价格在均线上方 + 创N日新低
+        # Buy condition: Price above moving average + new N-day low
         if self.last_operation != "BUY":
             above_ma = self.dataclose[0] > self.sma200[0] or self.dataclose[0] > self.sma[0]
             at_low = self.dataclose[0] <= self.low_bar[0]
             if above_ma and at_low:
                 self.order = self.buy(size=self.p.stake)
-        
-        # 卖出条件: 创N日新高
+
+        # Sell condition: new N-day high
         if self.last_operation != "SELL":
             if self.dataclose[0] >= self.high_bar[0]:
                 self.order = self.sell(size=self.p.stake)
@@ -100,7 +110,14 @@ class DoubleSevensStrategy(bt.Strategy):
 
 
 def test_double_sevens_strategy():
-    """测试双七策略"""
+    """Test the Double Sevens strategy.
+
+    This test:
+    1. Loads historical price data for Oracle (ORCL) from 2005-2014
+    2. Runs the Double Sevens trading strategy with default parameters
+    3. Validates strategy performance metrics including Sharpe ratio,
+       annual returns, maximum drawdown, and final portfolio value
+    """
     cerebro = bt.Cerebro()
 
     data_path = resolve_data_path("orcl-1995-2014.txt")
@@ -123,7 +140,7 @@ def test_double_sevens_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -132,7 +149,7 @@ def test_double_sevens_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -141,7 +158,7 @@ def test_double_sevens_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Double Sevens 双七策略回测结果:")
+    print("Double Sevens Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -152,19 +169,19 @@ def test_double_sevens_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 2317, f"Expected bar_num=2317, got {strat.bar_num}"
     assert abs(final_value - 100090.36) < 0.01, f"Expected final_value=100090.36, got {final_value}"
     assert abs(sharpe_ratio - (0.19450685966492476)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (9.047151710597933e-05)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.1424209289556953) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Double Sevens 双七策略测试")
+    print("Double Sevens Strategy Test")
     print("=" * 60)
     test_double_sevens_strategy()

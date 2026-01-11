@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: SuperTrend Indicator 超级趋势指标策略
+Test case: SuperTrend Indicator Strategy.
 
-参考来源: https://github.com/Backtrader1.0/strategies/supertrend.py
-使用带有trend line的SuperTrend指标进行交易
+Reference: https://github.com/Backtrader1.0/strategies/supertrend.py
+Uses the SuperTrend indicator with trend line for trading.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,9 +30,10 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SuperTrendIndicator(bt.Indicator):
-    """SuperTrend指标
-    
-    计算上轨和下轨，根据价格与轨道的关系确定趋势方向
+    """SuperTrend Indicator.
+
+    Calculates the upper and lower bands and determines trend direction
+    based on the relationship between price and the bands.
     """
     lines = ('st', 'final_up', 'final_dn', 'trend')
     params = dict(period=20, multiplier=3.0)
@@ -55,19 +56,19 @@ class SuperTrendIndicator(bt.Indicator):
         prev_fu = self.final_up[-1]
         prev_fd = self.final_dn[-1]
 
-        # 更新上轨
+        # Update upper band
         if self.basic_up[0] < prev_fu or self.data.close[-1] > prev_fu:
             self.final_up[0] = self.basic_up[0]
         else:
             self.final_up[0] = prev_fu
 
-        # 更新下轨
+        # Update lower band
         if self.basic_dn[0] > prev_fd or self.data.close[-1] < prev_fd:
             self.final_dn[0] = self.basic_dn[0]
         else:
             self.final_dn[0] = prev_fd
 
-        # 确定趋势方向
+        # Determine trend direction
         if self.data.close[0] > self.final_up[-1]:
             self.trend[0] = 1
         elif self.data.close[0] < self.final_dn[-1]:
@@ -75,16 +76,16 @@ class SuperTrendIndicator(bt.Indicator):
         else:
             self.trend[0] = self.trend[-1]
 
-        # 设置SuperTrend线
+        # Set SuperTrend line
         self.st[0] = self.final_dn[0] if self.trend[0] > 0 else self.final_up[0]
 
 
 class SuperTrendIndicatorStrategy(bt.Strategy):
-    """SuperTrend指标策略
-    
-    入场条件:
-    - 多头: 价格从下方突破SuperTrend线
-    - 空头: 价格从上方跌破SuperTrend线
+    """SuperTrend Indicator Strategy.
+
+    Entry conditions:
+    - Long: Price breaks above SuperTrend line from below
+    - Short: Price breaks below SuperTrend line from above
     """
     params = dict(
         stake=10,
@@ -95,7 +96,7 @@ class SuperTrendIndicatorStrategy(bt.Strategy):
     def __init__(self):
         self.dataclose = self.datas[0].close
         
-        # SuperTrend指标
+        # SuperTrend indicator
         self.st = SuperTrendIndicator(
             self.data,
             period=self.p.st_period,
@@ -136,14 +137,14 @@ class SuperTrendIndicatorStrategy(bt.Strategy):
             self.prev_up = up_now
             return
 
-        # 多头入场: 价格从下方突破ST线
+        # Long entry: Price breaks above ST line from below
         if up_now and not self.prev_up:
             if not self.position:
                 self.order = self.buy(size=self.p.stake)
             elif self.position.size < 0:
                 self.order = self.close()
 
-        # 空头/平仓: 价格从上方跌破ST线
+        # Short exit: Price breaks below ST line from above
         elif not up_now and self.prev_up:
             if self.position.size > 0:
                 self.order = self.close()
@@ -177,7 +178,7 @@ def test_supertrend_indicator_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("SuperTrend Indicator 超级趋势指标策略回测结果:")
+    print("SuperTrend Indicator Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -187,19 +188,19 @@ def test_supertrend_indicator_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1237, f"Expected bar_num=1237, got {strat.bar_num}"
     assert abs(final_value - 99977.89) < 0.01, f"Expected final_value=99977.89, got {final_value}"
     assert abs(sharpe_ratio - (-0.09158071580164015)) < 1e-6, f"Expected sharpe_ratio=-0.09158071580164015, got {sharpe_ratio}"
     assert abs(annual_return - (-4.432414175552991e-05)) < 1e-6, f"Expected annual_return=-4.432414175552991e-05, got {annual_return}"
     assert abs(max_drawdown - 0.16618133797700763) < 1e-6, f"Expected max_drawdown=0.16618133797700763, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("SuperTrend Indicator 超级趋势指标策略测试")
+    print("SuperTrend Indicator Strategy Test")
     print("=" * 60)
     test_supertrend_indicator_strategy()

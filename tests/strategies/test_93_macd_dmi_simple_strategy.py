@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: MACD + DMI 简化策略
+Test Case: MACD + DMI Simplified Strategy
 
-参考来源: backtrader-strategies/macddmi.py
-使用MACD和DMI两个指标的交叉信号作为入场确认
-简化版本，避免backtrader属性冲突
+Reference: backtrader-strategies/macddmi.py
+Uses crossover signals from MACD and DMI indicators as entry confirmation
+Simplified version to avoid backtrader attribute conflicts
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -31,14 +31,14 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class MacdDmiSimpleStrategy(bt.Strategy):
-    """MACD + DMI 简化策略
-    
-    入场条件:
-    - 多头: MACD线上穿信号线 且 +DI > -DI
-    - 空头: MACD线下穿信号线 且 -DI > +DI
-    
-    出场条件:
-    - MACD反向交叉
+    """MACD + DMI Simplified Strategy.
+
+    Entry conditions:
+    - Long: MACD line crosses above signal line and +DI > -DI
+    - Short: MACD line crosses below signal line and -DI > +DI
+
+    Exit conditions:
+    - MACD reverse crossover
     """
     params = dict(
         stake=10,
@@ -49,20 +49,20 @@ class MacdDmiSimpleStrategy(bt.Strategy):
     )
 
     def __init__(self):
-        # MACD指标
+        # MACD indicator
         self.macd = bt.indicators.MACD(
             self.data,
             period_me1=self.p.macd_fast,
             period_me2=self.p.macd_slow,
             period_signal=self.p.macd_signal,
         )
-        
-        # DMI指标
+
+        # DMI indicator
         self.dmi = bt.indicators.DirectionalMovementIndex(
             self.data, period=self.p.dmi_period
         )
-        
-        # MACD交叉信号
+
+        # MACD crossover signal
         self.macd_cross = bt.indicators.CrossOver(self.macd.macd, self.macd.signal)
         
         self.order = None
@@ -90,14 +90,14 @@ class MacdDmiSimpleStrategy(bt.Strategy):
         minus_di = self.dmi.DIminus[0]
 
         if not self.position:
-            # 多头入场: MACD金叉
+            # Long entry: MACD golden cross
             if self.macd_cross[0] > 0:
                 self.order = self.buy(size=self.p.stake)
-            # 空头入场: MACD死叉
+            # Short entry: MACD death cross
             elif self.macd_cross[0] < 0:
                 self.order = self.sell(size=self.p.stake)
         else:
-            # 平仓条件: MACD反向交叉
+            # Exit condition: MACD reverse crossover
             if self.position.size > 0 and self.macd_cross[0] < 0:
                 self.order = self.close()
             elif self.position.size < 0 and self.macd_cross[0] > 0:
@@ -130,7 +130,7 @@ def test_macd_dmi_simple_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("MACD + DMI 简化策略回测结果:")
+    print("MACD + DMI Simplified Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -140,19 +140,19 @@ def test_macd_dmi_simple_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1223, f"Expected bar_num=1223, got {strat.bar_num}"
     assert abs(final_value - 99948.71) < 0.01, f"Expected final_value=100000.0, got {final_value}"
     assert abs(sharpe_ratio - (-0.20797152972748584)) < 1e-6, f"Expected sharpe_ratio=-0.20797152972748584, got {sharpe_ratio}"
     assert abs(annual_return - (-0.00010284209965205515)) < 1e-12, f"Expected annual_return=-0.00010284209965205515, got {annual_return}"
     assert abs(max_drawdown - 0.12263737758169839) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("MACD + DMI 简化策略测试")
+    print("MACD + DMI Simplified Strategy Test")
     print("=" * 60)
     test_macd_dmi_simple_strategy()

@@ -1,10 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Data Replay 数据回放 - 布林带策略
+"""Test Case: Data Replay - Bollinger Bands Strategy.
 
-参考来源: test_58_data_replay.py
-测试数据回放功能，使用布林带突破策略
+This module tests the data replay functionality using a Bollinger Bands
+breakout strategy.
+
+Reference: test_58_data_replay.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,11 +31,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class ReplayBollingerStrategy(bt.Strategy):
-    """测试数据回放的策略 - 布林带突破
+    """Test data replay strategy with Bollinger Bands breakout.
 
-    策略逻辑:
-    - 价格突破上轨时买入
-    - 价格跌破中轨时卖出平仓
+    Strategy logic:
+        - Buy when price breaks above the upper band
+        - Sell and close position when price falls below the middle band
     """
     params = (('period', 20), ('devfactor', 2.0))
 
@@ -93,27 +94,34 @@ class ReplayBollingerStrategy(bt.Strategy):
         self.bar_num += 1
         if self.order:
             return
-        
-        # 价格突破上轨时买入
+
+        # Buy when price breaks above the upper band
         if self.data.close[0] > self.boll.top[0]:
             if not self.position:
                 self.order = self.buy()
-        # 价格跌破中轨时卖出
+        # Sell when price falls below the middle band
         elif self.data.close[0] < self.boll.mid[0]:
             if self.position:
                 self.order = self.close()
 
 
 def test_data_replay_bollinger():
-    """测试 Data Replay 数据回放 - 布林带策略"""
+    """Test Data Replay with Bollinger Bands strategy.
+
+    This test function:
+        - Loads daily price data
+        - Replays the data as weekly timeframe
+        - Executes a Bollinger Bands breakout strategy
+        - Validates the backtest results against expected values
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(dataname=str(data_path))
 
-    # 使用回放功能，将日线回放为周线
+    # Use replay functionality to replay daily data as weekly data
     cerebro.replaydata(
         data,
         timeframe=bt.TimeFrame.Weeks,
@@ -123,18 +131,18 @@ def test_data_replay_bollinger():
     cerebro.addstrategy(ReplayBollingerStrategy, period=20, devfactor=2.0)
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 添加完整分析器
+    # Add complete analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Weeks, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run(preload=False)
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe = strat.analyzers.sharpe.get_analysis()
     ret = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -146,9 +154,9 @@ def test_data_replay_bollinger():
     total_trades = trades.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Data Replay 布林带策略回测结果 (周线):")
+    print("Data Replay Bollinger Bands Strategy Backtest Results (Weekly):")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -159,7 +167,7 @@ def test_data_replay_bollinger():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 419, f"Expected bar_num=419, got {strat.bar_num}"
     assert abs(final_value - 103822.30) < 0.01, f"Expected final_value=103822.30, got {final_value}"
     assert abs(sharpe_ratio - 0.717232637621499) < 1e-6, f"Expected sharpe_ratio=0.717232637621499, got {sharpe_ratio}"
@@ -167,11 +175,11 @@ def test_data_replay_bollinger():
     assert abs(max_drawdown - 1.9767203338832484) < 1e-6, f"Expected max_drawdown=1.9767203338832484, got {max_drawdown}"
     assert total_trades == 2, f"Expected total_trades=2, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Data Replay 布林带策略测试")
+    print("Data Replay Bollinger Bands Strategy Test")
     print("=" * 60)
     test_data_replay_bollinger()
