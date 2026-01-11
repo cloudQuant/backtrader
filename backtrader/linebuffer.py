@@ -1540,34 +1540,9 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 pass
 
         # If still no owner, try a broader search
+        # findowner() now checks OwnerContext first, then falls back to sys._getframe
         if self._owner is None:
             self._owner = metabase.findowner(self, None)
-
-        # If still no owner, manually search the call stack more thoroughly
-        if self._owner is None:
-            import sys
-
-            for level in range(2, 20):  # Search deeper in the stack
-                try:
-                    frame = sys._getframe(level)
-                    frame_self = frame.f_locals.get("self", None)
-                    if frame_self is not None and frame_self is not self:
-                        # Check if this looks like a strategy
-                        if (
-                            hasattr(frame_self, "datas")
-                            and hasattr(frame_self, "broker")
-                            and hasattr(frame_self, "_addindicator")
-                        ):
-                            self._owner = frame_self
-                            break
-                        # Check if this looks like a LineIterator
-                        elif hasattr(frame_self, "_lineiterators") and hasattr(
-                            frame_self, "addindicator"
-                        ):
-                            self._owner = frame_self
-                            break
-                except ValueError:
-                    break
 
         # Call pre-init
         self.__class__.dopreinit(self, *args, **kwargs)

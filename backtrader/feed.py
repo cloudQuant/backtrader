@@ -28,6 +28,7 @@ import inspect
 import os.path
 
 from . import dataseries
+from . import metabase
 from .dataseries import SimpleFilterWrapper, TimeFrame
 from .resamplerfilter import Replayer, Resampler
 from .tradingcal import PandasMarketCalendar
@@ -247,25 +248,13 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             self._filters.append((fp, [], {}))
 
     def _find_feed_owner(self):
-        """Replace the original metabase.findowner functionality"""
-        import sys
-
-        # Simplified owner lookup logic, find FeedBase instance in actual call stack
-        for frame_level in range(2, 10):  # Limit search depth
-            try:
-                frame = sys._getframe(frame_level)
-                self_obj = frame.f_locals.get("self", None)
-                if self_obj is not None and hasattr(self_obj, "__class__"):
-                    # Check if it's a FeedBase instance (using string check here to avoid circular import)
-                    if "FeedBase" in str(type(self_obj)):
-                        return self_obj
-                obj = frame.f_locals.get("_obj", None)
-                if obj is not None and hasattr(obj, "__class__"):
-                    if "FeedBase" in str(type(obj)):
-                        return obj
-            except ValueError:
-                break
-        return None
+        """Find the feed owner using metabase.findowner.
+        
+        This method delegates to metabase.findowner which now checks
+        OwnerContext first, then falls back to sys._getframe.
+        """
+        # Use findowner which handles OwnerContext and sys._getframe fallback
+        return metabase.findowner(self, FeedBase)
 
     @classmethod
     def _getstatusname(cls, status):
