@@ -454,25 +454,8 @@ class LineIteratorMixin:
                 except Exception:
                     pass
                 
-                # PRIORITY 2: Fallback to sys._getframe for backward compatibility
-                # This handles cases where OwnerContext is not used
-                if owner is None:
-                    try:
-                        # Walk up the call stack using sys._getframe (fast)
-                        # Start at frame 2 to skip this function and dopostinit
-                        for depth in range(2, 20):  # Max 20 frames to avoid infinite loop
-                            try:
-                                frame = sys._getframe(depth)
-                            except ValueError:
-                                break
-                            self_obj = frame.f_locals.get("self")
-                            if self_obj is not None and self_obj is not _obj:
-                                if isinstance(self_obj, Strategy):
-                                    owner = self_obj
-                                    _obj._owner = owner
-                                    break
-                    except Exception:
-                        pass
+                # NOTE: sys._getframe fallback removed - OwnerContext should handle all cases
+                # If owner is still None, indicator will work standalone without registration
 
         # Register with owner if found
         # CRITICAL FIX: Check if already registered to avoid duplicates

@@ -375,41 +375,17 @@ def findowner(owned, cls, startlevel=2, skip=None):
         The owner object if found, None otherwise.
 
     Note:
-        First checks OwnerContext for an explicitly set owner (preferred).
-        Falls back to sys._getframe() to inspect the call stack for
-        backward compatibility.
+        Uses OwnerContext for explicit owner management. The legacy sys._getframe()
+        based lookup has been removed for better portability and performance.
     """
-    # PRIORITY 1: Check OwnerContext first (explicit owner management)
-    # This is the preferred method - no stack frame inspection needed
+    # Check OwnerContext for explicit owner management
+    # This is the only method now - no stack frame inspection
     context_owner = OwnerContext.get_current_owner(cls)
     if context_owner is not None:
         if context_owner is not owned and context_owner is not skip:
             return context_owner
 
-    # # PRIORITY 2: Fall back to stack frame inspection for backward compatibility
-    # # This handles cases where OwnerContext is not used
-    # for framelevel in itertools.count(startlevel):
-    #     try:
-    #         frame = sys._getframe(framelevel)
-    #     except ValueError:
-    #         # Frame depth exceeded - no owner found
-    #         break
-
-    #     # Check 'self' in regular code
-    #     self_ = frame.f_locals.get("self", None)
-    #     # If not skip, not owned, and is instance of cls, return it
-    #     if skip is not self_:
-    #         if self_ is not owned and cls is not None and isinstance(self_, cls):
-    #             return self_
-
-    #     # Check '_obj' in metaclass-style code
-    #     obj_ = frame.f_locals.get("_obj", None)
-    #     # If not skip, not owned, and is instance of cls, return it
-    #     if skip is not obj_:
-    #         if obj_ is not owned and cls is not None and isinstance(obj_, cls):
-    #             return obj_
-
-    # No owner found in call stack
+    # No owner found in context
     return None
 
 

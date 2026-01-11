@@ -1540,7 +1540,7 @@ class LineActions(LineBuffer, LineActionsMixin, metabase.ParamsMixin):
                 pass
 
         # If still no owner, try a broader search
-        # findowner() now checks OwnerContext first, then falls back to sys._getframe
+        # findowner() uses OwnerContext for owner lookup
         if self._owner is None:
             self._owner = metabase.findowner(self, None)
 

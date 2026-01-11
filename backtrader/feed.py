@@ -250,10 +250,10 @@ class AbstractDataBase(dataseries.OHLCDateTime):
     def _find_feed_owner(self):
         """Find the feed owner using metabase.findowner.
         
-        This method delegates to metabase.findowner which now checks
-        OwnerContext first, then falls back to sys._getframe.
+        This method delegates to metabase.findowner which uses
+        OwnerContext for explicit owner management.
         """
-        # Use findowner which handles OwnerContext and sys._getframe fallback
+        # Use findowner which checks OwnerContext for owner lookup
         return metabase.findowner(self, FeedBase)
 
     @classmethod
