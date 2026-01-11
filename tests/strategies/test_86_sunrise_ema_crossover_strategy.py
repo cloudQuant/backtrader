@@ -1,14 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Sunrise Volatility Expansion 波动率扩展通道策略 (完整版)
+Test Case: Sunrise Volatility Expansion Strategy (Complete Version)
 
-参考来源: https://github.com/backtrader-pullback-window-xauusd
-完整实现4阶段状态机入场系统:
-- Phase 1: 信号扫描 (EMA交叉 + 多重过滤器)
-- Phase 2: 回撤确认 (等待指定数量的回撤K线)
-- Phase 3: 突破窗口开启 (计算价格通道)
-- Phase 4: 突破监控 (等待价格突破通道)
+Reference: https://github.com/backtrader-pullback-window-xauusd
+Complete implementation of 4-phase state machine entry system:
+- Phase 1: Signal Scanning (EMA crossover + multiple filters)
+- Phase 2: Pullback Confirmation (waiting for specified number of pullback candles)
+- Phase 3: Breakout Window Open (calculating price channel)
+- Phase 4: Breakout Monitoring (waiting for price to break through channel)
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -35,34 +35,34 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SunriseVolatilityExpansionStrategy(bt.Strategy):
-    """Sunrise波动率扩展通道策略 (完整4阶段状态机)
-    
-    核心逻辑:
-    - Phase 1 (SCANNING): 扫描EMA交叉信号，应用多重过滤器
-    - Phase 2 (ARMED): 等待回撤K线确认
-    - Phase 3 (WINDOW_OPEN): 计算双边价格通道
-    - Phase 4: 监控价格突破通道上沿(多)/下沿(空)
-    
-    过滤器:
-    - EMA排列条件
-    - 价格过滤EMA
-    - K线方向过滤
-    - EMA斜率角度过滤
-    - ATR波动率过滤
+    """Sunrise Volatility Expansion Strategy (Complete 4-Phase State Machine)
+
+    Core Logic:
+    - Phase 1 (SCANNING): Scan EMA crossover signals, apply multiple filters
+    - Phase 2 (ARMED): Wait for pullback candle confirmation
+    - Phase 3 (WINDOW_OPEN): Calculate dual-side price channel
+    - Phase 4: Monitor price breakthrough of channel upper (long)/lower (short) edge
+
+    Filters:
+    - EMA alignment conditions
+    - Price filter EMA
+    - Candle direction filter
+    - EMA slope angle filter
+    - ATR volatility filter
     """
     params = dict(
         stake=10,
-        # EMA参数
+        # EMA parameters
         ema_fast=14,
         ema_medium=14,
         ema_slow=24,
         ema_confirm=1,
         ema_filter_price=100,
-        # ATR参数
+        # ATR parameters
         atr_period=10,
         atr_sl_mult=4.5,
         atr_tp_mult=6.5,
-        # 多头过滤器
+        # Long position filters
         long_use_ema_order=False,
         long_use_price_filter=True,
         long_use_candle_direction=False,
@@ -70,12 +70,12 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         long_min_angle=35.0,
         long_max_angle=95.0,
         long_angle_scale=10.0,
-        # 回撤入场参数
+        # Pullback entry parameters
         use_pullback_entry=True,
         long_pullback_candles=3,
         entry_window_periods=1,
         window_price_offset_mult=0.001,
-        # 全局无效化
+        # Global invalidation
         use_global_invalidation=True,
     )
 
@@ -84,24 +84,24 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         self.dataopen = self.datas[0].open
         self.datahigh = self.datas[0].high
         self.datalow = self.datas[0].low
-        
-        # EMA指标
+
+        # EMA indicators
         self.ema_fast = bt.indicators.EMA(self.data.close, period=self.p.ema_fast)
         self.ema_medium = bt.indicators.EMA(self.data.close, period=self.p.ema_medium)
         self.ema_slow = bt.indicators.EMA(self.data.close, period=self.p.ema_slow)
         self.ema_confirm = bt.indicators.EMA(self.data.close, period=self.p.ema_confirm)
         self.ema_filter_price = bt.indicators.EMA(self.data.close, period=self.p.ema_filter_price)
-        
+
         # ATR
         self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
-        
+
         self.order = None
         self.entry_price = 0
         self.stop_loss = 0
         self.take_profit = 0
         self.last_entry_bar = None
-        
-        # 4阶段状态机
+
+        # 4-phase state machine
         self.entry_state = "SCANNING"  # SCANNING, ARMED_LONG, ARMED_SHORT, WINDOW_OPEN
         self.armed_direction = None
         self.pullback_candle_count = 0
@@ -118,21 +118,21 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         self.sell_count = 0
 
     def _cross_above(self, a, b):
-        """检测a上穿b"""
+        """Detect if a crosses above b."""
         try:
             return (float(a[0]) > float(b[0])) and (float(a[-1]) <= float(b[-1]))
         except (IndexError, ValueError, TypeError):
             return False
 
     def _cross_below(self, a, b):
-        """检测a下穿b"""
+        """Detect if a crosses below b."""
         try:
             return (float(a[0]) < float(b[0])) and (float(a[-1]) >= float(b[-1]))
         except (IndexError, ValueError, TypeError):
             return False
 
     def _angle(self):
-        """计算EMA斜率角度"""
+        """Calculate EMA slope angle."""
         try:
             current_ema = float(self.ema_confirm[0])
             previous_ema = float(self.ema_confirm[-1])
@@ -142,7 +142,7 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
             return float('nan')
 
     def _reset_entry_state(self):
-        """重置入场状态机"""
+        """Reset entry state machine."""
         self.entry_state = "SCANNING"
         self.armed_direction = None
         self.pullback_candle_count = 0
@@ -154,20 +154,20 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         self.window_bar_start = None
 
     def _phase1_scan_for_signal(self):
-        """Phase 1: 扫描EMA交叉信号"""
-        # 检查多头信号
+        """Phase 1: Scan EMA crossover signals."""
+        # Check long signal
         try:
             prev_bull = self.data.close[-1] > self.data.open[-1]
         except IndexError:
             prev_bull = False
 
-        # EMA交叉检测 (confirm上穿任意一条EMA)
+        # EMA crossover detection (confirm crosses above any EMA)
         cross_fast = self._cross_above(self.ema_confirm, self.ema_fast)
         cross_medium = self._cross_above(self.ema_confirm, self.ema_medium)
         cross_slow = self._cross_above(self.ema_confirm, self.ema_slow)
         cross_any = cross_fast or cross_medium or cross_slow
 
-        # K线方向过滤
+        # Candle direction filter
         candle_ok = True
         if self.p.long_use_candle_direction:
             candle_ok = prev_bull
@@ -175,7 +175,7 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         if candle_ok and cross_any:
             signal_valid = True
 
-            # EMA排列条件
+            # EMA alignment conditions
             if self.p.long_use_ema_order:
                 ema_order_ok = (
                     self.ema_confirm[0] > self.ema_fast[0] and
@@ -185,13 +185,13 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
                 if not ema_order_ok:
                     signal_valid = False
 
-            # 价格过滤EMA
+            # Price filter EMA
             if signal_valid and self.p.long_use_price_filter:
                 price_above = self.data.close[0] > self.ema_filter_price[0]
                 if not price_above:
                     signal_valid = False
 
-            # 角度过滤
+            # Angle filter
             if signal_valid and self.p.long_use_angle_filter:
                 current_angle = self._angle()
                 if not (self.p.long_min_angle <= current_angle <= self.p.long_max_angle):
@@ -205,10 +205,10 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         return None
 
     def _phase2_confirm_pullback(self, armed_direction):
-        """Phase 2: 确认回撤K线"""
+        """Phase 2: Confirm pullback candles."""
         is_pullback = False
         if armed_direction == 'LONG':
-            is_pullback = self.data.close[0] < self.data.open[0]  # 阴线
+            is_pullback = self.data.close[0] < self.data.open[0]  # Bearish candle
 
         if is_pullback:
             self.pullback_candle_count += 1
@@ -219,21 +219,21 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
                 self.last_pullback_candle_low = float(self.data.low[0])
                 return True
         else:
-            # 非回撤K线，全局无效化
+            # Non-pullback candle, global invalidation
             if self.p.use_global_invalidation:
                 self._reset_entry_state()
 
         return False
 
     def _phase3_open_breakout_window(self, armed_direction):
-        """Phase 3: 开启突破窗口"""
+        """Phase 3: Open breakout window."""
         current_bar = len(self)
         self.window_bar_start = current_bar
 
         window_periods = self.p.entry_window_periods
         self.window_expiry_bar = current_bar + window_periods
 
-        # 计算双边价格通道
+        # Calculate dual-side price channel
         last_high = self.last_pullback_candle_high
         last_low = self.last_pullback_candle_low
         candle_range = last_high - last_low
@@ -245,13 +245,13 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         self.entry_state = "WINDOW_OPEN"
 
     def _phase4_monitor_window(self, armed_direction):
-        """Phase 4: 监控突破窗口"""
+        """Phase 4: Monitor breakout window."""
         current_bar = len(self)
 
         if current_bar < self.window_bar_start:
             return None
 
-        # 超时检查
+        # Timeout check
         if current_bar > self.window_expiry_bar:
             self.entry_state = f"ARMED_{armed_direction}"
             self.pullback_candle_count = 0
@@ -264,10 +264,10 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         current_low = self.data.low[0]
 
         if armed_direction == 'LONG':
-            # 成功: 价格突破上沿
+            # Success: Price breaks through upper edge
             if current_high >= self.window_top_limit:
                 return 'SUCCESS'
-            # 失败: 价格跌破下沿
+            # Failure: Price breaks through lower edge
             elif current_low <= self.window_bottom_limit:
                 self.entry_state = "ARMED_LONG"
                 self.pullback_candle_count = 0
@@ -301,7 +301,7 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
         if self.order:
             return
 
-        # 持仓管理: 止损止盈
+        # Position management: Stop loss and take profit
         if self.position:
             if self.datalow[0] <= self.stop_loss:
                 self.order = self.close()
@@ -311,25 +311,25 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
                 self.order = self.close()
                 self._reset_entry_state()
                 return
-            return  # 持仓中不进行新的入场逻辑
+            return  # No new entry logic while in position
 
-        # 无持仓时清理订单
+        # Clear orders when not in position
         if not self.position:
             self.stop_loss = 0
             self.take_profit = 0
 
-        # 4阶段状态机
+        # 4-phase state machine
         if not self.p.use_pullback_entry:
-            # 非回撤模式: 直接入场
+            # Non-pullback mode: Direct entry
             signal = self._phase1_scan_for_signal()
             if signal == 'LONG':
                 self.order = self.buy(size=self.p.stake)
             return
 
-        # 全局无效化检查
+        # Global invalidation check
         if self.entry_state in ["ARMED_LONG", "ARMED_SHORT"]:
             if self.entry_state == "ARMED_LONG":
-                # 检测空头信号是否出现
+                # Check if short signal appears
                 try:
                     prev_bear = self.data.close[-1] < self.data.open[-1]
                     cross_fast = self._cross_below(self.ema_confirm, self.ema_fast)
@@ -340,7 +340,7 @@ class SunriseVolatilityExpansionStrategy(bt.Strategy):
                 except IndexError:
                     pass
 
-        # 状态机路由
+        # State machine routing
         if self.entry_state == "SCANNING":
             signal_direction = self._phase1_scan_for_signal()
             if signal_direction:
@@ -406,7 +406,7 @@ def test_sunrise_volatility_expansion_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Sunrise Volatility Expansion 波动率扩展策略回测结果:")
+    print("Sunrise Volatility Expansion Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -416,19 +416,19 @@ def test_sunrise_volatility_expansion_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 76055, f"Expected bar_num=76055, got {strat.bar_num}"
     assert abs(final_value - 99780.54) < 0.01, f"Expected final_value=99780.54, got {final_value}"
     assert abs(sharpe_ratio - (-0.058262402599915615)) < 1e-6, f"Expected sharpe_ratio=-0.058, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0016463951849173732)) < 1e-6, f"Expected annual_return=-0.00165, got {annual_return}"
     assert abs(max_drawdown - 2.169140984136156) < 1e-6, f"Expected max_drawdown=2.169, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Sunrise Volatility Expansion 波动率扩展策略测试")
+    print("Sunrise Volatility Expansion Strategy Test")
     print("=" * 60)
     test_sunrise_volatility_expansion_strategy()

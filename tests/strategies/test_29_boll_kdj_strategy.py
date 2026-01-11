@@ -1,10 +1,11 @@
-"""BOLLKDJ 布林带+KDJ策略测试用例
+"""Test cases for BOLLKDJ Bollinger Bands + KDJ strategy.
 
-使用上证股票数据 sh600000.csv 测试布林带+KDJ组合策略
-- 使用 GenericCSVData 加载本地数据文件
-- 通过 self.datas[0] 规范访问数据
+Tests the Bollinger Bands + KDJ combination strategy using Shanghai stock data
+from sh600000.csv.
+- Uses GenericCSVData to load local data files
+- Accesses data through self.datas[0]
 
-参考来源: backtrader-example/strategies/bollkdj.py
+Reference: backtrader-example/strategies/bollkdj.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +21,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script's directory to avoid relative path failures."""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -36,14 +37,15 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class KDJ(bt.Indicator):
-    """KDJ 指标
-    
-    重构说明：使用 next() 方法替代 line binding (self.l.K = self.kd.percD)
-    因为 line binding 在当前架构中存在 idx 不同步问题
+    """KDJ indicator.
+
+    Refactoring note: Uses the next() method instead of line binding
+    (self.l.K = self.kd.percD) because line binding has idx synchronization
+    issues in the current architecture.
     """
     lines = ('K', 'D', 'J')
 
@@ -68,15 +70,15 @@ class KDJ(bt.Indicator):
 
 
 class BOLLKDJStrategy(bt.Strategy):
-    """BOLLKDJ 布林带+KDJ策略
+    """BOLLKDJ Bollinger Bands + KDJ strategy.
 
-    策略逻辑：
-    - BOLL穿越下轨 + KDJ金叉(在低位) -> 买入
-    - BOLL穿越上轨 + KDJ死叉(在高位) -> 卖出
-    - 止损或反向信号时平仓
-    
-    使用数据：
-    - datas[0]: 股票价格数据
+    Strategy logic:
+    - BOLL crosses below lower band + KDJ golden cross (at low level) -> Buy
+    - BOLL crosses above upper band + KDJ death cross (at high level) -> Sell
+    - Close position on stop loss or reverse signal
+
+    Data used:
+    - datas[0]: Stock price data
     """
 
     params = (
@@ -85,18 +87,18 @@ class BOLLKDJStrategy(bt.Strategy):
         ("kdj_period", 9),
         ("kdj_ma1", 3),
         ("kdj_ma2", 3),
-        ("price_diff", 0.5),  # 止损价差
+        ("price_diff", 0.5),  # Stop loss price difference
     )
 
     def log(self, txt, dt=None, force=False):
-        """日志输出功能"""
+        """Logging function."""
         if not force:
             return
         dt = dt or self.datas[0].datetime.datetime(0)
         print(f"{dt.isoformat()}, {txt}")
 
     def __init__(self):
-        # 记录统计数据
+        # Record statistics
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -105,29 +107,29 @@ class BOLLKDJStrategy(bt.Strategy):
         self.loss_count = 0
         self.trade_count = 0
 
-        # 获取数据引用
+        # Get data reference
         self.data0 = self.datas[0]
 
-        # 布林带指标
+        # Bollinger Bands indicator
         self.boll = bt.indicators.BollingerBands(
             self.data0, period=self.p.boll_period, devfactor=self.p.boll_mult
         )
-        # KDJ指标
+        # KDJ indicator
         self.kdj = KDJ(
-            self.data0, period=self.p.kdj_period, 
+            self.data0, period=self.p.kdj_period,
             period_dfast=self.p.kdj_ma1, period_dslow=self.p.kdj_ma2
         )
 
-        # 交易状态
+        # Trading state
         self.marketposition = 0
         self.position_price = 0
 
-        # 信号
+        # Signals
         self.boll_signal = 0
         self.kdj_signal = 0
 
     def notify_trade(self, trade):
-        """交易完成通知"""
+        """Notification when a trade is completed."""
         if not trade.isclosed:
             return
         self.trade_count += 1
@@ -138,50 +140,50 @@ class BOLLKDJStrategy(bt.Strategy):
         self.sum_profit += trade.pnl
 
     def notify_order(self, order):
-        """订单状态通知"""
+        """Notification of order status changes."""
         if order.status == order.Completed:
             self.position_price = order.executed.price
 
     def up_across(self):
-        """向上穿越上轨"""
+        """Check if price crosses above upper band."""
         data = self.data0
         return data.close[-1] < self.boll.top[-1] and data.close[0] > self.boll.top[0]
 
     def dn_across(self):
-        """向下穿越下轨"""
+        """Check if price crosses below lower band."""
         data = self.data0
         return data.close[-1] > self.boll.bot[-1] and data.close[0] < self.boll.bot[0]
 
     def check_boll_signal(self):
-        """检查BOLL信号"""
+        """Check for BOLL signals."""
         if self.up_across():
-            self.boll_signal = -1  # 卖出信号
+            self.boll_signal = -1  # Sell signal
         elif self.dn_across():
-            self.boll_signal = 1   # 买入信号
+            self.boll_signal = 1   # Buy signal
 
     def check_kdj_signal(self):
-        """检查KDJ信号"""
+        """Check for KDJ signals."""
         condition1 = self.kdj.J[-1] - self.kdj.D[-1]
         condition2 = self.kdj.J[0] - self.kdj.D[0]
-        # 金叉且在低位
+        # Golden cross at low level
         if condition1 < 0 and condition2 > 0 and (self.kdj.K[0] <= 25 and self.kdj.D[0] <= 25 and self.kdj.J[0] <= 25):
             self.kdj_signal = 1
-        # 死叉且在高位
+        # Death cross at high level
         elif condition1 > 0 and condition2 < 0 and (self.kdj.K[0] >= 75 and self.kdj.D[0] >= 75 and self.kdj.J[0] >= 75):
             self.kdj_signal = -1
 
     def next(self):
         self.bar_num += 1
 
-        # 检查信号
+        # Check signals
         self.check_boll_signal()
         self.check_kdj_signal()
 
         data = self.data0
 
-        # 未持仓
+        # No position
         if self.marketposition == 0:
-            # 买入条件
+            # Buy condition
             if self.boll_signal > 0 and self.kdj_signal > 0:
                 size = int(self.broker.getcash() / data.close[0])
                 if size > 0:
@@ -190,7 +192,7 @@ class BOLLKDJStrategy(bt.Strategy):
                     self.buy_count += 1
                 self.boll_signal = 0
                 self.kdj_signal = 0
-            # 卖出条件
+            # Sell condition
             elif self.boll_signal < 0 and self.kdj_signal < 0:
                 size = int(self.broker.getcash() / data.close[0])
                 if size > 0:
@@ -199,9 +201,9 @@ class BOLLKDJStrategy(bt.Strategy):
                     self.sell_count += 1
                 self.boll_signal = 0
                 self.kdj_signal = 0
-        # 空头持仓
+        # Short position
         elif self.marketposition == -1:
-            # 止损
+            # Stop loss
             if self.position_price > 0 and (data.close[0] - self.position_price > self.p.price_diff):
                 self.close()
                 self.marketposition = 0
@@ -209,7 +211,7 @@ class BOLLKDJStrategy(bt.Strategy):
                 self.boll_signal = 0
                 self.kdj_signal = 0
                 self.buy_count += 1
-            # 反向信号平仓
+            # Close on reverse signal
             elif self.boll_signal > 0 and self.kdj_signal > 0:
                 self.close()
                 self.marketposition = 0
@@ -217,9 +219,9 @@ class BOLLKDJStrategy(bt.Strategy):
                 self.boll_signal = 0
                 self.kdj_signal = 0
                 self.buy_count += 1
-        # 多头持仓
+        # Long position
         elif self.marketposition == 1:
-            # 止损
+            # Stop loss
             if self.position_price - data.close[0] > self.p.price_diff:
                 self.close()
                 self.marketposition = 0
@@ -227,7 +229,7 @@ class BOLLKDJStrategy(bt.Strategy):
                 self.boll_signal = 0
                 self.kdj_signal = 0
                 self.sell_count += 1
-            # 反向信号平仓
+            # Close on reverse signal
             elif self.boll_signal < 0 and self.kdj_signal < 0:
                 self.close()
                 self.marketposition = 0
@@ -237,7 +239,7 @@ class BOLLKDJStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def stop(self):
-        """策略结束时输出统计"""
+        """Output statistics when strategy ends."""
         total_trades = self.win_count + self.loss_count
         win_rate = (self.win_count / total_trades * 100) if total_trades > 0 else 0
         self.log(
@@ -248,11 +250,11 @@ class BOLLKDJStrategy(bt.Strategy):
 
 
 def test_boll_kdj_strategy():
-    """测试 BOLLKDJ 布林带+KDJ策略"""
+    """Test the BOLLKDJ Bollinger Bands + KDJ strategy."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载上证股票数据...")
+    print("Loading Shanghai stock data...")
     data_path = resolve_data_path("sh600000.csv")
     df = pd.read_csv(data_path)
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -283,7 +285,7 @@ def test_boll_kdj_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
 
     strat = results[0]
@@ -296,7 +298,7 @@ def test_boll_kdj_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("\n" + "=" * 50)
-    print("BOLLKDJ 布林带+KDJ策略回测结果:")
+    print("BOLLKDJ Bollinger Bands + KDJ Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -319,12 +321,12 @@ def test_boll_kdj_strategy():
     assert abs(annual_return - (-0.012927216297173407)) < 1e-6, f"Expected annual_return=-0.012927216297173407, got {annual_return}"
     assert abs(max_drawdown - 0.6605349686435283) < 1e-6, f"Expected max_drawdown=0.6605349686435283, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("BOLLKDJ 布林带+KDJ策略测试")
+    print("BOLLKDJ Bollinger Bands + KDJ Strategy Test")
     print("=" * 60)
     test_boll_kdj_strategy()

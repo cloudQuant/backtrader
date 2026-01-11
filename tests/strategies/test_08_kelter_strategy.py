@@ -1,8 +1,8 @@
-"""Keltner Channel 多合约期货策略测试用例
+"""Test cases for Keltner Channel multi-contract futures strategy.
 
-使用螺纹钢期货多合约数据测试 Keltner Channel 通道突破策略
-- 使用 PandasData 加载多个合约数据
-- Keltner Channel 上下轨突破信号 + 移仓换月逻辑
+Tests Keltner Channel breakout strategy using rebar futures multi-contract data.
+- Uses PandasData to load multiple contract data.
+- Keltner Channel upper/lower rail breakout signals + rollover logic.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on script directory to avoid relative path failures."""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -35,14 +35,14 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class KeltnerStrategy(bt.Strategy):
-    """Keltner Channel 多合约期货策略
+    """Keltner Channel multi-contract futures strategy.
 
-    使用 Keltner Channel 通道突破作为入场信号
-    支持移仓换月逻辑
+    Uses Keltner Channel breakout as entry signals.
+    Supports rollover logic for contract expiration.
     """
     author = 'yunjinqi'
     params = (
@@ -51,7 +51,7 @@ class KeltnerStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
-        """log信息的功能"""
+        """Log information with timestamp."""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
@@ -60,42 +60,42 @@ class KeltnerStrategy(bt.Strategy):
         self.current_date = None
         self.buy_count = 0
         self.sell_count = 0
-        # 计算 Keltner Channel 指标
+        # Calculate Keltner Channel indicators
         self.middle_price = (self.datas[0].high + self.datas[0].low + self.datas[0].close) / 3
         self.middle_line = bt.indicators.SMA(self.middle_price, period=self.p.avg_period)
         self.atr = bt.indicators.AverageTrueRange(self.datas[0], period=self.p.avg_period)
         self.upper_line = self.middle_line + self.atr * self.p.atr_multi
         self.lower_line = self.middle_line - self.atr * self.p.atr_multi
-        # 保存现在持仓的合约是哪一个
+        # Save which contract is currently being held
         self.holding_contract_name = None
 
     def prenext(self):
-        # 由于期货数据有几千个，每个期货交易日期不同，并不会自然进入next
-        # 需要在每个prenext中调用next函数进行运行
+        # Futures data has thousands of bars, each futures contract has different trading dates,
+        # so it won't naturally enter next. Need to call next function in each prenext.
         self.next()
 
     def next(self):
-        # 每次运行一次，bar_num自然加1,并更新交易日
+        # Each time it runs, increment bar_num and update trading date
         self.current_date = bt.num2date(self.datas[0].datetime[0])
         self.bar_num += 1
         data = self.datas[0]
         
-        # 开仓，先平后开
-        # 平多
+        # Open positions, close existing positions first
+        # Close long position
         if self.holding_contract_name is not None and self.getpositionbyname(self.holding_contract_name).size > 0 and data.close[0] < self.middle_line[0]:
             data = self.getdatabyname(self.holding_contract_name)
             self.close(data)
             self.sell_count += 1
             self.holding_contract_name = None
             
-        # 平空
+        # Close short position
         if self.holding_contract_name is not None and self.getpositionbyname(self.holding_contract_name).size < 0 and data.close[0] > self.middle_line[0]:
             data = self.getdatabyname(self.holding_contract_name)
             self.close(data)
             self.buy_count += 1
             self.holding_contract_name = None
 
-        # 开多
+        # Open long position
         if self.holding_contract_name is None and data.close[-1] < self.upper_line[-1] and data.close[0] > self.upper_line[0] and self.middle_line[0] > self.middle_line[-1]:
             dominant_contract = self.get_dominant_contract()
             if dominant_contract is not None:
@@ -104,7 +104,7 @@ class KeltnerStrategy(bt.Strategy):
                 self.buy_count += 1
                 self.holding_contract_name = dominant_contract
 
-        # 开空
+        # Open short position
         if self.holding_contract_name is None and data.close[-1] > self.lower_line[-1] and data.close[0] < self.lower_line[0] and self.middle_line[0] < self.middle_line[-1]:
             dominant_contract = self.get_dominant_contract()
             if dominant_contract is not None:
@@ -113,19 +113,19 @@ class KeltnerStrategy(bt.Strategy):
                 self.sell_count += 1
                 self.holding_contract_name = dominant_contract
 
-        # 移仓换月
+        # Rollover to next contract
         if self.holding_contract_name is not None:
             dominant_contract = self.get_dominant_contract()
-            # 如果出现了新的主力合约，那么就开始换月
+            # If a new dominant contract appears, start rollover
             if dominant_contract is not None and dominant_contract != self.holding_contract_name:
-                # 下个主力合约
+                # Next dominant contract
                 next_data = self.getdatabyname(dominant_contract)
-                # 当前合约持仓大小及数据
+                # Current contract position size and data
                 size = self.getpositionbyname(self.holding_contract_name).size
                 data = self.getdatabyname(self.holding_contract_name)
-                # 平掉旧的
+                # Close old position
                 self.close(data)
-                # 开新的
+                # Open new position
                 if size > 0:
                     self.buy(next_data, size=abs(size))
                 if size < 0:
@@ -133,7 +133,11 @@ class KeltnerStrategy(bt.Strategy):
                 self.holding_contract_name = dominant_contract
 
     def get_dominant_contract(self):
-        """以持仓量最大的合约作为主力合约,返回数据的名称"""
+        """Select the contract with the largest open interest as the dominant contract.
+
+        Returns:
+            str or None: The name of the dominant contract data, or None if no data available.
+        """
         target_datas = []
         for data in self.datas[1:]:
             try:
@@ -157,7 +161,7 @@ class KeltnerStrategy(bt.Strategy):
                 self.log(f"SELL: data_name:{order.p.data._name} price:{order.executed.price:.2f}")
 
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        # Output information when a trade is completed
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -170,7 +174,7 @@ class KeltnerStrategy(bt.Strategy):
 
 
 class RbPandasFeed(bt.feeds.PandasData):
-    """螺纹钢期货数据的Pandas数据源"""
+    """Pandas data feed for rebar futures data."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -183,13 +187,18 @@ class RbPandasFeed(bt.feeds.PandasData):
 
 
 def load_rb_multi_data(data_dir: str = "rb") -> dict:
-    """加载螺纹钢期货多合约数据
-    
-    保持原有的数据加载逻辑
-    返回: {合约名: DataFrame} 的字典
+    """Load rebar futures multi-contract data.
+
+    Maintains the original data loading logic.
+
+    Args:
+        data_dir: Directory name containing the contract data files.
+
+    Returns:
+        dict: Dictionary mapping contract names to DataFrames.
     """
     data_kwargs = dict(
-        fromdate=datetime.datetime(2019, 1, 1),  # 缩短日期范围以加速测试
+        fromdate=datetime.datetime(2019, 1, 1),  # Shorten date range to speed up testing
         todate=datetime.datetime(2020, 12, 31),
     )
     
@@ -199,7 +208,7 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
     # Sort file list for consistent ordering across platforms (Windows vs macOS)
     file_list = sorted(file_list, key=lambda x: x.lower())
     
-    # 确保 rb99.csv 作为指数数据放在第一个 (case-insensitive for Windows)
+    # Ensure rb99.csv is placed first as index data (case-insensitive for Windows)
     rb99_file = None
     for f in file_list:
         if f.lower() == "rb99.csv":
@@ -215,9 +224,9 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
             continue
         name = file[:-4]
         df = pd.read_csv(data_path / file)
-        # 只要数据里面的这几列
+        # Only keep these columns from the data
         df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-        # 修改列的名字
+        # Modify column names
         df.index = pd.to_datetime(df['datetime'])
         df = df[['open', 'high', 'low', 'close', 'volume', 'openinterest']]
         df = df[(df.index <= data_kwargs['todate']) & (df.index >= data_kwargs['fromdate'])]
@@ -229,43 +238,43 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
 
 
 def test_keltner_strategy():
-    """测试 Keltner Channel 多合约期货策略
-    
-    使用螺纹钢期货多合约数据进行回测
+    """Test Keltner Channel multi-contract futures strategy.
+
+    Performs backtesting using rebar futures multi-contract data.
     """
-    # 创建 cerebro
+    # Create cerebro
     cerebro = bt.Cerebro(stdstats=True)
 
-    # 加载多合约数据
-    print("正在加载螺纹钢期货多合约数据...")
+    # Load multi-contract data
+    print("Loading rebar futures multi-contract data...")
     datas = load_rb_multi_data("rb")
-    print(f"共加载 {len(datas)} 个合约数据")
+    print(f"Loaded {len(datas)} contract data files")
 
-    # 使用 RbPandasFeed 加载数据
+    # Load data using RbPandasFeed
     for name, df in datas.items():
         feed = RbPandasFeed(dataname=df)
         cerebro.adddata(feed, name=name)
-        # 设置合约的交易信息
+        # Set contract trading information
         comm = ComminfoFuturesPercent(commission=0.0002, margin=0.1, mult=10)
         cerebro.broker.addcommissioninfo(comm, name=name)
 
     cerebro.broker.setcash(50000.0)
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(KeltnerStrategy)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    # 运行回测
-    print("开始运行回测...")
+    # Run backtest
+    print("Starting backtest...")
     results = cerebro.run()
 
-    # 获取结果
+    # Get results
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
     annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
@@ -274,9 +283,9 @@ def test_keltner_strategy():
     total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印结果
+    # Print results
     print("\n" + "=" * 50)
-    print("Keltner Channel 策略回测结果:")
+    print("Keltner Channel Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -287,23 +296,23 @@ def test_keltner_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # 断言测试结果 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assert test results - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 5540, f"Expected bar_num=5540, got {strat.bar_num}"
     assert strat.buy_count > 0, f"Expected buy_count > 0, got {strat.buy_count}"
     assert strat.sell_count > 0, f"Expected sell_count > 0, got {strat.sell_count}"
     assert total_trades > 0, f"Expected total_trades > 0, got {total_trades}"
-    # 注意: sharpe_ratio 可能因平台差异略有不同，使用较宽松的容差
+    # Note: sharpe_ratio may vary slightly due to platform differences, using looser tolerance
     assert abs(sharpe_ratio - (-0.7248889123130405)) < 1e-6, f"Expected sharpe_ratio=-0.7248889123130405, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0015868610268626382)) < 1e-6, f"Expected annual_return=-0.0015868610268626382, got {annual_return}"
     assert abs(max_drawdown - 0.1856158167743111) < 1e-6, f"Expected max_drawdown=0.1856158167743111, got {max_drawdown}"
     assert abs(final_value - 49847.09399999999) < 0.01, f"Expected final_value=49847.09399999999, got {final_value}"
 
-    print("\n所有测试通过!")
+    print("\nAll tests passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Keltner Channel 多合约期货策略测试")
+    print("Keltner Channel Multi-Contract Futures Strategy Test")
     print("=" * 60)
     test_keltner_strategy()

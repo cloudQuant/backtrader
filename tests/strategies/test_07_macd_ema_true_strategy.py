@@ -1,8 +1,8 @@
-"""MACD EMA 多合约期货策略测试用例
+"""MACD EMA Multi-Contract Futures Strategy Test Cases
 
-使用螺纹钢期货多合约数据测试 MACD + EMA 趋势策略
-- 使用 PandasDirectData 加载多个合约数据
-- MACD 金叉/死叉信号 + 移仓换月逻辑
+Tests MACD + EMA trend strategy using rebar futures multi-contract data.
+- Uses PandasDirectData to load multiple contract data.
+- MACD golden cross/death cross signals + rollover logic.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locates data files based on the script directory to avoid relative path failures."""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -35,14 +35,14 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class MacdEmaTrueStrategy(bt.Strategy):
-    """MACD + EMA 多合约期货趋势策略
+    """MACD + EMA Multi-Contract Futures Trend Strategy.
 
-    使用自定义MACD指标（与国内常用MACD接轨）
-    支持移仓换月逻辑
+    Uses custom MACD indicator (aligned with domestic Chinese standards).
+    Supports rollover logic for contract expiration.
     """
     author = 'yunjinqi'
     params = (
@@ -52,7 +52,7 @@ class MacdEmaTrueStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
-        """log信息的功能"""
+        """Logs information with timestamp."""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
@@ -61,42 +61,42 @@ class MacdEmaTrueStrategy(bt.Strategy):
         self.current_date = None
         self.buy_count = 0
         self.sell_count = 0
-        # 计算macd指标
+        # Calculate MACD indicator
         self.ema_1 = bt.indicators.ExponentialMovingAverage(self.datas[0].close, period=self.p.period_me1)
         self.ema_2 = bt.indicators.ExponentialMovingAverage(self.datas[0].close, period=self.p.period_me2)
         self.dif = self.ema_1 - self.ema_2
         self.dea = bt.indicators.ExponentialMovingAverage(self.dif, period=self.p.period_dif)
         self.macd = (self.dif - self.dea) * 2
-        # 保存现在持仓的合约是哪一个
+        # Track which contract is currently held
         self.holding_contract_name = None
 
     def prenext(self):
-        # 由于期货数据有几千个，每个期货交易日期不同，并不会自然进入next
-        # 需要在每个prenext中调用next函数进行运行
+        # Since futures data has thousands of bars and each futures contract has different trading dates,
+        # they won't naturally enter next. Need to call next function in each prenext.
         self.next()
 
     def next(self):
-        # 每次运行一次，bar_num自然加1,并更新交易日
+        # Increment bar_num and update trading date on each run
         self.current_date = bt.num2date(self.datas[0].datetime[0])
         self.bar_num += 1
         data = self.datas[0]
         
-        # 开仓，先平后开
-        # 平多
+        # Open positions, close existing positions first
+        # Close long position
         if self.holding_contract_name is not None and self.getpositionbyname(self.holding_contract_name).size > 0 and data.close[0] < self.ema_1[0]:
             data = self.getdatabyname(self.holding_contract_name)
             self.close(data)
             self.sell_count += 1
             self.holding_contract_name = None
-            
-        # 平空
+
+        # Close short position
         if self.holding_contract_name is not None and self.getpositionbyname(self.holding_contract_name).size < 0 and data.close[0] > self.ema_1[0]:
             data = self.getdatabyname(self.holding_contract_name)
             self.close(data)
             self.buy_count += 1
             self.holding_contract_name = None
 
-        # 开多
+        # Open long position
         if self.holding_contract_name is None and self.ema_1[-1] < self.ema_2[-1] and self.ema_1[0] > self.ema_2[0] and self.macd[0] > 0:
             dominant_contract = self.get_dominant_contract()
             if dominant_contract is not None:
@@ -105,7 +105,7 @@ class MacdEmaTrueStrategy(bt.Strategy):
                 self.buy_count += 1
                 self.holding_contract_name = dominant_contract
 
-        # 开空
+        # Open short position
         if self.holding_contract_name is None and self.ema_1[-1] > self.ema_2[-1] and self.ema_1[0] < self.ema_2[0] and self.macd[0] < 0:
             dominant_contract = self.get_dominant_contract()
             if dominant_contract is not None:
@@ -114,19 +114,19 @@ class MacdEmaTrueStrategy(bt.Strategy):
                 self.sell_count += 1
                 self.holding_contract_name = dominant_contract
 
-        # 移仓换月
+        # Rollover to next contract
         if self.holding_contract_name is not None:
             dominant_contract = self.get_dominant_contract()
-            # 如果出现了新的主力合约，那么就开始换月
+            # If a new dominant contract appears, start the rollover
             if dominant_contract is not None and dominant_contract != self.holding_contract_name:
-                # 下个主力合约
+                # Next dominant contract
                 next_data = self.getdatabyname(dominant_contract)
-                # 当前合约持仓大小及数据
+                # Current contract position size and data
                 size = self.getpositionbyname(self.holding_contract_name).size
                 data = self.getdatabyname(self.holding_contract_name)
-                # 平掉旧的
+                # Close old position
                 self.close(data)
-                # 开新的
+                # Open new position
                 if size > 0:
                     self.buy(next_data, size=abs(size))
                 if size < 0:
@@ -134,7 +134,7 @@ class MacdEmaTrueStrategy(bt.Strategy):
                 self.holding_contract_name = dominant_contract
 
     def get_dominant_contract(self):
-        """以持仓量最大的合约作为主力合约,返回数据的名称"""
+        """Returns the dominant contract name (contract with highest open interest)."""
         target_datas = []
         for data in self.datas[1:]:
             try:
@@ -158,7 +158,7 @@ class MacdEmaTrueStrategy(bt.Strategy):
                 self.log(f"SELL: data_name:{order.p.data._name} price:{order.executed.price:.2f}")
 
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        # Output information when a trade ends
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}' .format(
                             trade.getdataname(),trade.pnl, trade.pnlcomm))
@@ -174,7 +174,7 @@ class MacdEmaTrueStrategy(bt.Strategy):
 
 
 class RbPandasFeed(bt.feeds.PandasData):
-    """螺纹钢期货数据的Pandas数据源"""
+    """Pandas data feed for rebar futures data."""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -187,13 +187,15 @@ class RbPandasFeed(bt.feeds.PandasData):
 
 
 def load_rb_multi_data(data_dir: str = "rb") -> dict:
-    """加载螺纹钢期货多合约数据
-    
-    保持原有的 PandasDirectData 加载方式
-    返回: {合约名: DataFrame} 的字典
+    """Loads multi-contract rebar futures data.
+
+    Maintains the original PandasDirectData loading method.
+
+    Returns:
+        dict: A dictionary mapping contract names to DataFrames.
     """
     data_kwargs = dict(
-        fromdate=datetime.datetime(2019, 1, 1),  # 缩短日期范围以加速测试
+        fromdate=datetime.datetime(2019, 1, 1),  # Shorten date range to speed up testing
         todate=datetime.datetime(2020, 12, 31),
     )
     
@@ -219,9 +221,9 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
             continue
         name = file[:-4]
         df = pd.read_csv(data_path / file)
-        # 只要数据里面的这几列
+        # Only keep specific columns from data
         df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']]
-        # 修改列的名字
+        # Modify column names
         df.index = pd.to_datetime(df['datetime'])
         df = df[['open', 'high', 'low', 'close', 'volume', 'openinterest']]
         df = df[(df.index <= data_kwargs['todate']) & (df.index >= data_kwargs['fromdate'])]
@@ -233,43 +235,43 @@ def load_rb_multi_data(data_dir: str = "rb") -> dict:
 
 
 def test_macd_ema_true_strategy():
-    """测试 MACD + EMA 多合约期货策略
-    
-    使用螺纹钢期货多合约数据进行回测
+    """Tests MACD + EMA multi-contract futures strategy.
+
+    Uses rebar futures multi-contract data for backtesting.
     """
-    # 创建 cerebro
+    # Create cerebro
     cerebro = bt.Cerebro(stdstats=True)
 
-    # 加载多合约数据
-    print("正在加载螺纹钢期货多合约数据...")
+    # Load multi-contract data
+    print("Loading rebar futures multi-contract data...")
     datas = load_rb_multi_data("rb")
-    print(f"共加载 {len(datas)} 个合约数据")
+    print(f"Loaded {len(datas)} contract data files")
 
-    # 使用 RbPandasFeed 加载数据（与原有PandasDirectData逻辑一致）
+    # Use RbPandasFeed to load data (consistent with original PandasDirectData logic)
     for name, df in datas.items():
         feed = RbPandasFeed(dataname=df)
         cerebro.adddata(feed, name=name)
-        # 设置合约的交易信息
+        # Set contract trading information
         comm = ComminfoFuturesPercent(commission=0.0002, margin=0.1, mult=10)
         cerebro.broker.addcommissioninfo(comm, name=name)
 
     cerebro.broker.setcash(50000.0)
 
-    # 添加策略
+    # Add strategy
     cerebro.addstrategy(MacdEmaTrueStrategy)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    # 运行回测
-    print("开始运行回测...")
+    # Run backtest
+    print("Starting backtest...")
     results = cerebro.run()
 
-    # 获取结果
+    # Get results
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
     annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
@@ -278,9 +280,9 @@ def test_macd_ema_true_strategy():
     total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印结果
+    # Print results
     print("\n" + "=" * 50)
-    print("MACD EMA 多合约策略回测结果:")
+    print("MACD EMA Multi-Contract Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -291,8 +293,8 @@ def test_macd_ema_true_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # 断言测试结果 - 使用精确断言
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # Assert test results - use precise assertions
+    # final_value tolerance: 0.01, other indicators tolerance: 1e-6
     assert strat.bar_num == 5540, f"Expected bar_num=11332, got {strat.bar_num}"
     assert strat.buy_count == 213, f"Expected buy_count=213, got {strat.buy_count}"
     assert strat.sell_count == 213, f"Expected sell_count=213, got {strat.sell_count}"
@@ -302,11 +304,11 @@ def test_macd_ema_true_strategy():
     assert abs(max_drawdown - 0.1468985826746771) < 1e-6, f"Expected max_drawdown=0.20860432995832906, got {max_drawdown}"
     assert abs(final_value - 45586.761999999995) < 0.01, f"Expected final_value=66241.75697345377, got {final_value}"
 
-    print("\n所有测试通过!")
+    print("\nAll tests passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("MACD EMA 多合约期货策略测试")
+    print("MACD EMA Multi-Contract Futures Strategy Test")
     print("=" * 60)
     test_macd_ema_true_strategy()
