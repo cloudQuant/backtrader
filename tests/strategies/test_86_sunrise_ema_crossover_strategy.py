@@ -424,7 +424,7 @@ def test_sunrise_volatility_expansion_strategy():
     assert abs(max_drawdown - 2.169140984136156) < 1e-6, f"Expected max_drawdown=2.169, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

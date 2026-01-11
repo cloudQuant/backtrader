@@ -222,7 +222,7 @@ def test_arjun_bhatia_futures_strategy():
     assert abs(max_drawdown - 0.13555290823752497) < 1e-6, f"Expected max_drawdown=0.13555290823752497, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

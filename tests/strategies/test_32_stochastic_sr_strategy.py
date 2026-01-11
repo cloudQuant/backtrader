@@ -215,7 +215,7 @@ def test_stochastic_sr_strategy():
     assert abs(max_drawdown - 0.02176998911502407) < 1e-6, f"Expected max_drawdown=0.02176998911502407, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

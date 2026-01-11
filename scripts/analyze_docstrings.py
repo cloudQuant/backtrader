@@ -9,8 +9,17 @@ This script analyzes Python source files to identify:
 4. Chinese comments that need translation
 
 Usage:
+    # Check all Python files (excluding docs folder)
+    python scripts/analyze_docstrings.py
+    
+    # Check specific file
     python scripts/analyze_docstrings.py backtrader/strategy.py
-    python scripts/analyze_docstrings.py backtrader/cerebro.py --verbose
+    
+    # Check with verbose output
+    python scripts/analyze_docstrings.py --verbose
+    
+    # Only show summary
+    python scripts/analyze_docstrings.py --summary
 
 Example output:
     === Analysis Report for strategy.py ===
@@ -32,13 +41,96 @@ import re
 import sys
 import argparse
 import io
+import os
 from pathlib import Path
-from typing import List, Tuple, Dict, Any
+from typing import List, Tuple, Dict, Any, Optional
 
 # Fix Windows console encoding issue
 if sys.platform == 'win32':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', errors='replace')
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', errors='replace')
+
+
+def find_python_files(root_dir: str, exclude_dirs: Optional[List[str]] = None) -> List[str]:
+    """Find all Python files in the directory, excluding specified directories.
+    
+    Args:
+        root_dir: Root directory to search.
+        exclude_dirs: List of directory names to exclude.
+        
+    Returns:
+        List of Python file paths.
+    """
+    if exclude_dirs is None:
+        exclude_dirs = ['docs', '__pycache__', '.git', '.tox', 'build', 'dist', 
+                        'egg-info', '.eggs', 'venv', 'env', 'node_modules']
+    
+    python_files = []
+    root_path = Path(root_dir)
+    
+    for dirpath, dirnames, filenames in os.walk(root_path):
+        # Modify dirnames in-place to skip excluded directories
+        dirnames[:] = [d for d in dirnames if d not in exclude_dirs and not d.endswith('.egg-info')]
+        
+        for filename in filenames:
+            if filename.endswith('.py'):
+                python_files.append(os.path.join(dirpath, filename))
+    
+    return sorted(python_files)
+
+
+def quick_analyze(filepath: str) -> Dict[str, Any]:
+    """Quickly analyze a file and return summary stats.
+    
+    Args:
+        filepath: Path to the Python file.
+        
+    Returns:
+        Dictionary with analysis summary.
+    """
+    try:
+        total_lines = count_lines(filepath)
+        ast_results = analyze_ast(filepath)
+        chinese_comments = find_chinese_comments(filepath)
+        
+        if 'error' in ast_results:
+            return {
+                'filepath': filepath,
+                'error': ast_results['error'],
+                'total_lines': total_lines,
+            }
+        
+        # Count missing docstrings
+        missing_module = 0 if ast_results['module_docstring'] else 1
+        
+        public_classes = [c for c in ast_results['classes'] if c['is_public']]
+        missing_classes = len([c for c in public_classes if not c['has_docstring']])
+        
+        important_dunders = {'__init__', '__new__', '__call__', '__enter__', '__exit__'}
+        public_methods = [
+            m for m in ast_results['methods'] 
+            if m['is_public'] or m['name'] in important_dunders
+        ]
+        missing_methods = len([m for m in public_methods if not m['has_docstring']])
+        
+        public_functions = [f for f in ast_results['functions'] if f['is_public']]
+        missing_functions = len([f for f in public_functions if not f['has_docstring']])
+        
+        total_missing = missing_module + missing_classes + missing_methods + missing_functions
+        
+        return {
+            'filepath': filepath,
+            'total_lines': total_lines,
+            'missing_docstrings': total_missing,
+            'chinese_comments': len(chinese_comments),
+            'needs_work': total_missing > 0 or len(chinese_comments) > 0,
+        }
+    except Exception as e:
+        return {
+            'filepath': filepath,
+            'error': str(e),
+            'total_lines': 0,
+        }
 
 
 def count_lines(filepath: str) -> int:
@@ -298,6 +390,107 @@ def generate_report(filepath: str, verbose: bool = False) -> str:
     return '\n'.join(report_lines)
 
 
+def batch_analyze(root_dir: str, summary_only: bool = False, verbose: bool = False) -> None:
+    """Analyze all Python files in a directory.
+    
+    Args:
+        root_dir: Root directory to search.
+        summary_only: If True, only show summary table.
+        verbose: If True, show detailed reports for files needing work.
+    """
+    print(f"\n{'='*70}")
+    print(f"Scanning Python files in: {root_dir}")
+    print(f"{'='*70}")
+    
+    python_files = find_python_files(root_dir)
+    print(f"Found {len(python_files)} Python files\n")
+    
+    # Quick analyze all files
+    results = []
+    for filepath in python_files:
+        result = quick_analyze(filepath)
+        results.append(result)
+    
+    # Separate files needing work
+    needs_work = [r for r in results if r.get('needs_work', False)]
+    has_errors = [r for r in results if 'error' in r]
+    all_good = [r for r in results if not r.get('needs_work', False) and 'error' not in r]
+    
+    # Print summary table
+    print(f"{'─'*70}")
+    print(f"{'FILE SUMMARY':^70}")
+    print(f"{'─'*70}")
+    print(f"{'Status':<12} {'Count':>8}")
+    print(f"{'─'*70}")
+    print(f"{'✅ Good':<12} {len(all_good):>8}")
+    print(f"{'⚠️  Needs work':<12} {len(needs_work):>8}")
+    print(f"{'❌ Errors':<12} {len(has_errors):>8}")
+    print(f"{'─'*70}")
+    print(f"{'Total':<12} {len(results):>8}")
+    print(f"{'─'*70}\n")
+    
+    # Show files needing work
+    if needs_work:
+        print(f"{'='*70}")
+        print(f"FILES NEEDING OPTIMIZATION ({len(needs_work)} files)")
+        print(f"{'='*70}")
+        
+        # Sort by total issues (most issues first)
+        needs_work.sort(key=lambda x: x.get('missing_docstrings', 0) + x.get('chinese_comments', 0), reverse=True)
+        
+        # Print table header
+        print(f"\n{'File':<50} {'Lines':>6} {'Missing':>8} {'Chinese':>8}")
+        print(f"{'─'*70}")
+        
+        for r in needs_work:
+            rel_path = os.path.relpath(r['filepath'], root_dir)
+            if len(rel_path) > 48:
+                rel_path = '...' + rel_path[-45:]
+            print(f"{rel_path:<50} {r['total_lines']:>6} {r.get('missing_docstrings', 0):>8} {r.get('chinese_comments', 0):>8}")
+        
+        print(f"{'─'*70}")
+        
+        # Calculate totals
+        total_missing = sum(r.get('missing_docstrings', 0) for r in needs_work)
+        total_chinese = sum(r.get('chinese_comments', 0) for r in needs_work)
+        print(f"{'TOTAL':<50} {'':<6} {total_missing:>8} {total_chinese:>8}")
+        print()
+        
+        # Show detailed reports if not summary only
+        if not summary_only and verbose:
+            print(f"\n{'='*70}")
+            print("DETAILED REPORTS")
+            print(f"{'='*70}")
+            for r in needs_work[:10]:  # Limit to first 10
+                print(generate_report(r['filepath'], verbose=False))
+            if len(needs_work) > 10:
+                print(f"\n... and {len(needs_work) - 10} more files. Run with specific file for details.")
+    
+    # Show errors if any
+    if has_errors:
+        print(f"\n{'='*70}")
+        print(f"FILES WITH ERRORS ({len(has_errors)} files)")
+        print(f"{'='*70}")
+        for r in has_errors:
+            rel_path = os.path.relpath(r['filepath'], root_dir)
+            print(f"  {rel_path}: {r.get('error', 'Unknown error')}")
+    
+    # Final summary
+    print(f"\n{'='*70}")
+    print("SUMMARY")
+    print(f"{'='*70}")
+    if not needs_work and not has_errors:
+        print("✅ All files are fully documented!")
+    else:
+        if needs_work:
+            print(f"⚠️  {len(needs_work)} files need optimization")
+            print(f"   - Total missing docstrings: {total_missing}")
+            print(f"   - Total Chinese comments: {total_chinese}")
+        if has_errors:
+            print(f"❌ {len(has_errors)} files have syntax errors")
+    print(f"{'='*70}\n")
+
+
 def main():
     """Main entry point."""
     parser = argparse.ArgumentParser(
@@ -305,26 +498,49 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
+  # Check all files (excluding docs folder)
+  python scripts/analyze_docstrings.py
+  
+  # Check specific file
   python scripts/analyze_docstrings.py backtrader/strategy.py
-  python scripts/analyze_docstrings.py backtrader/cerebro.py --verbose
-  python scripts/analyze_docstrings.py backtrader/*.py
+  
+  # Show only summary
+  python scripts/analyze_docstrings.py --summary
+  
+  # Check with verbose output
+  python scripts/analyze_docstrings.py --verbose
         """
     )
     parser.add_argument(
         'files',
-        nargs='+',
-        help='Python file(s) to analyze'
+        nargs='*',
+        help='Python file(s) to analyze. If not specified, checks all files.'
     )
     parser.add_argument(
         '-v', '--verbose',
         action='store_true',
-        help='Show all items, not just missing ones'
+        help='Show detailed reports for files needing work'
+    )
+    parser.add_argument(
+        '-s', '--summary',
+        action='store_true',
+        help='Only show summary table, no detailed reports'
+    )
+    parser.add_argument(
+        '-d', '--directory',
+        default='.',
+        help='Root directory to search (default: current directory)'
     )
     
     args = parser.parse_args()
     
-    for filepath in args.files:
-        print(generate_report(filepath, verbose=args.verbose))
+    if args.files:
+        # Analyze specific files
+        for filepath in args.files:
+            print(generate_report(filepath, verbose=args.verbose))
+    else:
+        # Analyze all files in directory
+        batch_analyze(args.directory, summary_only=args.summary, verbose=args.verbose)
 
 
 if __name__ == '__main__':

@@ -162,7 +162,7 @@ def test_mean_reversion_sma_strategy():
     assert abs(max_drawdown - 18.967205229875198) < 1e-6, f"Expected max_drawdown=18.967205229875198, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

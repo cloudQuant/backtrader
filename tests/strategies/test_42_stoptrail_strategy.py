@@ -151,7 +151,7 @@ def test_stoptrail_strategy():
     assert abs(final_value - 105190.30) < 0.01, f"Expected final_value=105190.30, got {final_value}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

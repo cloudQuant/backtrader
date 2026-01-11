@@ -206,7 +206,7 @@ def test_pair_trade_bollinger_strategy():
     assert abs(max_drawdown - 0.14492238860330459) < 1e-6, f"Expected max_drawdown=0.14492238860330459, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

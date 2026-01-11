@@ -201,7 +201,7 @@ def test_bb_adx_strategy():
     assert abs(max_drawdown - 0.037680134320528774) < 1e-6, f"Expected max_drawdown=0.037680134320528774, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

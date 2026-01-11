@@ -139,7 +139,7 @@ def test_pinkfish_strategy():
     assert abs(max_drawdown - 0.8234965704259053) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

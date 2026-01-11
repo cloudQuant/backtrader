@@ -1,0 +1,58 @@
+{
+  "generated_at": "2026-01-11T10:56:57.913458",
+  "strategy": {
+    "strategy_name": "ReportSMAStrategy",
+    "params": {
+      "fast": 5,
+      "fast_period": 10,
+      "lookback": 1,
+      "lowerband": 30.0,
+      "matype": 0,
+      "movav": null,
+      "mult": 2.0,
+      "params": "<backtrader.metabase.Params_ReportSMAStrategy object at 0x1742fb1d0>",
+      "period": 14,
+      "safediv": false,
+      "safepct": false,
+      "signal": 9,
+      "slow": 34,
+      "slow_period": 30,
+      "upperband": 70.0
+    }
+  },
+  "data": {
+    "name": "NVDA",
+    "start_date": "2000-01-03 23:59:59.999989",
+    "end_date": "2013-06-28 23:59:59.999989",
+    "bars": 3393
+  },
+  "metrics": {
+    "pnl": {
+      "start_cash": 10000.0,
+      "end_value": 10032.221664999997,
+      "net_profit": 32.22166500000002,
+      "total_return": 0.32221664999996236,
+      "annual_return": 0.02386080155334369,
+      "profit_factor": 1.7930754504365645
+    },
+    "risk": {
+      "max_drawdown_money": 18.4700049999974,
+      "max_drawdown_pct": 0.18399440078270624,
+      "sharpe_ratio": -4.752649209295479,
+      "calmar_ratio": 0.12968221561004364,
+      "sqn_score": 1.4086631494182642,
+      "sqn_rating": "Poor"
+    },
+    "trades": {
+      "total": 58,
+      "closed": 58,
+      "won": 30,
+      "lost": 28,
+      "win_rate": 51.724137931034484,
+      "avg_win": 2.4283471999999997,
+      "avg_loss": -1.4510268214285709,
+      "best_trade": 10.329999,
+      "worst_trade": -7.900001999999997
+    }
+  }
+}

@@ -44,6 +44,7 @@ except AttributeError:  # For old Python versions
 
 from . import errors, feeds, indicator, linebuffer, observers
 from .brokers import BackBroker
+from .dataseries import TimeFrame
 from .parameters import ParameterDescriptor, ParameterizedBase
 from .strategy import SignalStrategy, Strategy
 from .timer import Timer
@@ -2109,3 +2110,79 @@ class Cerebro(ParameterizedBase):
             if t.params.strats:
                 for strat in runstrats:
                     strat.notify_timer(t, t.lastwhen, *t.args, **timer_kwargs)
+
+    def add_report_analyzers(self, riskfree_rate=0.01):
+        """自动添加报告所需的分析器
+        
+        添加以下分析器：
+        - SharpeRatio: 夏普比率
+        - DrawDown: 回撤分析
+        - TradeAnalyzer: 交易分析
+        - SQN: 系统质量数
+        - AnnualReturn: 年化收益
+        
+        Args:
+            riskfree_rate: 无风险利率，默认 0.01 (1%)
+        """
+        from . import analyzers
+        
+        self.addanalyzer(analyzers.SharpeRatio,
+                        _name="sharperatio",
+                        riskfreerate=riskfree_rate,
+                        timeframe=TimeFrame.Months)
+        self.addanalyzer(analyzers.DrawDown,
+                        _name="drawdown")
+        self.addanalyzer(analyzers.TradeAnalyzer,
+                        _name="tradeanalyzer")
+        self.addanalyzer(analyzers.SQN,
+                        _name="sqn")
+        self.addanalyzer(analyzers.AnnualReturn,
+                        _name="annualreturn")
+        self.addanalyzer(analyzers.TimeReturn,
+                        _name="timereturn",
+                        timeframe=TimeFrame.Days)
+    
+    def generate_report(self, output_path, format='html', template='default',
+                       user=None, memo=None, **kwargs):
+        """生成回测报告
+        
+        Args:
+            output_path: 输出文件路径
+            format: 报告格式 ('html', 'pdf', 'json')
+            template: 模板名称或路径（仅 HTML/PDF 有效）
+            user: 用户名
+            memo: 备注
+            **kwargs: 额外参数
+            
+        Returns:
+            str: 输出文件路径
+            
+        Raises:
+            RuntimeError: 如果尚未运行策略
+            
+        使用示例:
+            cerebro = bt.Cerebro()
+            cerebro.addstrategy(MyStrategy)
+            cerebro.adddata(data)
+            cerebro.run()
+            cerebro.generate_report('report.html')
+        """
+        if not self.runstrats:
+            raise RuntimeError("No strategy has been run. Call cerebro.run() first.")
+        
+        # 获取第一个策略
+        strategy = self.runstrats[0][0]
+        
+        from .reports import ReportGenerator
+        
+        report = ReportGenerator(strategy, template=template)
+        
+        format_lower = format.lower()
+        if format_lower == 'html':
+            return report.generate_html(output_path, user=user, memo=memo, **kwargs)
+        elif format_lower == 'pdf':
+            return report.generate_pdf(output_path, user=user, memo=memo, **kwargs)
+        elif format_lower == 'json':
+            return report.generate_json(output_path, **kwargs)
+        else:
+            raise ValueError(f"Unsupported format: {format}. Use 'html', 'pdf', or 'json'.")

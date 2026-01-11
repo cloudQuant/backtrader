@@ -266,7 +266,7 @@ def test_macd_kdj_strategy():
     assert abs(max_drawdown - 0.9863327709363255) < 1e-6, f"Expected max_drawdown=0.9863327709363255, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

@@ -126,7 +126,7 @@ def test_heikin_ashi_strategy():
     assert abs(final_value - 100091.06) < 0.01, f"Expected final_value=100091.06, got {final_value}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

@@ -1,10 +1,31 @@
 # backtrader
 
-#### 介绍
-基于backtrader打造最好用的量化投研工具(中低频为主,后续改写成cpp版本后支持高频交易)
-1. 当前版本是master版本，和官方主流的backtrader对齐，仅增加了部分功能，修改了部分bug, 没有功能上的改进，可以运行我csdn专栏专栏里面的策略。这个版本仅用于修复bug。
-2. 最新版本是dev分支，主要是为了实现一些新的功能，会新增加一些功能，尝试把底层代码改成c++，支持tick级别的测试等，等dev完善之后，后续会逐步合并到master分支。
-#### 安装教程
+[![Python](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/License-GPLv3-green.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)]()
+
+**[English](README.en.md)** | **中文**
+
+---
+
+## 介绍
+
+基于 backtrader 打造最好用的量化投研工具（中低频为主，后续改写成 C++ 版本后支持高频交易）
+
+- **master 分支**：与官方主流 backtrader 对齐，仅增加部分功能、修复 bug，可运行 CSDN 专栏里的策略
+- **dev 分支**：开发新功能，尝试 C++ 底层重写，支持 tick 级别回测，完善后将合并到 master
+
+### 主要特性
+
+- 🚀 **高性能回测**：支持向量化和事件驱动两种模式
+- 📊 **Plotly 交互图表**：支持 10 万+ 数据点的高性能交互式图表
+- 📈 **一键生成报告**：HTML/PDF/JSON 格式的专业回测报告
+- 🔧 **丰富的分析器**：夏普比率、最大回撤、SQN 等全面指标
+- 📦 **易于扩展**：模块化设计，方便自定义策略和指标
+
+---
+
+## 安装教程
 ```markdown
 # 安装python3.11, python3.11有性能上的提升，并且很多包都已经支持，下面是anaconda的一些镜像，仅供参考
 # win：https://mirrors.tuna.tsinghua.edu.cn/anaconda/archive/Anaconda3-2023.09-0-Windows-x86_64.exe
@@ -66,6 +87,127 @@ figs[0].write_html("backtrader_chart.html")
 - **成交量**: 支持overlay或独立子图
 - **技术指标**: SMA, RSI, MACD等自动绘制
 - **范围滑块**: 底部导航条方便浏览
+
+---
+
+## 📈 回测报告生成
+
+一键生成专业的回测报告，支持 HTML、PDF、JSON 三种格式。
+
+### 基本使用
+
+```python
+import backtrader as bt
+
+cerebro = bt.Cerebro()
+cerebro.addstrategy(MyStrategy)
+cerebro.adddata(data)
+
+# 自动添加报告所需的分析器
+cerebro.add_report_analyzers()
+
+cerebro.run()
+
+# 一键生成 HTML 报告
+cerebro.generate_report('report.html')
+
+# 生成 PDF 报告
+cerebro.generate_report('report.pdf', format='pdf')
+
+# 生成 JSON 数据导出
+cerebro.generate_report('report.json', format='json')
+```
+
+### 自定义报告信息
+
+```python
+cerebro.generate_report(
+    'report.html',
+    user='Trading John',           # 用户名
+    memo='Golden Cross Strategy'   # 备注说明
+)
+```
+
+### 单独使用性能计算器
+
+```python
+from backtrader.reports import PerformanceCalculator, ReportGenerator
+
+# 运行策略
+results = cerebro.run()
+strategy = results[0]
+
+# 获取所有性能指标
+calc = PerformanceCalculator(strategy)
+metrics = calc.get_all_metrics()
+
+print(f"夏普比率: {metrics['sharpe_ratio']}")
+print(f"最大回撤: {metrics['max_pct_drawdown']}%")
+print(f"SQN评级: {metrics['sqn_human']}")
+
+# 打印性能摘要
+report = ReportGenerator(strategy)
+report.print_summary()
+```
+
+### 报告包含的指标
+
+| 类别 | 指标 |
+|------|------|
+| **收益指标** | 初始资金、最终价值、净利润、总收益率、年化收益率、盈利因子 |
+| **风险指标** | 最大回撤(金额/百分比)、夏普比率、卡玛比率、SQN分数 |
+| **交易统计** | 交易总数、胜率、平均盈利/亏损、最佳/最差交易 |
+
+### SQN 人类评级
+
+| SQN 分数 | 评级 |
+|----------|------|
+| < 1.6 | Poor (差) |
+| 1.6 - 1.9 | Below Average (低于平均) |
+| 1.9 - 2.4 | Average (平均) |
+| 2.4 - 2.9 | Good (良好) |
+| 2.9 - 5.0 | Excellent (优秀) |
+| 5.0 - 6.9 | Superb (卓越) |
+| ≥ 7.0 | Holy Grail (圣杯) |
+
+---
+
+## 📁 示例代码
+
+`examples/` 目录下提供了完整的示例代码：
+
+| 示例文件 | 功能说明 |
+|----------|----------|
+| `example_plotly_charts.py` | Plotly 交互式图表：配色方案、保存HTML |
+| `example_bokeh_charts.py` | Bokeh 图表：主题、标签页、RecorderAnalyzer |
+| `example_report_generation.py` | 报告生成：HTML/JSON/PDF报告、性能指标 |
+
+### 运行示例
+
+```bash
+# Plotly 图表示例
+python examples/example_plotly_charts.py
+
+# Bokeh 图表示例
+python examples/example_bokeh_charts.py
+
+# 报告生成示例
+python examples/example_report_generation.py
+```
+
+### 示例效果预览
+
+**Plotly 交互式图表**：
+- 支持缩放、平移、Hover 数据显示
+- Tableau 专业配色方案
+- 导出为独立 HTML 文件
+
+**回测报告**：
+- 专业的 HTML 报告页面
+- 包含权益曲线、回撤图、收益柱状图
+- SQN 评级和完整性能指标
+
+---
 
 ## 系统架构图
 

@@ -104,7 +104,7 @@ def test_psar_indicator():
     assert abs(max_drawdown - 3.0649081759956647) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

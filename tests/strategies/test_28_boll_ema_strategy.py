@@ -251,7 +251,7 @@ def test_boll_ema_strategy():
     assert abs(max_drawdown-0.4537757234136652)<1e-6, f"max_drawdown={max_drawdown} out of range"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

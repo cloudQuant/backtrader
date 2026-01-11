@@ -128,7 +128,7 @@ def test_bb_rsi_strategy():
     assert abs(max_drawdown - 0.033113065059066485) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

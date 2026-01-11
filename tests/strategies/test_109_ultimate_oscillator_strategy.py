@@ -127,7 +127,7 @@ def test_ultimate_oscillator_strategy():
     assert abs(max_drawdown - 0.06371267726839967) < 1e-6, f"Expected max_drawdown=0.06371267726839967, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

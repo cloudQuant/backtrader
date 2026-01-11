@@ -21,6 +21,112 @@ from ..utils.py3 import range
 from .scheme import PlotScheme
 
 
+# Tableau color schemes
+TABLEAU10 = [
+    'blue', 'darkorange', 'green', 'crimson', 'mediumpurple',
+    'saddlebrown', 'orchid', 'gray', 'olive', 'mediumturquoise',
+]
+
+TABLEAU20 = [
+    'steelblue', 'lightsteelblue', 'darkorange', 'peachpuff', 'green',
+    'lightgreen', 'crimson', 'lightcoral', 'mediumpurple', 'thistle',
+    'saddlebrown', 'rosybrown', 'orchid', 'lightpink', 'gray',
+    'lightgray', 'olive', 'palegoldenrod', 'mediumturquoise', 'paleturquoise',
+]
+
+TABLEAU10_LIGHT = [
+    'lightsteelblue', 'peachpuff', 'lightgreen', 'lightcoral', 'thistle',
+    'rosybrown', 'lightpink', 'lightgray', 'palegoldenrod', 'paleturquoise',
+]
+
+# Color index mapping for optimized visual order
+TAB10_INDEX = [3, 0, 2, 1, 2, 4, 5, 6, 7, 8, 9]
+
+# Color mapper from matplotlib to plotly
+COLOR_MAPPER = {
+    'b': 'rgb(0, 0, 255)',
+    'blue': 'rgb(0, 0, 255)',
+    'g': 'rgb(0, 128, 0)',
+    'green': 'rgb(0, 128, 0)',
+    'r': 'rgb(255, 0, 0)',
+    'red': 'rgb(255, 0, 0)',
+    'c': 'rgb(0, 255, 255)',
+    'cyan': 'rgb(0, 255, 255)',
+    'm': 'rgb(255, 0, 255)',
+    'magenta': 'rgb(255, 0, 255)',
+    'y': 'rgb(255, 255, 0)',
+    'yellow': 'rgb(255, 255, 0)',
+    'k': 'rgb(0, 0, 0)',
+    'black': 'rgb(0, 0, 0)',
+    'w': 'rgb(255, 255, 255)',
+    'white': 'rgb(255, 255, 255)',
+    'steelblue': 'rgb(70, 130, 180)',
+    'darkorange': 'rgb(255, 140, 0)',
+    'crimson': 'rgb(220, 20, 60)',
+    'mediumpurple': 'rgb(147, 112, 219)',
+    'saddlebrown': 'rgb(139, 69, 19)',
+    'orchid': 'rgb(218, 112, 214)',
+    'olive': 'rgb(128, 128, 0)',
+    'mediumturquoise': 'rgb(72, 209, 204)',
+    'lightsteelblue': 'rgb(176, 196, 222)',
+    'peachpuff': 'rgb(255, 218, 185)',
+    'lightgreen': 'rgb(144, 238, 144)',
+    'lightcoral': 'rgb(240, 128, 128)',
+    'thistle': 'rgb(216, 191, 216)',
+    'rosybrown': 'rgb(188, 143, 143)',
+    'lightpink': 'rgb(255, 182, 193)',
+    'lightgray': 'rgb(211, 211, 211)',
+    'palegoldenrod': 'rgb(238, 232, 170)',
+    'paleturquoise': 'rgb(175, 238, 238)',
+}
+
+
+def get_color_scheme(name='tableau10'):
+    """Get color scheme by name.
+    
+    Args:
+        name: Color scheme name ('tableau10', 'tableau20', 'tableau10_light')
+        
+    Returns:
+        list: Color list
+    """
+    schemes = {
+        'tableau10': TABLEAU10,
+        'tableau20': TABLEAU20,
+        'tableau10_light': TABLEAU10_LIGHT,
+    }
+    return schemes.get(name, TABLEAU10)
+
+
+def wrap_legend_text(text, max_width=16):
+    """Wrap legend text with automatic line breaks.
+    
+    Reference: backtrader_plotly/plotter.py:695-702
+    
+    Args:
+        text: Original text
+        max_width: Maximum character width per line
+        
+    Returns:
+        str: Processed text with <br> separators for long lines
+    """
+    if text is None:
+        return ''
+    text = str(text)
+    
+    # Remove existing newlines
+    text = text.replace('\n', '')
+    
+    if len(text) <= max_width:
+        return text
+    
+    # Split by max_width
+    return '<br>'.join(
+        text[i:i + max_width]
+        for i in range(0, len(text), max_width)
+    )
+
+
 class PlotlyScheme(PlotScheme):
     """Extended scheme for Plotly plotting with optimized colors.
 
@@ -40,14 +146,25 @@ class PlotlyScheme(PlotScheme):
         sellmarker_color (str): Color for sell markers.
         sellmarker_size (int): Size of sell markers.
         equity_color (str): Color for equity curve.
+        decimal_places (int): Number of decimal places for price display.
+        max_legend_text_width (int): Maximum legend text width before wrapping.
+        color_scheme (str): Color scheme name ('tableau10', 'tableau20', 'tableau10_light').
+        fillalpha (float): Fill area transparency (0-1).
     """
 
-    def __init__(self):
+    def __init__(self, **kwargs):
         """Initialize PlotlyScheme with Plotly-specific defaults.
 
         Sets up optimized color schemes and plotting configurations for
         interactive Plotly charts, including Chinese market color conventions
         (red for up, green for down).
+        
+        Args:
+            **kwargs: Optional keyword arguments to override defaults.
+                - decimal_places (int): Price decimal places (default: 5)
+                - max_legend_text_width (int): Legend text width (default: 16)
+                - color_scheme (str): Color scheme name (default: 'tableau10')
+                - fillalpha (float): Fill transparency (default: 0.20)
         """
         super().__init__()
         # Plotly specific settings
@@ -66,7 +183,7 @@ class PlotlyScheme(PlotScheme):
         self.volup = "rgba(231, 76, 60, 0.5)"    # Red transparent
         self.voldown = "rgba(39, 174, 96, 0.5)"  # Green transparent
 
-        # Line colors for indicators
+        # Line colors for indicators (legacy, will use color_scheme)
         self.linecolors = [
             "#3498DB",  # Blue
             "#E67E22",  # Orange
@@ -86,6 +203,50 @@ class PlotlyScheme(PlotScheme):
 
         # Equity curve
         self.equity_color = "#3498DB"  # Blue
+        
+        # New parameters from backtrader_plotly
+        # Decimal places for price display
+        self.decimal_places = kwargs.get('decimal_places', 5)
+        
+        # Maximum legend text width before wrapping
+        self.max_legend_text_width = kwargs.get('max_legend_text_width', 16)
+        
+        # Color scheme selection
+        self.color_scheme = kwargs.get('color_scheme', 'tableau10')
+        
+        # Fill area transparency
+        self.fillalpha = kwargs.get('fillalpha', 0.20)
+        
+        # Tableau color schemes
+        self.tableau10 = TABLEAU10
+        self.tableau20 = TABLEAU20
+        self.tableau10_light = TABLEAU10_LIGHT
+        
+        # Color index mapping for optimized visual order
+        self.tab10_index = TAB10_INDEX
+    
+    def get_colors(self):
+        """Get current color scheme colors.
+        
+        Returns:
+            list: Color list based on current color_scheme setting
+        """
+        return getattr(self, self.color_scheme, self.tableau10)
+    
+    def color(self, idx):
+        """Get color for given index using tab10_index mapping.
+        
+        Uses tab10_index mapping to optimize visual order of colors.
+        
+        Args:
+            idx: Color index
+            
+        Returns:
+            str: Color name or value
+        """
+        colors = self.get_colors()
+        colidx = self.tab10_index[idx % len(self.tab10_index)]
+        return colors[colidx % len(colors)]
 
 
 class PlotlyPlot(ParameterizedBase):
@@ -121,6 +282,133 @@ class PlotlyPlot(ParameterizedBase):
         self.figs = []
         self.data_cache = {}
         self.buysell_markers = []  # Store buy/sell signals
+
+    def _format_value(self, value):
+        """Format numeric value with configured decimal places.
+        
+        Uses scheme.decimal_places to control precision.
+        
+        Args:
+            value: Numeric value to format
+            
+        Returns:
+            str: Formatted value string
+        """
+        decimal_places = getattr(self.p.scheme, 'decimal_places', 5)
+        try:
+            return f'{float(value):.{decimal_places}f}'
+        except (ValueError, TypeError):
+            return str(value)
+    
+    def _get_tick_format(self):
+        """Get y-axis tick format string.
+        
+        Returns:
+            str: Format string for axis ticks (e.g., '.5f')
+        """
+        decimal_places = getattr(self.p.scheme, 'decimal_places', 5)
+        return f'.{decimal_places}f'
+    
+    def _format_label(self, label):
+        """Format legend label with automatic wrapping.
+        
+        Args:
+            label: Original label text
+            
+        Returns:
+            str: Wrapped label text
+        """
+        max_width = getattr(self.p.scheme, 'max_legend_text_width', 16)
+        return wrap_legend_text(label, max_width)
+    
+    def fill_between(self, fig, row, x, y1, y2, secondary_y=False,
+                     color=None, opacity=None, name='', where=None):
+        """Draw filled area between two lines.
+        
+        Reference: backtrader_plotly/plotter.py:718-750
+        
+        Args:
+            fig: Plotly figure object
+            row: Subplot row number
+            x: x-axis data
+            y1: Upper boundary data
+            y2: Lower boundary data
+            secondary_y: Whether to use right y-axis
+            color: Fill color
+            opacity: Fill opacity (default: scheme.fillalpha)
+            name: Legend name
+            where: Condition mask (optional)
+        """
+        x = np.array(x)
+        y1 = np.array(y1)
+        y2 = np.array(y2)
+        
+        # Apply condition filter
+        if where is not None:
+            y2 = np.where(where, y2, y1)
+        
+        # Get opacity from scheme if not provided
+        if opacity is None:
+            opacity = getattr(self.p.scheme, 'fillalpha', 0.20)
+        
+        # Convert color to RGBA
+        if color is not None:
+            color = self._to_rgba_color(color, opacity)
+        else:
+            color = f'rgba(128, 128, 128, {opacity})'
+        
+        legendgroup = f'fill_{name}_{row}'
+        
+        # Add upper boundary line
+        fig.add_trace(
+            go.Scatter(
+                x=x, y=y2,
+                name=name,
+                legendgroup=legendgroup,
+                showlegend=False,
+                line=dict(color=color, width=0),
+            ),
+            row=row, col=1, secondary_y=secondary_y
+        )
+        
+        # Add filled area
+        fig.add_trace(
+            go.Scatter(
+                x=x, y=y1,
+                name=self._format_label(name) if name else '',
+                legendgroup=legendgroup,
+                fill='tonexty',
+                fillcolor=color,
+                line=dict(color=color, width=0),
+            ),
+            row=row, col=1, secondary_y=secondary_y
+        )
+    
+    def _to_rgba_color(self, color, opacity):
+        """Convert color to RGBA format.
+        
+        Args:
+            color: Color name or rgb string
+            opacity: Opacity value (0-1)
+            
+        Returns:
+            str: rgba(r, g, b, a) format string
+        """
+        # Check if already rgba
+        if isinstance(color, str) and color.startswith('rgba'):
+            return color
+        
+        # Check color mapper
+        if color in COLOR_MAPPER:
+            rgb = COLOR_MAPPER[color]
+        else:
+            rgb = self._to_plotly_color(color)
+        
+        # Extract RGB values and add opacity
+        if rgb and rgb.startswith('rgb('):
+            return f'rgba{rgb[3:-1]}, {opacity})'
+        
+        return f'rgba(128, 128, 128, {opacity})'
 
     def plot(
         self,
@@ -705,8 +993,9 @@ class PlotlyPlot(ParameterizedBase):
         fig.update_xaxes(showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1)
         fig.update_yaxes(showspikes=True, spikemode="across", spikesnap="cursor", spikethickness=1)
 
-        # Update y-axes
-        fig.update_yaxes(side="right")
+        # Update y-axes with decimal places format
+        tick_format = self._get_tick_format()
+        fig.update_yaxes(side="right", tickformat=tick_format)
 
     def _sortdataindicators(self, strategy):
         """Sort indicators and observers into appropriate lists."""

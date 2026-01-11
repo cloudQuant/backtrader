@@ -262,7 +262,7 @@ def test_adaptive_supertrend_strategy():
     assert abs(max_drawdown - 0.175419779371468) < 1e-6, f"Expected max_drawdown=0.175419779371468, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

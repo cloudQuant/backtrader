@@ -320,7 +320,7 @@ def test_boll_kdj_strategy():
     assert abs(max_drawdown - 0.6605349686435283) < 1e-6, f"Expected max_drawdown=0.6605349686435283, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

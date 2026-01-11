@@ -228,7 +228,7 @@ def test_fear_greed_strategy():
     assert abs(final_value - 280859.6) < 0.01, f"Expected final_value=280859.60, got {final_value}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

@@ -136,7 +136,7 @@ def test_ichimoku_cloud_strategy():
     assert abs(max_drawdown - 0.10317697620290582) < 1e-6, f"Expected max_drawdown=0.10317697620290582, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

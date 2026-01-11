@@ -261,7 +261,7 @@ def test_ema_cross_strategy():
     assert abs(annual_return - (-7.631068888840081e-08)) < 1e-6, f"Expected annual_return=-0.00018074842976993673, got {annual_return}"
     # assert sharpe_ratio is None or -20 < sharpe_ratio < 20, "sharpe_ratio should be 0.01"
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

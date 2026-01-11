@@ -196,7 +196,7 @@ def test_atr_momentum_strategy():
     assert abs(max_drawdown - 0.9986173826924808) < 1e-6, f"Expected max_drawdown=0.9986173826924808, got {max_drawdown}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":

@@ -228,7 +228,7 @@ def test_vix_strategy():
     assert abs(final_value - 261273.5) < 0.01, f"Expected final_value=261273.50, got {final_value}"
 
     print("\n测试通过!")
-    return strat
+
 
 
 if __name__ == "__main__":
