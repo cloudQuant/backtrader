@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
-"""
-Web 应用服务器
+"""Web application server.
 
-提供 Bokeh Server 的封装
-"""
+Provides Bokeh Server wrapper."""
 
 import logging
 import webbrowser
@@ -21,35 +19,35 @@ _logger = logging.getLogger(__name__)
 
 
 class Webapp:
-    """Web 应用服务器
-    
-    封装 Bokeh Server，提供以下功能：
-    - 自动启动服务器
-    - 会话管理
-    - 自动打开浏览器
-    
-    属性:
-        title: 页面标题
-        template: 模板文件名
-        scheme: 主题实例
-        address: 服务器地址
-        port: 服务器端口
+    """Web application server.
+
+    Wraps Bokeh Server, providing the following features:
+    - Auto-start server
+    - Session management
+    - Auto-open browser
+
+    Attributes:
+        title: Page title
+        template: Template filename
+        scheme: Theme instance
+        address: Server address
+        port: Server port
     """
     
     def __init__(self, title, template, scheme, on_root_model, 
                  on_session_destroyed=None, autostart=True, 
                  address='localhost', port=8999):
-        """初始化 Web 应用
-        
+        """Initialize web application.
+
         Args:
-            title: 页面标题
-            template: 模板文件名
-            scheme: 主题实例
-            on_root_model: 构建根模型的回调函数
-            on_session_destroyed: 会话销毁回调（可选）
-            autostart: 是否自动启动
-            address: 服务器地址
-            port: 服务器端口
+            title: Page title
+            template: Template filename
+            scheme: Theme instance
+            on_root_model: Callback function to build root model
+            on_session_destroyed: Session destroyed callback (optional)
+            autostart: Whether to auto-start
+            address: Server address
+            port: Server port
         """
         self._title = title
         self._template = template
@@ -62,37 +60,37 @@ class Webapp:
         self._server = None
     
     def _make_document(self, doc):
-        """创建 Bokeh 文档
-        
+        """Create Bokeh document.
+
         Args:
-            doc: Bokeh 文档实例
+            doc: Bokeh document instance
         """
-        # 设置标题
+        # Set title
         doc.title = self._title
         
-        # 设置会话销毁回调
+        # Set session destroyed callback
         if self._on_session_destroyed is not None:
             doc.on_session_destroyed(self._on_session_destroyed)
         
-        # 构建根模型
+        # Build root model
         root_model = self._on_root_model(doc)
         
         if root_model is not None:
             doc.add_root(root_model)
         
-        # 应用主题样式
+        # Apply theme styles
         if self._scheme is not None:
             self._apply_theme(doc)
     
     def _apply_theme(self, doc):
-        """应用主题到文档
-        
+        """Apply theme to document.
+
         Args:
-            doc: Bokeh 文档实例
+            doc: Bokeh document instance
         """
-        # 设置背景颜色等样式
+        # Set background color and other styles
         if hasattr(self._scheme, 'body_background_color'):
-            # 通过 CSS 设置页面样式
+            # Set page styles via CSS
             from bokeh.models import Div
             style_html = f'''
             <style>
@@ -109,10 +107,10 @@ class Webapp:
             doc.add_root(style_div)
     
     def start(self, loop=None):
-        """启动服务器
-        
+        """Start server.
+
         Args:
-            loop: Tornado IOLoop（可选）
+            loop: Tornado IOLoop (optional)
         """
         if not BOKEH_AVAILABLE:
             _logger.error('Bokeh is not available. Cannot start server.')
@@ -120,11 +118,11 @@ class Webapp:
         
         _logger.info(f'Starting Bokeh server at http://{self._address}:{self._port}')
         
-        # 创建应用
+        # Create application
         handler = FunctionHandler(self._make_document)
         app = Application(handler)
         
-        # 创建服务器
+        # Create server
         self._server = Server(
             {'/': app},
             address=self._address,
@@ -134,20 +132,20 @@ class Webapp:
         
         self._server.start()
         
-        # 自动打开浏览器
+        # Auto-open browser
         if self._autostart:
             url = f'http://{self._address}:{self._port}/'
             _logger.info(f'Opening browser at {url}')
             webbrowser.open(url)
         
-        # 启动 IOLoop
+        # Start IOLoop
         if loop is not None:
             loop.start()
         else:
             self._server.io_loop.start()
     
     def stop(self):
-        """停止服务器"""
+        """Stop server."""
         if self._server is not None:
             self._server.stop()
             _logger.info('Bokeh server stopped')

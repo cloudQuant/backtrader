@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8; py-indent-offset:4 -*-
 """
-绩效指标标签页
+Performance metrics tab.
 
-显示策略的关键绩效指标
+Displays key performance metrics of the strategy.
 """
 
 from ..tab import BokehTab
@@ -18,34 +18,34 @@ except ImportError:
 
 
 class PerformanceTab(BokehTab):
-    """绩效指标标签页
-    
-    显示策略的关键绩效指标，包括：
-    - 总收益率
-    - 年化收益率
-    - 夏普比率
-    - 最大回撤
-    - 胜率
-    - 盈亏比
-    - 交易统计
+    """Performance metrics tab.
+
+    Displays key performance metrics of the strategy, including:
+    - Total return
+    - Annual return
+    - Sharpe ratio
+    - Maximum drawdown
+    - Win rate
+    - Profit/loss ratio
+    - Trade statistics
     """
     
     def _is_useable(self):
-        """当有策略时可用"""
+        """Useable when strategy exists."""
         if not BOKEH_AVAILABLE:
             return False
         return self.strategy is not None
     
     def _get_panel(self):
-        """获取面板内容
-        
+        """Get panel content.
+
         Returns:
             tuple: (widget, title)
         """
         strategy = self.strategy
         scheme = self.scheme
         
-        # 获取主题颜色
+        # Get theme colors
         bg_color = scheme.body_background_color if scheme else '#ffffff'
         text_color = scheme.text_color if scheme else '#333333'
         title_color = scheme.text_color if scheme else '#333333'
@@ -54,20 +54,20 @@ class PerformanceTab(BokehTab):
         
         widgets = []
         
-        # 标题
+        # Title
         widgets.append(Div(
             text=f'<h2 style="color: {title_color}; margin-bottom: 20px;">Performance Metrics</h2>',
             sizing_mode='stretch_width'
         ))
         
-        # 收集绩效数据
+        # Collect performance data
         metrics = self._collect_metrics(strategy)
         
-        # 创建概要卡片
+        # Create summary cards
         summary_html = self._create_summary_cards(metrics, scheme)
         widgets.append(Div(text=summary_html, sizing_mode='stretch_width'))
         
-        # 收益指标表格
+        # Returns metrics table
         returns_data = self._get_returns_metrics(metrics)
         if returns_data:
             widgets.append(Div(
@@ -76,7 +76,7 @@ class PerformanceTab(BokehTab):
             ))
             widgets.append(self._create_metrics_table(returns_data))
         
-        # 风险指标表格
+        # Risk metrics table
         risk_data = self._get_risk_metrics(metrics)
         if risk_data:
             widgets.append(Div(
@@ -85,7 +85,7 @@ class PerformanceTab(BokehTab):
             ))
             widgets.append(self._create_metrics_table(risk_data))
         
-        # 交易统计表格
+        # Trade statistics table
         trade_data = self._get_trade_metrics(metrics)
         if trade_data:
             widgets.append(Div(
@@ -98,17 +98,17 @@ class PerformanceTab(BokehTab):
         return content, 'Performance'
     
     def _collect_metrics(self, strategy):
-        """收集所有绩效指标
-        
+        """Collect all performance metrics.
+
         Args:
-            strategy: 策略实例
-            
+            strategy: Strategy instance
+
         Returns:
-            dict: 绩效指标字典
+            dict: Performance metrics dictionary
         """
         metrics = {}
         
-        # 从分析器获取指标
+        # Get metrics from analyzers
         for analyzer in getattr(strategy, 'analyzers', []):
             analyzer_name = analyzer.__class__.__name__
             try:
@@ -146,7 +146,7 @@ class PerformanceTab(BokehTab):
                     
                 elif analyzer_name == 'AnnualReturn':
                     if analysis:
-                        # 计算平均年化收益
+                        # Calculate average annual return
                         returns = list(analysis.values())
                         if returns:
                             metrics['annual_returns'] = analysis
@@ -167,7 +167,7 @@ class PerformanceTab(BokehTab):
             except Exception:
                 pass
         
-        # 从 broker 获取资金信息
+        # Get capital info from broker
         if hasattr(strategy, 'broker'):
             try:
                 broker = strategy.broker
@@ -183,21 +183,21 @@ class PerformanceTab(BokehTab):
         return metrics
     
     def _create_summary_cards(self, metrics, scheme):
-        """创建概要卡片 HTML
-        
+        """Create summary cards HTML.
+
         Args:
-            metrics: 指标字典
-            scheme: 主题
-            
+            metrics: Metrics dictionary
+            scheme: Theme
+
         Returns:
-            str: HTML 字符串
+            str: HTML string
         """
         bg_color = scheme.body_background_color if scheme else '#f5f5f5'
         text_color = scheme.text_color if scheme else '#333'
         
         cards = []
         
-        # 总收益率
+        # Total return
         total_return = metrics.get('total_return')
         if total_return is not None:
             color = '#4caf50' if total_return >= 0 else '#f44336'
@@ -208,7 +208,7 @@ class PerformanceTab(BokehTab):
                 </div>
             ''')
         
-        # 夏普比率
+        # Sharpe ratio
         sharpe = metrics.get('sharpe_ratio')
         if sharpe is not None:
             color = '#4caf50' if sharpe >= 1 else ('#ff9800' if sharpe >= 0 else '#f44336')
@@ -219,7 +219,7 @@ class PerformanceTab(BokehTab):
                 </div>
             ''')
         
-        # 最大回撤
+        # Maximum drawdown
         max_dd = metrics.get('max_drawdown')
         if max_dd is not None:
             color = '#4caf50' if max_dd < 10 else ('#ff9800' if max_dd < 20 else '#f44336')
@@ -230,7 +230,7 @@ class PerformanceTab(BokehTab):
                 </div>
             ''')
         
-        # 胜率
+        # Win rate
         win_rate = metrics.get('win_rate')
         if win_rate is not None:
             color = '#4caf50' if win_rate >= 50 else '#f44336'
@@ -241,7 +241,7 @@ class PerformanceTab(BokehTab):
                 </div>
             ''')
         
-        # 总交易数
+        # Total trades
         total_trades = metrics.get('total_trades', 0)
         cards.append(f'''
             <div style="background: {bg_color}; padding: 15px; border-radius: 8px; text-align: center; min-width: 150px;">
@@ -258,10 +258,10 @@ class PerformanceTab(BokehTab):
         return html
     
     def _get_returns_metrics(self, metrics):
-        """获取收益相关指标
-        
+        """Get returns-related metrics.
+
         Returns:
-            dict: 指标字典
+            dict: Metrics dictionary
         """
         data = {}
         
@@ -279,10 +279,10 @@ class PerformanceTab(BokehTab):
         return data
     
     def _get_risk_metrics(self, metrics):
-        """获取风险相关指标
-        
+        """Get risk-related metrics.
+
         Returns:
-            dict: 指标字典
+            dict: Metrics dictionary
         """
         data = {}
         
@@ -298,10 +298,10 @@ class PerformanceTab(BokehTab):
         return data
     
     def _get_trade_metrics(self, metrics):
-        """获取交易统计指标
-        
+        """Get trade statistics metrics.
+
         Returns:
-            dict: 指标字典
+            dict: Metrics dictionary
         """
         data = {}
         
@@ -325,11 +325,11 @@ class PerformanceTab(BokehTab):
         return data
     
     def _create_metrics_table(self, data):
-        """创建指标表格
-        
+        """Create metrics table.
+
         Args:
-            data: 指标字典
-            
+            data: Metrics dictionary
+
         Returns:
             DataTable
         """
