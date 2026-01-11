@@ -2,16 +2,16 @@
 """
 Backtrader Selected Tests Runner
 =================================
-运行指定测试目录并生成 HTML 报告
+Run specified test directories and generate HTML report.
 
-测试目录:
+Test directories:
 - tests/add_tests
 - tests/original_tests
 - tests/base_functions
 
-配置:
-- 12 核并行执行
-- 生成 backtrader_remove_metaprogramming_report.html
+Configuration:
+- 12-core parallel execution
+- Generate backtrader_remove_metaprogramming_report.html
 """
 
 import json
@@ -24,7 +24,7 @@ from pathlib import Path
 
 
 def check_test_directories():
-    """检查测试目录是否存在"""
+    """Check if test directories exist."""
     test_dirs = ["tests/add_tests", "tests/original_tests", "tests/base_functions"]
 
     missing_dirs = []
@@ -41,54 +41,54 @@ def check_test_directories():
 
 
 def run_tests():
-    """运行测试并生成报告"""
+    """Run tests and generate report."""
 
     print("=" * 80)
     print("Backtrader Selected Tests Runner")
     print("=" * 80)
     print()
 
-    # 记录脚本开始时间
+    # Record script start time
     script_start_time = time.time()
-    print(f"开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"Start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
 
-    # 检查测试目录
-    print("检查测试目录...")
+    # Check test directories
+    print("Checking test directories...")
     found_dirs, missing_dirs = check_test_directories()
 
     if missing_dirs:
         print()
-        print("⚠️  警告：以下目录不存在：")
+        print("⚠️  Warning: The following directories do not exist:")
         for missing in missing_dirs:
             print(f"   - {missing}")
         print()
 
     if not found_dirs:
-        print("❌ 错误：没有找到任何测试目录！")
+        print("❌ Error: No test directories found!")
         return 1
 
     print()
-    print("找到以下测试目录：")
+    print("Found the following test directories:")
     total_files = 0
     for dir_info in found_dirs:
-        print(f"   ✓ {dir_info['path']}: {dir_info['count']} 个测试文件")
+        print(f"   ✓ {dir_info['path']}: {dir_info['count']} test files")
         total_files += dir_info["count"]
-    print(f"\n总计：{total_files} 个测试文件")
+    print(f"\nTotal: {total_files} test files")
     print()
 
-    # 准备测试路径
+    # Prepare test paths
     test_paths = [d["path"] for d in found_dirs]
 
-    # 准备 pytest 命令
+    # Prepare pytest command
     output_file = "backtrader_remove_metaprogramming_report.html"
 
     pytest_args = [sys.executable, "-m", "pytest"]
 
-    # 添加测试路径
+    # Add test paths
     pytest_args.extend(test_paths)
 
-    # 添加报告参数
+    # Add report parameters
     pytest_args.extend(
         [
             f"--html={output_file}",
@@ -96,55 +96,55 @@ def run_tests():
             "--tb=short",
             "--verbose",
             "--color=yes",
-            "-ra",  # 显示所有测试结果摘要
-            "--maxfail=1000",  # 不在首个失败时停止
+            "-ra",  # Show all test result summary
+            "--maxfail=1000",  # Don't stop on first failure
         ]
     )
 
-    # 添加并行执行参数
+    # Add parallel execution parameters
     try:
         import xdist
 
-        pytest_args.extend(["-n", "12"])  # 使用 12 核
-        print("✓ 使用 12 核并行执行（pytest-xdist 已安装）")
+        pytest_args.extend(["-n", "12"])  # Use 12 cores
+        print("✓ Using 12-core parallel execution (pytest-xdist installed)")
     except ImportError:
-        print("⚠️  pytest-xdist 未安装，将使用串行执行")
-        print("   安装方法：pip install pytest-xdist")
+        print("⚠️  pytest-xdist not installed, will use serial execution")
+        print("   Install with: pip install pytest-xdist")
 
     print()
     print("-" * 80)
-    print("开始执行测试...")
-    print(f"测试开始时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print("Starting test execution...")
+    print(f"Test start time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print("-" * 80)
 
-    # 记录pytest开始时间（墙钟时间）
+    # Record pytest start time (wall clock time)
     pytest_start_time = time.time()
 
-    # 运行 pytest
+    # Run pytest
     result = subprocess.run(pytest_args)
 
-    # 记录pytest结束时间
+    # Record pytest end time
     pytest_end_time = time.time()
     pytest_duration = pytest_end_time - pytest_start_time
 
-    # 计算总时间（包括准备工作）
+    # Calculate total time (including preparation)
     total_duration = pytest_end_time - script_start_time
 
     print()
     print("-" * 80)
     print()
     print("=" * 80)
-    print("测试执行完成")
+    print("Test execution completed")
     print("=" * 80)
     print()
-    print(f"结束时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"End time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print()
-    print(f"⏱️  测试执行时间（墙钟时间）: {pytest_duration:.2f} 秒 ({pytest_duration/60:.2f} 分钟)")
-    print(f"📊 总耗时（含准备）: {total_duration:.2f} 秒 ({total_duration/60:.2f} 分钟)")
-    print(f"📄 HTML 报告: {output_file}")
+    print(f"⏱️  Test execution time (wall clock): {pytest_duration:.2f} seconds ({pytest_duration/60:.2f} minutes)")
+    print(f"📊 Total time (including prep): {total_duration:.2f} seconds ({total_duration/60:.2f} minutes)")
+    print(f"📄 HTML report: {output_file}")
     print()
 
-    # 将时间信息写入单独的文件以便后续分析
+    # Write timing info to separate file for later analysis
     timing_info = {
         "script_start": datetime.fromtimestamp(script_start_time).strftime("%Y-%m-%d %H:%M:%S"),
         "pytest_start": datetime.fromtimestamp(pytest_start_time).strftime("%Y-%m-%d %H:%M:%S"),
@@ -163,19 +163,19 @@ def run_tests():
     with open(timing_file, "w", encoding="utf-8") as f:
         json.dump(timing_info, f, indent=2, ensure_ascii=False)
 
-    print(f"⏰ 时间信息已保存: {timing_file}")
+    print(f"⏰ Timing info saved: {timing_file}")
     print()
 
     if result.returncode == 0:
-        print("✓ 所有测试通过！")
+        print("✓ All tests passed!")
         print()
-        print(f"查看报告：")
-        print(f"  双击打开: {output_file}")
-        print(f"  或在浏览器中打开: file:///{Path(output_file).absolute()}")
+        print(f"View report:")
+        print(f"  Double-click to open: {output_file}")
+        print(f"  Or open in browser: file:///{Path(output_file).absolute()}")
     else:
-        print(f"✗ 部分测试失败（退出码: {result.returncode}）")
+        print(f"✗ Some tests failed (exit code: {result.returncode})")
         print()
-        print(f"请查看 {output_file} 了解详细信息")
+        print(f"Please see {output_file} for details")
 
     print()
     print("=" * 80)
@@ -184,35 +184,35 @@ def run_tests():
 
 
 def show_info():
-    """显示测试信息"""
+    """Display test information."""
 
     print()
     print("=" * 80)
-    print("测试配置信息")
+    print("Test Configuration Information")
     print("=" * 80)
     print()
-    print("测试目录:")
-    print("  - tests/add_tests       (新增功能测试)")
-    print("  - tests/original_tests  (原始核心测试)")
-    print("  - tests/base_functions  (基础功能测试)")
+    print("Test directories:")
+    print("  - tests/add_tests       (New feature tests)")
+    print("  - tests/original_tests  (Original core tests)")
+    print("  - tests/base_functions  (Basic function tests)")
     print()
-    print("并行配置:")
-    print("  - 12 核并行执行")
+    print("Parallel configuration:")
+    print("  - 12-core parallel execution")
     print()
-    print("报告输出:")
+    print("Report output:")
     print("  - backtrader_remove_metaprogramming_report.html")
     print()
-    print("Python 版本:")
+    print("Python version:")
     print(f"  - {sys.version.split()[0]}")
     print()
 
-    # 检查目录
+    # Check directories
     found_dirs, missing_dirs = check_test_directories()
 
     if found_dirs:
-        print("测试统计:")
+        print("Test statistics:")
         for dir_info in found_dirs:
-            print(f"  - {dir_info['path']}: {dir_info['count']} 个测试文件")
+            print(f"  - {dir_info['path']}: {dir_info['count']} test files")
 
     print()
     print("=" * 80)
@@ -220,14 +220,14 @@ def show_info():
 
 
 def main():
-    """主入口"""
+    """Main entry point."""
 
-    # 检查命令行参数
+    # Check command line arguments
     if "--info" in sys.argv or "-i" in sys.argv:
         show_info()
         return 0
 
-    # 运行测试
+    # Run tests
     return run_tests()
 
 
@@ -238,11 +238,11 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print()
         print()
-        print("测试被用户中断")
+        print("Test interrupted by user")
         sys.exit(1)
     except Exception as e:
         print()
-        print(f"❌ 发生错误: {e}")
+        print(f"❌ Error occurred: {e}")
         import traceback
 
         traceback.print_exc()

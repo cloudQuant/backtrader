@@ -2115,17 +2115,17 @@ class Cerebro(ParameterizedBase):
                     strat.notify_timer(t, t.lastwhen, *t.args, **timer_kwargs)
 
     def add_report_analyzers(self, riskfree_rate=0.01):
-        """自动添加报告所需的分析器
-        
-        添加以下分析器：
-        - SharpeRatio: 夏普比率
-        - DrawDown: 回撤分析
-        - TradeAnalyzer: 交易分析
-        - SQN: 系统质量数
-        - AnnualReturn: 年化收益
-        
+        """Automatically add analyzers required for reporting.
+
+        Adds the following analyzers:
+        - SharpeRatio: Sharpe ratio
+        - DrawDown: Drawdown analysis
+        - TradeAnalyzer: Trade analysis
+        - SQN: System Quality Number
+        - AnnualReturn: Annual returns
+
         Args:
-            riskfree_rate: 无风险利率，默认 0.01 (1%)
+            riskfree_rate: Risk-free rate, default 0.01 (1%)
         """
         from . import analyzers
         
@@ -2147,23 +2147,23 @@ class Cerebro(ParameterizedBase):
     
     def generate_report(self, output_path, format='html', template='default',
                        user=None, memo=None, **kwargs):
-        """生成回测报告
-        
+        """Generate backtest report.
+
         Args:
-            output_path: 输出文件路径
-            format: 报告格式 ('html', 'pdf', 'json')
-            template: 模板名称或路径（仅 HTML/PDF 有效）
-            user: 用户名
-            memo: 备注
-            **kwargs: 额外参数
-            
+            output_path: Output file path
+            format: Report format ('html', 'pdf', 'json')
+            template: Template name or path (only for HTML/PDF)
+            user: Username
+            memo: Remarks/notes
+            **kwargs: Additional parameters
+
         Returns:
-            str: 输出文件路径
-            
+            str: Output file path
+
         Raises:
-            RuntimeError: 如果尚未运行策略
-            
-        使用示例:
+            RuntimeError: If strategy has not been run yet
+
+        Example:
             cerebro = bt.Cerebro()
             cerebro.addstrategy(MyStrategy)
             cerebro.adddata(data)
@@ -2173,7 +2173,7 @@ class Cerebro(ParameterizedBase):
         if not self.runstrats:
             raise RuntimeError("No strategy has been run. Call cerebro.run() first.")
         
-        # 获取第一个策略
+        # Get the first strategy
         strategy = self.runstrats[0][0]
         
         from .reports import ReportGenerator

@@ -2,7 +2,8 @@
 """
 Backtrader Class Dependency Analyzer
 
-分析backtrader项目中的类依赖关系，生成依赖图，识别关键路径和风险点。
+Analyzes class dependencies in the backtrader project, generates dependency graphs,
+and identifies critical paths and risk points.
 """
 
 import ast
@@ -17,13 +18,13 @@ from typing import Any, Dict, List, Optional, Set, Tuple
 
 import networkx as nx
 
-# 添加项目路径
+# Add project path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 @dataclass
 class ClassInfo:
-    """类信息"""
+    """Class information."""
 
     name: str
     file_path: str
@@ -39,7 +40,7 @@ class ClassInfo:
 
 @dataclass
 class DependencyEdge:
-    """依赖边"""
+    """Dependency edge."""
 
     source: str
     target: str
@@ -50,7 +51,7 @@ class DependencyEdge:
 
 @dataclass
 class RiskAssessment:
-    """风险评估"""
+    """Risk assessment."""
 
     class_name: str
     risk_level: str  # 'low', 'medium', 'high', 'critical'
@@ -60,7 +61,7 @@ class RiskAssessment:
 
 
 class ClassDependencyAnalyzer(ast.NodeVisitor):
-    """类依赖分析器"""
+    """Class dependency analyzer."""
 
     def __init__(self, file_path: str):
         self.file_path = file_path
@@ -69,7 +70,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
         self.imports: Dict[str, str] = {}  # alias -> full_name
         self.current_class: Optional[str] = None
 
-        # 已知的元类
+        # Known metaclasses
         self.known_metaclasses = {
             "MetaBase",
             "MetaParams",
@@ -82,7 +83,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
         }
 
     def visit_Import(self, node: ast.Import):
-        """处理import语句"""
+        """Process import statement."""
         for alias in node.names:
             name = alias.name
             as_name = alias.asname or name.split(".")[-1]
@@ -90,7 +91,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ImportFrom(self, node: ast.ImportFrom):
-        """处理from import语句"""
+        """Process from import statement."""
         module = node.module or ""
         for alias in node.names:
             name = alias.name
@@ -100,20 +101,20 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def visit_ClassDef(self, node: ast.ClassDef):
-        """访问类定义"""
+        """Visit class definition."""
         class_name = node.name
         self.current_class = class_name
 
-        # 解析基类
+        # Parse base classes
         base_classes = []
         for base in node.bases:
             base_name = self._get_name(base)
             if base_name:
-                # 解析导入的基类
+                # Resolve imported base class
                 resolved_name = self.imports.get(base_name, base_name)
                 base_classes.append(resolved_name)
 
-                # 添加继承依赖
+                # Add inheritance dependency
                 self.dependencies.append(
                     DependencyEdge(
                         source=class_name,
@@ -124,7 +125,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
                     )
                 )
 
-        # 解析元类
+        # Parse metaclass
         metaclass = None
         if hasattr(node, "metaclass") and node.metaclass:
             metaclass = self._get_name(node.metaclass)
@@ -139,7 +140,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
                     )
                 )
 
-        # 检查元编程使用
+        # Check metaprogramming usage
         has_metaprogramming = False
         metaprogramming_types = []
 
@@ -152,7 +153,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
                 has_metaprogramming = True
                 metaprogramming_types.append(f"inheritance:{base}")
 
-        # 创建类信息
+        # Create class info
         class_info = ClassInfo(
             name=class_name,
             file_path=self.file_path,
@@ -164,7 +165,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
             metaprogramming_types=metaprogramming_types,
         )
 
-        # 分析类体
+        # Analyze class body
         self._analyze_class_body(node, class_info)
 
         self.classes[class_name] = class_info
@@ -172,7 +173,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
         self.current_class = None
 
     def _analyze_class_body(self, node: ast.ClassDef, class_info: ClassInfo):
-        """分析类体"""
+        """Analyze class body."""
         for item in node.body:
             if isinstance(item, ast.FunctionDef):
                 class_info.methods.append(item.name)
@@ -181,17 +182,17 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
                     if isinstance(target, ast.Name):
                         class_info.attributes.append(target.id)
 
-                        # 检查特殊属性
+                        # Check special attributes
                         if target.id in ["params", "lines"]:
                             class_info.has_metaprogramming = True
                             class_info.metaprogramming_types.append(f"attribute:{target.id}")
 
     def visit_Call(self, node: ast.Call):
-        """访问函数调用"""
+        """Visit function call."""
         if self.current_class:
             func_name = self._get_name(node.func)
             if func_name and "." in func_name:
-                # 可能是对其他类的调用
+                # Possibly a call to another class
                 parts = func_name.split(".")
                 if len(parts) >= 2:
                     target_class = parts[0]
@@ -210,7 +211,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
         self.generic_visit(node)
 
     def _get_name(self, node):
-        """获取节点名称"""
+        """Get node name."""
         if isinstance(node, ast.Name):
             return node.id
         elif isinstance(node, ast.Attribute):
@@ -222,7 +223,7 @@ class ClassDependencyAnalyzer(ast.NodeVisitor):
 
 
 class ProjectDependencyAnalyzer:
-    """项目依赖分析器"""
+    """Project dependency analyzer."""
 
     def __init__(self, project_root: str = "."):
         self.project_root = os.path.abspath(project_root)
@@ -234,12 +235,12 @@ class ProjectDependencyAnalyzer:
         self.risk_assessments: List[RiskAssessment] = []
 
     def analyze_project(self):
-        """分析整个项目"""
-        print("开始分析backtrader项目的类依赖关系...")
+        """Analyze entire project."""
+        print("Starting analysis of backtrader project class dependencies...")
 
-        # 遍历项目中的Python文件
+        # Traverse Python files in project
         for root, dirs, files in os.walk(self.project_root):
-            # 跳过一些目录
+            # Skip some directories
             dirs[:] = [
                 d
                 for d in dirs
@@ -251,21 +252,21 @@ class ProjectDependencyAnalyzer:
                     file_path = os.path.join(root, file)
                     rel_path = os.path.relpath(file_path, self.project_root)
 
-                    # 只分析backtrader包内的文件
+                    # Only analyze files within backtrader package
                     if rel_path.startswith("backtrader" + os.sep) or file == "__init__.py":
                         try:
                             self.analyze_file(file_path, rel_path)
                         except Exception as e:
-                            print(f"分析文件 {rel_path} 时出错: {e}")
+                            print(f"Error analyzing file {rel_path}: {e}")
 
-        # 构建图
+        # Build graphs
         self.build_graphs()
 
-        # 风险评估
+        # Risk assessment
         self.assess_risks()
 
     def analyze_file(self, file_path: str, rel_path: str):
-        """分析单个文件"""
+        """Analyze single file."""
         try:
             with open(file_path, encoding="utf-8") as f:
                 content = f.read()
@@ -274,16 +275,16 @@ class ProjectDependencyAnalyzer:
             analyzer = ClassDependencyAnalyzer(rel_path)
             analyzer.visit(tree)
 
-            # 收集结果
+            # Collect results
             self.all_classes.update(analyzer.classes)
             self.all_dependencies.extend(analyzer.dependencies)
 
         except Exception as e:
-            print(f"无法解析文件 {rel_path}: {e}")
+            print(f"Cannot parse file {rel_path}: {e}")
 
     def build_graphs(self):
-        """构建依赖图"""
-        # 总依赖图
+        """Build dependency graphs."""
+        # Total dependency graph
         for dep in self.all_dependencies:
             self.dependency_graph.add_edge(
                 dep.source,
@@ -293,18 +294,18 @@ class ProjectDependencyAnalyzer:
                 line_number=dep.line_number,
             )
 
-        # 继承图
+        # Inheritance graph
         for dep in self.all_dependencies:
             if dep.edge_type in ["inheritance", "metaclass"]:
                 self.inheritance_graph.add_edge(dep.source, dep.target, edge_type=dep.edge_type)
 
-        # 组合图
+        # Composition graph
         for dep in self.all_dependencies:
             if dep.edge_type == "composition":
                 self.composition_graph.add_edge(dep.source, dep.target)
 
     def assess_risks(self):
-        """评估重构风险"""
+        """Assess refactoring risks."""
         self.risk_assessments = []
 
         for class_name, class_info in self.all_classes.items():
@@ -312,38 +313,38 @@ class ProjectDependencyAnalyzer:
             risk_level = "low"
             complexity_score = 0.0
 
-            # 计算依赖此类的类的数量
+            # Calculate number of classes depending on this class
             dependent_classes = len(
                 [dep for dep in self.all_dependencies if dep.target == class_name]
             )
 
-            # 风险因素评估
+            # Risk factor assessment
             if class_info.has_metaprogramming:
-                risk_factors.append("使用元编程")
+                risk_factors.append("Uses metaprogramming")
                 complexity_score += 2.0
 
             if class_info.metaclass:
-                risk_factors.append(f"使用元类: {class_info.metaclass}")
+                risk_factors.append(f"Uses metaclass: {class_info.metaclass}")
                 complexity_score += 3.0
 
             if len(class_info.base_classes) > 2:
-                risk_factors.append("多重继承")
+                risk_factors.append("Multiple inheritance")
                 complexity_score += 1.5
 
             if dependent_classes > 10:
-                risk_factors.append(f"被{dependent_classes}个类依赖")
+                risk_factors.append(f"Depended by {dependent_classes} classes")
                 complexity_score += 1.0
 
             if len(class_info.methods) > 20:
-                risk_factors.append("方法数量过多")
+                risk_factors.append("Too many methods")
                 complexity_score += 0.5
 
-            # 检查是否在关键路径上
+            # Check if on critical path
             if self.is_in_critical_path(class_name):
-                risk_factors.append("位于关键路径")
+                risk_factors.append("On critical path")
                 complexity_score += 2.0
 
-            # 确定风险级别
+            # Determine risk level
             if complexity_score >= 6.0:
                 risk_level = "critical"
             elif complexity_score >= 4.0:
@@ -361,12 +362,12 @@ class ProjectDependencyAnalyzer:
 
             self.risk_assessments.append(assessment)
 
-        # 按风险级别排序
+        # Sort by risk level
         self.risk_assessments.sort(key=lambda x: x.complexity_score, reverse=True)
 
     def is_in_critical_path(self, class_name: str) -> bool:
-        """检查类是否在关键路径上"""
-        # 关键类列表（核心框架类）
+        """Check if class is on critical path."""
+        # Critical class list (core framework classes)
         critical_classes = {
             "Cerebro",
             "Strategy",
@@ -382,7 +383,7 @@ class ProjectDependencyAnalyzer:
         if class_name in critical_classes:
             return True
 
-        # 检查是否继承自关键类
+        # Check if inherits from critical class
         try:
             for critical in critical_classes:
                 if nx.has_path(self.inheritance_graph, class_name, critical):
@@ -395,7 +396,7 @@ class ProjectDependencyAnalyzer:
         return False
 
     def find_inheritance_chains(self) -> Dict[str, List[str]]:
-        """查找继承链"""
+        """Find inheritance chains."""
         chains = {}
 
         for class_name in self.all_classes:
@@ -407,7 +408,7 @@ class ProjectDependencyAnalyzer:
         return chains
 
     def _get_inheritance_chain(self, class_name: str) -> List[str]:
-        """获取单个类的继承链"""
+        """Get inheritance chain for single class."""
         chain = [class_name]
         current = class_name
 
@@ -420,9 +421,9 @@ class ProjectDependencyAnalyzer:
             if not parents:
                 break
 
-            # 选择第一个父类（简化处理）
+            # Select first parent (simplified handling)
             parent = parents[0]
-            if parent in chain:  # 避免循环
+            if parent in chain:  # Avoid cycles
                 break
 
             chain.append(parent)
@@ -431,21 +432,21 @@ class ProjectDependencyAnalyzer:
         return chain
 
     def identify_critical_paths(self) -> List[List[str]]:
-        """识别关键路径"""
+        """Identify critical paths."""
         critical_paths = []
 
-        # 找到核心节点
+        # Find core nodes
         core_nodes = ["Strategy", "Indicator", "Cerebro", "DataBase", "BrokerBase"]
 
         for core in core_nodes:
             if core in self.dependency_graph:
-                # 找到所有到达这个核心节点的路径
+                # Find all paths to this core node
                 for node in self.dependency_graph.nodes():
                     if node != core:
                         try:
                             if nx.has_path(self.dependency_graph, node, core):
                                 path = nx.shortest_path(self.dependency_graph, node, core)
-                                if len(path) > 2:  # 只关注较长的路径
+                                if len(path) > 2:  # Only focus on longer paths
                                     critical_paths.append(path)
                         except:
                             continue
@@ -453,10 +454,10 @@ class ProjectDependencyAnalyzer:
         return critical_paths
 
     def generate_priority_matrix(self) -> Dict[str, Dict[str, Any]]:
-        """生成实施优先级矩阵"""
+        """Generate implementation priority matrix."""
         priority_matrix = {}
 
-        # 按风险级别分组
+        # Group by risk level
         for assessment in self.risk_assessments:
             class_info = self.all_classes.get(assessment.class_name)
             if not class_info:
@@ -479,54 +480,54 @@ class ProjectDependencyAnalyzer:
         return priority_matrix
 
     def _suggest_refactor_phase(self, assessment: RiskAssessment, class_info: ClassInfo) -> str:
-        """建议重构阶段"""
-        # 根据元编程类型建议阶段
+        """Suggest refactoring phase."""
+        # Suggest phase based on metaprogramming type
         for mp_type in class_info.metaprogramming_types:
             if "MetaSingleton" in mp_type:
-                return "Phase 2: Singleton重构"
+                return "Phase 2: Singleton refactoring"
             elif "MetaParams" in mp_type or "params" in mp_type:
-                return "Phase 3: 参数系统重构"
+                return "Phase 3: Parameter system refactoring"
             elif "MetaLineSeries" in mp_type or "lines" in mp_type:
-                return "Phase 4: Lines系统重构"
+                return "Phase 4: Lines system refactoring"
 
-        # 根据风险级别
+        # Based on risk level
         if assessment.risk_level == "critical":
-            return "Phase 1: 紧急处理"
+            return "Phase 1: Urgent handling"
         elif assessment.risk_level == "high":
-            return "Phase 2-3: 高优先级"
+            return "Phase 2-3: High priority"
         else:
-            return "Phase 4-5: 后期处理"
+            return "Phase 4-5: Later processing"
 
     def _find_prerequisites(self, class_info: ClassInfo) -> List[str]:
-        """查找重构前置条件"""
+        """Find refactoring prerequisites."""
         prerequisites = []
 
-        # 基类必须先重构
+        # Base classes must be refactored first
         for base in class_info.base_classes:
             if any(meta in base for meta in ["Meta", "Base"]):
-                prerequisites.append(f"重构基类: {base}")
+                prerequisites.append(f"Refactor base class: {base}")
 
-        # 元类必须先重构
+        # Metaclass must be refactored first
         if class_info.metaclass:
-            prerequisites.append(f"重构元类: {class_info.metaclass}")
+            prerequisites.append(f"Refactor metaclass: {class_info.metaclass}")
 
         return prerequisites
 
     def _assess_impact_scope(self, class_name: str) -> str:
-        """评估影响范围"""
+        """Assess impact scope."""
         dependent_count = len([dep for dep in self.all_dependencies if dep.target == class_name])
 
         if dependent_count >= 20:
-            return "全项目影响"
+            return "Project-wide impact"
         elif dependent_count >= 10:
-            return "模块级影响"
+            return "Module-level impact"
         elif dependent_count >= 5:
-            return "局部影响"
+            return "Local impact"
         else:
-            return "最小影响"
+            return "Minimal impact"
 
     def generate_report(self) -> Dict[str, Any]:
-        """生成分析报告"""
+        """Generate analysis report."""
         inheritance_chains = self.find_inheritance_chains()
         critical_paths = self.identify_critical_paths()
         priority_matrix = self.generate_priority_matrix()
@@ -575,15 +576,15 @@ class ProjectDependencyAnalyzer:
         return report
 
     def _get_phase_distribution(self, priority_matrix: Dict) -> Dict[str, int]:
-        """获取各阶段的类分布"""
+        """Get class distribution by phase."""
         distribution = defaultdict(int)
         for info in priority_matrix.values():
             distribution[info["suggested_phase"]] += 1
         return dict(distribution)
 
     def _get_dependency_statistics(self) -> Dict[str, Any]:
-        """获取依赖统计信息"""
-        # 入度统计（被依赖）
+        """Get dependency statistics."""
+        # In-degree statistics (being depended upon)
         in_degrees = defaultdict(int)
         out_degrees = defaultdict(int)
 
@@ -591,10 +592,10 @@ class ProjectDependencyAnalyzer:
             in_degrees[dep.target] += 1
             out_degrees[dep.source] += 1
 
-        # 最高入度（最被依赖的类）
+        # Highest in-degree (most depended classes)
         top_depended = sorted(in_degrees.items(), key=lambda x: x[1], reverse=True)[:10]
 
-        # 最高出度（依赖最多其他类的类）
+        # Highest out-degree (classes depending on most others)
         top_depending = sorted(out_degrees.items(), key=lambda x: x[1], reverse=True)[:10]
 
         return {
@@ -607,7 +608,7 @@ class ProjectDependencyAnalyzer:
         }
 
     def save_report(self, report: Dict[str, Any]):
-        """保存分析报告"""
+        """Save analysis report."""
         os.makedirs("analysis_results", exist_ok=True)
         filename = (
             f"analysis_results/dependency_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
@@ -616,28 +617,28 @@ class ProjectDependencyAnalyzer:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump(report, f, indent=2, ensure_ascii=False)
 
-        print(f"依赖分析报告已保存到: {filename}")
+        print(f"Dependency analysis report saved to: {filename}")
         return filename
 
     def print_summary(self, report: Dict[str, Any]):
-        """打印分析摘要"""
+        """Print analysis summary."""
         print("=" * 70)
-        print("Backtrader 类依赖关系分析报告")
+        print("Backtrader Class Dependency Analysis Report")
         print("=" * 70)
 
         summary = report["summary"]
-        print(f"总类数: {summary['total_classes']}")
-        print(f"总依赖关系: {summary['total_dependencies']}")
-        print(f"  - 继承关系: {summary['inheritance_edges']}")
-        print(f"  - 组合关系: {summary['composition_edges']}")
-        print(f"  - 元类关系: {summary['metaclass_edges']}")
-        print(f"使用元编程的类: {summary['classes_with_metaprogramming']}")
-        print(f"关键风险类: {summary['critical_risk_classes']}")
-        print(f"高风险类: {summary['high_risk_classes']}")
+        print(f"Total classes: {summary['total_classes']}")
+        print(f"Total dependencies: {summary['total_dependencies']}")
+        print(f"  - Inheritance: {summary['inheritance_edges']}")
+        print(f"  - Composition: {summary['composition_edges']}")
+        print(f"  - Metaclass: {summary['metaclass_edges']}")
+        print(f"Classes using metaprogramming: {summary['classes_with_metaprogramming']}")
+        print(f"Critical risk classes: {summary['critical_risk_classes']}")
+        print(f"High risk classes: {summary['high_risk_classes']}")
 
-        print("\n🚨 最高风险类 (Top 10):")
+        print("\n🚨 Highest Risk Classes (Top 10):")
         print("-" * 50)
-        print(f"{'类名':<25} {'风险级别':<10} {'复杂度':<8} {'被依赖数':<8}")
+        print(f"{'Class Name':<25} {'Risk Level':<10} {'Complexity':<8} {'Depended':<8}")
         print("-" * 50)
         for risk in report["risk_assessments"][:10]:
             print(
@@ -645,20 +646,20 @@ class ProjectDependencyAnalyzer:
                 f"{risk['complexity_score']:<8.1f} {risk['dependent_classes']:<8}"
             )
 
-        print("\n📊 阶段分布:")
+        print("\n📊 Phase Distribution:")
         print("-" * 30)
         for phase, count in report["phase_distribution"].items():
-            print(f"{phase}: {count} 个类")
+            print(f"{phase}: {count} classes")
 
-        print("\n🔗 最被依赖的类 (Top 5):")
+        print("\n🔗 Most Depended Classes (Top 5):")
         print("-" * 30)
         for class_name, count in report["dependency_statistics"]["most_depended_classes"][:5]:
-            print(f"{class_name}: {count} 个依赖")
+            print(f"{class_name}: {count} dependencies")
 
 
 def main():
-    """主函数"""
-    print("开始分析backtrader项目依赖关系...")
+    """Main function."""
+    print("Starting backtrader project dependency analysis...")
 
     analyzer = ProjectDependencyAnalyzer()
     analyzer.analyze_project()
@@ -667,15 +668,15 @@ def main():
     analyzer.print_summary(report)
     analyzer.save_report(report)
 
-    print("\nDay 5-7任务完成！")
+    print("\nDay 5-7 task completed!")
 
 
 if __name__ == "__main__":
-    # 检查是否安装了networkx
+    # Check if networkx is installed
     try:
         import networkx
     except ImportError:
-        print("请安装networkx: pip install networkx")
+        print("Please install networkx: pip install networkx")
         sys.exit(1)
 
     main()
