@@ -619,7 +619,9 @@ class Strategy(StrategyBase):
         Returns:
             The created analyzer instance
         """
-        analyzer = ancls(*anargs, **ankwargs)
+        # Use OwnerContext so analyzer's findowner() can find this strategy
+        with OwnerContext.set_owner(self):
+            analyzer = ancls(*anargs, **ankwargs)
         self._slave_analyzers.append(analyzer)
         return analyzer
 
@@ -641,7 +643,9 @@ class Strategy(StrategyBase):
         anname = ankwargs.pop("_name", "") or ancls.__name__.lower()
         nsuffix = next(self._alnames[anname])
         anname += str(nsuffix or "")  # 0 (first instance) gets no suffix
-        analyzer = ancls(*anargs, **ankwargs)
+        # Use OwnerContext so analyzer's findowner() can find this strategy
+        with OwnerContext.set_owner(self):
+            analyzer = ancls(*anargs, **ankwargs)
         # PERFORMANCE FIX: Explicitly set analyzer's owner to ensure it has access to strategy
         analyzer._parent = self
         analyzer._owner = self
@@ -662,7 +666,9 @@ class Strategy(StrategyBase):
 
         if not multi:
             newargs = list(itertools.chain(self.datas, obsargs))
-            obs = obscls(*newargs, **obskwargs)
+            # Use OwnerContext so observer's findowner() can find this strategy
+            with OwnerContext.set_owner(self):
+                obs = obscls(*newargs, **obskwargs)
             # PERFORMANCE FIX: Explicitly set observer's owner to ensure it has access to strategy
             obs._parent = self
             obs._owner = self
@@ -673,7 +679,9 @@ class Strategy(StrategyBase):
         obs_list = getattr(self.stats, obsname)
 
         for data in self.datas:
-            obs = obscls(data, *obsargs, **obskwargs)
+            # Use OwnerContext so observer's findowner() can find this strategy
+            with OwnerContext.set_owner(self):
+                obs = obscls(data, *obsargs, **obskwargs)
             # PERFORMANCE FIX: Explicitly set observer's owner to ensure it has access to strategy
             obs._parent = self
             obs._owner = self

@@ -19,6 +19,7 @@ import math
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 from ..mathsupport import average, standarddev
+from ..metabase import OwnerContext
 from ..utils.py3 import itervalues
 from .annualreturn import AnnualReturn
 from .timereturn import TimeReturn
@@ -139,12 +140,15 @@ class SharpeRatio(Analyzer):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         # If using years, get annualized return, otherwise get daily return
+        # Use OwnerContext so child analyzers can find the strategy
         if self.p.legacyannual:
-            self.anret = AnnualReturn()
+            with OwnerContext.set_owner(self.strategy):
+                self.anret = AnnualReturn()
         else:
-            self.timereturn = TimeReturn(
-                timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
-            )
+            with OwnerContext.set_owner(self.strategy):
+                self.timereturn = TimeReturn(
+                    timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
+                )
 
     def stop(self):
         """Calculate and store the Sharpe ratio when analysis ends.

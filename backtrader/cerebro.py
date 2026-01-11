@@ -45,6 +45,7 @@ except AttributeError:  # For old Python versions
 from . import errors, feeds, indicator, linebuffer, observers
 from .brokers import BackBroker
 from .dataseries import TimeFrame
+from .metabase import OwnerContext
 from .parameters import ParameterDescriptor, ParameterizedBase
 from .strategy import SignalStrategy, Strategy
 from .timer import Timer
@@ -1455,14 +1456,16 @@ class Cerebro(ParameterizedBase):
         for stratcls, sargs, skwargs in iterstrat:
             # Add data to strategy parameters
             sargs = self.datas + list(sargs)
-            # Instantiate strategy
+            # Instantiate strategy with OwnerContext so findowner() can find Cerebro
             try:
-                # Use safe strategy creation to handle parameter filtering
-                if hasattr(stratcls, "_create_strategy_safely"):
-                    strat = stratcls._create_strategy_safely(*sargs, **skwargs)
-                else:
-                    # Fallback to direct instantiation
-                    strat = stratcls(*sargs, **skwargs)
+                # Use OwnerContext so Strategy.__new__ can find Cerebro via findowner()
+                with OwnerContext.set_owner(self):
+                    # Use safe strategy creation to handle parameter filtering
+                    if hasattr(stratcls, "_create_strategy_safely"):
+                        strat = stratcls._create_strategy_safely(*sargs, **skwargs)
+                    else:
+                        # Fallback to direct instantiation
+                        strat = stratcls(*sargs, **skwargs)
             except errors.StrategySkipError:
                 continue  # do not add strategy to the mix
             # Old data synchronization method

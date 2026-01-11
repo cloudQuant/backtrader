@@ -35,7 +35,7 @@ import pprint as pp
 from collections import OrderedDict
 
 from .dataseries import TimeFrame
-from .metabase import findowner
+from .metabase import findowner, OwnerContext
 from .observer import Observer
 from .parameters import ParameterizedBase
 from .strategy import Strategy
