@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Data Replay 数据回放 - MACD策略
+Test Case: Data Replay - MACD Strategy
 
-参考来源: test_58_data_replay.py
-测试数据回放功能，使用MACD交叉策略
+Reference source: test_58_data_replay.py
+Tests the data replay functionality using MACD crossover strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,11 +30,19 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class ReplayMACDStrategy(bt.Strategy):
-    """测试数据回放的策略 - MACD交叉
+    """Strategy for testing data replay - MACD crossover.
 
-    策略逻辑:
-    - MACD线上穿信号线时买入
-    - MACD线下穿信号线时卖出平仓
+    Strategy logic:
+        - Buy when MACD line crosses above signal line
+        - Sell and close position when MACD line crosses below signal line
+
+    Attributes:
+        macd: MACD indicator instance.
+        crossover: CrossOver indicator for MACD and signal line.
+        order: Current pending order.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = (('fast_period', 12), ('slow_period', 26), ('signal_period', 9))
 
@@ -96,7 +104,7 @@ class ReplayMACDStrategy(bt.Strategy):
 
     def next(self):
         self.bar_num += 1
-        # 在前10个bar和关键位置打印详细的MACD值用于调试
+        # Print detailed MACD values for debugging in first 10 bars and key positions
         macd_val = self.macd.macd[0] if len(self.macd.macd) > 0 else 'N/A'
         signal_val = self.macd.signal[0] if len(self.macd.signal) > 0 else 'N/A'
         me1_val = self.macd.me1[0] if len(self.macd.me1) > 0 else 'N/A'
@@ -114,15 +122,29 @@ class ReplayMACDStrategy(bt.Strategy):
 
 
 def test_data_replay_macd():
-    """测试 Data Replay 数据回放 - MACD策略"""
+    """Test Data Replay functionality with MACD strategy.
+
+    This test validates the data replay feature by replaying daily data as weekly
+    data and applying a MACD crossover strategy. The test verifies that the replay
+    functionality correctly aggregates data and produces expected trading results.
+
+    Raises:
+        AssertionError: If any of the test assertions fail, including:
+            - Number of bars processed
+            - Final portfolio value
+            - Sharpe ratio
+            - Annual return
+            - Maximum drawdown
+            - Total number of trades
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(dataname=str(data_path))
 
-    # 使用回放功能，将日线回放为周线
+    # Use replay functionality to replay daily data as weekly data
     cerebro.replaydata(
         data,
         timeframe=bt.TimeFrame.Weeks,
@@ -132,18 +154,18 @@ def test_data_replay_macd():
     cerebro.addstrategy(ReplayMACDStrategy, fast_period=12, slow_period=26, signal_period=9)
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 添加完整分析器
+    # Add comprehensive analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Weeks, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run(preload=False)
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe = strat.analyzers.sharpe.get_analysis()
     ret = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -155,9 +177,9 @@ def test_data_replay_macd():
     total_trades = trades.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Data Replay MACD策略回测结果 (周线):")
+    print("Data Replay MACD Strategy Backtest Results (Weekly):")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -168,7 +190,7 @@ def test_data_replay_macd():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 344, f"Expected bar_num=344, got {strat.bar_num}"
     assert abs(final_value - 106870.40) < 0.01, f"Expected final_value=107568.30, got {final_value}"
     assert abs(sharpe_ratio - 1.3228391876325063) < 1e-6, f"Expected sharpe_ratio=1.353877653906896, got {sharpe_ratio}"
@@ -176,11 +198,11 @@ def test_data_replay_macd():
     assert abs(max_drawdown - 1.6636055151304665) < 1e-6, f"Expected max_drawdown=1.6528018163884495, got {max_drawdown}"
     assert total_trades == 9, f"Expected total_trades=10, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Data Replay MACD策略测试")
+    print("Data Replay MACD Strategy Test")
     print("=" * 60)
     test_data_replay_macd()

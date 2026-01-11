@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Strategy Selection 策略选择
+"""Test case for Strategy Selection.
 
-参考来源: backtrader-master2/samples/strategy-selection/strategy-selection.py
-演示如何在运行时选择不同的策略
+Reference: backtrader-master2/samples/strategy-selection/strategy-selection.py
+Demonstrates how to select different strategies at runtime.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,7 +29,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class StrategyA(bt.Strategy):
-    """策略A: 双均线交叉"""
+    """Strategy A: Dual Moving Average Crossover.
+
+    This strategy generates buy/sell signals when two simple moving
+    averages cross each other.
+    """
     params = (('p1', 10), ('p2', 30))
 
     def __init__(self):
@@ -66,7 +69,11 @@ class StrategyA(bt.Strategy):
 
 
 class StrategyB(bt.Strategy):
-    """策略B: 价格与均线交叉"""
+    """Strategy B: Price and Moving Average Crossover.
+
+    This strategy generates buy/sell signals when the price crosses
+    above or below a simple moving average.
+    """
     params = (('period', 10),)
 
     def __init__(self):
@@ -101,7 +108,18 @@ class StrategyB(bt.Strategy):
 
 
 def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
-    """运行单个策略并返回结果"""
+    """Run a single strategy with analyzers and return results.
+
+    Args:
+        strategy_class: The strategy class to run.
+        data_path: Path to the data file for backtesting.
+        strategy_name: Name of the strategy for display purposes.
+
+    Returns:
+        A dictionary containing strategy performance metrics including
+        bar_num, buy_count, sell_count, sharpe_ratio, annual_return,
+        max_drawdown, total_trades, and final_value.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
@@ -110,7 +128,7 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
     cerebro.addstrategy(strategy_class)
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 添加分析器 - 使用日线级别计算夏普率
+    # Add analyzers - calculate Sharpe ratio using daily timeframe
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
@@ -120,7 +138,7 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -128,9 +146,9 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
     total_trades = trade_analysis.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("=" * 50)
-    print(f"{strategy_name} 回测结果:")
+    print(f"{strategy_name} Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -155,19 +173,23 @@ def run_strategy_with_analyzer(strategy_class, data_path, strategy_name):
 
 
 def test_strategy_selection():
-    """测试 Strategy Selection 策略选择"""
-    print("正在加载数据...")
+    """Test Strategy Selection.
+
+    Tests two different strategies (StrategyA and StrategyB) and verifies
+    their performance metrics match expected values.
+    """
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
 
-    # 测试策略A
-    print("\n--- 测试策略A ---")
+    # Test StrategyA
+    print("\n--- Testing StrategyA ---")
     result_a = run_strategy_with_analyzer(StrategyA, data_path, "StrategyA")
 
-    # 测试策略B
-    print("\n--- 测试策略B ---")
+    # Test StrategyB
+    print("\n--- Testing StrategyB ---")
     result_b = run_strategy_with_analyzer(StrategyB, data_path, "StrategyB")
 
-    # 断言测试结果
+    # Assert test results
     assert result_a['bar_num'] == 482, f"Expected bar_num=482, got {result_a['bar_num']}"
     assert abs(result_a['final_value'] - 104966.80) < 0.01, f"Expected final_value=104966.80, got {result_a['final_value']}"
     assert abs(result_a['sharpe_ratio'] - 0.7210685207398165) < 1e-6, f"Expected sharpe=0.7210685207398165, got {result_a['sharpe_ratio']}"
@@ -182,11 +204,11 @@ def test_strategy_selection():
     assert abs(result_b['max_drawdown'] - 3.474930243071327) < 1e-6, f"Expected maxdd=3.474930243071327, got {result_b['max_drawdown']}"
     assert result_b['total_trades'] == 43, f"Expected total_trades=43, got {result_b['total_trades']}"
 
-    print("\n测试通过!")
+    print("\nAll tests passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Strategy Selection 策略选择测试")
+    print("Strategy Selection Test")
     print("=" * 60)
     test_strategy_selection()

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Data Pandas 数据加载
+Test Case: Data Pandas Data Loading
 
-参考来源: backtrader-master2/samples/data-pandas/data-pandas.py
-测试从Pandas DataFrame加载数据，使用简单双均线交叉策略
+Reference source: backtrader-master2/samples/data-pandas/data-pandas.py
+Tests loading data from Pandas DataFrame using a simple dual moving average crossover strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -18,6 +18,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolves the absolute path of a data file by searching common directories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Absolute Path object pointing to the data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -31,11 +42,20 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SimpleMAStrategy(bt.Strategy):
-    """简单双均线交叉策略 - 用于测试Pandas数据加载
+    """Simple dual moving average crossover strategy for testing Pandas data loading.
 
-    策略逻辑:
-    - 快线上穿慢线时买入
-    - 快线下穿慢线时卖出平仓
+    Strategy logic:
+        - Buy when fast MA crosses above slow MA
+        - Sell and close position when fast MA crosses below slow MA
+
+    Attributes:
+        fast_ma: Fast moving average indicator.
+        slow_ma: Slow moving average indicator.
+        crossover: Crossover indicator between fast and slow MAs.
+        order: Current pending order.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = (('fast_period', 10), ('slow_period', 30))
 
@@ -71,14 +91,23 @@ class SimpleMAStrategy(bt.Strategy):
 
 
 def test_data_pandas():
-    """测试 Data Pandas 数据加载"""
+    """Tests Pandas data loading functionality with a simple strategy.
+
+    This test loads data from a CSV file into a Pandas DataFrame, then uses
+    bt.feeds.PandasData to load it into the backtrader engine. It runs a
+    simple dual moving average crossover strategy and verifies the results.
+
+    Raises:
+        AssertionError: If any of the test assertions fail (bar count, final
+            value, Sharpe ratio, annual return, max drawdown, or trade count).
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
 
-    # 读取CSV到DataFrame
+    # Read CSV into DataFrame
     dataframe = pd.read_csv(
         str(data_path),
         header=0,
@@ -88,25 +117,25 @@ def test_data_pandas():
 
     print(f"DataFrame shape: {dataframe.shape}")
 
-    # 使用PandasData加载
+    # Load data using PandasData
     data = bt.feeds.PandasData(dataname=dataframe, nocase=True)
     cerebro.adddata(data)
 
-    # 添加简单双均线交叉策略
+    # Add simple dual moving average crossover strategy
     cerebro.addstrategy(SimpleMAStrategy, fast_period=10, slow_period=30)
 
-    # 添加完整分析器 - 使用日线级别计算夏普率
+    # Add complete analyzers - calculate Sharpe ratio using daily timeframe
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -114,9 +143,9 @@ def test_data_pandas():
     total_trades = trade_analysis.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Data Pandas 数据加载回测结果:")
+    print("Data Pandas Data Loading Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -127,7 +156,7 @@ def test_data_pandas():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 482, f"Expected bar_num=482, got {strat.bar_num}"
     assert abs(final_value - 100496.68) < 0.01, f"Expected final_value=100496.68, got {final_value}"
     assert abs(sharpe_ratio - 0.7052880693319075) < 1e-6, f"Expected sharpe_ratio=0.7052880693319075, got {sharpe_ratio}"
@@ -135,11 +164,11 @@ def test_data_pandas():
     assert abs(max_drawdown - 0.35642156216533016) < 1e-6, f"Expected max_drawdown=0.35642156216533016, got {max_drawdown}"
     assert total_trades == 9, f"Expected total_trades=9, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Data Pandas 数据加载测试")
+    print("Data Pandas Data Loading Test")
     print("=" * 60)
     test_data_pandas()

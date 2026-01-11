@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: VWR (Variability-Weighted Return) 分析器
+Test Case: VWR (Variability-Weighted Return) Analyzer
 
-参考来源: backtrader-master2/samples/vwr/vwr.py
-测试VWR分析器
+Reference Source: backtrader-master2/samples/vwr/vwr.py
+Test the VWR analyzer
 
-VWR (Variability-Weighted Return) 是一种风险调整后收益指标，
-考虑收益率的波动性，类似于夏普比率但使用不同的计算方法
+VWR (Variability-Weighted Return) is a risk-adjusted return metric
+that considers return volatility, similar to the Sharpe ratio but
+uses a different calculation method.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -33,7 +34,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class VWRTestStrategy(bt.Strategy):
-    """测试VWR分析器的策略"""
+    """Strategy for testing the VWR analyzer.
+
+    This strategy uses two Simple Moving Averages (SMA) with periods
+    p1 and p2 to generate crossover signals for trading.
+    """
     params = (('p1', 10), ('p2', 30))
 
     def __init__(self):
@@ -68,18 +73,26 @@ class VWRTestStrategy(bt.Strategy):
 
 
 def test_vwr_analyzer():
-    """测试 VWR Analyzer"""
+    """Test the VWR analyzer.
+
+    This function sets up a backtest with the VWR analyzer and other
+    performance metrics analyzers, runs the backtest, and verifies
+    the results against expected values.
+
+    Raises:
+        AssertionError: If any of the test assertions fail.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(dataname=str(data_path))
     cerebro.adddata(data)
 
     cerebro.addstrategy(VWRTestStrategy)
 
-    # 添加分析器 - 使用日线级别计算夏普率
+    # Add analyzers - calculate Sharpe ratio using daily timeframe
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.SQN, _name="sqn")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
@@ -88,11 +101,11 @@ def test_vwr_analyzer():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
     cerebro.addanalyzer(bt.analyzers.VWR, _name="vwr")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     returns = strat.analyzers.returns.get_analysis()
     sqn = strat.analyzers.sqn.get_analysis()
     vwr = strat.analyzers.vwr.get_analysis()
@@ -104,13 +117,13 @@ def test_vwr_analyzer():
     total_trades = trade_analysis.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 提取 VWR 和 SQN 值
+    # Extract VWR and SQN values
     vwr_ratio = vwr.get('vwr', None) if vwr else None
     sqn_ratio = sqn.get('sqn', None) if sqn else None
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("VWR Analyzer 回测结果:")
+    print("VWR Analyzer Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -123,25 +136,25 @@ def test_vwr_analyzer():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 482, f"Expected bar_num=482, got {strat.bar_num}"
     assert abs(final_value - 100496.68) < 0.01, f"Expected final_value=100496.68, got {final_value}"
     assert abs(sharpe_ratio - 0.7052880693319075) < 1e-6, f"Expected sharpe_ratio=0.7052880693319075, got {sharpe_ratio}"
     assert abs(annual_return - 0.0024415216620913218) < 1e-6, f"Expected annual_return=0.0024415216620913218, got {annual_return}"
     assert abs(max_drawdown - 0.35642156216533016) < 1e-6, f"Expected max_drawdown=0.35642156216533016, got {max_drawdown}"
     assert total_trades == 9, f"Expected total_trades=9, got {total_trades}"
-    # VWR 比率断言
+    # VWR ratio assertion
     assert vwr_ratio is not None, "VWR ratio should not be None"
     assert abs(vwr_ratio - 0.18671202740080534) < 1e-6, f"Expected vwr_ratio=0.18671202740080534, got {vwr_ratio}"
-    # SQN 比率断言
+    # SQN ratio assertion
     assert sqn_ratio is not None, "SQN ratio should not be None"
     assert abs(sqn_ratio - 1.1860238182921676) < 1e-6, f"Expected sqn_ratio=1.1860238182921676, got {sqn_ratio}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("VWR Analyzer 测试")
+    print("VWR Analyzer Test")
     print("=" * 60)
     test_vwr_analyzer()

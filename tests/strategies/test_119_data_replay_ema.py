@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Data Replay 数据回放 - EMA双均线策略
+Test Case: Data Replay - EMA Dual Moving Average Strategy
 
-参考来源: test_58_data_replay.py
-测试数据回放功能，使用EMA双均线交叉策略
+Reference: test_58_data_replay.py
+Tests data replay functionality using an EMA dual moving average crossover strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,11 +30,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class ReplayEMAStrategy(bt.Strategy):
-    """测试数据回放的策略 - EMA双均线交叉
+    """Strategy for testing data replay - EMA dual moving average crossover.
 
-    策略逻辑:
-    - 快速EMA上穿慢速EMA时买入
-    - 快速EMA下穿慢速EMA时卖出平仓
+    Strategy logic:
+    - Buy when fast EMA crosses above slow EMA
+    - Sell and close position when fast EMA crosses below slow EMA
     """
     params = (('fast_period', 12), ('slow_period', 26))
 
@@ -105,15 +105,15 @@ class ReplayEMAStrategy(bt.Strategy):
 
 
 def test_data_replay_ema():
-    """测试 Data Replay 数据回放 - EMA策略"""
+    """Tests Data Replay functionality with EMA strategy."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(dataname=str(data_path))
 
-    # 使用回放功能，将日线回放为周线
+    # Use replay functionality to replay daily data as weekly data
     cerebro.replaydata(
         data,
         timeframe=bt.TimeFrame.Weeks,
@@ -123,18 +123,18 @@ def test_data_replay_ema():
     cerebro.addstrategy(ReplayEMAStrategy, fast_period=12, slow_period=26)
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 添加完整分析器
+    # Add complete analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Weeks, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run(preload=False)
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe = strat.analyzers.sharpe.get_analysis()
     ret = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -146,9 +146,9 @@ def test_data_replay_ema():
     total_trades = trades.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Data Replay EMA策略回测结果 (周线):")
+    print("Data Replay EMA Strategy Backtest Results (Weekly):")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -159,7 +159,7 @@ def test_data_replay_ema():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 384, f"Expected bar_num=384, got {strat.bar_num}"
     assert abs(final_value - 104553.50) < 0.01, f"Expected final_value=104553.50, got {final_value}"
     assert abs(sharpe_ratio - 0.8871126960270267) < 1e-6, f"Expected sharpe_ratio=0.8871126960270267, got {sharpe_ratio}"
@@ -167,11 +167,11 @@ def test_data_replay_ema():
     assert abs(max_drawdown - 1.7853002550428876) < 1e-6, f"Expected max_drawdown=1.7853002550428876, got {max_drawdown}"
     assert total_trades == 9, f"Expected total_trades=9, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Data Replay EMA策略测试")
+    print("Data Replay EMA Strategy Test")
     print("=" * 60)
     test_data_replay_ema()

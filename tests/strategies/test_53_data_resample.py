@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Data Resample 数据重采样
+"""Test case for Data Resample data resampling.
 
-参考来源: backtrader-master2/samples/data-resample/data-resample.py
-测试数据重采样功能，使用简单双均线交叉策略
+Reference source: backtrader-master2/samples/data-resample/data-resample.py
+Tests data resampling functionality using a simple dual moving average crossover strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,11 +29,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class SimpleMAStrategy(bt.Strategy):
-    """简单双均线交叉策略 - 用于测试数据重采样
+    """Simple dual moving average crossover strategy for testing data resampling.
 
-    策略逻辑:
-    - 快线上穿慢线时买入
-    - 快线下穿慢线时卖出平仓
+    Strategy logic:
+    - Buy when the fast line crosses above the slow line
+    - Sell and close position when the fast line crosses below the slow line
     """
     params = (('fast_period', 5), ('slow_period', 15))
 
@@ -70,36 +69,36 @@ class SimpleMAStrategy(bt.Strategy):
 
 
 def test_data_resample():
-    """测试 Data Resample 数据重采样"""
+    """Test Data Resample data resampling."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(dataname=str(data_path))
 
-    # 重采样到周线
+    # Resample to weekly timeframe
     cerebro.resampledata(
         data,
         timeframe=bt.TimeFrame.Weeks,
         compression=1
     )
 
-    # 添加简单双均线交叉策略
+    # Add simple dual moving average crossover strategy
     cerebro.addstrategy(SimpleMAStrategy, fast_period=5, slow_period=15)
 
-    # 添加完整分析器 - 使用周线级别计算夏普率
+    # Add complete analyzers - calculate Sharpe ratio using weekly timeframe
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Weeks, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -107,9 +106,9 @@ def test_data_resample():
     total_trades = trade_analysis.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Data Resample 数据重采样回测结果 (周线):")
+    print("Data Resample backtest results (weekly timeframe):")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -120,7 +119,7 @@ def test_data_resample():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 89, f"Expected bar_num=89, got {strat.bar_num}"
     assert abs(final_value - 100765.01) < 0.01, f"Expected final_value=100765.01, got {final_value}"
     assert abs(sharpe_ratio - 1.0787422654055023) < 1e-6, f"Expected sharpe_ratio=1.0787422654055023, got {sharpe_ratio}"
@@ -128,11 +127,11 @@ def test_data_resample():
     assert abs(max_drawdown - 0.3038892199564355) < 1e-6, f"Expected max_drawdown=0.3038892199564355, got {max_drawdown}"
     assert total_trades == 3, f"Expected total_trades=3, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Data Resample 数据重采样测试")
+    print("Data Resample data resampling test")
     print("=" * 60)
     test_data_resample()

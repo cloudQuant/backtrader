@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Timers 定时器
+Test case: Timers
 
-参考来源: backtrader-master2/samples/timers/scheduled.py
-测试策略定时器功能，使用双均线交叉策略
+Reference source: backtrader-master2/samples/timers/scheduled.py
+Tests strategy timer functionality using a dual moving average crossover strategy
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -30,12 +30,12 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TimerStrategy(bt.Strategy):
-    """定时器策略 - 双均线交叉
+    """Timer strategy - Dual moving average crossover.
 
-    策略逻辑:
-    - 快线上穿慢线时买入
-    - 快线下穿慢线时卖出平仓
-    - 同时测试定时器功能
+    Strategy logic:
+        - Buy when the fast line crosses above the slow line
+        - Sell and close position when the fast line crosses below the slow line
+        - Simultaneously test timer functionality
     """
     params = dict(
         when=bt.timer.SESSION_START,
@@ -84,11 +84,11 @@ class TimerStrategy(bt.Strategy):
 
 
 def test_timers():
-    """测试 Timers 定时器"""
+    """Test Timers functionality."""
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(
         dataname=str(data_path),
@@ -102,18 +102,18 @@ def test_timers():
     cerebro.addstrategy(TimerStrategy, timer=True, fast_period=10, slow_period=30)
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 添加完整分析器 - 使用日线级别计算夏普率
+    # Add complete analyzers - calculate Sharpe ratio using daily timeframe
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Days, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe = strat.analyzers.sharpe.get_analysis()
     ret = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -125,9 +125,9 @@ def test_timers():
     total_trades = trades.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Timers 定时器回测结果:")
+    print("Timers Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  timer_count: {strat.timer_count}")
     print(f"  buy_count: {strat.buy_count}")
@@ -139,7 +139,7 @@ def test_timers():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 482, f"Expected bar_num=482, got {strat.bar_num}"
     assert strat.timer_count == 512, f"Expected timer_count=512, got {strat.timer_count}"
     assert abs(final_value - 104966.80) < 0.01, f"Expected final_value=104966.80, got {final_value}"
@@ -148,11 +148,11 @@ def test_timers():
     assert abs(max_drawdown - 3.430658473286522) < 1e-6, f"Expected max_drawdown=3.430658473286522, got {max_drawdown}"
     assert total_trades == 9, f"Expected total_trades=9, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nAll tests passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Timers 定时器测试")
+    print("Timers Test")
     print("=" * 60)
     test_timers()

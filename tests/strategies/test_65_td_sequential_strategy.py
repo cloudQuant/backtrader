@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: TD Sequential 序列策略
+Test case: TD Sequential strategy.
 
-参考来源: https://github.com/mk99999/TD-seq
-基于Tom DeMark的TD Sequential指标进行交易
+Reference: https://github.com/mk99999/TD-seq
+Trading based on Tom DeMark's TD Sequential indicator.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,11 +45,42 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TDSequentialStrategy(bt.Strategy):
-    """TD Sequential策略
-    
-    基于Tom DeMark的TD Sequential指标
-    - Setup: 连续9根K线收盘价与4根之前的收盘价比较
-    - Countdown: 在Setup完成后开始倒计时
+    """TD Sequential strategy.
+
+    Based on Tom DeMark's TD Sequential indicator.
+    - Setup: Compare closing prices of 9 consecutive candlesticks with
+      the closing price 4 periods earlier.
+    - Countdown: Begins counting down after Setup completion.
+
+    Attributes:
+        dataprimary: Primary data feed.
+        dataclose: Close price series.
+        order: Current pending order.
+        buyTrig: Buy trigger flag.
+        sellTrig: Sell trigger flag.
+        tdsl: TD sequence long counter.
+        tdss: TD sequence short counter.
+        buySetup: Buy setup active flag.
+        sellSetup: Sell setup active flag.
+        buyCountdown: Buy countdown counter.
+        sellCountdown: Sell countdown counter.
+        buyVal: Buy comparison value.
+        sellVal: Sell comparison value.
+        buySig: Buy signal flag.
+        idealBuySig: Ideal buy signal flag.
+        sellSig: Sell signal flag.
+        idealSellSig: Ideal sell signal flag.
+        buy_nine: Buy setup reached 9 flag.
+        sell_nine: Sell setup reached 9 flag.
+        buy_high: Highest price during buy setup.
+        buy_low: Lowest price during buy setup.
+        sell_high: Highest price during sell setup.
+        sell_low: Lowest price during sell setup.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+        setup_buy_count: Number of buy setups completed.
+        setup_sell_count: Number of sell setups completed.
     """
     params = dict(
         candles_past_to_compare=4,
@@ -80,7 +122,7 @@ class TDSequentialStrategy(bt.Strategy):
         self.sell_high = 999999
         self.sell_low = 0
 
-        # 统计变量
+        # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -219,7 +261,7 @@ class TDSequentialStrategy(bt.Strategy):
                 elif self.buyCountdown == 13:
                     if self.dataprimary.low[0] <= self.buyVal:
                         self.idealBuySig = True
-                        # 产生买入信号
+                        # Generate buy signal
                         if not self.position:
                             self.buy(size=10)
                         self.buySetup = False
@@ -236,7 +278,7 @@ class TDSequentialStrategy(bt.Strategy):
                 elif self.sellCountdown == 13:
                     if self.dataprimary.high[0] >= self.sellVal:
                         self.idealSellSig = True
-                        # 产生卖出信号
+                        # Generate sell signal
                         if self.position:
                             self.close()
                         self.sellSetup = False
@@ -247,10 +289,18 @@ class TDSequentialStrategy(bt.Strategy):
 
 
 def test_td_sequential_strategy():
-    """测试TD Sequential策略"""
+    """Test TD Sequential strategy.
+
+    This test function validates the TD Sequential strategy implementation
+    by running a backtest on Oracle stock data from 2010-2014.
+
+    Raises:
+        AssertionError: If any of the expected backtest metrics do not match
+            the expected values within the specified tolerance.
+    """
     cerebro = bt.Cerebro()
 
-    # 使用已有的数据文件
+    # Use existing data file
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
         dataname=str(data_path),
@@ -271,7 +321,7 @@ def test_td_sequential_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -280,7 +330,7 @@ def test_td_sequential_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -289,7 +339,7 @@ def test_td_sequential_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("TD Sequential 序列策略回测结果:")
+    print("TD Sequential Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -302,19 +352,19 @@ def test_td_sequential_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # final_value 容差: 0.01, 其他指标容差: 1e-6
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
     assert strat.bar_num == 1257, f"Expected bar_num=1257, got {strat.bar_num}"
     assert abs(final_value - 100002.91) < 0.01, f"Expected final_value=100002.91, got {final_value}"
     assert abs(sharpe_ratio - (0.022949645759068132)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
     assert abs(annual_return - (5.826805806698434e-06)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
     assert abs(max_drawdown - 0.08176597127582681) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TD Sequential 序列策略测试")
+    print("TD Sequential Strategy Test")
     print("=" * 60)
     test_td_sequential_strategy()
