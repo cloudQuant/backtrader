@@ -18,6 +18,7 @@ import pandas as pd
 
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
+from ..metabase import OwnerContext
 from ..utils.py3 import iteritems
 from .leverage import GrossLeverage
 from .positions import PositionsValue
@@ -93,10 +94,12 @@ class PyFolio(Analyzer):
         super().__init__(*args, **kwargs)
         dtfcomp = dict(timeframe=self.p.timeframe, compression=self.p.compression)
 
-        self._returns = TimeReturn(**dtfcomp)
-        self._positions = PositionsValue(headers=True, cash=True)
-        self._transactions = Transactions(headers=True)
-        self._gross_lev = GrossLeverage()
+        # Use OwnerContext so child analyzers can find this as their parent
+        with OwnerContext.set_owner(self):
+            self._returns = TimeReturn(**dtfcomp)
+            self._positions = PositionsValue(headers=True, cash=True)
+            self._transactions = Transactions(headers=True)
+            self._gross_lev = GrossLeverage()
 
     # When stopping, get several analysis results
     def stop(self):

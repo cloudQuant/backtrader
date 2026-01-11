@@ -16,6 +16,7 @@ Example:
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 from ..mathsupport import average, standarddev
+from ..metabase import OwnerContext
 from ..utils.py3 import itervalues
 from .timereturn import TimeReturn
 
@@ -85,9 +86,11 @@ class PeriodStats(Analyzer):
         """
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
-        self._tr = TimeReturn(
-            timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
-        )
+        # Use OwnerContext so child analyzer can find this as its parent
+        with OwnerContext.set_owner(self):
+            self._tr = TimeReturn(
+                timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
+            )
 
     # Stop
     def stop(self):

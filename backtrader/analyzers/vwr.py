@@ -18,6 +18,7 @@ import math
 from ..analyzer import TimeFrameAnalyzerBase
 from ..dataseries import TimeFrame
 from ..mathsupport import standarddev
+from ..metabase import OwnerContext
 from .returns import Returns
 
 
@@ -121,9 +122,11 @@ class VWR(TimeFrameAnalyzerBase):
         self._pns = None
         self._pis = None
         self._fundmode = None
-        self._returns = Returns(
-            timeframe=self.p.timeframe, compression=self.p.compression, tann=self.p.tann
-        )
+        # Use OwnerContext so child analyzer can find this as its parent
+        with OwnerContext.set_owner(self):
+            self._returns = Returns(
+                timeframe=self.p.timeframe, compression=self.p.compression, tann=self.p.tann
+            )
 
     # Start
     def start(self):

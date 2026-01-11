@@ -140,12 +140,12 @@ class SharpeRatio(Analyzer):
         # CRITICAL FIX: Call super().__init__() first to initialize self.p
         super().__init__(*args, **kwargs)
         # If using years, get annualized return, otherwise get daily return
-        # Use OwnerContext so child analyzers can find the strategy
+        # Use OwnerContext so child analyzers can find this as their parent
         if self.p.legacyannual:
-            with OwnerContext.set_owner(self.strategy):
+            with OwnerContext.set_owner(self):
                 self.anret = AnnualReturn()
         else:
-            with OwnerContext.set_owner(self.strategy):
+            with OwnerContext.set_owner(self):
                 self.timereturn = TimeReturn(
                     timeframe=self.p.timeframe, compression=self.p.compression, fund=self.p.fund
                 )

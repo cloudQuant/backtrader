@@ -18,6 +18,7 @@ import math
 
 from ..analyzer import TimeFrameAnalyzerBase
 from ..dataseries import TimeFrame
+from ..metabase import OwnerContext
 from .drawdown import TimeDrawDown
 
 __all__ = ["Calmar"]
@@ -96,7 +97,9 @@ class Calmar(TimeFrameAnalyzerBase):
         self._fundmode = None
         self._values = None
         self._mdd = None
-        self._maxdd = TimeDrawDown(timeframe=self.p.timeframe, compression=self.p.compression)
+        # Use OwnerContext so child analyzer can find this as its parent
+        with OwnerContext.set_owner(self):
+            self._maxdd = TimeDrawDown(timeframe=self.p.timeframe, compression=self.p.compression)
 
     # Start
     def start(self):

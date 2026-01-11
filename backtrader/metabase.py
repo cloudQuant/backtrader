@@ -386,28 +386,28 @@ def findowner(owned, cls, startlevel=2, skip=None):
         if context_owner is not owned and context_owner is not skip:
             return context_owner
 
-    # PRIORITY 2: Fall back to stack frame inspection for backward compatibility
-    # This handles cases where OwnerContext is not used
-    for framelevel in itertools.count(startlevel):
-        try:
-            frame = sys._getframe(framelevel)
-        except ValueError:
-            # Frame depth exceeded - no owner found
-            break
+    # # PRIORITY 2: Fall back to stack frame inspection for backward compatibility
+    # # This handles cases where OwnerContext is not used
+    # for framelevel in itertools.count(startlevel):
+    #     try:
+    #         frame = sys._getframe(framelevel)
+    #     except ValueError:
+    #         # Frame depth exceeded - no owner found
+    #         break
 
-        # Check 'self' in regular code
-        self_ = frame.f_locals.get("self", None)
-        # If not skip, not owned, and is instance of cls, return it
-        if skip is not self_:
-            if self_ is not owned and cls is not None and isinstance(self_, cls):
-                return self_
+    #     # Check 'self' in regular code
+    #     self_ = frame.f_locals.get("self", None)
+    #     # If not skip, not owned, and is instance of cls, return it
+    #     if skip is not self_:
+    #         if self_ is not owned and cls is not None and isinstance(self_, cls):
+    #             return self_
 
-        # Check '_obj' in metaclass-style code
-        obj_ = frame.f_locals.get("_obj", None)
-        # If not skip, not owned, and is instance of cls, return it
-        if skip is not obj_:
-            if obj_ is not owned and cls is not None and isinstance(obj_, cls):
-                return obj_
+    #     # Check '_obj' in metaclass-style code
+    #     obj_ = frame.f_locals.get("_obj", None)
+    #     # If not skip, not owned, and is instance of cls, return it
+    #     if skip is not obj_:
+    #         if obj_ is not owned and cls is not None and isinstance(obj_, cls):
+    #             return obj_
 
     # No owner found in call stack
     return None
