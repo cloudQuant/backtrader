@@ -1,5 +1,6 @@
 # Read the Docs configuration file for Chinese documentation
 # This file is used by the backtrader-zh project on RTD
+# Matches: make html-zh (sphinx-build -b html source _build/html/zh -D language=zh_CN)
 
 version: 2
 
@@ -11,9 +12,9 @@ build:
     pre_build:
       - pip install -e .
 
-# Build Chinese documentation with conf_zh.py
+# Build Chinese documentation - same as: make html-zh
 sphinx:
-  configuration: docs/source/conf_zh.py
+  configuration: docs/source/conf.py
   builder: html
   fail_on_warning: false
 

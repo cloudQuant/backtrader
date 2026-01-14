@@ -125,10 +125,19 @@ gettext_location = True
 on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
 
 # Language configuration for RTD
-# RTD_LANGUAGE is set by Read the Docs build system
+# READTHEDOCS_LANGUAGE is set by Read the Docs build system based on project language
 rtd_language = os.environ.get('READTHEDOCS_LANGUAGE', 'en')
-if rtd_language:
-    language = rtd_language
+
+# Auto-switch to Chinese configuration when building Chinese docs on RTD
+if rtd_language in ('zh', 'zh_CN', 'zh-cn'):
+    language = 'zh_CN'
+    # Use Chinese index as master document
+    master_doc = 'index_zh'
+    root_doc = 'index_zh'
+    html_title = f'{project} 中文文档'
+else:
+    language = 'en'
+    html_title = f'{project} Documentation'
 
 # Define language options for switcher
 languages = [
@@ -138,7 +147,7 @@ languages = [
 
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'furo'  # Modern, clean theme with good readability
-html_title = f'{project} Documentation'
+# html_title is set above based on language (English or Chinese)
 html_short_title = project
 
 # Theme options
@@ -157,11 +166,8 @@ html_theme_options = {
     'source_repository': 'https://github.com/cloudQuant/backtrader/',
     'source_branch': 'development',
     'source_directory': 'docs/source/',
-    # Language switcher in announcement banner
-    'announcement': '''
-        <strong style="color: #2962FF;">English</strong> |
-        <a href="https://backtrader-zh.readthedocs.io/zh/latest/" style="color: inherit;">中文</a>
-    ''' if on_rtd else None,
+    # Language switcher in announcement banner (dynamically set based on language)
+    'announcement': None,  # Will be set below based on language
     # Footer links
     'footer_icons': [
         {
@@ -190,6 +196,21 @@ html_theme_options = {
 # Static files
 html_static_path = ['_static']
 html_css_files = ['custom.css']
+
+# Dynamic language switcher for RTD
+if on_rtd:
+    if rtd_language in ('zh', 'zh_CN', 'zh-cn'):
+        # Chinese page: link to English
+        html_theme_options['announcement'] = '''
+            <a href="https://backtrader.readthedocs.io/en/latest/" style="color: inherit;">English</a> |
+            <strong style="color: #2962FF;">中文</strong>
+        '''
+    else:
+        # English page: link to Chinese
+        html_theme_options['announcement'] = '''
+            <strong style="color: #2962FF;">English</strong> |
+            <a href="https://backtrader-zh.readthedocs.io/zh/latest/" style="color: inherit;">中文</a>
+        '''
 
 # Logo and favicon (create these if needed)
 # html_logo = '_static/logo.png'

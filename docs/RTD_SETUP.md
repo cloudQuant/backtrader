@@ -12,14 +12,18 @@
 ├─────────────────────────────────────────────────────────┤
 │  backtrader (英文)          backtrader-zh (中文)        │
 │  ├── .readthedocs.yaml      ├── .readthedocs-zh.yaml    │
-│  ├── conf.py                ├── conf_zh.py              │
-│  └── index.rst              └── index_zh.rst            │
+│  ├── conf.py (自动检测语言)                             │
+│  ├── index.rst (英文)       index_zh.rst (中文)         │
+│  └── user_guide/            user_guide_zh/              │
 ├─────────────────────────────────────────────────────────┤
 │  URL: /en/latest/           URL: /zh/latest/            │
 │       ↑                          ↑                      │
 │       └──── 语言切换链接 ────────┘                      │
 └─────────────────────────────────────────────────────────┘
 ```
+
+**说明**：`conf.py` 会自动检测 RTD 的 `READTHEDOCS_LANGUAGE` 环境变量，
+中文项目自动使用 `index_zh.rst` 和 `user_guide_zh/` 目录。
 
 ## 配置步骤
 
@@ -43,7 +47,8 @@
    - **Language**: `Simplified Chinese`
    - **Default branch**: `development`
 4. 创建后，进入项目 **Admin** → **Advanced Settings**
-5. 设置 **Configuration file** 为：`.readthedocs-zh.yaml`
+5. 设置 **Path for .readthedocs.yaml** 为：`.readthedocs-zh.yaml`
+6. 保存设置
 
 ### 步骤 3：禁用 stable 版本（两个项目都要设置）
 
