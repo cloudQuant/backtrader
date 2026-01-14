@@ -1,0 +1,37 @@
+# Read the Docs configuration file
+# See https://docs.readthedocs.io/en/stable/config-file/v2.html for details
+
+version: 2
+
+# Set the OS, Python version, and other tools
+build:
+  os: ubuntu-22.04
+  tools:
+    python: "3.11"
+  jobs:
+    post_checkout:
+      # Download and uncompress translations
+      - echo "Building Backtrader documentation..."
+    pre_build:
+      # Install the package itself for autodoc
+      - pip install -e .
+
+# Build documentation in the "docs/" directory with Sphinx
+sphinx:
+  configuration: docs/source/conf.py
+  builder: html
+  fail_on_warning: false
+
+# Build PDF & ePub (optional)
+formats:
+  - pdf
+  - epub
+
+# Python requirements
+python:
+  install:
+    - requirements: docs/requirements.txt
+    - method: pip
+      path: .
+      extra_requirements:
+        - docs

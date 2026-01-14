@@ -120,6 +120,22 @@ gettext_compact = False
 gettext_uuid = True
 gettext_location = True
 
+# Read the Docs specific settings
+# Check if we're building on Read the Docs
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+
+# Language configuration for RTD
+# RTD_LANGUAGE is set by Read the Docs build system
+rtd_language = os.environ.get('READTHEDOCS_LANGUAGE', 'en')
+if rtd_language:
+    language = rtd_language
+
+# Define language options for switcher
+languages = [
+    ('en', 'English'),
+    ('zh', '中文'),
+]
+
 # -- Options for HTML output -------------------------------------------------
 html_theme = 'furo'  # Modern, clean theme with good readability
 html_title = f'{project} Documentation'
@@ -138,9 +154,14 @@ html_theme_options = {
     'sidebar_hide_name': False,
     'navigation_with_keys': True,
     # Header icon links
-    'source_repository': 'https://github.com/cloudquant/backtrader/',
-    'source_branch': 'master',
+    'source_repository': 'https://github.com/cloudQuant/backtrader/',
+    'source_branch': 'development',
     'source_directory': 'docs/source/',
+    # Announcement banner with language switcher
+    'announcement': '''
+        <a href="https://backtrader.readthedocs.io/en/latest/">English</a> |
+        <a href="https://backtrader.readthedocs.io/zh/latest/">中文</a>
+    ''' if on_rtd else None,
     # Footer links
     'footer_icons': [
         {

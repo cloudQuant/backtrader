@@ -1,0 +1,3 @@
+# Placeholder for Chinese translations
+# Generate .po files with: sphinx-build -b gettext source build/gettext
+# Then use sphinx-intl to update translations
