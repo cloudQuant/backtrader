@@ -72,7 +72,7 @@
 | 语言 | URL |
 |------|-----|
 | 英文 | https://backtrader.readthedocs.io/en/latest/ |
-| 中文 | https://backtrader-zh.readthedocs.io/zh/latest/ |
+| 中文 | https://backtrader-zh.readthedocs.io/zh-cn/latest/ |
 
 页面顶部会显示语言切换链接：**English** | 中文
 

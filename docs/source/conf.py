@@ -199,17 +199,17 @@ html_css_files = ['custom.css']
 
 # Dynamic language switcher for RTD
 if on_rtd:
-    if rtd_language in ('zh', 'zh_CN', 'zh-cn'):
+    if rtd_language in ('zh', 'zh_CN', 'zh-cn', 'zh-ch'):
         # Chinese page: link to English
         html_theme_options['announcement'] = '''
             <a href="https://backtrader.readthedocs.io/en/latest/" style="color: inherit;">English</a> |
             <strong style="color: #2962FF;">中文</strong>
         '''
     else:
-        # English page: link to Chinese
+        # English page: link to Chinese (RTD uses zh-cn in URL)
         html_theme_options['announcement'] = '''
             <strong style="color: #2962FF;">English</strong> |
-            <a href="https://backtrader-zh.readthedocs.io/zh/latest/" style="color: inherit;">中文</a>
+            <a href="https://backtrader-zh.readthedocs.io/zh-cn/latest/" style="color: inherit;">中文</a>
         '''
 
 # Logo and favicon (create these if needed)
