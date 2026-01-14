@@ -9,9 +9,6 @@ build:
   tools:
     python: "3.11"
   jobs:
-    post_checkout:
-      # Download and uncompress translations
-      - echo "Building Backtrader documentation..."
     pre_build:
       # Install the package itself for autodoc
       - pip install -e .

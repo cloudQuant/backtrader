@@ -2,39 +2,74 @@
 
 ## 概述
 
-本项目使用 Read the Docs 托管中英文双语文档，支持语言切换。
+本项目使用 Read the Docs 托管中英文双语文档，顶部有语言切换链接。
+
+## 架构说明
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                    Read the Docs                         │
+├─────────────────────────────────────────────────────────┤
+│  backtrader (英文)          backtrader-zh (中文)        │
+│  ├── .readthedocs.yaml      ├── .readthedocs-zh.yaml    │
+│  ├── conf.py                ├── conf_zh.py              │
+│  └── index.rst              └── index_zh.rst            │
+├─────────────────────────────────────────────────────────┤
+│  URL: /en/latest/           URL: /zh/latest/            │
+│       ↑                          ↑                      │
+│       └──── 语言切换链接 ────────┘                      │
+└─────────────────────────────────────────────────────────┘
+```
 
 ## 配置步骤
 
-### 1. 创建主项目（英文）
+### 步骤 1：创建英文项目
 
 1. 登录 https://readthedocs.org/
-2. 点击 "Import a Project"
+2. 点击 **Import a Project**
 3. 选择 GitHub 仓库：`cloudQuant/backtrader`
 4. 项目设置：
    - **Name**: `backtrader`
    - **Language**: `English`
    - **Default branch**: `development`
+   - **Configuration file**: `.readthedocs.yaml`（默认）
 
-### 2. 创建中文子项目
+### 步骤 2：创建中文项目
 
-1. 在 RTD 控制台，点击 "Import a Project"
-2. 选择同一个仓库
+1. 再次点击 **Import a Project**
+2. 选择同一个仓库：`cloudQuant/backtrader`
 3. 项目设置：
    - **Name**: `backtrader-zh`
    - **Language**: `Simplified Chinese`
    - **Default branch**: `development`
+4. 创建后，进入项目 **Admin** → **Advanced Settings**
+5. 设置 **Configuration file** 为：`.readthedocs-zh.yaml`
 
-### 3. 关联为翻译项目
+### 步骤 3：禁用 stable 版本（两个项目都要设置）
 
-1. 进入主项目 `backtrader` 的 Admin 页面
-2. 选择 "Translations"
-3. 添加 `backtrader-zh` 作为中文翻译
+对于 `backtrader` 和 `backtrader-zh` 两个项目：
 
-### 4. 配置完成后的 URL
+1. 进入项目的 **Versions** 页面
+2. 找到 `stable`，点击 **Edit**
+3. **取消勾选 Active**，保存
+4. 确保 `latest` 是 **Active**
 
-- 英文文档：https://backtrader.readthedocs.io/en/latest/
-- 中文文档：https://backtrader.readthedocs.io/zh/latest/
+### 步骤 4：设置默认版本
+
+对于两个项目：
+
+1. **Admin** → **Advanced Settings**
+2. **Default version** 选择 `latest`
+3. 保存
+
+## 完成后的 URL
+
+| 语言 | URL |
+|------|-----|
+| 英文 | https://backtrader.readthedocs.io/en/latest/ |
+| 中文 | https://backtrader-zh.readthedocs.io/zh/latest/ |
+
+页面顶部会显示语言切换链接：**English** | 中文
 
 ## 本地构建测试
 

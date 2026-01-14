@@ -157,10 +157,10 @@ html_theme_options = {
     'source_repository': 'https://github.com/cloudQuant/backtrader/',
     'source_branch': 'development',
     'source_directory': 'docs/source/',
-    # Announcement banner with language switcher
+    # Language switcher in announcement banner
     'announcement': '''
-        <a href="https://backtrader.readthedocs.io/en/latest/">English</a> |
-        <a href="https://backtrader.readthedocs.io/zh/latest/">中文</a>
+        <strong style="color: #2962FF;">English</strong> |
+        <a href="https://backtrader-zh.readthedocs.io/zh/latest/" style="color: inherit;">中文</a>
     ''' if on_rtd else None,
     # Footer links
     'footer_icons': [
