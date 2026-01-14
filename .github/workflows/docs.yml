@@ -1,0 +1,100 @@
+name: Documentation
+
+on:
+  push:
+    branches:
+      - development
+      - master
+    paths:
+      - 'docs/**'
+      - 'backtrader/**'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches:
+      - development
+      - master
+    paths:
+      - 'docs/**'
+  workflow_dispatch:  # Allow manual trigger
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r docs/requirements.txt
+          pip install -e .
+
+      - name: Build English documentation
+        run: |
+          cd docs
+          sphinx-build -b html source build/html/en -D language=en
+
+      - name: Build Chinese documentation
+        run: |
+          cd docs
+          sphinx-build -b html source build/html/zh -D language=zh_CN
+
+      - name: Create index redirect
+        run: |
+          cat > docs/build/html/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <meta charset="utf-8">
+            <title>Backtrader Documentation</title>
+            <meta http-equiv="refresh" content="0; url=en/index.html">
+            <style>
+              body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+              a { color: #007bff; text-decoration: none; margin: 0 20px; font-size: 18px; }
+            </style>
+          </head>
+          <body>
+            <h1>Backtrader Documentation</h1>
+            <p>
+              <a href="en/index.html">English</a> |
+              <a href="zh/index.html">中文</a>
+            </p>
+            <p>Redirecting to English documentation...</p>
+          </body>
+          </html>
+          EOF
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './docs/build/html'
+
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/development' || github.ref == 'refs/heads/master')
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
