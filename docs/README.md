@@ -1,92 +1,163 @@
-# Backtrader 文档中心
+# Backtrader 文档 / Documentation
 
-欢迎来到 Backtrader 文档中心！这里包含了使用 Backtrader 进行量化交易研究所需的所有文档。
+[![Sphinx](https://img.shields.io/badge/Sphinx-8.0+-blue.svg)](https://www.sphinx-doc.org/)
+[![Python](https://img.shields.io/badge/Python-3.7+-green.svg)](https://www.python.org/)
 
-## 文档结构
+本目录包含 Backtrader 项目的完整文档源文件，支持中英文双语。
+
+This directory contains complete documentation source files for the Backtrader project, supporting both English and Chinese.
+
+## 文档特性 / Features
+
+- 📚 **完整的 API 参考** - 自动从源代码生成，包含所有 50+ 指标、15+ 分析器
+- 🌐 **中英文双语** - 用户指南和开发文档支持中英文
+- 🎨 **现代化主题** - 使用 Furo 主题，支持暗色模式
+- 🔍 **全文搜索** - 支持中英文搜索
+- 📋 **代码复制** - 一键复制代码示例
+- 📊 **继承图** - 自动生成类继承关系图
+
+## 快速开始 / Quick Start
+
+### 安装依赖 / Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 构建文档 / Build Documentation
+
+**构建中英文文档 / Build both languages:**
+```bash
+./build_docs.sh
+# 或 Windows:
+make html-all
+```
+
+**仅构建英文文档 / English only:**
+```bash
+./build_docs.sh en
+# 或
+make html
+```
+
+**仅构建中文文档 / Chinese only:**
+```bash
+./build_docs.sh zh
+# 或
+make html-zh
+```
+
+### 启动本地服务器 / Start Local Server
+
+```bash
+./build_docs.sh serve
+```
+
+然后在浏览器中打开 http://localhost:8000
+
+## 目录结构 / Directory Structure
 
 ```
 docs/
-├── getting_started/        # 入门指南
-│   ├── installation.md    # 安装指南
-│   ├── quickstart.md      # 快速开始
-│   └── configuration.md   # 配置指南
-│
-├── user_guide/            # 用户指南
-│   ├── basic_concepts.md  # 基本概念
-│   ├── strategies.md      # 策略开发
-│   ├── data_feeds.md      # 数据源
-│   ├── indicators.md      # 指标系统
-│   └── optimization.md    # 参数优化
-│
-├── advanced/             # 高级主题
-│   ├── crypto_trading.md # 加密货币交易
-│   ├── high_freq.md      # 高频交易
-│   ├── multi_assets.md   # 多资产交易
-│   └── risk_mgmt.md      # 风险管理
-│
-├── api_reference/        # API 参考
-│   ├── cerebro.md       # Cerebro 引擎
-│   ├── strategy.md      # Strategy 类
-│   ├── indicators.md    # 技术指标
-│   └── analyzers.md     # 分析器
-│
-├── examples/            # 示例代码
-│   ├── basic/          # 基础示例
-│   ├── advanced/       # 高级示例
-│   └── real_cases/     # 实战案例
-│
-└── contributing/        # 贡献指南
-    ├── guidelines.md    # 贡献准则
-    ├── development.md   # 开发指南
-    └── testing.md       # 测试指南
+├── source/                 # 文档源文件
+│   ├── conf.py            # Sphinx 配置
+│   ├── index.rst          # 英文首页
+│   ├── index_zh.rst       # 中文首页
+│   ├── api/               # API 参考文档
+│   ├── user_guide/        # 英文用户指南
+│   ├── user_guide_zh/     # 中文用户指南
+│   ├── dev/               # 英文开发文档
+│   ├── dev_zh/            # 中文开发文档
+│   ├── locales/           # 翻译文件
+│   └── _static/           # 静态资源
+├── Makefile               # Make 构建文件
+├── make.bat               # Windows 构建脚本
+├── build_docs.sh          # Shell 构建脚本
+├── requirements.txt       # Python 依赖
+└── README.md              # 本文件
 ```
 
-## 快速链接
+## 更新文档 / Updating Documentation
 
-- [安装指南](./getting_started/installation.md)
-- [快速开始](./getting_started/quickstart.md)
-- [基本概念](./user_guide/basic_concepts.md)
-- [策略开发](./user_guide/strategies.md)
-- [API 参考](./api_reference/cerebro.md)
-- [示例代码](./examples/README.md)
+### 添加新页面 / Adding New Pages
 
-## 特色功能
+1. 在 `source/user_guide/` 创建新的 `.rst` 文件
+2. 在 `source/index.rst` 的 toctree 中添加引用
+3. 创建对应的中文版本在 `source/user_guide_zh/`
+4. 在 `source/index_zh.rst` 的 toctree 中添加引用
 
-1. **高性能回测引擎**
-   - 支持多品种、多周期回测
-   - 支持 Cython 加速
-   - 支持并行计算
+### 更新 API 文档 / Updating API Documentation
 
-2. **丰富的数据源支持**
-   - CSV 文件数据
-   - 实时数据源
-   - 加密货币数据
-   - 期货数据
+运行以下命令从源代码自动生成 API 文档：
 
-3. **完整的策略开发框架**
-   - 内置技术指标库
-   - 灵活的策略编写
-   - 参数优化支持
-   - 风险管理工具
+```bash
+./build_docs.sh apidoc
+# 或
+make apidoc
+```
 
-4. **可视化分析工具**
-   - 交易结果可视化
-   - 性能指标分析
-   - 回测报告生成
+### 翻译工作流 / Translation Workflow
 
-## 社区资源
+1. 提取可翻译字符串：
+   ```bash
+   make gettext
+   ```
 
-- [官方论坛](https://www.backtrader.com/community)
-- [CSDN 专栏](https://blog.csdn.net/qq_26948675/category_10220116.html)
-- [问题反馈](https://gitee.com/yunjinqi/backtrader/issues)
-- [贡献指南](./contributing/guidelines.md)
+2. 更新翻译文件：
+   ```bash
+   make update-po
+   ```
 
-## 版本说明
+3. 编辑 `source/locales/zh_CN/LC_MESSAGES/` 中的 `.po` 文件
 
-当前有两个主要分支：
-- `master`: 稳定版本，与官方主流版本对齐，主要进行 bug 修复
-- `dev`: 开发版本，包含新特性，正在进行 C++ 重写以支持高频交易
+4. 重新构建中文文档：
+   ```bash
+   make html-zh
+   ```
 
-## 许可证
+## 文档风格指南 / Documentation Style Guide
 
-本项目采用 [MIT 许可证](../LICENSE)
+### 代码示例 / Code Examples
+
+使用 `.. code-block:: python` 指令：
+
+```rst
+.. code-block:: python
+
+   import backtrader as bt
+   cerebro = bt.Cerebro()
+```
+
+### 警告和提示 / Admonitions
+
+```rst
+.. note::
+   这是一个提示
+
+.. warning::
+   这是一个警告
+
+.. tip::
+   这是一个技巧
+```
+
+### 交叉引用 / Cross References
+
+```rst
+参见 :doc:`strategies` 了解更多
+使用 :class:`backtrader.Strategy` 类
+调用 :meth:`buy` 方法
+```
+
+## 贡献文档 / Contributing
+
+欢迎提交文档改进！请确保：
+
+1. 使用清晰简洁的语言
+2. 提供实际可运行的代码示例
+3. 保持中英文版本同步
+4. 遵循现有的文档格式
+
+## 许可证 / License
+
+文档与 Backtrader 项目使用相同的许可证。

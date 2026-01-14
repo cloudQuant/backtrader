@@ -1,0 +1,10 @@
+# Sphinx documentation dependencies
+sphinx>=5.0.0
+sphinx-copybutton>=0.5.0
+furo>=2023.1.1
+sphinx-autobuild>=2021.3.14
+sphinx-intl>=2.0.0
+
+# Optional: for PDF generation
+# sphinxcontrib-bibtex
+# latexmk

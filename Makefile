@@ -61,8 +61,29 @@ clean:  ## Clean build artifacts
 benchmark:  ## Run performance benchmarks
 	python -m pytest tests/original_tests/ --benchmark-only
 
-docs:  ## Generate documentation
-	@echo "Documentation generation not yet implemented"
+docs:  ## Generate all documentation (en + zh)
+	cd docs/_source && make all
+
+docs-en:  ## Generate English documentation
+	cd docs/_source && make en
+
+docs-zh:  ## Generate Chinese documentation
+	cd docs/_source && make zh
+
+docs-clean:  ## Clean generated documentation
+	cd docs/_source && make clean
+
+docs-live:  ## Build English docs with live reload (for development)
+	cd docs/_source && make livehtml
+
+docs-live-zh:  ## Build Chinese docs with live reload (for development)
+	cd docs/_source && make livehtml-zh
+
+docs-view:  ## Open English documentation in browser
+	open docs/_source/en/_build/html/index.html
+
+docs-view-zh:  ## Open Chinese documentation in browser
+	open docs/_source/zh/_build/html/index.html
 
 git-setup:  ## Setup git hooks for development
 	@echo "Setting up git hooks..."

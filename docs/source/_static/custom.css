@@ -1,0 +1,39 @@
+/* Custom CSS for Backtrader documentation */
+
+/* Better code block styling */
+.highlight pre {
+    border-radius: 4px;
+    padding: 12px;
+}
+
+/* Better table styling */
+table.docutils {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+table.docutils th,
+table.docutils td {
+    padding: 8px 12px;
+    border: 1px solid var(--color-table-border);
+}
+
+/* Admonition styling */
+.admonition {
+    border-radius: 4px;
+    margin: 1em 0;
+}
+
+/* API documentation styling */
+.py.class > dt,
+.py.function > dt,
+.py.method > dt {
+    background-color: var(--color-api-background);
+    padding: 8px;
+    border-radius: 4px;
+}
+
+/* Language selector styling */
+.language-selector {
+    margin-bottom: 1em;
+}

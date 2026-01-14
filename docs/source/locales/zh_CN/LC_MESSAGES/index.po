@@ -1,0 +1,64 @@
+# Chinese (Simplified) translations for Backtrader.
+# Copyright (C) 2024, Backtrader Contributors
+# This file is distributed under the same license as the Backtrader package.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Backtrader 0.1\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2024-01-01 00:00+0000\n"
+"PO-Revision-Date: 2024-01-01 00:00+0000\n"
+"Last-Translator: \n"
+"Language: zh_CN\n"
+"Language-Team: Chinese (Simplified)\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "Backtrader Documentation"
+msgstr "Backtrader 文档"
+
+msgid "Getting Started"
+msgstr "快速开始"
+
+msgid "User Guide"
+msgstr "用户指南"
+
+msgid "API Reference"
+msgstr "API 参考"
+
+msgid "Development"
+msgstr "开发指南"
+
+msgid "Indices and tables"
+msgstr "索引和表格"
+
+msgid "Installation"
+msgstr "安装"
+
+msgid "Quickstart"
+msgstr "快速入门"
+
+msgid "Core Concepts"
+msgstr "核心概念"
+
+msgid "Data Feeds"
+msgstr "数据源"
+
+msgid "Strategies"
+msgstr "策略"
+
+msgid "Indicators"
+msgstr "指标"
+
+msgid "Analyzers"
+msgstr "分析器"
+
+msgid "Optimization"
+msgstr "优化"
+
+msgid "Contributing"
+msgstr "贡献指南"
+
+msgid "Changelog"
+msgstr "更新日志"
