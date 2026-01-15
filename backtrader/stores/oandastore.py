@@ -162,7 +162,7 @@ class API(oandapy.API):
         try:
             response = func(url, **request_args)
         except requests.RequestException as e:
-            traceback.format_exception(e)
+            traceback.format_exception(type(e), e, e.__traceback__)
             return OandaRequestError().error_response
 
         content = response.content.decode("utf-8")
@@ -236,7 +236,7 @@ class Streamer(oandapy.Streamer):
             try:
                 response = self.client.get(url, **request_args)
             except requests.RequestException as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 self.q.put(OandaRequestError().error_response)
                 break
 
@@ -256,7 +256,7 @@ class Streamer(oandapy.Streamer):
                             self.on_success(data)
 
             except Exception as e:  # socket.error has been seen
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 self.q.put(OandaStreamError().error_response)
                 break
 
@@ -836,7 +836,7 @@ class OandaStore(ParameterizedSingletonMixin):
             try:
                 self.oapi.close_order(self.p.account, oid)
             except Exception as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 continue  # not cancelled - FIXME: notify
 
             self.broker._cancel(oref)

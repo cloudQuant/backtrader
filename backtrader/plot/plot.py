@@ -1980,7 +1980,7 @@ def get_rate_sharpe_drawdown(data):
         """
         return sharpe_ratio, average_rate, max_drawdown
     except Exception as e:
-        traceback.format_exception(e)
+        traceback.format_exception(type(e), e, e.__traceback__)
         return np.nan, np.nan, np.nan
 
 
@@ -2152,7 +2152,7 @@ def run_cerebro_and_plot(
                     round(float(i), 4) for i in list(df03["Long/short trading indicator value"])
                 ]
             except Exception as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 df00["Performance indicator"] = df01.index
                 df00["Performance indicator value"] = df01["Performance indicator value"]
                 df00["General trading indicator"] = df02.index
@@ -2279,7 +2279,7 @@ def run_cerebro_and_plot(
                 long_trade_len = trade_info["len"]["long"]["total"]
                 short_trade_len = trade_info["len"]["short"]["total"]
             except Exception as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 total_trade_num = np.nan
                 total_trade_opened = np.nan
                 total_trade_closed = np.nan
@@ -2301,7 +2301,7 @@ def run_cerebro_and_plot(
                 lost_average_pnl = trade_info["lost"]["pnl"]["average"]
                 lost_max_pnl = trade_info["lost"]["pnl"]["max"]
             except Exception as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 longest_win_num = np.nan
                 longest_lost_num = np.nan
                 net_total_pnl = np.nan
@@ -2355,7 +2355,7 @@ def run_cerebro_and_plot(
                 short_lost_total_pnl = trade_info["short"]["pnl"]["lost"]["total"]
                 short_lost_max_pnl = trade_info["short"]["pnl"]["lost"]["max"]
             except Exception as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 long_num = np.nan
                 long_win_num = np.nan
                 long_lost_num = np.nan
@@ -2417,7 +2417,7 @@ def run_cerebro_and_plot(
                     round(float(i), 4) for i in list(df03["Long/short trading indicator value"])
                 ]
             except Exception as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 df00["Performance indicator"] = df01.index
                 df00["Performance indicator value"] = df01["Performance indicator value"]
                 df00["General trading indicator"] = df02.index

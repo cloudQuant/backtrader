@@ -31,7 +31,7 @@ else:
     except Exception as e:
         # if another backend has already been loaded, an exception will be
         # generated and this can be skipped
-        traceback.format_exception(e)
+        traceback.format_exception(type(e), e, e.__traceback__)
         pass
 
 

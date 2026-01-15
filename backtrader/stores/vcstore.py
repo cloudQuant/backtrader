@@ -307,14 +307,14 @@ class VCStore(ParameterizedSingletonMixin):
             try:
                 vckey = _winreg.OpenKey(rkey, self.VC_KEYNAME)
             except OSError as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 continue
 
             # Try to get the key value
             try:
                 vcdir, _ = _winreg.QueryValueEx(vckey, self.VC_KEYVAL)
             except OSError as e:
-                traceback.format_exception(e)
+                traceback.format_exception(type(e), e, e.__traceback__)
                 continue
             else:
                 break  # found vcdir

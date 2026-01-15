@@ -277,7 +277,7 @@ class CryptoFeed(DataBase):
             # self.log(f"cannot get data")
             return None
         except Exception as e:
-            error_info = traceback.format_exception(e)
+            error_info = traceback.format_exception(type(e), e, e.__traceback__)
             self.log(f"error:{error_info}")
             return None
         data.init_data()

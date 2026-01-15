@@ -405,7 +405,7 @@ class CryptoStore:
                     if begin_time >= stop_time:
                         break
                 except Exception as e:
-                    error_info = traceback.format_exception(e)
+                    error_info = traceback.format_exception(type(e), e, e.__traceback__)
                     self.log(f"download fail, retry: {error_info}")
                     time.sleep(3)  # Pause for 3 seconds before retry
 

@@ -1977,7 +1977,7 @@ class Cerebro(ParameterizedBase):
             if self._event_stop:  # stop if requested
                 return
         except Exception as e:
-            _error_info = traceback.format_exception(e)
+            _error_info = traceback.format_exception(type(e), e, e.__traceback__)
             # print(_error_info)  # Removed for performance - can be re-enabled for debugging
 
     # runonce
