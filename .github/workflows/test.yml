@@ -132,8 +132,11 @@ jobs:
         run: |
           # Verify backtrader import
           python -c "import backtrader; print(f'Backtrader imported: {backtrader.__version__}')"
+          # First check test collection
+          echo "=== Checking test collection ==="
+          pytest tests/ --collect-only -q 2>&1 | tail -20 || echo "Collection check done"
           # Run tests with parallel execution
-          pytest tests/ -n 4 --tb=short --timeout=600
+          pytest tests/ -n 4 --tb=short --timeout=600 -v 2>&1 | tail -200
 
   test-summary:
     name: Test Summary
