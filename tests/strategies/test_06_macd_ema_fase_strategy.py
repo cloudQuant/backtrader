@@ -232,7 +232,7 @@ def test_macd_ema_strategy():
 
     # Load data
     print("Loading rebar futures data...")
-    df = load_rb_data("rb/rb99.csv")
+    df = load_rb_data("rb/RB99.csv")
     print(f"Data range: {df.index[0]} to {df.index[-1]}, total {len(df)} records")
 
     # Use RbPandasFeed to load data (consistent with original PandasDirectData logic)
