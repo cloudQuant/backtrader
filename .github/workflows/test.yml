@@ -130,10 +130,12 @@ jobs:
         env:
           PYTEST_ADDOPTS: ""
         run: |
-          # Run tests - first try a simple test to verify setup
+          # Verify backtrader import
           python -c "import backtrader; print(f'Backtrader imported: {backtrader.__version__}')"
-          # Run tests with parallel execution
-          pytest tests/ -n 4 --tb=line --timeout=600 -p no:html -p no:benchmark -q || exit 1
+          # Run tests without parallel execution first for clearer errors
+          pytest tests/ --tb=short --timeout=300 -p no:html -p no:benchmark -x -v 2>&1 | head -500 || true
+          # Run full tests with parallel execution
+          pytest tests/ -n 4 --tb=short --timeout=600 -p no:html -p no:benchmark
 
   test-summary:
     name: Test Summary
