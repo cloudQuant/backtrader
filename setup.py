@@ -189,12 +189,13 @@ setup(
     long_description_content_type="text/markdown",  # Long description content type
     url="https://gitee.com/yunjinqi/backtrader.git",  # Project URL
     install_requires=[
-        "numpy",
-        "pytz",
-        "pandas",
-        "matplotlib",
-        "scipy",
-        "statsmodels",
+        # Use flexible numpy version for Python 3.8-3.14 compatibility
+        "numpy>=1.20.0,<3.0.0",
+        "pytz>=2021.1",
+        "pandas>=1.3.0",
+        "matplotlib>=3.3.0",
+        "scipy>=1.5.0",
+        "statsmodels>=0.12.0",
     ],
     extras_require={
         "dev": [
@@ -216,7 +217,14 @@ setup(
     ext_modules=extensions,  # Add extension modules
     classifiers=[
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
+        "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "License :: OSI Approved :: MIT License",
-        # Add other classifiers as needed
+        "Operating System :: OS Independent",
     ],  # Project classifiers list
 )
