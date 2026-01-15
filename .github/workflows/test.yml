@@ -102,6 +102,7 @@ jobs:
           cache: 'pip'
 
       - name: Install dependencies
+        shell: bash
         run: |
           python -m pip install --upgrade pip setuptools wheel
 
@@ -124,6 +125,7 @@ jobs:
           }
 
       - name: Run tests
+        shell: bash
         run: |
           # Run tests with parallel execution
           pytest tests/ -n 4 --tb=short --timeout=600 -v 2>&1 | tee test_output.txt || {
