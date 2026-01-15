@@ -19,12 +19,12 @@ Example:
 """
 from datetime import datetime, timedelta, timezone
 
-# Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
-UTC = timezone.utc
-
 from .dataseries import TimeFrame, _Bar
 from .parameters import ParameterizedBase
 from .utils.date import date2num, num2date
+
+# Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
+UTC = timezone.utc
 
 
 # This class is only used in the _checkbarover function
