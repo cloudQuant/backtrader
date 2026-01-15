@@ -132,11 +132,11 @@ jobs:
         run: |
           # Verify backtrader import
           python -c "import backtrader; print(f'Backtrader imported: {backtrader.__version__}')"
-          # First run without parallel to see errors clearly
-          echo "=== Running tests (single process first) ==="
-          pytest tests/add_tests/test_cerebro.py -v --tb=short 2>&1 || echo "Single test done"
-          # Run full tests with parallel execution
-          pytest tests/ -n auto --tb=short --timeout=600
+          # Show pytest and plugin versions
+          echo "=== Pytest info ==="
+          pip show pytest pytest-xdist pytest-timeout | grep -E "Name|Version"
+          # Run tests - use -n auto for parallel execution
+          pytest tests/ -n auto --tb=short --timeout=300 -q
 
   test-summary:
     name: Test Summary
