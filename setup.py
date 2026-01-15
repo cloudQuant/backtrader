@@ -33,8 +33,12 @@ setup(
             "ruff",
             "black",
             "isort",
+            # Plotting dependencies for tests
             "plotly",
             "seaborn",
+            "dash",
+            "bokeh",
+            "pyecharts",
         ],
         "plotting": [
             "plotly",
