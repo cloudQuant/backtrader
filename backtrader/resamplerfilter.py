@@ -17,7 +17,10 @@ Example:
     >>> cerebro.adddata(data)
     >>> cerebro.resampledata(data, timeframe=bt.TimeFrame.Weeks)
 """
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
+
+# Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
+UTC = timezone.utc
 
 from .dataseries import TimeFrame, _Bar
 from .parameters import ParameterizedBase

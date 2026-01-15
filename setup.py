@@ -33,6 +33,8 @@ setup(
             "ruff",
             "black",
             "isort",
+            "plotly",
+            "seaborn",
         ],
         "plotting": [
             "plotly",
