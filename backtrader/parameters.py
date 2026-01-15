@@ -236,6 +236,7 @@ class ParameterManager:
 
         # Change tracking
         self._change_history = {} if enable_history else None
+        self._history_seq = 0  # Sequence counter for history ordering
         self._change_callbacks = {} if enable_callbacks else None
         self._global_callbacks = [] if enable_callbacks else None
 
@@ -369,9 +370,11 @@ class ParameterManager:
 
             import time
 
+            self._history_seq += 1
             self._change_history[name].append(
                 {
                     "timestamp": time.time(),
+                    "seq": self._history_seq,
                     "old_value": old_value,
                     "new_value": value,
                     "forced": force,
@@ -420,9 +423,11 @@ class ParameterManager:
 
             import time
 
+            self._history_seq += 1
             self._change_history[name].append(
                 {
                     "timestamp": time.time(),
+                    "seq": self._history_seq,
                     "old_value": old_value,
                     "new_value": new_value,
                     "reset": True,
@@ -881,8 +886,8 @@ class ParameterManager:
 
         history = self._change_history.get(name, [])
 
-        # Sort by timestamp (newest first)
-        sorted_history = sorted(history, key=lambda x: x["timestamp"], reverse=True)
+        # Sort by sequence number (newest first) for reliable ordering
+        sorted_history = sorted(history, key=lambda x: x.get("seq", 0), reverse=True)
 
         if limit is not None:
             sorted_history = sorted_history[:limit]
