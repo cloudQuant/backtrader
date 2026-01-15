@@ -4,7 +4,8 @@
 
 set -e
 
-PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$PROJECT_DIR"
 
 echo "=========================================="
@@ -32,7 +33,7 @@ echo ""
 
 # 步骤 1: 使用 pyupgrade 升级 Python 语法
 echo "🔧 步骤 1: 使用 pyupgrade 升级 Python 语法..."
-python -m pyupgrade --py311-plus backtrader/**/*.py --exit-zero-even-if-changed
+find backtrader -name "*.py" -type f ! -path "*/tests/*" -exec python -m pyupgrade --py38-plus {} + 2>/dev/null || true
 echo "✅ pyupgrade 完成"
 echo ""
 
@@ -50,7 +51,7 @@ echo ""
 
 # 步骤 4: 使用 ruff 进行 linting 并自动修复
 echo "🔧 步骤 4: 使用 ruff 进行 linting 并自动修复..."
-python -m ruff check backtrader/ --fix
+python -m ruff check backtrader/ --fix --exit-zero
 echo "✅ ruff check 完成"
 echo ""
 

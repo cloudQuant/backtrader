@@ -123,16 +123,6 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-### Option 2: With Cython Acceleration
-
-```bash
-# macOS / Linux
-cd backtrader && python -W ignore compile_cython_numba_files.py && cd .. && pip install -U ./
-
-# Windows
-cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip install -U ./
-```
-
 ### Verify Installation
 
 ```python
