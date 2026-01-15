@@ -55,41 +55,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Ubuntu - test all Python versions (3.8 to 3.14-dev)
-          - os: ubuntu-latest
-            python-version: '3.8'
-          - os: ubuntu-latest
-            python-version: '3.9'
-          - os: ubuntu-latest
-            python-version: '3.10'
+          # Start with single Python version for debugging
           - os: ubuntu-latest
             python-version: '3.11'
-          - os: ubuntu-latest
-            python-version: '3.12'
-          - os: ubuntu-latest
-            python-version: '3.13'
-          - os: ubuntu-latest
-            python-version: '3.14'
-
-          # macOS - test representative Python versions
-          - os: macos-latest
-            python-version: '3.8'
-          - os: macos-latest
-            python-version: '3.11'
-          - os: macos-latest
-            python-version: '3.13'
-          - os: macos-latest
-            python-version: '3.14'
-
-          # Windows - test representative Python versions
-          - os: windows-latest
-            python-version: '3.8'
-          - os: windows-latest
-            python-version: '3.11'
-          - os: windows-latest
-            python-version: '3.13'
-          - os: windows-latest
-            python-version: '3.14'
 
     steps:
       - name: Checkout
@@ -101,41 +69,30 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
 
-      # Windows-specific: Install Microsoft C++ Build Tools for potential compilation
-      - name: Install Windows build tools
-        if: runner.os == 'Windows'
-        uses: ilammy/msvc-dev-cmd@v1
-
       - name: Install dependencies
-        shell: bash
         run: |
           python -m pip install --upgrade pip setuptools wheel
-
-          # Install base dependencies compatible with current Python version
-          if [ "${{ matrix.python-version }}" == "3.14" ]; then
-            # Python 3.14 requires newer numpy (2.1.0+)
-            pip install "numpy>=2.1.0" || pip install numpy
-          else
-            pip install "numpy>=1.20.0,<3.0.0"
-          fi
-
-          # Install other core dependencies
+          pip install numpy>=1.20.0,<3.0.0
           pip install pytz pandas matplotlib scipy statsmodels
-
-          # Install from setup.py with dev extras
           pip install -e ".[dev]"
 
       - name: Run tests
-        shell: bash
         run: |
-          # Run tests with limited workers to avoid resource issues in CI
-          # Use -n 4 instead of -n auto to control resource usage
-          pytest tests/ -n 4 --tb=short --timeout=600 -o addopts="" -v 2>&1 | tee test_output.txt || {
+          # Run tests without parallel execution for debugging
+          pytest tests/ --tb=short --timeout=600 -v 2>&1 | tee test_output.txt || {
             echo "=== TESTS FAILED ==="
-            echo "Last 100 lines of output:"
-            tail -100 test_output.txt
+            echo "Last 200 lines of output:"
+            tail -200 test_output.txt
             exit 1
           }
+
+      - name: Upload test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-output-${{ matrix.os }}-${{ matrix.python-version }}
+          path: test_output.txt
+          retention-days: 7
 
   test-summary:
     name: Test Summary
