@@ -177,7 +177,7 @@ extensions = []
 
 setup(
     name="backtrader",  # Project name
-    version="0.1",  # Version number
+    version="1.0.0",  # Version number
     packages=find_packages(exclude=["strategies", "studies"]),
     # package_data={'bt_alpha': ['bt_alpha/utils/*', 'utils/*']},
     author="cloud",  # Author name
@@ -189,10 +189,26 @@ setup(
     long_description_content_type="text/markdown",  # Long description content type
     url="https://gitee.com/yunjinqi/backtrader.git",  # Project URL
     install_requires=[
-        "numpy>=1.20.0",  # Add numpy dependency
-        "cython",
-        # Add other dependencies
-    ],  # List of project dependencies
+        "numpy>=1.20.0",
+        "pytz",
+        "pandas",
+        "matplotlib",
+    ],
+    extras_require={
+        "dev": [
+            "pytest",
+            "pytest-xdist",
+            "pytest-html",
+            "pytest-timeout",
+            "ruff",
+            "black",
+            "isort",
+        ],
+        "plotting": [
+            "plotly",
+            "bokeh",
+        ],
+    },  # List of project dependencies
     ext_modules=extensions,  # Add extension modules
     classifiers=[
         "Programming Language :: Python :: 3",
