@@ -128,7 +128,14 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          pytest tests/ -n auto --tb=short -q -o addopts=""
+          # Run tests with limited workers to avoid resource issues in CI
+          # Use -n 4 instead of -n auto to control resource usage
+          pytest tests/ -n 4 --tb=short --timeout=600 -o addopts="" -v 2>&1 | tee test_output.txt || {
+            echo "=== TESTS FAILED ==="
+            echo "Last 100 lines of output:"
+            tail -100 test_output.txt
+            exit 1
+          }
 
   test-summary:
     name: Test Summary

@@ -40,7 +40,7 @@ ignore_missing_imports = true
 minversion = "6.0"
 addopts = "-ra -q --strict-markers --disable-warnings"
 testpaths = [
-    "tests/original_tests",
+    "tests",
 ]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
