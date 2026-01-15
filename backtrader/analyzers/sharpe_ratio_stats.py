@@ -12,6 +12,7 @@ Functions:
     min_track_record_length: Minimum track record for significance.
     sharpe_ratio_defacto: Defacto Sharpe ratio calculation.
 """
+
 import numpy as np
 import pandas as pd
 from scipy import stats as scipy_stats

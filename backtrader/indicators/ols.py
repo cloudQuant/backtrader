@@ -21,9 +21,11 @@ import pandas as pd
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import coint
 
-from . import SMA, PeriodN, StdDev
+from . import PeriodN
 
 __all__ = ["OLS_Slope_InterceptN", "OLS_TransformationN", "OLS_BetaN", "CointN"]
+
+
 class OLS_Slope_InterceptN(PeriodN):
     """
     Calculates a linear regression using ``statsmodel.OLS`` (Ordinary least
@@ -91,7 +93,7 @@ class OLS_TransformationN(PeriodN):
         intercept = self.slint.intercept[0]
         spread = self.data0[0] - (slope * self.data1[0] + intercept)
         self.lines.spread[0] = spread
-        
+
         # Calculate spread_mean (SMA of spread)
         period = self.p.period
         spread_sum = spread
@@ -99,14 +101,14 @@ class OLS_TransformationN(PeriodN):
             spread_sum += self.lines.spread[-i]
         spread_mean = spread_sum / period
         self.lines.spread_mean[0] = spread_mean
-        
+
         # Calculate spread_std (StdDev of spread)
         var_sum = (spread - spread_mean) ** 2
         for i in range(1, period):
             var_sum += (self.lines.spread[-i] - spread_mean) ** 2
         spread_std = (var_sum / period) ** 0.5
         self.lines.spread_std[0] = spread_std
-        
+
         # Calculate zscore
         if spread_std != 0:
             self.lines.zscore[0] = (spread - spread_mean) / spread_std
@@ -118,7 +120,7 @@ class OLS_TransformationN(PeriodN):
 
         Computes spread, mean, std, and zscore values across all bars.
         """
-        import math
+
         slope_array = self.slint.lines.slope.array
         intercept_array = self.slint.lines.intercept.array
         d0_array = self.data0.array
@@ -128,19 +130,21 @@ class OLS_TransformationN(PeriodN):
         std_array = self.lines.spread_std.array
         zscore_array = self.lines.zscore.array
         period = self.p.period
-        
+
         for arr in [spread_array, mean_array, std_array, zscore_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         # Calculate spread
-        for i in range(start, min(end, len(slope_array), len(intercept_array), len(d0_array), len(d1_array))):
+        for i in range(
+            start, min(end, len(slope_array), len(intercept_array), len(d0_array), len(d1_array))
+        ):
             slope = slope_array[i] if i < len(slope_array) else 0.0
             intercept = intercept_array[i] if i < len(intercept_array) else 0.0
             d0 = d0_array[i] if i < len(d0_array) else 0.0
             d1 = d1_array[i] if i < len(d1_array) else 0.0
             spread_array[i] = d0 - (slope * d1 + intercept)
-        
+
         # Calculate spread_mean, spread_std, zscore
         for i in range(start, min(end, len(spread_array))):
             if i < period - 1:
@@ -155,7 +159,7 @@ class OLS_TransformationN(PeriodN):
                         spread_sum += spread_array[idx]
                 spread_mean = spread_sum / period
                 mean_array[i] = spread_mean
-                
+
                 var_sum = 0.0
                 for j in range(period):
                     idx = i - j
@@ -163,7 +167,7 @@ class OLS_TransformationN(PeriodN):
                         var_sum += (spread_array[idx] - spread_mean) ** 2
                 spread_std = (var_sum / period) ** 0.5
                 std_array[i] = spread_std
-                
+
                 spread = spread_array[i]
                 if spread_std != 0:
                     zscore_array[i] = (spread - spread_mean) / spread_std

@@ -14,7 +14,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.MACD)
 """
 import math
+
 from . import Indicator, MovAv
+
+
 class MACD(Indicator):
     """
     Moving Average Convergence Divergence. Defined by Gerald Appel in the 70s.
@@ -62,17 +65,17 @@ class MACD(Indicator):
         # Store the EMAs as sub-indicators
         self.me1 = self.p.movav(self.data, period=self.p.period_me1)
         self.me2 = self.p.movav(self.data, period=self.p.period_me2)
-        
+
         # Calculate minperiod
         self.macd_minperiod = max(self.p.period_me1, self.p.period_me2)
         signal_minperiod = self.macd_minperiod + self.p.period_signal - 1
         self._minperiod = max(self._minperiod, signal_minperiod)
-        
+
         # CRITICAL FIX: Propagate minperiod to lines so that other indicators
         # using these lines as data sources will inherit the correct minperiod
         for line in self.lines:
             line.updateminperiod(self._minperiod)
-        
+
         # Signal line alpha for EMA calculation
         self.signal_alpha = 2.0 / (1.0 + self.p.period_signal)
         self.signal_alpha1 = 1.0 - self.signal_alpha
@@ -122,7 +125,9 @@ class MACD(Indicator):
         macd_val = me1_val - me2_val
         self.lines.macd[0] = macd_val
         # Calculate signal = EMA of MACD
-        self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + macd_val * self.signal_alpha
+        self.lines.signal[0] = (
+            self.lines.signal[-1] * self.signal_alpha1 + macd_val * self.signal_alpha
+        )
 
     def once(self, start, end):
         """Calculate MACD in runonce mode"""
@@ -130,28 +135,28 @@ class MACD(Indicator):
         me2_array = self.me2.lines[0].array
         macd_array = self.lines.macd.array
         signal_array = self.lines.signal.array
-        
+
         signal_alpha = self.signal_alpha
         signal_alpha1 = self.signal_alpha1
         macd_minperiod = self.macd_minperiod
         signal_period = self.p.period_signal
-        
+
         # Ensure arrays are properly sized
         while len(macd_array) < end:
             macd_array.append(0.0)
         while len(signal_array) < end:
             signal_array.append(0.0)
-        
+
         # Pre-fill warmup period with NaN
         for i in range(min(macd_minperiod - 1, len(me1_array))):
             macd_array[i] = float("nan")
             signal_array[i] = float("nan")
-        
+
         # Calculate MACD values for all data points from macd_minperiod onwards
         for i in range(macd_minperiod - 1, min(end, len(me1_array), len(me2_array))):
             me1_val = me1_array[i]
             me2_val = me2_array[i]
-            
+
             # Handle NaN values
             if isinstance(me1_val, float) and math.isnan(me1_val):
                 macd_array[i] = float("nan")
@@ -159,16 +164,16 @@ class MACD(Indicator):
             if isinstance(me2_val, float) and math.isnan(me2_val):
                 macd_array[i] = float("nan")
                 continue
-            
+
             macd_array[i] = me1_val - me2_val
-        
+
         # Calculate signal line (EMA of MACD)
         signal_start = macd_minperiod + signal_period - 2
-        
+
         # Pre-fill signal warmup with NaN
         for i in range(macd_minperiod - 1, min(signal_start, len(signal_array))):
             signal_array[i] = float("nan")
-        
+
         # Seed signal with SMA of first signal_period MACD values
         if signal_start < len(macd_array) and signal_start >= 0:
             seed_sum = 0.0
@@ -183,14 +188,14 @@ class MACD(Indicator):
             signal_array[signal_start] = prev_signal
         else:
             prev_signal = 0.0
-        
+
         # Calculate signal EMA for all subsequent data points
         for i in range(signal_start + 1, min(end, len(macd_array))):
             macd_val = macd_array[i]
             if isinstance(macd_val, float) and math.isnan(macd_val):
                 signal_array[i] = float("nan")
                 continue
-            
+
             prev_signal = prev_signal * signal_alpha1 + macd_val * signal_alpha
             signal_array[i] = prev_signal
 
@@ -244,16 +249,16 @@ class MACDHisto(MACD):
         macd_array = self.lines.macd.array
         signal_array = self.lines.signal.array
         histo_array = self.lines.histo.array
-        
+
         # Ensure histo array is sized
         while len(histo_array) < end:
             histo_array.append(0.0)
-        
+
         # Calculate histogram
         for i in range(start, min(end, len(macd_array), len(signal_array))):
             macd_val = macd_array[i] if i < len(macd_array) else 0.0
             signal_val = signal_array[i] if i < len(signal_array) else 0.0
-            
+
             if isinstance(macd_val, float) and math.isnan(macd_val):
                 histo_array[i] = float("nan")
             elif isinstance(signal_val, float) and math.isnan(signal_val):

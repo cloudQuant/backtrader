@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """
 Report generation module.
 
@@ -29,12 +28,12 @@ Usage example:
     print(metrics['sharpe_ratio'])
 """
 
-from .performance import PerformanceCalculator
 from .charts import ReportChart
+from .performance import PerformanceCalculator
 from .reporter import ReportGenerator
 
 __all__ = [
-    'PerformanceCalculator',
-    'ReportChart',
-    'ReportGenerator',
+    "PerformanceCalculator",
+    "ReportChart",
+    "ReportGenerator",
 ]

@@ -12,6 +12,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.val.get_analysis())
 """
+
 from collections import OrderedDict
 
 from ..analyzer import Analyzer

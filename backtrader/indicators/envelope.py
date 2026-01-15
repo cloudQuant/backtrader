@@ -17,6 +17,8 @@ Example:
 import sys
 
 from . import Indicator, MovingAverage
+
+
 class PlotLineAttr:
     """Plot line attribute container for envelope visualization."""
 
@@ -227,15 +229,16 @@ class EnvelopeMixIn:
         Computes top and bot bands as percentage of base value.
         """
         import math
+
         base_array = self.lines[0].array
         top_array = self.lines.top.array
         bot_array = self.lines.bot.array
         perc = self._perc
-        
+
         for arr in [top_array, bot_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         for i in range(start, min(end, len(base_array))):
             base_val = base_array[i] if i < len(base_array) else 0.0
             if isinstance(base_val, float) and math.isnan(base_val):

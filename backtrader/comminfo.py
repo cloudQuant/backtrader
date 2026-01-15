@@ -72,7 +72,9 @@ class CommInfoBase(ParameterizedBase):
         doc="Leverage level",  # Must be positive
     )
 
-    automargin = ParameterDescriptor(default=False, type_=(bool, float), doc="Automatic margin calculation")
+    automargin = ParameterDescriptor(
+        default=False, type_=(bool, float), doc="Automatic margin calculation"
+    )
 
     def __init__(self, **kwargs):
         """Initialize CommInfo object"""

@@ -13,7 +13,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.StdDev, period=20)
 """
 import math
+
 from . import Indicator, MovAv
+
+
 class StandardDeviation(Indicator):
     """
     Calculates the standard deviation of the passed data for a given period
@@ -89,15 +92,15 @@ class StandardDeviation(Indicator):
         larray = self.lines.stddev.array
         period = self.p.period
         safepow = self.p.safepow
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         # Pre-fill warmup with NaN
         for i in range(min(period - 1, len(darray))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         for i in range(period - 1, min(end, len(darray))):
             data_sum = 0.0
             data_sq_sum = 0.0
@@ -108,15 +111,15 @@ class StandardDeviation(Indicator):
                     if not (isinstance(val, float) and math.isnan(val)):
                         data_sum += val
                         data_sq_sum += val * val
-            
+
             mean = data_sum / period
             meansq = data_sq_sum / period
             sqmean = mean * mean
-            
+
             diff = meansq - sqmean
             if safepow:
                 diff = abs(diff)
-            
+
             if i < len(larray):
                 larray[i] = math.sqrt(max(0, diff))
 

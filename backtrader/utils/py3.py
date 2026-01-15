@@ -16,9 +16,7 @@ Exports:
 """
 import sys
 
-PY2 = (
-    sys.version_info.major == 2
-)  # Get current Python version, check if it's python2
+PY2 = sys.version_info.major == 2  # Get current Python version, check if it's python2
 
 # If python2
 if PY2:

@@ -15,6 +15,8 @@ Example:
 from . import Indicator
 
 __all__ = ["PercentChange", "PctChange"]
+
+
 class PercentChange(Indicator):
     """
     Measures the percentage change of the current value with respect to that

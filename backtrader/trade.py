@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Trade Module - Position and trade tracking.
 
 This module provides the Trade class for tracking the lifecycle of trades
@@ -68,7 +67,7 @@ class TradeHistory(AutoOrderedDict):
     # Initialize
     def __init__(self, status, dt, barlen, size, price, value, pnl, pnlcomm, tz, event=None):
         """Initializes the object to the current status of the Trade"""
-        super(TradeHistory, self).__init__()
+        super().__init__()
         self.status.status = status
         self.status.dt = dt
         self.status.barlen = barlen
@@ -115,7 +114,7 @@ class TradeHistory(AutoOrderedDict):
 
 
 # Trade class
-class Trade(object):
+class Trade:
     """Keeps track the life of an trade: size, price,
     commission (and value?)
 
@@ -216,7 +215,7 @@ class Trade(object):
             "status",
         )
 
-        return "\n".join((":".join((x, str(getattr(self, x)))) for x in toprint))
+        return "\n".join(":".join((x, str(getattr(self, x)))) for x in toprint)
 
     # Initialize
     def __init__(

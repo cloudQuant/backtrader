@@ -13,6 +13,8 @@ Example:
     >>> cerebro.addindicator(bt.indicators.Vortex, period=14)
 """
 from . import Indicator, Max, SumN
+
+
 class Vortex(Indicator):
     """
     See:

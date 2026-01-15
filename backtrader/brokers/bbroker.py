@@ -23,6 +23,8 @@ from backtrader.position import Position
 from backtrader.utils.py3 import integer_types, string_types
 
 __all__ = ["BackBroker", "BrokerBack"]
+
+
 class BackBroker(BrokerBase):
     """Broker Simulator
 

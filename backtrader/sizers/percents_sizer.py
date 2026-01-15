@@ -17,6 +17,8 @@ from ..parameters import Float, ParameterDescriptor
 from ..sizer import Sizer
 
 __all__ = ["PercentSizer", "AllInSizer", "PercentSizerInt", "AllInSizerInt"]
+
+
 class PercentSizer(Sizer):
     """This sizer return percentages of available cash
 

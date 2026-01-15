@@ -17,6 +17,8 @@ Example:
 from ..feed import DataBase
 from ..utils import date2num
 from ..utils.py3 import filter, integer_types, string_types
+
+
 class PandasDirectData(DataBase):
     """
     Uses a Pandas DataFrame as the feed source, iterating directly over the

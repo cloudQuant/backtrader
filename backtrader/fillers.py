@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Fillers Module - Order execution size calculation.
 
 This module provides filler classes that determine how much of an order

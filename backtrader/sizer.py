@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Position Sizer Module - Position size calculation.
 
 This module provides the base class for position sizers, which determine
@@ -51,7 +50,7 @@ class Sizer(ParameterizedBase):
 
     def __init__(self, **kwargs):
         """Initialize the Sizer with any provided parameters."""
-        super(Sizer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     # Get the specific position size for order placement
     def getsizing(self, data, isbuy):

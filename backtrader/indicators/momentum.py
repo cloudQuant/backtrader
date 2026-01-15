@@ -15,8 +15,10 @@ Example:
     >>> cerebro.adddata(data)
     >>> cerebro.addindicator(bt.indicators.ROC, period=12)
 """
-import math
+
 from . import Indicator
+
+
 class Momentum(Indicator):
     """
     Measures the change in price by calculating the difference between the

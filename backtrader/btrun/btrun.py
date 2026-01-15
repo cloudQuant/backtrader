@@ -161,7 +161,7 @@ def _split_kwargs(kwtext: str) -> list:
     string_char = None
 
     for char in kwtext:
-        if char in ('"', "'") and (not current or current[-1] != '\\'):
+        if char in ('"', "'") and (not current or current[-1] != "\\"):
             if not in_string:
                 in_string = True
                 string_char = char
@@ -169,20 +169,20 @@ def _split_kwargs(kwtext: str) -> list:
                 in_string = False
                 string_char = None
             current.append(char)
-        elif char in ('(', '[', '{') and not in_string:
+        elif char in ("(", "[", "{") and not in_string:
             depth += 1
             current.append(char)
-        elif char in (')', ']', '}') and not in_string:
+        elif char in (")", "]", "}") and not in_string:
             depth -= 1
             current.append(char)
-        elif char == ',' and depth == 0 and not in_string:
-            items.append(''.join(current))
+        elif char == "," and depth == 0 and not in_string:
+            items.append("".join(current))
             current = []
         else:
             current.append(char)
 
     if current:
-        items.append(''.join(current))
+        items.append("".join(current))
 
     return items
 
@@ -203,11 +203,11 @@ def _convert_value(value: str):
         pass
 
     # Handle boolean values (case-insensitive)
-    if value.lower() == 'true':
+    if value.lower() == "true":
         return True
-    if value.lower() == 'false':
+    if value.lower() == "false":
         return False
-    if value.lower() == 'none':
+    if value.lower() == "none":
         return None
 
     # Handle integers

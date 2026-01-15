@@ -15,6 +15,8 @@ Example:
 from . import SMA, Indicator, PercentRank
 
 __all__ = ["DV2"]
+
+
 class DV2(Indicator):
     """
     RSI(2) alternative

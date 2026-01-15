@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Backtrader LineIterator Module.
 
 This module provides the LineIterator class which is the base for all
@@ -14,7 +13,6 @@ The LineIterator manages:
 5. Registration of child lineiterators (indicators, observers)
 """
 import collections
-import math
 import sys
 
 from . import metabase
@@ -46,18 +44,18 @@ class LineIteratorMixin:
     def donew(cls, *args, **kwargs):
         """Process data arguments and filter them before instance creation.
 
-    This method scans the positional arguments to identify data feeds (LineRoot,
-    LineSeries, LineBuffer objects) and separates them from regular parameters.
-    Data feeds are converted to LineSeriesMaker objects and stored in the datas
-    attribute.
+        This method scans the positional arguments to identify data feeds (LineRoot,
+        LineSeries, LineBuffer objects) and separates them from regular parameters.
+        Data feeds are converted to LineSeriesMaker objects and stored in the datas
+        attribute.
 
-    Args:
-        *args: Positional arguments that may include data feeds
-        **kwargs: Keyword arguments for instance creation
+        Args:
+            *args: Positional arguments that may include data feeds
+            **kwargs: Keyword arguments for instance creation
 
-    Returns:
-        tuple: (created_object, remaining_args, kwargs)
-    """
+        Returns:
+            tuple: (created_object, remaining_args, kwargs)
+        """
         # Process data arguments before creating instance
         mindatas = getattr(cls, "_mindatas", 1)
         lastarg = 0
@@ -134,9 +132,7 @@ class LineIteratorMixin:
             remaining_args = args[lastarg:]
 
         # Create the instance with filtered arguments
-        _obj, remaining_args, kwargs = super(LineIteratorMixin, cls).donew(
-            *remaining_args, **kwargs
-        )
+        _obj, remaining_args, kwargs = super().donew(*remaining_args, **kwargs)
 
         # Initialize _lineiterators
         _obj._lineiterators = collections.defaultdict(list)
@@ -181,7 +177,7 @@ class LineIteratorMixin:
             # CRITICAL: Set data0, data1, etc. BEFORE any indicator __init__ methods run
             for d, data in enumerate(_obj.datas):
                 setattr(_obj, f"data{d}", data)
-            
+
             # CRITICAL FIX: Initialize _minperiod from data sources BEFORE indicator __init__ runs
             # This ensures that when indicator calls addminperiod(period), it adds to the
             # data source's minperiod, not to 1
@@ -258,19 +254,19 @@ class LineIteratorMixin:
     def dopreinit(cls, _obj, *args, **kwargs):
         """Handle pre-initialization setup.
 
-    This method performs setup after instance creation but before __init__:
-    1. Sets up datas if not already set
-    2. Configures clock from first data feed or owner
-    3. Calculates minimum period from data sources
+        This method performs setup after instance creation but before __init__:
+        1. Sets up datas if not already set
+        2. Configures clock from first data feed or owner
+        3. Calculates minimum period from data sources
 
-    Args:
-        _obj: The instance being initialized
-        *args: Remaining positional arguments
-        **kwargs: Remaining keyword arguments
+        Args:
+            _obj: The instance being initialized
+            *args: Remaining positional arguments
+            **kwargs: Remaining keyword arguments
 
-    Returns:
-        tuple: (_obj, args, kwargs)
-    """
+        Returns:
+            tuple: (_obj, args, kwargs)
+        """
         # PERFORMANCE: Use try-except instead of hasattr
         try:
             _obj.datas
@@ -283,7 +279,7 @@ class LineIteratorMixin:
                 owner = _obj._owner
                 # CRITICAL FIX: Don't add MinimalOwner to datas - it's just a placeholder
                 # and doesn't have the required methods like _stage2()
-                if owner is not None and owner.__class__.__name__ != 'MinimalOwner':
+                if owner is not None and owner.__class__.__name__ != "MinimalOwner":
                     _obj.datas = [owner]
             except AttributeError:
                 _obj.datas = []
@@ -378,19 +374,19 @@ class LineIteratorMixin:
     def dopostinit(cls, _obj, *args, **kwargs):
         """Handle post-initialization setup.
 
-    This method performs final setup after __init__ completes:
-    1. Recalculates minimum period from lines
-    2. Propagates minperiod to all lines
-    3. Registers indicator with owner
+        This method performs final setup after __init__ completes:
+        1. Recalculates minimum period from lines
+        2. Propagates minperiod to all lines
+        3. Registers indicator with owner
 
-    Args:
-        _obj: The instance being finalized
-        *args: Remaining positional arguments
-        **kwargs: Remaining keyword arguments
+        Args:
+            _obj: The instance being finalized
+            *args: Remaining positional arguments
+            **kwargs: Remaining keyword arguments
 
-    Returns:
-        tuple: (_obj, args, kwargs)
-    """
+        Returns:
+            tuple: (_obj, args, kwargs)
+        """
         # Calculate minperiod from lines
         # PERFORMANCE: Use try-except instead of hasattr
         # CRITICAL FIX: Take max of existing _minperiod (from data sources) and line minperiods
@@ -428,7 +424,7 @@ class LineIteratorMixin:
         try:
             owner = _obj._owner
             # Check if owner is valid (has addindicator method)
-            if owner is not None and not hasattr(owner, 'addindicator'):
+            if owner is not None and not hasattr(owner, "addindicator"):
                 owner = None  # MinimalOwner or invalid owner
         except AttributeError:
             pass
@@ -439,13 +435,14 @@ class LineIteratorMixin:
         if owner is None:
             try:
                 # Only apply this fix for indicators, not for all LineIterators
-                is_indicator = getattr(_obj, '_ltype', None) == LineIterator.IndType
-            except:
+                is_indicator = getattr(_obj, "_ltype", None) == LineIterator.IndType
+            except Exception:
                 is_indicator = False
-            
+
             if is_indicator:
                 try:
                     from .strategy import Strategy
+
                     # PRIORITY 1: Try OwnerContext first (no stack frame inspection)
                     context_owner = metabase.OwnerContext.get_current_owner(Strategy)
                     if context_owner is not None and context_owner is not _obj:
@@ -453,7 +450,7 @@ class LineIteratorMixin:
                         _obj._owner = owner
                 except Exception:
                     pass
-                
+
                 # NOTE: sys._getframe fallback removed - OwnerContext should handle all cases
                 # If owner is still None, indicator will work standalone without registration
 
@@ -634,7 +631,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         """
         # This replaces the metaclass functionality
         # Create the instance using the normal Python object creation
-        instance = super(LineIterator, cls).__new__(cls)
+        instance = super().__new__(cls)
 
         # CRITICAL FIX: Store kwargs in instance so __init__ can access them
         # This is needed because Python doesn't automatically pass kwargs from __new__ to __init__
@@ -643,9 +640,9 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # Initialize basic attributes first
         instance._lineiterators = collections.defaultdict(list)
-        
+
         # NOTE: Data source extraction and minperiod initialization removed from __new__
-        # to avoid interfering with normal donew/dopreinit flow. 
+        # to avoid interfering with normal donew/dopreinit flow.
         # Minperiod is now handled explicitly in indicators that need it (like MACD).
 
         # OPTIMIZED: Check if this is a strategy using cached type check
@@ -760,7 +757,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 # CRITICAL: Set data0, data1 etc. immediately
                 for d, data in enumerate(datas):
                     setattr(self, f"data{d}", data)
-                
+
                 # CRITICAL FIX: Initialize _minperiod from data sources BEFORE indicator __init__ runs
                 # This ensures that when indicator calls addminperiod(period), it adds to the
                 # data source's minperiod, not to 1
@@ -785,7 +782,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         # CRITICAL FIX: Pass kwargs to parent for parameter processing
         # Data processing was done above, but parameters still need to be passed
-        super(LineIterator, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # CRITICAL FIX: Ensure all LineIterator objects have _idx attribute
         # This fixes the issue with 'CrossOver', 'TrueStrengthIndicator' etc. objects missing _idx attribute
@@ -974,7 +971,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         Uses recursion guard to prevent infinite loops.
         """
         # Set _stage2 state
-        super(LineIterator, self)._stage2()
+        super()._stage2()
 
         # PERFORMANCE: Use class-level recursion guard to avoid creating new sets
         # This significantly reduces memory allocations during initialization
@@ -1022,7 +1019,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         Uses recursion guard to prevent infinite loops.
         """
         # Set _stage1 state
-        super(LineIterator, self)._stage1()
+        super()._stage1()
 
         # Recursion guard: track objects currently being processed to prevent infinite loops
         if not hasattr(self, "_stage1_in_progress") or self._stage1_in_progress is None:
@@ -1102,7 +1099,12 @@ class LineIterator(LineIteratorMixin, LineSeries):
             # CRITICAL FIX: Use the indicator's actual data source's parent data feed as clock
             # This ensures proper synchronization when indicator operates on secondary data feeds
             clock_set = False
-            if hasattr(self, "datas") and self.datas and hasattr(indicator, "datas") and indicator.datas:
+            if (
+                hasattr(self, "datas")
+                and self.datas
+                and hasattr(indicator, "datas")
+                and indicator.datas
+            ):
                 # Find which data feed the indicator's data source belongs to
                 ind_data = indicator.datas[0]
                 for data_feed in self.datas:
@@ -1171,7 +1173,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         if isinstance(owner, string_types):
             owner = [owner]
-        elif not isinstance(owner, collections.Iterable):
+        elif not isinstance(owner, collections.abc.Iterable):
             owner = [owner]
 
         if not own:
@@ -1179,7 +1181,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
 
         if isinstance(own, string_types):
             own = [own]
-        elif not isinstance(own, collections.Iterable):
+        elif not isinstance(own, collections.abc.Iterable):
             own = [own]
 
         for lineowner, lineown in zip(owner, own):
@@ -1226,7 +1228,7 @@ class LineIterator(LineIteratorMixin, LineSeries):
         - Removed excessive hasattr() calls - use EAFP (try/except) instead
         - Direct attribute access where possible
         - Minimize conditional checks in hot path
-        
+
         CRITICAL: Follow original backtrader's _once sequence:
         - preonce(0, minperiod - 1)
         - oncestart(minperiod - 1, minperiod)
@@ -1281,11 +1283,11 @@ class LineIterator(LineIteratorMixin, LineSeries):
                         lineiterator._once(start, end)
                         # CRITICAL FIX: Call oncebinding on indicator's lines to propagate
                         # values to any bound lines (e.g., when self.l.mid = bt.ind.EMA(...))
-                        if hasattr(lineiterator, 'lines'):
+                        if hasattr(lineiterator, "lines"):
                             lines_obj = lineiterator.lines
-                            if hasattr(lines_obj, '__iter__'):
+                            if hasattr(lines_obj, "__iter__"):
                                 for line in lines_obj:
-                                    if hasattr(line, 'oncebinding'):
+                                    if hasattr(line, "oncebinding"):
                                         line.oncebinding()
                     except Exception:
                         pass  # Skip failed indicators
@@ -1657,6 +1659,7 @@ class DataAccessor(LineIterator):
         PriceOpenInteres: Alias for DataSeries.OpenInterest
         PriceDateTime: Alias for DataSeries.DateTime
     """
+
     # Data accessor class
     PriceClose = DataSeries.Close
     PriceLow = DataSeries.Low
@@ -1867,6 +1870,7 @@ class ObserverBase(DataAccessor):
         _ltype: Set to ObsType (2) to indicate this is an observer.
         _mindatas: Set to 0 because observers don't consume data arguments.
     """
+
     _ltype = LineIterator.ObsType
     _mindatas = 0  # Observers don't consume data arguments like indicators do
 
@@ -1962,6 +1966,7 @@ class StrategyBase(DataAccessor):
     Attributes:
         _ltype: Set to StratType (1) to indicate this is a strategy.
     """
+
     _ltype = LineIterator.StratType
 
     def __new__(cls, *args, **kwargs):
@@ -2023,7 +2028,7 @@ class StrategyBase(DataAccessor):
             self.dnames = DotDict()
 
         # Call parent initialization first
-        super(StrategyBase, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # CRITICAL FIX: Set up data assignment tracking before user __init__
         self._indicator_creation_errors = []
@@ -2298,6 +2303,7 @@ class SingleCoupler(LineActions):
         dlen: Current data length.
         val: Current value.
     """
+
     # Single line operations
 
     def __init__(self, cdata, clock=None):
@@ -2307,7 +2313,7 @@ class SingleCoupler(LineActions):
             cdata: The data source to couple.
             clock: Optional clock for synchronization. If None, uses owner.
         """
-        super(SingleCoupler, self).__init__()
+        super().__init__()
         self._clock = clock if clock is not None else self._owner
 
         self.cdata = cdata
@@ -2337,6 +2343,7 @@ class MultiCoupler(LineIterator):
         dsize: Number of lines being coupled.
         dvals: Current values for all lines.
     """
+
     # Multiple line operations
     _ltype = LineIterator.IndType
 
@@ -2345,7 +2352,7 @@ class MultiCoupler(LineIterator):
 
         Sets up data length tracking and value storage for all lines.
         """
-        super(MultiCoupler, self).__init__()
+        super().__init__()
         self.dlen = 0
         self.dsize = self.fullsize()  # shorcut for number of lines
         self.dvals = [float("NaN")] * self.dsize

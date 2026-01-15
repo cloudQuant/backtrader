@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Store Module - Data storage and broker connection management.
 
 This module provides base classes for Store implementations, which manage
@@ -24,7 +23,7 @@ import collections
 
 
 # Simple singleton implementation without metaclass
-class SingletonMixin(object):
+class SingletonMixin:
     """Mixin class to make a class a singleton without using metaclasses.
 
     This mixin ensures only one instance of the class exists. The instance
@@ -42,7 +41,7 @@ class SingletonMixin(object):
             SingletonMixin: The single instance of this class.
         """
         if not hasattr(cls, "_singleton"):
-            cls._singleton = super(SingletonMixin, cls).__new__(cls)
+            cls._singleton = super().__new__(cls)
             cls._singleton._initialized = False
         return cls._singleton
 
@@ -61,11 +60,11 @@ class SingletonMixin(object):
             return
         self._initialized = True
         # Call the original __init__ if it exists
-        super(SingletonMixin, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 # Store parameter management
-class StoreParams(object):
+class StoreParams:
     """Simple parameter management for Store classes.
 
     This class provides automatic parameter initialization from the
@@ -120,7 +119,7 @@ class Store(SingletonMixin, StoreParams):
         Sets up internal state for broker, environment, cerebro,
         data sources, and notifications.
         """
-        super(Store, self).__init__()
+        super().__init__()
         self.broker = None
         self._env = None
         self._cerebro = None

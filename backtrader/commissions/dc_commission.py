@@ -13,6 +13,7 @@ Example:
     ... )
     >>> cerebro.broker.setcommission(comminfo)
 """
+
 from ..comminfo import CommInfoBase
 
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Backtrader Indicator Module.
 
 This module provides the base Indicator class and related infrastructure
@@ -108,7 +107,7 @@ class Indicator(IndicatorBase):
         if hasattr(self, "lines") and hasattr(self.lines, "lines") and len(self.lines.lines) > 0:
             return self.lines.lines[0][ago]
         # Fallback to parent class behavior
-        return super(Indicator, self).__getitem__(ago)
+        return super().__getitem__(ago)
 
     # Track if this is an aliased indicator
     aliased = False
@@ -214,10 +213,10 @@ class Indicator(IndicatorBase):
 
     def _finalize_minperiod(self):
         """CRITICAL FIX: Finalize minimum period calculation after indicator __init__ completes.
-        
+
         This method is called after the subclass's __init__ has finished creating
         sub-indicators and line bindings. It ensures that the minimum periods from
-        all data sources, lines and sub-indicators are properly propagated to this 
+        all data sources, lines and sub-indicators are properly propagated to this
         indicator's _minperiod.
         """
         # Step 0: Calculate minperiod from data sources first
@@ -379,7 +378,7 @@ class LinePlotterIndicatorBase(Indicator.__class__):
         cls.plotlines = plotlines._derive(name, newplotlines, [], recurse=True)
 
         # Create the object and set the params in place
-        _obj, args, kwargs = super(LinePlotterIndicatorBase, cls).donew(*args, **kwargs)
+        _obj, args, kwargs = super().donew(*args, **kwargs)
         # Set _obj owner attribute
         _obj.owner = _obj.data.owner._clock
         # Add another linebuffer
@@ -393,4 +392,5 @@ class LinePlotterIndicator(Indicator, LinePlotterIndicatorBase):
 
     Note: This class is not currently used in the project.
     """
+
     pass

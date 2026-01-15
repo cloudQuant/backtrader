@@ -159,6 +159,7 @@ class CCXTStore(ParameterizedSingletonMixin):
             NetworkError: If retry attempts are exhausted.
             ExchangeError: If retry attempts are exhausted.
         """
+
         @wraps(method)
         def retry_method(self, *args, **kwargs):
             for i in range(self.retries):

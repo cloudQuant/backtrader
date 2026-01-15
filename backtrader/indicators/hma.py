@@ -13,8 +13,11 @@ Example:
     >>> cerebro.addindicator(bt.indicators.HMA, period=30)
 """
 import math
+
 from . import MovingAverageBase
 from .wma import WMA
+
+
 class HullMovingAverage(MovingAverageBase):
     """By Alan Hull
 
@@ -102,19 +105,19 @@ class HullMovingAverage(MovingAverageBase):
         larray = self.lines.hma.array
         period = self.p.period
         sqrtperiod = self.sqrtperiod
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         minperiod = period + sqrtperiod - 1
         for i in range(min(minperiod - 1, len(wma_full_array))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         # WMA coefficient
         coef = 2.0 / (sqrtperiod * (sqrtperiod + 1.0))
         weights = tuple(float(x) for x in range(1, sqrtperiod + 1))
-        
+
         for i in range(minperiod - 1, min(end, len(wma_full_array), len(wma_half_array))):
             # Calculate raw = 2 * wma_half - wma_full for last sqrtperiod values
             weighted_sum = 0.0
@@ -135,7 +138,7 @@ class HullMovingAverage(MovingAverageBase):
                 else:
                     valid = False
                     break
-            
+
             if valid and i < len(larray):
                 larray[i] = coef * weighted_sum
             elif i < len(larray):

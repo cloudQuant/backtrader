@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """LineRoot Module - Base classes for line-based data structures.
 
 This module defines the base class LineRoot and derived classes LineSingle
@@ -208,12 +207,13 @@ class LineRoot(LineRootMixin, metabase.BaseMixin):
             from .linebuffer import LinesOperation
 
             # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
-            parent_a = self if hasattr(self, '_once') else None
+            parent_a = self if hasattr(self, "_once") else None
             # Use original_other (before lines[0] extraction) to get the indicator reference
             parent_b_candidate = original_other if original_other is not None else other
-            parent_b = parent_b_candidate if hasattr(parent_b_candidate, '_once') else None
-            return LinesOperation(self.lines[0], other, operation, r=r,
-                                  parent_a=parent_a, parent_b=parent_b)
+            parent_b = parent_b_candidate if hasattr(parent_b_candidate, "_once") else None
+            return LinesOperation(
+                self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
+            )
         else:
             # If no lines, return a simple operation result
             try:
@@ -665,7 +665,7 @@ class LineMultiple(LineRoot):
             _lineiterators: Dictionary tracking registered lineiterators.
             _minperiod: Minimum period requirement (defaults to 1).
         """
-        super(LineMultiple, self).__init__()
+        super().__init__()
         # CRITICAL FIX: Initialize _ltype for proper strategy/indicator identification
         self._ltype = None
         # CRITICAL FIX: Initialize lines list to prevent index errors
@@ -697,12 +697,12 @@ class LineMultiple(LineRoot):
         self.lines.reset()
 
     def _stage1(self):
-        super(LineMultiple, self)._stage1()
+        super()._stage1()
         for line in self.lines:
             line._stage1()
 
     def _stage2(self):
-        super(LineMultiple, self)._stage2()
+        super()._stage2()
         for line in self.lines:
             line._stage2()
 
@@ -733,11 +733,12 @@ class LineMultiple(LineRoot):
             from .linebuffer import LinesOperation
 
             # CRITICAL FIX: Pass parent indicators so LinesOperation can call their _once
-            parent_a = self if hasattr(self, '_once') else None
+            parent_a = self if hasattr(self, "_once") else None
             parent_b_candidate = original_other if original_other is not None else other
-            parent_b = parent_b_candidate if hasattr(parent_b_candidate, '_once') else None
-            return LinesOperation(self.lines[0], other, operation, r=r,
-                                  parent_a=parent_a, parent_b=parent_b)
+            parent_b = parent_b_candidate if hasattr(parent_b_candidate, "_once") else None
+            return LinesOperation(
+                self.lines[0], other, operation, r=r, parent_a=parent_a, parent_b=parent_b
+            )
         else:
             # If no lines, return a simple operation result
             try:

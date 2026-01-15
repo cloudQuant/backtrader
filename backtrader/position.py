@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Position Module - Position tracking and management.
 
 This module provides the Position class for tracking the size and price
@@ -17,7 +16,7 @@ Example:
 
 
 # Position class, keeps and updates position size and price, has no relationship with any other assets, only keeps size and price
-class Position(object):
+class Position:
     """Keeps and updates the size and price of a position.
 
     The Position object has no relationship to any specific asset. It only

@@ -13,8 +13,11 @@ Example:
     >>> cerebro.addindicator(bt.indicators.ZLEMA, period=20)
 """
 import math
+
 from . import MovingAverageBase
 from .ema import EMA
+
+
 class ZeroLagExponentialMovingAverage(MovingAverageBase):
     """
     The zero-lag exponential moving average (ZLEMA) is a variation of the EMA
@@ -82,15 +85,15 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
         lag = self.lag
         alpha = self.alpha
         alpha1 = self.alpha1
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         minperiod = lag + period
         for i in range(min(minperiod - 1, len(darray))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         # Seed value
         seed_idx = minperiod - 1
         if seed_idx < len(darray) and seed_idx >= lag:
@@ -105,19 +108,19 @@ class ZeroLagExponentialMovingAverage(MovingAverageBase):
                 larray[seed_idx] = prev
         else:
             prev = 0.0
-        
+
         # Calculate ZLEMA
         for i in range(minperiod, min(end, len(darray))):
             if i >= lag and i - lag >= 0:
                 adjusted = 2.0 * darray[i] - darray[i - lag]
             else:
                 adjusted = darray[i]
-            
+
             if i > 0 and i - 1 < len(larray):
                 prev_val = larray[i - 1]
                 if not (isinstance(prev_val, float) and math.isnan(prev_val)):
                     prev = prev_val
-            
+
             prev = prev * alpha1 + adjusted * alpha
             if i < len(larray):
                 larray[i] = prev

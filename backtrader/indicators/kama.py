@@ -13,7 +13,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.KAMA, period=30)
 """
 import math
+
 from . import MovingAverageBase
+
+
 class AdaptiveMovingAverage(MovingAverageBase):
     """
     Defined by Perry Kaufman in his book `"Smarter Trading"`.
@@ -68,21 +71,21 @@ class AdaptiveMovingAverage(MovingAverageBase):
     def _calc_sc(self):
         """Calculate smoothing constant based on efficiency ratio"""
         period = self.p.period
-        
+
         # direction = close - close_period
         direction = self.data[0] - self.data[-period]
-        
+
         # volatility = sum of abs(close - close_prev) over period
         volatility = 0.0
         for i in range(period):
             volatility += abs(self.data[-i] - self.data[-i - 1])
-        
+
         # efficiency ratio
         if volatility != 0:
             er = abs(direction / volatility)
         else:
             er = 0.0
-        
+
         # smoothing constant = (er * (fast - slow) + slow)^2
         sc = pow(er * (self.fast_sc - self.slow_sc) + self.slow_sc, 2)
         return sc
@@ -118,25 +121,25 @@ class AdaptiveMovingAverage(MovingAverageBase):
         period = self.p.period
         fast_sc = self.fast_sc
         slow_sc = self.slow_sc
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         # Pre-fill warmup with NaN
         for i in range(min(period, len(darray))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         # Calculate seed value (SMA)
         seed_idx = period
         if seed_idx < len(darray):
-            seed_sum = sum(darray[seed_idx - period:seed_idx])
+            seed_sum = sum(darray[seed_idx - period : seed_idx])
             prev_kama = seed_sum / period
             if seed_idx < len(larray):
                 larray[seed_idx] = prev_kama
         else:
             prev_kama = 0.0
-        
+
         # Calculate KAMA
         for i in range(seed_idx + 1, min(end, len(darray))):
             # direction
@@ -144,29 +147,29 @@ class AdaptiveMovingAverage(MovingAverageBase):
                 direction = darray[i] - darray[i - period]
             else:
                 direction = 0.0
-            
+
             # volatility
             volatility = 0.0
             for j in range(period):
                 idx = i - j
                 if idx > 0 and idx < len(darray) and idx - 1 >= 0:
                     volatility += abs(darray[idx] - darray[idx - 1])
-            
+
             # efficiency ratio
             if volatility != 0:
                 er = abs(direction / volatility)
             else:
                 er = 0.0
-            
+
             # smoothing constant
             sc = pow(er * (fast_sc - slow_sc) + slow_sc, 2)
-            
+
             # Get previous KAMA
             if i > 0 and i - 1 < len(larray):
                 prev_val = larray[i - 1]
                 if not (isinstance(prev_val, float) and math.isnan(prev_val)):
                     prev_kama = prev_val
-            
+
             # KAMA formula
             prev_kama = prev_kama + sc * (darray[i] - prev_kama)
             if i < len(larray):

@@ -16,6 +16,8 @@ Example:
 import sys
 
 from . import Indicator, MovingAverage
+
+
 class OscillatorMixIn(Indicator):
     """
     MixIn class to create a subclass with another indicator. The main line of

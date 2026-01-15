@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Test Helpers Module - Utility functions for testing.
 
 This module provides helper functions for testing backtrader,

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Writer Module - Output writing for strategy execution results.
 
 This module provides classes for writing strategy execution results
@@ -37,6 +36,7 @@ class WriterBase(ParameterizedBase):
     Subclasses should override the writing methods to provide
     custom output formatting.
     """
+
     pass
 
 
@@ -83,7 +83,7 @@ class WriterFile(WriterBase):
             **kwargs: Keyword arguments for writer parameters.
         """
         # Initialize parent class first
-        super(WriterFile, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # _len is a counter
         # CRITICAL FIX: Change counter start value from 1 to 0 to match test expectations
         # This fixes assertion error in test_writer.py: assert count == 256
@@ -325,7 +325,7 @@ class WriterStringIO(WriterFile):
         """
         self._stringio = io.StringIO()
         self.close_out = False
-        super(WriterStringIO, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     @property
     def out(self):

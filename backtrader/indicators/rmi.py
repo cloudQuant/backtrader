@@ -13,6 +13,8 @@ Example:
     >>> cerebro.addindicator(bt.indicators.RMI, period=14, momperiod=5)
 """
 from . import RSI
+
+
 class RelativeMomentumIndex(RSI):
     """
     Description:

@@ -14,8 +14,11 @@ Example:
     >>> cerebro.addindicator(bt.indicators.DEMA, period=20)
 """
 import math
+
 from . import MovingAverageBase
 from .ema import EMA
+
+
 class DoubleExponentialMovingAverage(MovingAverageBase):
     """
     DEMA was first time introduced in 1994, in the article "Smoothing Data with
@@ -62,19 +65,19 @@ class DoubleExponentialMovingAverage(MovingAverageBase):
         ema1_array = self.ema1.lines[0].array
         ema2_array = self.ema2.lines[0].array
         larray = self.lines.dema.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         minperiod = 2 * self.p.period - 1
         for i in range(min(minperiod - 1, len(ema1_array))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         for i in range(minperiod - 1, min(end, len(ema1_array), len(ema2_array))):
             ema1_val = ema1_array[i] if i < len(ema1_array) else 0.0
             ema2_val = ema2_array[i] if i < len(ema2_array) else 0.0
-            
+
             if isinstance(ema1_val, float) and math.isnan(ema1_val):
                 larray[i] = float("nan")
             elif isinstance(ema2_val, float) and math.isnan(ema2_val):
@@ -135,20 +138,20 @@ class TripleExponentialMovingAverage(MovingAverageBase):
         ema2_array = self.ema2.lines[0].array
         ema3_array = self.ema3.lines[0].array
         larray = self.lines.tema.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         minperiod = 3 * self.p.period - 2
         for i in range(min(minperiod - 1, len(ema1_array))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         for i in range(minperiod - 1, min(end, len(ema1_array), len(ema2_array), len(ema3_array))):
             ema1_val = ema1_array[i] if i < len(ema1_array) else 0.0
             ema2_val = ema2_array[i] if i < len(ema2_array) else 0.0
             ema3_val = ema3_array[i] if i < len(ema3_array) else 0.0
-            
+
             if isinstance(ema1_val, float) and math.isnan(ema1_val):
                 larray[i] = float("nan")
             elif isinstance(ema2_val, float) and math.isnan(ema2_val):

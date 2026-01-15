@@ -16,7 +16,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.PPO, period1=12, period2=26)
 """
 import math
+
 from . import Indicator, MovAv
+
+
 class _PriceOscBase(Indicator):
     params = (
         ("period1", 12),
@@ -44,14 +47,14 @@ class _PriceOscBase(Indicator):
         ma1_array = self.ma1.lines[0].array
         ma2_array = self.ma2.lines[0].array
         larray = self.lines[0].array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(start, min(end, len(ma1_array), len(ma2_array))):
             ma1_val = ma1_array[i] if i < len(ma1_array) else 0.0
             ma2_val = ma2_array[i] if i < len(ma2_array) else 0.0
-            
+
             if isinstance(ma1_val, float) and math.isnan(ma1_val):
                 larray[i] = float("nan")
             elif isinstance(ma2_val, float) and math.isnan(ma2_val):
@@ -141,7 +144,9 @@ class PercentagePriceOscillator(_PriceOscBase):
         self.lines.ppo[0] = ppo_val
 
         # Calculate signal (EMA of PPO)
-        self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + ppo_val * self.signal_alpha
+        self.lines.signal[0] = (
+            self.lines.signal[-1] * self.signal_alpha1 + ppo_val * self.signal_alpha
+        )
 
         # Calculate histogram
         self.lines.histo[0] = self.lines.ppo[0] - self.lines.signal[0]
@@ -180,16 +185,16 @@ class PercentagePriceOscillator(_PriceOscBase):
         signal_alpha = self.signal_alpha
         signal_alpha1 = self.signal_alpha1
         use_long = self._long
-        
+
         for arr in [po_array, ppo_array, signal_array, histo_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         prev_signal = 0.0
         for i in range(start, min(end, len(ma1_array), len(ma2_array))):
             ma1_val = ma1_array[i] if i < len(ma1_array) else 0.0
             ma2_val = ma2_array[i] if i < len(ma2_array) else 0.0
-            
+
             if isinstance(ma1_val, float) and math.isnan(ma1_val):
                 po_array[i] = float("nan")
                 ppo_array[i] = float("nan")
@@ -202,26 +207,26 @@ class PercentagePriceOscillator(_PriceOscBase):
                 signal_array[i] = float("nan")
                 histo_array[i] = float("nan")
                 continue
-            
+
             po_val = ma1_val - ma2_val
             po_array[i] = po_val
-            
+
             den = ma2_val if use_long else ma1_val
             if den != 0:
                 ppo_val = 100.0 * po_val / den
             else:
                 ppo_val = 0.0
             ppo_array[i] = ppo_val
-            
+
             # Update signal
             if i > 0 and i - 1 < len(signal_array):
                 prev_val = signal_array[i - 1]
                 if not (isinstance(prev_val, float) and math.isnan(prev_val)):
                     prev_signal = prev_val
-            
+
             prev_signal = prev_signal * signal_alpha1 + ppo_val * signal_alpha
             signal_array[i] = prev_signal
-            
+
             histo_array[i] = ppo_val - prev_signal
 
 

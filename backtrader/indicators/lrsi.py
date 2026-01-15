@@ -16,6 +16,8 @@ Example:
 from . import PeriodN
 
 __all__ = ["LaguerreRSI", "LRSI", "LaguerreFilter", "LAGF"]
+
+
 class LaguerreRSI(PeriodN):
     """
     Defined by John F. Ehlers in `Cybernetic Analysis for Stock and Futures`,

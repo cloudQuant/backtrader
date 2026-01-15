@@ -16,7 +16,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.Stochastic, period=14)
 """
 import math
-from . import DivByZero, Highest, Indicator, Lowest, MovAv
+
+from . import Highest, Indicator, Lowest, MovAv
+
+
 class _StochasticBase(Indicator):
     lines = (
         "percK",
@@ -124,28 +127,27 @@ class StochasticFast(_StochasticBase):
         close_array = self.data.close.array
         percK_array = self.lines.percK.array
         percD_array = self.lines.percD.array
-        period = self.p.period
         period_d = self.p.period_dfast
         safediv = self.p.safediv
         safezero = self.p.safezero
-        
+
         for arr in [percK_array, percD_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         # Calculate %K
         for i in range(start, min(end, len(hh_array), len(ll_array), len(close_array))):
             hh = hh_array[i] if i < len(hh_array) else 0.0
             ll = ll_array[i] if i < len(ll_array) else 0.0
             close = close_array[i] if i < len(close_array) else 0.0
-            
+
             if isinstance(hh, float) and math.isnan(hh):
                 percK_array[i] = float("nan")
                 continue
             if isinstance(ll, float) and math.isnan(ll):
                 percK_array[i] = float("nan")
                 continue
-            
+
             knum = close - ll
             kden = hh - ll
             if safediv and kden == 0:
@@ -154,7 +156,7 @@ class StochasticFast(_StochasticBase):
                 percK_array[i] = 0.0
             else:
                 percK_array[i] = 100.0 * (knum / kden)
-        
+
         # Calculate %D (SMA of %K)
         for i in range(start, min(end, len(percK_array))):
             if i < period_d - 1:
@@ -247,30 +249,29 @@ class Stochastic(_StochasticBase):
         close_array = self.data.close.array
         percK_array = self.lines.percK.array
         percD_array = self.lines.percD.array
-        period = self.p.period
         period_d = self.p.period_dfast
         period_dslow = self.p.period_dslow
         safediv = self.p.safediv
         safezero = self.p.safezero
-        
+
         for arr in [percK_array, percD_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         # Calculate raw %K first
         raw_k = []
         for i in range(min(end, len(hh_array), len(ll_array), len(close_array))):
             hh = hh_array[i] if i < len(hh_array) else 0.0
             ll = ll_array[i] if i < len(ll_array) else 0.0
             close = close_array[i] if i < len(close_array) else 0.0
-            
+
             if isinstance(hh, float) and math.isnan(hh):
                 raw_k.append(float("nan"))
                 continue
             if isinstance(ll, float) and math.isnan(ll):
                 raw_k.append(float("nan"))
                 continue
-            
+
             knum = close - ll
             kden = hh - ll
             if safediv and kden == 0:
@@ -279,7 +280,7 @@ class Stochastic(_StochasticBase):
                 raw_k.append(0.0)
             else:
                 raw_k.append(100.0 * (knum / kden))
-        
+
         # Calculate fast %D (which becomes slow %K)
         for i in range(start, min(end, len(raw_k))):
             if i < period_d - 1:
@@ -299,7 +300,7 @@ class Stochastic(_StochasticBase):
                     percK_array[i] = k_sum / period_d
                 else:
                     percK_array[i] = float("nan")
-        
+
         # Calculate slow %D (SMA of slow %K)
         for i in range(start, min(end, len(percK_array))):
             if i < period_d + period_dslow - 2:
@@ -391,29 +392,28 @@ class StochasticFull(_StochasticBase):
         percK_array = self.lines.percK.array
         percD_array = self.lines.percD.array
         percDSlow_array = self.lines.percDSlow.array
-        period = self.p.period
         period_d = self.p.period_dfast
         period_dslow = self.p.period_dslow
         safediv = self.p.safediv
         safezero = self.p.safezero
-        
+
         for arr in [percK_array, percD_array, percDSlow_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         # Calculate %K
         for i in range(start, min(end, len(hh_array), len(ll_array), len(close_array))):
             hh = hh_array[i] if i < len(hh_array) else 0.0
             ll = ll_array[i] if i < len(ll_array) else 0.0
             close = close_array[i] if i < len(close_array) else 0.0
-            
+
             if isinstance(hh, float) and math.isnan(hh):
                 percK_array[i] = float("nan")
                 continue
             if isinstance(ll, float) and math.isnan(ll):
                 percK_array[i] = float("nan")
                 continue
-            
+
             knum = close - ll
             kden = hh - ll
             if safediv and kden == 0:
@@ -422,7 +422,7 @@ class StochasticFull(_StochasticBase):
                 percK_array[i] = 0.0
             else:
                 percK_array[i] = 100.0 * (knum / kden)
-        
+
         # Calculate %D
         for i in range(start, min(end, len(percK_array))):
             if i < period_d - 1:
@@ -442,7 +442,7 @@ class StochasticFull(_StochasticBase):
                     percD_array[i] = k_sum / period_d
                 else:
                     percD_array[i] = float("nan")
-        
+
         # Calculate %DSlow
         for i in range(start, min(end, len(percD_array))):
             if i < period_d + period_dslow - 2:

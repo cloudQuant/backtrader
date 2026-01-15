@@ -12,11 +12,13 @@ Example:
     >>> cerebro.adddata(data)
     >>> cerebro.addindicator(bt.indicators.AO)
 """
-import math
+
 from . import Indicator
 from .sma import SMA
 
 __all__ = ["AwesomeOscillator", "AwesomeOsc", "AO"]
+
+
 class AwesomeOscillator(Indicator):
     """
     Awesome Oscillator (AO) is a momentum indicator reflecting the precise
@@ -85,14 +87,14 @@ class AwesomeOscillator(Indicator):
         larray = self.lines.ao.array
         fast = self.p.fast
         slow = self.p.slow
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(min(slow - 1, len(high_array))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         for i in range(slow - 1, min(end, len(high_array), len(low_array))):
             # Calculate fast SMA
             fast_sum = 0.0
@@ -101,7 +103,7 @@ class AwesomeOscillator(Indicator):
                 if idx >= 0:
                     fast_sum += (high_array[idx] + low_array[idx]) / 2.0
             sma_fast = fast_sum / fast
-            
+
             # Calculate slow SMA
             slow_sum = 0.0
             for j in range(slow):
@@ -109,7 +111,7 @@ class AwesomeOscillator(Indicator):
                 if idx >= 0:
                     slow_sum += (high_array[idx] + low_array[idx]) / 2.0
             sma_slow = slow_sum / slow
-            
+
             larray[i] = sma_fast - sma_slow
 
 

@@ -22,6 +22,8 @@ from ..utils import date2num
 from ..utils.py3 import urlquote
 
 __all__ = ["QuandlCSV", "Quandl"]
+
+
 class QuandlCSV(feed.CSVDataBase):
     """
     Parses pre-downloaded Quandl CSV Data Feeds (or locally generated if they

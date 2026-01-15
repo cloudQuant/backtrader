@@ -15,7 +15,9 @@ Example:
     >>> cerebro.resampledata(data, timeframe=bt.TimeFrame.Months)
     >>> pivot = bt.indicators.PivotPoint(data1)
 """
-from . import CmpEx, Indicator
+from . import Indicator
+
+
 class PivotPoint(Indicator):
     """
     Defines a level of significance by taking into account the average of price
@@ -133,27 +135,27 @@ class PivotPoint(Indicator):
         s2_array = self.lines.s2.array
         r1_array = self.lines.r1.array
         r2_array = self.lines.r2.array
-        
+
         for arr in [p_array, s1_array, s2_array, r1_array, r2_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         use_close = self.p.close
         use_open = self.p.open
-        
+
         for i in range(start, min(end, len(h_array), len(l_array), len(c_array))):
             o = o_array[i] if i < len(o_array) else 0.0
             h = h_array[i] if i < len(h_array) else 0.0
             low = l_array[i] if i < len(l_array) else 0.0
             c = c_array[i] if i < len(c_array) else 0.0
-            
+
             if use_close:
                 p = (h + low + 2.0 * c) / 4.0
             elif use_open:
                 p = (h + low + c + o) / 4.0
             else:
                 p = (h + low + c) / 3.0
-            
+
             p_array[i] = p
             s1_array[i] = 2.0 * p - h
             r1_array[i] = 2.0 * p - low
@@ -283,30 +285,30 @@ class FibonacciPivotPoint(Indicator):
         r1_array = self.lines.r1.array
         r2_array = self.lines.r2.array
         r3_array = self.lines.r3.array
-        
+
         for arr in [p_array, s1_array, s2_array, s3_array, r1_array, r2_array, r3_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         use_close = self.p.close
         use_open = self.p.open
         level1 = self.p.level1
         level2 = self.p.level2
         level3 = self.p.level3
-        
+
         for i in range(start, min(end, len(h_array), len(l_array), len(c_array))):
             o = o_array[i] if i < len(o_array) else 0.0
             h = h_array[i] if i < len(h_array) else 0.0
             low = l_array[i] if i < len(l_array) else 0.0
             c = c_array[i] if i < len(c_array) else 0.0
-            
+
             if use_close:
                 p = (h + low + 2.0 * c) / 4.0
             elif use_open:
                 p = (h + low + c + o) / 4.0
             else:
                 p = (h + low + c) / 3.0
-            
+
             hl_range = h - low
             p_array[i] = p
             s1_array[i] = p - level1 * hl_range
@@ -410,14 +412,14 @@ class DemarkPivotPoint(Indicator):
         low = self.data.low[0]
         o = self.data.open[0]
         c = self.data.close[0]
-        
+
         if c < o:
             x = h + 2.0 * low + c
         elif c > o:
             x = 2.0 * h + low + c
         else:
             x = h + low + 2.0 * c
-        
+
         self.lines.p[0] = x / 4.0
         self.lines.s1[0] = x / 2.0 - h
         self.lines.r1[0] = x / 2.0 - low
@@ -435,24 +437,24 @@ class DemarkPivotPoint(Indicator):
         p_array = self.lines.p.array
         s1_array = self.lines.s1.array
         r1_array = self.lines.r1.array
-        
+
         for arr in [p_array, s1_array, r1_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         for i in range(start, min(end, len(h_array), len(l_array), len(c_array), len(o_array))):
             o = o_array[i] if i < len(o_array) else 0.0
             h = h_array[i] if i < len(h_array) else 0.0
             low = l_array[i] if i < len(l_array) else 0.0
             c = c_array[i] if i < len(c_array) else 0.0
-            
+
             if c < o:
                 x = h + 2.0 * low + c
             elif c > o:
                 x = 2.0 * h + low + c
             else:
                 x = h + low + 2.0 * c
-            
+
             p_array[i] = x / 4.0
             s1_array[i] = x / 2.0 - h
             r1_array[i] = x / 2.0 - low

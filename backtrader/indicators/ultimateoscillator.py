@@ -12,8 +12,10 @@ Example:
     >>> cerebro.adddata(data)
     >>> cerebro.addindicator(bt.indicators.UltimateOscillator)
 """
-import math
-from . import Indicator, SumN, TrueLow, TrueRange
+
+from . import Indicator, TrueLow, TrueRange
+
+
 class UltimateOscillator(Indicator):
     """
     Formula:
@@ -72,16 +74,16 @@ class UltimateOscillator(Indicator):
         Combines 3 timeframes (p1, p2, p3) to reduce false signals.
         """
         p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3
-        
+
         # Calculate BP and TR sums for each period
         bp_sum1 = tr_sum1 = 0.0
         bp_sum2 = tr_sum2 = 0.0
         bp_sum3 = tr_sum3 = 0.0
-        
+
         for i in range(p3):
             bp = self.data.close[-i] - self.truelow[-i]
             tr = self.truerange[-i]
-            
+
             if i < p1:
                 bp_sum1 += bp
                 tr_sum1 += tr
@@ -90,11 +92,11 @@ class UltimateOscillator(Indicator):
                 tr_sum2 += tr
             bp_sum3 += bp
             tr_sum3 += tr
-        
+
         av7 = bp_sum1 / tr_sum1 if tr_sum1 != 0 else 0.0
         av14 = bp_sum2 / tr_sum2 if tr_sum2 != 0 else 0.0
         av28 = bp_sum3 / tr_sum3 if tr_sum3 != 0 else 0.0
-        
+
         factor = 100.0 / 7.0
         self.lines.uo[0] = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28
 
@@ -108,25 +110,30 @@ class UltimateOscillator(Indicator):
         tr_array = self.truerange.lines[0].array
         larray = self.lines.uo.array
         p1, p2, p3 = self.p.p1, self.p.p2, self.p.p3
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(min(p3 - 1, len(close_array))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         for i in range(p3 - 1, min(end, len(close_array), len(tl_array), len(tr_array))):
             bp_sum1 = tr_sum1 = 0.0
             bp_sum2 = tr_sum2 = 0.0
             bp_sum3 = tr_sum3 = 0.0
-            
+
             for j in range(p3):
                 idx = i - j
-                if idx >= 0 and idx < len(close_array) and idx < len(tl_array) and idx < len(tr_array):
+                if (
+                    idx >= 0
+                    and idx < len(close_array)
+                    and idx < len(tl_array)
+                    and idx < len(tr_array)
+                ):
                     bp = close_array[idx] - tl_array[idx]
                     tr = tr_array[idx]
-                    
+
                     if j < p1:
                         bp_sum1 += bp
                         tr_sum1 += tr
@@ -135,10 +142,10 @@ class UltimateOscillator(Indicator):
                         tr_sum2 += tr
                     bp_sum3 += bp
                     tr_sum3 += tr
-            
+
             av7 = bp_sum1 / tr_sum1 if tr_sum1 != 0 else 0.0
             av14 = bp_sum2 / tr_sum2 if tr_sum2 != 0 else 0.0
             av28 = bp_sum3 / tr_sum3 if tr_sum3 != 0 else 0.0
-            
+
             factor = 100.0 / 7.0
             larray[i] = (4.0 * factor) * av7 + (2.0 * factor) * av14 + factor * av28

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Contributed Indicators Module - Community-contributed technical indicators.
 
 This module contains technical indicators contributed by the community

@@ -35,7 +35,7 @@ import pprint as pp
 from collections import OrderedDict
 
 from .dataseries import TimeFrame
-from .metabase import findowner, OwnerContext
+from .metabase import findowner
 from .observer import Observer
 from .parameters import ParameterizedBase
 from .strategy import Strategy
@@ -108,12 +108,12 @@ class Analyzer(ParameterizedBase):
     def __init__(self, *args, **kwargs):
         """
         Initialize Analyzer with basic functionality.
-        
+
         Note: __new__ removed - _children initialization moved here.
         """
         # Initialize children list (moved from __new__)
         self._children = list()
-        
+
         # Initialize parent first
         super().__init__(*args, **kwargs)
 
@@ -572,7 +572,8 @@ class TimeFrameAnalyzerBase(Analyzer):
         tadjust = datetime.timedelta(
             minutes=self.timeframe == TimeFrame.Minutes,
             seconds=self.timeframe == TimeFrame.Seconds,
-            microseconds=self.timeframe == TimeFrame.MicroSeconds)
+            microseconds=self.timeframe == TimeFrame.MicroSeconds,
+        )
 
         # Add extra day if present
         # If next day is True, adjust time to next day

@@ -24,6 +24,8 @@ from backtrader.utils.py3 import (
 )
 
 from ..utils import date2num, num2date
+
+
 class OandaData(DataBase):
     """Oanda Data Feed.
 

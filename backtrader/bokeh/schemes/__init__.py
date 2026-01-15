@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """
 Bokeh theme system.
 
@@ -8,8 +7,8 @@ Provides multiple theme configurations:
 - Tradimo: Light theme
 """
 
-from .scheme import Scheme
 from .blackly import Blackly
+from .scheme import Scheme
 from .tradimo import Tradimo
 
-__all__ = ['Scheme', 'Blackly', 'Tradimo']
+__all__ = ["Scheme", "Blackly", "Tradimo"]

@@ -13,7 +13,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.DPO, period=20)
 """
 import math
+
 from . import Indicator, MovAv
+
+
 class DetrendedPriceOscillator(Indicator):
     """
     Defined by Joe DiNapoli in his book *"Trading with DiNapoli levels"*
@@ -70,10 +73,10 @@ class DetrendedPriceOscillator(Indicator):
         ma_array = self.ma.lines[0].array
         larray = self.lines.dpo.array
         lookback = self.lookback
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(start, min(end, len(darray), len(ma_array))):
             data_val = darray[i] if i < len(darray) else 0.0
             ma_idx = i - lookback
@@ -81,7 +84,7 @@ class DetrendedPriceOscillator(Indicator):
                 ma_val = ma_array[ma_idx]
             else:
                 ma_val = float("nan")
-            
+
             if isinstance(ma_val, float) and math.isnan(ma_val):
                 larray[i] = float("nan")
             else:

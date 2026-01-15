@@ -16,7 +16,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.ATR, period=14)
 """
 import math
+
 from . import Indicator, MovAv
+
+
 class TrueHigh(Indicator):
     """
     Defined by J. Welles Wilder, Jr. in 1978 in his book *"New Concepts in
@@ -51,13 +54,13 @@ class TrueHigh(Indicator):
         high_array = self.data.high.array
         close_array = self.data.close.array
         larray = self.lines.truehigh.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         if len(high_array) > 0 and len(larray) > 0:
             larray[0] = high_array[0] if len(high_array) > 0 else 0.0
-        
+
         for i in range(1, min(end, len(high_array), len(close_array))):
             high_val = high_array[i] if i < len(high_array) else 0.0
             prev_close = close_array[i - 1] if i > 0 and i - 1 < len(close_array) else 0.0
@@ -99,13 +102,13 @@ class TrueLow(Indicator):
         low_array = self.data.low.array
         close_array = self.data.close.array
         larray = self.lines.truelow.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         if len(low_array) > 0 and len(larray) > 0:
             larray[0] = low_array[0] if len(low_array) > 0 else 0.0
-        
+
         for i in range(1, min(end, len(low_array), len(close_array))):
             low_val = low_array[i] if i < len(low_array) else 0.0
             prev_close = close_array[i - 1] if i > 0 and i - 1 < len(close_array) else 0.0
@@ -156,21 +159,23 @@ class TrueRange(Indicator):
         low_array = self.data.low.array
         close_array = self.data.close.array
         larray = self.lines.tr.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         if len(high_array) > 0 and len(low_array) > 0 and len(larray) > 0:
-            larray[0] = high_array[0] - low_array[0] if len(high_array) > 0 and len(low_array) > 0 else 0.0
-        
+            larray[0] = (
+                high_array[0] - low_array[0] if len(high_array) > 0 and len(low_array) > 0 else 0.0
+            )
+
         for i in range(1, min(end, len(high_array), len(low_array), len(close_array))):
             high_val = high_array[i] if i < len(high_array) else 0.0
             low_val = low_array[i] if i < len(low_array) else 0.0
             prev_close = close_array[i - 1] if i > 0 and i - 1 < len(close_array) else 0.0
-            
+
             truehigh = max(high_val, prev_close)
             truelow = min(low_val, prev_close)
-            
+
             if i < len(larray):
                 larray[i] = truehigh - truelow
 
@@ -256,15 +261,15 @@ class AverageTrueRange(Indicator):
         period = self.p.period
         alpha = self.alpha
         alpha1 = self.alpha1
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         # Pre-fill warmup with NaN (indices 0 to period-1)
         for i in range(min(period, len(high_array))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         # CRITICAL FIX: Always seed at index `period` (first valid ATR position)
         # regardless of the `start` parameter. The ATR needs `period` TR values,
         # and TR starts from index 1 (needs close[-1]), so first valid ATR is at index `period`.
@@ -284,18 +289,18 @@ class AverageTrueRange(Indicator):
                 larray[seed_idx] = prev_atr
         else:
             prev_atr = 0.0
-        
+
         # Calculate ATR using SMMA for all subsequent bars
         for i in range(seed_idx + 1, min(end, len(high_array), len(low_array), len(close_array))):
             truehigh = max(high_array[i], close_array[i - 1])
             truelow = min(low_array[i], close_array[i - 1])
             tr = truehigh - truelow
-            
+
             if i > 0 and i - 1 < len(larray):
                 prev_val = larray[i - 1]
                 if not (isinstance(prev_val, float) and math.isnan(prev_val)):
                     prev_atr = prev_val
-            
+
             prev_atr = prev_atr * alpha1 + tr * alpha
             if i < len(larray):
                 larray[i] = prev_atr

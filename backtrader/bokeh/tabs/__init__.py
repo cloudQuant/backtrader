@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """
 Built-in tabs module.
 
@@ -14,18 +13,18 @@ Provides the following built-in tabs:
 
 from .analyzer import AnalyzerTab
 from .config import ConfigTab
+from .live import LiveTab
 from .log import LogTab
 from .metadata import MetadataTab
-from .source import SourceTab
-from .live import LiveTab
 from .performance import PerformanceTab
+from .source import SourceTab
 
 __all__ = [
-    'AnalyzerTab',
-    'ConfigTab',
-    'LogTab',
-    'MetadataTab',
-    'SourceTab',
-    'LiveTab',
-    'PerformanceTab',
+    "AnalyzerTab",
+    "ConfigTab",
+    "LogTab",
+    "MetadataTab",
+    "SourceTab",
+    "LiveTab",
+    "PerformanceTab",
 ]

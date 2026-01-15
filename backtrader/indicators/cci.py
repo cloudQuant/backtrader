@@ -12,8 +12,10 @@ Example:
     >>> cerebro.adddata(data)
     >>> cerebro.addindicator(bt.indicators.CCI, period=20)
 """
-import math
+
 from . import Indicator, MeanDev, MovAv
+
+
 class CommodityChannelIndex(Indicator):
     """
     Introduced by Donald Lambert in 1980 to measure variations of the
@@ -77,4 +79,3 @@ class CommodityChannelIndex(Indicator):
 
         # cci = dev / (factor * meandev)
         self.lines.cci = dev / (self.p.factor * meandev)
-

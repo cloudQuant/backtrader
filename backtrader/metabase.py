@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Base classes and mixins for the Backtrader framework.
 
 This module provides the foundational infrastructure that replaces the original
@@ -33,7 +32,6 @@ Note:
     This module was created during the metaclass removal refactoring to provide
     equivalent functionality using explicit initialization patterns.
 """
-import itertools
 import math
 import sys
 import threading
@@ -81,7 +79,7 @@ class OwnerContext:
             The current owner object, or None if no owner is set or
             no owner matches the filter.
         """
-        stack = getattr(_owner_context, 'owner_stack', None)
+        stack = getattr(_owner_context, "owner_stack", None)
         if not stack:
             return None
 
@@ -102,7 +100,7 @@ class OwnerContext:
         Yields:
             None. The owner is available via get_current_owner() within the context.
         """
-        if not hasattr(_owner_context, 'owner_stack'):
+        if not hasattr(_owner_context, "owner_stack"):
             _owner_context.owner_stack = []
 
         _owner_context.owner_stack.append(owner)
@@ -118,7 +116,7 @@ class OwnerContext:
         Args:
             owner: The owner object to push.
         """
-        if not hasattr(_owner_context, 'owner_stack'):
+        if not hasattr(_owner_context, "owner_stack"):
             _owner_context.owner_stack = []
         _owner_context.owner_stack.append(owner)
 
@@ -129,7 +127,7 @@ class OwnerContext:
         Returns:
             The popped owner, or None if the stack was empty.
         """
-        stack = getattr(_owner_context, 'owner_stack', None)
+        stack = getattr(_owner_context, "owner_stack", None)
         if stack:
             return stack.pop()
         return None
@@ -137,7 +135,7 @@ class OwnerContext:
     @staticmethod
     def clear():
         """Clear the owner stack (useful for testing)."""
-        if hasattr(_owner_context, 'owner_stack'):
+        if hasattr(_owner_context, "owner_stack"):
             _owner_context.owner_stack.clear()
 
 
@@ -534,7 +532,7 @@ class BaseMixin:
         return ObjectFactory.create(cls, *args, **kwargs)
 
 
-class AutoInfoClass(object):
+class AutoInfoClass:
     """Dynamic class for storing parameter and info key-value pairs.
 
     This class provides a flexible mechanism for storing and retrieving
@@ -700,7 +698,7 @@ class AutoInfoClass(object):
 
     def __new__(cls, *args, **kwargs):
         """Create a new instance with recursive parameter initialization."""
-        obj = super(AutoInfoClass, cls).__new__(cls, *args, **kwargs)
+        obj = super().__new__(cls, *args, **kwargs)
 
         if cls._getrecurse():
             for infoname in obj._getkeys():
@@ -860,6 +858,7 @@ class ParameterManager:
             Attributes:
                 params: Self-reference for backward compatibility.
             """
+
             @classmethod
             def _getpairs(cls):
                 return all_params.copy()
@@ -1071,7 +1070,7 @@ class ParamsMixin(BaseMixin):
         # CRITICAL FIX: Auto-patch __init__ methods of indicators to ensure proper parameter handling
         if hasattr(cls, "__init__") and "__init__" in cls.__dict__:
             original_init = cls.__init__
-            
+
             # CRITICAL FIX: Store the original __init__ so Strategy can call it directly
             # This prevents infinite recursion when Strategy.user_init tries to call cls.__init__
             cls._original_init = original_init
@@ -1596,7 +1595,7 @@ class ParamsMixin(BaseMixin):
 ParamsBase = ParamsMixin
 
 
-class ItemCollection(object):
+class ItemCollection:
     """Collection that allows access by both index and name.
 
     This class holds a list of items that can be accessed either by their

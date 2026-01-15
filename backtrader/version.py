@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Version Module - Backtrader version information.
 
 This module contains version information for the backtrader package.

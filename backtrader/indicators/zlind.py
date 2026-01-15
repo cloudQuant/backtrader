@@ -16,6 +16,8 @@ from backtrader.utils.py3 import MAXINT
 
 from . import MovingAverageBase
 from .ema import EMA
+
+
 class ZeroLagIndicator(MovingAverageBase):
     """By John Ehlers and Ric Way
 

@@ -13,7 +13,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.WilliamsR, period=14)
 """
 import math
-from . import Accum, DownDay, Highest, If, Indicator, Lowest, TrueHigh, TrueLow, UpDay
+
+from . import DownDay, Highest, Indicator, Lowest, TrueHigh, TrueLow, UpDay
+
+
 class WilliamsR(Indicator):
     """
     Developed by Larry Williams to show the relation of closing prices to
@@ -76,15 +79,15 @@ class WilliamsR(Indicator):
         l_array = self.lowest.lines[0].array
         c_array = self.data.close.array
         larray = self.lines.percR.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(start, min(end, len(h_array), len(l_array), len(c_array))):
             h = h_array[i] if i < len(h_array) else 0.0
             low = l_array[i] if i < len(l_array) else 0.0
             c = c_array[i] if i < len(c_array) else 0.0
-            
+
             if isinstance(h, float) and math.isnan(h):
                 larray[i] = float("nan")
             elif isinstance(low, float) and math.isnan(low):
@@ -133,17 +136,17 @@ class WilliamsAD(Indicator):
         """
         upday_val = self.upday[0]
         downday_val = self.downday[0]
-        
+
         if upday_val > 0:
             adup = self.data.close[0] - self.truelow[0]
         else:
             adup = 0.0
-        
+
         if downday_val > 0:
             addown = self.data.close[0] - self.truehigh[0]
         else:
             addown = 0.0
-        
+
         self._accum += adup + addown
         self.lines.ad[0] = self._accum
 
@@ -158,10 +161,10 @@ class WilliamsAD(Indicator):
         truehigh_array = self.truehigh.lines[0].array
         c_array = self.data.close.array
         larray = self.lines.ad.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         accum = 0.0
         for i in range(start, min(end, len(upday_array), len(downday_array), len(c_array))):
             upday_val = upday_array[i] if i < len(upday_array) else 0.0
@@ -169,16 +172,16 @@ class WilliamsAD(Indicator):
             close = c_array[i] if i < len(c_array) else 0.0
             tl = truelow_array[i] if i < len(truelow_array) else 0.0
             th = truehigh_array[i] if i < len(truehigh_array) else 0.0
-            
+
             if upday_val > 0:
                 adup = close - tl
             else:
                 adup = 0.0
-            
+
             if downday_val > 0:
                 addown = close - th
             else:
                 addown = 0.0
-            
+
             accum += adup + addown
             larray[i] = accum

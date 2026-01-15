@@ -13,8 +13,11 @@ Example:
     >>> cerebro.addindicator(bt.indicators.WMA, period=20)
 """
 import math
+
 from ..utils.py3 import range
 from . import MovingAverageBase
+
+
 class WeightedMovingAverage(MovingAverageBase):
     """
     A Moving Average which gives an arithmetic weighting to values with the
@@ -52,11 +55,11 @@ class WeightedMovingAverage(MovingAverageBase):
         period = self.p.period
         coef = self.coef
         weights = self.weights
-        
+
         weighted_sum = 0.0
         for i in range(period):
             weighted_sum += weights[period - 1 - i] * self.data[-i]
-        
+
         self.lines.wma[0] = coef * weighted_sum
 
     def once(self, start, end):
@@ -69,15 +72,15 @@ class WeightedMovingAverage(MovingAverageBase):
         period = self.p.period
         coef = self.coef
         weights = self.weights
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         # Pre-fill warmup with NaN
         for i in range(min(period - 1, len(darray))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         for i in range(period - 1, min(end, len(darray))):
             weighted_sum = 0.0
             for j in range(period):
@@ -86,7 +89,7 @@ class WeightedMovingAverage(MovingAverageBase):
                     val = darray[idx]
                     if not (isinstance(val, float) and math.isnan(val)):
                         weighted_sum += weights[period - 1 - j] * val
-            
+
             if i < len(larray):
                 larray[i] = coef * weighted_sum
 

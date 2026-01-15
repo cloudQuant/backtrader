@@ -16,6 +16,7 @@ Example:
     ... )
     >>> cerebro.setbroker(store.getbroker())
 """
+
 import collections
 
 from ..broker import BrokerBase
@@ -82,8 +83,12 @@ class CTPBroker(BrokerBase):
             if positions is None:
                 return
             for p in positions:  # Same symbol may have one long and one short position record
-                size = p["volume"] if p["direction"] == "long" else -p["volume"]  # Short position is negative
-                price = p["price"]  # Write later, handling long and short positions simultaneously is slightly more complex
+                size = (
+                    p["volume"] if p["direction"] == "long" else -p["volume"]
+                )  # Short position is negative
+                price = p[
+                    "price"
+                ]  # Write later, handling long and short positions simultaneously is slightly more complex
                 final_size = (
                     self.positions[p["local_symbol"]].size + size
                 )  # Set local net position size (after loop it's net position, because long and short have been offset)

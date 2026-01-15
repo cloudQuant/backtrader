@@ -12,6 +12,7 @@ Example:
     >>> store = bt.stores.CryptoStore(exchange_params)
     >>> cerebro.setbroker(store.getbroker())
 """
+
 import collections
 from datetime import datetime
 

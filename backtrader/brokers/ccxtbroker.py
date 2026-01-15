@@ -335,7 +335,9 @@ class CCXTBroker(BrokerBase):
             status = ccxt_order["status"]
 
             # Check for new fills
-            if "trades" in ccxt_order and ccxt_order["trades"] is not None:  # Check if this order has fills
+            if (
+                "trades" in ccxt_order and ccxt_order["trades"] is not None
+            ):  # Check if this order has fills
                 for fill in ccxt_order["trades"]:  # Iterate through all fills of this order
                     if fill not in o_order.executed_fills:  # Whether this fill has been processed
                         fill_id, fill_dt, fill_size, fill_price = (
@@ -344,7 +346,9 @@ class CCXTBroker(BrokerBase):
                             fill["amount"],
                             fill["price"],
                         )
-                        o_order.executed_fills.append(fill_id)  # Record that this fill has been processed
+                        o_order.executed_fills.append(
+                            fill_id
+                        )  # Record that this fill has been processed
                         fill_size = (
                             fill_size if o_order.isbuy() else -fill_size
                         )  # Meet backtrader specification, sell orders or short positions use negative numbers
@@ -365,14 +369,20 @@ class CCXTBroker(BrokerBase):
                         )  # Process this fill, internally marks order status, partial or complete fill
                         # Prepare to notify upper strategy
                         # self.get_balance() #Refresh account balance (balance no longer updated, reduce communication to improve performance, can be updated as needed in strategy)
-                        pos = self.getposition(o_order.data, clone=False)  # Get corresponding position
+                        pos = self.getposition(
+                            o_order.data, clone=False
+                        )  # Get corresponding position
                         pos.update(fill_size, fill_price)  # Refresh position
                         # -------------------------------------------------------------------
                         # Using order.executed.remsize to judge if all filled may be unreliable for market buy orders,
                         # so use following code to judge if partial or complete fill
-                        if status == "open":  # If status is still open when there are fills, it must be partially filled
+                        if (
+                            status == "open"
+                        ):  # If status is still open when there are fills, it must be partially filled
                             o_order.partial()
-                        elif status == "closed":  # If status is closed when there are fills, it means completely filled
+                        elif (
+                            status == "closed"
+                        ):  # If status is closed when there are fills, it means completely filled
                             o_order.completed()
                         # -------------------------------------------------------------------
                         self.notify(o_order.clone())  # Notify strategy
@@ -382,13 +392,17 @@ class CCXTBroker(BrokerBase):
                     ccxt_order["filled"],
                     ccxt_order["average"],
                 )
-                if cum_fill_size > abs(o_order.executed.size):  # Check if there are new fills this time
+                if cum_fill_size > abs(
+                    o_order.executed.size
+                ):  # Check if there are new fills this time
                     new_cum_fill_value = (
                         cum_fill_size * average_fill_price
                     )  # Cumulative fill quantity * average fill price = cumulative fill total value
                     old_cum_fill_value = abs(o_order.executed.size) * o_order.executed.price
                     fill_value = new_cum_fill_value - old_cum_fill_value  # Value of this new fill
-                    fill_size = cum_fill_size - abs(o_order.executed.size)  # Quantity of this new fill
+                    fill_size = cum_fill_size - abs(
+                        o_order.executed.size
+                    )  # Quantity of this new fill
                     fill_price = fill_value / fill_size  # Price of this new fill
                     fill_size = (
                         fill_size if o_order.isbuy() else -fill_size
@@ -403,9 +417,13 @@ class CCXTBroker(BrokerBase):
                     # -------------------------------------------------------------------
                     # Using order.executed.remsize to judge if all filled may be unreliable for market buy orders,
                     # so use following code to judge if partial or complete fill
-                    if status == "open":  # If status is still open when there are fills, it must be partially filled
+                    if (
+                        status == "open"
+                    ):  # If status is still open when there are fills, it must be partially filled
                         o_order.partial()
-                    elif status == "closed":  # If status is closed when there are fills, it means completely filled
+                    elif (
+                        status == "closed"
+                    ):  # If status is closed when there are fills, it means completely filled
                         o_order.completed()
                     # -------------------------------------------------------------------
                     self.notify(o_order.clone())  # Notify strategy

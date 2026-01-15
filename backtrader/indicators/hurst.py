@@ -17,6 +17,8 @@ from numpy import asarray, isnan, log10, polyfit, sqrt, std, subtract
 from . import PeriodN
 
 __all__ = ["HurstExponent", "Hurst"]
+
+
 class HurstExponent(PeriodN):
     """
      References:

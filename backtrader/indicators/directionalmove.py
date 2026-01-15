@@ -64,10 +64,10 @@ class UpMove(Indicator):
         """
         darray = self.data.array
         larray = self.lines.upmove.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(1, min(end, len(darray))):
             larray[i] = darray[i] - darray[i - 1]
 
@@ -111,10 +111,10 @@ class DownMove(Indicator):
         """
         darray = self.data.array
         larray = self.lines.downmove.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(1, min(end, len(darray))):
             larray[i] = darray[i - 1] - darray[i]
 
@@ -435,7 +435,6 @@ class AverageDirectionalMovementIndex(Indicator):
 
         Calculates initial DM, DI, DX, and ADX values.
         """
-        period = self.p.period
         idx = self.lines[0].idx
 
         # Get ATR value
@@ -507,55 +506,54 @@ class AverageDirectionalMovementIndex(Indicator):
     def once(self, start, end):
         """Calculate ADX in runonce mode"""
         import math
-        
+
         # Get source arrays
         high_array = self.data.high.array
         low_array = self.data.low.array
         atr_array = self.atr.lines[0].array
         adx_array = self.lines.adx.array
-        
-        period = self.p.period
+
         alpha = self.alpha
         alpha1 = self.alpha1
-        
+
         # Ensure arrays are sized
         while len(adx_array) < end:
             adx_array.append(0.0)
-        
+
         # Initialize smoothed values
         plusDMav = 0.0
         minusDMav = 0.0
         adx_val = 0.0
-        
+
         for i in range(start, min(end, len(high_array), len(low_array))):
             if i < 1:
                 adx_array[i] = 0.0
                 continue
-            
+
             # Get ATR
             atr_val = atr_array[i] if i < len(atr_array) else 0.0
             if atr_val == 0 or (isinstance(atr_val, float) and math.isnan(atr_val)):
                 atr_val = 0.0001
-            
+
             # Calculate directional moves
             upmove = high_array[i] - high_array[i - 1]
             downmove = low_array[i - 1] - low_array[i]
-            
+
             plusDM = upmove if (upmove > downmove and upmove > 0) else 0.0
             minusDM = downmove if (downmove > upmove and downmove > 0) else 0.0
-            
+
             # Smooth DM values
             plusDMav = plusDMav * alpha1 + plusDM * alpha
             minusDMav = minusDMav * alpha1 + minusDM * alpha
-            
+
             # Calculate DI
             diplus = 100.0 * plusDMav / atr_val
             diminus = 100.0 * minusDMav / atr_val
-            
+
             # Calculate DX
             disum = diplus + diminus
             dx = 100.0 * abs(diplus - diminus) / disum if disum != 0 else 0.0
-            
+
             # Smooth ADX
             adx_val = adx_val * alpha1 + dx * alpha
             adx_array[i] = adx_val
@@ -623,18 +621,23 @@ class AverageDirectionalMovementIndexRating(AverageDirectionalMovementIndex):
         """
         super().once(start, end)
         import math
+
         adx_array = self.lines.adx.array
         adxr_array = self.lines.adxr.array
         period = self.p.period
-        
+
         while len(adxr_array) < end:
             adxr_array.append(0.0)
-        
+
         for i in range(start, min(end, len(adx_array))):
             if i >= period:
                 adx_curr = adx_array[i] if i < len(adx_array) else 0.0
-                adx_prev = adx_array[i - period] if i - period >= 0 and i - period < len(adx_array) else 0.0
-                
+                adx_prev = (
+                    adx_array[i - period]
+                    if i - period >= 0 and i - period < len(adx_array)
+                    else 0.0
+                )
+
                 if isinstance(adx_curr, float) and math.isnan(adx_curr):
                     adxr_array[i] = float("nan")
                 elif isinstance(adx_prev, float) and math.isnan(adx_prev):

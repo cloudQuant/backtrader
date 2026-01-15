@@ -13,8 +13,10 @@ Example:
     >>> cerebro.adddata(data)
     >>> cerebro.addindicator(bt.indicators.SMMA, period=14)
 """
-import math
+
 from . import MovingAverageBase
+
+
 class SmoothedMovingAverage(MovingAverageBase):
     """
     Smoothing Moving Average used by Wilder in his 1978 book `New Concepts in
@@ -95,7 +97,7 @@ class SmoothedMovingAverage(MovingAverageBase):
         # Calculate seed value (SMA of first period values)
         seed_idx = period - 1
         if seed_idx < len(darray):
-            seed_sum = sum(darray[0:seed_idx + 1])
+            seed_sum = sum(darray[0 : seed_idx + 1])
             prev = seed_sum / period
             larray[seed_idx] = prev
         else:

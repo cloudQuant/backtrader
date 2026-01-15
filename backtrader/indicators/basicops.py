@@ -38,6 +38,8 @@ import operator
 
 from ..utils.py3 import map, range
 from . import Indicator
+
+
 class PeriodN(Indicator):
     """
     Base class for indicators which take a period (__init__ has to be called

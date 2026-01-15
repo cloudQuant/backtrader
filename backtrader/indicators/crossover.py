@@ -122,8 +122,8 @@ class CrossOver(Indicator):
         super().__init__()
         # CRITICAL FIX: Inherit minperiod from data sources first
         # This is needed because the framework's automatic inheritance isn't working
-        if hasattr(self, 'datas') and self.datas:
-            data_minperiods = [getattr(d, '_minperiod', 1) for d in self.datas]
+        if hasattr(self, "datas") and self.datas:
+            data_minperiods = [getattr(d, "_minperiod", 1) for d in self.datas]
             self._minperiod = max([self._minperiod] + data_minperiods)
         # CRITICAL FIX: Add minperiod for lookback requirement (nzd(-1) in master)
         # addminperiod(n) adds n-1 to minperiod, so addminperiod(2) adds 1
@@ -162,9 +162,9 @@ class CrossOver(Indicator):
 
         # Check if we're in replay mode by checking owner's datas for replaying attribute
         is_replay = False
-        if hasattr(self, '_owner') and hasattr(self._owner, 'datas'):
+        if hasattr(self, "_owner") and hasattr(self._owner, "datas"):
             for data in self._owner.datas:
-                if hasattr(data, 'replaying') and data.replaying > 0:
+                if hasattr(data, "replaying") and data.replaying > 0:
                     is_replay = True
                     break
 
@@ -205,14 +205,14 @@ class CrossOver(Indicator):
 
         # Check if we're in replay mode
         is_replay = False
-        if hasattr(self, '_owner') and hasattr(self._owner, 'datas'):
+        if hasattr(self, "_owner") and hasattr(self._owner, "datas"):
             for data in self._owner.datas:
-                if hasattr(data, 'replaying') and data.replaying > 0:
+                if hasattr(data, "replaying") and data.replaying > 0:
                     is_replay = True
                     break
 
         # Only defer crossover calculation in replay mode
-        if is_replay and hasattr(self.lines[0], 'idx') and hasattr(self.lines[0], '__len__'):
+        if is_replay and hasattr(self.lines[0], "idx") and hasattr(self.lines[0], "__len__"):
             current_idx = self.lines[0].idx
             current_len = len(self.lines[0])
             # If idx < len - 1, we're still filling the current bar, not at a new bar yet
@@ -295,9 +295,9 @@ class CrossOver(Indicator):
         # This prevents false positive crossovers at the start of replay data.
         # ONLY apply this fix when in replay mode.
         is_replay = False
-        if hasattr(self, '_owner') and hasattr(self._owner, 'datas'):
+        if hasattr(self, "_owner") and hasattr(self._owner, "datas"):
             for data in self._owner.datas:
-                if hasattr(data, 'replaying') and data.replaying > 0:
+                if hasattr(data, "replaying") and data.replaying > 0:
                     is_replay = True
                     break
 

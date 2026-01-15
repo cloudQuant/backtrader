@@ -14,7 +14,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.PGO, period=14)
 """
 import math
+
 from . import ATR, Indicator, MovAv
+
+
 class PrettyGoodOscillator(Indicator):
     """
     The "Pretty Good Oscillator" (PGO) by Mark Johnson measures the distance of
@@ -75,15 +78,15 @@ class PrettyGoodOscillator(Indicator):
         ma_array = self.movav.lines[0].array
         atr_array = self.atr.lines[0].array
         larray = self.lines.pgo.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(start, min(end, len(darray), len(ma_array), len(atr_array))):
             data_val = darray[i] if i < len(darray) else 0.0
             ma_val = ma_array[i] if i < len(ma_array) else 0.0
             atr_val = atr_array[i] if i < len(atr_array) else 0.0
-            
+
             if isinstance(ma_val, float) and math.isnan(ma_val):
                 larray[i] = float("nan")
             elif isinstance(atr_val, float) and math.isnan(atr_val):

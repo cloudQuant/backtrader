@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Math Support Module - Mathematical functions for indicator calculations.
 
 This module provides mathematical utility functions for calculating

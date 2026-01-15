@@ -14,8 +14,11 @@ Example:
     >>> cerebro.addindicator(bt.indicators.TRIX, period=15)
 """
 import math
+
 from . import Indicator
 from .ema import EMA
+
+
 class Trix(Indicator):
     """
     Defined by Jack Hutson in the 80s and shows the Rate of Change (%) or slope
@@ -87,18 +90,22 @@ class Trix(Indicator):
         larray = self.lines.trix.array
         rocperiod = self.p._rocperiod
         minperiod = 3 * self.p.period + rocperiod - 2
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(min(minperiod, len(ema3_array))):
             if i < len(larray):
                 larray[i] = float("nan")
-        
+
         for i in range(minperiod, min(end, len(ema3_array))):
             ema3_curr = ema3_array[i] if i < len(ema3_array) else 0.0
-            ema3_prev = ema3_array[i - rocperiod] if i >= rocperiod and i - rocperiod < len(ema3_array) else 0.0
-            
+            ema3_prev = (
+                ema3_array[i - rocperiod]
+                if i >= rocperiod and i - rocperiod < len(ema3_array)
+                else 0.0
+            )
+
             if isinstance(ema3_curr, float) and math.isnan(ema3_curr):
                 larray[i] = float("nan")
             elif isinstance(ema3_prev, float) and math.isnan(ema3_prev):
@@ -147,7 +154,9 @@ class TrixSignal(Trix):
         Signal line is EMA of TRIX values.
         """
         super().next()
-        self.lines.signal[0] = self.lines.signal[-1] * self.signal_alpha1 + self.lines.trix[0] * self.signal_alpha
+        self.lines.signal[0] = (
+            self.lines.signal[-1] * self.signal_alpha1 + self.lines.trix[0] * self.signal_alpha
+        )
 
     def once(self, start, end):
         """Calculate TRIX Signal in runonce mode.
@@ -157,13 +166,12 @@ class TrixSignal(Trix):
         super().once(start, end)
         trix_array = self.lines.trix.array
         signal_array = self.lines.signal.array
-        sigperiod = self.p.sigperiod
         signal_alpha = self.signal_alpha
         signal_alpha1 = self.signal_alpha1
-        
+
         while len(signal_array) < end:
             signal_array.append(0.0)
-        
+
         # Find first valid trix value for seed
         seed_idx = -1
         for i in range(len(trix_array)):
@@ -172,11 +180,11 @@ class TrixSignal(Trix):
                 if not (isinstance(val, float) and math.isnan(val)):
                     seed_idx = i
                     break
-        
+
         if seed_idx >= 0 and seed_idx < len(signal_array):
             prev_signal = trix_array[seed_idx]
             signal_array[seed_idx] = prev_signal
-            
+
             for i in range(seed_idx + 1, min(end, len(trix_array))):
                 trix_val = trix_array[i] if i < len(trix_array) else 0.0
                 if isinstance(trix_val, float) and math.isnan(trix_val):

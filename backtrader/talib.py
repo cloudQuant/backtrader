@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """TA-Lib Integration Module - Wrapper for TA-Lib indicators.
 
 This module provides integration with TA-Lib (Technical Analysis Library),
@@ -75,7 +74,7 @@ else:
                 **kwargs: Keyword arguments for indicator parameters.
             """
             # First call parent class initialization
-            super(_TALibIndicator, self).__init__(*args, **kwargs)
+            super().__init__(*args, **kwargs)
 
             # Execute logic originally in dopostinit
             self._init_talib_indicator()
@@ -224,16 +223,16 @@ else:
             fsize = self.size()
             lsize = fsize - getattr(self, "_iscandle", False)
             if lsize == 1:  # only 1 output, no tuple returned
-                self.lines[0].array = array.array(str("d"), output)
+                self.lines[0].array = array.array("d", output)
 
                 if fsize > lsize:  # candle is present
                     candleref = narrays[self.CANDLEREF] * self.CANDLEOVER
                     output2 = candleref * (output / 100.0)
-                    self.lines[1].array = array.array(str("d"), output2)
+                    self.lines[1].array = array.array("d", output2)
 
             else:
                 for i, o in enumerate(output):
-                    self.lines[i].array = array.array(str("d"), o)
+                    self.lines[i].array = array.array("d", o)
 
         # Run for each bar
         def next(self):

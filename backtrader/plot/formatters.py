@@ -120,6 +120,7 @@ def patch_locator(locator, xdates):
         locator: matplotlib date locator instance to patch.
         xdates: Array of dates in backtrader's internal format.
     """
+
     def _patched_datalim_to_dt(self):
         dmin, dmax = self.axis.get_data_interval()
 
@@ -156,6 +157,7 @@ def patch_formatter(formatter, xdates):
         formatter: matplotlib date formatter instance to patch.
         xdates: Array of dates in backtrader's internal format.
     """
+
     def newcall(self, x, pos=0):
         if False and x < 0:
             raise ValueError(

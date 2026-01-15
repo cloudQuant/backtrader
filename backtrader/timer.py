@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Timer Module - Time-based event scheduling.
 
 This module provides the Timer class for scheduling time-based notifications
@@ -108,7 +107,7 @@ class Timer(ParameterizedBase):
         self.kwargs = kwargs
 
         # Call parent class initialization
-        super(Timer, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         # Initialize internal state variables
         self._weekmask = None

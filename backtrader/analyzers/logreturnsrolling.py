@@ -118,9 +118,7 @@ class LogReturnsRolling(TimeFrameAnalyzerBase):
             self._fundmode = self.p.fund
         # The special part is that self._values is set as a queue, where self.compression parameter controls how many elements the queue saves
         # Note: use self.compression (set in _start from data) not self.p.compression (which may be None)
-        self._values = collections.deque(
-            [float("Nan")] * self.compression, maxlen=self.compression
-        )
+        self._values = collections.deque([float("Nan")] * self.compression, maxlen=self.compression)
 
         if self.p.data is None:
             # keep the initial portfolio value if not tracing data

@@ -27,8 +27,7 @@ import datetime
 import inspect
 import os.path
 
-from . import dataseries
-from . import metabase
+from . import dataseries, metabase
 from .dataseries import SimpleFilterWrapper, TimeFrame
 from .resamplerfilter import Replayer, Resampler
 from .tradingcal import PandasMarketCalendar
@@ -249,7 +248,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
 
     def _find_feed_owner(self):
         """Find the feed owner using metabase.findowner.
-        
+
         This method delegates to metabase.findowner which uses
         OwnerContext for explicit owner management.
         """
@@ -937,6 +936,7 @@ class DataBase(AbstractDataBase):
     Inherits all functionality from AbstractDataBase.
     This is the standard data feed class for most use cases.
     """
+
     pass
 
 

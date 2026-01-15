@@ -17,6 +17,8 @@ from math import fsum
 from . import BaseApplyN
 
 __all__ = ["PercentRank", "PctRank"]
+
+
 class PercentRank(BaseApplyN):
     """
     Measures the percent rank of the current value with respect to that of

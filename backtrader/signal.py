@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Signal Module - Signal indicator for trading strategies.
 
 This module provides the Signal indicator which wraps a data line

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Trading Calendar Module - Market calendar and session handling.
 
 This module provides trading calendar functionality for handling market
@@ -64,6 +63,7 @@ class TradingCalendarBase(ParameterizedBase):
         last_weekday(day): Returns True if day is last trading day of week.
         last_monthday(day): Returns True if day is last trading day of month.
     """
+
     # Return the next trading day after day and calendar composition
     def _nextday(self, day):
         """
@@ -190,7 +190,7 @@ class TradingCalendar(TradingCalendarBase):
         Args:
             **kwargs: Keyword arguments for calendar parameters.
         """
-        super(TradingCalendar, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._earlydays = [x[0] for x in self.p.earlydays]  # speed up searches
 
     # Get the next trading day
@@ -298,7 +298,7 @@ class PandasMarketCalendar(TradingCalendarBase):
         Args:
             **kwargs: Keyword arguments for calendar parameters.
         """
-        super(PandasMarketCalendar, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         self._calendar = self.p.calendar
         # If self._calendar is a string, use get_calendar to convert to calendar instance
         if isinstance(self._calendar, string_types):  # use passed mkt name

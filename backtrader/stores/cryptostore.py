@@ -11,6 +11,7 @@ Example:
     >>> store = bt.stores.CryptoStore(exchange_params)
     >>> cerebro.setbroker(store.getbroker())
 """
+
 import queue
 import time
 import traceback

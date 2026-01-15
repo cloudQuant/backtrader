@@ -18,6 +18,8 @@ Example:
     >>> cerebro.addindicator(bt.indicators.AroonUpDown, period=14)
 """
 from . import FindFirstIndexHighest, FindFirstIndexLowest, Indicator
+
+
 class _AroonBase(Indicator):
     """
     Base class which does the calculation of the AroonUp/AroonDown values and
@@ -254,17 +256,18 @@ class AroonOscillator(_AroonBase):
         Computes oscillator as difference of up and down values.
         """
         import math
+
         up_array = self.up.lines[0].array
         down_array = self.down.lines[0].array
         aroonosc_array = self.lines.aroonosc.array
-        
+
         while len(aroonosc_array) < end:
             aroonosc_array.append(0.0)
-        
+
         for i in range(start, min(end, len(up_array), len(down_array))):
             up_val = up_array[i] if i < len(up_array) else 0.0
             down_val = down_array[i] if i < len(down_array) else 0.0
-            
+
             if isinstance(up_val, float) and math.isnan(up_val):
                 aroonosc_array[i] = float("nan")
             elif isinstance(down_val, float) and math.isnan(down_val):

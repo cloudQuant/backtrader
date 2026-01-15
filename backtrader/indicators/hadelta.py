@@ -13,11 +13,13 @@ Example:
     >>> cerebro.adddata(data)
     >>> cerebro.addindicator(bt.indicators.HaDelta)
 """
-import math
+
 from . import Indicator
 from .sma import SMA
 
 __all__ = ["HaDelta", "haD", "haDelta"]
+
+
 class HaDelta(Indicator):
     """Heikin Ashi Delta. Defined by Dan Valcu in his book "Heikin-Ashi: How to
     Trade Without Candlestick Patterns ".
@@ -65,7 +67,7 @@ class HaDelta(Indicator):
         self._prev_ha_close = 0.0
         self._prev_ha_open = 0.0
         self._first_bar = True
-        
+
         # Set minperiod = period + 1 to match expected behavior
         self.addminperiod(self.p.period + 1)
 
@@ -73,20 +75,21 @@ class HaDelta(Indicator):
         """Calculate Heikin Ashi values for current bar inline."""
         if self._autoheikin:
             # ha_close = (open + high + low + close) / 4
-            ha_close = (self.data.open[0] + self.data.high[0] + 
-                       self.data.low[0] + self.data.close[0]) / 4.0
-            
+            ha_close = (
+                self.data.open[0] + self.data.high[0] + self.data.low[0] + self.data.close[0]
+            ) / 4.0
+
             # ha_open = (prev_ha_open + prev_ha_close) / 2
             if self._first_bar:
                 ha_open = (self.data.open[0] + self.data.close[0]) / 2.0
                 self._first_bar = False
             else:
                 ha_open = (self._prev_ha_open + self._prev_ha_close) / 2.0
-            
+
             # Store for next bar
             self._prev_ha_close = ha_close
             self._prev_ha_open = ha_open
-            
+
             return ha_close - ha_open
         else:
             return self.data.close[0] - self.data.open[0]
@@ -143,41 +146,41 @@ class HaDelta(Indicator):
         h_array = self.data.high.array
         l_array = self.data.low.array
         c_array = self.data.close.array
-        
+
         hd_array = self.lines.haDelta.array
         sm_array = self.lines.smoothed.array
         period = self.p.period
-        
+
         # Ensure arrays are properly sized
         for arr in [hd_array, sm_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         data_end = min(end, len(o_array), len(h_array), len(l_array), len(c_array))
-        
+
         if self._autoheikin:
             # Calculate HeikinAshi values inline
             prev_ha_close = 0.0
             prev_ha_open = 0.0
-            
+
             for i in range(0, data_end):
                 # ha_close = (open + high + low + close) / 4
                 ha_close = (o_array[i] + h_array[i] + l_array[i] + c_array[i]) / 4.0
-                
+
                 # ha_open = (prev_ha_open + prev_ha_close) / 2
                 if i == 0:
                     ha_open = (o_array[i] + c_array[i]) / 2.0
                 else:
                     ha_open = (prev_ha_open + prev_ha_close) / 2.0
-                
+
                 hd_array[i] = ha_close - ha_open
-                
+
                 prev_ha_close = ha_close
                 prev_ha_open = ha_open
         else:
             for i in range(0, data_end):
                 hd_array[i] = c_array[i] - o_array[i]
-        
+
         # Calculate smoothed (SMA of haDelta)
         for i in range(0, min(end, len(hd_array))):
             if i < period - 1:

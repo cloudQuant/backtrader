@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """MultiCursor Widget Module for Matplotlib.
 
 This module provides MultiCursor widgets for matplotlib that display vertical

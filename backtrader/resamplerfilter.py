@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Resampler and Filter Module - Data resampling and replay functionality.
 
 This module provides classes for resampling data to different timeframes
@@ -27,7 +26,7 @@ from .utils.date import date2num, num2date
 
 # This class is only used in the _checkbarover function
 # chkdata = DTFaker(data, forcedata) if fromcheck else data
-class DTFaker(object):
+class DTFaker:
     """Provides fake datetime for data sources that need periodic checks.
 
     This class is used for real-time data feeds that return None from _load
@@ -203,7 +202,7 @@ class _BaseResampler(ParameterizedBase):
             data: The data source to resample.
             **kwargs: Additional parameters for the resampler.
         """
-        super(_BaseResampler, self).__init__(**kwargs)
+        super().__init__(**kwargs)
         # If timeframe is less than day but greater than tick, subdays is True, subdays represents intraday timeframe
         self.subdays = TimeFrame.Ticks < self.p.timeframe < TimeFrame.Days
         # If timeframe is less than week, subweeks is True

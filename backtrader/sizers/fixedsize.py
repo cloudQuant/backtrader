@@ -12,6 +12,8 @@ Example:
 """
 from ..parameters import Int, ParameterDescriptor
 from ..sizer import Sizer
+
+
 class FixedSize(Sizer):
     """
     This sizer simply returns a fixed size for any operation.

@@ -25,11 +25,13 @@ from ..comminfo import CommInfoBase
 
 class CommInfo(CommInfoBase):
     """Base commission scheme with percentage-based commission."""
+
     pass  # clone of CommissionInfo but with xx% instead of 0.xx
 
 
 class CommInfoFutures(CommInfoBase):
     """Futures commission scheme."""
+
     params = (("stocklike", False),)
 
 

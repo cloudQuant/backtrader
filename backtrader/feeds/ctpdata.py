@@ -18,6 +18,7 @@ Example:
     ... )
     >>> cerebro.adddata(data)
 """
+
 from datetime import datetime
 
 import akshare as ak

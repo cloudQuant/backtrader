@@ -1159,10 +1159,7 @@ class Cerebro(ParameterizedBase):
             for stratlist in self.runstrats:
                 for strat in stratlist:
                     # Check if Transactions analyzer already exists
-                    has_txn = any(
-                        a.__class__.__name__ == "Transactions" 
-                        for a in strat.analyzers
-                    )
+                    has_txn = any(a.__class__.__name__ == "Transactions" for a in strat.analyzers)
                     if not has_txn:
                         # Add Transactions analyzer retroactively is not possible
                         # So we'll rely on broker.orders instead
@@ -2128,25 +2125,22 @@ class Cerebro(ParameterizedBase):
             riskfree_rate: Risk-free rate, default 0.01 (1%)
         """
         from . import analyzers
-        
-        self.addanalyzer(analyzers.SharpeRatio,
-                        _name="sharperatio",
-                        riskfreerate=riskfree_rate,
-                        timeframe=TimeFrame.Months)
-        self.addanalyzer(analyzers.DrawDown,
-                        _name="drawdown")
-        self.addanalyzer(analyzers.TradeAnalyzer,
-                        _name="tradeanalyzer")
-        self.addanalyzer(analyzers.SQN,
-                        _name="sqn")
-        self.addanalyzer(analyzers.AnnualReturn,
-                        _name="annualreturn")
-        self.addanalyzer(analyzers.TimeReturn,
-                        _name="timereturn",
-                        timeframe=TimeFrame.Days)
-    
-    def generate_report(self, output_path, format='html', template='default',
-                       user=None, memo=None, **kwargs):
+
+        self.addanalyzer(
+            analyzers.SharpeRatio,
+            _name="sharperatio",
+            riskfreerate=riskfree_rate,
+            timeframe=TimeFrame.Months,
+        )
+        self.addanalyzer(analyzers.DrawDown, _name="drawdown")
+        self.addanalyzer(analyzers.TradeAnalyzer, _name="tradeanalyzer")
+        self.addanalyzer(analyzers.SQN, _name="sqn")
+        self.addanalyzer(analyzers.AnnualReturn, _name="annualreturn")
+        self.addanalyzer(analyzers.TimeReturn, _name="timereturn", timeframe=TimeFrame.Days)
+
+    def generate_report(
+        self, output_path, format="html", template="default", user=None, memo=None, **kwargs
+    ):
         """Generate backtest report.
 
         Args:
@@ -2172,20 +2166,20 @@ class Cerebro(ParameterizedBase):
         """
         if not self.runstrats:
             raise RuntimeError("No strategy has been run. Call cerebro.run() first.")
-        
+
         # Get the first strategy
         strategy = self.runstrats[0][0]
-        
+
         from .reports import ReportGenerator
-        
+
         report = ReportGenerator(strategy, template=template)
-        
+
         format_lower = format.lower()
-        if format_lower == 'html':
+        if format_lower == "html":
             return report.generate_html(output_path, user=user, memo=memo, **kwargs)
-        elif format_lower == 'pdf':
+        elif format_lower == "pdf":
             return report.generate_pdf(output_path, user=user, memo=memo, **kwargs)
-        elif format_lower == 'json':
+        elif format_lower == "json":
             return report.generate_json(output_path, **kwargs)
         else:
             raise ValueError(f"Unsupported format: {format}. Use 'html', 'pdf', or 'json'.")

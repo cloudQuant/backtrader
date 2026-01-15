@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Observer Module - Strategy monitoring and data collection.
 
 This module provides the Observer base class for monitoring strategy
@@ -57,14 +56,14 @@ class Observer(ObserverBase):
     def __init__(self, *args, **kwargs):
         """
         Initialize Observer with functionality previously in MetaObserver.dopreinit.
-        
+
         Note: __new__ removed - _analyzers initialization moved here.
         """
         # Initialize _analyzers list (moved from __new__)
         self._analyzers = list()  # keep children analyzers
-        
+
         # Initialize parent first
-        super(Observer, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
         # Handle _stclock functionality (previously in MetaObserver.dopreinit)
         if self._stclock:  # Change the clock if strategy wide observer

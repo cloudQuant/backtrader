@@ -14,29 +14,59 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 
-from ..dataseries import TimeFrame
 from ..parameters import ParameterDescriptor, ParameterizedBase
 from ..utils.date import num2date
 from ..utils.py3 import range
 from .scheme import PlotScheme
 
-
 # Tableau color schemes
 TABLEAU10 = [
-    'blue', 'darkorange', 'green', 'crimson', 'mediumpurple',
-    'saddlebrown', 'orchid', 'gray', 'olive', 'mediumturquoise',
+    "blue",
+    "darkorange",
+    "green",
+    "crimson",
+    "mediumpurple",
+    "saddlebrown",
+    "orchid",
+    "gray",
+    "olive",
+    "mediumturquoise",
 ]
 
 TABLEAU20 = [
-    'steelblue', 'lightsteelblue', 'darkorange', 'peachpuff', 'green',
-    'lightgreen', 'crimson', 'lightcoral', 'mediumpurple', 'thistle',
-    'saddlebrown', 'rosybrown', 'orchid', 'lightpink', 'gray',
-    'lightgray', 'olive', 'palegoldenrod', 'mediumturquoise', 'paleturquoise',
+    "steelblue",
+    "lightsteelblue",
+    "darkorange",
+    "peachpuff",
+    "green",
+    "lightgreen",
+    "crimson",
+    "lightcoral",
+    "mediumpurple",
+    "thistle",
+    "saddlebrown",
+    "rosybrown",
+    "orchid",
+    "lightpink",
+    "gray",
+    "lightgray",
+    "olive",
+    "palegoldenrod",
+    "mediumturquoise",
+    "paleturquoise",
 ]
 
 TABLEAU10_LIGHT = [
-    'lightsteelblue', 'peachpuff', 'lightgreen', 'lightcoral', 'thistle',
-    'rosybrown', 'lightpink', 'lightgray', 'palegoldenrod', 'paleturquoise',
+    "lightsteelblue",
+    "peachpuff",
+    "lightgreen",
+    "lightcoral",
+    "thistle",
+    "rosybrown",
+    "lightpink",
+    "lightgray",
+    "palegoldenrod",
+    "paleturquoise",
 ]
 
 # Color index mapping for optimized visual order
@@ -44,87 +74,84 @@ TAB10_INDEX = [3, 0, 2, 1, 2, 4, 5, 6, 7, 8, 9]
 
 # Color mapper from matplotlib to plotly
 COLOR_MAPPER = {
-    'b': 'rgb(0, 0, 255)',
-    'blue': 'rgb(0, 0, 255)',
-    'g': 'rgb(0, 128, 0)',
-    'green': 'rgb(0, 128, 0)',
-    'r': 'rgb(255, 0, 0)',
-    'red': 'rgb(255, 0, 0)',
-    'c': 'rgb(0, 255, 255)',
-    'cyan': 'rgb(0, 255, 255)',
-    'm': 'rgb(255, 0, 255)',
-    'magenta': 'rgb(255, 0, 255)',
-    'y': 'rgb(255, 255, 0)',
-    'yellow': 'rgb(255, 255, 0)',
-    'k': 'rgb(0, 0, 0)',
-    'black': 'rgb(0, 0, 0)',
-    'w': 'rgb(255, 255, 255)',
-    'white': 'rgb(255, 255, 255)',
-    'steelblue': 'rgb(70, 130, 180)',
-    'darkorange': 'rgb(255, 140, 0)',
-    'crimson': 'rgb(220, 20, 60)',
-    'mediumpurple': 'rgb(147, 112, 219)',
-    'saddlebrown': 'rgb(139, 69, 19)',
-    'orchid': 'rgb(218, 112, 214)',
-    'olive': 'rgb(128, 128, 0)',
-    'mediumturquoise': 'rgb(72, 209, 204)',
-    'lightsteelblue': 'rgb(176, 196, 222)',
-    'peachpuff': 'rgb(255, 218, 185)',
-    'lightgreen': 'rgb(144, 238, 144)',
-    'lightcoral': 'rgb(240, 128, 128)',
-    'thistle': 'rgb(216, 191, 216)',
-    'rosybrown': 'rgb(188, 143, 143)',
-    'lightpink': 'rgb(255, 182, 193)',
-    'lightgray': 'rgb(211, 211, 211)',
-    'palegoldenrod': 'rgb(238, 232, 170)',
-    'paleturquoise': 'rgb(175, 238, 238)',
+    "b": "rgb(0, 0, 255)",
+    "blue": "rgb(0, 0, 255)",
+    "g": "rgb(0, 128, 0)",
+    "green": "rgb(0, 128, 0)",
+    "r": "rgb(255, 0, 0)",
+    "red": "rgb(255, 0, 0)",
+    "c": "rgb(0, 255, 255)",
+    "cyan": "rgb(0, 255, 255)",
+    "m": "rgb(255, 0, 255)",
+    "magenta": "rgb(255, 0, 255)",
+    "y": "rgb(255, 255, 0)",
+    "yellow": "rgb(255, 255, 0)",
+    "k": "rgb(0, 0, 0)",
+    "black": "rgb(0, 0, 0)",
+    "w": "rgb(255, 255, 255)",
+    "white": "rgb(255, 255, 255)",
+    "steelblue": "rgb(70, 130, 180)",
+    "darkorange": "rgb(255, 140, 0)",
+    "crimson": "rgb(220, 20, 60)",
+    "mediumpurple": "rgb(147, 112, 219)",
+    "saddlebrown": "rgb(139, 69, 19)",
+    "orchid": "rgb(218, 112, 214)",
+    "olive": "rgb(128, 128, 0)",
+    "mediumturquoise": "rgb(72, 209, 204)",
+    "lightsteelblue": "rgb(176, 196, 222)",
+    "peachpuff": "rgb(255, 218, 185)",
+    "lightgreen": "rgb(144, 238, 144)",
+    "lightcoral": "rgb(240, 128, 128)",
+    "thistle": "rgb(216, 191, 216)",
+    "rosybrown": "rgb(188, 143, 143)",
+    "lightpink": "rgb(255, 182, 193)",
+    "lightgray": "rgb(211, 211, 211)",
+    "palegoldenrod": "rgb(238, 232, 170)",
+    "paleturquoise": "rgb(175, 238, 238)",
 }
 
 
-def get_color_scheme(name='tableau10'):
+def get_color_scheme(name="tableau10"):
     """Get color scheme by name.
-    
+
     Args:
         name: Color scheme name ('tableau10', 'tableau20', 'tableau10_light')
-        
+
     Returns:
         list: Color list
     """
     schemes = {
-        'tableau10': TABLEAU10,
-        'tableau20': TABLEAU20,
-        'tableau10_light': TABLEAU10_LIGHT,
+        "tableau10": TABLEAU10,
+        "tableau20": TABLEAU20,
+        "tableau10_light": TABLEAU10_LIGHT,
     }
     return schemes.get(name, TABLEAU10)
 
 
 def wrap_legend_text(text, max_width=16):
     """Wrap legend text with automatic line breaks.
-    
+
     Reference: backtrader_plotly/plotter.py:695-702
-    
+
     Args:
         text: Original text
         max_width: Maximum character width per line
-        
+
     Returns:
         str: Processed text with <br> separators for long lines
     """
     if text is None:
-        return ''
+        return ""
     text = str(text)
-    
+
     # Remove existing newlines
-    text = text.replace('\n', '')
-    
+    text = text.replace("\n", "")
+
     if len(text) <= max_width:
         return text
-    
+
     # Split by max_width
-    return '<br>'.join(
-        text[i:i + max_width]
-        for i in range(0, len(text), max_width)
-    )
+    return "<br>".join(text[i : i + max_width] for i in range(0, len(text), max_width))
 
 
 class PlotlyScheme(PlotScheme):
@@ -158,7 +185,7 @@ class PlotlyScheme(PlotScheme):
         Sets up optimized color schemes and plotting configurations for
         interactive Plotly charts, including Chinese market color conventions
         (red for up, green for down).
-        
+
         Args:
             **kwargs: Optional keyword arguments to override defaults.
                 - decimal_places (int): Price decimal places (default: 5)
@@ -174,13 +201,13 @@ class PlotlyScheme(PlotScheme):
         self.height_ratios = [3, 1, 1]  # price, volume, indicator
 
         # Optimized color scheme (Chinese market: red up, green down)
-        self.barup = "#E74C3C"      # Red for bullish
-        self.bardown = "#27AE60"    # Green for bearish
+        self.barup = "#E74C3C"  # Red for bullish
+        self.bardown = "#27AE60"  # Green for bearish
         self.barupfill = True
         self.bardownfill = True
 
         # Volume colors
-        self.volup = "rgba(231, 76, 60, 0.5)"    # Red transparent
+        self.volup = "rgba(231, 76, 60, 0.5)"  # Red transparent
         self.voldown = "rgba(39, 174, 96, 0.5)"  # Green transparent
 
         # Line colors for indicators (legacy, will use color_scheme)
@@ -196,51 +223,51 @@ class PlotlyScheme(PlotScheme):
         ]
 
         # Buy/Sell marker colors
-        self.buymarker_color = "#E74C3C"   # Red
+        self.buymarker_color = "#E74C3C"  # Red
         self.sellmarker_color = "#27AE60"  # Green
         self.buymarker_size = 12
         self.sellmarker_size = 12
 
         # Equity curve
         self.equity_color = "#3498DB"  # Blue
-        
+
         # New parameters from backtrader_plotly
         # Decimal places for price display
-        self.decimal_places = kwargs.get('decimal_places', 5)
-        
+        self.decimal_places = kwargs.get("decimal_places", 5)
+
         # Maximum legend text width before wrapping
-        self.max_legend_text_width = kwargs.get('max_legend_text_width', 16)
-        
+        self.max_legend_text_width = kwargs.get("max_legend_text_width", 16)
+
         # Color scheme selection
-        self.color_scheme = kwargs.get('color_scheme', 'tableau10')
-        
+        self.color_scheme = kwargs.get("color_scheme", "tableau10")
+
         # Fill area transparency
-        self.fillalpha = kwargs.get('fillalpha', 0.20)
-        
+        self.fillalpha = kwargs.get("fillalpha", 0.20)
+
         # Tableau color schemes
         self.tableau10 = TABLEAU10
         self.tableau20 = TABLEAU20
         self.tableau10_light = TABLEAU10_LIGHT
-        
+
         # Color index mapping for optimized visual order
         self.tab10_index = TAB10_INDEX
-    
+
     def get_colors(self):
         """Get current color scheme colors.
-        
+
         Returns:
             list: Color list based on current color_scheme setting
         """
         return getattr(self, self.color_scheme, self.tableau10)
-    
+
     def color(self, idx):
         """Get color for given index using tab10_index mapping.
-        
+
         Uses tab10_index mapping to optimize visual order of colors.
-        
+
         Args:
             idx: Color index
-            
+
         Returns:
             str: Color name or value
         """
@@ -285,48 +312,49 @@ class PlotlyPlot(ParameterizedBase):
 
     def _format_value(self, value):
         """Format numeric value with configured decimal places.
-        
+
         Uses scheme.decimal_places to control precision.
-        
+
         Args:
             value: Numeric value to format
-            
+
         Returns:
             str: Formatted value string
         """
-        decimal_places = getattr(self.p.scheme, 'decimal_places', 5)
+        decimal_places = getattr(self.p.scheme, "decimal_places", 5)
         try:
-            return f'{float(value):.{decimal_places}f}'
+            return f"{float(value):.{decimal_places}f}"
         except (ValueError, TypeError):
             return str(value)
-    
+
     def _get_tick_format(self):
         """Get y-axis tick format string.
-        
+
         Returns:
             str: Format string for axis ticks (e.g., '.5f')
         """
-        decimal_places = getattr(self.p.scheme, 'decimal_places', 5)
-        return f'.{decimal_places}f'
-    
+        decimal_places = getattr(self.p.scheme, "decimal_places", 5)
+        return f".{decimal_places}f"
+
     def _format_label(self, label):
         """Format legend label with automatic wrapping.
-        
+
         Args:
             label: Original label text
-            
+
         Returns:
             str: Wrapped label text
         """
-        max_width = getattr(self.p.scheme, 'max_legend_text_width', 16)
+        max_width = getattr(self.p.scheme, "max_legend_text_width", 16)
         return wrap_legend_text(label, max_width)
-    
-    def fill_between(self, fig, row, x, y1, y2, secondary_y=False,
-                     color=None, opacity=None, name='', where=None):
+
+    def fill_between(
+        self, fig, row, x, y1, y2, secondary_y=False, color=None, opacity=None, name="", where=None
+    ):
         """Draw filled area between two lines.
-        
+
         Reference: backtrader_plotly/plotter.py:718-750
-        
+
         Args:
             fig: Plotly figure object
             row: Subplot row number
@@ -342,73 +370,79 @@ class PlotlyPlot(ParameterizedBase):
         x = np.array(x)
         y1 = np.array(y1)
         y2 = np.array(y2)
-        
+
         # Apply condition filter
         if where is not None:
             y2 = np.where(where, y2, y1)
-        
+
         # Get opacity from scheme if not provided
         if opacity is None:
-            opacity = getattr(self.p.scheme, 'fillalpha', 0.20)
-        
+            opacity = getattr(self.p.scheme, "fillalpha", 0.20)
+
         # Convert color to RGBA
         if color is not None:
             color = self._to_rgba_color(color, opacity)
         else:
-            color = f'rgba(128, 128, 128, {opacity})'
-        
-        legendgroup = f'fill_{name}_{row}'
-        
+            color = f"rgba(128, 128, 128, {opacity})"
+
+        legendgroup = f"fill_{name}_{row}"
+
         # Add upper boundary line
         fig.add_trace(
             go.Scatter(
-                x=x, y=y2,
+                x=x,
+                y=y2,
                 name=name,
                 legendgroup=legendgroup,
                 showlegend=False,
                 line=dict(color=color, width=0),
             ),
-            row=row, col=1, secondary_y=secondary_y
+            row=row,
+            col=1,
+            secondary_y=secondary_y,
         )
-        
+
         # Add filled area
         fig.add_trace(
             go.Scatter(
-                x=x, y=y1,
-                name=self._format_label(name) if name else '',
+                x=x,
+                y=y1,
+                name=self._format_label(name) if name else "",
                 legendgroup=legendgroup,
-                fill='tonexty',
+                fill="tonexty",
                 fillcolor=color,
                 line=dict(color=color, width=0),
             ),
-            row=row, col=1, secondary_y=secondary_y
+            row=row,
+            col=1,
+            secondary_y=secondary_y,
         )
-    
+
     def _to_rgba_color(self, color, opacity):
         """Convert color to RGBA format.
-        
+
         Args:
             color: Color name or rgb string
             opacity: Opacity value (0-1)
-            
+
         Returns:
             str: rgba(r, g, b, a) format string
         """
         # Check if already rgba
-        if isinstance(color, str) and color.startswith('rgba'):
+        if isinstance(color, str) and color.startswith("rgba"):
             return color
-        
+
         # Check color mapper
         if color in COLOR_MAPPER:
             rgb = COLOR_MAPPER[color]
         else:
             rgb = self._to_plotly_color(color)
-        
+
         # Extract RGB values and add opacity
-        if rgb and rgb.startswith('rgb('):
-            return f'rgba{rgb[3:-1]}, {opacity})'
-        
-        return f'rgba(128, 128, 128, {opacity})'
+        if rgb and rgb.startswith("rgb("):
+            return f"rgba{rgb[3:-1]}, {opacity})"
+
+        return f"rgba(128, 128, 128, {opacity})"
 
     def plot(
         self,
@@ -483,11 +517,13 @@ class PlotlyPlot(ParameterizedBase):
     def _date2num(self, dt):
         """Convert datetime to matplotlib-style number."""
         from .. import date2num
+
         return date2num(dt)
 
     def _num2date(self, num):
         """Convert matplotlib-style number to datetime."""
         from .. import num2date
+
         return num2date(num)
 
     def _create_figure(self, strategy, pstart, pend, st_dtime):
@@ -674,7 +710,7 @@ class PlotlyPlot(ParameterizedBase):
                 scaled_volumes = [v * scale_factor for v in volumes]
                 # Offset to position below price bars
                 vol_base = min_price - price_range * 0.02
-                
+
                 fig.add_trace(
                     go.Bar(
                         x=xdata,
@@ -745,7 +781,7 @@ class PlotlyPlot(ParameterizedBase):
                     found_nonzero = True
                     break
                 # If all values are 0, we'll check if later values become non-zero
-            
+
             # If no non-zero found, check if there are any real values
             if not found_nonzero:
                 # Find first transition from 0 to non-zero
@@ -754,15 +790,15 @@ class PlotlyPlot(ParameterizedBase):
                         valid_start = i + 1
                         found_nonzero = True
                         break
-            
+
             # Skip leading invalid portion (zeros before real data)
             if valid_start > 0:
                 lplot = lplot[valid_start:]
                 plot_xdata = plot_xdata[valid_start:]
-            
+
             if not lplot:
                 continue
-            
+
             # Replace NaN with None for Plotly to skip
             lplot = [None if math.isnan(v) else v for v in lplot]
 
@@ -858,21 +894,21 @@ class PlotlyPlot(ParameterizedBase):
                     valid_start = i
                     found_nonzero = True
                     break
-            
+
             if not found_nonzero:
                 for i in range(len(lplot) - 1):
                     if lplot[i] == 0.0 and lplot[i + 1] != 0.0 and not math.isnan(lplot[i + 1]):
                         valid_start = i + 1
                         found_nonzero = True
                         break
-            
+
             if valid_start > 0:
                 lplot = lplot[valid_start:]
                 plot_xdata = plot_xdata[valid_start:]
-            
+
             if not lplot:
                 continue
-            
+
             # Replace NaN with None for Plotly to skip
             lplot = [None if math.isnan(v) else v for v in lplot]
 
@@ -1063,7 +1099,7 @@ class PlotlyPlot(ParameterizedBase):
     def _collect_buysell_signals(self, strategy):
         """Collect buy/sell signals from strategy automatically."""
         self.buysell_markers = []
-        
+
         # Method 1: Try to get from Transactions analyzer (most reliable)
         if hasattr(strategy, "analyzers"):
             for analyzer in strategy.analyzers:
@@ -1074,33 +1110,37 @@ class PlotlyPlot(ParameterizedBase):
                             # trade format: [size, price, value, ...]
                             size = trade[0]
                             price = trade[1]
-                            self.buysell_markers.append({
-                                "datetime": dt,
-                                "price": price,
-                                "type": "buy" if size > 0 else "sell"
-                            })
+                            self.buysell_markers.append(
+                                {
+                                    "datetime": dt,
+                                    "price": price,
+                                    "type": "buy" if size > 0 else "sell",
+                                }
+                            )
                     if self.buysell_markers:
                         return
-        
+
         # Method 2: Try to get from broker's order history
         if hasattr(strategy, "broker") and hasattr(strategy.broker, "orders"):
             for order in strategy.broker.orders:
                 if order.status == order.Completed:
                     # Get execution datetime and price
                     exec_dt = num2date(order.executed.dt)
-                    self.buysell_markers.append({
-                        "datetime": exec_dt,
-                        "price": order.executed.price,
-                        "type": "buy" if order.isbuy() else "sell"
-                    })
+                    self.buysell_markers.append(
+                        {
+                            "datetime": exec_dt,
+                            "price": order.executed.price,
+                            "type": "buy" if order.isbuy() else "sell",
+                        }
+                    )
             if self.buysell_markers:
                 return
-        
+
         # Method 3: Check if strategy has _buysell attribute (user-defined)
         if hasattr(strategy, "_buysell") and strategy._buysell:
             self.buysell_markers = strategy._buysell
             return
-        
+
         # Method 4: Try to get from BuySell observer
         for obs in strategy.observers:
             if obs.__class__.__name__ == "BuySell":
@@ -1108,52 +1148,48 @@ class PlotlyPlot(ParameterizedBase):
                 sell_line = obs.lines.sell
                 buy_vals = list(buy_line.plotrange(0, len(strategy)))
                 sell_vals = list(sell_line.plotrange(0, len(strategy)))
-                
+
                 st_dtime = strategy.lines.datetime.plot()
                 for i, (bv, sv) in enumerate(zip(buy_vals, sell_vals)):
                     if not math.isnan(bv):
-                        self.buysell_markers.append({
-                            "datetime": self._num2date(st_dtime[i]),
-                            "price": bv,
-                            "type": "buy"
-                        })
+                        self.buysell_markers.append(
+                            {"datetime": self._num2date(st_dtime[i]), "price": bv, "type": "buy"}
+                        )
                     if not math.isnan(sv):
-                        self.buysell_markers.append({
-                            "datetime": self._num2date(st_dtime[i]),
-                            "price": sv,
-                            "type": "sell"
-                        })
+                        self.buysell_markers.append(
+                            {"datetime": self._num2date(st_dtime[i]), "price": sv, "type": "sell"}
+                        )
                 break
 
     def _plot_buysell_markers(self, fig, data, xdata, lows, highs, row):
         """Plot buy/sell markers on the price chart with offset from price."""
         if not self.buysell_markers:
             return
-        
+
         # Calculate price range for offset
         price_range = max(highs) - min(lows) if highs and lows else 1
         offset = price_range * 0.03  # 3% offset from high/low
-        
+
         # Create datetime to index mapping for finding low/high values
         dt_to_idx = {dt: i for i, dt in enumerate(xdata)}
-        
+
         buy_x, buy_y, buy_prices = [], [], []
         sell_x, sell_y, sell_prices = [], [], []
-        
+
         for marker in self.buysell_markers:
             marker_dt = marker["datetime"]
             price = marker["price"]
-            
+
             # Find the closest datetime in xdata
             idx = dt_to_idx.get(marker_dt)
             if idx is None:
                 # Try to find closest match
                 for i, dt in enumerate(xdata):
-                    if hasattr(dt, 'date') and hasattr(marker_dt, 'date'):
+                    if hasattr(dt, "date") and hasattr(marker_dt, "date"):
                         if dt.date() == marker_dt.date():
                             idx = i
                             break
-            
+
             if idx is not None and idx < len(lows) and idx < len(highs):
                 if marker["type"] == "buy":
                     buy_x.append(marker_dt)
@@ -1163,7 +1199,7 @@ class PlotlyPlot(ParameterizedBase):
                     sell_x.append(marker_dt)
                     sell_y.append(highs[idx] + offset)  # Above the high
                     sell_prices.append(price)
-        
+
         # Plot buy markers (triangle up) below lows
         if buy_x:
             fig.add_trace(
@@ -1184,7 +1220,7 @@ class PlotlyPlot(ParameterizedBase):
                 row=row,
                 col=1,
             )
-        
+
         # Plot sell markers (triangle down) above highs
         if sell_x:
             fig.add_trace(
@@ -1210,7 +1246,7 @@ class PlotlyPlot(ParameterizedBase):
         """Plot equity curve with drawdown area."""
         equity_values = None
         equity_dates = None
-        
+
         # Method 1: Try to get from TotalValue analyzer (recommended)
         if hasattr(strategy, "analyzers"):
             for analyzer in strategy.analyzers:
@@ -1220,7 +1256,7 @@ class PlotlyPlot(ParameterizedBase):
                         equity_dates = list(total_value_data.keys())
                         equity_values = list(total_value_data.values())
                         break
-        
+
         # Method 2: Try to get from Broker observer
         if not equity_values:
             for obs in strategy.observers:
@@ -1229,27 +1265,27 @@ class PlotlyPlot(ParameterizedBase):
                         equity_values = list(obs.lines.value.plotrange(pstart, pend))
                         equity_dates = xdata
                         break
-        
+
         if not equity_values or len(equity_values) == 0:
             return row
-        
+
         # Use equity_dates if available, otherwise use xdata
         plot_xdata = equity_dates if equity_dates else xdata
         plot_equity = equity_values
-        
+
         # Filter NaN values
         valid_data = [(x, v) for x, v in zip(plot_xdata, plot_equity) if not math.isnan(v)]
         if not valid_data:
             return row
-        
+
         plot_xdata, plot_equity = zip(*valid_data)
         plot_xdata = list(plot_xdata)
         plot_equity = list(plot_equity)
-        
+
         # Calculate percentage return from initial
         initial_value = plot_equity[0] if plot_equity[0] != 0 else 1
         pct_equity = [(v / initial_value - 1) * 100 for v in plot_equity]
-        
+
         # Calculate drawdown
         running_max = plot_equity[0]
         drawdowns = []
@@ -1258,9 +1294,9 @@ class PlotlyPlot(ParameterizedBase):
                 running_max = v
             dd = ((v - running_max) / running_max) * 100 if running_max != 0 else 0
             drawdowns.append(dd)
-        
+
         max_dd = min(drawdowns) if drawdowns else 0
-        
+
         # Plot drawdown first (as filled area at bottom)
         fig.add_trace(
             go.Scatter(
@@ -1276,7 +1312,7 @@ class PlotlyPlot(ParameterizedBase):
             row=row,
             col=1,
         )
-        
+
         # Plot equity curve on top
         fig.add_trace(
             go.Scatter(
@@ -1290,8 +1326,8 @@ class PlotlyPlot(ParameterizedBase):
             row=row,
             col=1,
         )
-        
+
         # Add zero line
         fig.add_hline(y=0, line_dash="dash", line_color="gray", opacity=0.5, row=row, col=1)
-        
+
         return row + 1

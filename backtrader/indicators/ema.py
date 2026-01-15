@@ -13,7 +13,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.EMA, period=20)
 """
 import math
+
 from . import MovingAverageBase
+
+
 class ExponentialMovingAverage(MovingAverageBase):
     """
     A Moving Average that smoothes data exponentially over time.
@@ -76,12 +79,12 @@ class ExponentialMovingAverage(MovingAverageBase):
             larray.append(0.0)
 
         # CRITICAL FIX: For LinesOperation data sources, call their once() to populate array
-        if hasattr(self.data, 'once') and hasattr(self.data, 'operation'):
+        if hasattr(self.data, "once") and hasattr(self.data, "operation"):
             try:
                 self.data.once(start, end)
             except Exception:
                 pass
-        
+
         darray = self.data.array
         data_len = len(darray)
         if data_len == 0:
@@ -97,7 +100,7 @@ class ExponentialMovingAverage(MovingAverageBase):
 
         # Calculate seed index
         seed_idx = first_valid + period - 1
-        
+
         # CRITICAL FIX: Pre-fill warmup period with NaN up to seed_idx
         # This ensures indices before the seed are NaN, not 0.0
         for i in range(min(seed_idx, data_len)):

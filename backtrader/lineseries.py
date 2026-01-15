@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """LineSeries Module - Multi-line time-series data management.
 
 This module defines the LineSeries class and related descriptors for
@@ -128,7 +127,7 @@ class MinimalClock:
         return (MinimalClock, ())
 
 
-class LineAlias(object):
+class LineAlias:
     """Descriptor class that store a line reference and returns that line
     from the owner
 
@@ -279,7 +278,7 @@ class LinesManager:
         return newcls
 
 
-class Lines(object):
+class Lines:
     """
     Defines an "array" of lines which also has most of the interface of
     a LineBuffer class (forward, rewind, advance...).
@@ -543,21 +542,21 @@ class Lines(object):
                         # CRITICAL FIX: Instead of assigning the indicator directly,
                         # we need to bind the indicator's output line to the parent's line
                         # so that values propagate correctly during calculation
-                        
+
                         # Get the indicator's output line (usually lines[0])
                         try:
                             indicator_line = value.lines[0]
                         except (IndexError, TypeError, AttributeError):
                             indicator_line = None
-                        
+
                         if indicator_line is not None and hasattr(indicator_line, "addbinding"):
                             # Get the parent's line buffer at this index
                             parent_line = self.lines[line]
-                            
+
                             # Set up binding: indicator's output -> parent's line
                             # This makes the indicator's values propagate to the parent
                             indicator_line.addbinding(parent_line)
-                            
+
                             # CRITICAL FIX: Register the indicator as a sub-indicator
                             # so its oncebinding() method gets called after once() processing
                             if hasattr(self, "_obj") and self._obj is not None:
@@ -566,10 +565,11 @@ class Lines(object):
                                 if hasattr(value, "_minperiod") and hasattr(obj, "_minperiod"):
                                     if value._minperiod > obj._minperiod:
                                         obj._minperiod = value._minperiod
-                                
+
                                 # Register as sub-indicator for proper once() processing
                                 if hasattr(obj, "_lineiterators"):
                                     from .lineiterator import LineIterator
+
                                     if LineIterator.IndType in obj._lineiterators:
                                         if value not in obj._lineiterators[LineIterator.IndType]:
                                             obj._lineiterators[LineIterator.IndType].append(value)
@@ -880,39 +880,41 @@ class Lines(object):
             # When doing self.lines.cross = And(before, after), we need to:
             # 1. Set up binding from value's output line to parent's line
             # 2. Propagate minperiod from value to parent indicator
-            
+
             # Check if we have a lines array and this is a known line name
             lines_list = object.__getattribute__(self, "__dict__").get("lines")
             line_names = self._getlines() if hasattr(self, "_getlines") else ()
-            
+
             if lines_list is not None and name in line_names:
                 # This is a line assignment - find the line index
                 try:
                     line_idx = line_names.index(name)
                     if line_idx < len(lines_list):
                         parent_line = lines_list[line_idx]
-                        
+
                         # CRITICAL FIX: Check for LinesOperation first (it has 'lines' but stores values differently)
                         # LinesOperation inherits from LineBuffer and stores values in its own array
                         from .linebuffer import LinesOperation
+
                         if isinstance(value, LinesOperation):
                             # LinesOperation stores values in itself (LineBuffer), not in its .lines[0]
                             value.addbinding(parent_line)
-                            
+
                             # Propagate minperiod
                             try:
                                 owner_ref = object.__getattribute__(self, "_owner_ref")
                             except AttributeError:
                                 owner_ref = None
-                            
+
                             if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
                                 if value._minperiod > owner_ref._minperiod:
                                     owner_ref._minperiod = value._minperiod
-                            
+
                             # Register LinesOperation as sub-indicator so its _next() gets called
                             if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
                                 from .lineiterator import LineIterator
-                                # CRITICAL FIX: Use 0 directly as key since _lineiterators may be 
+
+                                # CRITICAL FIX: Use 0 directly as key since _lineiterators may be
                                 # initialized with different keys depending on how it was created
                                 ind_type = LineIterator.IndType  # This is 0
                                 # Ensure the key exists (defaultdict will create it)
@@ -920,7 +922,7 @@ class Lines(object):
                                     owner_ref._lineiterators[ind_type].append(value)
                                     value._owner = owner_ref
                             return  # Don't set the attribute directly
-                        
+
                         # Handle indicator/line-like objects with binding
                         elif hasattr(value, "lines") and hasattr(value, "_minperiod"):
                             # Get the indicator's output line
@@ -928,47 +930,54 @@ class Lines(object):
                                 indicator_line = value.lines[0]
                             except (IndexError, TypeError, AttributeError):
                                 indicator_line = None
-                            
+
                             if indicator_line is not None and hasattr(indicator_line, "addbinding"):
                                 # Set up binding: indicator's output -> parent's line
                                 indicator_line.addbinding(parent_line)
-                                
+
                                 # CRITICAL FIX: Propagate minperiod to parent indicator
                                 try:
                                     owner_ref = object.__getattribute__(self, "_owner_ref")
                                 except AttributeError:
                                     owner_ref = None
-                                
+
                                 if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
                                     if value._minperiod > owner_ref._minperiod:
                                         owner_ref._minperiod = value._minperiod
-                                
+
                                 # Register as sub-indicator
                                 if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
                                     from .lineiterator import LineIterator
+
                                     if LineIterator.IndType in owner_ref._lineiterators:
-                                        if value not in owner_ref._lineiterators[LineIterator.IndType]:
-                                            owner_ref._lineiterators[LineIterator.IndType].append(value)
+                                        if (
+                                            value
+                                            not in owner_ref._lineiterators[LineIterator.IndType]
+                                        ):
+                                            owner_ref._lineiterators[LineIterator.IndType].append(
+                                                value
+                                            )
                                             value._owner = owner_ref
                                 return  # Don't set the attribute directly
-                            
+
                         elif hasattr(value, "_minperiod") and hasattr(value, "addbinding"):
                             # Value is a LineBuffer-like object (e.g., LinesOperation)
                             value.addbinding(parent_line)
-                            
+
                             # Propagate minperiod
                             try:
                                 owner_ref = object.__getattribute__(self, "_owner_ref")
                             except AttributeError:
                                 owner_ref = None
-                            
+
                             if owner_ref is not None and hasattr(owner_ref, "_minperiod"):
                                 if value._minperiod > owner_ref._minperiod:
                                     owner_ref._minperiod = value._minperiod
-                            
+
                             # CRITICAL FIX: Register LinesOperation as sub-indicator so its next() gets called
                             if owner_ref is not None and hasattr(owner_ref, "_lineiterators"):
                                 from .lineiterator import LineIterator
+
                                 if LineIterator.IndType in owner_ref._lineiterators:
                                     if value not in owner_ref._lineiterators[LineIterator.IndType]:
                                         owner_ref._lineiterators[LineIterator.IndType].append(value)
@@ -976,7 +985,7 @@ class Lines(object):
                             return  # Don't set the attribute directly
                 except (ValueError, IndexError):
                     pass
-            
+
             # Default: set attribute directly
             object.__setattr__(self, name, value)
 
@@ -1044,12 +1053,12 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
 
     def __new__(cls, *args, **kwargs):
         """Instantiate lines class when creating LineSeries instances.
-        
+
         CRITICAL FIX: The lines attribute is set as a class by __init_subclass__,
         but it needs to be instantiated for each object instance.
         """
-        instance = super(LineSeries, cls).__new__(cls)
-        
+        instance = super().__new__(cls)
+
         # CRITICAL FIX: Instantiate the lines class if it's a type (class)
         # This fixes the "Lines.reset() missing 1 required positional argument: 'self'" error
         if hasattr(cls, "lines") and isinstance(cls.lines, type):
@@ -1057,7 +1066,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             # Set owner reference
             if hasattr(instance.lines, "__dict__"):
                 object.__setattr__(instance.lines, "_owner_ref", instance)
-        
+
         return instance
 
     # CRITICAL FIX: Convert plotinfo from dict to object with _get method for plotting compatibility
@@ -1469,7 +1478,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
             value = line0[key]
             # None check - convert None to NaN for consistent behavior
             if value is None:
-                return float('nan')
+                return float("nan")
             # CRITICAL FIX: Return NaN as-is, don't convert to 0.0
             # NaN values are important for indicator calculations:
             # - Comparisons with NaN always return False (e.g., close > nan is False)
@@ -1523,7 +1532,7 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 object.__setattr__(self.lines, "_owner_ref", self)
 
         # CRITICAL FIX: LineMultiple doesn't accept args/kwargs, so call without them
-        super(LineSeries, self).__init__()
+        super().__init__()
 
     def plotlabel(self):
         """Get the plot label for this LineSeries.
@@ -1583,12 +1592,12 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         # Return a delayed version of the line
         lineobj = self._getline(line, minusall=False)
         delayed = LineDelay(lineobj, ago)
-        
+
         # NOTE: _LineDelay already handles minperiod inheritance from the source line
         # in its __init__ method. It gets the source's _minperiod and adds the delay.
         # No additional minperiod adjustment is needed here since the source line
         # (lineobj) already has the indicator's minperiod propagated to it.
-        
+
         return delayed
 
     def forward(self, value=0.0, size=1):

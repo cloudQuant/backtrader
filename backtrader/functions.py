@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Functions Module - Common operations on line objects.
 
 This module provides utility functions and classes for performing
@@ -20,7 +19,6 @@ Example:
     >>> condition = And(indicator1 > indicator2, indicator3 > 0)
 """
 import functools
-import itertools
 import math
 
 from .linebuffer import LineActions
@@ -57,14 +55,14 @@ class Logic(LineActions):
         Args:
             *args: Line objects or values to operate on.
         """
-        super(Logic, self).__init__()
+        super().__init__()
         self.args = [self.arrayize(arg) for arg in args]
 
         # CRITICAL FIX: Collect minperiods from args and update own minperiod
         # This ensures functions like And, Or, etc. inherit the max minperiod from their operands
         _minperiods = []
         for arg in self.args:
-            mp = getattr(arg, '_minperiod', 1)
+            mp = getattr(arg, "_minperiod", 1)
             _minperiods.append(mp)
 
         if _minperiods:
@@ -93,7 +91,7 @@ class DivByZero(Logic):
             b: Denominator line or value.
             zero: Value to return when division by zero occurs.
         """
-        super(DivByZero, self).__init__(a, b)
+        super().__init__(a, b)
         self.a = a
         self.b = b
         self.zero = zero
@@ -144,7 +142,7 @@ class DivZeroByZero(Logic):
             single: Value to return when numerator is non-zero and denominator is zero.
             dual: Value to return when both numerator and denominator are zero.
         """
-        super(DivZeroByZero, self).__init__(a, b)
+        super().__init__(a, b)
         self.a = a
         self.b = b
         self.single = single
@@ -197,7 +195,7 @@ class Cmp(Logic):
             a: First line or value to compare.
             b: Second line or value to compare.
         """
-        super(Cmp, self).__init__(a, b)
+        super().__init__(a, b)
         self.a = self.args[0]
         self.b = self.args[1]
 
@@ -243,7 +241,7 @@ class CmpEx(Logic):
             r2: Value to return when a == b.
             r3: Value to return when a > b.
         """
-        super(CmpEx, self).__init__(a, b, r1, r2, r3)
+        super().__init__(a, b, r1, r2, r3)
         self.a = self.args[0]
         self.b = self.args[1]
         self.r1 = self.args[2]
@@ -304,7 +302,7 @@ class If(Logic):
             a: Value to return when condition is True.
             b: Value to return when condition is False.
         """
-        super(If, self).__init__(a, b)
+        super().__init__(a, b)
         self.a = self.args[0]
         self.b = self.args[1]
         self.cond = self.arrayize(cond)
@@ -490,7 +488,7 @@ class MultiLogicReduce(MultiLogic):
             *args: Line objects or values to reduce.
             **kwargs: Optional keyword arguments including 'initializer'.
         """
-        super(MultiLogicReduce, self).__init__(*args)
+        super().__init__(*args)
         if "initializer" not in kwargs:
             self.flogic = functools.partial(functools.reduce, self.flogic)
         else:
@@ -515,7 +513,7 @@ class Reduce(MultiLogicReduce):
             **kwargs: Optional keyword arguments.
         """
         self.flogic = flogic
-        super(Reduce, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
 
 
 # The _xxxlogic functions are defined at module scope to make them
@@ -534,6 +532,7 @@ class And(MultiLogicReduce):
 
     Returns True only if all input values are truthy.
     """
+
     flogic = staticmethod(_andlogic)
 
 
@@ -549,6 +548,7 @@ class Or(MultiLogicReduce):
 
     Returns True if any input value is truthy.
     """
+
     flogic = staticmethod(_orlogic)
 
 
@@ -558,6 +558,7 @@ class Max(MultiLogic):
 
     Returns the maximum value from all input lines.
     """
+
     flogic = max
 
 
@@ -567,6 +568,7 @@ class Min(MultiLogic):
 
     Returns the minimum value from all input lines.
     """
+
     flogic = min
 
 
@@ -577,6 +579,7 @@ class Sum(MultiLogic):
     Returns the sum of all input values using math.fsum
     for better floating point precision.
     """
+
     flogic = math.fsum
 
 
@@ -586,6 +589,7 @@ class Any(MultiLogic):
 
     Returns True if any input value is truthy.
     """
+
     flogic = any
 
 
@@ -595,4 +599,5 @@ class All(MultiLogic):
 
     Returns True only if all input values are truthy.
     """
+
     flogic = all

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Filter Module - Data filtering for backtrader.
 
 This module provides the base Filter class for data filtering operations.
@@ -44,7 +43,7 @@ class Filter(ParameterizedBase):
             **kwargs: Additional keyword arguments for parameters.
         """
         # Call parent class initialization
-        super(Filter, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
     def __call__(self, data):
         """Process a data bar through the filter.

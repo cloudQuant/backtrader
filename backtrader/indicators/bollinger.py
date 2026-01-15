@@ -14,7 +14,10 @@ Example:
     >>> cerebro.addindicator(bt.indicators.BBands, period=20, devfactor=2.0)
 """
 import math
+
 from . import Indicator, MovAv
+
+
 class BollingerBands(Indicator):
     """
     Defined by John Bollinger in the 80s. It measures volatility by defining
@@ -100,18 +103,18 @@ class BollingerBands(Indicator):
         bot_array = self.lines.bot.array
         period = self.p.period
         devfactor = self.p.devfactor
-        
+
         # Ensure arrays are sized
         for arr in [mid_array, top_array, bot_array]:
             while len(arr) < end:
                 arr.append(0.0)
-        
+
         # Pre-fill warmup with NaN
         for i in range(min(period - 1, len(darray))):
             for arr in [mid_array, top_array, bot_array]:
                 if i < len(arr):
                     arr[i] = float("nan")
-        
+
         for i in range(period - 1, min(end, len(darray))):
             data_sum = 0.0
             data_sq_sum = 0.0
@@ -122,13 +125,13 @@ class BollingerBands(Indicator):
                     if not (isinstance(val, float) and math.isnan(val)):
                         data_sum += val
                         data_sq_sum += val * val
-            
+
             mid = data_sum / period
             meansq = data_sq_sum / period
             sqmean = mid * mid
             diff = abs(meansq - sqmean)
             stddev = math.sqrt(max(0, diff))
-            
+
             if i < len(mid_array):
                 mid_array[i] = mid
             if i < len(top_array):
@@ -174,15 +177,15 @@ class BollingerBandsPct(BollingerBands):
         top_array = self.lines.top.array
         bot_array = self.lines.bot.array
         pctb_array = self.lines.pctb.array
-        
+
         while len(pctb_array) < end:
             pctb_array.append(0.0)
-        
+
         for i in range(start, min(end, len(darray), len(top_array), len(bot_array))):
             top = top_array[i] if i < len(top_array) else 0.0
             bot = bot_array[i] if i < len(bot_array) else 0.0
             data_val = darray[i] if i < len(darray) else 0.0
-            
+
             if isinstance(top, float) and math.isnan(top):
                 pctb_array[i] = float("nan")
             elif isinstance(bot, float) and math.isnan(bot):

@@ -15,6 +15,7 @@ Example:
     >>> logger = log_manager.create_logger()
     >>> logger.info("Strategy started")
 """
+
 try:
     import spdlog
 
@@ -64,6 +65,7 @@ except ImportError:
             Returns:
                 DummyLogger: A logger that prints to console.
             """
+
             class DummyLogger:
                 """Fallback logger that prints to console."""
 

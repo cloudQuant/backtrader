@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Backtrader Broker Module.
 
 This module provides the broker system for order execution and portfolio
@@ -65,6 +64,7 @@ class BrokerBase(BrokerAliasMixin, ParameterizedBase):
     Params:
         commission: Default commission scheme (CommInfoBase instance).
     """
+
     # Use new parameter descriptor
     commission = ParameterDescriptor(
         default=CommInfoBase(percabs=True), doc="Default commission scheme for all assets"

@@ -466,7 +466,11 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         EffectScatter()
         .add_xaxis(bp_df.index)
         .add_yaxis(
-            "", bp_df.high, color="green", symbol="image://c:/result/img/close_long.png", symbol_size=10
+            "",
+            bp_df.high,
+            color="green",
+            symbol="image://c:/result/img/close_long.png",
+            symbol_size=10,
         )
         .set_global_opts(title_opts=opts.TitleOpts(title="=sell"))
     )
@@ -519,7 +523,11 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         EffectScatter()
         .add_xaxis(sk_df.index)
         .add_yaxis(
-            "", sk_df.high, color="green", symbol="image://c:/result/img/open_short.png", symbol_size=10
+            "",
+            sk_df.high,
+            color="green",
+            symbol="image://c:/result/img/open_short.png",
+            symbol_size=10,
         )
         .set_global_opts(title_opts=opts.TitleOpts(title="sellshort"))
     )
@@ -530,7 +538,11 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
         EffectScatter()
         .add_xaxis(sp_df.index)
         .add_yaxis(
-            "", sp_df.low, color="red", symbol="image://c:/result/img/close_short.png", symbol_size=10
+            "",
+            sp_df.low,
+            color="red",
+            symbol="image://c:/result/img/close_short.png",
+            symbol_size=10,
         )
         .set_global_opts(title_opts=opts.TitleOpts(title="buytocover"))
     )
@@ -2128,11 +2140,17 @@ def run_cerebro_and_plot(
             df03.columns = ["Long/short trading indicator value"]
             try:
                 df00["Performance indicator"] = df01.index
-                df00["Performance indicator value"] = [round(float(i), 4) for i in list(df01["Performance indicator value"])]
+                df00["Performance indicator value"] = [
+                    round(float(i), 4) for i in list(df01["Performance indicator value"])
+                ]
                 df00["General trading indicator"] = df02.index
-                df00["General trading indicator value"] = [round(float(i), 4) for i in list(df02["General trading indicator value"])]
+                df00["General trading indicator value"] = [
+                    round(float(i), 4) for i in list(df02["General trading indicator value"])
+                ]
                 df00["Long/short trading indicator"] = df03.index
-                df00["Long/short trading indicator value"] = [round(float(i), 4) for i in list(df03["Long/short trading indicator value"])]
+                df00["Long/short trading indicator value"] = [
+                    round(float(i), 4) for i in list(df03["Long/short trading indicator value"])
+                ]
             except Exception as e:
                 traceback.format_exception(e)
                 df00["Performance indicator"] = df01.index
@@ -2140,7 +2158,9 @@ def run_cerebro_and_plot(
                 df00["General trading indicator"] = df02.index
                 df00["General trading indicator value"] = df02["General trading indicator value"]
                 df00["Long/short trading indicator"] = df03.index
-                df00["Long/short trading indicator value"] = df03["Long/short trading indicator value"]
+                df00["Long/short trading indicator value"] = df03[
+                    "Long/short trading indicator value"
+                ]
                 # print("Performance indicator value", df01["Performance indicator value"])  # Removed for performance
                 # print(performance_dict)  # Removed for performance
                 # print(strategy.__name__ + params_str)  # Removed for performance
@@ -2385,11 +2405,17 @@ def run_cerebro_and_plot(
             df03.columns = ["Long/short trading indicator value"]
             try:
                 df00["Performance indicator"] = df01.index
-                df00["Performance indicator value"] = [round(float(i), 4) for i in list(df01["Performance indicator value"])]
+                df00["Performance indicator value"] = [
+                    round(float(i), 4) for i in list(df01["Performance indicator value"])
+                ]
                 df00["General trading indicator"] = df02.index
-                df00["General trading indicator value"] = [round(float(i), 4) for i in list(df02["General trading indicator value"])]
+                df00["General trading indicator value"] = [
+                    round(float(i), 4) for i in list(df02["General trading indicator value"])
+                ]
                 df00["Long/short trading indicator"] = df03.index
-                df00["Long/short trading indicator value"] = [round(float(i), 4) for i in list(df03["Long/short trading indicator value"])]
+                df00["Long/short trading indicator value"] = [
+                    round(float(i), 4) for i in list(df03["Long/short trading indicator value"])
+                ]
             except Exception as e:
                 traceback.format_exception(e)
                 df00["Performance indicator"] = df01.index
@@ -2397,7 +2423,9 @@ def run_cerebro_and_plot(
                 df00["General trading indicator"] = df02.index
                 df00["General trading indicator value"] = df02["General trading indicator value"]
                 df00["Long/short trading indicator"] = df03.index
-                df00["Long/short trading indicator value"] = df03["Long/short trading indicator value"]
+                df00["Long/short trading indicator value"] = df03[
+                    "Long/short trading indicator value"
+                ]
                 # print("Performance indicator value", df01["Performance indicator value"])  # Removed for performance
                 # print(performance_dict)  # Removed for performance
                 # print(strategy.__name__ + params_str)  # Removed for performance

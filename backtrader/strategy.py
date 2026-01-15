@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Strategy module - Base class for user-defined trading strategies.
 
 This module provides the Strategy class which serves as the foundation for
@@ -44,7 +43,7 @@ import operator
 from .lineiterator import LineIterator, StrategyBase
 from .lineroot import LineRoot, LineSingle
 from .lineseries import LineSeriesStub
-from .metabase import ItemCollection, findowner, OwnerContext
+from .metabase import ItemCollection, OwnerContext, findowner
 from .order import Order
 from .signal import (
     SIGNAL_LONG,
@@ -136,7 +135,7 @@ class Strategy(StrategyBase):
         """Override __new__ to handle method renaming that was done in MetaStrategy"""
         # CRITICAL: First call StrategyBase.__new__ to properly set up data arguments and lines
         # This ensures strategies get their data arguments processed correctly
-        instance = super(Strategy, cls).__new__(cls, *args, **kwargs)
+        instance = super().__new__(cls, *args, **kwargs)
 
         # Store the original kwargs for parameter processing
         instance._strategy_init_kwargs = kwargs
@@ -316,7 +315,7 @@ class Strategy(StrategyBase):
             # When user's __init__ calls super().__init__(), we must not call user_init again
             if not getattr(self, "_user_init_called", False):
                 self._user_init_called = True
-                
+
                 for cls in self.__class__.__mro__:
                     if (
                         cls not in (Strategy, StrategyBase)
@@ -536,20 +535,20 @@ class Strategy(StrategyBase):
 
         # Set the minperiod
         # Indicator minimum periods
-        minperiods = \
-            [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
+        minperiods = [x._minperiod for x in self._lineiterators[LineIterator.IndType]]
 
         # CRITICAL FIX: Also scan strategy attributes for LineActions objects
         # (like LinesOperation from sma - sma(-10)) that aren't registered as indicators
         # but still need their minperiod considered
         from .linebuffer import LineActions
+
         for attr_name in dir(self):
-            if attr_name.startswith('_'):
+            if attr_name.startswith("_"):
                 continue
             try:
                 attr = getattr(self, attr_name)
                 # Check if it's a LineActions but not already in _lineiterators
-                if isinstance(attr, LineActions) and hasattr(attr, '_minperiod'):
+                if isinstance(attr, LineActions) and hasattr(attr, "_minperiod"):
                     if attr not in self._lineiterators[LineIterator.IndType]:
                         minperiods.append(attr._minperiod)
             except (AttributeError, TypeError):
@@ -562,25 +561,28 @@ class Strategy(StrategyBase):
         # For single-data strategies, apply LineActions minperiod to data[0]
         # For multi-data strategies, LineActions minperiod should only affect its source data
         from .linebuffer import LineActions
+
         if self._minperiods:
             for attr_name in dir(self):
-                if attr_name.startswith('_'):
+                if attr_name.startswith("_"):
                     continue
                 try:
                     attr = getattr(self, attr_name)
-                    if isinstance(attr, LineActions) and hasattr(attr, '_minperiod'):
+                    if isinstance(attr, LineActions) and hasattr(attr, "_minperiod"):
                         if attr not in self._lineiterators[LineIterator.IndType]:
                             # Try to determine which data this LineActions is associated with
                             # by checking its _clock or data sources
                             data_idx = 0  # Default to data[0]
-                            if hasattr(attr, '_clock') and attr._clock is not None:
+                            if hasattr(attr, "_clock") and attr._clock is not None:
                                 for i, d in enumerate(self.datas):
                                     if attr._clock is d or attr._clock in d.lines:
                                         data_idx = i
                                         break
                             # Only update minperiod for the specific data
                             if data_idx < len(self._minperiods):
-                                self._minperiods[data_idx] = max(self._minperiods[data_idx], attr._minperiod)
+                                self._minperiods[data_idx] = max(
+                                    self._minperiods[data_idx], attr._minperiod
+                                )
                 except (AttributeError, TypeError):
                     pass
 
@@ -829,7 +831,7 @@ class Strategy(StrategyBase):
         # If using old data sync method
         if self._oldsync:
             # Call strategy's _clk_update() method
-            clk_len = super(Strategy, self)._clk_update()
+            clk_len = super()._clk_update()
             # Set datetime
             if self.datas:
                 valid_datetimes = [
@@ -878,7 +880,7 @@ class Strategy(StrategyBase):
         Gets minimum period status and passes it to analyzers and observers,
         then clears pending orders and trades.
         """
-        super(Strategy, self)._next()
+        super()._next()
 
         minperstatus = self._getminperstatus()
         self._next_analyzers(minperstatus)
@@ -2203,7 +2205,7 @@ class SignalStrategy(Strategy):
             cls._next_custom = cls.next
 
         # Create the instance
-        instance = super(SignalStrategy, cls).__new__(cls, *args, **kwargs)
+        instance = super().__new__(cls, *args, **kwargs)
 
         # Set the next method to _next_catch (from MetaSigStrategy)
         instance.next = instance._next_catch
@@ -2246,9 +2248,9 @@ class SignalStrategy(Strategy):
         # Call parent initialization with filtered kwargs
         # Don't pass *args to avoid object.__init__() error, consistent with Strategy.__init__ fix
         if filtered_kwargs:
-            super(SignalStrategy, self).__init__(**filtered_kwargs)
+            super().__init__(**filtered_kwargs)
         else:
-            super(SignalStrategy, self).__init__()
+            super().__init__()
 
         # Handle the functionality that was in MetaSigStrategy.dopostinit
         # Add signals from params
@@ -2259,7 +2261,7 @@ class SignalStrategy(Strategy):
             self._signals[sigtype].append(sig_indicator)
             # CRITICAL FIX: Register signal indicator with strategy's _lineiterators
             # so its once()/next() methods get called during processing
-            if hasattr(sig_indicator, '_ltype'):
+            if hasattr(sig_indicator, "_ltype"):
                 ltype = sig_indicator._ltype
                 if sig_indicator not in self._lineiterators[ltype]:
                     self._lineiterators[ltype].append(sig_indicator)
@@ -2277,7 +2279,7 @@ class SignalStrategy(Strategy):
     def _start(self):
         """Start the signal strategy and initialize the order sentinel."""
         self._sentinel = None  # sentinel for order concurrency
-        super(SignalStrategy, self)._start()
+        super()._start()
 
     def signal_add(self, sigtype, signal):
         """Add a signal indicator to the strategy.
@@ -2303,7 +2305,7 @@ class SignalStrategy(Strategy):
                     self._sentinel = None
                     break
 
-        super(SignalStrategy, self)._notify(qorders=qorders, qtrades=qtrades)
+        super()._notify(qorders=qorders, qtrades=qtrades)
 
     def _next_catch(self):
         """Catch method that routes to signal processing and custom next."""

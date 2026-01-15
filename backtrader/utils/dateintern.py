@@ -359,7 +359,9 @@ def num2date(x, tz=None, naive=True):
     ix = int(x)  # Take integer of x
     if ix < 1:
         ix = 1  # Minimum valid ordinal
-    dt = datetime.datetime.fromordinal(ix)  # Return datetime object corresponding to Gregorian calendar time
+    dt = datetime.datetime.fromordinal(
+        ix
+    )  # Return datetime object corresponding to Gregorian calendar time
     remainder = float(x) - ix  # Fractional part of x
     hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)  # Hours
     minute, remainder = divmod(MINUTES_PER_HOUR * remainder, 1)  # Minutes

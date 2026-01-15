@@ -14,7 +14,8 @@ Example:
     >>> cerebro.addindicator(bt.indicators.RSI, period=14)
 """
 import math
-from . import DivZeroByZero, Indicator, Max, MovAv
+
+from . import Indicator, MovAv
 
 
 # Calculate RSI indicator
@@ -320,10 +321,10 @@ class RelativeStrengthIndex(Indicator):
                     return self.p.safelow  # 0/0 case
                 else:
                     return self.p.safehigh  # x/0 case
-        
+
         if madown_val == 0.0:
             return 100.0  # Avoid division by zero
-        
+
         rs = maup_val / madown_val
         return 100.0 - 100.0 / (1.0 + rs)
 
@@ -348,11 +349,11 @@ class RelativeStrengthIndex(Indicator):
 
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(start, min(end, len(maup_array), len(madown_array))):
             maup_val = maup_array[i] if i < len(maup_array) else 0.0
             madown_val = madown_array[i] if i < len(madown_array) else 0.0
-            
+
             if isinstance(maup_val, float) and math.isnan(maup_val):
                 larray[i] = float("nan")
             elif isinstance(madown_val, float) and math.isnan(madown_val):
@@ -365,7 +366,7 @@ class RelativeStrengthIndex(Indicator):
                         else:
                             larray[i] = safehigh
                         continue
-                
+
                 if madown_val == 0.0:
                     larray[i] = 100.0
                 else:

@@ -13,6 +13,7 @@ Example:
     >>> cerebro.addindicator(bt.indicators.AccDeOsc)
 """
 import math
+
 from . import Indicator
 from .awesomeoscillator import AwesomeOscillator
 from .sma import SMA

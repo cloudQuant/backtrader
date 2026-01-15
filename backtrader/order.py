@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8; py-indent-offset:4 -*-
 """Backtrader Order Module.
 
 This module provides order data structures and execution tracking.
@@ -25,7 +24,7 @@ from .utils.py3 import iteritems, range
 
 
 # Store order execution related information. This information does not determine if the order is fully or partially executed, it only stores the information
-class OrderExecutionBit(object):
+class OrderExecutionBit:
     """
     Intended to hold information about order execution. A "bit" does not
     determine if the order has been fully/partially executed, it just holds
@@ -116,7 +115,7 @@ class OrderExecutionBit(object):
 
 
 # Store actual order information for creation and execution. When creating, it requests creation; when executing, it produces the final result
-class OrderData(object):
+class OrderData:
     """
     Holds actual order data for Creation and Execution.
 
@@ -353,7 +352,7 @@ class OrderData(object):
 
 
 # Simple parameter container to replace metaclass functionality
-class OrderParams(object):
+class OrderParams:
     """Simple parameter container for Order classes.
 
     Stores order parameters like owner, data, size, price, execution type, etc.
@@ -399,7 +398,7 @@ class OrderParams(object):
                 raise AttributeError(f"Invalid parameter: {key}")
 
 
-class OrderBase(object):
+class OrderBase:
     """Base class for order objects.
 
     Provides the foundation for all order types with common attributes
@@ -493,28 +492,28 @@ class OrderBase(object):
         except AttributeError:
             pass  # p doesn't exist yet, fall through to normal assignment
 
-        super(OrderBase, self).__setattr__(name, value)
+        super().__setattr__(name, value)
 
     # Content displayed when printing order
     def __str__(self):
         tojoin = list()
-        tojoin.append("Ref: {}".format(self.ref))
-        tojoin.append("OrdType: {}".format(self.ordtype))
-        tojoin.append("OrdType: {}".format(self.ordtypename()))
-        tojoin.append("Status: {}".format(self.status))
-        tojoin.append("Status: {}".format(self.getstatusname()))
-        tojoin.append("Size: {}".format(self.size))
-        tojoin.append("Price: {}".format(self.price))
-        tojoin.append("Price Limit: {}".format(self.pricelimit))
-        tojoin.append("TrailAmount: {}".format(self.trailamount))
-        tojoin.append("TrailPercent: {}".format(self.trailpercent))
-        tojoin.append("ExecType: {}".format(self.exectype))
-        tojoin.append("ExecType: {}".format(self.getordername()))
-        tojoin.append("CommInfo: {}".format(self.comminfo))
-        tojoin.append("End of Session: {}".format(self.dteos))
-        tojoin.append("Info: {}".format(self.info))
-        tojoin.append("Broker: {}".format(self.broker))
-        tojoin.append("Alive: {}".format(self.alive()))
+        tojoin.append(f"Ref: {self.ref}")
+        tojoin.append(f"OrdType: {self.ordtype}")
+        tojoin.append(f"OrdType: {self.ordtypename()}")
+        tojoin.append(f"Status: {self.status}")
+        tojoin.append(f"Status: {self.getstatusname()}")
+        tojoin.append(f"Size: {self.size}")
+        tojoin.append(f"Price: {self.price}")
+        tojoin.append(f"Price Limit: {self.pricelimit}")
+        tojoin.append(f"TrailAmount: {self.trailamount}")
+        tojoin.append(f"TrailPercent: {self.trailpercent}")
+        tojoin.append(f"ExecType: {self.exectype}")
+        tojoin.append(f"ExecType: {self.getordername()}")
+        tojoin.append(f"CommInfo: {self.comminfo}")
+        tojoin.append(f"End of Session: {self.dteos}")
+        tojoin.append(f"Info: {self.info}")
+        tojoin.append(f"Broker: {self.broker}")
+        tojoin.append(f"Alive: {self.alive()}")
 
         return "\n".join(tojoin)
 
@@ -890,7 +889,7 @@ class Order(OrderBase):
         Args:
             **kwargs: Order parameters (owner, data, size, price, etc.).
         """
-        super(Order, self).__init__(**kwargs)
+        super().__init__(**kwargs)
 
         # For Order, additional operations on dteos are needed
         # dteos represents the end time of this session
@@ -1033,6 +1032,7 @@ class BuyOrder(Order):
 
     Represents a buy order with ordtype set to Order.Buy.
     """
+
     ordtype = Order.Buy
 
 
@@ -1042,6 +1042,7 @@ class StopBuyOrder(BuyOrder):
 
     Used for buy orders that trigger when price crosses a threshold.
     """
+
     pass
 
 
@@ -1051,6 +1052,7 @@ class StopLimitBuyOrder(BuyOrder):
 
     Used for buy orders that become limit orders after stop price is triggered.
     """
+
     pass
 
 
@@ -1060,6 +1062,7 @@ class SellOrder(Order):
 
     Represents a sell order with ordtype set to Order.Sell.
     """
+
     ordtype = Order.Sell
 
 
@@ -1069,6 +1072,7 @@ class StopSellOrder(SellOrder):
 
     Used for sell orders that trigger when price crosses a threshold.
     """
+
     pass
 
 
@@ -1078,4 +1082,5 @@ class StopLimitSellOrder(SellOrder):
 
     Used for sell orders that become limit orders after stop price is triggered.
     """
+
     pass

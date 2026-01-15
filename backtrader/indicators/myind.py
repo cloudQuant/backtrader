@@ -10,7 +10,7 @@ import math
 
 import numpy as np
 
-from . import SMA, And, If, Indicator, Max, Min
+from . import SMA, If, Indicator, Max, Min
 
 # This file contains some custom indicator algorithms
 
@@ -21,6 +21,7 @@ class MaBetweenHighAndLow(Indicator):
     Returns 1.0 when SMA is within the bar's high-low range,
     0.0 otherwise.
     """
+
     # Check if moving average is between high and low prices
     lines = ("target",)
     params = (("period", 5),)
@@ -52,15 +53,15 @@ class MaBetweenHighAndLow(Indicator):
         high_array = self.data.high.array
         low_array = self.data.low.array
         larray = self.lines.target.array
-        
+
         while len(larray) < end:
             larray.append(0.0)
-        
+
         for i in range(start, min(end, len(ma_array), len(high_array), len(low_array))):
             ma_val = ma_array[i] if i < len(ma_array) else 0.0
             high_val = high_array[i] if i < len(high_array) else 0.0
             low_val = low_array[i] if i < len(low_array) else 0.0
-            
+
             if isinstance(ma_val, float) and math.isnan(ma_val):
                 larray[i] = float("nan")
             else:
@@ -73,6 +74,7 @@ class BarsLast(Indicator):
     Tracks the number of bars that have passed since a specified
     condition (default: MaBetweenHighAndLow) was last true.
     """
+
     # This indicator analyzes the number of bars since the last condition was met
     lines = ("bar_num",)
     params = (("period", 5), ("func", MaBetweenHighAndLow))
@@ -106,6 +108,7 @@ class NewDiff(Indicator):
         SUM((CLOSE==DELAY(CLOSE,1)?0:CLOSE-(CLOSE>DELAY(CLOSE,1)?
         MIN(LOW,DELAY(CLOSE,1)):MAX(HIGH,DELAY(CLOSE,1)))), period)
     """
+
     # Indicator based on Guotai Junan alpha factor
     # : SUM((CLOSE=DELAY(CLOSE,1)?0:CLOSE-(CLOSE>DELAY(CLOSE,1)?MIN(LOW,DELAY(CLOSE,1)):MAX(HIGH,DELAY(CLOSE,1)))),6)
     # - e = MIN(LOW, DELAY(CLOSE, 1))
