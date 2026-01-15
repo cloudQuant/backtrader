@@ -189,10 +189,12 @@ setup(
     long_description_content_type="text/markdown",  # Long description content type
     url="https://gitee.com/yunjinqi/backtrader.git",  # Project URL
     install_requires=[
-        "numpy>=1.20.0",
+        "numpy",
         "pytz",
         "pandas",
         "matplotlib",
+        "scipy",
+        "statsmodels",
     ],
     extras_require={
         "dev": [
@@ -207,6 +209,8 @@ setup(
         "plotting": [
             "plotly",
             "bokeh",
+            "dash",
+            "pyecharts",
         ],
     },  # List of project dependencies
     ext_modules=extensions,  # Add extension modules
