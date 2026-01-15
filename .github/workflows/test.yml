@@ -71,10 +71,15 @@ jobs:
 
       - name: Install dependencies
         run: |
+          set -x  # Echo commands for debugging
           python -m pip install --upgrade pip setuptools wheel
-          pip install numpy>=1.20.0,<3.0.0
+          pip install "numpy>=1.20.0,<3.0.0"
           pip install pytz pandas matplotlib scipy statsmodels
-          pip install -e ".[dev]"
+          pip install -e ".[dev]" || {
+            echo "=== Installation failed, trying without extras ==="
+            pip install -e .
+            pip install pytest pytest-timeout
+          }
 
       - name: Run tests
         run: |
