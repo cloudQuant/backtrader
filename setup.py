@@ -16,7 +16,7 @@ setup(
     long_description_content_type="text/markdown",  # Long description content type
     url="https://gitee.com/yunjinqi/backtrader.git",  # Project URL
     install_requires=[
-        # Use flexible numpy version for Python 3.9-3.13 compatibility
+        # Use flexible numpy version for Python 3.8-3.13 compatibility
         "numpy>=1.20.0,<3.0.0",
         "pytz>=2021.1",
         "pandas>=1.3.0",
@@ -43,6 +43,7 @@ setup(
     },  # List of project dependencies
     classifiers=[
         "Programming Language :: Python :: 3",
+        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",

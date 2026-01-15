@@ -20,7 +20,7 @@ Example:
 """
 import threading
 import weakref
-from typing import Any
+from typing import Any, Dict, Optional
 
 
 class SingletonMixin:
@@ -41,7 +41,7 @@ class SingletonMixin:
 
     # Class-level storage for singleton instances
     # Using WeakValueDictionary for automatic cleanup
-    _instances: dict[type, Any] = weakref.WeakValueDictionary()
+    _instances: Dict[type, Any] = weakref.WeakValueDictionary()
     _lock = threading.Lock()
 
     def __new__(cls, *args, **kwargs):
@@ -86,7 +86,7 @@ class SingletonMixin:
                 del cls._instances[cls]
 
     @classmethod
-    def _get_instance(cls) -> Any | None:
+    def _get_instance(cls) -> Optional[Any]:
         """Get the current singleton instance if it exists.
 
         Returns:
