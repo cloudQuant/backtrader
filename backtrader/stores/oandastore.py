@@ -22,7 +22,7 @@ import json
 import threading
 import time as _time
 import traceback
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 import oandapy
 import requests  # oandapy depdendency
@@ -34,6 +34,9 @@ from ..utils.py3 import queue
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
 from .mixins import ParameterizedSingletonMixin
+
+# Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
+UTC = timezone.utc
 
 # Extend the exceptions to support extra cases
 

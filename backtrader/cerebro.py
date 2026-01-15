@@ -35,7 +35,7 @@ import datetime
 import itertools
 import multiprocessing
 import traceback
-from datetime import UTC
+from datetime import timezone
 
 try:  # For new Python versions
     collectionsAbc = collections.abc  # collections.Iterable -> collections.abc.Iterable
@@ -53,6 +53,9 @@ from .tradingcal import PandasMarketCalendar, TradingCalendarBase
 from .utils import OrderedDict, date2num, num2date, tzparse
 from .utils.py3 import integer_types, map, range, string_types, zip
 from .writer import WriterFile
+
+# Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
+UTC = timezone.utc
 
 
 class OptReturn:

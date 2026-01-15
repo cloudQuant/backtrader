@@ -15,7 +15,7 @@ Example:
     ... )
     >>> cerebro.adddata(data)
 """
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from backtrader.feed import DataBase
 from backtrader.stores import oandastore
@@ -24,6 +24,9 @@ from backtrader.utils.py3 import (
 )
 
 from ..utils import date2num, num2date
+
+# Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
+UTC = timezone.utc
 
 
 class OandaData(DataBase):

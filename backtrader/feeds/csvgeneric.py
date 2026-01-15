@@ -19,12 +19,15 @@ Example:
     ... )
     >>> cerebro.adddata(data)
 """
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from .. import feed
 from ..dataseries import TimeFrame
 from ..utils import date2num
 from ..utils.py3 import integer_types, string_types
+
+# Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
+UTC = timezone.utc
 
 
 class GenericCSVData(feed.CSVDataBase):
