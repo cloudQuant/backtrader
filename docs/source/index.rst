@@ -6,12 +6,12 @@ Backtrader Documentation
 
 |github| |gitee| |python| |license|
 
-.. |github| image:: https://img.shields.io/badge/GitHub-cloudquant%2Fbacktrader-blue?logo=github
-   :target: https://github.com/cloudquant/backtrader
+.. |github| image:: https://img.shields.io/badge/GitHub-cloudQuant%2Fbacktrader-blue?logo=github
+   :target: https://github.com/cloudQuant/backtrader
    :alt: GitHub
 
-.. |gitee| image:: https://img.shields.io/badge/Gitee-cloudquant%2Fbacktrader-red?logo=gitee
-   :target: https://gitee.com/cloudquant/backtrader
+.. |gitee| image:: https://img.shields.io/badge/Gitee-yunjinqi%2Fbacktrader-red?logo=gitee
+   :target: https://gitee.com/yunjinqi/backtrader
    :alt: Gitee
 
 .. |python| image:: https://img.shields.io/badge/Python-3.7+-green?logo=python
