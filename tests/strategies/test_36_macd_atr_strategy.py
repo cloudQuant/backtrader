@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: MACD ATR 策略
+Test Case: MACD ATR Strategy
 
-参考来源: backtrader-master2/samples/macd-settings/macd-settings.py
-基于MACD交叉和SMA方向过滤，使用ATR动态止损
+Reference: backtrader-master2/samples/macd-settings/macd-settings.py
+Based on MACD crossover and SMA direction filtering, using ATR dynamic stop loss.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,10 +45,26 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class MACDATRStrategy(bt.Strategy):
-    """MACD ATR策略
-    
-    入场条件：MACD线上穿信号线 且 SMA方向向下（逆势入场）
-    出场条件：价格跌破ATR动态止损价
+    """MACD ATR Strategy.
+
+    Entry condition: MACD line crosses above signal line AND SMA direction is
+        downward (counter-trend entry).
+    Exit condition: Price falls below ATR dynamic stop loss price.
+
+    Attributes:
+        macd: MACD indicator instance.
+        mcross: CrossOver indicator for MACD and signal line.
+        atr: ATR indicator instance.
+        sma: SMA indicator instance.
+        smadir: SMA direction indicator.
+        order: Current pending order.
+        pstop: Current stop loss price.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+        win_count: Number of profitable trades.
+        loss_count: Number of losing trades.
+        sum_profit: Total profit/loss from all closed trades.
     """
     params = (
         ('macd1', 12),
@@ -50,6 +77,17 @@ class MACDATRStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the MACD ATR strategy.
+
+        Sets up the technical indicators used for trading signals and initializes
+        the tracking variables for orders, trades, and statistics.
+
+        The strategy uses:
+        - MACD (Moving Average Convergence Divergence) for trend momentum
+        - CrossOver of MACD and signal line for entry signals
+        - ATR (Average True Range) for dynamic stop loss calculation
+        - SMA (Simple Moving Average) for trend direction filtering
+        """
         self.macd = bt.indicators.MACD(
             self.data,
             period_me1=self.p.macd1,
@@ -64,7 +102,7 @@ class MACDATRStrategy(bt.Strategy):
         self.order = None
         self.pstop = 0
 
-        # 统计变量
+        # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -73,6 +111,14 @@ class MACDATRStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Updates the buy/sell order counters when orders are completed and
+        clears the pending order reference when the order is no longer alive.
+
+        Args:
+            order: The order object with status information.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -82,6 +128,13 @@ class MACDATRStrategy(bt.Strategy):
             self.order = None
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Updates profit/loss statistics and win/loss counters when a trade is closed.
+
+        Args:
+            trade: The trade object with profit/loss information.
+        """
         if trade.isclosed:
             self.sum_profit += trade.pnlcomm
             if trade.pnlcomm > 0:
@@ -90,6 +143,20 @@ class MACDATRStrategy(bt.Strategy):
                 self.loss_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called for each bar in the data feed and implements the
+        core strategy logic:
+
+        Entry conditions:
+        - MACD line crosses above signal line (bullish signal)
+        - SMA direction is negative (counter-trend entry)
+
+        Exit conditions:
+        - Close price falls below the ATR-based trailing stop loss
+
+        The stop loss is dynamically adjusted based on ATR to track price movement.
+        """
         self.bar_num += 1
 
         if self.order:
@@ -111,6 +178,12 @@ class MACDATRStrategy(bt.Strategy):
                 self.pstop = max(pstop, pclose - pdist)
 
     def stop(self):
+        """Print final strategy statistics when backtesting completes.
+
+        Calculates and displays the win rate and total profit/loss along with
+        trading statistics including number of bars processed, buy/sell counts,
+        and win/loss counts.
+        """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "
@@ -121,11 +194,18 @@ class MACDATRStrategy(bt.Strategy):
 
 
 def test_macd_atr_strategy():
-    """测试 MACD ATR 策略"""
+    """Test the MACD ATR strategy.
+
+    This function runs a backtest of the MACD ATR strategy on Yahoo stock data
+    from 2005-2014 and verifies the results match expected values.
+
+    Raises:
+        AssertionError: If any of the backtest metrics do not match expected values.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(50000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("yhoo-1996-2014.txt")
     data = bt.feeds.YahooFinanceCSVData(
         dataname=str(data_path),
@@ -142,7 +222,7 @@ def test_macd_atr_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
@@ -156,7 +236,7 @@ def test_macd_atr_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("MACD ATR 策略回测结果:")
+    print("MACD ATR Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -181,12 +261,12 @@ def test_macd_atr_strategy():
     assert abs(annual_return - (-1.2861156358361e-05)) < 1e-9, f"Expected annual_return=-1.2861156358361e-05, got {annual_return}"
     assert abs(max_drawdown - 0.07560831095513623) < 1e-6, f"Expected max_drawdown=0.07560831095513623, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("MACD ATR 策略测试")
+    print("MACD ATR Strategy Test")
     print("=" * 60)
     test_macd_atr_strategy()

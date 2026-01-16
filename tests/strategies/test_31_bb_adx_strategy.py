@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: BB_ADX 布林带+ADX均值回归策略
+Test case: BB_ADX Bollinger Bands + ADX mean reversion strategy
 
-参考来源: backtrader-backtests/BollBand and ADX/BB_ADX.py
+Reference source: backtrader-backtests/BollBand and ADX/BB_ADX.py
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +19,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script directory to avoid relative path reading failures.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -50,7 +60,7 @@ class BBADXStrategy(bt.Strategy):
         self.adx = bt.indicators.AverageDirectionalMovementIndex(self.data, period=self.params.ADX_Period)
         self.bb = bt.indicators.BollingerBands(self.data, period=self.params.BB_MA, devfactor=self.params.BB_SD)
 
-        # 统计变量
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -70,7 +80,7 @@ class BBADXStrategy(bt.Strategy):
             if order.issell():
                 self.sell_count += 1
                 if self.position.size == 0:
-                    # 平仓时计算盈亏
+                    # Calculate profit/loss when closing position
                     pass
         elif order.status in [order.Rejected, order.Margin]:
             pass
@@ -113,7 +123,7 @@ class BBADXStrategy(bt.Strategy):
                 self.closepos = self.close()
 
     def stop(self):
-        """输出统计信息"""
+        """Output statistical information."""
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "
@@ -124,11 +134,16 @@ class BBADXStrategy(bt.Strategy):
 
 
 def test_bb_adx_strategy():
-    """测试 BB_ADX 布林带+ADX均值回归策略"""
+    """Test BB_ADX Bollinger Bands + ADX mean reversion strategy.
+
+    This test function creates a cerebro instance, loads Shanghai stock data,
+    and runs backtesting with the BBADXStrategy. It then verifies the results
+    against expected values using assertions.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载上证股票数据...")
+    print("Loading Shanghai stock data...")
     data_path = resolve_data_path("sh600000.csv")
     df = pd.read_csv(data_path)
     df['datetime'] = pd.to_datetime(df['datetime'])
@@ -159,11 +174,11 @@ def test_bb_adx_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtesting...")
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析器结果
+    # Get analyzer results
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get('sharperatio', None)
     returns = strat.analyzers.my_returns.get_analysis()
     annual_return = returns.get('rnorm', 0)
@@ -174,7 +189,7 @@ def test_bb_adx_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("BB_ADX 布林带+ADX均值回归策略回测结果:")
+    print("BB_ADX Bollinger Bands + ADX mean reversion strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -188,7 +203,7 @@ def test_bb_adx_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言 - 确保策略正常运行
+    # Assertions - ensure strategy runs correctly
     assert strat.bar_num == 5388, f"Expected bar_num=5388, got {strat.bar_num}"
     assert strat.buy_count == 296, f"Expected buy_count=296, got {strat.buy_count}"
     assert strat.sell_count == 295, f"Expected sell_count=295, got {strat.sell_count}"
@@ -200,12 +215,12 @@ def test_bb_adx_strategy():
     assert abs(annual_return - (-1.3426746125718879e-05)) < 1e-9, f"Expected annual_return=-1.3426746125718879e-05, got {annual_return}"
     assert abs(max_drawdown - 0.037680134320528774) < 1e-6, f"Expected max_drawdown=0.037680134320528774, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("BB_ADX 布林带+ADX均值回归策略测试")
+    print("BB_ADX Bollinger Bands + ADX mean reversion strategy test")
     print("=" * 60)
     test_bb_adx_strategy()

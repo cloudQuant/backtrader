@@ -1,9 +1,18 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: TRIX 三重指数平滑策略
+"""Test suite for TRIX (Triple Exponential Average) strategy.
 
-使用TRIX指标的零线交叉判断趋势
+This module tests a trading strategy based on the TRIX technical indicator,
+which is a momentum oscillator that shows the rate of change of a triple
+exponentially smoothed moving average. It filters out cycles shorter than
+the indicator period and generates signals based on zero-line crossovers.
+
+Example:
+    To run the test::
+
+        python test_107_trix_strategy.py
+
+The test uses historical Oracle Corporation (ORCL) stock data from 2010-2014.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -16,6 +25,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the full path to a data file by searching common locations.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any search path.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -29,13 +49,24 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TrixStrategy(bt.Strategy):
-    """TRIX 三重指数平滑策略
-    
-    入场条件:
-    - 多头: TRIX上穿零线
-    
-    出场条件:
-    - TRIX下穿零线
+    """TRIX (Triple Exponential Average) trend-following strategy.
+
+    This strategy uses the TRIX indicator to identify momentum changes
+    by detecting zero-line crossovers. TRIX filters out short-term noise
+    and highlights the underlying trend direction.
+
+    Entry Conditions:
+        - Long: TRIX crosses above zero line (bullish momentum)
+
+    Exit Conditions:
+        - TRIX crosses below zero line (bearish momentum)
+
+    Attributes:
+        trix: TRIX indicator instance.
+        order: Current pending order.
+        bar_num: Counter for processed bars.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -43,14 +74,20 @@ class TrixStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the strategy with indicators and tracking variables."""
         self.trix = bt.indicators.TRIX(self.data.close, period=self.p.period)
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates and track completed trades.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -61,25 +98,41 @@ class TrixStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the core strategy logic:
+        1. Track bar progression
+        2. Check for pending orders
+        3. Ensure minimum data availability
+        4. Generate entry/exit signals based on TRIX zero-line crossovers
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if len(self) < 2:
             return
-        
+
         if not self.position:
-            # TRIX上穿零线
+            # Entry: TRIX crossing above zero line
             if self.trix[-1] <= 0 and self.trix[0] > 0:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # TRIX下穿零线
+            # Exit: TRIX crossing below zero line
             if self.trix[-1] >= 0 and self.trix[0] < 0:
                 self.order = self.close()
 
 
 def test_trix_strategy():
+    """Test TRIX strategy with historical data.
+
+    Sets up a backtest with ORCL data from 2010-2014, runs the strategy,
+    and validates performance metrics against expected values.
+
+    Raises:
+        AssertionError: If any performance metric does not match expected value.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -105,7 +158,7 @@ def test_trix_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("TRIX 三重指数平滑策略回测结果:")
+    print("TRIX Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -115,18 +168,20 @@ def test_trix_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 90000 < final_value < 200000, f"final_value={final_value} out of range"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # Validate results against expected values
+    # Tolerance: 0.01 for final_value, 1e-6 for other metrics
+    assert strat.bar_num == 1214, f"Expected bar_num=1214, got {strat.bar_num}"
+    assert abs(final_value - 100064.09) < 0.01, f"Expected final_value=100000.0, got {final_value}"
+    assert abs(sharpe_ratio - (0.6018822117703181)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
+    assert abs(annual_return - (0.0001284474419311452)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 0.09576645933068643) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("TRIX 三重指数平滑策略测试")
+    print("TRIX Strategy Test")
     print("=" * 60)
     test_trix_strategy()

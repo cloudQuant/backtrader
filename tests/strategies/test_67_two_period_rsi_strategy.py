@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Two Period RSI 双周期RSI策略
+Test Case: Two Period RSI Strategy
 
-参考来源: https://github.com/backtrader/backhacker
-Larry Connor的2周期RSI策略
+Reference: https://github.com/backtrader/backhacker
+Larry Connor's 2-Period RSI Strategy
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script's directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,12 +45,23 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TwoPeriodRSIStrategy(bt.Strategy):
-    """双周期RSI策略
-    
-    Larry Connor的策略:
-    1. 价格在200日均线上方
-    2. 2周期RSI低于5时买入
-    3. 价格上穿5日均线时卖出
+    """Two Period RSI Strategy.
+
+    Larry Connor's strategy:
+    1. Price is above the 200-day moving average
+    2. Buy when 2-period RSI is below 5
+    3. Sell when price crosses above the 5-day moving average
+
+    Attributes:
+        dataclose: Reference to the close price data.
+        rsi: 2-period RSI indicator.
+        sma5: 5-period Simple Moving Average.
+        sma200: 200-period Simple Moving Average.
+        order: Current pending order.
+        last_operation: Last operation type ("BUY" or "SELL").
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = dict(
         stake=10,
@@ -50,20 +72,34 @@ class TwoPeriodRSIStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Two Period RSI strategy.
+
+        Sets up the indicators and tracking variables for the strategy.
+        Initializes the RSI indicator, short and long SMAs, and order tracking.
+        """
         self.dataclose = self.datas[0].close
         self.rsi = bt.indicators.RSI_Safe(self.datas[0], period=self.p.rsi_period)
         self.sma5 = bt.ind.SMA(self.datas[0], period=self.p.sma_short)
         self.sma200 = bt.ind.SMA(self.datas[0], period=self.p.sma_long)
-        
+
         self.order = None
         self.last_operation = "SELL"
-        
-        # 统计变量
+
+        # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Updates the buy/sell counters and tracks the last operation when
+        orders are completed. Resets the order reference when the order
+        is no longer active.
+
+        Args:
+            order: The order object containing status and execution information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -78,27 +114,52 @@ class TwoPeriodRSIStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements Larry Connor's 2-Period RSI strategy:
+        1. Buy when price is above the 200-day MA and 2-period RSI is below 5
+        2. Sell when price crosses above the 5-day MA
+
+        Only one order can be active at a time. The strategy tracks the
+        last operation to prevent duplicate entries.
+        """
         self.bar_num += 1
 
         if self.order:
             return
 
-        # 买入条件: 价格在200日均线上方且RSI低于5
+        # Buy condition: Price above 200-day MA and RSI below 5
         if self.last_operation != "BUY":
             if self.dataclose[0] > self.sma200[0] and self.rsi[0] < self.p.rsi_buy_threshold:
                 self.order = self.buy(size=self.p.stake)
-        
-        # 卖出条件: 价格上穿5日均线
+
+        # Sell condition: Price crosses above 5-day MA
         if self.last_operation != "SELL":
             if self.dataclose[0] > self.sma5[0]:
                 self.order = self.sell(size=self.p.stake)
 
     def stop(self):
+        """Called when the backtesting is finished.
+
+        This method is called after the cerebro run has completed.
+        Can be used for cleanup, final calculations, or logging results.
+        """
         pass
 
 
 def test_two_period_rsi_strategy():
-    """测试双周期RSI策略"""
+    """Test the Two Period RSI strategy.
+
+    This test function:
+    1. Loads Oracle stock data from 2000-2014
+    2. Runs the Two Period RSI strategy with default parameters
+    3. Analyzes performance using Sharpe Ratio, Returns, DrawDown, and TradeAnalyzer
+    4. Asserts that the results match expected values
+
+    Raises:
+        AssertionError: If any of the test assertions fail (bar count,
+            final value, Sharpe ratio, annual return, or max drawdown).
+    """
     cerebro = bt.Cerebro()
 
     data_path = resolve_data_path("orcl-1995-2014.txt")
@@ -121,7 +182,7 @@ def test_two_period_rsi_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -130,7 +191,7 @@ def test_two_period_rsi_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -139,7 +200,7 @@ def test_two_period_rsi_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Two Period RSI 双周期RSI策略回测结果:")
+    print("Two Period RSI Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -150,18 +211,19 @@ def test_two_period_rsi_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=100061.23, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
+    assert strat.bar_num == 3573, f"Expected bar_num=3573, got {strat.bar_num}"
+    assert abs(final_value - 100061.23) < 0.01, f"Expected final_value=100061.23, got {final_value}"
+    assert abs(sharpe_ratio - (0.5519798674941566)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
+    assert abs(annual_return - (4.0897296253360675e-05)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 0.02139426944243814) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Two Period RSI 双周期RSI策略测试")
+    print("Two Period RSI Strategy Test")
     print("=" * 60)
     test_two_period_rsi_strategy()

@@ -1,10 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: Double Sevens 双七策略
+"""Test module for the Double Sevens trading strategy.
 
-参考来源: https://github.com/backtrader/backhacker
-Larry Connor的Double 7's策略
+This module implements and tests Larry Connor's Double Sevens strategy, a mean-reversion
+trading system that buys at N-day lows and sells at N-day highs when price is above
+a moving average threshold.
+
+Reference: https://github.com/backtrader/backhacker
+
+Example:
+    To run the test and see backtest results::
+
+        python test_71_double_sevens_strategy.py
+
+    Or run with pytest::
+
+        pytest tests/strategies/test_71_double_sevens_strategy.py -v
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +31,27 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script's directory.
+
+    This function searches for data files in multiple common locations relative
+    to the script's directory, including the script directory, parent directory,
+    and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate (e.g., 'orcl-1995-2014.txt').
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths. The error message includes the filename being searched for.
+
+    Example:
+        >>> path = resolve_data_path('orcl-1995-2014.txt')
+        >>> print(path)
+        /path/to/tests/strategies/datas/orcl-1995-2014.txt
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,36 +65,68 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class DoubleSevensStrategy(bt.Strategy):
-    """双七策略
-    
-    Larry Connor的策略:
-    1. 价格在200日或70日均线上方
-    2. 价格创N日新低时买入
-    3. 价格创N日新高时卖出
+    """Larry Connor's Double Sevens mean-reversion trading strategy.
+
+    This strategy implements a mean-reversion approach that:
+    1. Only trades when price is above the 200-day or 70-day moving average (trend filter)
+    2. Buys when price makes a new N-day low (buying the dip)
+    3. Sells when price makes a new N-day high (selling the rip)
+
+    The strategy is designed to capture short-term reversals within an overall
+    uptrend, avoiding long positions during downtrends by requiring price to
+    be above the moving average threshold.
+
+    Attributes:
+        dataclose: Reference to the close price data series.
+        sma200: 200-period Simple Moving Average indicator.
+        sma: Short-period (default 70) Simple Moving Average indicator.
+        high_bar: N-period Highest close price indicator.
+        low_bar: N-period Lowest close price indicator.
+        order: Reference to the current pending order (None if no pending order).
+        last_operation: String tracking the last operation ('BUY' or 'SELL').
+        bar_num: Counter for the number of bars processed.
+        buy_count: Counter for the number of buy orders executed.
+        sell_count: Counter for the number of sell orders executed.
+
+    Note:
+        The default N-day period is 7, hence the name "Double Sevens".
     """
     params = dict(
         stake=10,
-        period=7,  # N日高低点周期
+        period=7,  # N-day high/low period
         sma_short=70,
         sma_long=200,
     )
 
     def __init__(self):
+        """Initialize the Double Sevens strategy.
+
+        Sets up the required indicators (SMA, Highest, Lowest) and initializes
+        tracking variables for orders, operations, and statistics.
+        """
         self.dataclose = self.datas[0].close
         self.sma200 = bt.ind.SMA(self.datas[0], period=self.p.sma_long)
         self.sma = bt.ind.SMA(self.datas[0], period=self.p.sma_short)
         self.high_bar = bt.ind.Highest(self.datas[0].close, period=self.p.period)
         self.low_bar = bt.ind.Lowest(self.datas[0].close, period=self.p.period)
-        
+
         self.order = None
         self.last_operation = "SELL"
-        
-        # 统计变量
+
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called by Backtrader when an order changes status. Updates operation
+        tracking statistics when orders are completed.
+
+        Args:
+            order: The order object that has changed status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -78,29 +141,76 @@ class DoubleSevensStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called by Backtrader for each new bar. It implements
+        the Double Sevens strategy logic:
+        1. Buy when price is above MA and makes new N-day low
+        2. Sell when price makes new N-day high
+
+        The strategy maintains state via last_operation to avoid duplicate
+        signals and only enters one position at a time.
+        """
         self.bar_num += 1
 
         if self.order:
             return
 
-        # 买入条件: 价格在均线上方 + 创N日新低
+        # Buy condition: Price above moving average + new N-day low
         if self.last_operation != "BUY":
             above_ma = self.dataclose[0] > self.sma200[0] or self.dataclose[0] > self.sma[0]
             at_low = self.dataclose[0] <= self.low_bar[0]
             if above_ma and at_low:
                 self.order = self.buy(size=self.p.stake)
-        
-        # 卖出条件: 创N日新高
+
+        # Sell condition: new N-day high
         if self.last_operation != "SELL":
             if self.dataclose[0] >= self.high_bar[0]:
                 self.order = self.sell(size=self.p.stake)
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        This method is called by Backtrader after all data has been processed.
+        Can be used for final cleanup or logging.
+        """
         pass
 
 
 def test_double_sevens_strategy():
-    """测试双七策略"""
+    """Test the Double Sevens strategy with historical data.
+
+    This test function:
+    1. Loads historical price data for Oracle (ORCL) from 2005-2014
+    2. Runs the Double Sevens trading strategy with default parameters
+    3. Validates strategy performance metrics including Sharpe ratio,
+       annual returns, maximum drawdown, and final portfolio value
+
+    The test uses Oracle stock data from 2005-2014 with starting capital of
+    $100,000 and a 0.1% commission rate. Expected values are based on the
+    deterministic behavior of the strategy implementation.
+
+    Raises:
+        AssertionError: If any of the performance metrics do not match expected
+            values within specified tolerances (1e-6 for most metrics, 0.01 for
+            final portfolio value).
+
+    Example:
+        >>> test_double_sevens_strategy()
+        ==================================================
+        Double Sevens Strategy Backtest Results:
+          bar_num: 2317
+          buy_count: 166
+          sell_count: 165
+          sharpe_ratio: 0.19450685966492476
+          annual_return: 9.047151710597933e-05
+          max_drawdown: 0.1424209289556953
+          total_trades: 165
+          final_value: 100090.36
+        ==================================================
+
+        Test passed!
+    """
     cerebro = bt.Cerebro()
 
     data_path = resolve_data_path("orcl-1995-2014.txt")
@@ -123,7 +233,7 @@ def test_double_sevens_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -132,7 +242,7 @@ def test_double_sevens_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -141,7 +251,7 @@ def test_double_sevens_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Double Sevens 双七策略回测结果:")
+    print("Double Sevens Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -152,18 +262,19 @@ def test_double_sevens_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=100090.36, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
+    assert strat.bar_num == 2317, f"Expected bar_num=2317, got {strat.bar_num}"
+    assert abs(final_value - 100090.36) < 0.01, f"Expected final_value=100090.36, got {final_value}"
+    assert abs(sharpe_ratio - (0.19450685966492476)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
+    assert abs(annual_return - (9.047151710597933e-05)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 0.1424209289556953) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Double Sevens 双七策略测试")
+    print("Double Sevens Strategy Test")
     print("=" * 60)
     test_double_sevens_strategy()

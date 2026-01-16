@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Long Short 多空策略
+Test case: Long Short Strategy
 
-参考来源: backtrader-master2/samples/analyzer-annualreturn/analyzer-annualreturn.py
-基于价格与SMA交叉的多空策略
+Reference: backtrader-master2/samples/analyzer-annualreturn/analyzer-annualreturn.py
+A long-short strategy based on price and SMA crossover.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +20,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data file based on the script directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,9 +45,20 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class LongShortStrategy(bt.Strategy):
-    """多空策略
-    
-    当价格上穿SMA时做多，下穿SMA时做空
+    """Long Short Strategy.
+
+    This strategy goes long when price crosses above SMA, and goes short
+    when price crosses below SMA.
+
+    Attributes:
+        orderid: ID of the current pending order.
+        signal: Crossover signal indicator.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+        win_count: Number of profitable trades.
+        loss_count: Number of losing trades.
+        sum_profit: Total profit/loss from all closed trades.
     """
     params = dict(
         period=15,
@@ -45,11 +67,17 @@ class LongShortStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Long Short Strategy.
+
+        Sets up the Simple Moving Average (SMA) indicator and crossover
+        signal to detect when price crosses above or below the SMA.
+        Initializes all tracking variables for trade statistics.
+        """
         self.orderid = None
         sma = bt.ind.SMA(self.data, period=self.p.period)
         self.signal = bt.ind.CrossOver(self.data.close, sma)
 
-        # 统计变量
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
@@ -58,6 +86,14 @@ class LongShortStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called by the broker when an order changes status. Tracks completed
+        buy and sell orders for statistics.
+
+        Args:
+            order: The order object with updated status information.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -73,6 +109,14 @@ class LongShortStrategy(bt.Strategy):
         self.orderid = None
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Called when a trade is closed. Updates profit/loss statistics
+        and win/loss counters.
+
+        Args:
+            trade: The closed trade object containing profit/loss information.
+        """
         if trade.isclosed:
             self.sum_profit += trade.pnlcomm
             if trade.pnlcomm > 0:
@@ -81,6 +125,15 @@ class LongShortStrategy(bt.Strategy):
                 self.loss_count += 1
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Called on every bar update. Implements the long-short strategy:
+        - Go long when price crosses above SMA
+        - Go short when price crosses below SMA (if not in long-only mode)
+        - Close existing positions before opening new ones
+
+        The strategy ensures only one order is pending at a time.
+        """
         self.bar_num += 1
 
         if self.orderid:
@@ -98,6 +151,13 @@ class LongShortStrategy(bt.Strategy):
                 self.sell(size=self.p.stake)
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        Prints final statistics including bar count, trade counts,
+        win/loss ratio, and total profit/loss.
+
+        The win rate is calculated as: (wins / total trades) * 100
+        """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(
             f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "
@@ -108,11 +168,21 @@ class LongShortStrategy(bt.Strategy):
 
 
 def test_long_short_strategy():
-    """测试 Long Short 多空策略"""
+    """Test the Long Short Strategy.
+
+    This test function runs a backtest of the LongShortStrategy with
+    historical price data and verifies that the strategy produces
+    expected results including trade counts, win/loss ratios, and
+    performance metrics.
+
+    Raises:
+        AssertionError: If any of the expected values do not match the
+            actual results within the specified tolerance.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(
         dataname=str(data_path),
@@ -130,7 +200,7 @@ def test_long_short_strategy():
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
     cerebro.addanalyzer(bt.analyzers.SQN, _name="my_sqn")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
@@ -144,7 +214,7 @@ def test_long_short_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Long Short 多空策略回测结果:")
+    print("Long Short Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -158,23 +228,24 @@ def test_long_short_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
+    assert strat.bar_num == 497, f"Expected bar_num=497, got {strat.bar_num}"
     assert strat.buy_count == 57, f"Expected buy_count=57, got {strat.buy_count}"
     assert strat.sell_count == 56, f"Expected sell_count=56, got {strat.sell_count}"
     assert strat.win_count == 17, f"Expected win_count=17, got {strat.win_count}"
     assert strat.loss_count == 39, f"Expected loss_count=39, got {strat.loss_count}"
     assert total_trades == 57, f"Expected total_trades=57, got {total_trades}"
-    assert 40000 < final_value < 200000, f"Expected final_value=102093.50, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
+    assert abs(final_value - 102093.5) < 0.01, f"Expected final_value=102093.50, got {final_value}"
+    assert abs(sharpe_ratio - (0.10840186537088062)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
+    assert abs(annual_return - (0.010249743255163991)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 3.1589101255944287) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Long Short 多空策略测试")
+    print("Long Short Strategy Test")
     print("=" * 60)
     test_long_short_strategy()

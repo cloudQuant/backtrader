@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Donchian Channel 唐奇安通道策略
+Test case: Donchian Channel strategy.
 
-经典的海龟交易法则突破策略
+Classic Turtle Trading breakout strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -16,6 +16,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve data file path by searching common directories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -29,13 +41,13 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class DonchianChannelStrategy(bt.Strategy):
-    """Donchian Channel 唐奇安通道策略
-    
-    入场条件:
-    - 多头: 价格突破N周期最高价
-    
-    出场条件:
-    - 价格跌破N周期最低价
+    """Donchian Channel strategy.
+
+    Entry conditions:
+    - Long: Price breaks above N-period highest price.
+
+    Exit conditions:
+    - Price breaks below N-period lowest price.
     """
     params = dict(
         stake=10,
@@ -43,15 +55,21 @@ class DonchianChannelStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy indicators and state variables."""
         self.highest = bt.indicators.Highest(self.data.high, period=self.p.period)
         self.lowest = bt.indicators.Lowest(self.data.low, period=self.p.period)
-        
+
         self.order = None
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Args:
+            order: The order object that was updated.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -62,22 +80,33 @@ class DonchianChannelStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar."""
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # 价格突破上轨
+            # Price breaks above upper band
             if self.data.close[0] > self.highest[-1]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 价格跌破下轨
+            # Price breaks below lower band
             if self.data.close[0] < self.lowest[-1]:
                 self.order = self.close()
 
 
 def test_donchian_channel_strategy():
+    """Test the Donchian Channel strategy.
+
+    This test validates that the Donchian Channel breakout strategy
+    correctly identifies price breakouts and produces expected
+    backtest results.
+
+    Raises:
+        AssertionError: If any of the expected values do not match the
+            actual results within the specified tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -103,7 +132,7 @@ def test_donchian_channel_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Donchian Channel 唐奇安通道策略回测结果:")
+    print("Donchian Channel Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -113,18 +142,20 @@ def test_donchian_channel_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 90000 < final_value < 200000, f"final_value={final_value} out of range"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
+    assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
+    assert abs(final_value - 99965.62) < 0.01, f"Expected final_value=99965.62, got {final_value}"
+    assert abs(sharpe_ratio - (-0.1880120016771048)) < 1e-6, f"Expected sharpe_ratio=-0.1880120016771048, got {sharpe_ratio}"
+    assert abs(annual_return - (-6.892828581700974e-05)) < 1e-6, f"Expected annual_return=-6.892828581700974e-05, got {annual_return}"
+    assert abs(max_drawdown - 0.14869686129029783) < 1e-6, f"Expected max_drawdown=0.14869686129029783, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Donchian Channel 唐奇安通道策略测试")
+    print("Donchian Channel Strategy Test")
     print("=" * 60)
     test_donchian_channel_strategy()

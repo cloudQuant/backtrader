@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: BTFD (Buy The F* Dip) 逢低买入策略
+Test case: BTFD (Buy The F* Dip) Strategy
 
-参考来源: backtrader-master2/samples/btfd/btfd.py
-当价格下跌超过阈值时买入，持有固定天数后卖出
+Reference: backtrader-master2/samples/btfd/btfd.py
+Buy when price drops beyond a threshold, sell after holding for a fixed number of days
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +17,17 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the absolute path of a data file by searching in common directories.
+
+    Args:
+        filename: The name of the data file to locate.
+
+    Returns:
+        The absolute Path to the data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -30,9 +41,10 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class BTFDStrategy(bt.Strategy):
-    """BTFD逢低买入策略
-    
-    当日内跌幅超过阈值时买入，持有固定天数后平仓
+    """BTFD (Buy The F* Dip) Strategy.
+
+    Buy when the intraday price drops beyond a threshold, close the position
+    after holding for a fixed number of days.
     """
     params = (
         ('fall', -0.01),
@@ -42,6 +54,17 @@ class BTFDStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the BTFD strategy with price drop calculation and tracking variables.
+
+        Sets up the price drop calculation based on the specified approach and
+        initializes counters for tracking trades, wins, losses, and profits.
+
+        The approach parameter determines how price drops are calculated:
+        - 'closeclose': Close price relative to previous close
+        - 'openclose': Close price relative to same day open
+        - 'highclose': Close price relative to same day high
+        - 'highlow': Low price relative to same day high
+        """
         if self.p.approach == 'closeclose':
             self.pctdown = self.data.close / self.data.close(-1) - 1.0
         elif self.p.approach == 'openclose':
@@ -60,6 +83,11 @@ class BTFDStrategy(bt.Strategy):
         self.sum_profit = 0.0
 
     def notify_order(self, order):
+        """Handle order status updates and track completed orders.
+
+        Args:
+            order: The order object that has been updated.
+        """
         if order.status == order.Completed:
             if order.isbuy():
                 self.buy_count += 1
@@ -67,6 +95,11 @@ class BTFDStrategy(bt.Strategy):
                 self.sell_count += 1
 
     def notify_trade(self, trade):
+        """Handle trade completion and track win/loss statistics.
+
+        Args:
+            trade: The trade object that has been closed.
+        """
         if trade.isclosed:
             self.sum_profit += trade.pnlcomm
             if trade.pnlcomm > 0:
@@ -75,6 +108,12 @@ class BTFDStrategy(bt.Strategy):
                 self.loss_count += 1
 
     def next(self):
+        """Execute the trading logic for each bar.
+
+        Implements the BTFD strategy:
+        1. If in a position and the holding period has elapsed, close the position
+        2. If not in a position and price drop exceeds the threshold, buy
+        """
         self.bar_num += 1
         if self.position:
             if len(self) == self.barexit:
@@ -85,6 +124,11 @@ class BTFDStrategy(bt.Strategy):
                 self.barexit = len(self) + self.p.hold
 
     def stop(self):
+        """Print final strategy statistics when backtesting completes.
+
+        Calculates and displays the final performance metrics including
+        total trades, win rate, and total profit/loss.
+        """
         win_rate = (self.win_count / (self.win_count + self.loss_count) * 100) if (self.win_count + self.loss_count) > 0 else 0
         print(f"{self.data.datetime.datetime(0)}, bar_num={self.bar_num}, "
               f"buy_count={self.buy_count}, sell_count={self.sell_count}, "
@@ -93,12 +137,25 @@ class BTFDStrategy(bt.Strategy):
 
 
 def test_btfd_strategy():
-    """测试 BTFD 逢低买入策略"""
+    """Test the BTFD (Buy The F* Dip) strategy.
+
+    This test function:
+    1. Loads historical price data (2005-2006)
+    2. Configures a Cerebro backtest with the BTFD strategy
+    3. Runs the backtest with performance analyzers (Sharpe Ratio, Returns, Drawdown, Trade Analyzer)
+    4. Validates results against expected values
+
+    The strategy buys when the intraday price drops by 1% or more,
+    then closes the position after holding for 2 days.
+
+    Raises:
+        AssertionError: If any of the backtest metrics do not match expected values.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.set_coc(True)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(
         dataname=str(data_path),
@@ -114,7 +171,7 @@ def test_btfd_strategy():
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run()
     strat = results[0]
 
@@ -128,7 +185,7 @@ def test_btfd_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("BTFD 逢低买入策略回测结果:")
+    print("BTFD Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -139,18 +196,19 @@ def test_btfd_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=117395.70, got {final_value}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # Tolerance: 0.01 for final_value, 1e-6 for other metrics
+    assert strat.bar_num == 512, f"Expected bar_num=512, got {strat.bar_num}"
+    assert abs(final_value - 117395.7) < 0.01, f"Expected final_value=117395.70, got {final_value}"
+    assert abs(sharpe_ratio - (1.5601134401434376)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
+    assert abs(annual_return - (0.08213622913145915)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 8.613180756673923) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("BTFD 逢低买入策略测试")
+    print("BTFD Strategy Test")
     print("=" * 60)
     test_btfd_strategy()
