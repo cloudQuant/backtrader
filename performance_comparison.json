@@ -1,0 +1,364 @@
+{
+  "summary": {
+    "master_total_seconds": 49.751,
+    "remove_total_seconds": 238.539,
+    "difference_seconds": 188.78799999999998,
+    "slowdown_percentage": 379.465739382123,
+    "master_test_count": 165,
+    "remove_test_count": 164,
+    "common_test_count": 164,
+    "tests_with_slowdowns": 145
+  },
+  "slowdowns": [
+    {
+      "test": "tests/original_tests/test_strategy_optimized.py::test_run",
+      "master": 12,
+      "remove": 49,
+      "diff": 37,
+      "ratio": 4.083333333333333
+    },
+    {
+      "test": "tests/original_tests/test_analyzer-sqn.py::test_run",
+      "master": 0.893,
+      "remove": 5,
+      "diff": 4.107,
+      "ratio": 5.599104143337066
+    },
+    {
+      "test": "tests/add_tests/test_analyzer_drawdown.py::test_run",
+      "master": 0.98,
+      "remove": 4,
+      "diff": 3.02,
+      "ratio": 4.081632653061225
+    },
+    {
+      "test": "tests/original_tests/test_ind_kamaosc.py::test_run",
+      "master": 0.198,
+      "remove": 3,
+      "diff": 2.802,
+      "ratio": 15.15151515151515
+    },
+    {
+      "test": "tests/add_tests/test_ind_basicops.py::test_run",
+      "master": 0.299,
+      "remove": 3,
+      "diff": 2.701,
+      "ratio": 10.033444816053512
+    },
+    {
+      "test": "tests/original_tests/test_ind_dma.py::test_run",
+      "master": 0.434,
+      "remove": 3,
+      "diff": 2.566,
+      "ratio": 6.912442396313364
+    },
+    {
+      "test": "tests/add_tests/test_ind_basicops.py::test_lowest",
+      "master": 0.122,
+      "remove": 2,
+      "diff": 1.8780000000000001,
+      "ratio": 16.39344262295082
+    },
+    {
+      "test": "tests/add_tests/test_ind_basicops.py::test_highest",
+      "master": 0.13,
+      "remove": 2,
+      "diff": 1.87,
+      "ratio": 15.384615384615383
+    },
+    {
+      "test": "tests/original_tests/test_ind_momentumoscillator.py::test_run",
+      "master": 0.136,
+      "remove": 2,
+      "diff": 1.8639999999999999,
+      "ratio": 14.705882352941176
+    },
+    {
+      "test": "tests/original_tests/test_ind_lowest.py::test_run",
+      "master": 0.14,
+      "remove": 2,
+      "diff": 1.8599999999999999,
+      "ratio": 14.285714285714285
+    },
+    {
+      "test": "tests/original_tests/test_ind_wmaenvelope.py::test_run",
+      "master": 0.142,
+      "remove": 2,
+      "diff": 1.858,
+      "ratio": 14.084507042253522
+    },
+    {
+      "test": "tests/original_tests/test_ind_pctchange.py::test_run",
+      "master": 0.144,
+      "remove": 2,
+      "diff": 1.856,
+      "ratio": 13.88888888888889
+    },
+    {
+      "test": "tests/add_tests/test_ind_psar.py::test_run",
+      "master": 0.145,
+      "remove": 2,
+      "diff": 1.855,
+      "ratio": 13.793103448275863
+    },
+    {
+      "test": "tests/original_tests/test_ind_highest.py::test_run",
+      "master": 0.162,
+      "remove": 2,
+      "diff": 1.838,
+      "ratio": 12.345679012345679
+    },
+    {
+      "test": "tests/original_tests/test_ind_dpo.py::test_run",
+      "master": 0.164,
+      "remove": 2,
+      "diff": 1.836,
+      "ratio": 12.195121951219512
+    },
+    {
+      "test": "tests/original_tests/test_ind_oscillator.py::test_run",
+      "master": 0.168,
+      "remove": 2,
+      "diff": 1.832,
+      "ratio": 11.904761904761903
+    },
+    {
+      "test": "tests/original_tests/test_ind_zlind.py::test_run",
+      "master": 0.17,
+      "remove": 2,
+      "diff": 1.83,
+      "ratio": 11.76470588235294
+    },
+    {
+      "test": "tests/original_tests/test_ind_smaenvelope.py::test_run",
+      "master": 0.171,
+      "remove": 2,
+      "diff": 1.829,
+      "ratio": 11.695906432748536
+    },
+    {
+      "test": "tests/original_tests/test_ind_pctrank.py::test_run",
+      "master": 0.173,
+      "remove": 2,
+      "diff": 1.827,
+      "ratio": 11.560693641618498
+    },
+    {
+      "test": "tests/original_tests/test_ind_dema.py::test_run",
+      "master": 0.174,
+      "remove": 2,
+      "diff": 1.826,
+      "ratio": 11.49425287356322
+    },
+    {
+      "test": "tests/add_tests/test_ind_mabase.py::test_run",
+      "master": 0.194,
+      "remove": 2,
+      "diff": 1.806,
+      "ratio": 10.309278350515463
+    },
+    {
+      "test": "tests/original_tests/test_ind_sma.py::test_run",
+      "master": 0.195,
+      "remove": 2,
+      "diff": 1.805,
+      "ratio": 10.256410256410255
+    },
+    {
+      "test": "tests/original_tests/test_data_multiframe.py::test_run",
+      "master": 0.195,
+      "remove": 2,
+      "diff": 1.805,
+      "ratio": 10.256410256410255
+    },
+    {
+      "test": "tests/add_tests/test_ind_deviation.py::test_run",
+      "master": 0.196,
+      "remove": 2,
+      "diff": 1.804,
+      "ratio": 10.204081632653061
+    },
+    {
+      "test": "tests/add_tests/test_ind_macd.py::test_run",
+      "master": 0.204,
+      "remove": 2,
+      "diff": 1.796,
+      "ratio": 9.803921568627452
+    },
+    {
+      "test": "tests/original_tests/test_ind_aroonoscillator.py::test_run",
+      "master": 0.21,
+      "remove": 2,
+      "diff": 1.79,
+      "ratio": 9.523809523809524
+    },
+    {
+      "test": "tests/original_tests/test_ind_bbands.py::test_run",
+      "master": 0.212,
+      "remove": 2,
+      "diff": 1.788,
+      "ratio": 9.433962264150944
+    },
+    {
+      "test": "tests/original_tests/test_ind_demaosc.py::test_run",
+      "master": 0.216,
+      "remove": 2,
+      "diff": 1.784,
+      "ratio": 9.25925925925926
+    },
+    {
+      "test": "tests/add_tests/test_ind_hadelta.py::test_run",
+      "master": 0.217,
+      "remove": 2,
+      "diff": 1.783,
+      "ratio": 9.216589861751153
+    },
+    {
+      "test": "tests/original_tests/test_ind_momentum.py::test_run",
+      "master": 0.223,
+      "remove": 2,
+      "diff": 1.777,
+      "ratio": 8.968609865470851
+    },
+    {
+      "test": "tests/original_tests/test_ind_rsi_safe.py::test_run",
+      "master": 0.223,
+      "remove": 2,
+      "diff": 1.777,
+      "ratio": 8.968609865470851
+    },
+    {
+      "test": "tests/original_tests/test_ind_emaenvelope.py::test_run",
+      "master": 0.227,
+      "remove": 2,
+      "diff": 1.773,
+      "ratio": 8.810572687224669
+    },
+    {
+      "test": "tests/original_tests/test_ind_smmaenvelope.py::test_run",
+      "master": 0.228,
+      "remove": 2,
+      "diff": 1.772,
+      "ratio": 8.771929824561402
+    },
+    {
+      "test": "tests/original_tests/test_fractal.py::test_run",
+      "master": 0.23,
+      "remove": 2,
+      "diff": 1.77,
+      "ratio": 8.695652173913043
+    },
+    {
+      "test": "tests/original_tests/test_ind_lrsi.py::test_run",
+      "master": 0.23,
+      "remove": 2,
+      "diff": 1.77,
+      "ratio": 8.695652173913043
+    },
+    {
+      "test": "tests/original_tests/test_ind_smaosc.py::test_run",
+      "master": 0.238,
+      "remove": 2,
+      "diff": 1.762,
+      "ratio": 8.403361344537815
+    },
+    {
+      "test": "tests/original_tests/test_ind_tsi.py::test_run",
+      "master": 0.246,
+      "remove": 2,
+      "diff": 1.754,
+      "ratio": 8.130081300813009
+    },
+    {
+      "test": "tests/original_tests/test_ind_kamaenvelope.py::test_run",
+      "master": 0.254,
+      "remove": 2,
+      "diff": 1.746,
+      "ratio": 7.874015748031496
+    },
+    {
+      "test": "tests/add_tests/test_ind_williams.py::test_run",
+      "master": 0.27,
+      "remove": 2,
+      "diff": 1.73,
+      "ratio": 7.4074074074074066
+    },
+    {
+      "test": "tests/original_tests/test_ind_ultosc.py::test_run",
+      "master": 0.271,
+      "remove": 2,
+      "diff": 1.729,
+      "ratio": 7.380073800738007
+    },
+    {
+      "test": "tests/add_tests/test_analyzer_transactions.py::test_run",
+      "master": 0.276,
+      "remove": 2,
+      "diff": 1.724,
+      "ratio": 7.246376811594202
+    },
+    {
+      "test": "tests/original_tests/test_ind_aroonupdown.py::test_run",
+      "master": 0.284,
+      "remove": 2,
+      "diff": 1.716,
+      "ratio": 7.042253521126761
+    },
+    {
+      "test": "tests/original_tests/test_ind_tema.py::test_run",
+      "master": 0.287,
+      "remove": 2,
+      "diff": 1.713,
+      "ratio": 6.968641114982579
+    },
+    {
+      "test": "tests/original_tests/test_ind_minperiod.py::test_run",
+      "master": 0.306,
+      "remove": 2,
+      "diff": 1.694,
+      "ratio": 6.5359477124183005
+    },
+    {
+      "test": "tests/original_tests/test_ind_temaosc.py::test_run",
+      "master": 0.315,
+      "remove": 2,
+      "diff": 1.685,
+      "ratio": 6.349206349206349
+    },
+    {
+      "test": "tests/original_tests/test_ind_kama.py::test_run",
+      "master": 0.322,
+      "remove": 2,
+      "diff": 1.678,
+      "ratio": 6.211180124223603
+    },
+    {
+      "test": "tests/add_tests/test_observer_logreturns.py::test_run",
+      "master": 0.323,
+      "remove": 2,
+      "diff": 1.677,
+      "ratio": 6.191950464396284
+    },
+    {
+      "test": "tests/add_tests/test_analyzer_total_value.py::test_run",
+      "master": 0.324,
+      "remove": 2,
+      "diff": 1.676,
+      "ratio": 6.172839506172839
+    },
+    {
+      "test": "tests/original_tests/test_ind_atr.py::test_run",
+      "master": 0.329,
+      "remove": 2,
+      "diff": 1.671,
+      "ratio": 6.0790273556231
+    },
+    {
+      "test": "tests/original_tests/test_ind_accdecosc.py::test_run",
+      "master": 0.339,
+      "remove": 2,
+      "diff": 1.661,
+      "ratio": 5.899705014749262
+    }
+  ]
+}
