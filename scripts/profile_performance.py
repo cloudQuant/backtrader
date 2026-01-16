@@ -10,14 +10,16 @@ Options:
     --processes N       Number of parallel processes (default: 7)
     --strategies LIST   Comma-separated strategy numbers or 'all' (default: all)
     --verbose          Show detailed output for each strategy
+    --discover         Auto-discover all strategies from tests/strategies folder
 """
 
 import argparse
+import ast
 import cProfile
-import importlib
-import io
+import glob
 import os
 import pstats
+import re
 import subprocess
 import sys
 import time
@@ -27,35 +29,79 @@ from datetime import datetime
 from typing import Dict, List, Optional, Tuple
 
 # Add the project root to the path
-PROJECT_ROOT = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
-# Strategy configuration: (module_path, test_function_name)
-STRATEGY_CONFIGS = {
-    # Original test strategies
-    0: ("tests.original_tests.test_strategy_optimized", "test_run"),
-    # Strategy tests from tests/strategies (21 strategies total including #0)
-    1: ("tests.strategies.test_01_premium_rate_strategy", "test_strategy_final_value"),
-    2: ("tests.strategies.test_02_multi_extend_data", "test_strategy"),
-    3: ("tests.strategies.test_03_two_ma", "test_two_ma_strategy"),
-    4: ("tests.strategies.test_04_simple_ma_multi_data", "test_simple_ma_multi_data_strategy"),
-    5: ("tests.strategies.test_05_stop_order_strategy", "test_stop_order_strategy"),
-    6: ("tests.strategies.test_06_macd_ema_fase_strategy", "test_macd_ema_strategy"),
-    7: ("tests.strategies.test_07_macd_ema_true_strategy", "test_macd_ema_true_strategy"),
-    8: ("tests.strategies.test_08_kelter_strategy", "test_keltner_strategy"),
-    9: ("tests.strategies.test_09_dual_thrust_strategy", "test_dual_thrust_strategy"),
-    10: ("tests.strategies.test_10_r_breaker_strategy", "test_r_breaker_strategy"),
-    11: ("tests.strategies.test_11_sky_garden_strategy", "test_sky_garden_strategy"),
-    12: ("tests.strategies.test_12_abberation_strategy", "test_abberation_strategy"),
-    13: ("tests.strategies.test_13_fei_strategy", "test_fei_strategy"),
-    14: ("tests.strategies.test_14_hanse123_strategy", "test_hans123_strategy"),
-    15: ("tests.strategies.test_15_fenshi_ma_strategy", "test_timeline_ma_strategy"),
-    16: ("tests.strategies.test_16_cb_strategy", "test_cb_intraday_strategy"),
-    17: ("tests.strategies.test_17_cb_monday_strategy", "test_cb_friday_rotation_strategy"),
-    18: ("tests.strategies.test_18_etf_rotation_strategy", "test_etf_rotation_strategy"),
-    19: ("tests.strategies.test_19_index_future_momentum", "test_treasury_futures_macd_strategy"),
-    20: ("tests.strategies.test_20_arbitrage_strategy", "test_treasury_futures_spread_arbitrage_strategy"),
-}
+# Strategy configuration will be auto-discovered
+STRATEGY_CONFIGS = {}
+
+
+def discover_test_functions(file_path: str) -> List[str]:
+    """
+    Discover all test functions in a Python file using AST parsing.
+    
+    Args:
+        file_path: Path to the Python file
+        
+    Returns:
+        List of test function names
+    """
+    test_functions = []
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            tree = ast.parse(f.read(), filename=file_path)
+        
+        for node in ast.walk(tree):
+            if isinstance(node, ast.FunctionDef):
+                if node.name.startswith("test_"):
+                    test_functions.append(node.name)
+    except Exception as e:
+        print(f"Warning: Could not parse {file_path}: {e}")
+    
+    return test_functions
+
+
+def discover_strategies(strategies_dir: str = None) -> Dict[int, Tuple[str, str]]:
+    """
+    Auto-discover all strategy test files and their test functions.
+    
+    Args:
+        strategies_dir: Path to the strategies directory
+        
+    Returns:
+        Dictionary mapping strategy ID to (module_path, test_function_name)
+    """
+    if strategies_dir is None:
+        strategies_dir = os.path.join(PROJECT_ROOT, "tests", "strategies")
+    
+    configs = {}
+    
+    # Find all test_*.py files
+    pattern = os.path.join(strategies_dir, "test_*.py")
+    test_files = sorted(glob.glob(pattern))
+    
+    for file_path in test_files:
+        filename = os.path.basename(file_path)
+        
+        # Extract strategy number from filename (e.g., test_01_xxx.py -> 1)
+        match = re.match(r"test_(\d+)_.*\.py", filename)
+        if not match:
+            continue
+        
+        strategy_id = int(match.group(1))
+        
+        # Convert file path to module path
+        rel_path = os.path.relpath(file_path, PROJECT_ROOT)
+        module_path = rel_path.replace(os.sep, ".").replace(".py", "")
+        
+        # Discover test functions in this file
+        test_functions = discover_test_functions(file_path)
+        
+        if test_functions:
+            # Use the first test function found
+            configs[strategy_id] = (module_path, test_functions[0])
+    
+    return configs
 
 
 def get_git_branch() -> str:
@@ -82,23 +128,20 @@ def get_git_commit() -> str:
         return "unknown"
 
 
-def profile_single_strategy(strategy_id: int) -> Tuple[int, Optional[Dict], float, str]:
+def profile_single_strategy(args: Tuple[int, str, str]) -> Tuple[int, Optional[Dict], float, str]:
     """
     Profile a single strategy execution
     
     Args:
-        strategy_id: Strategy ID from STRATEGY_CONFIGS
+        args: Tuple of (strategy_id, module_path, func_name)
         
     Returns:
         Tuple of (strategy_id, stats_dict, execution_time, status_message)
     """
-    if strategy_id not in STRATEGY_CONFIGS:
-        return strategy_id, None, 0.0, f"Strategy {strategy_id} not found"
-    
-    module_path, func_name = STRATEGY_CONFIGS[strategy_id]
+    strategy_id, module_path, func_name = args
     
     # Ensure project root is in path (critical for multiprocessing)
-    project_root = os.path.dirname(os.path.abspath(__file__))
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
     
@@ -374,11 +417,13 @@ def run_parallel_profiling(
     results = []
     
     with ProcessPoolExecutor(max_workers=num_processes) as executor:
-        # Submit all tasks
-        future_to_id = {
-            executor.submit(profile_single_strategy, sid): sid 
-            for sid in strategy_ids
-        }
+        # Submit all tasks with (strategy_id, module_path, func_name) tuples
+        future_to_id = {}
+        for sid in strategy_ids:
+            if sid in STRATEGY_CONFIGS:
+                module_path, func_name = STRATEGY_CONFIGS[sid]
+                args = (sid, module_path, func_name)
+                future_to_id[executor.submit(profile_single_strategy, args)] = sid
         
         # Collect results as they complete
         for future in as_completed(future_to_id):
@@ -390,11 +435,11 @@ def run_parallel_profiling(
                 sid, stats_dict, exec_time, status = result
                 module_path = STRATEGY_CONFIGS.get(sid, ("unknown", "unknown"))[0]
                 status_icon = "✓" if stats_dict is not None else "✗"
-                print(f"  [{sid:2d}] {status_icon} {module_path.split('.')[-1]:<45} - {exec_time:.2f}s - {status}")
+                print(f"  [{sid:3d}] {status_icon} {module_path.split('.')[-1]:<45} - {exec_time:.2f}s - {status}")
                 
             except Exception as e:
                 results.append((strategy_id, None, 0.0, f"EXCEPTION: {str(e)}"))
-                print(f"  [{strategy_id:2d}] ✗ Exception: {str(e)}")
+                print(f"  [{strategy_id:3d}] ✗ Exception: {str(e)}")
     
     print("-" * 60)
     
@@ -422,6 +467,8 @@ def parse_strategy_list(strategy_arg: str) -> List[int]:
 
 def main():
     """Main execution function"""
+    global STRATEGY_CONFIGS
+    
     parser = argparse.ArgumentParser(
         description="Profile backtrader strategies for performance analysis"
     )
@@ -446,14 +493,34 @@ def main():
         '--output', '-o',
         type=str,
         default=None,
-        help='Output file path (default: auto-generated)'
+        help='Output file path (default: auto-generated in logs/)'
+    )
+    parser.add_argument(
+        '--list', '-l',
+        action='store_true',
+        help='List all discovered strategies and exit'
     )
     
     args = parser.parse_args()
     
-    print("=" * 60)
+    print("=" * 70)
     print("BACKTRADER MULTI-STRATEGY PERFORMANCE PROFILER")
-    print("=" * 60)
+    print("=" * 70)
+    
+    # Auto-discover strategies
+    print("\nDiscovering strategies from tests/strategies/...")
+    STRATEGY_CONFIGS = discover_strategies()
+    print(f"Found {len(STRATEGY_CONFIGS)} strategy test files")
+    
+    # List mode - just show discovered strategies and exit
+    if args.list:
+        print("\nDiscovered Strategies:")
+        print("-" * 70)
+        for sid in sorted(STRATEGY_CONFIGS.keys()):
+            module_path, func_name = STRATEGY_CONFIGS[sid]
+            print(f"  [{sid:3d}] {module_path}")
+            print(f"         -> {func_name}()")
+        return 0
     
     # Parse strategy list
     strategy_ids = parse_strategy_list(args.strategies)
@@ -478,9 +545,13 @@ def main():
         if args.output:
             output_file = args.output
         else:
+            # Create logs directory if it doesn't exist
+            logs_dir = os.path.join(PROJECT_ROOT, "logs")
+            os.makedirs(logs_dir, exist_ok=True)
+            
             branch = get_git_branch()
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            output_file = f"performance_profile_{branch}_{timestamp}.log"
+            output_file = os.path.join(logs_dir, f"performance_profile_{branch}_{timestamp}.log")
         
         # Generate report
         generate_aggregated_report(aggregated, output_file, args.verbose)
