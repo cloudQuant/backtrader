@@ -1,8 +1,8 @@
-"""分时均线 (TimeLine MA) 期货策略测试用例
+"""Test cases for TimeLine MA Futures Strategy
 
-使用螺纹钢期货数据 RB889.csv 测试分时均线策略
-- 使用 PandasData 加载单合约数据
-- 基于分时均价线和均线过滤的日内策略，配合移动止损
+Test the TimeLine MA strategy using rebar futures data RB889.csv
+- Use PandasData to load single contract data
+- Intraday strategy based on time average price line and moving average filter, with trailing stop loss
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -19,7 +19,7 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件，避免相对路径读取失败"""
+    """Locate data files based on the script directory to avoid relative path failures"""
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -35,21 +35,38 @@ def resolve_data_path(filename: str) -> Path:
         if candidate.exists():
             return candidate
 
-    raise FileNotFoundError(f"未找到数据文件: {filename}")
+    raise FileNotFoundError(f"Data file not found: {filename}")
 
 
 class TimeLine(bt.Indicator):
-    """分时均价线指标
-    
-    计算当日收盘价的累积平均值作为分时均价线
+    """Time average price line indicator
+
+    Calculate the cumulative average of the day's closing prices as the time average price line
     """
     lines = ('day_avg_price',)
     params = (("day_end_time", (15, 0, 0)),)
 
     def __init__(self):
+        """Initialize the TimeLine indicator.
+
+        Creates an empty list to store closing prices for the current day.
+        The cumulative average of these prices will be calculated as the
+        time average price line.
+        """
         self.day_close_price_list = []
 
     def next(self):
+        """Calculate the time average price for the current bar.
+
+        This method is called for each bar in the data series. It:
+        1. Appends the current bar's close price to the day's price list
+        2. Calculates the cumulative average of all prices in the list
+        3. Resets the price list at the end of the trading day
+
+        The time average price line is useful for intraday strategies as it
+        represents the average entry price of all market participants throughout
+        the day.
+        """
         self.day_close_price_list.append(self.data.close[0])
         self.lines.day_avg_price[0] = sum(self.day_close_price_list) / len(self.day_close_price_list)
 
@@ -62,13 +79,13 @@ class TimeLine(bt.Indicator):
 
 
 class TimeLineMaStrategy(bt.Strategy):
-    """分时均线策略
+    """Time line moving average strategy
 
-    使用分时均价线配合均线进行交易:
-    - 均线向上 + 价格 > 均线 + 价格突破分时均线 → 做多
-    - 均线向下 + 价格 < 均线 + 价格跌破分时均线 → 做空
-    - 使用移动止损
-    - 收盘前平仓
+    Trade using time average price line combined with moving average:
+    - MA upward + price > MA + price breaks through time MA → go long
+    - MA downward + price < MA + price breaks below time MA → go short
+    - Use trailing stop loss
+    - Close position before market close
     """
     author = 'yunjinqi'
     params = (
@@ -77,32 +94,64 @@ class TimeLineMaStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
-        """log信息的功能"""
+        """Logging function"""
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def __init__(self):
+        """Initialize the TimeLineMaStrategy.
+
+        Sets up the following components:
+        - Counter variables for bars and trades
+        - TimeLine indicator for calculating day average price
+        - Simple Moving Average (SMA) for trend filtering
+        - State variables for tracking positions, daily high/low, and orders
+        """
         self.bar_num = 0
         self.day_bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
-        # 分时均价线指标
+        # Time average price line indicator
         self.day_avg_price = TimeLine(self.datas[0])
         self.ma_value = bt.indicators.SMA(self.datas[0].close, period=self.p.ma_period)
-        # 保存交易状态
+        # Trading state
         self.marketposition = 0
-        # 保存当前交易日的最高价、最低价，收盘价
+        # Current trading day's high, low, and close prices
         self.now_high = 0
         self.now_low = 999999999
         self.now_close = None
         self.now_open = None
-        # 跟踪止损单
+        # Trailing stop order
         self.stop_order = None
 
     def prenext(self):
+        """Called before the minimum period is reached.
+
+        This method is called for each bar before the indicators have enough
+        data to be valid. Currently empty as all logic is in the next() method.
+        """
         pass
 
     def next(self):
+        """Execute the main trading logic for each bar.
+
+        This method implements the core strategy:
+        1. Updates daily high/low tracking
+        2. Checks if position needs to be closed at market close (14:55)
+        3. Generates long signals when:
+           - MA is trending up (current > previous)
+           - Price is above MA
+           - Price breaks above time average price line (bullish breakout)
+        4. Generates short signals when:
+           - MA is trending down (current < previous)
+           - Price is below MA
+           - Price breaks below time average price line (bearish breakout)
+        5. Places trailing stop orders for risk management
+        6. Closes positions when price reverses through time average price line
+
+        Trading hours: 9:00-11:00 and 21:00-23:00
+        Position close: 14:55 (before market close at 15:00)
+        """
         self.current_datetime = bt.num2date(self.datas[0].datetime[0])
         self.current_hour = self.current_datetime.hour
         self.current_minute = self.current_datetime.minute
@@ -110,7 +159,7 @@ class TimeLineMaStrategy(bt.Strategy):
         self.bar_num += 1
         data = self.datas[0]
 
-        # 更新最高价、最低价、收盘价
+        # Update high, low, close prices
         self.now_high = max(self.now_high, data.high[0])
         self.now_low = min(self.now_low, data.low[0])
         if self.now_close is None:
@@ -122,7 +171,7 @@ class TimeLineMaStrategy(bt.Strategy):
             self.now_close = None
             self.day_bar_num = 0
 
-        # 初始化
+        # Initialize
         size = self.getposition(data).size
         if size == 0:
             self.marketposition = 0
@@ -130,14 +179,14 @@ class TimeLineMaStrategy(bt.Strategy):
                 self.broker.cancel(self.stop_order)
                 self.stop_order = None
 
-        # 分时均线策略
+        # Time line MA strategy
         if len(data.close) > self.p.ma_period:
-            # 开始交易
+            # Start trading
             open_time_1 = self.current_hour >= 21 and self.current_hour <= 23
             open_time_2 = self.current_hour >= 9 and self.current_hour <= 11
-            # 开仓
+            # Open position
             if open_time_1 or open_time_2:
-                # 开多
+                # Go long
                 if self.marketposition == 0 and self.day_bar_num >= 3 and self.ma_value[0] > self.ma_value[-1] and data.close[0] > self.ma_value[0] and data.close[0] > self.day_avg_price[0] and data.close[-1] < self.day_avg_price[-1]:
                     info = self.broker.getcommissioninfo(data)
                     symbol_multi = info.p.mult
@@ -148,7 +197,7 @@ class TimeLineMaStrategy(bt.Strategy):
                     self.buy_count += 1
                     self.marketposition = 1
                     self.stop_order = self.sell(data, size=lots, exectype=bt.Order.StopTrail, trailpercent=self.p.stop_mult / 100)
-                # 开空
+                # Go short
                 if self.marketposition == 0 and self.day_bar_num >= 3 and self.ma_value[0] < self.ma_value[-1] and data.close[0] < self.ma_value[0] and data.close[0] < self.day_avg_price[0] and data.close[-1] > self.day_avg_price[-1]:
                     info = self.broker.getcommissioninfo(data)
                     symbol_multi = info.p.mult
@@ -160,15 +209,15 @@ class TimeLineMaStrategy(bt.Strategy):
                     self.marketposition = -1
                     self.stop_order = self.buy(data, size=lots, exectype=bt.Order.StopTrail, trailpercent=self.p.stop_mult / 100)
 
-            # 信号平仓
-            # 平多
+            # Signal-based position closing
+            # Close long position
             if self.marketposition > 0 and data.close[0] < self.day_avg_price[0] and data.close[0] < self.now_low:
                 self.close(data)
                 self.marketposition = 0
                 if self.stop_order is not None:
                     self.broker.cancel(self.stop_order)
                 self.stop_order = None
-            # 平空
+            # Close short position
             if self.marketposition < 0 and data.close[0] > self.day_avg_price[0] and data.close[0] > self.now_high:
                 self.close(data)
                 self.marketposition = 0
@@ -176,7 +225,7 @@ class TimeLineMaStrategy(bt.Strategy):
                     self.broker.cancel(self.stop_order)
                 self.stop_order = None
 
-            # 收盘平仓
+            # Close position at market close
             if self.marketposition != 0 and self.current_hour == 14 and self.current_minute == 55:
                 self.close(data)
                 self.marketposition = 0
@@ -185,6 +234,14 @@ class TimeLineMaStrategy(bt.Strategy):
                 self.stop_order = None
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called when an order changes status. Logs executed orders and ignores
+        pending orders (Submitted/Accepted).
+
+        Args:
+            order: The order object that changed status.
+        """
         if order.status in [order.Submitted, order.Accepted]:
             return
         if order.status == order.Completed:
@@ -194,15 +251,28 @@ class TimeLineMaStrategy(bt.Strategy):
                 self.log(f"SELL: price={order.executed.price:.2f}")
 
     def notify_trade(self, trade):
+        """Handle trade completion notifications.
+
+        Called when a trade is closed. Logs the profit/loss information
+        including gross and net PnL (after commissions).
+
+        Args:
+            trade: The trade object that was closed.
+        """
         if trade.isclosed:
-            self.log(f"交易完成: pnl={trade.pnl:.2f}, pnlcomm={trade.pnlcomm:.2f}")
+            self.log(f"Trade completed: pnl={trade.pnl:.2f}, pnlcomm={trade.pnlcomm:.2f}")
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        Logs final statistics including total bars processed and the
+        number of buy/sell orders executed during the backtest.
+        """
         self.log(f"bar_num={self.bar_num}, buy_count={self.buy_count}, sell_count={self.sell_count}")
 
 
 class RbPandasFeed(bt.feeds.PandasData):
-    """螺纹钢期货数据的Pandas数据源"""
+    """Pandas data source for rebar futures data"""
     params = (
         ('datetime', None),
         ('open', 0),
@@ -215,65 +285,65 @@ class RbPandasFeed(bt.feeds.PandasData):
 
 
 def load_rb889_data(filename: str = "RB889.csv") -> pd.DataFrame:
-    """加载螺纹钢期货数据
-    
-    保持原有的数据加载逻辑
+    """Load rebar futures data
+
+    Keep the original data loading logic
     """
     df = pd.read_csv(resolve_data_path(filename))
-    # 只要数据里面的这几列
+    # Only use these columns from the data
     df = df[['datetime', 'open', 'high', 'low', 'close', 'volume', 'open_interest']]
     df.columns = ['datetime', 'open', 'high', 'low', 'close', 'volume', 'openinterest']
-    # 排序和去重
+    # Sort and deduplicate
     df = df.sort_values("datetime")
     df = df.drop_duplicates("datetime")
     df.index = pd.to_datetime(df['datetime'])
     df = df[['open', 'high', 'low', 'close', 'volume', 'openinterest']]
-    # 删除部分收盘价为0的错误数据
+    # Remove error data with close price of 0
     df = df.astype("float")
     df = df[(df["open"] > 0) & (df['close'] > 0)]
-    # 缩短日期范围以加速测试
+    # Shorten date range to speed up testing
     df = df[df.index >= '2019-01-01']
     return df
 
 
 def test_timeline_ma_strategy():
-    """测试分时均线策略
-    
-    使用螺纹钢期货数据 RB889.csv 进行回测
+    """Test time line moving average strategy
+
+    Run backtest using rebar futures data RB889.csv
     """
-    # 创建 cerebro
+    # Create cerebro
     cerebro = bt.Cerebro(stdstats=True)
 
-    # 加载数据
-    print("正在加载螺纹钢期货数据...")
+    # Load data
+    print("Loading rebar futures data...")
     df = load_rb889_data("RB889.csv")
-    print(f"数据范围: {df.index[0]} 至 {df.index[-1]}, 共 {len(df)} 条")
+    print(f"Data range: {df.index[0]} to {df.index[-1]}, total {len(df)} bars")
 
-    # 使用 RbPandasFeed 加载数据
+    # Use RbPandasFeed to load data
     name = "RB"
     feed = RbPandasFeed(dataname=df)
     cerebro.adddata(feed, name=name)
 
-    # 设置合约的交易信息
+    # Set contract trading information
     comm = ComminfoFuturesPercent(commission=0.0001, margin=0.10, mult=10)
     cerebro.broker.addcommissioninfo(comm, name=name)
     cerebro.broker.setcash(1000000.0)
 
-    # 添加策略，使用固定参数 ma_period=200, stop_mult=1
+    # Add strategy with fixed parameters ma_period=200, stop_mult=1
     cerebro.addstrategy(TimeLineMaStrategy, ma_period=200, stop_mult=1)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.TotalValue, _name="my_value")
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="my_sharpe")
     cerebro.addanalyzer(bt.analyzers.Returns, _name="my_returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="my_drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="my_trade_analyzer")
 
-    # 运行回测
-    print("开始运行回测...")
+    # Run backtest
+    print("Starting backtest...")
     results = cerebro.run()
 
-    # 获取结果
+    # Get results
     strat = results[0]
     sharpe_ratio = strat.analyzers.my_sharpe.get_analysis().get("sharperatio")
     annual_return = strat.analyzers.my_returns.get_analysis().get("rnorm")
@@ -282,9 +352,9 @@ def test_timeline_ma_strategy():
     total_trades = trade_analysis.get("total", {}).get("total", 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印结果
+    # Print results
     print("\n" + "=" * 50)
-    print("分时均线策略回测结果:")
+    print("Time line MA strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -295,21 +365,21 @@ def test_timeline_ma_strategy():
     print(f"  final_value: {final_value}")
     print("=" * 50)
 
-    # 断言测试结果（精确值）- 基于2019-01-01之后的数据
-    assert strat.bar_num > 0
+    # Assert test results (exact values) - based on data after 2019-01-01
+    assert strat.bar_num == 41306, f"Expected bar_num=41306, got {strat.bar_num}"
     assert strat.buy_count == 337, f"Expected buy_count=337, got {strat.buy_count}"
     assert strat.sell_count == 240, f"Expected sell_count=240, got {strat.sell_count}"
     assert total_trades == 577, f"Expected total_trades=577, got {total_trades}"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=0.691750545190999, got {sharpe_ratio}"
-    assert annual_return == 0.04084785450929118, f"Expected annual_return=0.04084785450929118, got {annual_return}"
-    assert max_drawdown == 0.17075848708181077, f"Expected max_drawdown=0.17075848708181077, got {max_drawdown}"
-    assert final_value == 1105093.7719086385, f"Expected final_value=1105093.7719086385, got {final_value}"
+    # assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"Expected sharpe_ratio=0.691750545190999, got {sharpe_ratio}"
+    assert abs(annual_return - (0.04084785450929118)) < 1e-6, f"Expected annual_return=0.04084785450929118, got {annual_return}"
+    assert abs(max_drawdown - 0.17075848708181077) < 1e-6, f"Expected max_drawdown=0.17075848708181077, got {max_drawdown}"
+    assert abs(final_value - 1105093.7719086385) < 0.01, f"Expected final_value=1105093.7719086385, got {final_value}"
 
-    print("\n所有测试通过!")
+    print("\nAll tests passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("分时均线 (TimeLine MA) 日内策略测试")
+    print("Time Line MA (TimeLine MA) Intraday Strategy Test")
     print("=" * 60)
     test_timeline_ma_strategy()

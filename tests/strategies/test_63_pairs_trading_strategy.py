@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Pairs Trading 配对交易策略
+Test case: Pairs Trading Strategy.
 
-参考来源: https://github.com/arikaufman/algorithmicTrading
-基于OLS变换和Z-Score进行配对交易
+Reference: https://github.com/arikaufman/algorithmicTrading
+Pairs trading based on OLS transformation and Z-Score.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -22,7 +22,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -36,10 +47,30 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class PairsTradingStrategy(bt.Strategy):
-    """配对交易策略
-    
-    使用OLS变换计算两个资产之间的Z-Score
-    当Z-Score超过上限时做空价差，当Z-Score低于下限时做多价差
+    """Pairs trading strategy.
+
+    Uses OLS transformation to calculate the Z-Score between two assets.
+    When Z-Score exceeds the upper limit, short the spread; when Z-Score
+    falls below the lower limit, long the spread.
+
+    Attributes:
+        orderid: ID of the current order.
+        qty1: Quantity of the first asset.
+        qty2: Quantity of the second asset.
+        upper_limit: Upper threshold for Z-Score to trigger short position.
+        lower_limit: Lower threshold for Z-Score to trigger long position.
+        up_medium: Upper medium threshold for closing positions.
+        low_medium: Lower medium threshold for closing positions.
+        status: Current position status (0=none, 1=short, 2=long).
+        portfolio_value: Total portfolio value.
+        stop_loss: Stop loss threshold.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
+        sma1: Simple moving average for first data feed.
+        sma2: Simple moving average for second data feed.
+        transform: OLS transformation indicator.
+        zscore: Z-score of the spread between the two assets.
     """
     params = dict(
         period=20,
@@ -56,9 +87,30 @@ class PairsTradingStrategy(bt.Strategy):
     )
 
     def log(self, txt, dt=None):
+        """Log trading messages with timestamp.
+
+        Args:
+            txt: Text message to log.
+            dt: Datetime object for the log entry. If None, uses current
+                bar's datetime.
+
+        Returns:
+            None
+        """
         dt = dt or self.data.datetime[0]
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Updates buy/sell counters when orders are completed and resets
+        the order ID when orders are finished.
+
+        Args:
+            order: Order object with status information.
+
+        Returns:
+            None
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -74,6 +126,15 @@ class PairsTradingStrategy(bt.Strategy):
         self.orderid = None
 
     def __init__(self):
+        """Initialize the pairs trading strategy.
+
+        Sets up instance variables, parameters, and indicators including
+        simple moving averages and the OLS transformation for calculating
+        the Z-score between the two assets.
+
+        Returns:
+            None
+        """
         self.orderid = None
         self.qty1 = self.p.qty1
         self.qty2 = self.p.qty2
@@ -85,27 +146,40 @@ class PairsTradingStrategy(bt.Strategy):
         self.portfolio_value = self.p.portfolio_value
         self.stop_loss = self.p.stop_loss
 
-        # 统计变量
+        # Statistical variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
         self.sma1 = bt.indicators.SimpleMovingAverage(self.datas[0], period=50)
         self.sma2 = bt.indicators.SimpleMovingAverage(self.datas[1], period=50)
-        
-        # OLS变换计算Z-Score
+
+        # Calculate Z-Score using OLS transformation
         self.transform = btind.OLS_TransformationN(self.data0, self.data1,
                                                    period=self.p.period)
         self.zscore = self.transform.zscore
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the pairs trading strategy:
+        - Short the spread when Z-score exceeds upper limit
+        - Long the spread when Z-score falls below lower limit
+        - Close positions when Z-score returns to mean range
+
+        Position sizes are calculated based on portfolio allocation
+        and deviation from moving averages.
+
+        Returns:
+            None
+        """
         self.bar_num += 1
         x = 0
         y = 0
         if self.orderid:
             return
 
-        # SHORT条件: zscore超过上限
+        # SHORT condition: zscore exceeds upper limit
         if (self.zscore[0] > self.upper_limit) and (self.status != 1):
             deviationOffSMA1 = math.fabs((self.data0.close[0]/self.sma1[0])-1)
             deviationOffSMA2 = math.fabs((self.data1.close[0]/self.sma2[0])-1)
@@ -125,7 +199,7 @@ class PairsTradingStrategy(bt.Strategy):
             self.qty2 = y
             self.status = 1
 
-        # LONG条件: zscore低于下限
+        # LONG condition: zscore falls below lower limit
         elif (self.zscore[0] < self.lower_limit) and (self.status != 2):
             deviationOffSMA1 = math.fabs((self.data0.close[0]/self.sma1[0])-1)
             deviationOffSMA2 = math.fabs((self.data1.close[0]/self.sma2[0])-1)
@@ -145,37 +219,54 @@ class PairsTradingStrategy(bt.Strategy):
             self.qty2 = y
             self.status = 2
 
-        # 平仓条件: zscore回归到均值附近
+        # Close position condition: zscore returns to mean range
         elif ((self.zscore[0] < self.up_medium and self.zscore[0] > self.low_medium)):
             self.close(self.data0)
             self.close(self.data1)
 
     def stop(self):
+        """Called when the strategy execution is stopped.
+
+        This method is called by Backtrader when the backtest completes.
+        Currently a placeholder method for potential cleanup or finalization.
+
+        Returns:
+            None
+        """
         pass
 
 
 def test_pairs_trading_strategy():
-    """测试配对交易策略"""
+    """Test the pairs trading strategy.
+
+    This test loads historical price data for Visa (V) and Mastercard (MA),
+    runs the pairs trading strategy, and verifies the performance metrics
+    match expected values.
+
+    Raises:
+        AssertionError: If any of the performance metrics do not match
+            expected values within tolerance.
+    """
     cerebro = bt.Cerebro()
 
-    # 加载Visa数据
+    # Load Visa data
     data_path_v = resolve_data_path("V.csv")
     df_v = pd.read_csv(data_path_v, parse_dates=['Date'], index_col='Date')
     df_v = df_v[['Open', 'High', 'Low', 'Close', 'Volume']]
     df_v.columns = ['open', 'high', 'low', 'close', 'volume']
-    
-    # 加载Mastercard数据
+
+    # Load Mastercard data
     data_path_ma = resolve_data_path("MA.csv")
     df_ma = pd.read_csv(data_path_ma, parse_dates=['Date'], index_col='Date')
     df_ma = df_ma[['Open', 'High', 'Low', 'Close', 'Volume']]
     df_ma.columns = ['open', 'high', 'low', 'close', 'volume']
 
-    # 对齐日期范围
+    # Align date ranges
     common_dates = df_v.index.intersection(df_ma.index)
     df_v = df_v.loc[common_dates]
     df_ma = df_ma.loc[common_dates]
 
-    # 只使用部分数据以加快测试
+    # Use only partial data for faster testing
     df_v = df_v.iloc[:500]
     df_ma = df_ma.iloc[:500]
 
@@ -189,7 +280,7 @@ def test_pairs_trading_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -198,7 +289,7 @@ def test_pairs_trading_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -207,7 +298,7 @@ def test_pairs_trading_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Pairs Trading 配对交易策略回测结果:")
+    print("Pairs Trading Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -218,18 +309,19 @@ def test_pairs_trading_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=99699.43, got {final_value}"
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
+    assert strat.bar_num == 451, f"Expected bar_num=451, got {strat.bar_num}"
+    assert abs(final_value - 99699.43) < 0.01, f"Expected final_value=99699.43, got {final_value}"
     assert abs(sharpe_ratio - (-0.3156462969633222)) < 1e-6, f"Expected sharpe_ratio=-0.3156462969633222, got {sharpe_ratio}"
     assert abs(annual_return - (-0.0015160238352949257)) < 1e-6, f"Expected annual_return=-0.0015160238352949257, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 1.1570119745556364) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Pairs Trading 配对交易策略测试")
+    print("Pairs Trading Strategy Test")
     print("=" * 60)
     test_pairs_trading_strategy()

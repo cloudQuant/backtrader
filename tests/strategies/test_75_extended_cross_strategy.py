@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Extended Cross 扩展交叉策略
+Test case: Extended Cross strategy.
 
-参考来源: https://github.com/backtrader/backhacker
-使用ATR扩展的均线交叉策略
+Reference: https://github.com/backtrader/backhacker
+Moving average crossover strategy using ATR expansion.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +17,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve data file path by searching common directories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -30,10 +42,11 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class ExtendedCrossStrategy(bt.Strategy):
-    """扩展交叉策略
-    
-    - 快速EMA突破(慢速EMA + ATR)且价格在长期EMA上方时买入
-    - 快速EMA跌破(慢速EMA - ATR)且价格在长期EMA下方时卖出
+    """Extended cross strategy.
+
+    This strategy implements an ATR-expanded moving average crossover:
+    - Buy when fast EMA crosses above (slow EMA + ATR) and price is above long-term EMA
+    - Sell when fast EMA crosses below (slow EMA - ATR) and price is below long-term EMA
     """
     params = dict(
         stake=10,
@@ -44,20 +57,26 @@ class ExtendedCrossStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize strategy indicators and state variables."""
         self.dataclose = self.datas[0].close
         self.ma1 = bt.ind.EMA(self.datas[0], period=self.p.ma1)
         self.ma2 = bt.ind.EMA(self.datas[0], period=self.p.ma2)
         self.ma3 = bt.ind.EMA(self.datas[0], period=self.p.ma3)
         self.atr = bt.ind.ATR(self.datas[0])
-        
+
         self.order = None
         self.last_operation = "SELL"
-        
+
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Args:
+            order: The order object that was updated.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -70,22 +89,33 @@ class ExtendedCrossStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar."""
         self.bar_num += 1
         if self.order:
             return
 
-        # 买入: MA1 > (MA2 + ATR) 且价格 > MA3
+        # Buy: MA1 > (MA2 + ATR) and price > MA3
         if self.last_operation != "BUY":
             if self.ma1[0] > (self.ma2[0] + self.p.atr_mult * self.atr[0]) and self.dataclose[0] > self.ma3[0]:
                 self.order = self.buy(size=self.p.stake)
-        
-        # 卖出: MA1 < (MA2 - ATR) 且价格 < MA3
+
+        # Sell: MA1 < (MA2 - ATR) and price < MA3
         if self.last_operation != "SELL":
             if self.ma1[0] < (self.ma2[0] - self.p.atr_mult * self.atr[0]) and self.dataclose[0] < self.ma3[0]:
                 self.order = self.sell(size=self.p.stake)
 
 
 def test_extended_cross_strategy():
+    """Test the Extended Cross strategy.
+
+    This test validates that the ATR-expanded moving average crossover
+    strategy correctly identifies entry and exit points and produces
+    expected backtest results.
+
+    Raises:
+        AssertionError: If any of the expected values do not match the
+            actual results within the specified tolerance.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -111,7 +141,7 @@ def test_extended_cross_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Extended Cross 策略回测结果:")
+    print("Extended Cross strategy backtest results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -121,18 +151,19 @@ def test_extended_cross_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 40000 < final_value < 200000, f"Expected final_value=99898.01, got {final_value}"
+    # Tolerance: final_value 0.01, other metrics 1e-6
+    assert strat.bar_num == 1208, f"Expected bar_num=1208, got {strat.bar_num}"
+    assert abs(final_value - 99898.01) < 0.01, f"Expected final_value=99898.01, got {final_value}"
     assert abs(sharpe_ratio - (-0.8182498376340828)) < 1e-6, f"Expected sharpe_ratio=-0.8182498376340828, got {sharpe_ratio}"
-    assert abs(annual_return - (-0.00020455816666682268)) < 1e-9, f"Expected annual_return=-0.00020455816666682268, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(annual_return - (-0.00020455816666682268)) < 1e-6, f"Expected annual_return=-0.00020455816666682268, got {annual_return}"
+    assert abs(max_drawdown - 0.1782677934154473) < 1e-6, f"Expected max_drawdown=0.1782677934154473, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Extended Cross 扩展交叉策略测试")
+    print("Extended Cross Strategy Test")
     print("=" * 60)
     test_extended_cross_strategy()

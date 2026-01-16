@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Data Replay 数据回放
+Test Case: Data Replay
 
-参考来源: backtrader-master2/samples/data-replay/data-replay.py
-测试数据回放功能，使用双均线交叉策略
+Reference: backtrader-master2/samples/data-replay/data-replay.py
+Tests the data replay functionality using a dual moving average crossover strategy.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -17,6 +17,22 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve the path to a data file by searching in common locations.
+
+    This function searches for a data file in multiple standard locations
+    relative to the test file directory, including the current directory,
+    parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            searched locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -30,15 +46,29 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class ReplayMAStrategy(bt.Strategy):
-    """测试数据回放的策略 - 双均线交叉
+    """Strategy for testing data replay - dual moving average crossover.
 
-    策略逻辑:
-    - 快线上穿慢线时买入
-    - 快线下穿慢线时卖出平仓
+    Strategy logic:
+        - Buy when the fast line crosses above the slow line
+        - Sell and close position when the fast line crosses below the slow line
+
+    Attributes:
+        fast_ma: Fast moving average indicator.
+        slow_ma: Slow moving average indicator.
+        crossover: Crossover indicator between fast and slow MAs.
+        order: Current pending order.
+        bar_num: Number of bars processed.
+        buy_count: Number of buy orders executed.
+        sell_count: Number of sell orders executed.
     """
     params = (('fast_period', 5), ('slow_period', 15))
 
     def __init__(self):
+        """Initialize the ReplayMAStrategy with indicators and tracking variables.
+
+        Sets up the fast and slow moving average indicators, the crossover
+        indicator, and initializes tracking variables for orders and bar counts.
+        """
         self.fast_ma = bt.ind.SMA(period=self.p.fast_period)
         self.slow_ma = bt.ind.SMA(period=self.p.slow_period)
         self.crossover = bt.ind.CrossOver(self.fast_ma, self.slow_ma)
@@ -47,13 +77,26 @@ class ReplayMAStrategy(bt.Strategy):
         self.buy_count = 0
         self.sell_count = 0
 
-     # log相应的信息
     def log(self, txt, dt=None):
-        ''' Logging function fot this strategy'''
+        """Logging function for this strategy.
+
+        Args:
+            txt: Text message to log.
+            dt: Datetime object. If None, uses current data datetime.
+        """
         dt = dt or bt.num2date(self.datas[0].datetime[0])
         print('{}, {}'.format(dt.isoformat(), txt))
 
     def notify_order(self, order):
+        """Handle order notifications and track order status changes.
+
+        This method is called by the broker when an order status changes.
+        It logs order execution details and updates the buy/sell counters
+        when orders are completed.
+
+        Args:
+            order: The order object that triggered the notification.
+        """
         if not order.alive():
             self.order = None
 
@@ -84,7 +127,15 @@ class ReplayMAStrategy(bt.Strategy):
                     f" SELL : data_name:{order.p.data._name} price : {order.executed.price} , cost : {order.executed.value} , commission : {order.executed.comm}")
 
     def notify_trade(self, trade):
-        # 一个trade结束的时候输出信息
+        """Handle trade notifications and log trade information.
+
+        This method is called when a trade is opened or closed. It logs
+        the profit/loss information for closed trades and price information
+        for newly opened trades.
+
+        Args:
+            trade: The trade object that triggered the notification.
+        """
         if trade.isclosed:
             self.log('closed symbol is : {} , total_profit : {} , net_profit : {}'.format(
                 trade.getdataname(), trade.pnl, trade.pnlcomm))
@@ -95,6 +146,16 @@ class ReplayMAStrategy(bt.Strategy):
                 trade.getdataname(), trade.price))
 
     def next(self):
+        """Execute the trading strategy logic for each bar.
+
+        This method is called for each bar of data. It implements the dual
+        moving average crossover strategy:
+        - When fast MA crosses above slow MA (crossover > 0): close existing
+          position and buy
+        - When fast MA crosses below slow MA (crossover < 0): close position
+
+        Only one order is allowed at a time to avoid overlapping positions.
+        """
         self.bar_num += 1
         if self.order:
             return
@@ -108,15 +169,22 @@ class ReplayMAStrategy(bt.Strategy):
 
 
 def test_data_replay():
-    """测试 Data Replay 数据回放"""
+    """Test Data Replay functionality.
+
+    This function tests the data replay feature by replaying daily data as weekly
+    data and running a dual moving average crossover strategy.
+
+    Raises:
+        AssertionError: If any of the test assertions fail.
+    """
     cerebro = bt.Cerebro(stdstats=True)
     cerebro.broker.setcash(100000.0)
 
-    print("正在加载数据...")
+    print("Loading data...")
     data_path = resolve_data_path("2005-2006-day-001.txt")
     data = bt.feeds.BacktraderCSVData(dataname=str(data_path))
 
-    # 使用回放功能，将日线回放为周线
+    # Use replay functionality to replay daily data as weekly data
     cerebro.replaydata(
         data,
         timeframe=bt.TimeFrame.Weeks,
@@ -126,18 +194,18 @@ def test_data_replay():
     cerebro.addstrategy(ReplayMAStrategy, fast_period=5, slow_period=15)
     cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 
-    # 添加完整分析器 - 使用周线级别计算夏普率
+    # Add complete analyzers - calculate Sharpe ratio using weekly timeframe
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe",
                         timeframe=bt.TimeFrame.Weeks, annualize=True, riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name="returns")
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
 
-    print("开始运行回测...")
+    print("Starting backtest...")
     results = cerebro.run(preload=False)
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe = strat.analyzers.sharpe.get_analysis()
     ret = strat.analyzers.returns.get_analysis()
     drawdown = strat.analyzers.drawdown.get_analysis()
@@ -149,9 +217,9 @@ def test_data_replay():
     total_trades = trades.get('total', {}).get('total', 0)
     final_value = cerebro.broker.getvalue()
 
-    # 打印标准格式的结果
+    # Print results in standard format
     print("\n" + "=" * 50)
-    print("Data Replay 数据回放回测结果 (周线):")
+    print("Data Replay Backtest Results (Weekly):")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -162,7 +230,7 @@ def test_data_replay():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    # 断言测试结果
+    # Assert test results
     assert strat.bar_num == 439, f"Expected bar_num=439, got {strat.bar_num}"
     assert abs(final_value - 108263.90) < 0.01, f"Expected final_value=108263.90, got {final_value}"
     assert abs(sharpe_ratio - 1.17880670695321) < 1e-6, f"Expected sharpe_ratio=1.17880670695321, got {sharpe_ratio}"
@@ -170,11 +238,11 @@ def test_data_replay():
     assert abs(max_drawdown - 2.668267546216064) < 1e-6, f"Expected max_drawdown=2.668267546216064, got {max_drawdown}"
     assert total_trades == 13, f"Expected total_trades=13, got {total_trades}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Data Replay 数据回放测试")
+    print("Data Replay Test")
     print("=" * 60)
     test_data_replay()

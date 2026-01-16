@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-测试用例: Triple EMA 三重指数均线策略
+Test Case: Triple EMA (Triple Exponential Moving Average) Strategy.
 
-使用三条EMA的排列判断趋势
+This strategy uses the alignment of three EMAs to determine trends.
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -16,6 +16,21 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
+    """Resolve data file path by searching common directory locations.
+
+    Searches for data files in multiple directories including the current
+    file's directory, parent directory, and 'datas' subdirectories.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the found data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any
+            of the search locations.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -29,13 +44,16 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class TripleEmaStrategy(bt.Strategy):
-    """Triple EMA 三重指数均线策略
-    
-    入场条件:
-    - 多头: EMA5 > EMA10 > EMA20 (多头排列)
-    
-    出场条件:
-    - EMA5 < EMA10 < EMA20 (空头排列)
+    """Triple EMA (Triple Exponential Moving Average) Strategy.
+
+    This strategy uses three EMAs with different periods to identify trend
+    direction and generate trading signals based on their alignment.
+
+    Entry conditions:
+    - Long: EMA5 > EMA10 > EMA20 (bullish alignment)
+
+    Exit conditions:
+    - Exit long when EMA5 < EMA10 < EMA20 (bearish alignment)
     """
     params = dict(
         stake=10,
@@ -45,6 +63,11 @@ class TripleEmaStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the Triple EMA strategy.
+
+        Sets up the three EMA indicators with different periods and
+        initializes tracking variables for order management and statistics.
+        """
         self.ema_fast = bt.indicators.EMA(self.data, period=self.p.fast)
         self.ema_mid = bt.indicators.EMA(self.data, period=self.p.mid)
         self.ema_slow = bt.indicators.EMA(self.data, period=self.p.slow)
@@ -55,6 +78,14 @@ class TripleEmaStrategy(bt.Strategy):
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status notifications.
+
+        Updates buy/sell counters when orders complete and clears the
+        pending order reference.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
         if order.status == order.Completed:
@@ -65,22 +96,44 @@ class TripleEmaStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        Implements the triple EMA trend-following strategy:
+        - Enter long when EMA5 > EMA10 > EMA20 (bullish alignment)
+        - Exit long when EMA5 < EMA10 < EMA20 (bearish alignment)
+        - Only one position at a time (no pyramiding)
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
-        
+
         if not self.position:
-            # 多头排列
+            # Bullish alignment
             if self.ema_fast[0] > self.ema_mid[0] > self.ema_slow[0]:
                 self.order = self.buy(size=self.p.stake)
         else:
-            # 空头排列
+            # Bearish alignment
             if self.ema_fast[0] < self.ema_mid[0] < self.ema_slow[0]:
                 self.order = self.close()
 
 
 def test_triple_ema_strategy():
+    """Test the Triple EMA strategy implementation.
+
+    Sets up a backtest with Oracle data from 2010-2014, runs the strategy,
+    and validates the results against expected values.
+
+    The test validates:
+        - bar_num: 1238
+        - final_value: ~100065.31
+        - sharpe_ratio: ~0.376
+        - annual_return: ~0.00013
+        - max_drawdown: ~0.095
+
+    Raises:
+        AssertionError: If any of the validation checks fail.
+    """
     cerebro = bt.Cerebro()
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
@@ -106,7 +159,7 @@ def test_triple_ema_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("Triple EMA 三重指数均线策略回测结果:")
+    print("Triple EMA Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -116,17 +169,19 @@ def test_triple_ema_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0
-    assert 90000 < final_value < 200000, f"final_value={final_value} out of range"
-    assert sharpe_ratio is None or -20 < sharpe_ratio < 20, f"sharpe_ratio={sharpe_ratio} out of range"
-    assert -1 < annual_return < 1, f"annual_return={annual_return} out of range"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    # Assertions - using precise assertions
+    # final_value tolerance: 0.01, other metrics tolerance: 1e-6
+    assert strat.bar_num == 1238, f"Expected bar_num=1238, got {strat.bar_num}"
+    assert abs(final_value - 100065.31) < 0.01, f"Expected final_value=100000.0, got {final_value}"
+    assert abs(sharpe_ratio - (0.3757309556964078)) < 1e-6, f"Expected sharpe_ratio=0.0, got {sharpe_ratio}"
+    assert abs(annual_return - (0.00013090572633809417)) < 1e-6, f"Expected annual_return=0.0, got {annual_return}"
+    assert abs(max_drawdown - 0.09539203307003034) < 1e-6, f"Expected max_drawdown=0.0, got {max_drawdown}"
 
-    print("\n测试通过!")
+    print("\nTest passed!")
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("Triple EMA 三重指数均线策略测试")
+    print("Triple EMA Strategy Test")
     print("=" * 60)
     test_triple_ema_strategy()

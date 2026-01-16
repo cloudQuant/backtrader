@@ -1,10 +1,30 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-测试用例: ATR Momentum 动量策略
+"""ATR Momentum Strategy Test Module.
 
-参考来源: https://github.com/papodetrader/backtest
-基于ATR、RSI和SMA的动量交易策略
+This module contains a test implementation of the ATR Momentum trading strategy
+and tests to verify its behavior. The strategy is based on momentum trading
+principles using multiple technical indicators:
+
+- **ATR (Average True Range)**: For volatility-based position sizing and
+  stop-loss/take-profit level calculation
+- **RSI (Relative Strength Index)**: For momentum signals and trend confirmation
+- **SMA (Simple Moving Average)**: For trend direction filtering
+
+The strategy enters long positions when RSI crosses above 50 while price is
+above the 200-period SMA, and enters short positions when RSI crosses below
+50 while price is below the 200-period SMA.
+
+Reference source: https://github.com/papodetrader/backtest
+
+Example:
+    To run the test::
+
+        python tests/strategies/test_64_atr_momentum_strategy.py
+
+    Or use pytest::
+
+        pytest tests/strategies/test_64_atr_momentum_strategy.py -v
 """
 from __future__ import (absolute_import, division, print_function,
                         unicode_literals)
@@ -20,7 +40,18 @@ BASE_DIR = Path(__file__).resolve().parent
 
 
 def resolve_data_path(filename: str) -> Path:
-    """根据脚本所在目录定位数据文件"""
+    """Locate data files based on the script's directory.
+
+    Args:
+        filename: Name of the data file to locate.
+
+    Returns:
+        Path object pointing to the located data file.
+
+    Raises:
+        FileNotFoundError: If the data file cannot be found in any of the
+            search paths.
+    """
     search_paths = [
         BASE_DIR / filename,
         BASE_DIR.parent / filename,
@@ -34,11 +65,37 @@ def resolve_data_path(filename: str) -> Path:
 
 
 class ATRMomentumStrategy(bt.Strategy):
-    """ATR动量策略
-    
-    使用RSI、SMA200作为趋势过滤
-    使用ATR进行止损止盈管理
+    """ATR Momentum Trading Strategy.
+
+    A momentum trading strategy that combines multiple technical indicators to
+    identify trend-following entry opportunities with volatility-based risk
+    management. The strategy uses RSI and SMA200 as trend filters, and ATR for
+    dynamic stop-loss and take-profit level calculation.
+
+    Entry Conditions:
+        - **Long**: RSI crosses above 50 AND price is above SMA200
+        - **Short**: RSI crosses below 50 AND price is below SMA200
+
+    Exit Conditions:
+        - Stop-loss: 2x ATR from entry price
+        - Take-profit: 5x ATR from entry price
+
+    Attributes:
+        dataclose: Reference to the close price data series.
+        datahigh: Reference to the high price data series.
+        datalow: Reference to the low price data series.
+        atr: Average True Range indicator for volatility measurement.
+        rsi: Relative Strength Index for momentum signals.
+        sma200: 200-period Simple Moving Average for trend filter.
+        order: Reference to the current pending order.
+        stop_loss: Stop-loss price level for open position.
+        take_profit: Take-profit price level for open position.
+        entry_price: Price at which the current position was entered.
+        bar_num: Counter for the number of bars processed.
+        buy_count: Counter for the number of buy orders executed.
+        sell_count: Counter for the number of sell orders executed.
     """
+
     params = dict(
         bet=100,
         stop_atr_multiplier=2,
@@ -49,27 +106,40 @@ class ATRMomentumStrategy(bt.Strategy):
     )
 
     def __init__(self):
+        """Initialize the ATR Momentum Strategy.
+
+        Sets up data references, indicators, and state variables for tracking
+        orders, positions, and statistics.
+        """
         self.dataclose = self.datas[0].close
         self.datahigh = self.datas[0].high
         self.datalow = self.datas[0].low
-        
-        # 指标
+
+        # Indicators
         self.atr = bt.indicators.ATR(self.datas[0], period=self.p.atr_period)
         self.rsi = bt.indicators.RSI(self.datas[0], period=self.p.rsi_period)
         self.sma200 = bt.indicators.SMA(self.datas[0], period=self.p.sma_period)
-        
-        # 交易管理
+
+        # Trade management
         self.order = None
         self.stop_loss = None
         self.take_profit = None
         self.entry_price = None
-        
-        # 统计变量
+
+        # Statistics variables
         self.bar_num = 0
         self.buy_count = 0
         self.sell_count = 0
 
     def notify_order(self, order):
+        """Handle order status updates.
+
+        Called when an order status changes. Updates buy/sell counts and
+        entry price for executed orders, and clears the order reference.
+
+        Args:
+            order: The order object with updated status.
+        """
         if order.status in [bt.Order.Submitted, bt.Order.Accepted]:
             return
 
@@ -86,57 +156,91 @@ class ATRMomentumStrategy(bt.Strategy):
         self.order = None
 
     def next(self):
+        """Execute trading logic for each bar.
+
+        This method is called for each bar in the data series. It implements
+        the core strategy logic:
+
+        1. Manages existing positions by checking stop-loss and take-profit levels
+        2. Checks entry conditions for new positions when no position is held
+        3. Enters long positions when RSI crosses above 50 with price above SMA200
+        4. Enters short positions when RSI crosses below 50 with price below SMA200
+        5. Calculates position size based on ATR volatility
+        """
         self.bar_num += 1
-        
+
         if self.order:
             return
 
-        # 检查是否有持仓需要管理
+        # Check if there are positions that need to be managed
         if self.position.size > 0:
-            # 多头止损止盈
+            # Long position stop-loss and take-profit
             if self.datahigh[0] >= self.take_profit:
                 self.close()
             elif self.datalow[0] <= self.stop_loss:
                 self.close()
-                
+
         elif self.position.size < 0:
-            # 空头止损止盈
+            # Short position stop-loss and take-profit
             if self.datalow[0] <= self.take_profit:
                 self.close()
             elif self.datahigh[0] >= self.stop_loss:
                 self.close()
-        
+
         else:
-            # 无持仓时检查入场条件
-            # 多头条件: RSI上穿50 + 价格在SMA200上方
-            cond_long = (self.rsi[0] > 50 and self.rsi[-1] <= 50 and 
+            # Check entry conditions when there is no position
+            # Long condition: RSI crosses above 50 + price above SMA200
+            cond_long = (self.rsi[0] > 50 and self.rsi[-1] <= 50 and
                         self.dataclose[0] > self.sma200[0])
-            
-            # 空头条件: RSI下穿50 + 价格在SMA200下方
-            cond_short = (self.rsi[0] < 50 and self.rsi[-1] >= 50 and 
+
+            # Short condition: RSI crosses below 50 + price below SMA200
+            cond_short = (self.rsi[0] < 50 and self.rsi[-1] >= 50 and
                          self.dataclose[0] < self.sma200[0])
 
             if cond_long:
-                size = max(1, int(self.p.bet / (self.p.stop_atr_multiplier * self.atr[0])))
+                atr_val = self.atr[0] if self.atr[0] > 0 else 0.01
+                size = max(1, int(self.p.bet / (self.p.stop_atr_multiplier * atr_val)))
                 self.buy(size=size)
                 self.stop_loss = self.dataclose[0] - (self.p.stop_atr_multiplier * self.atr[0])
                 self.take_profit = self.dataclose[0] + (self.p.target_atr_multiplier * self.atr[0])
 
             elif cond_short:
-                size = max(1, int(self.p.bet / (self.p.stop_atr_multiplier * self.atr[0])))
+                atr_val = self.atr[0] if self.atr[0] > 0 else 0.01
+                size = max(1, int(self.p.bet / (self.p.stop_atr_multiplier * atr_val)))
                 self.sell(size=size)
                 self.stop_loss = self.dataclose[0] + (self.p.stop_atr_multiplier * self.atr[0])
                 self.take_profit = self.dataclose[0] - (self.p.target_atr_multiplier * self.atr[0])
 
     def stop(self):
+        """Called when the backtest is finished.
+
+        This method is called when the cerebro run is complete. Can be used
+        for cleanup, final calculations, or logging final results.
+        """
         pass
 
 
 def test_atr_momentum_strategy():
-    """测试ATR动量策略"""
+    """Test the ATR Momentum strategy.
+
+    This function tests the ATR Momentum strategy by running a backtest
+    on historical Oracle Corporation (ORCL) stock data from 2005-2010 and
+    verifying the results against expected values.
+
+    The test verifies:
+        - Number of bars processed (expected: 1311)
+        - Final portfolio value (expected: 99399.52)
+        - Sharpe ratio (expected: -0.32367458244300346)
+        - Annual return (expected: -0.001004641690653692)
+        - Maximum drawdown (expected: 0.9986173826924808)
+
+    Raises:
+        AssertionError: If any of the test assertions fail.
+        FileNotFoundError: If the data file cannot be found.
+    """
     cerebro = bt.Cerebro()
 
-    # 使用已有的数据文件
+    # Use existing data file
     data_path = resolve_data_path("orcl-1995-2014.txt")
     data = bt.feeds.GenericCSVData(
         dataname=str(data_path),
@@ -157,7 +261,7 @@ def test_atr_momentum_strategy():
     cerebro.broker.setcash(100000)
     cerebro.broker.setcommission(commission=0.001)
 
-    # 添加分析器
+    # Add analyzers
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.0)
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
@@ -166,7 +270,7 @@ def test_atr_momentum_strategy():
     results = cerebro.run()
     strat = results[0]
 
-    # 获取分析结果
+    # Get analysis results
     sharpe_ratio = strat.analyzers.sharpe.get_analysis().get('sharperatio', None)
     annual_return = strat.analyzers.returns.get_analysis().get('rnorm', 0)
     max_drawdown = strat.analyzers.drawdown.get_analysis().get('max', {}).get('drawdown', 0)
@@ -175,7 +279,7 @@ def test_atr_momentum_strategy():
     final_value = cerebro.broker.getvalue()
 
     print("=" * 50)
-    print("ATR Momentum 动量策略回测结果:")
+    print("ATR Momentum Strategy Backtest Results:")
     print(f"  bar_num: {strat.bar_num}")
     print(f"  buy_count: {strat.buy_count}")
     print(f"  sell_count: {strat.sell_count}")
@@ -186,18 +290,19 @@ def test_atr_momentum_strategy():
     print(f"  final_value: {final_value:.2f}")
     print("=" * 50)
 
-    assert strat.bar_num > 0, "bar_num should be greater than 0"
-    assert 40000 < final_value < 200000, f"Expected final_value=99399.52, got {final_value}"
+    # Tolerance for final_value: 0.01, tolerance for other metrics: 1e-6
+    assert strat.bar_num == 1311, f"Expected bar_num=1311, got {strat.bar_num}"
+    assert abs(final_value - 99399.52) < 0.01, f"Expected final_value=99399.52, got {final_value}"
     assert abs(sharpe_ratio - (-0.32367458244300346)) < 1e-6, f"Expected sharpe_ratio=-0.32367458244300346, got {sharpe_ratio}"
     assert abs(annual_return - (-0.001004641690653692)) < 1e-6, f"Expected annual_return=-0.001004641690653692, got {annual_return}"
-    assert 0 <= max_drawdown < 100, f"max_drawdown={max_drawdown} out of range"
+    assert abs(max_drawdown - 0.9986173826924808) < 1e-6, f"Expected max_drawdown=0.9986173826924808, got {max_drawdown}"
 
-    print("\n测试通过!")
-    return strat
+    print("\nTest passed!")
+
 
 
 if __name__ == "__main__":
     print("=" * 60)
-    print("ATR Momentum 动量策略测试")
+    print("ATR Momentum Strategy Test")
     print("=" * 60)
     test_atr_momentum_strategy()
