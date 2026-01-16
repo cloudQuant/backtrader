@@ -582,10 +582,6 @@ class LineIterator(LineIteratorMixin, LineSeries):
                 have explicit configuration.
                 """
 
-                __name__ = 'PlotLineObj'
-                __qualname__ = 'PlotLinesObj.PlotLineObj'
-                __module__ = 'backtrader.lineiterator'
-
                 def _get(self, key, default=None):
                     """Get plotline attribute value.
 
