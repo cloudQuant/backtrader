@@ -1177,15 +1177,15 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                 have explicit configuration.
                 """
 
-                __name__ = 'PlotLineObj'
-                __qualname__ = 'PlotLinesObj.PlotLineObj'
-                __module__ = 'backtrader.lineseries'
+                __name__ = "PlotLineObj"
+                __qualname__ = "PlotLinesObj.PlotLineObj"
+                __module__ = "backtrader.lineseries"
 
                 def __repr__(self):
-                    return 'PlotLineObj'
+                    return "PlotLineObj"
 
                 def rpartition(self, sep):
-                    return ('', '', 'PlotLineObj')
+                    return ("", "", "PlotLineObj")
 
                 def _get(self, key, default=None):
                     """Get plotline attribute value.
