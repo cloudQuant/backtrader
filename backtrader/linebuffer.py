@@ -645,10 +645,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         # CRITICAL FIX: Match master behavior - use set_idx for force support and pop array elements
         self.set_idx(self._idx - size, force=force)
         self.lencount -= size
-        # Pop array elements like master does - this removes trailing unfilled elements
-        for i in range(size):
-            if len(self.array) > 0:
-                self.array.pop()
+        # PERFORMANCE OPTIMIZATION: Use slice deletion instead of loop pop
+        # Called 3.4M+ times, batch deletion is faster than loop
+        arr = self.array
+        arr_len = len(arr)
+        if arr_len > 0:
+            del arr[max(0, arr_len - size):]
 
     # Move backward one step (original backwards was overridden)
     def safe_backwards(self, size=1):
