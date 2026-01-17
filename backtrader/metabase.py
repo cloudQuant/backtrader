@@ -1581,7 +1581,9 @@ class ParamsMixin(BaseMixin):
     @property
     def p(self):
         """Provide p property for backward compatibility"""
-        return getattr(self, "_params_instance", None)
+        # PERFORMANCE OPTIMIZATION: Use __dict__.get() instead of getattr()
+        # Called 6M+ times, direct dict access is faster
+        return self.__dict__.get("_params_instance")
 
     @p.setter
     def p(self, value):
