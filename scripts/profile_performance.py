@@ -573,7 +573,7 @@ def main():
         
         # Print top functions by cumulative time
         print("\n" + "=" * 80)
-        print("TOP 50 FUNCTIONS BY CUMULATIVE TIME:")
+        print("TOP 100 FUNCTIONS BY CUMULATIVE TIME:")
         print("=" * 80)
         
         stats = aggregated['stats']
@@ -589,7 +589,7 @@ def main():
         
         print(f"{'ncalls':>12} {'tottime':>10} {'cumtime':>10}  function")
         print("-" * 80)
-        for item in items[:50]:
+        for item in items[:100]:
             filename, lineno, funcname = item['key']
             func_info = f"{os.path.basename(filename)}:{lineno}({funcname})"
             if len(func_info) > 50:
@@ -598,13 +598,13 @@ def main():
         
         # Print top functions by total time (self time)
         print("\n" + "=" * 80)
-        print("TOP 50 FUNCTIONS BY TOTAL TIME (self time, excluding sub-calls):")
+        print("TOP 100 FUNCTIONS BY TOTAL TIME (self time, excluding sub-calls):")
         print("=" * 80)
         items.sort(key=lambda x: x['tottime'], reverse=True)
         
         print(f"{'ncalls':>12} {'tottime':>10} {'per_call':>10}  function")
         print("-" * 80)
-        for item in items[:50]:
+        for item in items[:100]:
             filename, lineno, funcname = item['key']
             func_info = f"{os.path.basename(filename)}:{lineno}({funcname})"
             if len(func_info) > 50:
