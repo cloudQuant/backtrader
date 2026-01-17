@@ -8,9 +8,17 @@ Classes:
     ZeroLagExponentialMovingAverage: ZLEMA indicator (aliases: ZLEMA, ZeroLagEma).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.ZLEMA, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.zlema = bt.indicators.ZLEMA(self.data.close, period=20)
+
+        def next(self):
+            # Price above ZLEMA indicates uptrend
+            if self.data.close[0] > self.zlema[0]:
+                self.buy()
+            # Price below ZLEMA indicates downtrend
+            elif self.data.close[0] < self.zlema[0]:
+                self.sell()
 """
 import math
 

@@ -11,9 +11,18 @@ Classes:
     RateOfChange100: ROC with base 100 (alias: ROC100).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.ROC, period=12)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.mom = bt.indicators.Momentum(self.data.close, period=12)
+            self.roc = bt.indicators.ROC(self.data.close, period=10)
+            self.roc100 = bt.indicators.ROC100(self.data.close, period=12)
+
+        def next(self):
+            # Momentum-based strategy
+            if self.mom.momentum[0] > 0:
+                self.buy()
+            elif self.mom.momentum[0] < 0:
+                self.sell()
 """
 
 from . import Indicator

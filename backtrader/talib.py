@@ -12,12 +12,22 @@ Classes:
     _TALibIndicator: Base class for TA-Lib indicators.
 
 Example:
-    Using TA-Lib indicators:
+    Using TA-Lib indicators in a strategy:
     >>> import backtrader as bt
+    >>> class MyStrategy(bt.Strategy):
+    ...     def __init__(self):
+    ...         # Create TA-Lib indicators in strategy initialization
+    ...         self.sma = bt.talib.SMA(self.data.close, timeperiod=20)
+    ...         self.rsi = bt.talib.RSI(self.data.close, timeperiod=14)
+    ...
+    ...     def next(self):
+    ...         # Use indicator values in trading logic
+    ...         if self.data.close[0] > self.sma[0] and self.rsi[0] < 70:
+    ...             self.buy()
     >>> cerebro = bt.Cerebro()
+    >>> cerebro.addstrategy(MyStrategy)
     >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
     >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.talib.SMA, timeperiod=20)
 """
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables

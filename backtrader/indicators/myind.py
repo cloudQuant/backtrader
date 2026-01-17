@@ -5,6 +5,41 @@ This module contains custom indicator algorithms including:
 - MaBetweenHighAndLow: Check if MA is within price range
 - BarsLast: Count bars since condition was met
 - NewDiff: Guotai Junan alpha factor indicator
+
+Example:
+    To use these custom indicators in your strategy::
+
+        import backtrader as bt
+
+        class MyStrategy(bt.Strategy):
+            def __init__(self):
+                # Create MA Between High and Low indicator
+                self.ma_hl = bt.indicators.MaBetweenHighAndLow(
+                    self.data, period=5
+                )
+
+                # Create Bars Last indicator
+                self.bars_last = bt.indicators.BarsLast(
+                    self.data, period=5
+                )
+
+                # Create NewDiff indicator (Guotai Junan alpha factor)
+                self.new_diff = bt.indicators.NewDiff(
+                    self.data, period=6
+                )
+
+            def next(self):
+                # Use the indicators in your trading logic
+                if self.ma_hl.target[0] > 0:
+                    # MA is within high-low range
+                    self.buy()
+
+                if self.bars_last.bar_num[0] < 3:
+                    # Condition was met less than 3 bars ago
+                    self.sell()
+
+                # Access the alpha factor value
+                alpha_value = self.new_diff.factor[0]
 """
 import math
 

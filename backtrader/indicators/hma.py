@@ -8,9 +8,13 @@ Classes:
     HullMovingAverage: HMA indicator (aliases: HMA, HullMA).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.HMA, period=30)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.hma = bt.indicators.HMA(self.data.close, period=30)
+
+        def next(self):
+            if self.data.close[0] > self.hma[0]:
+                self.buy()
 """
 import math
 

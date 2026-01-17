@@ -10,9 +10,15 @@ Classes:
     Envelope: Envelope bands around data source.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.SMAEnvelope, period=20, perc=2.5)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.sma_env = bt.indicators.SMAEnvelope(self.data.close, period=20, perc=2.5)
+
+        def next(self):
+            if self.data.close[0] < self.sma_env.bot[0]:
+                self.buy()
+            elif self.data.close[0] > self.sma_env.top[0]:
+                self.sell()
 """
 import sys
 

@@ -8,9 +8,13 @@ Classes:
     UltimateOscillator: Ultimate Oscillator indicator.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.UltimateOscillator)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.uo = bt.indicators.UltimateOscillator(self.data)
+
+        def next(self):
+            if self.uo[0] > 70:
+                self.sell()
 """
 
 from . import Indicator, TrueLow, TrueRange

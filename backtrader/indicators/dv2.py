@@ -8,9 +8,13 @@ Classes:
     DV2: DV2 indicator (RSI(2) alternative).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.DV2)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.dv2 = bt.indicators.DV2(self.data)
+
+        def next(self):
+            if self.dv2[0] > 50:
+                self.buy()
 """
 from . import SMA, Indicator, PercentRank
 

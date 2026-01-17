@@ -9,9 +9,17 @@ Classes:
     UpDay/DownDay: Helper classes for RSI calculation.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.RSI, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.rsi = bt.indicators.RSI(self.data.close, period=14)
+
+        def next(self):
+            # RSI above 70 indicates overbought
+            if self.rsi.rsi[0] > 70:
+                self.sell()
+            # RSI below 30 indicates oversold
+            elif self.rsi.rsi[0] < 30:
+                self.buy()
 """
 import math
 

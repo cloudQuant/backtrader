@@ -9,9 +9,13 @@ Classes:
         MovingAverageSmoothed, MovingAverageWilder, ModifiedMovingAverage).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.SMMA, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.smma = bt.indicators.SMMA(self.data.close, period=14)
+
+        def next(self):
+            if self.data.close[0] > self.smma[0]:
+                self.buy()
 """
 
 from . import MovingAverageBase

@@ -8,9 +8,17 @@ Classes:
     WeightedMovingAverage: WMA indicator (alias: WMA).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.WMA, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.wma = bt.indicators.WMA(self.data.close, period=20)
+
+        def next(self):
+            # Price above WMA indicates uptrend
+            if self.data.close[0] > self.wma[0]:
+                self.buy()
+            # Price below WMA indicates downtrend
+            elif self.data.close[0] < self.wma[0]:
+                self.sell()
 """
 import math
 

@@ -9,9 +9,17 @@ Classes:
     Oscillator: Oscillation of data around another data.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.SMAOscillator, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Oscillate price around SMA
+            self.osc = bt.indicators.Oscillator(self.data, bt.indicators.SMA(self.data, period=20))
+
+        def next(self):
+            # When oscillator is positive, price is above SMA
+            if self.osc[0] > 0:
+                self.buy()
+            elif self.osc[0] < 0:
+                self.sell()
 """
 import sys
 

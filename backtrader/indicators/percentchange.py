@@ -8,9 +8,15 @@ Classes:
     PercentChange: Percentage change indicator (alias: PctChange).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.PctChange, period=30)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Measure 30-period percent change
+            self.pctchange = bt.indicators.PctChange(self.data.close, period=30)
+
+        def next(self):
+            # Buy when percent change is positive
+            if self.pctchange[0] > 0:
+                self.buy()
 """
 from . import Indicator
 

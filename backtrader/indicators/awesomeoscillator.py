@@ -8,9 +8,13 @@ Classes:
     AwesomeOscillator: Awesome Oscillator indicator (aliases: AwesomeOsc, AO).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.AO)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.ao = bt.indicators.AO(self.data)
+
+        def next(self):
+            if self.ao.ao[0] > 0 and self.ao.ao[-1] < 0:
+                self.buy()
 """
 
 from . import Indicator

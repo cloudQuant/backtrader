@@ -8,9 +8,17 @@ Classes:
     RelativeMomentumIndex: RMI indicator (alias: RMI).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.RMI, period=14, momperiod=5)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.rmi = bt.indicators.RMI(self.data, period=20, lookback=5)
+
+        def next(self):
+            # RMI above 70 indicates overbought
+            if self.rmi.rmi[0] > 70:
+                self.sell()
+            # RMI below 30 indicates oversold
+            elif self.rmi.rmi[0] < 30:
+                self.buy()
 """
 from . import RSI
 

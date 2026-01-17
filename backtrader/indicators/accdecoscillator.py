@@ -8,9 +8,13 @@ Classes:
     AccelerationDecelerationOscillator: AC indicator (alias: AccDeOsc).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.AccDeOsc)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.ac = bt.indicators.AccDeOsc(self.data)
+
+        def next(self):
+            if self.ac.accde[0] > 0 and self.ac.accde[-1] < 0:
+                self.buy()
 """
 import math
 

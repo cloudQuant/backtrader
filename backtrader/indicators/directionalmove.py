@@ -18,9 +18,18 @@ Classes:
     DirectionalMovement: Complete DM system (alias: DM).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.ADX, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Calculate ADX to measure trend strength
+            self.adx = bt.indicators.ADX(self.data, period=14)
+
+            # Or use DI for +DI and -DI
+            self.di = bt.indicators.DI(self.data, period=14)
+
+        def next(self):
+            # Buy when trend is strong (ADX > 25) and +DI crosses above -DI
+            if self.adx[0] > 25 and self.di.plusDI[0] > self.di.minusDI[0]:
+                self.buy()
 """
 from . import ATR, And, If, Indicator, MovAv
 

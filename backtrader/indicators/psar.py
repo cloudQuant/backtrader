@@ -8,9 +8,17 @@ Classes:
     ParabolicSAR: Parabolic SAR indicator (alias: PSAR).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.PSAR)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.psar = bt.indicators.PSAR(self.data)
+
+        def next(self):
+            # PSAR dots below price indicate uptrend
+            if self.psar.psar[0] < self.data.low[0]:
+                self.buy()
+            # PSAR dots above price indicate downtrend
+            elif self.psar.psar[0] > self.data.high[0]:
+                self.sell()
 """
 from . import PeriodN
 

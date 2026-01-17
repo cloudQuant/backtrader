@@ -8,9 +8,14 @@ Classes:
     HeikinAshi: Heikin Ashi candlestick lines.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.HeikinAshi)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.ha = bt.indicators.HeikinAshi(self.data)
+
+        def next(self):
+            # Use Heikin Ashi close for trend analysis
+            if self.data.close[0] > self.ha.ha_close[0]:
+                self.buy()
 """
 from . import Indicator
 

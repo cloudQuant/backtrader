@@ -28,9 +28,23 @@ Classes:
     WeightedAverage: Weighted average (alias: AverageWeighted).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> highest = bt.indicators.Highest(data.close, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Calculate highest and lowest prices over 20 periods
+            self.highest = bt.indicators.Highest(self.data.close, period=20)
+            self.lowest = bt.indicators.Lowest(self.data.close, period=20)
+
+            # Calculate average price
+            self.avg = bt.indicators.Average(self.data.close, period=20)
+
+        def next(self):
+            # Buy when price breaks above highest of last 20 bars
+            if self.data.close[0] > self.highest[-1]:
+                self.buy()
+
+            # Sell when price breaks below lowest of last 20 bars
+            elif self.data.close[0] < self.lowest[-1]:
+                self.sell()
 """
 import functools
 import math

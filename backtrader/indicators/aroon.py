@@ -13,9 +13,15 @@ Classes:
     AroonUpDownOscillator: Combined AroonUpDown and Oscillator (alias: AroonUpDownOsc).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.AroonUpDown, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.aroon = bt.indicators.AroonUpDown(self.data, period=14)
+
+        def next(self):
+            if self.aroon.aroonup[0] > self.aroon.aroondown[0]:
+                self.buy()
+            elif self.aroon.aroonup[0] < self.aroon.aroondown[0]:
+                self.sell()
 """
 from . import FindFirstIndexHighest, FindFirstIndexLowest, Indicator
 

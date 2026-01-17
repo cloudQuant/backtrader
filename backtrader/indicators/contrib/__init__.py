@@ -8,8 +8,14 @@ Indicators:
     Vortex: Vortex Indicator for trend identification.
 
 Example:
-    Using contributed indicators:
-    >>> cerebro.addindicator(bt.indicators.Vortex)
+    Using Vortex indicator in a strategy:
+    >>> class MyStrategy(bt.Strategy):
+    ...     def __init__(self):
+    ...         self.vortex = bt.indicators.Vortex(self.data, period=14)
+    ...
+    ...     def next(self):
+    ...         if self.vortex.vi_plus[0] > self.vortex.vi_minus[0]:
+    ...             self.buy()
 """
 ###############################################################################
 #

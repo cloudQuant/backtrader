@@ -24,10 +24,17 @@ Classes:
     Signal: Indicator that wraps a data line as a trading signal.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> signal = bt.Signal(data)
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.SMA, period=20)
+    >>> class MyStrategy(bt.Strategy):
+    ...     def __init__(self):
+    ...         # Create a signal indicator from a data line
+    ...         self.signal = bt.Signal(self.data.close)
+    ...         self.sma = bt.indicators.SMA(self.data.close, period=20)
+    ...
+    ...     def next(self):
+    ...         if self.signal[0] > 0:
+    ...             self.buy()
+    ...         elif self.signal[0] < 0:
+    ...             self.sell()
 """
 from .indicator import Indicator
 
@@ -81,8 +88,17 @@ class Signal(Indicator):
         lines: Tuple containing the signal line name.
 
     Example:
-        >>> signal = bt.Signal(data)
-        >>> cerebro.adddata(data)
+        >>> class MyStrategy(bt.Strategy):
+        ...     def __init__(self):
+        ...         # Create a signal indicator from a data line
+        ...         self.signal = bt.Signal(self.data.close)
+        ...         self.sma = bt.indicators.SMA(self.data.close, period=20)
+        ...
+        ...     def next(self):
+        ...         if self.signal[0] > 0:
+        ...             self.buy()
+        ...         elif self.signal[0] < 0:
+        ...             self.sell()
     """
 
     # Signal type

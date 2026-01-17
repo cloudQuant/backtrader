@@ -8,9 +8,13 @@ Classes:
     DetrendedPriceOscillator: DPO indicator (alias: DPO).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.DPO, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.dpo = bt.indicators.DPO(self.data, period=20)
+
+        def next(self):
+            if self.dpo[0] > 0:
+                self.buy()
 """
 import math
 

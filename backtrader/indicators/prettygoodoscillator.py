@@ -9,9 +9,21 @@ Classes:
     PrettyGoodOscillator: PGO indicator (aliases: PGO, PrettyGoodOsc).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.PGO, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Calculate Pretty Good Oscillator with 14-period
+            self.pgo = bt.indicators.PrettyGoodOscillator(self.data, period=14)
+
+        def next(self):
+            # Buy when PGO rises above 3.0 (breakout signal)
+            if self.pgo[0] > 3.0:
+                self.buy()
+            # Sell short when PGO falls below -3.0
+            elif self.pgo[0] < -3.0:
+                self.sell()
+            # Exit positions when returning to zero
+            elif len(self.position) > 0 and abs(self.pgo[0]) < 0.5:
+                self.close()
 """
 import math
 

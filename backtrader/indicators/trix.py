@@ -9,9 +9,13 @@ Classes:
     TrixSignal: TRIX with signal line.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.TRIX, period=15)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.trix = bt.indicators.TRIX(self.data.close, period=15)
+
+        def next(self):
+            if self.trix[0] > 0:
+                self.buy()
 """
 import math
 

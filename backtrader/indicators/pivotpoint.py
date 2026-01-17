@@ -10,10 +10,18 @@ Classes:
     DemarkPivotPoint: Demark pivot point calculation.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.resampledata(data, timeframe=bt.TimeFrame.Months)
-    >>> pivot = bt.indicators.PivotPoint(data1)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Calculate pivot points from resampled data (data1)
+            self.pivot = bt.indicators.PivotPoint(self.data1)
+
+        def next(self):
+            # Buy when price breaks above resistance level 1
+            if self.data.close[0] > self.pivot.r1[0]:
+                self.buy()
+            # Sell when price breaks below support level 1
+            elif self.data.close[0] < self.pivot.s1[0]:
+                self.sell()
 """
 from . import Indicator
 

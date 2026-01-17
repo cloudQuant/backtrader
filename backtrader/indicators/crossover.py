@@ -11,10 +11,17 @@ Classes:
     CrossOver: Detects both directional crossovers.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> sma = bt.indicators.SMA(period=20)
-    >>> crossover = bt.indicators.CrossOver(data.close, sma)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.sma_fast = bt.indicators.SMA(self.data, period=10)
+            self.sma_slow = bt.indicators.SMA(self.data, period=20)
+            self.crossover = bt.indicators.CrossOver(self.sma_fast, self.sma_slow)
+
+        def next(self):
+            if self.crossover[0] > 0:
+                self.buy()
+            elif self.crossover[0] < 0:
+                self.sell()
 """
 from . import Indicator
 

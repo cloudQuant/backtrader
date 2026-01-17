@@ -9,9 +9,17 @@ Classes:
     MACDHisto: MACD with histogram (alias: MACDHistogram).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.MACD)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.macd = bt.indicators.MACD(self.data)
+            self.macd_hist = bt.indicators.MACDHisto(self.data)
+
+        def next(self):
+            # MACD crossover strategy
+            if self.macd.macd[0] > self.macd.signal[0]:
+                self.buy()
+            elif self.macd.macd[0] < self.macd.signal[0]:
+                self.sell()
 """
 import math
 

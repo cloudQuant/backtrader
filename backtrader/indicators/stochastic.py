@@ -11,9 +11,13 @@ Classes:
     StochasticFull: Full Stochastic with all 3 lines.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.Stochastic, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.stoch = bt.indicators.Stochastic(self.data, period=14)
+
+        def next(self):
+            if self.stoch.percK[0] > self.stoch.percD[0]:
+                self.buy()
 """
 import math
 

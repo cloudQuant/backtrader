@@ -8,9 +8,13 @@ Classes:
     AdaptiveMovingAverage: KAMA indicator (aliases: KAMA, MovingAverageAdaptive).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.KAMA, period=30)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.kama = bt.indicators.KAMA(self.data.close, period=30, fast=2, slow=30)
+
+        def next(self):
+            if self.data.close[0] > self.kama[0]:
+                self.buy()
 """
 import math
 

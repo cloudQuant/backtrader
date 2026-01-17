@@ -8,9 +8,17 @@ Classes:
     Vortex: Vortex indicator with VI+ and VI- lines.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.Vortex, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.vortex = bt.indicators.Vortex(self.data, period=14)
+
+        def next(self):
+            # VI+ crossing above VI- indicates uptrend
+            if self.vortex.vi_plus[0] > self.vortex.vi_minus[0]:
+                self.buy()
+            # VI- crossing above VI+ indicates downtrend
+            elif self.vortex.vi_minus[0] > self.vortex.vi_plus[0]:
+                self.sell()
 """
 from . import Indicator, Max, SumN
 

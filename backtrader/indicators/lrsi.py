@@ -9,9 +9,16 @@ Classes:
     LaguerreFilter: Laguerre filter (alias: LAGF).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.LRSI, gamma=0.5)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.lrsi = bt.indicators.LRSI(self.data, gamma=0.5)
+            self.lfilter = bt.indicators.LAGF(self.data, gamma=0.5)
+
+        def next(self):
+            if self.lrsi.lrsi[0] > 0.8:
+                self.sell()
+            elif self.lrsi.lrsi[0] < 0.2:
+                self.buy()
 """
 from . import PeriodN
 

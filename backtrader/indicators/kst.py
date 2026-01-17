@@ -8,9 +8,16 @@ Classes:
     KnowSureThing: KST indicator (alias: KST).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.KST)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.kst = bt.indicators.KST(self.data)
+            self.kst_signal = bt.indicators.KST(self.data, rp1=10, rp2=15, rp3=20, rp4=30)
+
+        def next(self):
+            if self.kst.kst[0] > self.kst.signal[0]:
+                self.buy()
+            elif self.kst.kst[0] < self.kst.signal[0]:
+                self.sell()
 """
 import math
 

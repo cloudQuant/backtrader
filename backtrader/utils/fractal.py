@@ -12,9 +12,13 @@ References:
     http://www.investopedia.com/articles/trading/06/fractals.asp
 
 Example:
-    >>> from backtrader.utils import Fractal
-    >>> fractal = Fractal()
-    >>> cerebro.addindicator(fractal)
+    >>> from backtrader.utils.fractal import Fractal
+    >>> class MyStrategy(bt.Strategy):
+    ...     def __init__(self):
+    ...         self.fractal = Fractal(self.data)
+    ...     def next(self):
+    ...         if self.fractal.fractal_bullish[0] > 0:
+    ...             self.buy()
 """
 from ..indicators import PeriodN
 

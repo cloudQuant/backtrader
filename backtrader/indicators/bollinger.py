@@ -9,9 +9,15 @@ Classes:
     BollingerBandsPct: Bollinger Bands with %B line.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.BBands, period=20, devfactor=2.0)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.bbands = bt.indicators.BBands(self.data, period=20, devfactor=2.0)
+
+        def next(self):
+            if self.data.close[0] < self.bbands.bot[0]:
+                self.buy()
+            elif self.data.close[0] > self.bbands.top[0]:
+                self.sell()
 """
 import math
 

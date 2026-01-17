@@ -10,8 +10,18 @@ Classes:
     MovingAverageBase: Base class for moving average indicators.
 
 Example:
-    >>> sma = MovAv.SMA(data, period=20)
-    >>> ema = MovAv.EMA(data, period=12)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.sma = bt.indicators.SMA(self.data.close, period=20)
+            self.ema = bt.indicators.EMA(self.data.close, period=12)
+            # Or using MovAv wrapper
+            self.wma = bt.indicators.MovAv.WMA(self.data.close, period=15)
+
+        def next(self):
+            if self.data.close[0] > self.sma[0]:
+                self.buy()
+            elif self.data.close[0] < self.sma[0]:
+                self.sell()
 """
 
 

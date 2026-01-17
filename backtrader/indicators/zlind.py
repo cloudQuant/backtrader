@@ -8,9 +8,17 @@ Classes:
     ZeroLagIndicator: Zero-lag indicator with error correction.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.ZeroLagIndicator, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.zlind = bt.indicators.ZeroLagIndicator(self.data.close, period=20, gainlimit=50)
+
+        def next(self):
+            # Price above ZeroLagIndicator indicates uptrend
+            if self.data.close[0] > self.zlind[0]:
+                self.buy()
+            # Price below ZeroLagIndicator indicates downtrend
+            elif self.data.close[0] < self.zlind[0]:
+                self.sell()
 """
 from backtrader.utils.py3 import MAXINT
 

@@ -8,9 +8,17 @@ Classes:
     HurstExponent: Hurst exponent indicator (alias: Hurst).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.Hurst, period=2000)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Use at least 2000 samples for stable Hurst values
+            self.hurst = bt.indicators.Hurst(self.data.close, period=2000)
+
+        def next(self):
+            # H > 0.5: trending series, H < 0.5: mean-reverting
+            if len(self.data) >= 2000:
+                if self.hurst[0] > 0.5:
+                    # Trend following strategy
+                    pass
 """
 from numpy import asarray, isnan, log10, polyfit, sqrt, std, subtract
 

@@ -8,9 +8,15 @@ Classes:
     CommodityChannelIndex: CCI indicator (alias: CCI).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.CCI, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.cci = bt.indicators.CCI(self.data, period=20)
+
+        def next(self):
+            if self.cci[0] > 100:
+                self.sell()
+            elif self.cci[0] < -100:
+                self.buy()
 """
 
 from . import Indicator, MeanDev, MovAv

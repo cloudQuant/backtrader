@@ -8,9 +8,18 @@ Classes:
     PercentRank: Percent rank indicator (alias: PctRank).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.PctRank, period=50)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Calculate 50-period percent rank
+            self.pctrank = bt.indicators.PctRank(self.data.close, period=50)
+
+        def next(self):
+            # Buy when price is in top 20% (percent rank > 0.8)
+            if self.pctrank[0] > 0.8:
+                self.buy()
+            # Sell when price is in bottom 20% (percent rank < 0.2)
+            elif self.pctrank[0] < 0.2:
+                self.sell()
 """
 from math import fsum
 

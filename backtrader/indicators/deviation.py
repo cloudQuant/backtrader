@@ -8,9 +8,18 @@ Classes:
     MeanDeviation: Mean absolute deviation (alias: MeanDev).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.StdDev, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.sma = bt.indicators.SMA(self.data.close, period=20)
+            self.stddev = bt.indicators.StdDev(self.data.close, period=20)
+            self.upper_band = self.sma + 2 * self.stddev
+            self.lower_band = self.sma - 2 * self.stddev
+
+        def next(self):
+            if self.data.close[0] > self.upper_band[0]:
+                self.sell()
+            elif self.data.close[0] < self.lower_band[0]:
+                self.buy()
 """
 import math
 

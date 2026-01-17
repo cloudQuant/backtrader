@@ -8,9 +8,15 @@ Classes:
     Ichimoku: Ichimoku Cloud indicator with multiple lines.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.Ichimoku)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.ichimoku = bt.indicators.Ichimoku(self.data)
+
+        def next(self):
+            # Price above cloud indicates uptrend
+            if (self.data.close[0] > self.ichimoku.senkou_span_a[0] and
+                self.data.close[0] > self.ichimoku.senkou_span_b[0]):
+                self.buy()
 """
 import math
 

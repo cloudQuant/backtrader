@@ -11,9 +11,13 @@ Classes:
     AverageTrueRange: Calculates the Average True Range (alias: ATR).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.ATR, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.atr = bt.indicators.ATR(self.data, period=14)
+
+        def next(self):
+            if self.atr[0] > self.atr[-1] * 1.5:
+                self.buy()
 """
 import math
 

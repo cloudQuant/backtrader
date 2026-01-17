@@ -8,9 +8,17 @@ Classes:
     WilliamsR: Williams %R indicator.
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.WilliamsR, period=14)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.williamsr = bt.indicators.WilliamsR(self.data, period=14)
+
+        def next(self):
+            # Williams %R above -20 indicates overbought
+            if self.williamsr.percR[0] > -20:
+                self.sell()
+            # Williams %R below -80 indicates oversold
+            elif self.williamsr.percR[0] < -80:
+                self.buy()
 """
 import math
 

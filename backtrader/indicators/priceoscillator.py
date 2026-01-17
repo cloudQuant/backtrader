@@ -11,9 +11,15 @@ Classes:
     PercentagePriceOscillatorShort: PPO with short denominator (aliases: PPOShort).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.PPO, period1=12, period2=26)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.ppo = bt.indicators.PPO(self.data, period1=12, period2=26)
+
+        def next(self):
+            if self.ppo.ppo[0] > self.ppo.signal[0]:
+                self.buy()
+            elif self.ppo.ppo[0] < self.ppo.signal[0]:
+                self.sell()
 """
 import math
 

@@ -9,9 +9,15 @@ Classes:
     TripleExponentialMovingAverage: TEMA indicator (alias: TEMA).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.DEMA, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.dema = bt.indicators.DEMA(self.data.close, period=20)
+
+        def next(self):
+            if self.data.close[0] > self.dema[0]:
+                self.buy()
+            elif self.data.close[0] < self.dema[0]:
+                self.sell()
 """
 import math
 

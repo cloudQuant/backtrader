@@ -11,11 +11,24 @@ Classes:
     CointN: Tests for cointegration between series.
 
 Example:
-    >>> data1 = bt.feeds.GenericCSVData(dataname='data1.csv')
-    >>> data2 = bt.feeds.GenericCSVData(dataname='data2.csv')
-    >>> cerebro.adddata(data1)
-    >>> cerebro.adddata(data2)
-    >>> ols = bt.indicators.OLS_Slope_InterceptN(data1, data2, period=30)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            # Calculate OLS regression slope and intercept between two data feeds
+            self.ols = bt.indicators.OLS_Slope_InterceptN(self.data0, self.data1, period=30)
+
+            # Calculate OLS transformation (spread, zscore)
+            self.ols_trans = bt.indicators.OLS_TransformationN(self.data0, self.data1, period=30)
+
+        def next(self):
+            # Trade based on zscore of the spread
+            if self.ols_trans.zscore[0] > 2:
+                # Spread is too high - short data0, long data1
+                self.sell(data=self.data0)
+                self.buy(data=self.data1)
+            elif self.ols_trans.zscore[0] < -2:
+                # Spread is too low - long data0, short data1
+                self.buy(data=self.data0)
+                self.sell(data=self.data1)
 """
 import pandas as pd
 import statsmodels.api as sm

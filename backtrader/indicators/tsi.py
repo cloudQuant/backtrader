@@ -8,9 +8,13 @@ Classes:
     TrueStrengthIndicator: TSI indicator (alias: TSI).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.TSI, period1=25, period2=13)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.tsi = bt.indicators.TSI(self.data.close, period1=25, period2=13)
+
+        def next(self):
+            if self.tsi[0] > 0:
+                self.buy()
 """
 
 from . import Indicator

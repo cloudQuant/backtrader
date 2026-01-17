@@ -8,9 +8,13 @@ Classes:
     Vortex: Vortex Movement Indicator (Vortex).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.Vortex, period=14)
+    >>> class MyStrategy(bt.Strategy):
+    ...     def __init__(self):
+    ...         self.vortex = bt.indicators.Vortex(self.data, period=14)
+    ...
+    ...     def next(self):
+    ...         if self.vortex.vi_plus[0] > self.vortex.vi_minus[0]:
+    ...             self.buy()
 """
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################

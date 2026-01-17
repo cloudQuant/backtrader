@@ -8,9 +8,15 @@ Classes:
     DicksonMovingAverage: DMA indicator (aliases: DMA, DicksonMA).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.DMA, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.dma = bt.indicators.DMA(self.data.close, period=20, gainlimit=50, hperiod=7)
+
+        def next(self):
+            if self.data.close[0] > self.dma[0]:
+                self.buy()
+            elif self.data.close[0] < self.dma[0]:
+                self.sell()
 """
 import math
 

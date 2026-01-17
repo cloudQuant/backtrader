@@ -8,10 +8,13 @@ Classes:
     HaDelta: Heikin Ashi Delta indicator (aliases: haD, haDelta).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> data.addfilter(bt.filters.HeikinAshi())
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.HaDelta)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.hadelta = bt.indicators.HaDelta(self.data)
+
+        def next(self):
+            if self.hadelta.smoothed[0] > 0:
+                self.buy()
 """
 
 from . import Indicator

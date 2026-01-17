@@ -8,9 +8,13 @@ Classes:
     ExponentialMovingAverage: EMA indicator (alias: EMA).
 
 Example:
-    >>> data = bt.feeds.GenericCSVData(dataname='data.csv')
-    >>> cerebro.adddata(data)
-    >>> cerebro.addindicator(bt.indicators.EMA, period=20)
+    class MyStrategy(bt.Strategy):
+        def __init__(self):
+            self.ema = bt.indicators.EMA(self.data.close, period=20)
+
+        def next(self):
+            if self.data.close[0] > self.ema[0]:
+                self.buy()
 """
 import math
 
