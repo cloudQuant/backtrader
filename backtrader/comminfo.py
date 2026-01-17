@@ -126,6 +126,9 @@ class CommInfoBase(ParameterizedBase):
                 self._stocklike = True
                 self._commtype = self.COMM_PERC
 
+        # PERFORMANCE OPTIMIZATION: Cache mult parameter (called 1.55M+ times)
+        self._mult = self.get_param("mult")
+
         # Parameter post-processing (consistent with original implementation)
         if not self._stocklike and not self.get_param("margin"):
             # Directly modify value in parameter manager to avoid validation issues
@@ -226,14 +229,14 @@ class CommInfoBase(ParameterizedBase):
 
     def profitandloss(self, size, price, newprice):
         """Return actual profit and loss a position has"""
-        mult = self.get_param("mult")
-        return size * (newprice - price) * mult
+        # PERFORMANCE OPTIMIZATION: Use cached _mult
+        return size * (newprice - price) * self._mult
 
     def cashadjust(self, size, price, newprice):
         """Calculates cash adjustment for a given price difference"""
         if not self._stocklike:
-            mult = self.get_param("mult")
-            return size * (newprice - price) * mult
+            # PERFORMANCE OPTIMIZATION: Use cached _mult
+            return size * (newprice - price) * self._mult
         return 0.0
 
     def get_credit_interest(self, data, pos, dt):
