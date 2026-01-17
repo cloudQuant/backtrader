@@ -92,25 +92,41 @@ class StandardDeviation(Indicator):
         larray = self.lines.stddev.array
         period = self.p.period
         safepow = self.p.safepow
+        actual_end = min(end, len(darray))
 
         while len(larray) < end:
             larray.append(0.0)
 
+        # PERFORMANCE: Cache constants and functions
+        nan_val = float("nan")
+        sqrt = math.sqrt
+
         # Pre-fill warmup with NaN
         for i in range(min(period - 1, len(darray))):
             if i < len(larray):
-                larray[i] = float("nan")
+                larray[i] = nan_val
 
-        for i in range(period - 1, min(end, len(darray))):
+        for i in range(period - 1, actual_end):
             data_sum = 0.0
             data_sq_sum = 0.0
+            has_nan = False
+
+            # PERFORMANCE: Simplified loop with faster NaN check
             for j in range(period):
                 idx = i - j
-                if idx >= 0 and idx < len(darray):
+                if 0 <= idx < len(darray):
                     val = darray[idx]
-                    if not (isinstance(val, float) and math.isnan(val)):
-                        data_sum += val
-                        data_sq_sum += val * val
+                    # PERFORMANCE: Use val != val for NaN check (faster)
+                    if val != val:
+                        has_nan = True
+                        break
+                    data_sum += val
+                    data_sq_sum += val * val
+
+            if has_nan:
+                if i < len(larray):
+                    larray[i] = nan_val
+                continue
 
             mean = data_sum / period
             meansq = data_sq_sum / period
@@ -121,7 +137,7 @@ class StandardDeviation(Indicator):
                 diff = abs(diff)
 
             if i < len(larray):
-                larray[i] = math.sqrt(max(0, diff))
+                larray[i] = sqrt(max(0, diff))
 
 
 # Average deviation

@@ -320,6 +320,13 @@ class MovingAverageSimple(MovingAverageBase):
             # Calculate SMA for each index up to actual data length
             # Start from period-1 (first valid SMA) or start, whichever is later
             calc_start = max(period - 1, start)
+
+            # PERFORMANCE: Import math once outside loop
+            import math
+
+            fsum = math.fsum  # Cache function reference
+            nan_val = float("nan")
+
             for i in range(calc_start, actual_end):
                 if i >= period - 1:
                     # Calculate SMA: average of last 'period' values
@@ -328,20 +335,22 @@ class MovingAverageSimple(MovingAverageBase):
                     if end_idx <= len(src):
                         window = src[start_idx:end_idx]
                         # CRITICAL FIX: Check for NaN values in the window
-                        # If any value is NaN (e.g., from misaligned data feeds),
-                        # the result should be NaN to match master branch behavior
-                        import math
-
-                        if any(math.isnan(v) if isinstance(v, float) else False for v in window):
-                            dst[i] = float("nan")
+                        # PERFORMANCE: Use val != val for NaN check (faster than isinstance + isnan)
+                        has_nan = False
+                        for v in window:
+                            if v != v:  # NaN check: only NaN != NaN
+                                has_nan = True
+                                break
+                        if has_nan:
+                            dst[i] = nan_val
                         else:
                             # Use math.fsum for accurate floating-point summation (matches master)
-                            dst[i] = math.fsum(window) / period
+                            dst[i] = fsum(window) / period
                     else:
-                        dst[i] = float("nan")
+                        dst[i] = nan_val
                 else:
                     # Not enough data yet
-                    dst[i] = float("nan")
+                    dst[i] = nan_val
         except Exception:
             # Fallback to once_via_next if once() fails
             super().once_via_next(start, end)

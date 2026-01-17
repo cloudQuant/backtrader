@@ -103,41 +103,56 @@ class BollingerBands(Indicator):
         bot_array = self.lines.bot.array
         period = self.p.period
         devfactor = self.p.devfactor
+        actual_end = min(end, len(darray))
+        darray_len = len(darray)
 
         # Ensure arrays are sized
         for arr in [mid_array, top_array, bot_array]:
             while len(arr) < end:
                 arr.append(0.0)
 
-        # Pre-fill warmup with NaN
-        for i in range(min(period - 1, len(darray))):
-            for arr in [mid_array, top_array, bot_array]:
-                if i < len(arr):
-                    arr[i] = float("nan")
+        # PERFORMANCE: Cache constants and functions
+        nan_val = float("nan")
+        sqrt = math.sqrt
 
-        for i in range(period - 1, min(end, len(darray))):
+        # Pre-fill warmup with NaN
+        for i in range(min(period - 1, darray_len)):
+            mid_array[i] = nan_val
+            top_array[i] = nan_val
+            bot_array[i] = nan_val
+
+        for i in range(period - 1, actual_end):
             data_sum = 0.0
             data_sq_sum = 0.0
+            has_nan = False
+
+            # PERFORMANCE: Simplified loop with faster NaN check
             for j in range(period):
                 idx = i - j
-                if idx >= 0 and idx < len(darray):
+                if 0 <= idx < darray_len:
                     val = darray[idx]
-                    if not (isinstance(val, float) and math.isnan(val)):
-                        data_sum += val
-                        data_sq_sum += val * val
+                    # PERFORMANCE: Use val != val for NaN check (faster)
+                    if val != val:
+                        has_nan = True
+                        break
+                    data_sum += val
+                    data_sq_sum += val * val
+
+            if has_nan:
+                mid_array[i] = nan_val
+                top_array[i] = nan_val
+                bot_array[i] = nan_val
+                continue
 
             mid = data_sum / period
             meansq = data_sq_sum / period
             sqmean = mid * mid
             diff = abs(meansq - sqmean)
-            stddev = math.sqrt(max(0, diff))
+            stddev = sqrt(max(0, diff))
 
-            if i < len(mid_array):
-                mid_array[i] = mid
-            if i < len(top_array):
-                top_array[i] = mid + devfactor * stddev
-            if i < len(bot_array):
-                bot_array[i] = mid - devfactor * stddev
+            mid_array[i] = mid
+            top_array[i] = mid + devfactor * stddev
+            bot_array[i] = mid - devfactor * stddev
 
 
 # Bollinger Bands Percentage indicator
