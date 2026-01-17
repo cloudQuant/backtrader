@@ -1584,48 +1584,39 @@ class LineIterator(LineIteratorMixin, LineSeries):
             data.minbuffer(self._minperiod)
 
     def __len__(self):
-        """Return the length of the lineiterator's lines - simplified and robust"""
+        """Return the length of the lineiterator's lines - optimized for hot path"""
+        # PERFORMANCE OPTIMIZATION: Use cached first_line reference
+        # Avoid repeated hasattr calls and attribute lookups
+        self_dict = self.__dict__
 
-        # CRITICAL FIX: Simplified length calculation to avoid recursion and complexity
-        # Just return the lencount from the first line if available
+        # Fast path: use cached first_line
+        cached_line = self_dict.get("_cached_first_line")
+        if cached_line is not None:
+            try:
+                return cached_line.lencount
+            except AttributeError:
+                pass
 
+        # Slow path: find and cache first_line
         try:
-            # Handle TestStrategy special case first
-            if hasattr(self, "__class__") and "TestStrategy" in self.__class__.__name__:
-                if not hasattr(self, "chkmin") or self.chkmin is None:
-                    # Set chkmin to current actual length
-                    if hasattr(self, "lines") and hasattr(self.lines, "lines") and self.lines.lines:
-                        first_line = self.lines.lines[0]
-                        if hasattr(first_line, "lencount"):
-                            self.chkmin = first_line.lencount
-                        else:
-                            self.chkmin = 30  # Fallback
-                    else:
-                        self.chkmin = 30  # Fallback
-
-            # Simple and direct: just get lencount from first line
-            if hasattr(self, "lines") and self.lines and hasattr(self.lines, "lines"):
-                try:
-                    first_line = self.lines.lines[0]
-                    # CRITICAL FIX: Try lencount directly without hasattr check
-                    # hasattr can fail in some metaclass scenarios
+            lines_obj = self_dict.get("lines")
+            if lines_obj is not None:
+                lines_list = getattr(lines_obj, "lines", None)
+                if lines_list:
+                    first_line = lines_list[0]
+                    # Cache for future calls
+                    self_dict["_cached_first_line"] = first_line
                     try:
                         return first_line.lencount
                     except AttributeError:
-                        # Fallback to array length if lencount not available
                         try:
                             return len(first_line.array)
                         except Exception:
                             pass
-                except (IndexError, AttributeError, TypeError):
-                    pass
+        except (IndexError, TypeError):
+            pass
 
-            # If no lines or failed to get lencount, return 0
-            return 0
-
-        except Exception:
-            # Ultimate fallback
-            return 0
+        return 0
 
     def advance(self, size=1):
         """Advance the line position by the specified size.

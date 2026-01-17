@@ -280,6 +280,9 @@ class ParameterManager:
         self._value_cache.clear()
         self._cache_valid.clear()
 
+    # Sentinel object for detecting missing keys (faster than 'in' check)
+    _MISSING = object()
+
     def get(self, name: str, default: Any = None) -> Any:
         """
         Get parameter value with optimized caching and lazy evaluation support.
@@ -291,34 +294,42 @@ class ParameterManager:
         Returns:
             Parameter value
         """
+        # PERFORMANCE OPTIMIZATION: Use dict.get with sentinel to avoid double hash lookup
+        _MISSING = ParameterManager._MISSING
+
         # Fast path: Check if we have a custom value (most common case)
-        if name in self._values:
-            return self._values[name]
+        val = self._values.get(name, _MISSING)
+        if val is not _MISSING:
+            return val
 
         # Fast path: Check if we have a cached descriptor default
-        if name in self._value_cache:
-            return self._value_cache[name]
+        val = self._value_cache.get(name, _MISSING)
+        if val is not _MISSING:
+            return val
 
         # Check lazy defaults
-        if name in self._lazy_defaults:
+        lazy_func = self._lazy_defaults.get(name, _MISSING)
+        if lazy_func is not _MISSING:
             if name not in self._cache_valid:
                 try:
-                    computed_value = self._lazy_defaults[name]()
+                    computed_value = lazy_func()
                     self._value_cache[name] = computed_value
                     self._cache_valid.add(name)
                     return computed_value
                 except Exception:
                     # If lazy evaluation fails, use descriptor default
-                    if name in self._descriptors:
-                        default_val = self._descriptors[name].default
+                    desc = self._descriptors.get(name, _MISSING)
+                    if desc is not _MISSING:
+                        default_val = desc.default
                         self._value_cache[name] = default_val
                         return default_val
                     return default
             return self._value_cache[name]
 
         # Cache descriptor default for faster subsequent access
-        if name in self._descriptors:
-            default_val = self._descriptors[name].default
+        desc = self._descriptors.get(name, _MISSING)
+        if desc is not _MISSING:
+            default_val = desc.default
             self._value_cache[name] = default_val
             return default_val
 

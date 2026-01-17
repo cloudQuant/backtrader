@@ -339,61 +339,41 @@ class LineBuffer(LineSingle, LineRootMixin):
 
     def __getitem__(self, ago):
         """
-        Get the value at a specified offset.
+        Get the value at a specified offset - optimized for hot path.
 
         Args:
             ago (int): Relative offset from current index (0=current, -1=previous, 1=next)
 
         Returns:
             Value at the specified position
-
-        Performance optimization: Restore master branch's simple implementation
-        with necessary boundary checks
-        - Direct array access (fast path)
-        - Add IndexError capture to return reasonable default value
         """
-        # CRITICAL FIX: For data feed lines accessing FUTURE data, check if beyond real data
-        # Arrays may be pre-allocated with default values (0.0 or NaN) for unloaded data
-        # Check both the index bounds AND the value to detect end of valid data
-        # Only check for future access (ago > 0); past/current access uses natural bounds
-        if getattr(self, "_is_data_feed_line", False) and ago > 0:
-            target_idx = self._idx + ago
-            # First check: is target_idx beyond the array length?
-            if target_idx >= len(self.array):
-                raise IndexError("array index out of range")
-            # Second check: is the value at target_idx a default/unloaded value (0.0)?
-            # This catches cases where array is pre-allocated but data isn't loaded yet
-            if self.array[target_idx] == 0.0:
-                # Check if this is actually a valid 0.0 value or an unloaded placeholder
-                # For datetime lines, 0.0 is never a valid value, so we can safely raise
-                raise IndexError("array index out of range")
-
+        # PERFORMANCE OPTIMIZATION: Fast path for common case (ago <= 0)
+        # Avoid __dict__ access for majority of calls
         try:
-            # CRITICAL FIX: In runonce mode, _idx points to end of data after once() completes.
-            # Use lencount-1 as the current position when _idx exceeds lencount
-            # This ensures indicator values are accessed at the correct bar during next() calls
             current_idx = self._idx
-            if self.lencount > 0 and self._idx >= self.lencount:
-                current_idx = self.lencount - 1
+            lencount = self.lencount
+            if lencount > 0 and current_idx >= lencount:
+                current_idx = lencount - 1
             return self.array[current_idx + ago]
         except IndexError:
-            # CRITICAL FIX: Simplified logic - check if this line is marked as data feed line
-            # Lines belonging to data feeds are marked with _is_data_feed_line = True in feed.py
-            # This is needed for:
-            # 1. expire_order_close() to detect data shortage (close[3] access)
-            # 2. Strategy to detect end of data (datetime.date(1) access for next_month calculation)
-            # For indicators, return NaN/0.0 to allow calculations to continue
+            pass
 
-            # Check the simple flag first
-            if getattr(self, "_is_data_feed_line", False):
-                # This is a data feed line - raise IndexError
+        # Slow path: handle special cases
+        # CRITICAL FIX: For data feed lines accessing FUTURE data
+        is_data_feed_line = getattr(self, "_is_data_feed_line", False)
+        if is_data_feed_line and ago > 0:
+            target_idx = self._idx + ago
+            if target_idx >= len(self.array) or self.array[target_idx] == 0.0:
                 raise IndexError("array index out of range")
 
-            # For indicators and other cases, return appropriate default
-            if getattr(self, "_is_indicator", False):
-                return float("nan")
-            else:
-                return 0.0
+        # Check the simple flag for data feed line
+        if is_data_feed_line:
+            raise IndexError("array index out of range")
+
+        # For indicators and other cases, return appropriate default
+        if getattr(self, "_is_indicator", False):
+            return float("nan")
+        return 0.0
 
     # Get data values, widely used in strategies
     def get(self, ago=0, size=1):
