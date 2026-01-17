@@ -650,7 +650,7 @@ class LineBuffer(LineSingle, LineRootMixin):
         arr = self.array
         arr_len = len(arr)
         if arr_len > 0:
-            del arr[max(0, arr_len - size):]
+            del arr[max(0, arr_len - size) :]
 
     # Move backward one step (original backwards was overridden)
     def safe_backwards(self, size=1):

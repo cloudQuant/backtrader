@@ -582,11 +582,7 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # PERFORMANCE OPTIMIZATION: Cache tick attribute names to avoid repeated string concat
         tick_cache = getattr(self, "_tick_cache", None)
         if tick_cache is None:
-            tick_cache = [
-                "tick_" + alias
-                for alias in self.getlinealiases()
-                if alias != "datetime"
-            ]
+            tick_cache = ["tick_" + alias for alias in self.getlinealiases() if alias != "datetime"]
             self._tick_cache = tick_cache
 
         for tick_name in tick_cache:

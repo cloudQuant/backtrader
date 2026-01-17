@@ -25,9 +25,9 @@ Constants:
     TIME_MIN: Minimum time value (00:00:00).
 """
 import datetime
-from functools import lru_cache
 import math
 import time as _time
+from functools import lru_cache
 
 import pytz
 
