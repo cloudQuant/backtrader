@@ -474,11 +474,15 @@ class OrderBase:
     # Get order attribute - modified to work with OrderParams
     def __getattr__(self, name):
         # Return attr from params if not found in order
+        # PERFORMANCE OPTIMIZATION: Use try/except instead of hasattr
+        # Called 1.65M+ times, reduce attribute lookups
         if name == "p":  # Avoid recursion when checking for 'p' itself
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-        if hasattr(self, "p") and hasattr(self.p, name):
-            return getattr(self.p, name)
-        raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+        try:
+            p = object.__getattribute__(self, "p")
+            return getattr(p, name)
+        except AttributeError:
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     # Set order attribute - modified to work with OrderParams
     def __setattr__(self, name, value):
