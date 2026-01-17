@@ -46,6 +46,10 @@ from .utils.py3 import range, string_types
 
 NAN = float("NaN")
 
+# PERFORMANCE OPTIMIZATION: Pre-create default datetime for error recovery
+# Avoids repeated datetime object creation in hot path
+_DEFAULT_DATETIME = datetime.datetime(2000, 1, 1, 0, 0, 0)
+
 
 # PERFORMANCE OPTIMIZATION: Helper function to check for NaN/None values
 # Using value != value is much faster than isinstance + math.isnan
@@ -823,202 +827,48 @@ class LineBuffer(LineSingle, LineRootMixin):
         Raises:
             IndexError: If the requested position is out of bounds for data feeds.
         """
-        # CRITICAL FIX: For datetime lines, if index is out of range, raise IndexError
-        # This allows strategy to detect end of data for next_month calculation
-        # Simply delegate to __getitem__ which will raise IndexError if out of bounds for data feeds
-        try:
-            value = self[ago]
-        except IndexError:
-            # If IndexError is raised, re-raise it to allow strategy to detect end of data
-            # This is needed for datetime.date(1) access in strategy to detect end of data
-            raise
+        # PERFORMANCE OPTIMIZATION: Simplified datetime() method
+        # - Use module-level _DEFAULT_DATETIME constant
+        # - Remove redundant import statements
+        # - Reduce nested try-except blocks
 
-        # Check for NaN values and return a default datetime instead of None
-        # PERFORMANCE OPTIMIZATION: Use _is_nan_or_none
+        # Get value, may raise IndexError for data feeds
+        value = self[ago]
+
+        # Fast path: Check for NaN/None values
         if _is_nan_or_none(value):
-            # Return a default date (epoch start - Jan 1, 1970)
-            try:
-                import datetime
+            return _DEFAULT_DATETIME if naive else _DEFAULT_DATETIME.replace(tzinfo=tz or self._tz)
 
-                default_dt = datetime.datetime(2000, 1, 1, 0, 0, 0)
-                return default_dt if naive else default_dt.replace(tzinfo=tz or self._tz)
-            except Exception:
-                # If datetime import fails or tzinfo cannot be set, return datetime.min
-                try:
-                    import datetime
-
-                    return (
-                        datetime.datetime.min
-                        if naive
-                        else datetime.datetime.min.replace(tzinfo=tz or self._tz)
-                    )
-                except Exception:
-                    # Last resort - create a minimal valid datetime-like object with needed methods
-                    class MinimalDateTime:
-                        """Minimal datetime-like object for error recovery.
-
-                        Provides a basic datetime-compatible object when
-                        proper datetime creation fails.
-                        """
-
-                        def __init__(self):
-                            """Initialize with default datetime values (Jan 1, 2000)."""
-                            self.year = 2000
-                            self.month = 1
-                            self.day = 1
-                            self.hour = 0
-                            self.minute = 0
-                            self.second = 0
-                            self.microsecond = 0
-
-                        def date(self):
-                            """Return date component.
-
-                            Returns:
-                                MinimalDateTime: Self as a date-like object.
-                            """
-                            return self
-
-                        def time(self):
-                            """Return time component.
-
-                            Returns:
-                                MinimalDateTime: Self as a time-like object.
-                            """
-                            return self
-
-                        def replace(self, **kwargs):
-                            """Return a new object with replaced fields.
-
-                            Args:
-                                **kwargs: Fields to replace.
-
-                            Returns:
-                                MinimalDateTime: Self with fields replaced.
-                            """
-                            return self
-
-                        def timetuple(self):
-                            """Return time tuple struct.
-
-                            Returns:
-                                tuple: Time tuple (2000, 1, 1, 0, 0, 0, 0, 0, 0).
-                            """
-                            return (2000, 1, 1, 0, 0, 0, 0, 0, 0)
-
-                        def strftime(self, fmt):
-                            """Format datetime as string.
-
-                            Args:
-                                fmt: Format string (unused, returns default).
-
-                            Returns:
-                                str: Default formatted datetime string.
-                            """
-                            return "2000-01-01 00:00:00"
-
-                    return MinimalDateTime()
-
+        # Fast path: Common case (ago=0, tz=None, naive=True) with caching
         if ago == 0 and tz is None and naive:
-            try:
-                current_idx = self._idx
-                if self.lencount > 0 and self._idx >= self.lencount:
-                    current_idx = self.lencount - 1
+            current_idx = self._idx
+            if self.lencount > 0 and current_idx >= self.lencount:
+                current_idx = self.lencount - 1
 
-                if (
-                    self._dt_cache_idx == current_idx
-                    and self._dt_cache_tz is self._tz
-                    and self._dt_cache_value == value
-                ):
-                    return self._dt_cache_dt
-            except Exception:
-                pass
+            # Check cache
+            if (
+                getattr(self, "_dt_cache_idx", None) == current_idx
+                and getattr(self, "_dt_cache_tz", None) is self._tz
+                and getattr(self, "_dt_cache_value", None) == value
+            ):
+                return self._dt_cache_dt
 
+            # Convert and cache
             try:
                 dt = num2date(value, self._tz, True)
-            except (ValueError, OverflowError):
-                pass
-            else:
                 self._dt_cache_idx = current_idx
                 self._dt_cache_tz = self._tz
                 self._dt_cache_value = value
                 self._dt_cache_dt = dt
                 return dt
+            except (ValueError, OverflowError):
+                return _DEFAULT_DATETIME
+
+        # Slow path: non-default parameters
         try:
             return num2date(value, tz or self._tz, naive)
         except (ValueError, OverflowError):
-            # Handle cases where num2date fails due to invalid date values
-            try:
-                import datetime
-
-                default_dt = datetime.datetime(2000, 1, 1, 0, 0, 0)
-                return default_dt if naive else default_dt.replace(tzinfo=tz or self._tz)
-            except Exception:
-                # Create a minimal valid datetime-like object with needed methods
-                class MinimalDateTime:
-                    """Minimal datetime-like object for error recovery (second instance).
-
-                    Provides a basic datetime-compatible object when
-                    proper datetime creation fails.
-                    """
-
-                    def __init__(self):
-                        """Initialize with default datetime values (Jan 1, 2000)."""
-                        self.year = 2000
-                        self.month = 1
-                        self.day = 1
-                        self.hour = 0
-                        self.minute = 0
-                        self.second = 0
-                        self.microsecond = 0
-
-                    def date(self):
-                        """Return date component.
-
-                        Returns:
-                            MinimalDateTime: Self as a date-like object.
-                        """
-                        return self
-
-                    def time(self):
-                        """Return time component.
-
-                        Returns:
-                            MinimalDateTime: Self as a time-like object.
-                        """
-                        return self
-
-                    def replace(self, **kwargs):
-                        """Return a new object with replaced fields.
-
-                        Args:
-                            **kwargs: Fields to replace.
-
-                        Returns:
-                            MinimalDateTime: Self with fields replaced.
-                        """
-                        return self
-
-                    def timetuple(self):
-                        """Return time tuple struct.
-
-                        Returns:
-                            tuple: Time tuple (2000, 1, 1, 0, 0, 0, 0, 0, 0).
-                        """
-                        return (2000, 1, 1, 0, 0, 0, 0, 0, 0)
-
-                    def strftime(self, fmt):
-                        """Format datetime as string.
-
-                        Args:
-                            fmt: Format string (unused, returns default).
-
-                        Returns:
-                            str: Default formatted datetime string.
-                        """
-                        return "2000-01-01 00:00:00"
-
-                return MinimalDateTime()
+            return _DEFAULT_DATETIME if naive else _DEFAULT_DATETIME.replace(tzinfo=tz or self._tz)
 
     def date(self, ago=0, tz=None, naive=True):
         """Get the date component of the datetime value at the specified offset.
