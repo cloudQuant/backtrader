@@ -117,18 +117,29 @@ class DrawDown(Analyzer):
 
         Updates current and maximum drawdown values and lengths.
         """
+        # PERFORMANCE OPTIMIZATION: Cache attribute access to reduce lookups
+        # Called 688K+ times, attribute caching helps
         r = self.rets
+        maxvalue = self._maxvalue
+        value = self._value
+        r_max = r.max
 
         # calculate current drawdown values
-        r.moneydown = moneydown = self._maxvalue - self._value
-        r.drawdown = drawdown = 100.0 * moneydown / self._maxvalue
+        moneydown = maxvalue - value
+        drawdown = 100.0 * moneydown / maxvalue if maxvalue else 0.0
 
-        # maxximum drawdown values
-        r.max.moneydown = max(r.max.moneydown, moneydown)
-        r.max.drawdown = max(r.max.drawdown, drawdown)
+        r.moneydown = moneydown
+        r.drawdown = drawdown
+
+        # maximum drawdown values
+        if moneydown > r_max.moneydown:
+            r_max.moneydown = moneydown
+        if drawdown > r_max.drawdown:
+            r_max.drawdown = drawdown
 
         r.len = r.len + 1 if drawdown else 0
-        r.max.len = max(r.max.len, r.len)
+        if r.len > r_max.len:
+            r_max.len = r.len
 
 
 # Analyze time drawdown situation (max drawdown)
