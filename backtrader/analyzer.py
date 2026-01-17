@@ -471,42 +471,48 @@ class TimeFrameAnalyzerBase(Analyzer):
         pass
 
     # CRITICAL FIX: Match master branch - return boolean and update dtcmp atomically
+    # PERFORMANCE OPTIMIZATION: Cache attribute access, called 1.4M+ times
     def _dt_over(self):
         # If trading period equals NoTimeFrame, dtcmp equals maximum integer, dtkey equals maximum time
-        if self.timeframe == TimeFrame.NoTimeFrame:
+        tf = self.timeframe
+        if tf == TimeFrame.NoTimeFrame:
             dtcmp, dtkey = MAXINT, datetime.datetime.max
         else:
             # Get current datetime from strategy
             dt = self.strategy.datetime.datetime()
-            dtcmp, dtkey = self._get_dt_cmpkey(dt)
+            dtcmp, dtkey = self._get_dt_cmpkey(dt, tf)
 
         # If dtcmp is None, or dtcmp is greater than self.dtcmp
-        if self.dtcmp is None or dtcmp > self.dtcmp:
+        cur_dtcmp = self.dtcmp
+        if cur_dtcmp is None or dtcmp > cur_dtcmp:
             # Set dtkey, dtkey1, dtcmp, dtcmp1 return True
             self.dtkey, self.dtkey1 = dtkey, self.dtkey
-            self.dtcmp, self.dtcmp1 = dtcmp, self.dtcmp
+            self.dtcmp, self.dtcmp1 = dtcmp, cur_dtcmp
             return True
         # Return False
         return False
 
     # Get dtcmp, dtkey
-    def _get_dt_cmpkey(self, dt):
+    # PERFORMANCE OPTIMIZATION: Accept tf parameter to avoid repeated attribute access
+    def _get_dt_cmpkey(self, dt, tf=None):
         # If current trading period has NoTimeFrame, return two Nones
-        if self.timeframe == TimeFrame.NoTimeFrame:
+        if tf is None:
+            tf = self.timeframe
+        if tf == TimeFrame.NoTimeFrame:
             return None, None
         # If current trading period is years
-        if self.timeframe == TimeFrame.Years:
+        if tf == TimeFrame.Years:
             dtcmp = dt.year
             dtkey = datetime.date(dt.year, 12, 31)
         # If trading period is months
-        elif self.timeframe == TimeFrame.Months:
+        elif tf == TimeFrame.Months:
             dtcmp = dt.year * 100 + dt.month
             # Get last day
             _, lastday = calendar.monthrange(dt.year, dt.month)
             # Get last day of each month
             dtkey = datetime.datetime(dt.year, dt.month, lastday)
         # If trading period is weeks
-        elif self.timeframe == TimeFrame.Weeks:
+        elif tf == TimeFrame.Weeks:
             # Return year, week number and weekday for date
             isoyear, isoweek, isoweekday = dt.isocalendar()
             dtcmp = isoyear * 1000 + isoweek
@@ -515,7 +521,7 @@ class TimeFrameAnalyzerBase(Analyzer):
             # Get last day of each week
             dtkey = datetime.datetime(sunday.year, sunday.month, sunday.day)
         # If trading period is days, calculate specific dtcmp, dtkey
-        elif self.timeframe == TimeFrame.Days:
+        elif tf == TimeFrame.Days:
             dtcmp = dt.year * 10000 + dt.month * 100 + dt.day
             dtkey = datetime.datetime(dt.year, dt.month, dt.day)
         # If trading period is less than days, call _get_subday_cmpkey to get
