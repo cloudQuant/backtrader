@@ -179,17 +179,21 @@ class Analyzer(ParameterizedBase):
         self.prenext()
 
     # Notify cash and value
+    # PERFORMANCE OPTIMIZATION: Cache children check, called 3.1M+ times
     def _notify_cashvalue(self, cash, value):
-        for child in self._children:
-            child._notify_cashvalue(cash, value)
-
+        children = self._children
+        if children:
+            for child in children:
+                child._notify_cashvalue(cash, value)
         self.notify_cashvalue(cash, value)
 
     # Notify cash, value, fundvalue, shares
+    # PERFORMANCE OPTIMIZATION: Cache children check, called 3.1M+ times
     def _notify_fund(self, cash, value, fundvalue, shares):
-        for child in self._children:
-            child._notify_fund(cash, value, fundvalue, shares)
-
+        children = self._children
+        if children:
+            for child in children:
+                child._notify_fund(cash, value, fundvalue, shares)
         self.notify_fund(cash, value, fundvalue, shares)
 
     # Notify trade
