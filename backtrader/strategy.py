@@ -1253,18 +1253,25 @@ class Strategy(StrategyBase):
             procorders = self._orderspending
             proctrades = self._tradespending
 
+        # PERFORMANCE OPTIMIZATION: Cache merged analyzer list to avoid repeated itertools.chain
+        # This is called 688K+ times, so caching makes a significant difference
+        all_analyzers = getattr(self, "_all_analyzers_cache", None)
+        if all_analyzers is None:
+            all_analyzers = list(self.analyzers) + list(self._slave_analyzers)
+            self._all_analyzers_cache = all_analyzers
+
         # Loop through pending orders
         for order in procorders:
             # If order execution type is not Historical or histnotify, notify order
             if order.exectype != order.Historical or order.histnotify:
                 self.notify_order(order)
             # Notify order to analyzers (both user and slave analyzers)
-            for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
+            for analyzer in all_analyzers:
                 analyzer._notify_order(order)
         # Loop through pending trades, notify, and notify analyzers
         for trade in proctrades:
             self.notify_trade(trade)
-            for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
+            for analyzer in all_analyzers:
                 analyzer._notify_trade(trade)
         # If qorders is not empty, return after processing orders
         if qorders:
@@ -1278,7 +1285,7 @@ class Strategy(StrategyBase):
         self.notify_cashvalue(cash, value)
         # Notify fund values, and notify analyzers
         self.notify_fund(cash, value, fundvalue, fundshares)
-        for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
+        for analyzer in all_analyzers:
             analyzer._notify_cashvalue(cash, value)
             analyzer._notify_fund(cash, value, fundvalue, fundshares)
 
