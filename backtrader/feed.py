@@ -616,12 +616,17 @@ class AbstractDataBase(dataseries.OHLCDateTime):
             self.tick_last = self._line_alias0[0]
 
     # Get time of next bar
+    # PERFORMANCE OPTIMIZATION: Cache float("inf") as module-level constant
+    _INF = float("inf")
+
     def advance_peek(self):
         """Peek at the datetime of the next bar.
 
         Returns:
             float: Numeric datetime of next bar, or inf if unavailable.
         """
+        # PERFORMANCE OPTIMIZATION: Use cached _INF, avoid repeated float("inf") creation
+        _inf = self._INF
         try:
             if len(self) < self.buflen():
                 # CRITICAL FIX: Check if datetime[1] is valid before returning
@@ -629,14 +634,14 @@ class AbstractDataBase(dataseries.OHLCDateTime):
                     next_dt = self.lines.datetime[1]
                     # If next_dt is 0 or invalid, return inf
                     if next_dt is None or next_dt <= 0:
-                        return float("inf")
+                        return _inf
                     return next_dt
                 except (IndexError, KeyError):
                     # If accessing datetime[1] fails, we're at the end
-                    return float("inf")
-            return float("inf")  # max date else
+                    return _inf
+            return _inf  # max date else
         except Exception:
-            return float("inf")
+            return _inf
 
     # Move data forward by size
     def advance(self, size=1, datamaster=None, ticks=True):
