@@ -579,22 +579,41 @@ class AbstractDataBase(dataseries.OHLCDateTime):
         # and the length doesn't change like if a replay is happening or
         # a real-time data feed is in use and 1-minute bars are being
         # constructed with 5-second updates
-        for lalias in self.getlinealiases():
-            if lalias != "datetime":
-                setattr(self, "tick_" + lalias, None)
+        # PERFORMANCE OPTIMIZATION: Cache tick attribute names to avoid repeated string concat
+        tick_cache = getattr(self, "_tick_cache", None)
+        if tick_cache is None:
+            tick_cache = [
+                "tick_" + alias
+                for alias in self.getlinealiases()
+                if alias != "datetime"
+            ]
+            self._tick_cache = tick_cache
+
+        for tick_name in tick_cache:
+            setattr(self, tick_name, None)
 
         self.tick_last = None
 
     # If tick_xxx related attribute value is None, need to consider using bar data to fill
     def _tick_fill(self, force=False):
         # If nothing filled the tick_xxx attributes, the bar is the tick
-        alias0 = self._getlinealias(0)
-        if force or getattr(self, "tick_" + alias0, None) is None:
+        # PERFORMANCE OPTIMIZATION: Cache tick name/line pairs for faster access
+        tick_line_cache = getattr(self, "_tick_line_cache", None)
+        if tick_line_cache is None:
+            tick_line_cache = []
+            alias0 = self._getlinealias(0)
+            self._tick_alias0 = "tick_" + alias0
+            self._line_alias0 = getattr(self.lines, alias0)
             for lalias in self.getlinealiases():
                 if lalias != "datetime":
-                    setattr(self, "tick_" + lalias, getattr(self.lines, lalias)[0])
+                    tick_line_cache.append(("tick_" + lalias, getattr(self.lines, lalias)))
+            self._tick_line_cache = tick_line_cache
 
-            self.tick_last = getattr(self.lines, alias0)[0]
+        if force or getattr(self, self._tick_alias0, None) is None:
+            for tick_name, line in self._tick_line_cache:
+                setattr(self, tick_name, line[0])
+
+            self.tick_last = self._line_alias0[0]
 
     # Get time of next bar
     def advance_peek(self):
