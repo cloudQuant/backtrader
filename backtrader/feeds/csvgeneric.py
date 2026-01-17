@@ -162,28 +162,31 @@ class GenericCSVData(feed.CSVDataBase):
         else:
             self.lines.datetime[0] = date2num(dt)
 
-        # The rest of the fields can be done with the same procedure
-        # Remaining data can be processed using same method, loop through columns that are not datetime
-        for linefield in (x for x in self.getlinealiases() if x != "datetime"):
-            # Get the index created from the passed params
-            # Get index of this column name
-            csvidx = getattr(self.p, linefield)
-            # If this column's index is None or less than 0, data is empty, set to NAN
+        # PERFORMANCE OPTIMIZATION: Cache field mappings on first call
+        # Avoids repeated getattr calls (619K+ calls to _loadline)
+        field_cache = getattr(self, "_field_cache", None)
+        if field_cache is None:
+            field_cache = []
+            p = self.p
+            lines = self.lines
+            nullvalue = p.nullvalue
+            for linefield in self.getlinealiases():
+                if linefield != "datetime":
+                    csvidx = getattr(p, linefield)
+                    line = getattr(lines, linefield)
+                    field_cache.append((csvidx, line, nullvalue))
+            self._field_cache = field_cache
+            self._nullvalue = nullvalue
+
+        # Process cached fields
+        nullvalue = self._nullvalue
+        for csvidx, line, _ in field_cache:
             if csvidx is None or csvidx < 0:
-                # the field will not be present, assignt the "nullvalue"
-                csvfield = self.p.nullvalue
-            # Otherwise get directly from linetokens
+                csvfield = nullvalue
             else:
-                # get it from the token
                 csvfield = linetokens[csvidx]
-            # If retrieved data is empty string, set data to NAN
-            if csvfield == "":
-                # if empty ... assign the "nullvalue"
-                csvfield = self.p.nullvalue
-            # Get line corresponding to this column, then set value, don't quite understand why use two float to convert one value, temporarily consider it inefficient, fix it
-            # get the corresponding line reference and set the value
-            line = getattr(self.lines, linefield)
-            # line[0] = float(float(csvfield))  # backtrader built-in
+                if csvfield == "":
+                    csvfield = nullvalue
             line[0] = float(csvfield)
 
         return True
