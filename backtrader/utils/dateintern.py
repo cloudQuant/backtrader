@@ -25,6 +25,7 @@ Constants:
     TIME_MIN: Minimum time value (00:00:00).
 """
 import datetime
+from functools import lru_cache
 import math
 import time as _time
 
@@ -336,6 +337,40 @@ MUSECONDS_PER_DAY = MUSECONDS_PER_SECOND * SECONDS_PER_DAY  # How many microseco
 # try using cython to rewrite, see how much speed can be improved
 
 
+@lru_cache(maxsize=8192)
+def _num2date_cached(x):
+    """Cached core computation for num2date (tz=None, naive=True case).
+
+    PERFORMANCE OPTIMIZATION: Cache common datetime conversions.
+    Called 2.2M+ times, caching reduces repeated calculations.
+    """
+    # CRITICAL FIX: Handle invalid datetime values (0, NaN, negative)
+    if x != x or x <= 0:  # NaN check or invalid value
+        return datetime.datetime(1970, 1, 1)
+
+    ix = int(x)
+    if ix < 1:
+        ix = 1
+    dt = datetime.datetime.fromordinal(ix)
+    remainder = float(x) - ix
+    hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)
+    minute, remainder = divmod(MINUTES_PER_HOUR * remainder, 1)
+    second, remainder = divmod(SECONDS_PER_MINUTE * remainder, 1)
+    microsecond = int(MUSECONDS_PER_SECOND * remainder)
+
+    if microsecond < 10:
+        microsecond = 0
+
+    dt = datetime.datetime(
+        dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond
+    )
+
+    if microsecond > 999990:
+        dt += datetime.timedelta(microseconds=1e6 - microsecond)
+
+    return dt
+
+
 def num2date(x, tz=None, naive=True):
     # Same as matplotlib except if tz is None, a naive datetime object
     # will be returned.
@@ -351,43 +386,37 @@ def num2date(x, tz=None, naive=True):
     If *x* is a sequence, a sequence of: class:`datetime` objects will
     be returned.
     """
+    # PERFORMANCE OPTIMIZATION: Fast path for most common case (tz=None, naive=True)
+    if tz is None:
+        return _num2date_cached(x)
+
+    # Slow path: handle timezone conversion
     # CRITICAL FIX: Handle invalid datetime values (0, NaN, negative)
-    # ordinal must be >= 1 for datetime.fromordinal()
-    if x != x or x <= 0:  # NaN check (NaN != NaN) or invalid value
-        return datetime.datetime(1970, 1, 1)  # Return epoch as fallback
+    if x != x or x <= 0:  # NaN check or invalid value
+        return datetime.datetime(1970, 1, 1)
 
-    ix = int(x)  # Take integer of x
+    ix = int(x)
     if ix < 1:
-        ix = 1  # Minimum valid ordinal
-    dt = datetime.datetime.fromordinal(
-        ix
-    )  # Return datetime object corresponding to Gregorian calendar time
-    remainder = float(x) - ix  # Fractional part of x
-    hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)  # Hours
-    minute, remainder = divmod(MINUTES_PER_HOUR * remainder, 1)  # Minutes
-    second, remainder = divmod(SECONDS_PER_MINUTE * remainder, 1)  # Seconds
-    microsecond = int(MUSECONDS_PER_SECOND * remainder)  # Microseconds
-    # If microseconds less than 10, discard
-    if microsecond < 10:
-        microsecond = 0  # compensate for rounding errors
-    # This is not well written, True should be removed, meaningless
-    # if True and tz is not None:
-    if tz is not None:
-        # Compose time
-        dt = datetime.datetime(
-            dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond, tzinfo=UTC
-        )
-        dt = dt.astimezone(tz)
-        if naive:
-            dt = dt.replace(tzinfo=None)
-    else:
-        # If no tz info passed, generate time without timezone info
-        # If not tz has been passed return a non-timezoned dt
-        dt = datetime.datetime(
-            dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond
-        )
+        ix = 1
+    dt = datetime.datetime.fromordinal(ix)
+    remainder = float(x) - ix
+    hour, remainder = divmod(HOURS_PER_DAY * remainder, 1)
+    minute, remainder = divmod(MINUTES_PER_HOUR * remainder, 1)
+    second, remainder = divmod(SECONDS_PER_MINUTE * remainder, 1)
+    microsecond = int(MUSECONDS_PER_SECOND * remainder)
 
-    if microsecond > 999990:  # compensate for rounding errors
+    if microsecond < 10:
+        microsecond = 0
+
+    # Compose time with timezone
+    dt = datetime.datetime(
+        dt.year, dt.month, dt.day, int(hour), int(minute), int(second), microsecond, tzinfo=UTC
+    )
+    dt = dt.astimezone(tz)
+    if naive:
+        dt = dt.replace(tzinfo=None)
+
+    if microsecond > 999990:
         dt += datetime.timedelta(microseconds=1e6 - microsecond)
 
     return dt
