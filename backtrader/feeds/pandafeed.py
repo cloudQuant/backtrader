@@ -175,6 +175,11 @@ class PandasData(DataBase):
         # these "colnames" can be strings or numeric types
         # Column names, list format
         self._idx = None
+        self._df_len = 0
+        self._loaditems = None
+        self._df_values = None
+        self._dt_dtnum = None
+        self._coldtime = None
         colnames = list(self.p.dataname.columns.values)
         # If datetime is in index
         if self.p.datetime is None:
@@ -268,49 +273,85 @@ class PandasData(DataBase):
             # If not string, user defined specific integer, directly use user's definition
             self._colmapping[k] = v
 
+        df = self.p.dataname
+        self._df_len = len(df)
+
+        linealiases = self.getlinealiases()
+        loaditems = []
+        for datafield in linealiases:
+            if datafield == "datetime":
+                continue
+            colindex = self._colmapping.get(datafield)
+            if colindex is None:
+                continue
+            loaditems.append((getattr(self.lines, datafield), colindex))
+
+        self._loaditems = loaditems
+        self._coldtime = self._colmapping.get("datetime")
+
+        self._df_values = None
+        try:
+            self._df_values = df.to_numpy(copy=False)
+        except Exception:
+            self._df_values = None
+
+        self._dt_dtnum = None
+        try:
+            coldtime = self._coldtime
+            ts = df.index if coldtime is None else df.iloc[:, coldtime]
+            try:
+                py_dts = ts.to_pydatetime()
+            except Exception:
+                try:
+                    py_dts = ts.dt.to_pydatetime()
+                except Exception:
+                    py_dts = [x.to_pydatetime() if hasattr(x, "to_pydatetime") else x for x in ts]
+            self._dt_dtnum = [date2num(d) for d in py_dts]
+        except Exception:
+            self._dt_dtnum = None
+
     def _load(self):
         # Load one row at a time, _idx increments by 1 each time
         self._idx += 1
         # If _idx exceeds data length, return False
-        if self._idx >= len(self.p.dataname):
+        if self._idx >= self._df_len:
             # exhausted all rows
             return False
 
-        # Set the standard datafields
-        # Loop through datafield
-        for datafield in self.getlinealiases():
-            # If datetime, continue the above loop
-            if datafield == "datetime":
-                continue
+        row = self._idx
+        values = self._df_values
+        loaditems = self._loaditems
+        dt_dtnum = self._dt_dtnum
+        if values is not None and loaditems is not None and dt_dtnum is not None:
+            for line, col in loaditems:
+                line[0] = values[row, col]
 
-            colindex = self._colmapping[datafield]
-            # If column index is None, continue the above loop
-            if colindex is None:
-                # datafield signaled as missing in the stream: skip it
-                continue
+            self.lines.datetime[0] = dt_dtnum[row]
+            return True
 
-            # get the line to be set
-            line = getattr(self.lines, datafield)
+        df = self.p.dataname
+        if loaditems is None:
+            for datafield in self.getlinealiases():
+                if datafield == "datetime":
+                    continue
 
-            # indexing for pandas: 1st is colum, then row
-            # Use iloc to read dataframe data, efficiency seems average
-            line[0] = self.p.dataname.iloc[self._idx, colindex]
+                colindex = self._colmapping[datafield]
+                if colindex is None:
+                    continue
 
-        # datetime conversion
-        coldtime = self._colmapping["datetime"]
-        # If datetime column is None, get time directly through index, if not None, get time data through iloc
-        if coldtime is None:
-            # standard index in the datetime
-            tstamp = self.p.dataname.index[self._idx]
+                line = getattr(self.lines, datafield)
+                line[0] = df.iloc[row, colindex]
         else:
-            # it's in a different column ... use standard column index
-            tstamp = self.p.dataname.iloc[self._idx, coldtime]
+            for line, col in loaditems:
+                line[0] = df.iloc[row, col]
 
-        # convert to float via datetime and store it
-        # Convert time data and save
-        dt = tstamp.to_pydatetime()
-        dtnum = date2num(dt)
-        self.lines.datetime[0] = dtnum
+        coldtime = self._coldtime
+        if coldtime is None:
+            tstamp = df.index[row]
+        else:
+            tstamp = df.iloc[row, coldtime]
 
-        # Done ... return
+        dt = tstamp.to_pydatetime() if hasattr(tstamp, "to_pydatetime") else tstamp
+        self.lines.datetime[0] = date2num(dt)
+
         return True
