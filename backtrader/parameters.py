@@ -283,7 +283,7 @@ class ParameterManager:
     # Sentinel object for detecting missing keys (faster than 'in' check)
     _MISSING = object()
 
-    def get(self, name: str, default: Any = None) -> Any:
+    def get(self, name: str, default: Any = None, _MISSING=_MISSING) -> Any:
         """
         Get parameter value with optimized caching and lazy evaluation support.
 
@@ -294,9 +294,7 @@ class ParameterManager:
         Returns:
             Parameter value
         """
-        # PERFORMANCE OPTIMIZATION: Use dict.get with sentinel to avoid double hash lookup
-        _MISSING = ParameterManager._MISSING
-
+        # PERFORMANCE OPTIMIZATION: _MISSING as default arg avoids class attribute lookup
         # Fast path: Check if we have a custom value (most common case)
         val = self._values.get(name, _MISSING)
         if val is not _MISSING:
