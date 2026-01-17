@@ -34,29 +34,6 @@ The `development` branch has undergone extensive performance optimizations, achi
 
 *Benchmark: 119 strategy backtests on identical hardware (Python 3.13, 12 parallel processes)*
 
-### 🔧 Key Optimizations
-
-1. **Removed Metaprogramming Overhead**
-   - Eliminated dynamic metaclass attribute interception
-   - Replaced with explicit descriptor-based parameter system
-   - Result: ~40% reduction in attribute access overhead
-
-2. **Broker Performance Enhancements**
-   - Removed global `__getattribute__` overrides in `BackBroker` and `CommInfoBase`
-   - Implemented local parameter caching in hot loops (`BackBroker.next()`, `_get_value()`)
-   - Cached frequently accessed parameters (`mult`, `cash`, `stocklike`)
-   - Result: Broker operations 42.5% faster
-
-3. **Indicator Optimizations**
-   - Optimized Bollinger Bands `once()` method with faster NaN checks
-   - Reduced redundant array bounds checking
-   - Cached mathematical functions and constants
-   - Result: Indicator calculations 15-20% faster
-
-4. **Reduced Built-in Function Calls**
-   - Minimized `isinstance()`, `hasattr()`, and `len()` calls in hot paths
-   - Used type identity checks where appropriate
-   - Result: ~10% reduction in Python-level overhead
 
 ### 📈 Performance by Strategy Type
 
@@ -67,21 +44,6 @@ The `development` branch has undergone extensive performance optimizations, achi
 | Multi-Data | 42-48% | `test_02_multi_extend_data`: 23.5s → 12.6s |
 | Complex Strategies | 38-42% | `test_08_kelter_strategy`: 36.9s → 11.3s |
 
----
-
-## ⚠️ Important Disclaimer
-
-### Risk Warning
-
-**THIS SOFTWARE IS PROVIDED FOR EDUCATIONAL AND RESEARCH PURPOSES ONLY.**
-
-- ⚠️ **Trading Risk**: Algorithmic trading involves substantial risk of loss. Past performance does not guarantee future results.
-- 🐛 **Software Status**: This project is under active development and may contain bugs or calculation errors.
-- 💰 **Financial Liability**: **You are solely responsible for any financial losses** incurred from using this software.
-- 🔍 **Verification Required**: Always verify backtest results against known benchmarks before live trading.
-- 📊 **No Warranty**: This software is provided "AS IS" without warranty of any kind, express or implied.
-
-**By using this software, you acknowledge and accept all risks associated with algorithmic trading.**
 
 ---
 
@@ -634,15 +596,19 @@ cerebro.run(maxcpus=4)     # Use multiprocessing for optimization
 
 ---
 
-## 🤝 Contributing
+## ⚠️ Important Disclaimer
 
-We welcome all contributions!
+### Risk Warning
 
-1. Fork the repository
-2. Create a branch: `git checkout -b feature/your-feature`
-3. Commit changes: `git commit -m "feat: add your feature"`
-4. Push: `git push origin feature/your-feature`
-5. Create Pull Request
+**THIS SOFTWARE IS PROVIDED FOR EDUCATIONAL AND RESEARCH PURPOSES ONLY.**
+
+- ⚠️ **Trading Risk**: Algorithmic trading involves substantial risk of loss. Past performance does not guarantee future results.
+- 🐛 **Software Status**: This project is under active development and may contain bugs or calculation errors.
+- 💰 **Financial Liability**: **You are solely responsible for any financial losses** incurred from using this software.
+- 🔍 **Verification Required**: Always verify backtest results against known benchmarks before live trading.
+- 📊 **No Warranty**: This software is provided "AS IS" without warranty of any kind, express or implied.
+
+**By using this software, you acknowledge and accept all risks associated with algorithmic trading.**
 
 ---
 
@@ -722,21 +688,6 @@ This project is licensed under [GPLv3](LICENSE).
 | 多数据源 | 42-48% | `test_02_multi_extend_data`: 23.5秒 → 12.6秒 |
 | 复杂策略 | 38-42% | `test_08_kelter_strategy`: 36.9秒 → 11.3秒 |
 
----
-
-## ⚠️ 重要声明
-
-### 风险警示
-
-**本软件仅供教育和研究目的使用。**
-
-- ⚠️ **交易风险**：算法交易存在重大亏损风险。历史业绩不代表未来表现。
-- 🐛 **软件状态**：本项目正在积极开发中，可能包含 bug 或计算错误。
-- 💰 **财务责任**：**使用本软件产生的任何财务损失由您自行承担**。
-- 🔍 **验证要求**：实盘交易前，务必对照已知基准验证回测结果。
-- 📊 **无担保**：本软件按"原样"提供，不提供任何明示或暗示的担保。
-
-**使用本软件即表示您承认并接受算法交易相关的所有风险。**
 
 ---
 
@@ -947,6 +898,22 @@ transactions = results[0].analyzers.txn.get_analysis()
 cerebro.run(runonce=True)  # 使用向量化模式（默认）
 cerebro.run(maxcpus=4)     # 参数优化时使用多进程
 ```
+
+---
+
+## ⚠️ 重要声明
+
+### 风险警示
+
+**本软件仅供教育和研究目的使用。**
+
+- ⚠️ **交易风险**：算法交易存在重大亏损风险。历史业绩不代表未来表现。
+- 🐛 **软件状态**：本项目正在积极开发中，可能包含 bug 或计算错误。
+- 💰 **财务责任**：**使用本软件产生的任何财务损失由您自行承担**。
+- 🔍 **验证要求**：实盘交易前，务必对照已知基准验证回测结果。
+- 📊 **无担保**：本软件按"原样"提供，不提供任何明示或暗示的担保。
+
+**使用本软件即表示您承认并接受算法交易相关的所有风险。**
 
 ---
 
