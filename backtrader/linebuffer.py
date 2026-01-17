@@ -151,6 +151,11 @@ class LineBuffer(LineSingle, LineRootMixin):
         # Recursion guard (for __len__)
         self._in_len = False  # Instance attribute guard replacing global set
 
+        self._dt_cache_idx = None
+        self._dt_cache_value = None
+        self._dt_cache_tz = None
+        self._dt_cache_dt = None
+
         # Call reset to complete initialization
         self.reset()  # Reset, call own reset method
 
@@ -948,6 +953,32 @@ class LineBuffer(LineSingle, LineRootMixin):
                             return "2000-01-01 00:00:00"
 
                     return MinimalDateTime()
+
+        if ago == 0 and tz is None and naive:
+            try:
+                current_idx = self._idx
+                if self.lencount > 0 and self._idx >= self.lencount:
+                    current_idx = self.lencount - 1
+
+                if (
+                    self._dt_cache_idx == current_idx
+                    and self._dt_cache_tz is self._tz
+                    and self._dt_cache_value == value
+                ):
+                    return self._dt_cache_dt
+            except Exception:
+                pass
+
+            try:
+                dt = num2date(value, self._tz, True)
+            except (ValueError, OverflowError):
+                pass
+            else:
+                self._dt_cache_idx = current_idx
+                self._dt_cache_tz = self._tz
+                self._dt_cache_value = value
+                self._dt_cache_dt = dt
+                return dt
         try:
             return num2date(value, tz or self._tz, naive)
         except (ValueError, OverflowError):
