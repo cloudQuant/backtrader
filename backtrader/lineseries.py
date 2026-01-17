@@ -1324,8 +1324,8 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         # Not found anywhere
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-    # Class variables: predefined simple types (use type objects instead of strings, faster)
-    _SIMPLE_TYPES = (int, str, float, bool, list, dict, tuple, type(None))
+    # Class variables: predefined simple types (use frozenset for O(1) lookup)
+    _SIMPLE_TYPES = frozenset({int, str, float, bool, list, dict, tuple, type(None)})
     _CORE_ATTRS = frozenset(
         {
             "lines",
