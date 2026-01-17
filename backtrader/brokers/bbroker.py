@@ -25,6 +25,21 @@ from backtrader.utils.py3 import integer_types, string_types
 __all__ = ["BackBroker", "BrokerBack"]
 
 
+class _CashDescriptor(ParameterDescriptor):
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+
+        try:
+            cash = object.__getattribute__(obj, "_cash")
+            if cash is not None:
+                return cash
+        except AttributeError:
+            pass
+
+        return super().__get__(obj, objtype)
+
+
 class BackBroker(BrokerBase):
     """Broker Simulator
 
@@ -253,7 +268,7 @@ class BackBroker(BrokerBase):
     """
 
     # Use the new parameter descriptor system
-    cash = ParameterDescriptor(default=10000.0, type_=float, doc="Starting cash amount")
+    cash = _CashDescriptor(default=10000.0, type_=float, doc="Starting cash amount")
 
     checksubmit = ParameterDescriptor(
         default=True, type_=bool, doc="Check margin/cash before accepting orders"
@@ -562,30 +577,32 @@ class BackBroker(BrokerBase):
 
     # CRITICAL FIX: Override __getattribute__ to return runtime _cash value
     # when accessing broker.cash, instead of the initial parameter value
-    def __getattribute__(self, name):
-        """Override attribute access to return runtime cash value.
+    # def __getattribute__(self, name):
+    #     """Override attribute access to return runtime cash value.
 
-        Args:
-            name: Attribute name being accessed
+    #     Args:
+    #         name: Attribute name being accessed
 
-        Returns:
-            Runtime _cash value if accessing 'cash', otherwise the attribute value
-        """
-        if name == "cash":
-            # Use object.__getattribute__ to avoid recursion
-            try:
-                _cash = object.__getattribute__(self, "_cash")
-                if _cash is not None:
-                    return _cash
-            except AttributeError:
-                pass
-            # Fall back to parameter value if _cash not set yet
-            try:
-                param_manager = object.__getattribute__(self, "_param_manager")
-                return param_manager.get("cash", 10000.0)
-            except AttributeError:
-                return 10000.0  # Default value
-        return object.__getattribute__(self, name)
+    #     Returns:
+    #         Runtime _cash value if accessing 'cash', otherwise the attribute value
+    #     """
+    #     if name == "cash":
+    #         # Use object.__getattribute__ to avoid recursion
+    #         try:
+    #             _cash = object.__getattribute__(self, "_cash")
+    #             if _cash is not None:
+    #                 return _cash
+    #         except AttributeError:
+    #             pass
+    #         # Fall back to parameter value if _cash not set yet
+    #         try:
+    #             param_manager = object.__getattribute__(self, "_param_manager")
+    #             return param_manager.get("cash", 10000.0)
+    #         except AttributeError:
+    #             return 10000.0  # Default value
+    #     return object.__getattribute__(self, name)
+
+    __getattribute__ = object.__getattribute__
 
     def set_cash(self, cash):
         """Set the broker cash amount.
@@ -686,37 +703,44 @@ class BackBroker(BrokerBase):
         # Unrealized profit
         unrealized = 0.0
 
+        shortcash = self.get_param("shortcash")
+        positions = self.positions
+        getcommissioninfo = self.getcommissioninfo
+
         # If cash is added, add the cash to self._cash
-        while self._cash_addition:
-            c = self._cash_addition.popleft()
+        cash_addition = self._cash_addition
+        while cash_addition:
+            c = cash_addition.popleft()
             self._fundshares += c / self._fundval
             self._cash += c
 
         # If datas is None, loop through self.positions; if datas is not None, loop through datas
-        for data in datas or self.positions:
+        for data in datas or positions:
             # Get commission related info
-            comminfo = self.getcommissioninfo(data)
+            comminfo = getcommissioninfo(data)
             # Get data position
-            position = self.positions[data]
+            position = positions[data]
+            close0 = data.close[0]
             # use valuesize:  returns raw value, rather than negative adj val
             # If shortcash is False, use comminfo.getvalue to get data value
             # If shortcash is True, use comminfo.getvaluesize to get data value
-            if not self.get_param("shortcash"):
-                dvalue = comminfo.getvalue(position, data.close[0])
+            if not shortcash:
+                dvalue = comminfo.getvalue(position, close0)
             else:
-                dvalue = comminfo.getvaluesize(position.size, data.close[0])
+                dvalue = comminfo.getvaluesize(position.size, close0)
             # Get unrealized profit of data
-            dunrealized = comminfo.profitandloss(position.size, position.price, data.close[0])
+            dunrealized = comminfo.profitandloss(position.size, position.price, close0)
+            leverage = comminfo.get_leverage()
             # If datas is not None and datas is a list containing one data
             if datas and len(datas) == 1:
                 # If lever is True and dvalue is greater than 0, calculate the initial dvalue value, then divide by leverage and add unrealized profit to get data value
                 if lever and dvalue > 0:
                     dvalue -= dunrealized
-                    return (dvalue / comminfo.get_leverage()) + dunrealized
+                    return (dvalue / leverage) + dunrealized
                 # If lever is False or dvalue<0 due to shortcash, return dvalue
                 return dvalue  # raw data value requested, short selling is neg
             # If shortcash is False
-            if not self.get_param("shortcash"):
+            if not shortcash:
                 dvalue = abs(dvalue)  # short selling adds value in this case
             # Position value equals position value plus data value
             pos_value += dvalue
@@ -726,7 +750,7 @@ class BackBroker(BrokerBase):
             if dvalue > 0:  # long position - unlever
                 dvalue -= dunrealized
                 # TODO Why is it necessary to reset pos_value_unlever every time
-                pos_value_unlever += dvalue / comminfo.get_leverage()
+                pos_value_unlever += dvalue / leverage
                 pos_value_unlever += dunrealized
             else:
                 pos_value_unlever += dvalue
@@ -1762,21 +1786,32 @@ class BackBroker(BrokerBase):
         - Executes pending orders
         - Adjusts cash for mark-to-market
         """
-        while self._toactivate:
-            self._toactivate.popleft().activate()
+        positions = self.positions
+        getcommissioninfo = self.getcommissioninfo
+        d_credit = self.d_credit
+        pending = self.pending
+        notify = self.notify
+        ococheck = self._ococheck
+        bracketize = self._bracketize
+        try_exec = self._try_exec
 
-        if self.get_param("checksubmit"):
+        toactivate = self._toactivate
+        while toactivate:
+            toactivate.popleft().activate()
+
+        checksubmit = self.get_param("checksubmit")
+        if checksubmit:
             self.check_submitted()
 
         # Discount any cash for positions hold
         # Interest charges
         credit = 0.0
-        for data, pos in self.positions.items():
+        for data, pos in positions.items():
             if pos:
-                comminfo = self.getcommissioninfo(data)
+                comminfo = getcommissioninfo(data)
                 dt0 = data.datetime.datetime()
                 dcredit = comminfo.get_credit_interest(data, pos, dt0)
-                self.d_credit[data] += dcredit
+                d_credit[data] += dcredit
                 credit += dcredit
                 pos.datetime = dt0  # mark last credit operation
 
@@ -1786,39 +1821,43 @@ class BackBroker(BrokerBase):
 
         # Iterate once over all elements of the pending queue
         # Add a None to pending orders
-        self.pending.append(None)
+        pending.append(None)
         # Loop through pending orders once, break when reaching None
         while True:
-            order = self.pending.popleft()
+            order = pending.popleft()
             if order is None:
                 break
 
             if order.expire():
-                self.notify(order)
-                self._ococheck(order)
-                self._bracketize(order, cancel=True)
+                notify(order)
+                ococheck(order)
+                bracketize(order, cancel=True)
 
             elif not order.active():
-                self.pending.append(order)  # cannot yet be processed
+                pending.append(order)  # cannot yet be processed
 
             else:
-                self._try_exec(order)
+                try_exec(order)
                 if order.alive():
-                    self.pending.append(order)
+                    pending.append(order)
 
                 elif order.status == Order.Completed:
                     # a bracket parent order may have been executed
-                    self._bracketize(order)
+                    bracketize(order)
 
         # Operations have been executed ... adjust cash end of bar
         # At the end of bar, adjust cash based on position info
-        for data, pos in self.positions.items():
+        cash = self._cash
+        for data, pos in positions.items():
             # futures change cash every bar
             if pos:
-                comminfo = self.getcommissioninfo(data)
-                self._cash += comminfo.cashadjust(pos.size, pos.adjbase, data.close[0])
+                comminfo = getcommissioninfo(data)
+                close0 = data.close[0]
+                cash += comminfo.cashadjust(pos.size, pos.adjbase, close0)
                 # record the last adjustment price
-                pos.adjbase = data.close[0]
+                pos.adjbase = close0
+
+        self._cash = cash
 
         self._get_value()  # update value
 

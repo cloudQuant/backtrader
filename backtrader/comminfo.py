@@ -6,7 +6,18 @@ Migrated CommInfo system from MetaParams to new ParameterizedBase system.
 Maintains fully backward compatible API interface.
 """
 
-from .parameters import BoolParam, Float, ParameterDescriptor, ParameterizedBase
+from .parameters import BoolParam, Float, ParameterDescriptor, ParameterizedBase, _BoolValidator
+
+
+class _StockLikeDescriptor(ParameterDescriptor):
+    def __get__(self, obj, objtype=None):
+        if obj is None:
+            return self
+
+        try:
+            return object.__getattribute__(obj, "_stocklike")
+        except AttributeError:
+            return super().__get__(obj, objtype)
 
 
 class CommInfoBase(ParameterizedBase):
@@ -52,7 +63,9 @@ class CommInfoBase(ParameterizedBase):
         default=None, type_=(int, type(None)), doc="Commission type (COMM_PERC/COMM_FIXED)"
     )
 
-    stocklike = BoolParam(default=False, doc="Whether stock type")
+    stocklike = _StockLikeDescriptor(
+        default=False, type_=bool, validator=_BoolValidator(), doc="Whether stock type"
+    )
 
     percabs = BoolParam(default=False, doc="Whether percentage is absolute value")
 
@@ -127,15 +140,17 @@ class CommInfoBase(ParameterizedBase):
         # Calculate interest rate
         self._creditrate = self.get_param("interest") / 365.0
 
-    def __getattribute__(self, name):
-        """Override attribute access to return processed values for stocklike"""
-        if name == "stocklike":
-            try:
-                return self._stocklike
-            except AttributeError:
-                # Fall back to parameter value if _stocklike not yet set
-                return super().__getattribute__(name)
-        return super().__getattribute__(name)
+    # def __getattribute__(self, name):
+    #     """Override attribute access to return processed values for stocklike"""
+    #     if name == "stocklike":
+    #         try:
+    #             return self._stocklike
+    #         except AttributeError:
+    #             # Fall back to parameter value if _stocklike not yet set
+    #             return super().__getattribute__(name)
+    #     return super().__getattribute__(name)
+
+    __getattribute__ = object.__getattribute__
 
     def get_margin(self, price):
         """Returns the actual margin/guarantees needed for a single item of the
