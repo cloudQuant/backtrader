@@ -581,34 +581,29 @@ class LineBuffer(LineSingle, LineRootMixin):
         self.lencount = 0
 
     # Move forward one step
-    def forward(self, value=float("nan"), size=1):
+    def forward(self, value=NAN, size=1):
         """Moves the logical index forward and enlarges the buffer as much as needed
 
         Keyword Args:
             value (variable): value to be set in new positions
             size (int): How many extra positions to enlarge the buffer
         """
-        # PERFORMANCE OPTIMIZATION: Use __dict__ access to avoid getattr overhead
-        # Assume _is_indicator is set in __init__ (fallback to False if missing)
-        self_dict = self.__dict__
-        is_indicator = self_dict.get("_is_indicator", False)
+        # PERFORMANCE OPTIMIZATION: Direct attribute access (faster than __dict__.get)
+        # Attributes are guaranteed to exist after __init__
+        is_indicator = self._is_indicator
 
-        # PERFORMANCE OPTIMIZATION: Use value != value for NaN check (faster than isinstance + isnan)
+        # PERFORMANCE OPTIMIZATION: Use value != value for NaN check
         # NaN is the only value that's not equal to itself
         if value is None or value != value:
-            value = float("nan") if is_indicator else 0.0
+            value = NAN if is_indicator else 0.0
 
-        # PERFORMANCE OPTIMIZATION: Assume array exists (set in __init__)
-        # Remove getattr check from hot path
-        # If array doesn't exist, we'll get AttributeError caught below
-
-        # For non-indicators, follow clock synchronization (directly check existing _clock reference)
+        # For non-indicators, follow clock synchronization
         if not is_indicator:
-            clock = self_dict.get("_clock")
+            clock = self._clock
             if clock is not None:
                 try:
                     clock_len = len(clock)
-                    current_len = self_dict.get("lencount", 0)  # Direct dict access
+                    current_len = self.lencount
                     if current_len >= clock_len:
                         return
                     max_advance = clock_len - current_len
@@ -617,32 +612,22 @@ class LineBuffer(LineSingle, LineRootMixin):
                     if size <= 0:
                         return
                 except Exception:
-                    # Fault tolerance: continue with original logic if clock exception occurs
                     pass
 
         # CRITICAL FIX: Ensure we have a valid size
         if size <= 0:
             return
 
-        # PERFORMANCE OPTIMIZATION: Assume lencount is initialized in __init__
-        # Remove hasattr check from hot path
-
         self.idx += size
         self.lencount += size
 
-        # Append data: batch extend to reduce Python loop overhead
-        # PERFORMANCE OPTIMIZATION: Use _is_nan_or_none instead of isinstance + math.isnan
-        append_val = value if is_indicator else (0.0 if _is_nan_or_none(value) else value)
+        # Append data: use module-level 0.0 for non-indicators
+        append_val = value if is_indicator else (0.0 if value != value or value is None else value)
         if size == 1:
             self.array.append(append_val)
-        elif size > 1:
-            # Use fromlist/extend for batch append
-            try:
-                self.array.extend([append_val] * size)
-            except TypeError:
-                # Some implementations don't support extend list, fall back to individual append
-                for _ in range(size):
-                    self.array.append(append_val)
+        else:
+            # Batch extend for multiple positions
+            self.array.extend([append_val] * size)
 
     # Move backward one step
     def backwards(self, size=1, force=False):
