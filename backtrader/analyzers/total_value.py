@@ -40,7 +40,10 @@ class TotalValue(Analyzer):
         """
         super().start()
         self.rets = OrderedDict()
+        # PERFORMANCE OPTIMIZATION: Cache broker reference
+        self._broker = self.strategy.broker
 
+    # PERFORMANCE OPTIMIZATION: Cache attribute access, called 522K+ times
     def next(self):
         """Record the total portfolio value for the current bar.
 
@@ -49,7 +52,8 @@ class TotalValue(Analyzer):
         """
         # Calculate the return
         super().next()
-        self.rets[self.datas[0].datetime.datetime()] = self.strategy.broker.getvalue()
+        # Cache attribute access for performance
+        self.rets[self.datas[0].datetime.datetime()] = self._broker.getvalue()
 
     def get_analysis(self):
         """Return the total value analysis results.
