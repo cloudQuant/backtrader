@@ -1349,7 +1349,6 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
         - Use type() instead of isinstance() - faster for simple types
         - Use EAFP (try/except) instead of hasattr() to avoid double lookups
         - Minimize attribute access on value object
-        - Direct __dict__ access where possible
         """
         # Fast path 1: Internal attributes (underscore prefix)
         # Use index check instead of startswith - 2-3x faster
@@ -1399,7 +1398,6 @@ class LineSeries(LineMultiple, LineSeriesMixin, metabase.ParamsMixin):
                     pass  # Can't set owner, skip
 
             # Add to lineiterators if applicable
-            # OPTIMIZATION: Use object.__getattribute__ to access __dict__ directly
             # CRITICAL FIX: Check for duplicates before appending
             try:
                 self_dict = object.__getattribute__(self, "__dict__")
