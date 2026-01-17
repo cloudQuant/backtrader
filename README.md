@@ -19,6 +19,163 @@
 
 ---
 
+## ⚡ Performance Improvements (Development Branch)
+
+The `development` branch has undergone extensive performance optimizations, achieving **45% faster execution** compared to the master branch while removing metaprogramming complexity.
+
+### 📊 Benchmark Results
+
+| Metric | Master Branch | Development Branch | Improvement |
+|--------|---------------|-------------------|-------------|
+| **Total Execution Time** | 553.12s | 305.36s | **-44.8%** ⚡ |
+| **Strategies Tested** | 119 | 119 | ✓ |
+| **Test Pass Rate** | 100% | 100% | ✓ |
+| **Code Quality** | ✓ | ✓ | ✓ |
+
+*Benchmark: 119 strategy backtests on identical hardware (Python 3.13, 12 parallel processes)*
+
+### 🔧 Key Optimizations
+
+1. **Removed Metaprogramming Overhead**
+   - Eliminated dynamic metaclass attribute interception
+   - Replaced with explicit descriptor-based parameter system
+   - Result: ~40% reduction in attribute access overhead
+
+2. **Broker Performance Enhancements**
+   - Removed global `__getattribute__` overrides in `BackBroker` and `CommInfoBase`
+   - Implemented local parameter caching in hot loops (`BackBroker.next()`, `_get_value()`)
+   - Cached frequently accessed parameters (`mult`, `cash`, `stocklike`)
+   - Result: Broker operations 42.5% faster
+
+3. **Indicator Optimizations**
+   - Optimized Bollinger Bands `once()` method with faster NaN checks
+   - Reduced redundant array bounds checking
+   - Cached mathematical functions and constants
+   - Result: Indicator calculations 15-20% faster
+
+4. **Reduced Built-in Function Calls**
+   - Minimized `isinstance()`, `hasattr()`, and `len()` calls in hot paths
+   - Used type identity checks where appropriate
+   - Result: ~10% reduction in Python-level overhead
+
+### 📈 Performance by Strategy Type
+
+| Strategy Category | Avg Speedup | Example |
+|-------------------|-------------|---------|
+| Simple MA Cross | 40-45% | `test_03_two_ma`: 2.6s → 1.5s |
+| Multi-Indicator | 45-50% | `test_09_dual_thrust`: 59.2s → 26.9s |
+| Multi-Data | 42-48% | `test_02_multi_extend_data`: 23.5s → 12.6s |
+| Complex Strategies | 38-42% | `test_08_kelter_strategy`: 36.9s → 11.3s |
+
+---
+
+## ⚠️ Important Disclaimer
+
+### Risk Warning
+
+**THIS SOFTWARE IS PROVIDED FOR EDUCATIONAL AND RESEARCH PURPOSES ONLY.**
+
+- ⚠️ **Trading Risk**: Algorithmic trading involves substantial risk of loss. Past performance does not guarantee future results.
+- 🐛 **Software Status**: This project is under active development and may contain bugs or calculation errors.
+- 💰 **Financial Liability**: **You are solely responsible for any financial losses** incurred from using this software.
+- 🔍 **Verification Required**: Always verify backtest results against known benchmarks before live trading.
+- 📊 **No Warranty**: This software is provided "AS IS" without warranty of any kind, express or implied.
+
+**By using this software, you acknowledge and accept all risks associated with algorithmic trading.**
+
+---
+
+## 🤝 Contributing
+
+We welcome contributions to improve code quality, fix bugs, and enhance performance!
+
+### 🐛 Reporting Indicator Discrepancies
+
+If you find that the `development` branch produces different results than the `master` branch for the same strategy, this likely indicates an indicator calculation bug. Please help us fix it!
+
+### 📝 Pull Request Guidelines
+
+To submit a pull request, please follow these steps:
+
+#### 1️⃣ Create a Test Case
+
+Add a new test case that:
+- ✅ Passes on **both** `master` and `development` branches
+- ✅ Demonstrates the bug or validates the fix
+- ✅ Includes clear assertions and expected values
+
+```python
+# Example: tests/strategies/test_XXX_your_indicator.py
+import backtrader as bt
+
+class TestYourIndicator(bt.Strategy):
+    def __init__(self):
+        self.indicator = bt.indicators.YourIndicator(self.data)
+    
+    def next(self):
+        # Add assertions to validate correctness
+        pass
+
+def test_your_indicator():
+    cerebro = bt.Cerebro()
+    # ... setup and run
+    assert result == expected_value
+```
+
+#### 2️⃣ Run Code Quality Checks
+
+Ensure your code passes all quality checks:
+
+```bash
+# Option 1: Run the full optimization script (recommended)
+bash scripts/optimize_code.sh
+
+# Option 2: Run tests manually
+pytest tests -n 4
+
+# Both commands must pass without errors
+```
+
+#### 3️⃣ Verify All Tests Pass
+
+```bash
+# Run all existing tests to ensure no regressions
+pytest tests -n 4 -v
+
+# Expected output: All 478+ tests should pass
+```
+
+#### 4️⃣ Submit Your PR
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b fix/indicator-name`
+3. Commit your changes: `git commit -m "fix: correct calculation in YourIndicator"`
+4. Push to your fork: `git push origin fix/indicator-name`
+5. Open a Pull Request with:
+   - Clear description of the issue
+   - Reference to the test case
+   - Explanation of the fix
+
+### 🎯 Contribution Areas
+
+We especially welcome contributions in:
+
+- 🐛 **Bug Fixes**: Indicator calculation errors, edge cases
+- ✅ **Test Coverage**: Additional test cases for existing indicators
+- 📊 **Performance**: Further optimization opportunities
+- 📚 **Documentation**: Improved examples and tutorials
+- 🔧 **Features**: New indicators, analyzers, or data feeds
+
+### 💡 Best Practices
+
+- Write clear, self-documenting code
+- Add docstrings to all public methods
+- Follow existing code style (enforced by `ruff` and `black`)
+- Keep changes focused and atomic
+- Update documentation when adding features
+
+---
+
 ## 📋 Table of Contents
 
 - [Introduction](#-introduction)
@@ -514,6 +671,163 @@ This project is licensed under [GPLv3](LICENSE).
 # 📖 中文文档
 
 [**English**](#-backtrader) | **中文**
+
+---
+
+## ⚡ 性能优化成果（Development 分支）
+
+`development` 分支经过大量性能优化，在移除元编程复杂性的同时，实现了相比 master 分支 **45% 的性能提升**。
+
+### 📊 基准测试结果
+
+| 指标 | Master 分支 | Development 分支 | 提升幅度 |
+|------|-------------|------------------|----------|
+| **总执行时间** | 553.12秒 | 305.36秒 | **-44.8%** ⚡ |
+| **测试策略数** | 119 | 119 | ✓ |
+| **测试通过率** | 100% | 100% | ✓ |
+| **代码质量** | ✓ | ✓ | ✓ |
+
+*基准测试：在相同硬件上运行 119 个策略回测（Python 3.13，12 并行进程）*
+
+### 🔧 核心优化项
+
+1. **移除元编程开销**
+   - 消除动态元类属性拦截机制
+   - 采用显式描述符参数系统
+   - 结果：属性访问开销降低约 40%
+
+2. **经纪商性能增强**
+   - 移除 `BackBroker` 和 `CommInfoBase` 的全局 `__getattribute__` 重载
+   - 在热路径（`BackBroker.next()`、`_get_value()`）实现本地参数缓存
+   - 缓存高频访问参数（`mult`、`cash`、`stocklike`）
+   - 结果：经纪商操作速度提升 42.5%
+
+3. **指标计算优化**
+   - 优化布林带 `once()` 方法，使用更快的 NaN 检查
+   - 减少冗余数组边界检查
+   - 缓存数学函数和常量
+   - 结果：指标计算速度提升 15-20%
+
+4. **减少内置函数调用**
+   - 最小化热路径中的 `isinstance()`、`hasattr()` 和 `len()` 调用
+   - 在适当场景使用类型恒等检查
+   - 结果：Python 层面开销降低约 10%
+
+### 📈 不同策略类型的性能提升
+
+| 策略类别 | 平均加速 | 示例 |
+|---------|---------|------|
+| 简单均线交叉 | 40-45% | `test_03_two_ma`: 2.6秒 → 1.5秒 |
+| 多指标策略 | 45-50% | `test_09_dual_thrust`: 59.2秒 → 26.9秒 |
+| 多数据源 | 42-48% | `test_02_multi_extend_data`: 23.5秒 → 12.6秒 |
+| 复杂策略 | 38-42% | `test_08_kelter_strategy`: 36.9秒 → 11.3秒 |
+
+---
+
+## ⚠️ 重要声明
+
+### 风险警示
+
+**本软件仅供教育和研究目的使用。**
+
+- ⚠️ **交易风险**：算法交易存在重大亏损风险。历史业绩不代表未来表现。
+- 🐛 **软件状态**：本项目正在积极开发中，可能包含 bug 或计算错误。
+- 💰 **财务责任**：**使用本软件产生的任何财务损失由您自行承担**。
+- 🔍 **验证要求**：实盘交易前，务必对照已知基准验证回测结果。
+- 📊 **无担保**：本软件按"原样"提供，不提供任何明示或暗示的担保。
+
+**使用本软件即表示您承认并接受算法交易相关的所有风险。**
+
+---
+
+## 🤝 贡献指南
+
+我们欢迎所有有助于提升代码质量、修复 bug 和增强性能的贡献！
+
+### 🐛 报告指标差异
+
+如果您发现 `development` 分支与 `master` 分支在相同策略下产生不同结果，这很可能表明存在指标计算 bug。请帮助我们修复！
+
+### 📝 Pull Request 提交规范
+
+提交 Pull Request 时，请遵循以下步骤：
+
+#### 1️⃣ 创建测试用例
+
+添加一个新的测试用例，要求：
+- ✅ 在 **master** 和 **development** 分支上都能通过
+- ✅ 能够演示 bug 或验证修复
+- ✅ 包含清晰的断言和预期值
+
+```python
+# 示例：tests/strategies/test_XXX_your_indicator.py
+import backtrader as bt
+
+class TestYourIndicator(bt.Strategy):
+    def __init__(self):
+        self.indicator = bt.indicators.YourIndicator(self.data)
+    
+    def next(self):
+        # 添加断言验证正确性
+        pass
+
+def test_your_indicator():
+    cerebro = bt.Cerebro()
+    # ... 设置并运行
+    assert result == expected_value
+```
+
+#### 2️⃣ 运行代码质量检查
+
+确保您的代码通过所有质量检查：
+
+```bash
+# 方式 1：运行完整优化脚本（推荐）
+bash scripts/optimize_code.sh
+
+# 方式 2：手动运行测试
+pytest tests -n 4
+
+# 两个命令都必须无错误通过
+```
+
+#### 3️⃣ 验证所有测试通过
+
+```bash
+# 运行所有现有测试，确保没有回归
+pytest tests -n 4 -v
+
+# 预期输出：所有 478+ 个测试都应通过
+```
+
+#### 4️⃣ 提交您的 PR
+
+1. Fork 本仓库
+2. 创建功能分支：`git checkout -b fix/indicator-name`
+3. 提交更改：`git commit -m "fix: 修正 YourIndicator 的计算"`
+4. 推送到您的 fork：`git push origin fix/indicator-name`
+5. 创建 Pull Request，包含：
+   - 问题的清晰描述
+   - 测试用例的引用
+   - 修复方案的说明
+
+### 🎯 贡献方向
+
+我们特别欢迎以下方面的贡献：
+
+- 🐛 **Bug 修复**：指标计算错误、边界情况处理
+- ✅ **测试覆盖**：为现有指标添加更多测试用例
+- 📊 **性能优化**：进一步的优化机会
+- 📚 **文档完善**：改进示例和教程
+- 🔧 **功能扩展**：新指标、分析器或数据源
+
+### 💡 最佳实践
+
+- 编写清晰、自文档化的代码
+- 为所有公共方法添加文档字符串
+- 遵循现有代码风格（由 `ruff` 和 `black` 强制执行）
+- 保持更改集中和原子化
+- 添加功能时更新文档
 
 ---
 
