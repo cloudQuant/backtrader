@@ -571,10 +571,10 @@ def main():
             for sid, status in aggregated['failed']:
                 print(f"  [{sid}] {status}")
         
-        # Print top 20 functions by cumulative time
-        print("\n" + "=" * 60)
-        print("TOP 20 FUNCTIONS BY CUMULATIVE TIME:")
-        print("=" * 60)
+        # Print top functions by cumulative time
+        print("\n" + "=" * 80)
+        print("TOP 50 FUNCTIONS BY CUMULATIVE TIME:")
+        print("=" * 80)
         
         stats = aggregated['stats']
         items = []
@@ -582,18 +582,35 @@ def main():
             items.append({
                 'key': key,
                 'cumtime': value['cumtime'],
+                'tottime': value['tottime'],
                 'ncalls': value['ncalls'],
             })
         items.sort(key=lambda x: x['cumtime'], reverse=True)
         
-        print(f"{'ncalls':>12} {'cumtime':>12}  function")
-        print("-" * 60)
-        for item in items[:20]:
+        print(f"{'ncalls':>12} {'tottime':>10} {'cumtime':>10}  function")
+        print("-" * 80)
+        for item in items[:50]:
             filename, lineno, funcname = item['key']
             func_info = f"{os.path.basename(filename)}:{lineno}({funcname})"
-            if len(func_info) > 45:
-                func_info = func_info[:42] + "..."
-            print(f"{item['ncalls']:>12,} {item['cumtime']:>12.4f}  {func_info}")
+            if len(func_info) > 50:
+                func_info = func_info[:47] + "..."
+            print(f"{item['ncalls']:>12,} {item['tottime']:>10.2f} {item['cumtime']:>10.2f}  {func_info}")
+        
+        # Print top functions by total time (self time)
+        print("\n" + "=" * 80)
+        print("TOP 50 FUNCTIONS BY TOTAL TIME (self time, excluding sub-calls):")
+        print("=" * 80)
+        items.sort(key=lambda x: x['tottime'], reverse=True)
+        
+        print(f"{'ncalls':>12} {'tottime':>10} {'per_call':>10}  function")
+        print("-" * 80)
+        for item in items[:50]:
+            filename, lineno, funcname = item['key']
+            func_info = f"{os.path.basename(filename)}:{lineno}({funcname})"
+            if len(func_info) > 50:
+                func_info = func_info[:47] + "..."
+            per_call = item['tottime'] / item['ncalls'] * 1e6 if item['ncalls'] > 0 else 0
+            print(f"{item['ncalls']:>12,} {item['tottime']:>10.2f} {per_call:>10.2f}μs {func_info}")
         
     except Exception as e:
         print(f"\nError during profiling: {e}")
