@@ -10,6 +10,7 @@ Classes:
 Example:
     >>> cerebro.addsizer(bt.sizers.FixedSize, stake=10)
 """
+
 from ..parameters import Int, ParameterDescriptor
 from ..sizer import Sizer
 

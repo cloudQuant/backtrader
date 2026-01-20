@@ -13,6 +13,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.ta.get_analysis())
 """
+
 from ..analyzer import Analyzer
 from ..utils import AutoDict, AutoOrderedDict
 from ..utils.py3 import MAXINT

@@ -13,6 +13,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.lev.get_analysis())
 """
+
 from ..analyzer import Analyzer
 
 

@@ -205,64 +205,54 @@ class PerformanceTab(BokehTab):
         total_return = metrics.get("total_return")
         if total_return is not None:
             color = "#4caf50" if total_return >= 0 else "#f44336"
-            cards.append(
-                f"""
+            cards.append(f"""
                 <div style="background: {bg_color}; padding: 15px; border-radius: 8px; text-align: center; min-width: 150px;">
                     <div style="color: {text_color}; font-size: 12px; opacity: 0.8;">Total Return</div>
                     <div style="color: {color}; font-size: 24px; font-weight: bold;">{total_return:+.2f}%</div>
                 </div>
-            """
-            )
+            """)
 
         # Sharpe ratio
         sharpe = metrics.get("sharpe_ratio")
         if sharpe is not None:
             color = "#4caf50" if sharpe >= 1 else ("#ff9800" if sharpe >= 0 else "#f44336")
-            cards.append(
-                f"""
+            cards.append(f"""
                 <div style="background: {bg_color}; padding: 15px; border-radius: 8px; text-align: center; min-width: 150px;">
                     <div style="color: {text_color}; font-size: 12px; opacity: 0.8;">Sharpe Ratio</div>
                     <div style="color: {color}; font-size: 24px; font-weight: bold;">{sharpe:.2f}</div>
                 </div>
-            """
-            )
+            """)
 
         # Maximum drawdown
         max_dd = metrics.get("max_drawdown")
         if max_dd is not None:
             color = "#4caf50" if max_dd < 10 else ("#ff9800" if max_dd < 20 else "#f44336")
-            cards.append(
-                f"""
+            cards.append(f"""
                 <div style="background: {bg_color}; padding: 15px; border-radius: 8px; text-align: center; min-width: 150px;">
                     <div style="color: {text_color}; font-size: 12px; opacity: 0.8;">Max Drawdown</div>
                     <div style="color: {color}; font-size: 24px; font-weight: bold;">{max_dd:.2f}%</div>
                 </div>
-            """
-            )
+            """)
 
         # Win rate
         win_rate = metrics.get("win_rate")
         if win_rate is not None:
             color = "#4caf50" if win_rate >= 50 else "#f44336"
-            cards.append(
-                f"""
+            cards.append(f"""
                 <div style="background: {bg_color}; padding: 15px; border-radius: 8px; text-align: center; min-width: 150px;">
                     <div style="color: {text_color}; font-size: 12px; opacity: 0.8;">Win Rate</div>
                     <div style="color: {color}; font-size: 24px; font-weight: bold;">{win_rate:.1f}%</div>
                 </div>
-            """
-            )
+            """)
 
         # Total trades
         total_trades = metrics.get("total_trades", 0)
-        cards.append(
-            f"""
+        cards.append(f"""
             <div style="background: {bg_color}; padding: 15px; border-radius: 8px; text-align: center; min-width: 150px;">
                 <div style="color: {text_color}; font-size: 12px; opacity: 0.8;">Total Trades</div>
                 <div style="color: {text_color}; font-size: 24px; font-weight: bold;">{total_trades}</div>
             </div>
-        """
-        )
+        """)
 
         html = f"""
             <div style="display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px;">

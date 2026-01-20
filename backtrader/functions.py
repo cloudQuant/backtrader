@@ -18,6 +18,7 @@ Example:
     >>> from backtrader.functions import And, Or
     >>> condition = And(indicator1 > indicator2, indicator3 > 0)
 """
+
 import functools
 import math
 

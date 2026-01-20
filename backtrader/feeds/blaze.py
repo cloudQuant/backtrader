@@ -13,6 +13,7 @@ Example:
     >>> feed = bt.feeds.BlazeData(dataname=data)
     >>> cerebro.adddata(feed)
 """
+
 from ..feed import DataBase
 from ..utils import date2num
 

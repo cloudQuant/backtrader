@@ -31,6 +31,7 @@ Example:
             if self.adx[0] > 25 and self.di.plusDI[0] > self.di.minusDI[0]:
                 self.buy()
 """
+
 from . import ATR, And, If, Indicator, MovAv
 
 

@@ -22,6 +22,7 @@ Example:
     >>> cerebro.adddata(bt.feeds.GenericCSVData(dataname='data2.csv'),
     ...                  filter=bt.filters.HeikinAshi())
 """
+
 from ..flt import Filter as Filter
 from .bsplitter import *
 from .calendardays import *

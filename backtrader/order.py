@@ -14,6 +14,7 @@ The order system supports:
     - PnL calculation for closed positions
     - Position size and price tracking
 """
+
 import collections
 import datetime
 import itertools
@@ -429,7 +430,7 @@ class OrderBase:
     V_None = range(1)
 
     # Different order types, represented by different numbers
-    (Market, Close, Limit, Stop, StopLimit, StopTrail, StopTrailLimit, Historical) = range(8)
+    Market, Close, Limit, Stop, StopLimit, StopTrail, StopTrailLimit, Historical = range(8)
     ExecTypes = [
         "Market",
         "Close",

@@ -41,6 +41,7 @@ Example:
                 # Access the alpha factor value
                 alpha_value = self.new_diff.factor[0]
 """
+
 import math
 
 import numpy as np

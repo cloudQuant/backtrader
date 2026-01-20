@@ -36,6 +36,7 @@ Example:
     ...         elif self.signal[0] < 0:
     ...             self.sell()
 """
+
 from .indicator import Indicator
 
 # Create different SIGNAL types

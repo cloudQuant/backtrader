@@ -17,6 +17,7 @@ Example:
     >>> results = cerebro.run()
     >>> cerebro.plot()
 """
+
 import sys
 import traceback
 

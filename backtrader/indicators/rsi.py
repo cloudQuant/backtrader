@@ -21,6 +21,7 @@ Example:
             elif self.rsi.rsi[0] < 30:
                 self.buy()
 """
+
 import math
 
 from . import Indicator, MovAv

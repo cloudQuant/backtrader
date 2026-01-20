@@ -22,6 +22,7 @@ Example:
     >>> class MyDataFeed(CSVDataBase):
     ...     params = (('dataname', 'data.csv'),)
 """
+
 import collections
 import datetime
 import inspect

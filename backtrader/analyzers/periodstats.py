@@ -13,6 +13,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.stats.get_analysis())
 """
+
 from ..analyzer import Analyzer
 from ..dataseries import TimeFrame
 from ..mathsupport import average, standarddev

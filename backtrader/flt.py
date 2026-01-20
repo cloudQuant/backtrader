@@ -14,6 +14,7 @@ Example:
     ...         # Modify data bar
     ...         pass
 """
+
 from .parameters import ParameterizedBase
 
 __all__ = ["Filter"]

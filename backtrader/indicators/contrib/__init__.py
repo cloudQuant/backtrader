@@ -17,6 +17,7 @@ Example:
     ...         if self.vortex.vi_plus[0] > self.vortex.vi_minus[0]:
     ...             self.buy()
 """
+
 ###############################################################################
 #
 # Copyright (C) 2015-2020 Daniel Rodriguez

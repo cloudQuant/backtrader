@@ -16,6 +16,7 @@ Example:
             if self.ac.accde[0] > 0 and self.ac.accde[-1] < 0:
                 self.buy()
 """
+
 import math
 
 from . import Indicator

@@ -21,6 +21,7 @@ Example:
             elif self.data.close[0] < self.lower_band[0]:
                 self.buy()
 """
+
 import math
 
 from . import Indicator, MovAv

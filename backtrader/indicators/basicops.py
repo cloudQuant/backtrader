@@ -46,6 +46,7 @@ Example:
             elif self.data.close[0] < self.lowest[-1]:
                 self.sell()
 """
+
 import functools
 import math
 import operator

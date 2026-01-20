@@ -24,6 +24,7 @@ Constants:
     TIME_MAX: Maximum time value (23:59:59.999990).
     TIME_MIN: Minimum time value (00:00:00).
 """
+
 import datetime
 import math
 import time as _time

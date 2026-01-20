@@ -19,6 +19,7 @@ Example:
             if self.atr[0] > self.atr[-1] * 1.5:
                 self.buy()
 """
+
 import math
 
 from . import Indicator, MovAv

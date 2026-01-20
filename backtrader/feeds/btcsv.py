@@ -11,6 +11,7 @@ Example:
     >>> data = bt.feeds.BacktraderCSVData(dataname='test.csv')
     >>> cerebro.adddata(data)
 """
+
 from datetime import date, datetime, time
 
 from .. import feed

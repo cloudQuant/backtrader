@@ -18,6 +18,7 @@ Example:
             if self.pctchange[0] > 0:
                 self.buy()
 """
+
 from . import Indicator
 
 __all__ = ["PercentChange", "PctChange"]

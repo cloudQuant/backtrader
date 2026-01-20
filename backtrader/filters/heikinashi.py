@@ -13,7 +13,6 @@ Example:
     >>> cerebro.adddata(data)
 """
 
-
 __all__ = ["HeikinAshi"]
 
 

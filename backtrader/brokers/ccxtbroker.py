@@ -16,7 +16,6 @@ Example:
     >>> cerebro.setbroker(store.getbroker())
 """
 
-
 import collections
 import json
 from datetime import datetime

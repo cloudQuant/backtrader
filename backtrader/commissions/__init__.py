@@ -20,6 +20,7 @@ Example:
     >>> comminfo = bt.commissions.CommInfoStocks(commission=0.001)
     >>> cerebro.broker.addcommissioninfo(cominfo)
 """
+
 from ..comminfo import CommInfoBase
 
 

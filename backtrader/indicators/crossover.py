@@ -23,6 +23,7 @@ Example:
             elif self.crossover[0] < 0:
                 self.sell()
 """
+
 from . import Indicator
 
 

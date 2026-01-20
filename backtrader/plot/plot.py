@@ -18,6 +18,7 @@ Functions:
     get_rate_sharpe_drawdown: Calculate performance metrics
     run_cerebro_and_plot: Run cerebro backtest and plot results
 """
+
 import bisect
 import collections
 import copy
@@ -617,9 +618,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             #     """)
             # )
             # After improvement, after add_js_funcs in grid, it becomes as follows
-            itemstyle_opts=opts.ItemStyleOpts(
-                color=JsCode(
-                    """
+            itemstyle_opts=opts.ItemStyleOpts(color=JsCode("""
                 function(params) {
                     var colorList;
                     if (barData[params.dataIndex][1] > barData[params.dataIndex][0]) {
@@ -629,9 +628,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                     }
                     return colorList;
                 }
-                """
-                )
-            ),
+                """)),
         )
         .set_global_opts(
             xaxis_opts=opts.AxisOpts(
@@ -653,9 +650,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
             xaxis_index=2,
             yaxis_index=2,
             label_opts=opts.LabelOpts(is_show=False),
-            itemstyle_opts=opts.ItemStyleOpts(
-                color=JsCode(
-                    """
+            itemstyle_opts=opts.ItemStyleOpts(color=JsCode("""
                         function(params) {
                             var colorList;
                             if (params.data >= 0) {
@@ -665,9 +660,7 @@ def draw_chart(data, df, bk_list, bp_list, sk_list, sp_list):
                             }
                             return colorList;
                         }
-                        """
-                )
-            ),
+                        """)),
         )
         .set_global_opts(
             xaxis_opts=opts.AxisOpts(

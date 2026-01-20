@@ -20,6 +20,7 @@ Example:
     ...         if self.fractal.fractal_bullish[0] > 0:
     ...             self.buy()
 """
+
 from ..indicators import PeriodN
 
 __all__ = ["Fractal"]

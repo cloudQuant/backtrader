@@ -8,4 +8,5 @@ Example:
     Running from command line:
     $ btrun --strategy MyStrategy --data data.csv
 """
+
 from .btrun import btrun as btrun

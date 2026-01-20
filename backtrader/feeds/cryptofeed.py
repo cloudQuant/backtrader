@@ -15,6 +15,7 @@ Example:
     ... )
     >>> cerebro.adddata(data)
 """
+
 import time
 import traceback
 from datetime import datetime

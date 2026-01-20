@@ -14,6 +14,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.dd.get_analysis())
 """
+
 from ..analyzer import Analyzer, TimeFrameAnalyzerBase
 from ..utils import AutoOrderedDict
 

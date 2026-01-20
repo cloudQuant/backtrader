@@ -17,6 +17,7 @@ Example:
             if self.trix[0] > 0:
                 self.buy()
 """
+
 import math
 
 from . import Indicator

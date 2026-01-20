@@ -11,6 +11,7 @@ Example:
     >>> data = bt.feeds.VChartCSVData(dataname='vchart.csv')
     >>> cerebro.adddata(data)
 """
+
 import datetime
 
 from .. import feed

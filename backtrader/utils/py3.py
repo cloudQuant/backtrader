@@ -14,6 +14,7 @@ Exports:
     filter: Python 3 style filter function.
     MAXINT: Maximum integer value.
 """
+
 import sys
 
 PY2 = sys.version_info.major == 2  # Get current Python version, check if it's python2

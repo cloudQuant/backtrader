@@ -45,6 +45,7 @@ See Also:
     - Documentation: https://www.backtrader.com/docu/
     - GitHub: https://github.com/mementum/backtrader
 """
+
 # Load contributed indicators and studies
 from .indicators import contrib as _indicators_contrib
 

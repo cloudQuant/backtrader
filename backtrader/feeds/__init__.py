@@ -24,6 +24,7 @@ Example:
     ... )
     >>> cerebro.adddata(data)
 """
+
 from .btcsv import *
 from .csvgeneric import *
 from .influxfeed import *

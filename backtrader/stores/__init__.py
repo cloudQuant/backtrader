@@ -15,6 +15,7 @@ Example:
     >>> store = bt.stores.IBStore(port=7497)
     >>> data = store.getdata(dataname='AAPL')
 """
+
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables
 

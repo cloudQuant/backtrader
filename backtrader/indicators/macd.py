@@ -21,6 +21,7 @@ Example:
             elif self.macd.macd[0] < self.macd.signal[0]:
                 self.sell()
 """
+
 import math
 
 from . import Indicator, MovAv

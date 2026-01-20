@@ -15,6 +15,7 @@ Example:
     ... )
     >>> cerebro.adddata(data)
 """
+
 import datetime
 
 from ..dataseries import TimeFrame

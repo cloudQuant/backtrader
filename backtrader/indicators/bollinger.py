@@ -19,6 +19,7 @@ Example:
             elif self.data.close[0] > self.bbands.top[0]:
                 self.sell()
 """
+
 import math
 
 from . import Indicator, MovAv

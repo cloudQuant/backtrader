@@ -11,6 +11,7 @@ Example:
     >>> cerebro = bt.Cerebro()
     >>> cerebro.addobserver(bt.observers.Broker)
 """
+
 from ..observer import Observer
 
 

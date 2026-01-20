@@ -5,6 +5,7 @@ This module provides plot handlers and functions for rendering various
 financial chart types including candlestick, OHLC, volume, and line-on-close
 plots using matplotlib.
 """
+
 import matplotlib.collections as mcol
 import matplotlib.colors as mcolors
 import matplotlib.legend as mlegend

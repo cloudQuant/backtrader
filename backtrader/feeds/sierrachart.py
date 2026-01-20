@@ -11,6 +11,7 @@ Example:
     >>> data = bt.feeds.SierraChartCSVData(dataname='sierra.csv')
     >>> cerebro.adddata(data)
 """
+
 from . import GenericCSVData
 
 

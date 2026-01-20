@@ -14,6 +14,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.sharpe.get_analysis())
 """
+
 import math
 
 from ..analyzer import Analyzer

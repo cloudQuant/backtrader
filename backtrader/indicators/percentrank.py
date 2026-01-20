@@ -21,6 +21,7 @@ Example:
             elif self.pctrank[0] < 0.2:
                 self.sell()
 """
+
 from math import fsum
 
 from . import BaseApplyN

@@ -19,6 +19,7 @@ Example:
     ... )
     >>> cerebro.adddata(data)
 """
+
 from datetime import datetime, timezone
 
 from .. import feed

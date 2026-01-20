@@ -8,6 +8,7 @@ metaclass-based approach with explicit inheritance and registration.
 The Indicator class serves as the foundation for all technical indicators
 in backtrader, managing line data, minimum periods, and calculation logic.
 """
+
 from .lineiterator import IndicatorBase, LineIterator
 from .lineseries import Lines
 from .metabase import AutoInfoClass

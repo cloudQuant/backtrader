@@ -12,6 +12,7 @@ Example:
     >>> data.addfilter(bt.filters.SessionFiller())
     >>> cerebro.adddata(data)
 """
+
 from datetime import datetime, timedelta
 
 from ..dataseries import TimeFrame

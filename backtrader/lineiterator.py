@@ -12,6 +12,7 @@ The LineIterator manages:
 4. Clock synchronization between multiple data feeds
 5. Registration of child lineiterators (indicators, observers)
 """
+
 import collections
 import sys
 

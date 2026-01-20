@@ -14,6 +14,7 @@ Example:
     >>> cerebro.addwriter(bt.WriterFile, out='results.csv', csv=True)
     >>> results = cerebro.run()
 """
+
 import collections
 import io
 import itertools

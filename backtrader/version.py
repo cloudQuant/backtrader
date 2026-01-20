@@ -13,6 +13,7 @@ Example:
     >>> print(backtrader.__version__)
     1.9.76.123
 """
+
 # backtrader version number
 __version__ = "1.0.1"
 

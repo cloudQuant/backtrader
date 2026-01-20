@@ -29,6 +29,7 @@ Example:
     ...     def get_analysis(self):
     ...         return {'trade_count': self.trades}
 """
+
 import calendar
 import datetime
 import pprint as pp

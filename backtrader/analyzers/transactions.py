@@ -13,6 +13,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.txn.get_analysis())
 """
+
 import collections
 
 from ..analyzer import Analyzer

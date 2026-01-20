@@ -21,6 +21,7 @@ Example:
             elif self.osc[0] < 0:
                 self.sell()
 """
+
 import sys
 
 from . import Indicator, MovingAverage

@@ -12,6 +12,7 @@ Example:
     >>> data = bt.feeds.VCData(dataname='BATCH', store=store)
     >>> cerebro.adddata(data)
 """
+
 from datetime import datetime, timedelta, tzinfo
 
 from ..dataseries import TimeFrame

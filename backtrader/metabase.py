@@ -32,6 +32,7 @@ Note:
     This module was created during the metaclass removal refactoring to provide
     equivalent functionality using explicit initialization patterns.
 """
+
 import math
 import sys
 import threading

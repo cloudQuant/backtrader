@@ -14,6 +14,7 @@ Example:
     >>> from backtrader.plot.utils import tag_box_style
     >>> path = tag_box_style(0, 0, 1, 1, 0.1)
 """
+
 from colorsys import hls_to_rgb as hls2rgb
 from colorsys import rgb_to_hls as rgb2hls
 

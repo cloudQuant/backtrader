@@ -19,6 +19,7 @@ Example:
             elif self.kst.kst[0] < self.kst.signal[0]:
                 self.sell()
 """
+
 import math
 
 from . import ROC100, SMA, Indicator

@@ -21,6 +21,7 @@ Example:
     ...         self.sma = bt.indicators.SMA(self.data.close, period=20)
     ...         self.rsi = bt.indicators.RSI(self.data.close, period=14)
 """
+
 from ..indicator import Indicator as Indicator
 from backtrader.functions import *
 

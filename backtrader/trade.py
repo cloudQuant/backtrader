@@ -18,6 +18,7 @@ Example:
     >>> trade.pnl  # Current profit/loss
     >>> trade.pnlcomm  # PnL minus commission
 """
+
 import itertools
 
 from .utils import AutoOrderedDict

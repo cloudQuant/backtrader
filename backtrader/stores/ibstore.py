@@ -15,6 +15,7 @@ Example:
     >>> store = bt.stores.IBStore(port=7497, clientId=1)
     >>> cerebro.setbroker(store.getbroker())
 """
+
 import bisect
 import collections
 import inspect

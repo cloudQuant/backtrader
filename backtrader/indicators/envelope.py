@@ -20,6 +20,7 @@ Example:
             elif self.data.close[0] > self.sma_env.top[0]:
                 self.sell()
 """
+
 import sys
 
 from . import Indicator, MovingAverage

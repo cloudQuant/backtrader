@@ -11,6 +11,7 @@ Example:
     >>> data = bt.feeds.VChartData(dataname='data.fd')
     >>> cerebro.adddata(data)
 """
+
 import datetime
 import os.path
 import struct

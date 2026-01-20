@@ -17,6 +17,7 @@ Example:
     >>> cerebro.adddata(data)
     >>> cerebro.resampledata(data, timeframe=bt.TimeFrame.Weeks)
 """
+
 from datetime import datetime, timedelta, timezone
 
 from .dataseries import TimeFrame, _Bar

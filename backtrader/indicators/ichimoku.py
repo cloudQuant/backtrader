@@ -18,6 +18,7 @@ Example:
                 self.data.close[0] > self.ichimoku.senkou_span_b[0]):
                 self.buy()
 """
+
 import math
 
 from . import Highest, Indicator, Lowest

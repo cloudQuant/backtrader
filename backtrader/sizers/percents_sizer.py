@@ -13,6 +13,7 @@ Classes:
 Example:
     >>> cerebro.addsizer(bt.sizers.PercentSizer, percents=20)
 """
+
 from ..parameters import Float, ParameterDescriptor
 from ..sizer import Sizer
 

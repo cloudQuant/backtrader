@@ -16,6 +16,7 @@ Example:
             if self.dv2[0] > 50:
                 self.buy()
 """
+
 from . import SMA, Indicator, PercentRank
 
 __all__ = ["DV2"]

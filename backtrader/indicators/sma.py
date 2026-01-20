@@ -18,6 +18,7 @@ Example:
             elif self.data.close[0] < self.sma[0]:
                 self.sell()
 """
+
 from collections import deque
 
 import numpy as np

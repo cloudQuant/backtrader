@@ -25,6 +25,7 @@ Example:
             elif len(self.position) > 0 and abs(self.pgo[0]) < 0.5:
                 self.close()
 """
+
 import math
 
 from . import ATR, Indicator, MovAv

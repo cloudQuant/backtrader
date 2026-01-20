@@ -13,6 +13,7 @@ Classes:
 Example:
     >>> cerebro.broker.set_filler(backtrader.fillers.FixedBarPerc(perc=50.0))
 """
+
 from .parameters import ParameterizedBase
 from .utils.py3 import MAXINT
 

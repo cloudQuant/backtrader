@@ -17,6 +17,7 @@ Example:
             if self.data.close[0] > self.ha.ha_close[0]:
                 self.buy()
 """
+
 from . import Indicator
 
 __all__ = ["HeikinAshi"]

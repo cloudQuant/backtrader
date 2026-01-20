@@ -15,6 +15,7 @@ Example:
     >>> timer = bt.Timer(when=bt.Timer.SESSION_START, weekdays=[0, 1, 2, 3, 4])
     >>> cerebro.add_timer(timer)
 """
+
 import bisect
 import collections
 from datetime import date, datetime, timedelta

@@ -14,6 +14,7 @@ Example:
     >>> data = bt.feeds.PandasData(dataname=df)
     >>> cerebro.adddata(data)
 """
+
 from ..feed import DataBase
 from ..utils import date2num
 from ..utils.py3 import filter, integer_types, string_types

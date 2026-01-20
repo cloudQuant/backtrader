@@ -19,6 +19,7 @@ Example:
     >>> cerebro.addobserver(bt.observers.DrawDown)
     >>> cerebro.addobserver(bt.observers.Trades)
 """
+
 # The modules below should/must define __all__ with the Indicator objects
 # of prepend an "_" (underscore) to private classes/variables
 

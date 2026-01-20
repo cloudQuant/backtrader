@@ -650,7 +650,7 @@ class IBBroker(BrokerBase):
 
     # Order statuses in msg
     # Order status in message
-    (SUBMITTED, FILLED, CANCELLED, INACTIVE, PENDINGSUBMIT, PENDINGCANCEL, PRESUBMITTED) = (
+    SUBMITTED, FILLED, CANCELLED, INACTIVE, PENDINGSUBMIT, PENDINGCANCEL, PRESUBMITTED = (
         "Submitted",
         "Filled",
         "Cancelled",

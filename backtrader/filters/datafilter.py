@@ -12,6 +12,7 @@ Example:
     >>> data.addfilter(bt.filters.DataFilter(funcfilter=my_filter_func))
     >>> cerebro.adddata(data)
 """
+
 from ..feed import AbstractDataBase
 
 

@@ -12,6 +12,7 @@ Example:
     >>> data.addfilter(bt.filters.DataFiller())
     >>> cerebro.adddata(data)
 """
+
 import collections
 from datetime import datetime, timedelta
 

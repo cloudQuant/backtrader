@@ -21,6 +21,7 @@ Example:
             elif self.ppo.ppo[0] < self.ppo.signal[0]:
                 self.sell()
 """
+
 import math
 
 from . import Indicator, MovAv

@@ -34,6 +34,7 @@ Classes:
     Strategy: Main base class for trading strategies.
     SignalStrategy: Strategy subclass that responds to signal indicators.
 """
+
 import collections
 import copy
 import datetime

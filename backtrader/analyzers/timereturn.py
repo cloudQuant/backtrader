@@ -11,6 +11,7 @@ Example:
     >>> cerebro = bt.Cerebro()
     >>> cerebro.addanalyzer(bt.analyzers.TimeReturn, timeframe=bt.TimeFrame.Years)
 """
+
 from ..analyzer import TimeFrameAnalyzerBase
 
 

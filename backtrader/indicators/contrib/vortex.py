@@ -16,6 +16,7 @@ Example:
     ...         if self.vortex.vi_plus[0] > self.vortex.vi_minus[0]:
     ...             self.buy()
 """
+
 # -*- coding: utf-8; py-indent-offset:4 -*-
 ###############################################################################
 #

@@ -16,6 +16,7 @@ Example:
     >>> data = store.getdata()
     >>> broker = store.getbroker()
 """
+
 import collections
 
 # Remove MetaParams import since we'll eliminate metaclass usage

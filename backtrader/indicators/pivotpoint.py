@@ -23,6 +23,7 @@ Example:
             elif self.data.close[0] < self.pivot.s1[0]:
                 self.sell()
 """
+
 from . import Indicator
 
 

@@ -25,6 +25,7 @@ Example:
     >>> print(num2date(num))
     2020-01-01 00:00:00+00:00
 """
+
 # from backtrader.utils.cython_func import date2num
 # from backtrader.utils.cython_func import num2dt
 # from backtrader.utils.cython_func import num2date

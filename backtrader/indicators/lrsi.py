@@ -20,6 +20,7 @@ Example:
             elif self.lrsi.lrsi[0] < 0.2:
                 self.buy()
 """
+
 from . import PeriodN
 
 __all__ = ["LaguerreRSI", "LRSI", "LaguerreFilter", "LAGF"]

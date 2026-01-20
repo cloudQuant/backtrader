@@ -14,6 +14,7 @@ Example:
     >>> from backtrader.test_helpers import register_test_values
     >>> register_test_values('mytest', values=[100.0], cash=[10000.0])
 """
+
 import os
 import sys
 import traceback

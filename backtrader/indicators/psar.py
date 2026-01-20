@@ -20,6 +20,7 @@ Example:
             elif self.psar.psar[0] > self.data.high[0]:
                 self.sell()
 """
+
 from . import PeriodN
 
 __all__ = ["ParabolicSAR", "PSAR"]

@@ -16,6 +16,7 @@ Example:
     >>> TimeFrame.getname(TimeFrame.Days)  # Returns 'Day'
     >>> TimeFrame.getname(TimeFrame.Days, 5)  # Returns 'Days'
 """
+
 import datetime as _datetime
 import inspect
 
@@ -41,7 +42,7 @@ class TimeFrame:
     """
 
     # Add 9 attributes to TimeFrame class for distinguishing trading periods
-    (Ticks, MicroSeconds, Seconds, Minutes, Days, Weeks, Months, Years, NoTimeFrame) = range(1, 10)
+    Ticks, MicroSeconds, Seconds, Minutes, Days, Weeks, Months, Years, NoTimeFrame = range(1, 10)
     # Add a names attribute
     Names = [
         "",

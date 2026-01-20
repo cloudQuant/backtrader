@@ -12,6 +12,7 @@ Example:
     >>> data = bt.feeds.QuandlCSV(dataname='quandl.csv')
     >>> cerebro.adddata(data)
 """
+
 import collections
 import io
 import itertools

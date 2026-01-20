@@ -18,6 +18,7 @@ Example:
             elif self.data.close[0] < self.dma[0]:
                 self.sell()
 """
+
 import math
 
 from . import MovingAverageBase, ZeroLagIndicator

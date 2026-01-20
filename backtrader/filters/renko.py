@@ -12,6 +12,7 @@ Example:
     >>> data.addfilter(bt.filters.Renko(size=10))
     >>> cerebro.adddata(data)
 """
+
 from . import Filter
 
 __all__ = ["Renko"]

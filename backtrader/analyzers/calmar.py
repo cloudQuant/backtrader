@@ -13,6 +13,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.calmar.get_analysis())
 """
+
 import collections
 import math
 

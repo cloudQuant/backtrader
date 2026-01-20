@@ -23,6 +23,7 @@ Example:
     ...     def next(self):
     ...         self.lines.custom_metric[0] = self.data.close[0] * 2
 """
+
 from .lineiterator import LineIterator, ObserverBase, StrategyBase
 
 

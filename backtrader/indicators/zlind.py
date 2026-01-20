@@ -20,6 +20,7 @@ Example:
             elif self.data.close[0] < self.zlind[0]:
                 self.sell()
 """
+
 from backtrader.utils.py3 import MAXINT
 
 from . import MovingAverageBase

@@ -16,6 +16,7 @@ Example:
             if self.data.close[0] > self.hma[0]:
                 self.buy()
 """
+
 import math
 
 from . import MovingAverageBase

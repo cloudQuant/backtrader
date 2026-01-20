@@ -24,7 +24,6 @@ Example:
                 self.sell()
 """
 
-
 from . import Indicator
 
 

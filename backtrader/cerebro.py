@@ -30,6 +30,7 @@ Classes:
     OptReturn: Lightweight result object for optimization runs.
     Cerebro: Main backtesting/trading engine.
 """
+
 import collections
 import datetime
 import itertools

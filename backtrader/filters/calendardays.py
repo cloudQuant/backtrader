@@ -12,6 +12,7 @@ Example:
     >>> data.addfilter(bt.filters.CalendarDays())
     >>> cerebro.adddata(data)
 """
+
 from datetime import date, datetime, timedelta
 
 from ..parameters import ParameterizedBase

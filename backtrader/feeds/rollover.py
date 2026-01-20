@@ -13,6 +13,7 @@ Example:
     >>> data = bt.feeds.RollOver(data_old, data_new, checkdate=my_check_func)
     >>> cerebro.adddata(data)
 """
+
 from datetime import datetime
 
 from ..feed import DataBase

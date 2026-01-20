@@ -18,6 +18,7 @@ Example:
     >>> b = MyClass()
     >>> assert a is b  # True - same instance
 """
+
 import threading
 import weakref
 from typing import Any, Dict, Optional

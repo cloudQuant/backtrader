@@ -15,6 +15,7 @@ Example:
     ... )
     >>> cerebro.adddata(data)
 """
+
 from datetime import datetime, timedelta, timezone
 
 from backtrader.feed import DataBase

@@ -11,6 +11,7 @@ Example:
     >>> cerebro = bt.Cerebro()
     >>> cerebro.addanalyzer(bt.analyzers.LogReturnsRolling)
 """
+
 import collections
 import math
 

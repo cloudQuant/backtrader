@@ -13,6 +13,7 @@ Example:
     >>> results = cerebro.run()
     >>> print(results[0].analyzers.ret.get_analysis())
 """
+
 import math
 
 from ..analyzer import TimeFrameAnalyzerBase

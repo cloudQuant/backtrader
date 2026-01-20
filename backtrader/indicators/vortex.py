@@ -20,6 +20,7 @@ Example:
             elif self.vortex.vi_minus[0] > self.vortex.vi_plus[0]:
                 self.sell()
 """
+
 from . import Indicator, Max, SumN
 
 

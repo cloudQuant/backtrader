@@ -28,6 +28,7 @@ Example:
     >>> cerebro.addanalyzer(bt.analyzers.Sharpe, _name='sharpe')
     >>> cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
 """
+
 # The modules below should/must define __all__ with the objects wishes
 # or prepend an "_" (underscore) to private classes/variables
 

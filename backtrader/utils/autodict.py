@@ -16,6 +16,7 @@ Example:
     >>> print(d['a']['b']['c'])
     1
 """
+
 from collections import OrderedDict, defaultdict
 
 # from .py3 import values as py3lvalues

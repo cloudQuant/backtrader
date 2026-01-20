@@ -15,6 +15,7 @@ Example:
     ... )
     >>> cerebro.setbroker(store.getbroker())
 """
+
 import time
 from functools import wraps
 

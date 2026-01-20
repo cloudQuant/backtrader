@@ -19,6 +19,7 @@ Example:
             if self.stoch.percK[0] > self.stoch.percD[0]:
                 self.buy()
 """
+
 import math
 
 from . import Highest, Indicator, Lowest, MovAv

@@ -20,6 +20,7 @@ Example:
                     # Trend following strategy
                     pass
 """
+
 from numpy import asarray, isnan, log10, polyfit, sqrt, std, subtract
 
 from . import PeriodN

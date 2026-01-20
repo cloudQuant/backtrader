@@ -30,6 +30,7 @@ Example:
                 self.buy(data=self.data0)
                 self.sell(data=self.data1)
 """
+
 import pandas as pd
 import statsmodels.api as sm
 from statsmodels.tsa.stattools import coint

@@ -11,6 +11,7 @@ Example:
     >>> cerebro = bt.Cerebro()
     >>> # Uses BackBroker by default
 """
+
 import collections
 import datetime
 

@@ -21,6 +21,7 @@ Example:
     ...     def _getsizing(self, comminfo, cash, data, isbuy):
     ...         return int(cash * self.p.perc / data.close[0])
 """
+
 from .parameters import ParameterizedBase
 
 

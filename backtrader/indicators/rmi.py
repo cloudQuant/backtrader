@@ -20,6 +20,7 @@ Example:
             elif self.rmi.rmi[0] < 30:
                 self.buy()
 """
+
 from . import RSI
 
 

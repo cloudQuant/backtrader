@@ -19,6 +19,7 @@ Example:
     >>> scheme.ytight = True
     >>> cerebro.plot(scheme=scheme)
 """
+
 tableau20 = [
     "steelblue",  # 0
     "lightsteelblue",  # 1

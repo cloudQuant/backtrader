@@ -11,6 +11,7 @@ Example:
     >>> data = bt.feeds.YahooFinanceCSVData(dataname='yahoo.csv')
     >>> cerebro.adddata(data)
 """
+
 import collections
 import io
 import itertools

@@ -13,6 +13,7 @@ Example:
     >>> results = cerebro.run()
     >>> pyfolio_data = results[0].analyzers.pyfolio.get_analysis()
 """
+
 # import collections
 import pandas as pd
 

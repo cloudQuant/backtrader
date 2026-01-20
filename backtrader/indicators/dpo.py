@@ -16,6 +16,7 @@ Example:
             if self.dpo[0] > 0:
                 self.buy()
 """
+
 import math
 
 from . import Indicator, MovAv

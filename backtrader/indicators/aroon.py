@@ -23,6 +23,7 @@ Example:
             elif self.aroon.aroonup[0] < self.aroon.aroondown[0]:
                 self.sell()
 """
+
 from . import FindFirstIndexHighest, FindFirstIndexLowest, Indicator
 
 

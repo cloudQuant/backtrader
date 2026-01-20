@@ -19,6 +19,7 @@ Example:
     ...         if self.p.period < 5:
     ...             raise bt.errors.StrategySkipError()
 """
+
 # When using 'from error import *', only import these two classes: BacktraderError and StrategySkipError
 __all__ = ["BacktraderError", "StrategySkipError"]
 

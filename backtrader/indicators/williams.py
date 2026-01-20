@@ -20,6 +20,7 @@ Example:
             elif self.williamsr.percR[0] < -80:
                 self.buy()
 """
+
 import math
 
 from . import DownDay, Highest, Indicator, Lowest, TrueHigh, TrueLow, UpDay

@@ -5,6 +5,7 @@ Plotly-based plotting for backtrader.
 This module provides high-performance interactive charts using Plotly,
 which handles large datasets much better than matplotlib.
 """
+
 import bisect
 import collections
 import datetime
