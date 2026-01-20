@@ -59,15 +59,9 @@ class SingletonMixin:
             if cls in cls._instances:
                 return cls._instances[cls]
 
-            # Create new instance using parent's __new__
-            # Skip SingletonMixin in MRO to avoid recursion
-            for base in cls.__mro__[1:]:
-                if base is not SingletonMixin and hasattr(base, "__new__"):
-                    instance = base.__new__(cls)
-                    break
-            else:
-                # Fallback to object.__new__ if no suitable base found
-                instance = object.__new__(cls)
+            # Create new instance using object.__new__ directly
+            # This avoids recursion issues with mixin inheritance
+            instance = object.__new__(cls)
 
             # Store instance before calling __init__ to handle potential
             # recursive calls during initialization
@@ -112,23 +106,11 @@ class ParameterizedSingletonMixin(SingletonMixin):
     parameter system, maintaining compatibility with MetaParams functionality.
     """
 
-    def __new__(cls, *args, **kwargs):
-        """Create singleton instance with parameter support."""
-        instance = super().__new__(cls)
-
-        # Only initialize once
-        if not hasattr(instance, "_singleton_initialized"):
-            instance._singleton_initialized = False
-
-        return instance
-
     def __init__(self, *args, **kwargs):
         """Initialize singleton instance only once."""
-        if self._singleton_initialized:
+        if getattr(self, "_singleton_initialized", False):
             return
 
-        # Call parent __init__ methods
-        super().__init__(*args, **kwargs)
         self._singleton_initialized = True
 
 

@@ -26,6 +26,16 @@ from backtrader.utils.py3 import queue
 
 from ..utils import date2num
 
+# Import enhancement modules
+try:
+    from ..ccxt.threading import ThreadedDataManager
+    from ..ccxt.websocket import CCXTWebSocketManager
+    HAS_CCXT_ENHANCEMENTS = True
+except ImportError:
+    HAS_CCXT_ENHANCEMENTS = False
+    ThreadedDataManager = None
+    CCXTWebSocketManager = None
+
 
 class CCXTFeed(DataBase):
     """
@@ -56,6 +66,8 @@ class CCXTFeed(DataBase):
         ("ohlcv_limit", 20),
         ("drop_newest", False),
         ("debug", False),
+        ("use_websocket", False),  # use WebSocket for live data
+        ("use_threaded_data", False),  # use threaded data manager
     )
 
     _store = ccxtstore.CCXTStore
@@ -76,6 +88,10 @@ class CCXTFeed(DataBase):
         self._last_id = ""  # last processed trade id for ohlcv
         self._last_ts = self.utc_to_ts(datetime.utcnow())  # last processed timestamp for ohlcv
         self._last_update_bar_time = 0
+        
+        # Enhancement modules
+        self._threaded_data_manager = None
+        self._websocket_manager = None
 
     def utc_to_ts(self, dt):
         """Convert datetime to timestamp in milliseconds.
@@ -238,3 +254,55 @@ class CCXTFeed(DataBase):
             bool: True if not historical-only mode.
         """
         return not self.p.historical
+
+    def _start_threaded_data(self):
+        """Start the threaded data manager for live data."""
+        if not HAS_CCXT_ENHANCEMENTS or not ThreadedDataManager:
+            return
+        
+        granularity = self.store.get_granularity(self._timeframe, self._compression)
+        self._threaded_data_manager = ThreadedDataManager(self.store, update_interval=1.0)
+        self._threaded_data_manager.add_symbol(self.p.dataname, granularity)
+        self._threaded_data_manager.start()
+
+    def _start_websocket(self):
+        """Start WebSocket connection for real-time data."""
+        if not HAS_CCXT_ENHANCEMENTS or not CCXTWebSocketManager:
+            print("Warning: WebSocket not available. Install ccxt.pro.")
+            return
+        
+        try:
+            config = getattr(self.store.exchange, 'config', {})
+            self._websocket_manager = CCXTWebSocketManager(
+                self.store.exchange_id, config
+            )
+            self._websocket_manager.start()
+            
+            # Subscribe to OHLCV updates
+            granularity = self.store.get_granularity(self._timeframe, self._compression)
+            self._websocket_manager.subscribe_ohlcv(
+                self.p.dataname,
+                granularity,
+                self._on_websocket_ohlcv
+            )
+        except Exception as e:
+            print(f"WebSocket start error: {e}")
+            self._websocket_manager = None
+
+    def _on_websocket_ohlcv(self, ohlcv_data):
+        """Callback for WebSocket OHLCV updates."""
+        if ohlcv_data:
+            for bar in ohlcv_data:
+                if bar[0] > self._last_ts:
+                    self._data.put(bar)
+                    self._last_ts = bar[0]
+                    self._last_update_bar_time = bar[0]
+
+    def stop(self):
+        """Stop the data feed and cleanup resources."""
+        if self._threaded_data_manager:
+            self._threaded_data_manager.stop()
+        if self._websocket_manager:
+            self._websocket_manager.stop()
+        if hasattr(self.store, 'stop'):
+            self.store.stop()

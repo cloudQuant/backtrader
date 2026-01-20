@@ -33,7 +33,7 @@ from ..utils.py3 import queue
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
-from .mixins import ParameterizedSingletonMixin
+from backtrader.mixins.singleton import ParameterizedSingletonMixin
 
 # Python 3.11+ has datetime.UTC, earlier versions use timezone.utc
 UTC = timezone.utc

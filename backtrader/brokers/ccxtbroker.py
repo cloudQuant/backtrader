@@ -26,6 +26,18 @@ from ..position import Position
 from ..stores.ccxtstore import CCXTStore
 from ..utils.py3 import queue
 
+# Import enhancement modules
+try:
+    from ..ccxt.threading import ThreadedOrderManager
+    from ..ccxt.orders.bracket import BracketOrderManager
+    from ..ccxt.config import ExchangeConfig
+    HAS_CCXT_ENHANCEMENTS = True
+except ImportError:
+    HAS_CCXT_ENHANCEMENTS = False
+    ThreadedOrderManager = None
+    BracketOrderManager = None
+    ExchangeConfig = None
+
 
 class CCXTOrder(Order):
     """CCXT-specific order implementation.
@@ -125,7 +137,7 @@ class CCXTBroker(BrokerBase):
         "canceled_order": {"key": "status", "value": "canceled"},
     }
 
-    def __init__(self, broker_mapping=None, debug=False, **kwargs):
+    def __init__(self, broker_mapping=None, debug=False, use_threaded_order_manager=False, **kwargs):
         """Initialize the CCXTBroker instance.
 
         Args:
@@ -139,6 +151,7 @@ class CCXTBroker(BrokerBase):
                     }
                 }
             debug: If True, enable debug output.
+            use_threaded_order_manager: If True, use background thread for order checking.
             **kwargs: Additional arguments passed to CCXTStore (exchange,
                 api_key, secret, etc.).
 
@@ -148,6 +161,9 @@ class CCXTBroker(BrokerBase):
         super().__init__()
 
         self.cash = None
+        self._threaded_order_manager = None
+        self._bracket_manager = None
+        self._use_threaded = use_threaded_order_manager
         if broker_mapping is not None:
             try:
                 self.order_types = broker_mapping["order_types"]
@@ -175,6 +191,15 @@ class CCXTBroker(BrokerBase):
         self.startingvalue = self.store._value
 
         self._last_op_time = 0
+        
+        # Initialize threaded order manager if requested
+        if use_threaded_order_manager and HAS_CCXT_ENHANCEMENTS and ThreadedOrderManager:
+            self._threaded_order_manager = ThreadedOrderManager(self.store, check_interval=3.0)
+            self._threaded_order_manager.start()
+        
+        # Initialize bracket order manager
+        if HAS_CCXT_ENHANCEMENTS and BracketOrderManager:
+            self._bracket_manager = BracketOrderManager(self)
 
     def get_balance(self):
         """Get and update the account balance from the exchange.
@@ -635,3 +660,58 @@ class CCXTBroker(BrokerBase):
         method_str = "private_" + type.lower() + endpoint_str.lower()
 
         return self.store.private_end_point(type=type, endpoint=method_str, params=params)
+
+    def create_bracket_order(self, data, size, entry_price, stop_price, limit_price, 
+                             entry_type=None, side="buy"):
+        """Create a bracket order (entry + stop-loss + take-profit).
+        
+        A bracket order consists of three linked orders:
+        1. Entry order (market or limit)
+        2. Stop-loss order (triggered after entry fills)
+        3. Take-profit order (triggered after entry fills)
+        
+        When either stop or take-profit fills, the other is cancelled (OCO).
+        
+        Args:
+            data: Data feed for the order.
+            size: Order size.
+            entry_price: Entry order price.
+            stop_price: Stop-loss price.
+            limit_price: Take-profit price.
+            entry_type: Entry order type (default: Limit).
+            side: 'buy' for long, 'sell' for short.
+            
+        Returns:
+            BracketOrder or None if bracket orders not available.
+        """
+        if not self._bracket_manager:
+            print("Warning: Bracket orders not available. Install ccxt enhancements.")
+            return None
+        
+        if entry_type is None:
+            entry_type = Order.Limit
+            
+        return self._bracket_manager.create_bracket(
+            data=data,
+            size=size,
+            entry_price=entry_price,
+            stop_price=stop_price,
+            limit_price=limit_price,
+            entry_type=entry_type,
+            side=side
+        )
+    
+    def get_bracket_manager(self):
+        """Get the bracket order manager.
+        
+        Returns:
+            BracketOrderManager or None.
+        """
+        return self._bracket_manager
+    
+    def stop(self):
+        """Stop the broker and cleanup resources."""
+        if self._threaded_order_manager:
+            self._threaded_order_manager.stop()
+        if hasattr(self.store, 'stop'):
+            self.store.stop()

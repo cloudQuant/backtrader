@@ -1,23 +1,26 @@
-"""CCXT OKEX SMA Trading Strategy Example.
+"""CCXT OKX SMA Trading Strategy Example.
 
 This module demonstrates how to use Backtrader with the CCXT library to connect
-to the OKEX cryptocurrency exchange and implement a Simple Moving Average (SMA)
+to the OKX cryptocurrency exchange and implement a Simple Moving Average (SMA)
 trading strategy.
 
 The example shows:
-- Setting up a CCXTStore for OKEX exchange connection
+- Setting up a CCXTStore for OKX exchange connection
 - Creating a custom strategy with SMA indicator
 - Managing live data feeds for multiple trading pairs
 - Handling order execution and trade notifications
 - Monitoring wallet balances and portfolio value
 
-Note: This script requires API credentials for OKEX exchange stored in a
-JSON configuration file.
+Note: This script requires API credentials for OKX exchange stored in a
+.env file in the project root directory.
 """
 
-import json
+import os
 import time
 from datetime import datetime, timedelta
+from pathlib import Path
+
+from dotenv import load_dotenv
 
 import backtrader as bt
 from backtrader import Order
@@ -200,26 +203,39 @@ class TestStrategy(bt.Strategy):
         pass
 
 
-with open(r"D:\key_info\params-crypto.json") as f:
-    params = json.load(f)
+# Load environment variables from .env file
+# Look for .env in the project root (two levels up from examples/)
+env_path = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(dotenv_path=env_path)
+
+# Get OKX credentials from environment variables
+api_key = os.getenv("OKX_API_KEY")
+api_secret = os.getenv("OKX_SECRET")
+api_password = os.getenv("OKX_PASSWORD")
+
+if not all([api_key, api_secret, api_password]):
+    raise ValueError(
+        "Missing OKX API credentials. Please set OKX_API_KEY, OKX_SECRET, "
+        "and OKX_PASSWORD in your .env file. See .env.example for reference."
+    )
 
 cerebro = bt.Cerebro(quicknotify=True, live=True)
 
 # Add the strategy
 cerebro.addstrategy(TestStrategy)
 
-# Create our store
+# Create our store with OKX exchange
 config = {
-    "apiKey": params["okex"]["apikey"],
-    "secret": params["okex"]["secret"],
-    "password": params["okex"]["password"],
+    "apiKey": api_key,
+    "secret": api_secret,
+    "password": api_password,
     "enableRateLimit": True,
 }
 
 # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
 # for get cash or value if You have never held any BNB coins in your account.
 # So switch BNB to a coin you have funded previously if you get errors
-store = CCXTStore(exchange="okex5", currency="USDT", config=config, retries=5, debug=False)
+store = CCXTStore(exchange="okx", currency="USDT", config=config, retries=5, debug=False)
 
 # Get the broker and pass any kwargs if needed.
 broker = store.getbroker()
@@ -235,7 +251,7 @@ for symbol in ["BTC/USDT", "LPT/USDT", "EOS/USDT"]:
         name=symbol,
         timeframe=bt.TimeFrame.Minutes,
         fromdate=hist_start_date,
-        compression=3,
+        compression=1,
         ohlcv_limit=100,
         drop_newest=False,
     )

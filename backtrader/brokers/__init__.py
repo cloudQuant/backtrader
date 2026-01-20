@@ -37,3 +37,21 @@ try:
     from backtrader.brokers.oandabroker import OandaBroker as OandaBroker
 except ImportError:
     pass  # The user may not have something installed
+
+# CCXT Broker for cryptocurrency exchanges
+try:
+    from backtrader.brokers.ccxtbroker import CCXTBroker as CCXTBroker
+except ImportError:
+    pass  # ccxt not installed
+
+# CTP Broker for China futures
+try:
+    from backtrader.brokers.ctpbroker import CTPBroker as CTPBroker
+except ImportError:
+    pass  # ctpbee not installed
+
+# Futu Broker for HK/US/A-Share stocks
+try:
+    from backtrader.brokers.futubroker import FutuBroker as FutuBroker
+except ImportError:
+    pass  # futu-api not installed

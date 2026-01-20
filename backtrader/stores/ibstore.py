@@ -36,7 +36,7 @@ from ..utils.py3 import bstr, long, queue
 
 # Remove MetaParams import since we'll eliminate metaclass usage
 # from backtrader.metabase import MetaParams
-from .mixins import ParameterizedSingletonMixin
+from backtrader.mixins.singleton import ParameterizedSingletonMixin
 
 bytes = bstr  # py2/3 need for ibpy
 

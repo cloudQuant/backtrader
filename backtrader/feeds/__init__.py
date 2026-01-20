@@ -55,3 +55,21 @@ except ImportError:
 from .chainer import Chainer as Chainer
 from .rollover import RollOver as RollOver
 from .vchartfile import VChartFile as VChartFile
+
+# CCXT Feed for cryptocurrency exchanges
+try:
+    from .ccxtfeed import CCXTFeed as CCXTFeed
+except ImportError:
+    pass  # ccxt not installed
+
+# CTP Data for China futures
+try:
+    from .ctpdata import CTPData as CTPData
+except ImportError:
+    pass  # ctpbee not installed
+
+# Futu Feed for HK/US/A-Share stocks
+try:
+    from .futufeed import FutuFeed as FutuFeed
+except ImportError:
+    pass  # futu-api not installed

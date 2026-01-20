@@ -37,7 +37,20 @@ except ImportError:
 
 from .vchartfile import VChartFile as VChartFile
 
-# Add CTP references
-# from backtrader.stores.ctpstore import *
-# from backtrader.brokers.ctpbroker import *
-# from backtrader.feeds.ctpdata import *
+# CCXT Store for cryptocurrency exchanges
+try:
+    from .ccxtstore import CCXTStore as CCXTStore
+except ImportError:
+    pass  # ccxt not installed
+
+# CTP Store for China futures
+try:
+    from .ctpstore import CTPStore as CTPStore
+except ImportError:
+    pass  # ctpbee not installed
+
+# Futu Store for HK/US/A-Share stocks
+try:
+    from .futustore import FutuStore as FutuStore
+except ImportError:
+    pass  # futu-api not installed
