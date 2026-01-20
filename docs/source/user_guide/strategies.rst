@@ -2,6 +2,45 @@
 Strategies
 ==========
 
+Strategies contain your trading logic. They receive market data, calculate indicators,
+and generate trading signals.
+
+Strategy Lifecycle
+------------------
+
+Understand the strategy lifecycle (like human life stages):
+
+.. list-table::
+   :widths: 20 20 60
+   :header-rows: 1
+
+   * - Method
+     - Stage
+     - Description
+   * - ``__init__``
+     - Birth
+     - Initialize indicators and variables. Called once at start.
+   * - ``start``
+     - Ready
+     - Called once before processing begins. Usually empty.
+   * - ``prenext``
+     - Childhood
+     - Called when minimum period not yet satisfied (indicators warming up).
+   * - ``nextstart``
+     - Adulthood begins
+     - Called once when transitioning from prenext to next.
+   * - ``next``
+     - Adulthood
+     - Main trading logic. Called for each bar after minimum period.
+   * - ``stop``
+     - End
+     - Called once after all data processed. Good for final reporting.
+
+.. warning::
+   With **multiple data feeds** that have different start dates, ``next`` won't be
+   called until ALL data feeds have valid bars. Use ``prenext`` to call ``self.next()``
+   manually if needed, but filter out data that hasn't started yet.
+
 Strategy Structure
 ------------------
 
@@ -14,7 +53,7 @@ Strategy Structure
        )
        
        def __init__(self):
-           # Initialize indicators
+           # Initialize indicators (vectorized calculation)
            self.sma = bt.indicators.SMA(period=self.p.period)
            self.order = None
        
@@ -28,7 +67,7 @@ Strategy Structure
            self.order = None
        
        def next(self):
-           # Trading logic
+           # Trading logic - called for each bar
            if self.order:
                return
            
@@ -145,3 +184,70 @@ Logging and Debugging
            self.log(f'Close: {self.data.close[0]:.2f}')
            self.log(f'Position: {self.position.size}')
            self.log(f'Cash: {self.broker.getcash():.2f}')
+
+Handling Multi-Data with prenext
+--------------------------------
+
+When data feeds have different start dates:
+
+.. code-block:: python
+
+   class MultiDataStrategy(bt.Strategy):
+       def prenext(self):
+           # Force entry into next even during warmup
+           self.next()
+       
+       def next(self):
+           for data in self.datas:
+               # Check if this data has started
+               if len(data) == 0:
+                   continue
+               
+               # Check if data is current (not historical)
+               if data.datetime.date(0) != self.data.datetime.date(0):
+                   continue
+               
+               # Now safe to use this data
+               self.process_data(data)
+
+Notification Methods
+--------------------
+
+.. code-block:: python
+
+   class MyStrategy(bt.Strategy):
+       def notify_order(self, order):
+           '''Called when order status changes'''
+           if order.status == order.Completed:
+               print(f'Order {order.ref} completed at {order.executed.price}')
+           elif order.status == order.Canceled:
+               print(f'Order {order.ref} canceled')
+           elif order.status == order.Rejected:
+               print(f'Order {order.ref} rejected')
+       
+       def notify_trade(self, trade):
+           '''Called when trade status changes'''
+           if trade.isclosed:
+               print(f'Trade PnL: Gross={trade.pnl:.2f}, Net={trade.pnlcomm:.2f}')
+       
+       def notify_cashvalue(self, cash, value):
+           '''Called when cash/value changes'''
+           print(f'Cash: {cash:.2f}, Value: {value:.2f}')
+
+Best Practices
+--------------
+
+1. **Declare indicators in __init__**: Enables vectorized calculation
+2. **Track pending orders**: Prevent duplicate orders
+3. **Use notify_order**: Handle order status properly
+4. **Filter multi-data**: Check data validity in prenext/next
+5. **Log key events**: Aids debugging and analysis
+
+See Also
+--------
+
+- :doc:`concepts` - Strategy lifecycle details
+- :doc:`indicators` - Using indicators
+- :doc:`brokers` - Order management
+- `Blog: Strategy讲解 <https://yunjinqi.blog.csdn.net/article/details/108569865>`_
+- `Blog: prenext与next区别 <https://yunjinqi.blog.csdn.net/article/details/126337204>`_

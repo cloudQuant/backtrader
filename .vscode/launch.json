@@ -1,0 +1,13 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "lldb",
+      "request": "launch",
+      "args": [],
+      "cwd": "/Users/yunjinqi/Documents/量化交易框架/backtrader/backtrader/_core",
+      "program": "/Users/yunjinqi/Documents/量化交易框架/backtrader/backtrader/_core/build/Debug/outDebug"
+    }
+  ]
+}

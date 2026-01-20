@@ -2,8 +2,18 @@
 Optimization
 ============
 
-Basic Optimization
-------------------
+Parameter optimization helps find the best strategy parameters. Choose wisely between
+high generalizability and high efficiency.
+
+.. warning::
+   The author recommends using custom multiprocessing for optimization instead of
+   ``cerebro.optstrategy()`` due to occasional bugs where optimization results
+   differ from single-run results.
+
+Built-in Optimization
+---------------------
+
+Basic usage with ``optstrategy``:
 
 .. code-block:: python
 
@@ -95,6 +105,62 @@ Custom Return Objects
    # - params: Strategy parameters
    # - analyzers: Analyzer results
 
+Recommended: Multiprocessing Optimization
+------------------------------------------
+
+For more reliable and flexible optimization, use Python's multiprocessing:
+
+.. code-block:: python
+
+   from multiprocessing import Pool
+   from itertools import product
+   import pandas as pd
+   
+   def run_strategy(params):
+       '''Run a single backtest with given parameters'''
+       period, stake = params
+       
+       cerebro = bt.Cerebro()
+       cerebro.adddata(data)  # Your data
+       cerebro.addstrategy(MyStrategy, period=period, stake=stake)
+       cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+       cerebro.addanalyzer(bt.analyzers.DrawDown, _name='dd')
+       cerebro.broker.setcash(100000)
+       
+       results = cerebro.run()
+       strat = results[0]
+       
+       sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio', 0) or 0
+       max_dd = strat.analyzers.dd.get_analysis()['max']['drawdown']
+       final_value = cerebro.broker.getvalue()
+       
+       return {
+           'period': period,
+           'stake': stake,
+           'sharpe': sharpe,
+           'max_dd': max_dd,
+           'final_value': final_value
+       }
+   
+   if __name__ == '__main__':
+       # Define parameter grid
+       periods = range(10, 31, 5)
+       stakes = [10, 20, 50]
+       param_grid = list(product(periods, stakes))
+       
+       # Run in parallel
+       with Pool(processes=4) as pool:
+           results = pool.map(run_strategy, param_grid)
+       
+       # Convert to DataFrame for analysis
+       df = pd.DataFrame(results)
+       print(df.sort_values('sharpe', ascending=False).head(10))
+       
+       # Get best parameters
+       best = df.loc[df['sharpe'].idxmax()]
+       print(f"Best: period={best['period']}, stake={best['stake']}")
+       print(f"Sharpe: {best['sharpe']:.4f}")
+
 Walk-Forward Optimization
 -------------------------
 
@@ -138,3 +204,20 @@ Walk-Forward Optimization
            })
        
        return results
+
+Best Practices
+--------------
+
+1. **Use multiprocessing**: More reliable than built-in ``optstrategy``
+2. **Set maxcpus carefully**: Use ``maxcpus = cpu_count - 1`` to avoid system freeze
+3. **Use optreturn=False**: For large optimizations, reduces memory usage
+4. **Validate results**: Always verify optimization results with single runs
+5. **Avoid overfitting**: Use walk-forward or cross-validation
+6. **Save results**: Output optimization results to CSV for later analysis
+
+See Also
+--------
+
+- :doc:`performance` - Speed optimization
+- :doc:`analyzers` - Performance metrics
+- `Blog: Parameter Optimization <https://yunjinqi.blog.csdn.net/article/details/120400145>`_

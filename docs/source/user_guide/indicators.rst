@@ -2,6 +2,26 @@
 Indicators
 ==========
 
+Indicators calculate derived values from price data. Backtrader provides 100+
+built-in indicators and supports TA-Lib integration.
+
+.. tip::
+   Always declare indicators in ``__init__`` for best performance. This allows
+   vectorized calculation before ``next()`` is called.
+
+Indicator Sources
+-----------------
+
+Backtrader supports three types of indicators:
+
+1. **Built-in indicators**: `bt.indicators <https://www.backtrader.com/docu/indautoref/>`_
+2. **TA-Lib indicators**: `bt.talib <https://www.backtrader.com/docu/talibindautoref/>`_
+3. **Custom indicators**: User-defined
+
+.. warning::
+   When using TA-Lib indicators, always verify the results match your expectations.
+   Some TA-Lib calculations may differ from Backtrader's built-in versions.
+
 Using Built-in Indicators
 -------------------------
 
@@ -23,6 +43,45 @@ Using Built-in Indicators
            
            # Crossovers
            self.crossover = bt.indicators.CrossOver(self.sma, self.ema)
+
+Using TA-Lib Indicators
+-----------------------
+
+.. code-block:: python
+
+   class MyStrategy(bt.Strategy):
+       def __init__(self):
+           # TA-Lib SMA (note: uses 'timeperiod' instead of 'period')
+           self.sma = bt.talib.SMA(self.data.close, timeperiod=20)
+           
+           # TA-Lib MACD
+           self.macd = bt.talib.MACD(self.data.close)
+           
+           # TA-Lib Bollinger Bands
+           self.bbands = bt.talib.BBANDS(self.data.close, timeperiod=20)
+
+Multi-Data Indicators
+---------------------
+
+For strategies with multiple data feeds, use dictionaries to store indicators:
+
+.. code-block:: python
+
+   class MultiDataStrategy(bt.Strategy):
+       params = (('period', 20),)
+       
+       def __init__(self):
+           # Store indicators for each data feed
+           self.sma_dict = {
+               data._name: bt.indicators.SMA(data.close, period=self.p.period)
+               for data in self.datas
+           }
+       
+       def next(self):
+           for data in self.datas:
+               sma = self.sma_dict[data._name]
+               if data.close[0] > sma[0]:
+                   self.buy(data=data)
 
 Creating Custom Indicators
 --------------------------
@@ -107,7 +166,7 @@ Plotting Indicators
        
        plotinfo = dict(
            plot=True,
-           subplot=True,       # Separate subplot
+           subplot=True,       # Separate subplot (False = overlay on price)
            plotname='My Signal',
            plotlinevalues=True,
        )
@@ -119,3 +178,52 @@ Plotting Indicators
                _plotskip=False,
            ),
        )
+
+Plotting Intermediate Variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Regular indicator results plot automatically. Intermediate variables need explicit declaration:
+
+.. code-block:: python
+
+   from backtrader.indicators import LinePlotterIndicator
+   
+   class MyStrategy(bt.Strategy):
+       def __init__(self):
+           sma = bt.indicators.SMA(self.data.close, period=20)
+           ema = bt.indicators.EMA(self.data.close, period=20)
+           
+           # This intermediate variable won't plot by default
+           close_over_sma = self.data.close > sma
+           
+           # Use LinePlotterIndicator to plot it
+           LinePlotterIndicator(close_over_sma, name='Close_over_SMA')
+
+Controlling Plot Location
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   # Plot on price chart (subplot=False) or separate (subplot=True)
+   self.sma = bt.indicators.SMA(
+       self.data.close,
+       period=20,
+       subplot=False,      # Overlay on price chart
+       plotname='SMA 20'   # Custom name in legend
+   )
+
+Best Practices
+--------------
+
+1. **Declare in __init__**: Indicators declared in ``__init__`` are calculated vectorized (faster)
+2. **Use built-in operations**: Prefer ``bt.indicators.SMA`` over manual loops
+3. **Verify TA-Lib results**: Cross-check TA-Lib calculations with expected values
+4. **Use dictionaries for multi-data**: Store indicators per data feed for easy access
+
+See Also
+--------
+
+- :doc:`concepts` - Lines data structure
+- :doc:`strategies` - Using indicators in strategies
+- `Built-in Indicators Reference <https://www.backtrader.com/docu/indautoref/>`_
+- `TA-Lib Indicators Reference <https://www.backtrader.com/docu/talibindautoref/>`_

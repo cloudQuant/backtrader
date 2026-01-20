@@ -2,8 +2,16 @@
 参数优化
 ========
 
-基本优化
+参数优化帮助找到最佳策略参数。需要在高普适性和高效率之间权衡。
+
+.. warning::
+   作者建议使用自定义多进程进行优化，而不是 ``cerebro.optstrategy()``，
+   因为偶尔会出现优化结果与单次运行结果不一致的bug。
+
+内置优化
 --------
+
+使用 ``optstrategy`` 的基本用法：
 
 .. code-block:: python
 
@@ -84,6 +92,62 @@
        maxcpus=4
    )
 
+推荐：多进程优化
+------------------
+
+为了更可靠和灵活的优化，使用 Python 的 multiprocessing：
+
+.. code-block:: python
+
+   from multiprocessing import Pool
+   from itertools import product
+   import pandas as pd
+   
+   def run_strategy(params):
+       '''使用给定参数运行单次回测'''
+       period, stake = params
+       
+       cerebro = bt.Cerebro()
+       cerebro.adddata(data)  # 你的数据
+       cerebro.addstrategy(MyStrategy, period=period, stake=stake)
+       cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe')
+       cerebro.addanalyzer(bt.analyzers.DrawDown, _name='dd')
+       cerebro.broker.setcash(100000)
+       
+       results = cerebro.run()
+       strat = results[0]
+       
+       sharpe = strat.analyzers.sharpe.get_analysis().get('sharperatio', 0) or 0
+       max_dd = strat.analyzers.dd.get_analysis()['max']['drawdown']
+       final_value = cerebro.broker.getvalue()
+       
+       return {
+           'period': period,
+           'stake': stake,
+           'sharpe': sharpe,
+           'max_dd': max_dd,
+           'final_value': final_value
+       }
+   
+   if __name__ == '__main__':
+       # 定义参数网格
+       periods = range(10, 31, 5)
+       stakes = [10, 20, 50]
+       param_grid = list(product(periods, stakes))
+       
+       # 并行运行
+       with Pool(processes=4) as pool:
+           results = pool.map(run_strategy, param_grid)
+       
+       # 转换为 DataFrame 进行分析
+       df = pd.DataFrame(results)
+       print(df.sort_values('sharpe', ascending=False).head(10))
+       
+       # 获取最优参数
+       best = df.loc[df['sharpe'].idxmax()]
+       print(f"最优: period={best['period']}, stake={best['stake']}")
+       print(f"夏普比率: {best['sharpe']:.4f}")
+
 滚动优化（Walk-Forward）
 ------------------------
 
@@ -127,3 +191,20 @@
            })
        
        return results
+
+最佳实践
+--------
+
+1. **使用多进程**: 比内置的 ``optstrategy`` 更可靠
+2. **谨慎设置 maxcpus**: 使用 ``maxcpus = cpu_count - 1`` 避免系统卡死
+3. **使用 optreturn=False**: 对于大规模优化，减少内存使用
+4. **验证结果**: 始终用单次运行验证优化结果
+5. **避免过拟合**: 使用滚动优化或交叉验证
+6. **保存结果**: 将优化结果输出到 CSV 以便后续分析
+
+参见
+----
+
+- :doc:`performance` - 速度优化
+- :doc:`analyzers` - 绩效指标
+- `博客: 参数优化 <https://yunjinqi.blog.csdn.net/article/details/120400145>`_

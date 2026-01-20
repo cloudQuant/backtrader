@@ -1,9 +1,12 @@
-=========
-Analyzers
-=========
+==================
+Analyzers & Reports
+==================
 
-Using Analyzers
----------------
+Analyzers are essential tools for evaluating strategy performance. Backtrader provides
+17+ built-in analyzers and supports custom analyzers for specialized metrics.
+
+Quick Start
+-----------
 
 .. code-block:: python
 
@@ -14,15 +17,52 @@ Using Analyzers
    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
    cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')
+   cerebro.addanalyzer(bt.analyzers.SQN, _name='sqn')
    
-   # Run
+   # Run backtest
    results = cerebro.run()
    strat = results[0]
    
    # Get results
-   print(strat.analyzers.sharpe.get_analysis())
-   print(strat.analyzers.drawdown.get_analysis())
-   print(strat.analyzers.trades.get_analysis())
+   print(f"Sharpe: {strat.analyzers.sharpe.get_analysis().get('sharperatio', 'N/A')}")
+   print(f"Max DD: {strat.analyzers.drawdown.get_analysis()['max']['drawdown']:.2f}%")
+   print(f"SQN: {strat.analyzers.sqn.get_analysis()['sqn']:.2f}")
+
+Built-in Analyzers
+------------------
+
+.. list-table::
+   :widths: 25 75
+   :header-rows: 1
+
+   * - Analyzer
+     - Purpose
+   * - SharpeRatio
+     - Risk-adjusted returns
+   * - DrawDown
+     - Maximum drawdown analysis
+   * - TradeAnalyzer
+     - Comprehensive trade statistics
+   * - Returns
+     - Return calculations
+   * - SQN
+     - System Quality Number
+   * - Calmar
+     - Calmar ratio (return/max DD)
+   * - VWR
+     - Variability-Weighted Return
+   * - TimeReturn
+     - Period-based returns
+   * - AnnualReturn
+     - Yearly return breakdown
+   * - Transactions
+     - All transaction details
+   * - PeriodStats
+     - Statistical metrics by period
+   * - PositionsValue
+     - Position value tracking
+   * - PyFolio
+     - pyfolio-compatible output
 
 Common Analyzers
 ----------------
@@ -98,6 +138,42 @@ Creating Custom Analyzers
        def get_analysis(self):
            return self.rets
 
+Professional Reports
+--------------------
+
+Backtrader can generate comprehensive HTML reports with a single command.
+
+One-Click Report
+~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   # Add report analyzers
+   cerebro.add_report_analyzers(riskfree_rate=0.02)
+   
+   # Run backtest
+   results = cerebro.run()
+   
+   # Generate HTML report
+   cerebro.generate_report(
+       filename='backtest_report.html',
+       user='Trader Name',
+       memo='SMA Crossover Strategy Analysis',
+       strategy_name='SMA Cross'
+   )
+
+Report Contents
+~~~~~~~~~~~~~~~
+
+The generated report includes:
+
+- **Summary Statistics**: Total return, Sharpe ratio, Calmar ratio, SQN
+- **Equity Curve**: Interactive portfolio value chart
+- **Drawdown Analysis**: Maximum drawdown chart and duration
+- **Trade Statistics**: Win rate, profit factor, average trade
+- **Monthly Returns**: Heatmap of monthly performance
+- **Position Details**: Entry/exit prices and P&L
+
 Printing Results
 ----------------
 
@@ -124,3 +200,27 @@ Printing Results
        
        if ta.lost.total > 0:
            print(f"Avg Loss: {ta.lost.pnl.average:.2f}")
+
+Export to DataFrame
+~~~~~~~~~~~~~~~~~~~
+
+.. code-block:: python
+
+   import pandas as pd
+   
+   # Get transactions as DataFrame
+   cerebro.addanalyzer(bt.analyzers.Transactions, _name='txn')
+   results = cerebro.run()
+   
+   txn = results[0].analyzers.txn.get_analysis()
+   df = pd.DataFrame.from_dict(txn, orient='index')
+   df.to_csv('transactions.csv')
+
+See Also
+--------
+
+- :doc:`visualization` - Chart plotting
+- :doc:`strategies` - Strategy development
+- :doc:`optimization` - Parameter optimization
+- `Blog: Analyzer使用教程 <https://yunjinqi.blog.csdn.net/article/details/109787656>`_
+- `Blog: 内置Analyzers详解 <https://yunjinqi.blog.csdn.net/article/details/122198829>`_
