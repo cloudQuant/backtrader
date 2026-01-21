@@ -7,17 +7,25 @@ This module provides enhanced functionality for CCXT-based trading including:
 - Rate limiting and retry mechanisms
 - Bracket order support
 - Exchange-specific configurations
+- Configuration loading from .env files
 
 Example:
-    >>> from backtrader.ccxt import RateLimiter, ThreadedDataManager
+    >>> from backtrader.ccxt import RateLimiter, load_ccxt_config_from_env
     >>> limiter = RateLimiter(requests_per_minute=1200)
     >>> limiter.acquire()  # Wait if rate limit reached
+    >>> config = load_ccxt_config_from_env('binance')
 """
 
 from .ratelimit import RateLimiter, retry_with_backoff
 from .threading import ThreadedDataManager, ThreadedOrderManager, DataUpdate
 from .config import ExchangeConfig
 from .connection import ConnectionManager
+from .config_helper import (
+    load_ccxt_config_from_env,
+    get_exchange_credentials,
+    list_supported_exchanges,
+    load_dotenv_file,
+)
 
 # Optional WebSocket support (requires ccxt.pro)
 try:
@@ -40,4 +48,8 @@ __all__ = [
     'BracketOrderManager',
     'BracketOrder',
     'BracketState',
+    'load_ccxt_config_from_env',
+    'get_exchange_credentials',
+    'list_supported_exchanges',
+    'load_dotenv_file',
 ]

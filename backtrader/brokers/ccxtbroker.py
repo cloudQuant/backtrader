@@ -137,7 +137,8 @@ class CCXTBroker(BrokerBase):
         "canceled_order": {"key": "status", "value": "canceled"},
     }
 
-    def __init__(self, broker_mapping=None, debug=False, use_threaded_order_manager=False, **kwargs):
+    def __init__(self, broker_mapping=None, debug=False, use_threaded_order_manager=False,
+                 store=None, **kwargs):
         """Initialize the CCXTBroker instance.
 
         Args:
@@ -152,8 +153,10 @@ class CCXTBroker(BrokerBase):
                 }
             debug: If True, enable debug output.
             use_threaded_order_manager: If True, use background thread for order checking.
+            store: Optional CCXTStore instance. If provided, use this store instead of
+                creating a new one.
             **kwargs: Additional arguments passed to CCXTStore (exchange,
-                api_key, secret, etc.).
+                api_key, secret, etc.) if store is not provided.
 
         Raises:
             KeyError: If broker_mapping is malformed (caught silently).
@@ -174,7 +177,11 @@ class CCXTBroker(BrokerBase):
             except KeyError:  # might not want to change the mappings
                 pass
 
-        self.store = CCXTStore(**kwargs)
+        # Use provided store or create a new one
+        if store is not None:
+            self.store = store
+        else:
+            self.store = CCXTStore(**kwargs)
 
         self.currency = self.store.currency
 

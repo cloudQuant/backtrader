@@ -93,10 +93,31 @@ class CCXTStore(ParameterizedSingletonMixin):
         """Returns ``DataCls`` with args, kwargs"""
         return cls.DataCls(*args, **kwargs)
 
-    @classmethod
-    def getbroker(cls, *args, **kwargs):
-        """Returns broker with *args, **kwargs from registered ``BrokerCls``"""
-        return cls.BrokerCls(*args, **kwargs)
+    def getdata(self, *args, **kwargs):
+        """Returns data feed with this store instance.
+
+        This instance method creates a data feed that uses this store instance
+        rather than creating a new one.
+
+        Returns:
+            CCXTFeed: A data feed instance connected to this store.
+        """
+        # Pass this store instance to the data feed
+        kwargs['store'] = self
+        return self.DataCls(*args, **kwargs)
+
+    def getbroker(self, *args, **kwargs):
+        """Returns broker with this store instance.
+
+        This instance method creates a broker that uses this store instance
+        rather than creating a new one.
+
+        Returns:
+            CCXTBroker: A broker instance connected to this store.
+        """
+        # Pass this store instance to the broker
+        kwargs['store'] = self
+        return self.BrokerCls(*args, **kwargs)
 
     def __init__(self, exchange, currency, config, retries, debug=False, sandbox=False,
                  use_rate_limiter=True, use_connection_manager=False):

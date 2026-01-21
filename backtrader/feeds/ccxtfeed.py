@@ -61,13 +61,14 @@ class CCXTFeed(DataBase):
 
     params = (
         ("historical", False),  # only historical download
-        ("backfill_start", False),  # do backfill at the start
+        ("backfill_start", True),  # do backfill at the start
         ("fetch_ohlcv_params", {}),
         ("ohlcv_limit", 20),
         ("drop_newest", False),
         ("debug", False),
         ("use_websocket", False),  # use WebSocket for live data
         ("use_threaded_data", False),  # use threaded data manager
+        ("hist_start_date", None),  # alias for fromdate - historical start date
     )
 
     _store = ccxtstore.CCXTStore
@@ -75,20 +76,29 @@ class CCXTFeed(DataBase):
     # States for the Finite State Machine in _load
     _ST_LIVE, _ST_HISTORBACK, _ST_OVER = range(3)
 
-    def __init__(self, **kwargs):
+    def __init__(self, store=None, **kwargs):
         """Initialize the CCXT data feed.
 
         Args:
+            store: Optional CCXTStore instance. If provided, use this store
+                instead of creating a new one.
             **kwargs: Keyword arguments for data feed configuration.
         """
         # self.store = CCXTStore(exchange, config, retries)
+        # Call parent __init__ first
+        super(CCXTFeed, self).__init__()
+
         self._state = None
-        self.store = self._store(**kwargs)
+        # Use provided store or create a new one
+        if store is not None:
+            self.store = store
+        else:
+            self.store = self._store(**kwargs)
         self._data = queue.Queue()  # data queue for price data
         self._last_id = ""  # last processed trade id for ohlcv
         self._last_ts = self.utc_to_ts(datetime.utcnow())  # last processed timestamp for ohlcv
         self._last_update_bar_time = 0
-        
+
         # Enhancement modules
         self._threaded_data_manager = None
         self._websocket_manager = None
@@ -114,10 +124,20 @@ class CCXTFeed(DataBase):
         Initializes backfilling or live data mode based on parameters.
         """
         DataBase.start(self)
-        if self.p.fromdate:
+
+        # Use hist_start_date if fromdate is not set
+        start_date = self.p.fromdate or self.p.hist_start_date
+
+        if self.p.backfill_start and start_date:
             self._state = self._ST_HISTORBACK
             self.put_notification(self.DELAYED)
-            self._update_bar(self.p.fromdate)
+            self._update_bar(start_date)
+        elif self.p.historical:
+            # Historical only mode
+            self._state = self._ST_HISTORBACK
+            self.put_notification(self.DELAYED)
+            if start_date:
+                self._update_bar(start_date)
         else:
             self._state = self._ST_LIVE
             self.put_notification(self.LIVE)
@@ -306,3 +326,7 @@ class CCXTFeed(DataBase):
             self._websocket_manager.stop()
         if hasattr(self.store, 'stop'):
             self.store.stop()
+
+
+# Register CCXTFeed with CCXTStore
+ccxtstore.CCXTStore.DataCls = CCXTFeed

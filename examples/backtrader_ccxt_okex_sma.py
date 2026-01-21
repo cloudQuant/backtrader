@@ -27,6 +27,7 @@ from backtrader import Order
 from backtrader.brokers.ccxtbroker import *
 from backtrader.feeds.ccxtfeed import *
 from backtrader.stores.ccxtstore import *
+from backtrader.ccxt import load_ccxt_config_from_env
 
 
 class TestStrategy(bt.Strategy):
@@ -208,29 +209,21 @@ class TestStrategy(bt.Strategy):
 env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(dotenv_path=env_path)
 
-# Get OKX credentials from environment variables
-api_key = os.getenv("OKX_API_KEY")
-api_secret = os.getenv("OKX_SECRET")
-api_password = os.getenv("OKX_PASSWORD")
-
-if not all([api_key, api_secret, api_password]):
+# Load OKX configuration from environment variables
+# This will automatically load credentials from OKX_API_KEY, OKX_SECRET, OKX_PASSWORD
+try:
+    config = load_ccxt_config_from_env('okx', enable_rate_limit=True)
+except ValueError as e:
     raise ValueError(
-        "Missing OKX API credentials. Please set OKX_API_KEY, OKX_SECRET, "
-        "and OKX_PASSWORD in your .env file. See .env.example for reference."
+        f"Failed to load OKX API credentials: {e}\n"
+        "Please set OKX_API_KEY, OKX_SECRET, and OKX_PASSWORD in your .env file. "
+        "See .env.example for reference."
     )
 
 cerebro = bt.Cerebro(quicknotify=True, live=True)
 
 # Add the strategy
 cerebro.addstrategy(TestStrategy)
-
-# Create our store with OKX exchange
-config = {
-    "apiKey": api_key,
-    "secret": api_secret,
-    "password": api_password,
-    "enableRateLimit": True,
-}
 
 # IMPORTANT NOTE - Kraken (and some other exchanges) will not return any values
 # for get cash or value if You have never held any BNB coins in your account.
@@ -244,7 +237,7 @@ cerebro.setbroker(broker)
 # Get our data
 # Drop newest will prevent us from loading partial data from incomplete candles
 hist_start_date = datetime.utcnow() - timedelta(minutes=100)
-for symbol in ["BTC/USDT", "LPT/USDT", "EOS/USDT"]:
+for symbol in ["BTC/USDT", "ETH/USDT", "LPT/USDT"]:
     # for symbol in ["BTC/USDT"]:
     data = store.getdata(
         dataname=symbol,
