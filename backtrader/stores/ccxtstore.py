@@ -157,15 +157,31 @@ class CCXTStore(ParameterizedSingletonMixin):
             self._connection_manager = ConnectionManager(self)
             self._connection_manager.start_monitoring()
         
-        # Fetch initial balance
-        balance = self.exchange.fetch_balance() if 'secret' in config else 0
+        # Fetch initial balance with retry logic for network resilience
+        balance = 0
+        if 'secret' in config:
+            for attempt in range(retries):
+                try:
+                    balance = self.exchange.fetch_balance()
+                    break
+                except NetworkError as e:
+                    if attempt < retries - 1:
+                        wait_time = 2 ** attempt  # Exponential backoff: 1, 2, 4...
+                        if debug:
+                            print(f"[CCXTStore] fetch_balance failed (attempt {attempt + 1}/{retries}): {e}")
+                            print(f"[CCXTStore] Retrying in {wait_time}s...")
+                        time.sleep(wait_time)
+                    else:
+                        print(f"[CCXTStore] Warning: Could not fetch balance after {retries} attempts: {e}")
+                        print("[CCXTStore] Starting with zero balance. Will retry on first trade.")
+                        balance = 0
 
-        if balance == 0 or not balance['free'][currency]:
+        if balance == 0 or not balance.get('free', {}).get(currency):
             self._cash = 0
         else:
             self._cash = balance['free'][currency]
 
-        if balance == 0 or not balance['total'][currency]:
+        if balance == 0 or not balance.get('total', {}).get(currency):
             self._value = 0
         else:
             self._value = balance['total'][currency]

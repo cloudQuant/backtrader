@@ -26,7 +26,7 @@ class TestRateLimiter(unittest.TestCase):
     """Tests for RateLimiter class."""
     
     def setUp(self):
-        from ccxt.ratelimit import RateLimiter
+        from backtrader.ccxt.ratelimit import RateLimiter
         self.RateLimiter = RateLimiter
     
     def test_init(self):
@@ -64,7 +64,7 @@ class TestRetryWithBackoff(unittest.TestCase):
     """Tests for retry_with_backoff decorator."""
     
     def setUp(self):
-        from ccxt.ratelimit import retry_with_backoff
+        from backtrader.ccxt.ratelimit import retry_with_backoff
         self.retry_with_backoff = retry_with_backoff
     
     def test_success_no_retry(self):
@@ -111,7 +111,7 @@ class TestExchangeConfig(unittest.TestCase):
     """Tests for ExchangeConfig class."""
     
     def setUp(self):
-        from ccxt.config import ExchangeConfig
+        from backtrader.ccxt.config import ExchangeConfig
         self.ExchangeConfig = ExchangeConfig
     
     def test_get_order_type_binance(self):
@@ -156,7 +156,7 @@ class TestThreadedDataManager(unittest.TestCase):
     """Tests for ThreadedDataManager class."""
     
     def setUp(self):
-        from ccxt.threading import ThreadedDataManager, DataUpdate
+        from backtrader.ccxt.threading import ThreadedDataManager, DataUpdate
         self.ThreadedDataManager = ThreadedDataManager
         self.DataUpdate = DataUpdate
     
@@ -194,7 +194,7 @@ class TestThreadedOrderManager(unittest.TestCase):
     """Tests for ThreadedOrderManager class."""
     
     def setUp(self):
-        from ccxt.threading import ThreadedOrderManager
+        from backtrader.ccxt.threading import ThreadedOrderManager
         self.ThreadedOrderManager = ThreadedOrderManager
     
     def test_init(self):
@@ -220,7 +220,7 @@ class TestConnectionManager(unittest.TestCase):
     """Tests for ConnectionManager class."""
     
     def setUp(self):
-        from ccxt.connection import ConnectionManager
+        from backtrader.ccxt.connection import ConnectionManager
         self.ConnectionManager = ConnectionManager
     
     def test_init(self):
@@ -256,7 +256,7 @@ class TestBracketOrder(unittest.TestCase):
     """Tests for BracketOrder and BracketState."""
     
     def setUp(self):
-        from ccxt.orders.bracket import BracketOrder, BracketState
+        from backtrader.ccxt.orders.bracket import BracketOrder, BracketState
         self.BracketOrder = BracketOrder
         self.BracketState = BracketState
     
@@ -298,7 +298,7 @@ class TestBracketOrderManager(unittest.TestCase):
     """Tests for BracketOrderManager class."""
     
     def setUp(self):
-        from ccxt.orders.bracket import BracketOrderManager
+        from backtrader.ccxt.orders.bracket import BracketOrderManager
         self.BracketOrderManager = BracketOrderManager
     
     def test_init(self):

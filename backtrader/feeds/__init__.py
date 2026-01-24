@@ -62,6 +62,12 @@ try:
 except ImportError:
     pass  # ccxt not installed
 
+# CCXT Feed with Funding Rate support
+try:
+    from .ccxtfeed_funding import CCXTFeedWithFunding as CCXTFeedWithFunding
+except ImportError:
+    pass  # ccxt not installed
+
 # CTP Data for China futures
 try:
     from .ctpdata import CTPData as CTPData

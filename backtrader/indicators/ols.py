@@ -32,10 +32,24 @@ Example:
 """
 
 import pandas as pd
-import statsmodels.api as sm
-from statsmodels.tsa.stattools import coint
 
 from . import PeriodN
+
+# Lazy import statsmodels to avoid slow import at module load time
+# statsmodels is a heavy library that adds 20+ seconds to import time
+# It will be imported when the indicators are actually used
+
+
+def _get_statsmodels():
+    """Lazy import statsmodels.api."""
+    import statsmodels.api as sm
+    return sm
+
+
+def _get_coint():
+    """Lazy import statsmodels coint function."""
+    from statsmodels.tsa.stattools import coint
+    return coint
 
 __all__ = ["OLS_Slope_InterceptN", "OLS_TransformationN", "OLS_BetaN", "CointN"]
 
@@ -65,6 +79,7 @@ class OLS_Slope_InterceptN(PeriodN):
 
         Uses statsmodels OLS to perform linear regression.
         """
+        sm = _get_statsmodels()
         p0 = pd.Series(self.data0.get(size=self.p.period))
         p1 = pd.Series(self.data1.get(size=self.p.period))
         p1 = sm.add_constant(p1)
@@ -240,6 +255,7 @@ class CointN(PeriodN):
 
         Uses statsmodels coint function to test for cointegration.
         """
+        coint = _get_coint()
         x, y = (pd.Series(d.get(size=self.p.period)) for d in self.datas)
         score, pvalue, _ = coint(x, y, trend=self.p.trend)
         self.lines.score[0] = score

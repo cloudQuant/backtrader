@@ -19,8 +19,7 @@ Example:
 
 from collections import OrderedDict, defaultdict
 
-# from .py3 import values as py3lvalues
-from backtrader.utils.py3 import values as py3lvalues  # Changed relative import to absolute import
+from .py3 import values as py3lvalues
 
 
 def Tree():

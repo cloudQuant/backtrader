@@ -112,6 +112,7 @@ def load_ccxt_config_from_env(
     env_path: Optional[str] = None,
     enable_rate_limit: bool = True,
     sandbox: bool = False,
+    use_aws_host: bool = False,
 ) -> Dict:
     """Load CCXT exchange configuration from environment variables.
 
@@ -127,6 +128,7 @@ def load_ccxt_config_from_env(
             default locations.
         enable_rate_limit: Enable CCXT's built-in rate limiting (default: True).
         sandbox: Use exchange sandbox/testnet mode (default: False).
+        use_aws_host: Use AWS hostname for OKX (better for China users).
 
     Returns:
         dict: Configuration dictionary compatible with CCXTStore.
@@ -174,7 +176,22 @@ def load_ccxt_config_from_env(
 
     # Set sandbox mode if requested
     if sandbox:
-        config['options'] = {'defaultType': 'swap'}
+        config['options'] = config.get('options', {})
+        config['options']['defaultType'] = 'swap'
+
+    # OKX-specific: use AWS hostname for better connectivity in China
+    if exchange_lower == 'okx':
+        # Check environment variable first
+        use_aws = os.getenv('OKX_USE_AWS', '').lower() in ('true', '1', 'yes') or use_aws_host
+        if use_aws:
+            config['hostname'] = 'aws.okx.com'
+        
+        # Check for proxy configuration
+        proxy = os.getenv('OKX_PROXY') or os.getenv('HTTPS_PROXY')
+        if proxy:
+            config['proxies'] = {'https': proxy, 'http': proxy}
+            # For aiohttp (WebSocket)
+            config['aiohttp_proxy'] = proxy
 
     return config
 

@@ -4,6 +4,8 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/.idea/backtrader.iml" filepath="$PROJECT_DIR$/.idea/backtrader.iml" />
       <module fileurl="file://$PROJECT_DIR$/../backtrader_blog/.idea/backtrader_blog.iml" filepath="$PROJECT_DIR$/../backtrader_blog/.idea/backtrader_blog.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../backtrader_web/.idea/backtrader_web.iml" filepath="$PROJECT_DIR$/../backtrader_web/.idea/backtrader_web.iml" />
+      <module fileurl="file://J:/binance-public-data/.idea/binance-public-data.iml" filepath="J:/binance-public-data/.idea/binance-public-data.iml" />
       <module fileurl="file://$PROJECT_DIR$/../bt_api_py/.idea/bt_api_py.iml" filepath="$PROJECT_DIR$/../bt_api_py/.idea/bt_api_py.iml" />
       <module fileurl="file://$PROJECT_DIR$/../empyrical/.idea/empyrical.iml" filepath="$PROJECT_DIR$/../empyrical/.idea/empyrical.iml" />
       <module fileurl="file://$PROJECT_DIR$/../my_private_blog/.idea/my_private_blog.iml" filepath="$PROJECT_DIR$/../my_private_blog/.idea/my_private_blog.iml" />

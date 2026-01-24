@@ -11,6 +11,8 @@
     <orderEntry type="module" module-name="my_private_blog" />
     <orderEntry type="module" module-name="my_public_blog" />
     <orderEntry type="module" module-name="woniunote" />
+    <orderEntry type="module" module-name="binance-public-data" />
+    <orderEntry type="module" module-name="backtrader_web" />
   </component>
   <component name="PackageRequirementsSettings">
     <option name="versionSpecifier" />

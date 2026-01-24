@@ -137,14 +137,12 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
             self.log('[DATA] 数据源已断开 - 策略可能停止', with_date=True)
             self.log(f'[DATA] 断开时的持仓: {self.getposition().size}', with_date=True)
 
-    def log_historical_bar(self, bar_num, bar_time, price, upper, lower, middle):
-        """输出历史数据加载进度"""
-        mode_str = "HIST" if not self.is_live_mode else "LIVE"
-        print(f"[{mode_str}] #{bar_num:3d} | {bar_time} | Price: ${price:.6f} | "
-              f"Upper: ${upper:.6f} | Mid: ${middle:.6f} | Lower: ${lower:.6f}")
-
     def log_bar_info(self):
-        """输出当前bar的详细信息"""
+        """输出当前bar的详细信息（仅实时模式）"""
+        # 历史数据不输出详细信息
+        if not self.is_live_mode:
+            return
+
         if not self.p.log_bars:
             return
 
@@ -176,8 +174,7 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
             bb_position = 50
 
         print(f"\n{'='*100}")
-        mode_str = "LIVE" if self.is_live_mode else "HIST"
-        print(f"Bar #{len(self.data)} [{mode_str}] | Time: {bar_time}")
+        print(f"[LIVE] Bar #{len(self.data)} | Time: {bar_time}")
         print(f"{'='*100}")
         print(f"Price Information:")
         print(f"  Open:   ${self.data.open[0]:.6f}")
@@ -289,23 +286,13 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
         else:
             self.historical_bar_count += 1
 
-        # 历史数据：每10根输出一次简化信息
-        if not self.is_live_mode and self.historical_bar_count % 10 == 0:
-            bar_time = self.data.datetime.datetime(0)
-            current_price = self.data.close[0]
-            upper_band = self.top[0]
-            lower_band = self.bot[0]
-            middle_band = self.mid[0]
-            self.log_historical_bar(self.historical_bar_count, bar_time, current_price,
-                                    upper_band, lower_band, middle_band)
-
         # 实时数据：每60根或前3根输出进度
         if self.is_live_mode:
             if self.live_bar_count % 60 == 0 or self.live_bar_count <= 3:
                 self.log(f'[LIVE] 实时K线 #{self.live_bar_count}, 总K线数: {len(self.data)}', with_date=True)
 
-        # 输出详细bar信息（仅在实时模式或前3根/最后3根历史数据时）
-        if self.is_live_mode or len(self.data) <= 3 or (not self.is_live_mode and self.historical_bar_count > self.p.period - 3):
+        # 输出详细bar信息（仅实时模式）
+        if self.is_live_mode:
             self.log_bar_info()
 
         # 确保没有待处理订单
@@ -342,30 +329,32 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
 
         # 1. 检查止损（优先执行）
         if self.p.use_stop_loss:
-            # 多仓止损
+            # 多仓止损（使用限价单，价格略低以确保成交）
             if position_size > 0 and self.long_stop_price is not None:
                 if current_price <= self.long_stop_price:
-                    self.log(f'[LONG STOP LOSS] 多仓止损触发: 当前=${current_price:.6f}, 止损=${self.long_stop_price:.6f}')
+                    limit_price = current_price * 0.99  # 卖出限价单：略低于市价
+                    self.log(f'[LONG STOP LOSS] 多仓止损触发: 当前=${current_price:.6f}, 止损=${self.long_stop_price:.6f}, 限价=${limit_price:.6f}')
                     order_params = {
                         'tdMode': self.p.tdMode,
                         'Coint': 'USDT',
                     }
-                    self.order = self.sell(size=abs(position_size), params=order_params)
+                    self.order = self.sell(size=abs(position_size), price=limit_price, params=order_params)
                     self.long_stop_price = None
                     self.entry_price = None
                     self.position_type = None
                     self.trade_count += 1
                     return
 
-            # 空仓止损
+            # 空仓止损（使用限价单，价格略高以确保成交）
             elif position_size < 0 and self.short_stop_price is not None:
                 if current_price >= self.short_stop_price:
-                    self.log(f'[SHORT STOP LOSS] 空仓止损触发: 当前=${current_price:.6f}, 止损=${self.short_stop_price:.6f}')
+                    limit_price = current_price * 1.01  # 买入限价单：略高于市价
+                    self.log(f'[SHORT STOP LOSS] 空仓止损触发: 当前=${current_price:.6f}, 止损=${self.short_stop_price:.6f}, 限价=${limit_price:.6f}')
                     order_params = {
                         'tdMode': self.p.tdMode,
                         'Coint': 'USDT',
                     }
-                    self.order = self.buy(size=abs(position_size), params=order_params)
+                    self.order = self.buy(size=abs(position_size), price=limit_price, params=order_params)
                     self.short_stop_price = None
                     self.entry_price = None
                     self.position_type = None
@@ -374,47 +363,50 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
 
         # 2. 无仓位时的开仓逻辑
         if position_size == 0:
-            # 突破上轨 → 开多仓
+            # 突破上轨 → 开多仓（使用限价单，价格略高以确保成交）
             if current_price > upper_band:
-                self.log(f'[LONG ENTRY] 突破上轨开多: 价格=${current_price:.6f}, 上轨=${upper_band:.6f}, 数量={size}')
+                limit_price = current_price * 1.01  # 买入限价单：略高于市价
+                self.log(f'[LONG ENTRY] 突破上轨开多: 价格=${current_price:.6f}, 上轨=${upper_band:.6f}, 限价=${limit_price:.6f}, 数量={size}')
                 # 合约交易参数
                 order_params = {
                     'tdMode': self.p.tdMode,
                     'Coint': 'USDT',  # 保证金币种
                 }
-                self.order = self.buy(size=size, params=order_params)
+                self.order = self.buy(size=size, price=limit_price, params=order_params)
                 self.entry_price = current_price
                 self.long_stop_price = current_price - (atr_value * self.p.atr_mult)
                 self.position_type = 'long'
-                self.log(f'[ORDER] 开多订单已提交，等待交易所确认...', with_date=True)
+                self.log(f'[ORDER] 开多限价订单已提交，等待交易所确认...', with_date=True)
                 return
 
-            # 跌破下轨 → 开空仓
+            # 跌破下轨 → 开空仓（使用限价单，价格略低以确保成交）
             elif current_price < lower_band:
-                self.log(f'[SHORT ENTRY] 跌破下轨开空: 价格=${current_price:.6f}, 下轨=${lower_band:.6f}, 数量={size}')
+                limit_price = current_price * 0.99  # 卖出限价单：略低于市价
+                self.log(f'[SHORT ENTRY] 跌破下轨开空: 价格=${current_price:.6f}, 下轨=${lower_band:.6f}, 限价=${limit_price:.6f}, 数量={size}')
                 # 合约交易参数
                 order_params = {
                     'tdMode': self.p.tdMode,
                     'Coint': 'USDT',  # 保证金币种
                 }
-                self.order = self.sell(size=size, params=order_params)
+                self.order = self.sell(size=size, price=limit_price, params=order_params)
                 self.entry_price = current_price
                 self.short_stop_price = current_price + (atr_value * self.p.atr_mult)
                 self.position_type = 'short'
-                self.log(f'[ORDER] 开空订单已提交，等待交易所确认...', with_date=True)
+                self.log(f'[ORDER] 开空限价订单已提交，等待交易所确认...', with_date=True)
                 return
 
         # 3. 持有多仓时的逻辑
         elif position_size > 0:
-            # 跌破中轨 → 平多仓（止盈）
+            # 跌破中轨 → 平多仓（止盈，使用限价单，价格略低以确保成交）
             if current_price < middle_band:
-                self.log(f'[LONG EXIT] 跌破中轨平多: 价格=${current_price:.6f}, 中轨=${middle_band:.6f}, 数量={position_size}')
+                limit_price = current_price * 0.99  # 卖出限价单：略低于市价
+                self.log(f'[LONG EXIT] 跌破中轨平多: 价格=${current_price:.6f}, 中轨=${middle_band:.6f}, 限价=${limit_price:.6f}, 数量={position_size}')
                 # 平仓也需要参数
                 order_params = {
                     'tdMode': self.p.tdMode,
                     'Coint': 'USDT',
                 }
-                self.order = self.sell(size=position_size, params=order_params)
+                self.order = self.sell(size=position_size, price=limit_price, params=order_params)
                 self.long_stop_price = None
                 self.entry_price = None
                 self.position_type = None
@@ -428,15 +420,16 @@ class BollingerBandsLongShortStrategy(bt.Strategy):
 
         # 4. 持有空仓时的逻辑
         elif position_size < 0:
-            # 突破中轨 → 平空仓（止盈）
+            # 突破中轨 → 平空仓（止盈，使用限价单，价格略高以确保成交）
             if current_price > middle_band:
-                self.log(f'[SHORT EXIT] 突破中轨平空: 价格=${current_price:.6f}, 中轨=${middle_band:.6f}, 数量={abs(position_size)}')
+                limit_price = current_price * 1.01  # 买入限价单：略高于市价
+                self.log(f'[SHORT EXIT] 突破中轨平空: 价格=${current_price:.6f}, 中轨=${middle_band:.6f}, 限价=${limit_price:.6f}, 数量={abs(position_size)}')
                 # 平仓也需要参数
                 order_params = {
                     'tdMode': self.p.tdMode,
                     'Coint': 'USDT',
                 }
-                self.order = self.buy(size=abs(position_size), params=order_params)
+                self.order = self.buy(size=abs(position_size), price=limit_price, params=order_params)
                 self.short_stop_price = None
                 self.entry_price = None
                 self.position_type = None
@@ -573,6 +566,7 @@ def run_strategy():
     cerebro.setbroker(broker)
 
     # 获取合约数据（MINA/USDT 永续合约）
+    # 使用 WebSocket 实时数据流（需要安装 ccxt.pro: pip install ccxtpro）
     data = store.getdata(
         dataname='MINA/USDT:USDT',           # 永续合约交易对
         name='MINA/USDT:USDT',
@@ -581,6 +575,7 @@ def run_strategy():
         fromdate=datetime.utcnow() - timedelta(minutes=200),  # 历史数据起始时间
         backfill_start=True,                 # 启用历史数据回填
         historical=False,                    # False=历史数据后继续实时模式
+        use_websocket=True,                  # 使用 WebSocket（需要 ccxt.pro）
         ohlcv_limit=100,
         drop_newest=False,
         debug=False
