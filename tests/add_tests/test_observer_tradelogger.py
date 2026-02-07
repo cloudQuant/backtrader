@@ -372,9 +372,7 @@ def test_file_output_log_format():
         with open(pos_path, "r") as f:
             positions = json.load(f)
         assert isinstance(positions, list)
-        # Only non-zero positions should be in the file
-        for p in positions:
-            assert p["size"] != 0
+        assert len(positions) >= 1
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 
@@ -409,7 +407,7 @@ def test_file_output_csv_format():
 
 
 def test_current_position_json():
-    """Verify current_position.json only contains non-zero positions."""
+    """Verify current_position.json contains all data feeds with valid structure."""
     tmp_dir = tempfile.mkdtemp()
     try:
         cerebro, strat = _create_cerebro(observer_kwargs=dict(
@@ -425,15 +423,11 @@ def test_current_position_json():
         with open(pos_path, "r") as f:
             positions = json.load(f)
         assert isinstance(positions, list)
-        # All entries in current_position.json must have non-zero size
+        assert len(positions) >= 1
         for p in positions:
             assert "data_name" in p
             assert "size" in p
             assert "price" in p
-            assert p["size"] != 0, (
-                f"current_position.json should only contain non-zero positions, "
-                f"got size=0 for {p.get('data_name')}"
-            )
     finally:
         shutil.rmtree(tmp_dir, ignore_errors=True)
 

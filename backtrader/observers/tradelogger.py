@@ -312,14 +312,12 @@ class TradeLogger(Observer):
             json.dump(run_info, f, indent=2, ensure_ascii=False, default=str)
 
     def _write_current_position(self, positions):
-        """Overwrite current_position.json with latest non-zero positions only."""
+        """Overwrite current_position.json with latest positions for all data feeds."""
         if self._log_dir is None or not self.p.log_file_enabled:
             return
         path = os.path.join(self._log_dir, "current_position.json")
         serializable = []
         for p in positions:
-            if p.get("size", 0) == 0:
-                continue
             row = {}
             for k, v in p.items():
                 row[k] = self._format_value(v) if isinstance(v, dt_module.datetime) else v
