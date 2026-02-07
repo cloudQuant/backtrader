@@ -1164,6 +1164,14 @@ class Strategy(StrategyBase):
         for analyzer in itertools.chain(self.analyzers, self._slave_analyzers):
             analyzer._stop()
 
+        # Stop observers (flush logs, etc.)
+        for observer in self._get_all_observers():
+            try:
+                if hasattr(observer, 'stop'):
+                    observer.stop()
+            except Exception:
+                pass
+
         # Change operators back to stage 1 - allows reuse of datas
         self._stage1()
 

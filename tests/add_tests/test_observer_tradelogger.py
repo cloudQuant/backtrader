@@ -18,6 +18,10 @@ Example:
 """
 
 import datetime
+import json
+import os
+import shutil
+import tempfile
 
 import backtrader as bt
 
@@ -67,6 +71,8 @@ def _create_cerebro(observer_kwargs=None):
     cerebro.addstrategy(SMAStrategy)
     if observer_kwargs is None:
         observer_kwargs = {}
+    # Disable file output by default in tests
+    observer_kwargs.setdefault('log_file_enabled', False)
     cerebro.addobserver(bt.observers.TradeLogger, **observer_kwargs)
     cerebro.run()
     strat = cerebro.runstrats[0][0]
@@ -318,13 +324,460 @@ def test_logs_available_during_run():
     data = testcommon.getdata(0)
     cerebro.adddata(data)
     cerebro.addstrategy(CheckDuringRunStrategy)
-    cerebro.addobserver(bt.observers.TradeLogger)
+    cerebro.addobserver(bt.observers.TradeLogger, log_file_enabled=False)
     cerebro.run()
     strat = cerebro.runstrats[0][0]
 
     assert strat.checked_position_log, "position_log should be available during run"
     assert strat.checked_data_log, "data_log should be available during run"
     assert strat.checked_order_log, "order_log should be available during run"
+
+
+def test_file_output_log_format():
+    """Verify that .log files (tab-separated, default) are created in real-time."""
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        cerebro, strat = _create_cerebro(observer_kwargs=dict(
+            log_file_enabled=True,
+            log_dir=tmp_dir,
+            file_format="log",
+        ))
+        tl = _find_tradelogger(strat)
+        assert tl is not None
+
+        run_dir = os.path.join(tmp_dir, tl._run_id)
+        assert os.path.isdir(run_dir), f"run directory not created: {run_dir}"
+
+        # run_info.json
+        info_path = os.path.join(run_dir, "run_info.json")
+        assert os.path.isfile(info_path)
+        with open(info_path, "r") as f:
+            info = json.load(f)
+        assert info["strategy_name"] == "SMAStrategy"
+
+        # .log files should exist
+        assert os.path.isfile(os.path.join(run_dir, "order_log.log"))
+        assert os.path.isfile(os.path.join(run_dir, "trade_log.log"))
+        assert os.path.isfile(os.path.join(run_dir, "position_log.log"))
+        assert os.path.isfile(os.path.join(run_dir, "data_log.log"))
+
+        # check tab-separated content
+        with open(os.path.join(run_dir, "data_log.log"), "r") as f:
+            header = f.readline()
+        assert "\t" in header, "log format should be tab-separated"
+
+        # current_position.json should exist
+        pos_path = os.path.join(run_dir, "current_position.json")
+        assert os.path.isfile(pos_path)
+        with open(pos_path, "r") as f:
+            positions = json.load(f)
+        assert isinstance(positions, list)
+        assert len(positions) > 0
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_file_output_csv_format():
+    """Verify that .csv files are created when file_format='csv'."""
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        cerebro, strat = _create_cerebro(observer_kwargs=dict(
+            log_file_enabled=True,
+            log_dir=tmp_dir,
+            file_format="csv",
+        ))
+        tl = _find_tradelogger(strat)
+        assert tl is not None
+
+        run_dir = os.path.join(tmp_dir, tl._run_id)
+        assert os.path.isdir(run_dir)
+
+        # .csv files should exist
+        assert os.path.isfile(os.path.join(run_dir, "order_log.csv"))
+        assert os.path.isfile(os.path.join(run_dir, "trade_log.csv"))
+        assert os.path.isfile(os.path.join(run_dir, "position_log.csv"))
+        assert os.path.isfile(os.path.join(run_dir, "data_log.csv"))
+
+        # check comma-separated content
+        with open(os.path.join(run_dir, "data_log.csv"), "r") as f:
+            header = f.readline()
+        assert "," in header, "csv format should be comma-separated"
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_current_position_json():
+    """Verify current_position.json contains valid position data."""
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        cerebro, strat = _create_cerebro(observer_kwargs=dict(
+            log_file_enabled=True,
+            log_dir=tmp_dir,
+        ))
+        tl = _find_tradelogger(strat)
+        assert tl is not None
+
+        run_dir = os.path.join(tmp_dir, tl._run_id)
+        pos_path = os.path.join(run_dir, "current_position.json")
+        assert os.path.isfile(pos_path)
+        with open(pos_path, "r") as f:
+            positions = json.load(f)
+        # should be a list with one entry per data feed
+        assert isinstance(positions, list)
+        assert len(positions) >= 1
+        for p in positions:
+            assert "data_name" in p
+            assert "size" in p
+            assert "price" in p
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_log_indicators():
+    """Verify that strategy indicators appear in data_log when log_indicators=True."""
+    cerebro, strat = _create_cerebro(observer_kwargs=dict(
+        log_indicators=True,
+    ))
+    tl = _find_tradelogger(strat)
+    assert tl is not None
+
+    # data_log entries should contain indicator columns
+    # SMAStrategy has SMA and CrossOver indicators
+    last_entry = tl.data_log[-1]
+    indicator_cols = [k for k in last_entry.keys() if "." in k]
+    assert len(indicator_cols) > 0, (
+        f"Expected indicator columns in data_log, got keys: {list(last_entry.keys())}"
+    )
+
+
+def test_log_indicators_with_file():
+    """Verify indicator columns appear in data_log file."""
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        cerebro, strat = _create_cerebro(observer_kwargs=dict(
+            log_file_enabled=True,
+            log_dir=tmp_dir,
+            log_indicators=True,
+        ))
+        tl = _find_tradelogger(strat)
+        assert tl is not None
+
+        run_dir = os.path.join(tmp_dir, tl._run_id)
+        data_path = os.path.join(run_dir, "data_log.log")
+        assert os.path.isfile(data_path)
+
+        with open(data_path, "r") as f:
+            header = f.readline().strip()
+        # header should contain indicator columns with dots
+        cols = header.split("\t")
+        indicator_cols = [c for c in cols if "." in c]
+        assert len(indicator_cols) > 0, (
+            f"Expected indicator columns in header, got: {cols}"
+        )
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_run_id_contains_strategy_name():
+    """Verify run_id includes strategy name and timestamp."""
+    cerebro, strat = _create_cerebro()
+    tl = _find_tradelogger(strat)
+    assert tl is not None
+    assert tl._run_id is not None
+    assert "SMAStrategy" in tl._run_id
+    assert tl._strategy_name == "SMAStrategy"
+    assert tl._strategy_params is not None
+
+
+def test_realtime_file_writing():
+    """Verify files are written in real-time during the run, not just at stop()."""
+
+    class FileCheckStrategy(bt.Strategy):
+        """Strategy that checks files exist mid-run."""
+
+        params = (("tmp_dir", None),)
+
+        def __init__(self):
+            self.sma = bt.indicators.SMA(self.data, period=15)
+            self.cross = bt.indicators.CrossOver(self.data.close, self.sma)
+            self.file_existed_during_run = False
+
+        def next(self):
+            if len(self) > 20 and not self.file_existed_during_run:
+                # Check if log files already exist mid-run
+                tl = None
+                for obs in self.stats.items:
+                    if isinstance(obs, bt.observers.TradeLogger):
+                        tl = obs
+                        break
+                if tl is not None and tl._log_dir is not None:
+                    data_path = os.path.join(tl._log_dir, "data_log.log")
+                    if os.path.isfile(data_path) and os.path.getsize(data_path) > 0:
+                        self.file_existed_during_run = True
+
+            if not self.position.size:
+                if self.cross > 0.0:
+                    self.buy()
+            elif self.cross < 0.0:
+                self.close()
+
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        cerebro = bt.Cerebro(runonce=True, preload=True)
+        data = testcommon.getdata(0)
+        cerebro.adddata(data)
+        cerebro.addstrategy(FileCheckStrategy, tmp_dir=tmp_dir)
+        cerebro.addobserver(
+            bt.observers.TradeLogger,
+            log_file_enabled=True,
+            log_dir=tmp_dir,
+        )
+        cerebro.run()
+        strat = cerebro.runstrats[0][0]
+        assert strat.file_existed_during_run, (
+            "Log files should exist during the run (real-time writing)"
+        )
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_log_time_field():
+    """Verify that all log records contain a log_time field as the first key."""
+    cerebro, strat = _create_cerebro()
+    tl = _find_tradelogger(strat)
+    assert tl is not None
+
+    # Check order_log
+    assert len(tl.order_log) > 0
+    for entry in tl.order_log:
+        keys = list(entry.keys())
+        assert keys[0] == "log_time", f"First key should be log_time, got {keys[0]}"
+        assert entry["log_time"] is not None
+        # log_time should look like a datetime string with microseconds
+        assert "." in entry["log_time"], "log_time should include microseconds"
+
+    # Check trade_log
+    assert len(tl.trade_log) > 0
+    for entry in tl.trade_log:
+        keys = list(entry.keys())
+        assert keys[0] == "log_time"
+
+    # Check position_log
+    assert len(tl.position_log) > 0
+    for entry in tl.position_log:
+        keys = list(entry.keys())
+        assert keys[0] == "log_time"
+
+    # Check data_log
+    assert len(tl.data_log) > 0
+    for entry in tl.data_log:
+        keys = list(entry.keys())
+        assert keys[0] == "log_time"
+
+
+def test_log_time_in_file():
+    """Verify that log_time appears as the first column in log files."""
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        cerebro, strat = _create_cerebro(observer_kwargs=dict(
+            log_file_enabled=True,
+            log_dir=tmp_dir,
+        ))
+        tl = _find_tradelogger(strat)
+        assert tl is not None
+
+        run_dir = os.path.join(tmp_dir, tl._run_id)
+        for fname in ["data_log.log", "position_log.log"]:
+            fpath = os.path.join(run_dir, fname)
+            assert os.path.isfile(fpath), f"{fname} should exist"
+            with open(fpath, "r") as f:
+                header = f.readline().strip()
+            first_col = header.split("\t")[0]
+            assert first_col == "log_time", (
+                f"First column in {fname} should be log_time, got {first_col}"
+            )
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_mysql_save():
+    """Test MySQL persistence of order, trade, position logs.
+
+    This test requires a running MySQL server with the backtrder_web database.
+    It is skipped if MySQL is not available.
+    """
+    try:
+        import pymysql
+    except ImportError:
+        import pytest
+        pytest.skip("pymysql not installed")
+
+    # Try to connect - skip if unavailable
+    try:
+        conn = pymysql.connect(
+            host="localhost", port=3306, user="root",
+            password="backtrader_web_123",
+            database="backtrder_web",
+            charset="utf8mb4",
+        )
+        conn.close()
+    except Exception:
+        import pytest
+        pytest.skip("MySQL backtrder_web database not available")
+
+    # Use a unique table prefix to avoid conflicts
+    import time
+    test_prefix = f"test_{int(time.time())}"
+
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        cerebro, strat = _create_cerebro(observer_kwargs=dict(
+            log_file_enabled=True,
+            log_dir=tmp_dir,
+            mysql_enabled=True,
+            mysql_host="localhost",
+            mysql_port=3306,
+            mysql_user="root",
+            mysql_password="backtrader_web_123",
+            mysql_database="backtrder_web",
+            mysql_table_prefix=test_prefix,
+        ))
+        tl = _find_tradelogger(strat)
+        assert tl is not None
+        assert tl._run_id is not None
+
+        # Verify data was inserted into MySQL
+        conn = pymysql.connect(
+            host="localhost", port=3306, user="root",
+            password="backtrader_web_123",
+            database="backtrder_web",
+            charset="utf8mb4",
+        )
+        try:
+            cursor = conn.cursor()
+
+            # Check order_log
+            cursor.execute(
+                f"SELECT COUNT(*) FROM `{test_prefix}_order_log` WHERE run_id=%s",
+                (tl._run_id,)
+            )
+            order_count = cursor.fetchone()[0]
+            assert order_count > 0, "order_log should have records in MySQL"
+            assert order_count == len(tl.order_log), (
+                f"MySQL order count {order_count} != memory {len(tl.order_log)}"
+            )
+
+            # Check trade_log
+            cursor.execute(
+                f"SELECT COUNT(*) FROM `{test_prefix}_trade_log` WHERE run_id=%s",
+                (tl._run_id,)
+            )
+            trade_count = cursor.fetchone()[0]
+            assert trade_count > 0, "trade_log should have records in MySQL"
+            assert trade_count == len(tl.trade_log)
+
+            # Check position_log
+            cursor.execute(
+                f"SELECT COUNT(*) FROM `{test_prefix}_position_log` WHERE run_id=%s",
+                (tl._run_id,)
+            )
+            pos_count = cursor.fetchone()[0]
+            assert pos_count > 0, "position_log should have records in MySQL"
+            assert pos_count == len(tl.position_log)
+
+            # Verify strategy_name is correct
+            cursor.execute(
+                f"SELECT DISTINCT strategy_name FROM `{test_prefix}_order_log` WHERE run_id=%s",
+                (tl._run_id,)
+            )
+            row = cursor.fetchone()
+            assert row[0] == "SMAStrategy"
+
+            # Verify log_time is populated
+            cursor.execute(
+                f"SELECT log_time FROM `{test_prefix}_order_log` WHERE run_id=%s LIMIT 1",
+                (tl._run_id,)
+            )
+            row = cursor.fetchone()
+            assert row[0] is not None, "log_time should be populated in MySQL"
+
+            cursor.close()
+        finally:
+            # Clean up test tables
+            cursor = conn.cursor()
+            for tbl in ["order_log", "trade_log", "position_log"]:
+                cursor.execute(f"DROP TABLE IF EXISTS `{test_prefix}_{tbl}`")
+            conn.commit()
+            cursor.close()
+            conn.close()
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+def test_mysql_no_data_log_table():
+    """Verify that data_log table is NOT created in MySQL."""
+    try:
+        import pymysql
+    except ImportError:
+        import pytest
+        pytest.skip("pymysql not installed")
+
+    try:
+        conn = pymysql.connect(
+            host="localhost", port=3306, user="root",
+            password="backtrader_web_123",
+            database="backtrder_web",
+            charset="utf8mb4",
+        )
+        conn.close()
+    except Exception:
+        import pytest
+        pytest.skip("MySQL backtrder_web database not available")
+
+    import time
+    test_prefix = f"test_nd_{int(time.time())}"
+
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        cerebro, strat = _create_cerebro(observer_kwargs=dict(
+            log_file_enabled=True,
+            log_dir=tmp_dir,
+            mysql_enabled=True,
+            mysql_host="localhost",
+            mysql_port=3306,
+            mysql_user="root",
+            mysql_password="backtrader_web_123",
+            mysql_database="backtrder_web",
+            mysql_table_prefix=test_prefix,
+        ))
+
+        # Check that data_log table does NOT exist
+        conn = pymysql.connect(
+            host="localhost", port=3306, user="root",
+            password="backtrader_web_123",
+            database="backtrder_web",
+            charset="utf8mb4",
+        )
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT COUNT(*) FROM information_schema.tables "
+                "WHERE table_schema='backtrder_web' AND table_name=%s",
+                (f"{test_prefix}_data_log",)
+            )
+            count = cursor.fetchone()[0]
+            assert count == 0, "data_log table should NOT be created in MySQL"
+            cursor.close()
+        finally:
+            # Clean up
+            cursor = conn.cursor()
+            for tbl in ["order_log", "trade_log", "position_log"]:
+                cursor.execute(f"DROP TABLE IF EXISTS `{test_prefix}_{tbl}`")
+            conn.commit()
+            cursor.close()
+            conn.close()
+    finally:
+        shutil.rmtree(tmp_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":
