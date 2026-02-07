@@ -29,4 +29,5 @@ from .buysell import *
 from .drawdown import *
 from .logreturns import *
 from .timereturn import *
+from .tradelogger import *
 from .trades import *

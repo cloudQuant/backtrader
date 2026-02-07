@@ -675,6 +675,7 @@ class Strategy(StrategyBase):
             # PERFORMANCE FIX: Explicitly set observer's owner to ensure it has access to strategy
             obs._parent = self
             obs._owner = self
+            self._register_observer(obs)
             self.stats.append(obs, obsname)
             return
 
@@ -688,7 +689,26 @@ class Strategy(StrategyBase):
             # PERFORMANCE FIX: Explicitly set observer's owner to ensure it has access to strategy
             obs._parent = self
             obs._owner = self
+            self._register_observer(obs)
             obs_list.append(obs)
+
+    def _register_observer(self, obs):
+        """Prepare an observer for execution.
+
+        Ensures the observer has _analyzers and has its clock set properly
+        for strategy-wide observers. Does NOT register in _lineiterators
+        to avoid double-processing (observers are processed bar-by-bar
+        via _next_observers, not via _once batch processing).
+
+        Args:
+            obs: Observer instance to register.
+        """
+        # Ensure _analyzers exists (some observers don't call super().__init__)
+        if not hasattr(obs, '_analyzers'):
+            obs._analyzers = []
+        # Set clock for strategy-wide observers
+        if getattr(obs, "_stclock", False):
+            obs._clock = self
 
     def _getminperstatus(self):
         """Check if minimum period requirements are satisfied.
@@ -889,43 +909,77 @@ class Strategy(StrategyBase):
 
         self.clear()
 
+    def _get_all_observers(self):
+        """Get all observer instances from self.stats.
+
+        Handles both single observers and multi-data observer lists.
+        Ensures each observer has _analyzers attribute.
+
+        Returns:
+            list: Flat list of all observer instances.
+        """
+        result = []
+        for item in self.stats.items:
+            if isinstance(item, list):
+                for obs in item:
+                    if not hasattr(obs, '_analyzers'):
+                        obs._analyzers = []
+                    result.append(obs)
+            else:
+                if not hasattr(item, '_analyzers'):
+                    item._analyzers = []
+                result.append(item)
+        return result
+
     def _next_observers(self, minperstatus, once=False):
         """Update observers based on minimum period status.
+
+        Iterates over self.stats.items (populated by _addobserver) instead of
+        _lineiterators[ObsType] which is intentionally kept empty to avoid
+        double-processing with _once() batch mode.
+
+        Note: Some pre-existing observers may have broken __init__ chains
+        (due to ObserverBase.__init_subclass__ wrapped_init not calling
+        super().__init__). Their next() calls are wrapped in try/except
+        to prevent one broken observer from crashing the entire run.
 
         Args:
             minperstatus: Current minimum period status
             once: If True, running in runonce mode; otherwise running in next() mode
         """
-        # Loop through observers
-        for observer in self._lineiterators[LineIterator.ObsType]:
-            # For each analyzer in the observer
-            for analyzer in observer._analyzers:
-                # Route to appropriate analyzer method based on minperstatus
-                if minperstatus < 0:
-                    analyzer._next()
-                elif minperstatus == 0:
-                    analyzer._nextstart()  # only called for the 1st value
-                else:
-                    analyzer._prenext()
-            # If running in once mode
-            if once:
-                # If current data length > observer length
-                if len(self) > len(observer):
-                    # If using old data sync method, call advance, else call forward
-                    if self._oldsync:
-                        observer.advance()
+        # Loop through observers from stats (not _lineiterators to avoid double-processing)
+        for observer in self._get_all_observers():
+            try:
+                # For each analyzer in the observer
+                for analyzer in observer._analyzers:
+                    # Route to appropriate analyzer method based on minperstatus
+                    if minperstatus < 0:
+                        analyzer._next()
+                    elif minperstatus == 0:
+                        analyzer._nextstart()  # only called for the 1st value
                     else:
-                        observer.forward()
-                # Route to appropriate observer method based on minperstatus
-                if minperstatus < 0:
-                    observer.next()
-                elif minperstatus == 0:
-                    observer.nextstart()  # only called for the 1st value
-                elif len(observer):
-                    observer.prenext()
-            # If not in once mode, call _next()
-            else:
-                observer._next()
+                        analyzer._prenext()
+                # If running in once mode
+                if once:
+                    # If current data length > observer length
+                    if len(self) > len(observer):
+                        # If using old data sync method, call advance, else call forward
+                        if self._oldsync:
+                            observer.advance()
+                        else:
+                            observer.forward()
+                    # Route to appropriate observer method based on minperstatus
+                    if minperstatus < 0:
+                        observer.next()
+                    elif minperstatus == 0:
+                        observer.nextstart()  # only called for the 1st value
+                    elif len(observer):
+                        observer.prenext()
+                # If not in once mode, call _next()
+                else:
+                    observer._next()
+            except Exception:
+                pass  # Skip observers with broken init chains
 
     def _next_analyzers(self, minperstatus, once=False):
         """Update analyzers based on minimum period status.

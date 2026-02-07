@@ -56,7 +56,8 @@ class BuySell(Observer):
 
         Sets up tracking for buy/sell order lengths.
         """
-        self.curbuylen = None
+        self.curbuylen = 0
+        self.curselllen = 0
 
     def next(self):
         """Update buy/sell markers based on executed orders.
