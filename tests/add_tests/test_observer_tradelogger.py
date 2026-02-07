@@ -356,13 +356,13 @@ def test_file_output_log_format():
         assert info["strategy_name"] == "SMAStrategy"
 
         # .log files should exist
-        assert os.path.isfile(os.path.join(run_dir, "order_log.log"))
-        assert os.path.isfile(os.path.join(run_dir, "trade_log.log"))
-        assert os.path.isfile(os.path.join(run_dir, "position_log.log"))
-        assert os.path.isfile(os.path.join(run_dir, "data_log.log"))
+        assert os.path.isfile(os.path.join(run_dir, "order.log"))
+        assert os.path.isfile(os.path.join(run_dir, "trade.log"))
+        assert os.path.isfile(os.path.join(run_dir, "position.log"))
+        assert os.path.isfile(os.path.join(run_dir, "data.log"))
 
         # check tab-separated content
-        with open(os.path.join(run_dir, "data_log.log"), "r") as f:
+        with open(os.path.join(run_dir, "data.log"), "r") as f:
             header = f.readline()
         assert "\t" in header, "log format should be tab-separated"
 
@@ -393,13 +393,13 @@ def test_file_output_csv_format():
         assert os.path.isdir(run_dir)
 
         # .csv files should exist
-        assert os.path.isfile(os.path.join(run_dir, "order_log.csv"))
-        assert os.path.isfile(os.path.join(run_dir, "trade_log.csv"))
-        assert os.path.isfile(os.path.join(run_dir, "position_log.csv"))
-        assert os.path.isfile(os.path.join(run_dir, "data_log.csv"))
+        assert os.path.isfile(os.path.join(run_dir, "order.csv"))
+        assert os.path.isfile(os.path.join(run_dir, "trade.csv"))
+        assert os.path.isfile(os.path.join(run_dir, "position.csv"))
+        assert os.path.isfile(os.path.join(run_dir, "data.csv"))
 
         # check comma-separated content
-        with open(os.path.join(run_dir, "data_log.csv"), "r") as f:
+        with open(os.path.join(run_dir, "data.csv"), "r") as f:
             header = f.readline()
         assert "," in header, "csv format should be comma-separated"
     finally:
@@ -463,7 +463,7 @@ def test_log_indicators_with_file():
         assert tl is not None
 
         run_dir = os.path.join(tmp_dir, tl._run_id)
-        data_path = os.path.join(run_dir, "data_log.log")
+        data_path = os.path.join(run_dir, "data.log")
         assert os.path.isfile(data_path)
 
         with open(data_path, "r") as f:
@@ -511,7 +511,7 @@ def test_realtime_file_writing():
                         tl = obs
                         break
                 if tl is not None and tl._log_dir is not None:
-                    data_path = os.path.join(tl._log_dir, "data_log.log")
+                    data_path = os.path.join(tl._log_dir, "data.log")
                     if os.path.isfile(data_path) and os.path.getsize(data_path) > 0:
                         self.file_existed_during_run = True
 
@@ -587,7 +587,7 @@ def test_log_time_in_file():
         assert tl is not None
 
         run_dir = os.path.join(tmp_dir, tl._run_id)
-        for fname in ["data_log.log", "position_log.log"]:
+        for fname in ["data.log", "position.log"]:
             fpath = os.path.join(run_dir, fname)
             assert os.path.isfile(fpath), f"{fname} should exist"
             with open(fpath, "r") as f:
@@ -658,7 +658,7 @@ def test_mysql_save():
 
             # Check order_log
             cursor.execute(
-                f"SELECT COUNT(*) FROM `{test_prefix}_order_log` WHERE run_id=%s",
+                f"SELECT COUNT(*) FROM `{test_prefix}_order` WHERE run_id=%s",
                 (tl._run_id,)
             )
             order_count = cursor.fetchone()[0]
@@ -669,7 +669,7 @@ def test_mysql_save():
 
             # Check trade_log
             cursor.execute(
-                f"SELECT COUNT(*) FROM `{test_prefix}_trade_log` WHERE run_id=%s",
+                f"SELECT COUNT(*) FROM `{test_prefix}_trade` WHERE run_id=%s",
                 (tl._run_id,)
             )
             trade_count = cursor.fetchone()[0]
@@ -678,7 +678,7 @@ def test_mysql_save():
 
             # Check position_log
             cursor.execute(
-                f"SELECT COUNT(*) FROM `{test_prefix}_position_log` WHERE run_id=%s",
+                f"SELECT COUNT(*) FROM `{test_prefix}_position` WHERE run_id=%s",
                 (tl._run_id,)
             )
             pos_count = cursor.fetchone()[0]
@@ -687,7 +687,7 @@ def test_mysql_save():
 
             # Verify strategy_name is correct
             cursor.execute(
-                f"SELECT DISTINCT strategy_name FROM `{test_prefix}_order_log` WHERE run_id=%s",
+                f"SELECT DISTINCT strategy_name FROM `{test_prefix}_order` WHERE run_id=%s",
                 (tl._run_id,)
             )
             row = cursor.fetchone()
@@ -695,7 +695,7 @@ def test_mysql_save():
 
             # Verify log_time is populated
             cursor.execute(
-                f"SELECT log_time FROM `{test_prefix}_order_log` WHERE run_id=%s LIMIT 1",
+                f"SELECT log_time FROM `{test_prefix}_order` WHERE run_id=%s LIMIT 1",
                 (tl._run_id,)
             )
             row = cursor.fetchone()
@@ -705,7 +705,7 @@ def test_mysql_save():
         finally:
             # Clean up test tables
             cursor = conn.cursor()
-            for tbl in ["order_log", "trade_log", "position_log"]:
+            for tbl in ["order", "trade", "position"]:
                 cursor.execute(f"DROP TABLE IF EXISTS `{test_prefix}_{tbl}`")
             conn.commit()
             cursor.close()
@@ -763,15 +763,15 @@ def test_mysql_no_data_log_table():
             cursor.execute(
                 "SELECT COUNT(*) FROM information_schema.tables "
                 "WHERE table_schema='backtrder_web' AND table_name=%s",
-                (f"{test_prefix}_data_log",)
+                (f"{test_prefix}_data",)
             )
             count = cursor.fetchone()[0]
-            assert count == 0, "data_log table should NOT be created in MySQL"
+            assert count == 0, "data table should NOT be created in MySQL"
             cursor.close()
         finally:
             # Clean up
             cursor = conn.cursor()
-            for tbl in ["order_log", "trade_log", "position_log"]:
+            for tbl in ["order", "trade", "position"]:
                 cursor.execute(f"DROP TABLE IF EXISTS `{test_prefix}_{tbl}`")
             conn.commit()
             cursor.close()

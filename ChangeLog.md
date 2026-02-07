@@ -2,6 +2,10 @@
 
 ## [Unreleased] - 2026-02-07
 
+### Bug 修复
+
+- **修复 position 日志缺少 dt 的问题**: 当数据源尚无数据时（`len(data)==0`），跳过该数据源的持仓记录，避免 dt 为空。
+
 ### TradeLogger Observer 增强 (迭代137)
 
 #### 新增功能
@@ -13,7 +17,7 @@
 - **可配置文件格式**: 新增 `file_format` 参数，支持 `"log"`（tab分隔，默认）和 `"csv"`（逗号分隔）两种格式。
 - **MySQL 持久化**: 支持将 order、trade、position 日志批量写入 MySQL 数据库。
   - 数据库名：`backtrder_web`
-  - 表：`bt_order_log`、`bt_trade_log`、`bt_position_log`
+  - 表：`bt_order`、`bt_trade`、`bt_position`
   - data 日志因列不固定，仅保存到文件，不写入 MySQL
   - 支持 `log_time`（DATETIME(6) 微秒精度）和 `created_at`（自动时间戳）列
   - 复合索引 `(strategy_name, run_id)` 支持高效查询
@@ -25,10 +29,10 @@
 {log_dir}/{StrategyName}_{YYYYMMDD_HHMMSS}/
     run_info.json           # 运行元数据
     current_position.json   # 最新持仓（每bar更新）
-    order_log.log           # 订单日志
-    trade_log.log           # 交易日志
-    position_log.log        # 持仓日志
-    data_log.log            # 行情+指标数据
+    order.log               # 订单日志
+    trade.log               # 交易日志
+    position.log            # 持仓日志
+    data.log                # 行情+指标数据
 ```
 
 #### 使用示例
@@ -54,6 +58,7 @@ cerebro.addobserver(
 
 #### 测试
 
+- 日志文件名和 MySQL 表名移除 `_log` 后缀（如 `order_log.log` → `order.log`，`bt_order_log` → `bt_order`）
 - 新增 19 个测试用例，覆盖：实时写入、log_time字段、文件格式、current_position.json、策略指标、MySQL读写、MySQL不创建data_log表等
 - 全部 497 个测试通过
 

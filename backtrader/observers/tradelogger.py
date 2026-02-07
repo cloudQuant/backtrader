@@ -20,10 +20,10 @@ File output layout (when ``log_file_enabled=True``)::
     {log_dir}/{StrategyName}_{YYYYMMDD_HHMMSS}/
         run_info.json           # metadata
         current_position.json   # latest position (overwritten each bar)
-        order_log.{ext}
-        trade_log.{ext}
-        position_log.{ext}
-        data_log.{ext}
+        order.{ext}
+        trade.{ext}
+        position.{ext}
+        data.{ext}
 
 ``{ext}`` is ``log`` (default, tab-separated) or ``csv`` depending on
 the ``file_format`` parameter.
@@ -31,9 +31,9 @@ the ``file_format`` parameter.
 MySQL tables (when ``mysql_enabled=True``) – only order, trade, and
 position logs are persisted to MySQL (data logs are file-only)::
 
-    {prefix}_order_log
-    {prefix}_trade_log
-    {prefix}_position_log
+    {prefix}_order
+    {prefix}_trade
+    {prefix}_position
 
 Example::
 
@@ -66,10 +66,10 @@ class TradeLogger(Observer):
 
     Records comprehensive information during backtesting in real-time:
 
-    - **order_log**: Order events (ref, type, status, size, price, etc.)
-    - **trade_log**: Trade events (ref, status, size, price, pnl, etc.)
-    - **position_log**: Position snapshot per bar (size, price)
-    - **data_log**: Bar data per bar (datetime, OHLCV, open interest,
+    - **order**: Order events (ref, type, status, size, price, etc.)
+    - **trade**: Trade events (ref, status, size, price, pnl, etc.)
+    - **position**: Position snapshot per bar (size, price)
+    - **data**: Bar data per bar (datetime, OHLCV, open interest,
       extra data lines, and optionally strategy indicators)
 
     Logs are written to files incrementally on every bar (append mode).
@@ -382,7 +382,7 @@ class TradeLogger(Observer):
             )
             self.order_log.append(entry)
             entries.append(entry)
-        self._append_records("order_log", entries)
+        self._append_records("order", entries)
 
     def _log_trades(self):
         """Log pending trade events for the current bar."""
@@ -413,24 +413,26 @@ class TradeLogger(Observer):
             )
             self.trade_log.append(entry)
             entries.append(entry)
-        self._append_records("trade_log", entries)
+        self._append_records("trade", entries)
 
     def _log_positions(self):
         """Log position snapshot for each data feed in the current bar."""
         entries = []
         now_str = dt_module.datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")
         for data in self._owner_datas:
+            if not len(data):
+                continue
             position = self._owner.getposition(data)
             entry = dict(
                 log_time=now_str,
-                dt=num2date(data.datetime[0]) if len(data) else None,
+                dt=num2date(data.datetime[0]),
                 data_name=getattr(data, "_name", ""),
                 size=position.size,
                 price=position.price,
             )
             self.position_log.append(entry)
             entries.append(entry)
-        self._append_records("position_log", entries)
+        self._append_records("position", entries)
         # update current_position.json
         self._write_current_position(entries)
 
@@ -491,7 +493,7 @@ class TradeLogger(Observer):
 
             self.data_log.append(entry)
             entries.append(entry)
-        self._append_records("data_log", entries)
+        self._append_records("data", entries)
 
     # ------------------------------------------------------------------
     # MySQL persistence
@@ -548,7 +550,7 @@ class TradeLogger(Observer):
         cursor = conn.cursor()
 
         cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS `{pfx}_order_log` (
+            CREATE TABLE IF NOT EXISTS `{pfx}_order` (
                 `id`              BIGINT AUTO_INCREMENT PRIMARY KEY,
                 `log_time`        DATETIME(6)  COMMENT 'wall-clock time when this record was written',
                 `run_id`          VARCHAR(128) NOT NULL,
@@ -574,7 +576,7 @@ class TradeLogger(Observer):
         """)
 
         cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS `{pfx}_trade_log` (
+            CREATE TABLE IF NOT EXISTS `{pfx}_trade` (
                 `id`              BIGINT AUTO_INCREMENT PRIMARY KEY,
                 `log_time`        DATETIME(6)  COMMENT 'wall-clock time when this record was written',
                 `run_id`          VARCHAR(128) NOT NULL,
@@ -608,7 +610,7 @@ class TradeLogger(Observer):
         """)
 
         cursor.execute(f"""
-            CREATE TABLE IF NOT EXISTS `{pfx}_position_log` (
+            CREATE TABLE IF NOT EXISTS `{pfx}_position` (
                 `id`              BIGINT AUTO_INCREMENT PRIMARY KEY,
                 `log_time`        DATETIME(6)  COMMENT 'wall-clock time when this record was written',
                 `run_id`          VARCHAR(128) NOT NULL,
@@ -640,7 +642,7 @@ class TradeLogger(Observer):
         # ---- order_log ----
         if self.order_log:
             sql = (
-                f"INSERT INTO `{pfx}_order_log` "
+                f"INSERT INTO `{pfx}_order` "
                 "(`log_time`,`run_id`,`strategy_name`,`strategy_params`,`run_datetime`,"
                 "`ref`,`ordtype`,`status`,`size`,`price`,`exectype`,"
                 "`executed_price`,`executed_size`,`commission`,`dt`,`data_name`) "
@@ -661,7 +663,7 @@ class TradeLogger(Observer):
         # ---- trade_log ----
         if self.trade_log:
             sql = (
-                f"INSERT INTO `{pfx}_trade_log` "
+                f"INSERT INTO `{pfx}_trade` "
                 "(`log_time`,`run_id`,`strategy_name`,`strategy_params`,`run_datetime`,"
                 "`ref`,`status`,`size`,`price`,`value`,`commission`,"
                 "`pnl`,`pnlcomm`,`isopen`,`isclosed`,`justopened`,"
@@ -687,7 +689,7 @@ class TradeLogger(Observer):
         # ---- position_log ----
         if self.position_log:
             sql = (
-                f"INSERT INTO `{pfx}_position_log` "
+                f"INSERT INTO `{pfx}_position` "
                 "(`log_time`,`run_id`,`strategy_name`,`strategy_params`,`run_datetime`,"
                 "`dt`,`data_name`,`size`,`price`) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s)"

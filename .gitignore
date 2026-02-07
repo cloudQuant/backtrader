@@ -9,6 +9,7 @@ account_config.yaml
 CryptoBroker*
 TestStrategy*
 */logs/*
+logs/
 # C extensions
 *.so
 

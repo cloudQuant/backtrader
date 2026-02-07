@@ -214,7 +214,7 @@ Comprehensive observer for real-time logging during backtests:
 - **current_position.json**: Updated after each bar with latest holdings
 - **Strategy indicators**: Optionally log strategy-calculated indicators in data files
 - **Configurable format**: Tab-separated `.log` (default) or standard `.csv`
-- **MySQL persistence**: Order/trade/position logs can be saved to MySQL for analysis
+- **MySQL persistence**: Order/trade/position logs saved to MySQL (`bt_order`, `bt_trade`, `bt_position`)
 
 ```python
 cerebro.addobserver(

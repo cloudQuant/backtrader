@@ -3,7 +3,7 @@
 """Setup script for backtrader TradeLogger MySQL database.
 
 Creates the ``backtrder_web`` database and the required tables
-(bt_order_log, bt_trade_log, bt_position_log) for persisting
+(bt_order, bt_trade, bt_position) for persisting
 backtest logs from TradeLogger.
 
 Usage::
@@ -26,9 +26,9 @@ def get_password():
     print()
     print("This script will create:")
     print("  - Database: backtrder_web")
-    print("  - Table:    bt_order_log")
-    print("  - Table:    bt_trade_log")
-    print("  - Table:    bt_position_log")
+    print("  - Table:    bt_order")
+    print("  - Table:    bt_trade")
+    print("  - Table:    bt_position")
     print()
     pwd = getpass.getpass(
         "Enter MySQL root password (press Enter for default 'backtrader_web_123'): "
@@ -51,7 +51,7 @@ def create_tables(cursor, prefix="bt"):
     """Create the three log tables with best-practice schema."""
 
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS `{prefix}_order_log` (
+        CREATE TABLE IF NOT EXISTS `{prefix}_order` (
             `id`              BIGINT AUTO_INCREMENT PRIMARY KEY,
             `log_time`        DATETIME(6)  COMMENT 'wall-clock time when this record was written',
             `run_id`          VARCHAR(128) NOT NULL,
@@ -77,7 +77,7 @@ def create_tables(cursor, prefix="bt"):
     """)
 
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS `{prefix}_trade_log` (
+        CREATE TABLE IF NOT EXISTS `{prefix}_trade` (
             `id`              BIGINT AUTO_INCREMENT PRIMARY KEY,
             `log_time`        DATETIME(6)  COMMENT 'wall-clock time when this record was written',
             `run_id`          VARCHAR(128) NOT NULL,
@@ -111,7 +111,7 @@ def create_tables(cursor, prefix="bt"):
     """)
 
     cursor.execute(f"""
-        CREATE TABLE IF NOT EXISTS `{prefix}_position_log` (
+        CREATE TABLE IF NOT EXISTS `{prefix}_position` (
             `id`              BIGINT AUTO_INCREMENT PRIMARY KEY,
             `log_time`        DATETIME(6)  COMMENT 'wall-clock time when this record was written',
             `run_id`          VARCHAR(128) NOT NULL,
@@ -147,9 +147,9 @@ def main():
         print()
         print("This script will create:")
         print("  - Database: backtrder_web")
-        print("  - Table:    bt_order_log")
-        print("  - Table:    bt_trade_log")
-        print("  - Table:    bt_position_log")
+        print("  - Table:    bt_order")
+        print("  - Table:    bt_trade")
+        print("  - Table:    bt_position")
         print()
         print("Using password from command line argument.")
     else:
@@ -190,9 +190,9 @@ def main():
         print(f"  Database `{db_name}` and tables created successfully.")
         print()
         print("  Tables created:")
-        print(f"    - {prefix}_order_log")
-        print(f"    - {prefix}_trade_log")
-        print(f"    - {prefix}_position_log")
+        print(f"    - {prefix}_order")
+        print(f"    - {prefix}_trade")
+        print(f"    - {prefix}_position")
         print("=" * 60)
 
     except Exception as e:
