@@ -6,9 +6,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Backtrader is a Python-based quantitative trading and backtesting framework for mid-to-low frequency strategies. This is a fork that removes metaclass-based metaprogramming in favor of explicit initialization patterns while maintaining API compatibility with the original backtrader.
 
-**Current Branch**: `remove-metaprogramming` - Major refactoring to eliminate metaclass usage
-**Main Branch**: `master` - Stable version aligned with official backtrader
-**Development Branch**: `dev` - New features and C++ integration for tick-level testing
+**Branch Context**:
+- `dev` branch: Active development with 45% performance improvement, tick-level testing, C++ integration
+- `master` branch: Stable version aligned with official backtrader
+- `remove-metaprogramming`: Legacy branch for metaclass removal (mostly merged into dev)
+
+**Performance**: The dev branch achieves 45% faster execution through elimination of metaclasses, broker optimization, and Cython-accelerated calculations.
 
 ## Development Commands
 
@@ -29,7 +32,7 @@ cd backtrader; python -W ignore compile_cython_numba_files.py; cd ..; pip instal
 # Run all tests (parallel execution recommended)
 pytest tests/ -n 4 -v
 
-# Run only original tests
+# Run only original tests (excluding crypto tests)
 pytest tests/original_tests/ -v
 
 # Run indicator tests
@@ -46,6 +49,9 @@ pytest tests/path/to/test_file.py::test_function_name -v --tb=short
 
 # Run tests with coverage
 make test-coverage
+
+# Run benchmarks
+make benchmark
 ```
 
 ### Code Quality
@@ -67,18 +73,42 @@ make security
 
 # Run all quality checks
 make quality-check
+
+# Full code optimization (pyupgrade, isort, black, ruff, then test)
+bash scripts/optimize_code.sh
 ```
 
-### Using Makefile
+### Documentation
+```bash
+# Generate all documentation (en + zh)
+make docs
+
+# Generate English documentation
+make docs-en
+
+# Generate Chinese documentation
+make docs-zh
+
+# Build English docs with live reload (for development)
+make docs-live
+
+# Open documentation in browser
+make docs-view
+```
+
+### Development Utilities
 ```bash
 # See all available commands
 make help
 
-# Install for development
-make dev-install
-
 # Clean build artifacts
 make clean
+
+# Setup git hooks for development
+make git-setup
+
+# Analyze metaclass usage in codebase
+make analyze-metaprogramming
 ```
 
 ## Architecture Overview
@@ -106,10 +136,11 @@ The codebase is transitioning from metaclass-based to mixin-based architecture:
    - `Strategy`: Trading strategy base class
    - `Data/Feed`: Data source management
 
-4. **Engine**: `cerebro.py` (~2000 lines)
+4. **Engine**: `cerebro.py` (~88K lines)
    - Main orchestration engine
    - Manages strategies, data feeds, brokers, analyzers
    - Handles backtesting execution flow
+   - Coordinates the entire backtesting lifecycle
 
 ### Critical Initialization Pattern
 
@@ -152,12 +183,14 @@ def __init__(self, *args, **kwargs):
 
 ### Parameter System
 
-**Location**: `parameters.py` (~1850 lines)
+**Location**: `parameters.py` (~76K lines)
 
 Parameters use `AutoOrderedDict` and are initialized via `donew()`:
 - Parameters defined at class level with `params = (...)` or `params = dict(...)`
 - Values passed as kwargs override defaults
 - Accessed via `self.p.parametername` or `self.params.parametername`
+
+**Critical**: Parameters are NOT available until after `super().__init__()` is called. The initialization chain sets up `self.p` and `self.params` attributes.
 
 ### Data Flow
 
@@ -194,10 +227,16 @@ Alternative optimized mode uses:
 
 ### Line System
 - `lineroot.py`: Base classes and interfaces
-- `linebuffer.py`: Data storage with circular buffers
-- `lineseries.py`: Time series operations
-- `lineiterator.py`: Iterator logic and execution phases
+- `linebuffer.py`: Data storage with circular buffers (~1950 lines)
+- `lineseries.py`: Time series operations (~75K lines)
+- `lineiterator.py`: Iterator logic and execution phases (~94K lines)
 - `dataseries.py`: Data accessor interfaces
+
+**Key Concept**: The Line system is the core data structure. Lines are time series that support:
+- Circular buffering for memory efficiency
+- Lazy evaluation for indicators
+- Period management (minperiod before valid data)
+- Access patterns like `data.close[0]` (current), `data.close[-1]` (previous)
 
 ### Data Management
 - `feed.py`: Base data feed classes
@@ -218,6 +257,14 @@ Alternative optimized mode uses:
 - `metabase.py`: Base mixins and owner-finding logic (critical for post-metaclass code)
 - `utils/`: Date handling, performance calculations, logging
 - `utils/*_cython/`: Cython-optimized calculations for `ts` and `cs` modes
+- `utils/ts_cal_value/`: Time series mode Cython implementations
+- `utils/cs_cal_value/`: Cross-section mode calculations
+- `utils/cal_performance_indicators/`: Performance metrics in Cython
+
+### Visualization
+- `plot/plot_plotly.py`: Interactive charts with zoom, pan, hover (100k+ data points)
+- `plot/`: Matplotlib-based static plotting for papers/reports
+- Supports multiple backends: Plotly, Bokeh, Matplotlib
 
 ## Special Features
 
@@ -228,24 +275,25 @@ Fast vectorized backtesting using pandas operations. See `utils/ts_cal_value/` f
 Multi-asset portfolio backtesting with cross-sectional signals. See `utils/cs_cal_value/` and `utils/cs_long_short_signals/`.
 
 ### Cython Optimization
-Performance-critical calculations are implemented in Cython:
+Performance-critical calculations are implemented in Cython for 10-100x speedup:
 - `utils/cal_performance_indicators/`: Performance metrics
-- Compile via `compile_cython_numba_files.py`
+- `utils/ts_cal_value/`: Time series calculations
+- `utils/cs_cal_value/`: Cross-section calculations
+- Compile via: `cd backtrader && python -W ignore compile_cython_numba_files.py`
 
 ## Testing Notes
 
 ### Test Organization
-- `tests/original_tests/`: Core functionality tests
+- `tests/original_tests/`: Core functionality tests (300+ tests)
 - `tests/add_tests/`: Additional test coverage
 - `tests/refactor_tests/`: Tests for metaclass removal refactoring
+- `tests/strategies/`: Strategy-specific test cases
 
-### Known Issues (as of remove-metaprogramming branch)
-See `PROGRESS_INDICATOR_FIXES.md` for detailed status. Current pass rate: ~91% (291/318 tests).
-
-**Main remaining issues**:
-1. Some indicator value calculations don't match expected results
-2. Strategy trading logic may not trigger properly in certain tests
-3. Cascading analyzer failures due to no-trade scenarios
+### Test Configuration
+- **pytest.ini**: Configures test discovery and warning filters
+- **conftest.py**: Handles temp directory cleanup (fixes Windows permission issues)
+- Parallel execution via pytest-xdist (`-n` flag) is recommended for speed
+- RuntimeWarning and DeprecationWarning are filtered by default
 
 ### When Writing Tests
 - Use fixtures from `conftest.py` if available
@@ -253,6 +301,7 @@ See `PROGRESS_INDICATOR_FIXES.md` for detailed status. Current pass rate: ~91% (
 - Verify indicator registration via `strategy._lineiterators`
 - Check minperiod handling in prenext/next phases
 - Ensure cleanup after tests (no shared state)
+- Tests should pass on both `dev` and `master` branches for correctness validation
 
 ## Common Tasks
 
@@ -282,20 +331,25 @@ See `PROGRESS_INDICATOR_FIXES.md` for detailed status. Current pass rate: ~91% (
 ## Code Style
 
 - Line length: 100 characters (Black configuration)
-- Python 3.7+ (future versions will require Python 3 only)
+- Python 3.8+ (tested on 3.8-3.13)
 - Type hints are encouraged but not strictly required
 - Use descriptive variable names (avoid single letters except in loops)
 - Comments in Chinese and English are both present in the codebase
 
+### Configuration Files
+- `pyproject.toml`: Black (line-length=100), mypy, coverage, bandit, isort, ruff configuration
+- `pytest.ini`: Test discovery and warning filters
+- `.pylintrc`: Pylint rules for code quality checks
+
 ## Important Constraints
 
 ### Metaclass Removal Project
-The current branch (`remove-metaprogramming`) is removing all metaclass usage. When working on this:
+The codebase has removed most metaclass usage. When working on this:
 
-1. **Never use metaclasses** - use mixins with `donew()` pattern instead
+1. **Never introduce new metaclasses** - use mixins with `donew()` pattern instead
 2. **Preserve API compatibility** - existing user code must work unchanged
 3. **Maintain initialization order** - parent `__init__` before accessing `self.p` or lines
-4. **Test extensively** - metaclass removal can break subtle dependencies
+4. **Test on both branches** - ensure consistency between `dev` and `master` when validating fixes
 
 ### Parameter Access
 Always call `super().__init__()` **before** accessing `self.p` or `self.params`. The initialization chain sets up these attributes.
@@ -312,3 +366,6 @@ Objects need to know their owner (e.g., indicator needs its strategy/data). This
 - Use `qbuffer()` to limit memory for long backtests
 - The `once()` mode is faster than `next()` mode but harder to implement
 - TS/CS modes are optimized for multi-asset portfolios
+- Broker optimizations: removed global `__getattribute__` overloads, implemented local parameter caching
+- Indicator optimizations: optimized `once()` methods, reduced redundant built-in function calls in hot paths
+- Minimize `isinstance()`, `hasattr()`, and `len()` calls in performance-critical code
