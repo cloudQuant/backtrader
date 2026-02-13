@@ -439,6 +439,38 @@ def run_strategy():
         print("OKX_PASSWORD=your_password")
         return
 
+    # 添加代理配置（如果设置了环境变量）
+    proxy_host = os.getenv('PROXY_HOST') or os.getenv('HTTP_PROXY') or os.getenv('http_proxy')
+    socks_proxy = os.getenv('SOCKS_PROXY') or os.getenv('socks_proxy')
+
+    if proxy_host:
+        # 如果是 http/https 代理
+        if not proxy_host.startswith(('http://', 'https://', 'socks')):
+            proxy_host = f'http://{proxy_host}'
+        config['proxies'] = {
+            'http': proxy_host,
+            'https': proxy_host,
+        }
+        print(f'[PROXY] 使用 HTTP 代理: {proxy_host}')
+
+    elif socks_proxy:
+        # 如果是 socks 代理
+        config['proxies'] = {
+            'http': socks_proxy,
+            'https': socks_proxy,
+        }
+        print(f'[PROXY] 使用 SOCKS 代理: {socks_proxy}')
+
+    # 添加额外的连接配置
+    config.update({
+        'timeout': 30000,  # 30秒超时
+        'enableRateLimit': True,
+        'options': {
+            'defaultType': 'spot',
+            'adjustForTimeDifference': True,  # 调整时间差
+        }
+    })
+
     # 创建 Cerebro 引擎
     cerebro = bt.Cerebro()
 
