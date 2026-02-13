@@ -36,9 +36,8 @@ Example:
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 #
 ###############################################################################
-import backtrader
 
 from . import vortex as vortex
 
-for name in vortex.__all__:
-    setattr(backtrader.indicators, name, getattr(vortex, name))
+# Import indicators to backtrader.indicators namespace
+# This is done by the parent __init__.py to avoid circular import

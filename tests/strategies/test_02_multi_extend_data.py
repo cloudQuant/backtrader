@@ -11,7 +11,6 @@ Expected values after fixing cross-platform sorting inconsistency:
   max_drawdown: 0.24142378277185714
   trade_num: 1750
 """
-import backtrader as bt
 import datetime
 import os
 import platform
@@ -20,13 +19,18 @@ import time
 import warnings
 from pathlib import Path
 
+import numpy as np
+import pandas as pd
+import pytest
+
+# Skip this module if seaborn is not installed
+sns = pytest.importorskip("seaborn")
+
 import matplotlib as mpl
 import matplotlib.dates as mdates
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
-import numpy as np
-import pandas as pd
-import seaborn as sns
+import backtrader as bt
 
 # Set up Chinese font
 from matplotlib.font_manager import FontManager, FontProperties

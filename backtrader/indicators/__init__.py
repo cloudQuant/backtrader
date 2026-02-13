@@ -23,7 +23,7 @@ Example:
 """
 
 from ..indicator import Indicator as Indicator
-from backtrader.functions import *
+from ..functions import *
 
 # The modules below should/must define __all__ with the Indicator objects
 # of prepend an "_" (underscore) to private classes/variables
@@ -88,6 +88,7 @@ from .ichimoku import *
 from .hurst import *
 from .ols import *
 from .hadelta import *
+from .vortex import *
 
 # Add some custom indicators
 from .myind import *

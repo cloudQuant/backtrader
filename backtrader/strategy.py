@@ -367,11 +367,66 @@ class Strategy(StrategyBase):
     # Keep the latest delivered data date in the line
     lines = ("datetime",)
 
-    def log(self, txt, dt=None):
-        """Default log method - can be overridden by subclasses"""
-        # Default implementation does nothing
-        # Subclasses like BtApiStrategy override this with actual logging
-        pass
+    def log(self, txt, dt=None, level='info'):
+        """Log a message with optional datetime.
+
+        This method provides basic logging functionality. For comprehensive
+        logging including orders, trades, positions, indicators, and signals,
+        use the TradeLogger observer.
+
+        Args:
+            txt: The message text to log.
+            dt: Optional datetime. If None, uses current bar datetime.
+            level: Log level ('info', 'warning', 'error', 'debug').
+
+        Example:
+            >>> self.log(f'Close price: {self.data.close[0]:.2f}')
+            >>> self.log('Warning message', level='warning')
+        """
+        dt = dt or self.datetime.datetime()
+        print(f'[{dt}] {txt}')
+
+    def _notify_signal_to_observers(self, action, size, price, data=None, reason=None):
+        """Notify all TradeLogger observers about a trading signal.
+
+        This is called automatically by buy() and sell() methods to record
+        signals without requiring user intervention.
+
+        Args:
+            action: 'buy' or 'sell'
+            size: Order size
+            price: Signal price
+            data: Data feed (optional)
+            reason: Signal reason (optional)
+        """
+        # Notify all observers that have log_signal method (TradeLogger)
+        if hasattr(self, 'stats') and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, 'log_signal'):
+                    data_name = getattr(data, '_name', None) if data else None
+                    observer.log_signal(action, size, price, data_name, reason)
+
+    def _notify_order_to_observers(self, order):
+        """Notify all observers about an order status change.
+
+        Args:
+            order: The order object with status change
+        """
+        if hasattr(self, 'stats') and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, 'notify_order'):
+                    observer.notify_order(order)
+
+    def _notify_trade_to_observers(self, trade):
+        """Notify all observers about a trade.
+
+        Args:
+            trade: The trade object
+        """
+        if hasattr(self, 'stats') and self.stats:
+            for observer in self.stats:
+                if hasattr(observer, 'notify_trade'):
+                    observer.notify_trade(trade)
 
     def qbuffer(self, savemem=0, replaying=False):
         """Enable the memory saving schemes. Possible values for ``savemem``:
@@ -896,10 +951,20 @@ class Strategy(StrategyBase):
             minperstatus: Current minimum period status
             once: If True, running in runonce mode; otherwise running in next() mode
         """
+        # Collect all observers from _lineiterators
+        observers_to_process = list(self._lineiterators[LineIterator.ObsType])
+        # Also include TradeLogger observers from stats that are not in _lineiterators
+        # (TradeLogger needs next() to be called for position/indicator logging)
+        for obs in self.stats:
+            if obs not in observers_to_process:
+                # Only add TradeLogger type observers to avoid breaking other observers
+                if obs.__class__.__name__ == 'TradeLogger':
+                    observers_to_process.append(obs)
+        
         # Loop through observers
-        for observer in self._lineiterators[LineIterator.ObsType]:
-            # For each analyzer in the observer
-            for analyzer in observer._analyzers:
+        for observer in observers_to_process:
+            # For each analyzer in the observer (if observer has _analyzers)
+            for analyzer in getattr(observer, '_analyzers', []):
                 # Route to appropriate analyzer method based on minperstatus
                 if minperstatus < 0:
                     analyzer._next()
@@ -1269,11 +1334,15 @@ class Strategy(StrategyBase):
             # Notify order to analyzers (both user and slave analyzers)
             for analyzer in all_analyzers:
                 analyzer._notify_order(order)
+            # Notify order to observers (e.g., TradeLogger)
+            self._notify_order_to_observers(order)
         # Loop through pending trades, notify, and notify analyzers
         for trade in proctrades:
             self.notify_trade(trade)
             for analyzer in all_analyzers:
                 analyzer._notify_trade(trade)
+            # Notify trade to observers (e.g., TradeLogger)
+            self._notify_trade_to_observers(trade)
         # If qorders is not empty, return after processing orders
         if qorders:
             return  # cash is notified regularly
@@ -1533,11 +1602,9 @@ class Strategy(StrategyBase):
         data = data if data is not None else self.datas[0]
         # Use the provided size, otherwise calculate via getsizer
         size = size if size is not None else self.getsizing(data, isbuy=True)
-        # self.log(f"strategy begin to buy, {data.name}, {size}")
         # If size is non-zero, submit the order
         if size:
-            # print("broker = ", type(self.broker), self.broker)
-            return self.broker.buy(
+            order = self.broker.buy(
                 self,
                 data,
                 size=abs(size),
@@ -1553,6 +1620,10 @@ class Strategy(StrategyBase):
                 transmit=transmit,
                 **kwargs,
             )
+            # Auto-notify signal to TradeLogger observers
+            signal_price = price if price is not None else data.close[0]
+            self._notify_signal_to_observers('buy', abs(size), signal_price, data)
+            return order
 
         return None
 
@@ -1584,10 +1655,8 @@ class Strategy(StrategyBase):
 
         data = data if data is not None else self.datas[0]
         size = size if size is not None else self.getsizing(data, isbuy=False)
-        # self.log(f"strategy begin to sell, {data.name}, {size}")
         if size:
-            # print("broker = ", type(self.broker), self.broker)
-            return self.broker.sell(
+            order = self.broker.sell(
                 self,
                 data,
                 size=abs(size),
@@ -1603,6 +1672,10 @@ class Strategy(StrategyBase):
                 transmit=transmit,
                 **kwargs,
             )
+            # Auto-notify signal to TradeLogger observers
+            signal_price = price if price is not None else data.close[0]
+            self._notify_signal_to_observers('sell', abs(size), signal_price, data)
+            return order
 
         return None
 

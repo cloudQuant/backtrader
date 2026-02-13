@@ -13,11 +13,13 @@ Available Observers:
     - LogReturns: Log returns tracking
     - TimeReturn: Returns by time period
     - Trades: Trade tracking
+    - TradeLogger: Comprehensive logging (orders, trades, positions, indicators, signals)
 
 Example:
     Adding observers to a strategy:
     >>> cerebro.addobserver(bt.observers.DrawDown)
     >>> cerebro.addobserver(bt.observers.Trades)
+    >>> cerebro.addobserver(bt.observers.TradeLogger, log_dir='./logs')
 """
 
 # The modules below should/must define __all__ with the Indicator objects
@@ -30,3 +32,4 @@ from .drawdown import *
 from .logreturns import *
 from .timereturn import *
 from .trades import *
+from .trade_logger import TradeLogger

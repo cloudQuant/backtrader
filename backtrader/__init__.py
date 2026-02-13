@@ -46,8 +46,8 @@ See Also:
     - GitHub: https://github.com/mementum/backtrader
 """
 
-# Load contributed indicators and studies
-from .indicators import contrib as _indicators_contrib
+# Load contributed indicators and studies (lazy import to avoid circular dependency)
+# from .indicators import contrib as _indicators_contrib
 
 from . import analyzers as analyzers
 from . import broker as broker

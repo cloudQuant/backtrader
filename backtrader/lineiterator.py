@@ -1225,7 +1225,27 @@ class LineIterator(LineIteratorMixin, LineSeries):
             int: Current clock length.
         """
         # Update current time line and return length
-        clock_len = len(self._clock)
+        # CRITICAL FIX: Handle invalid clocks (e.g., MinimalOwner) that don't have len()
+        try:
+            clock_len = len(self._clock)
+        except (TypeError, AttributeError):
+            # Clock is invalid (e.g., MinimalOwner), try to get length from owner's data
+            clock_len = 0
+            if hasattr(self, '_owner') and self._owner is not None:
+                if hasattr(self._owner, 'datas') and self._owner.datas:
+                    try:
+                        clock_len = len(self._owner.datas[0])
+                        # Also fix the clock for future calls
+                        self._clock = self._owner.datas[0]
+                    except (TypeError, AttributeError):
+                        pass
+                elif hasattr(self._owner, '__len__'):
+                    try:
+                        clock_len = len(self._owner)
+                        self._clock = self._owner
+                    except (TypeError, AttributeError):
+                        pass
+        
         if clock_len != len(self):
             self.forward()
 
@@ -1895,26 +1915,27 @@ class ObserverBase(DataAccessor):
                     # If that fails, try with the original arguments
                     original_init(self, *args, **kwargs)
 
-                # CRITICAL FIX: Enhanced strategy finding for observers/analyzers
+                # CRITICAL FIX: Only find owner if not already set
+                # Don't reset _owner to None - it may have been set correctly by super().__init__()
                 from . import metabase
 
-                self._owner = None
+                existing_owner = getattr(self, '_owner', None)
 
-                # Try multiple approaches to find the strategy
+                # Only search for owner if not already set correctly
+                if existing_owner is None:
+                    # OPTIMIZED: Use metabase.findowner with Strategy (no call stack traversal needed)
+                    try:
+                        from .strategy import Strategy
+                    except ImportError:
+                        Strategy = None
 
-                # OPTIMIZED: Use metabase.findowner with Strategy (no call stack traversal needed)
-                try:
-                    from .strategy import Strategy
-                except ImportError:
-                    Strategy = None
-
-                if Strategy is not None:
-                    strategy = metabase.findowner(self, Strategy)
-                    if strategy:
-                        self._owner = strategy
+                    if Strategy is not None:
+                        strategy = metabase.findowner(self, Strategy)
+                        if strategy:
+                            self._owner = strategy
 
                 # Fallback: Set up a flag to be connected later by cerebro
-                if self._owner is None:
+                if getattr(self, '_owner', None) is None:
                     self._owner_pending = True
                 else:
                     self._owner_pending = False
@@ -1922,10 +1943,13 @@ class ObserverBase(DataAccessor):
                 # CRITICAL FIX: Set up observer attributes properly with strategy connection
                 if self._owner is not None:
                     # Set up clock from strategy for timing
-                    if hasattr(self._owner, "_clock"):
-                        self._clock = self._owner._clock
+                    # CRITICAL: Check _stclock flag - if True, clock should be the strategy itself
+                    if getattr(self, '_stclock', False):
+                        self._clock = self._owner
                     elif hasattr(self._owner, "datas") and self._owner.datas:
                         self._clock = self._owner.datas[0]
+                    elif hasattr(self._owner, "_clock") and self._owner._clock is not None:
+                        self._clock = self._owner._clock
                     else:
                         self._clock = self._owner
 
