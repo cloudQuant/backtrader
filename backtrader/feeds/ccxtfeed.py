@@ -35,6 +35,16 @@ from backtrader.utils.py3 import queue
 
 from ..utils import date2num
 
+# Import ccxt errors for error handling
+try:
+    from ccxt.base.errors import NetworkError, ExchangeError, ExchangeNotAvailable
+    HAS_CCXT_ERRORS = True
+except ImportError:
+    HAS_CCXT_ERRORS = False
+    NetworkError = Exception
+    ExchangeError = Exception
+    ExchangeNotAvailable = Exception
+
 # Import enhancement modules
 try:
     from ..ccxt.threading import ThreadedDataManager
@@ -82,6 +92,9 @@ class CCXTFeed(DataBase):
         ("hist_start_date", None),
         ("ws_reconnect_delay", 5.0),
         ("ws_max_reconnect_delay", 60.0),
+        ("max_fetch_retries", 3),
+        ("fetch_retry_delay", 1.0),
+        ("ws_health_check_interval", 30.0),
     )
 
     _store = ccxtstore.CCXTStore
@@ -115,9 +128,17 @@ class CCXTFeed(DataBase):
         self._ws_connected = False
         self._ws_thread = None
         self._ws_lock = threading.Lock()
+        self._ws_last_data_time = 0
+        self._ws_disconnected_since = 0
+        self._ws_backfill_needed = False
 
         # Threading related
         self._threaded_data_manager = None
+
+        # Error tracking
+        self._consecutive_fetch_errors = 0
+        self._max_consecutive_errors = 10
+        self._last_error_time = 0
 
     def utc_to_ts(self, dt):
         """Convert datetime to timestamp in milliseconds."""
@@ -150,23 +171,33 @@ class CCXTFeed(DataBase):
             self._start_websocket()
 
     def _start_websocket(self):
-        """Start WebSocket connection for real-time data."""
+        """Start WebSocket connection for real-time data.
+
+        Uses the shared WebSocket manager from the store if available,
+        allowing multiple feeds to share a single WS connection.
+        Falls back to creating a per-feed instance if store doesn't provide one.
+        """
         if not HAS_CCXT_ENHANCEMENTS or CCXTWebSocketManager is None:
             print("[WS] WebSocket not available. Install ccxt.pro: pip install ccxtpro")
             return
 
         try:
-            config = getattr(self.store.exchange, 'config', {})
-            # Pass pre-loaded markets from store to avoid REST API call in WebSocket
-            markets = getattr(self.store.exchange, 'markets', None)
-            self._websocket_manager = CCXTWebSocketManager(
-                self.store.exchange_id,
-                config,
-                markets=markets
-            )
-            self._websocket_manager.start()
+            # Try to use shared WebSocket manager from store
+            if hasattr(self.store, 'get_websocket_manager'):
+                self._websocket_manager = self.store.get_websocket_manager()
 
-            # Subscribe to OHLCV updates
+            # Fallback: create a per-feed WebSocket manager
+            if self._websocket_manager is None:
+                config = getattr(self.store.exchange, 'config', {})
+                markets = getattr(self.store.exchange, 'markets', None)
+                self._websocket_manager = CCXTWebSocketManager(
+                    self.store.exchange_id,
+                    config,
+                    markets=markets
+                )
+                self._websocket_manager.start()
+
+            # Subscribe to OHLCV updates for this feed's symbol
             granularity = self.store.get_granularity(self._timeframe, self._compression)
             self._websocket_manager.subscribe_ohlcv(
                 self.p.dataname,
@@ -174,7 +205,7 @@ class CCXTFeed(DataBase):
                 self._on_websocket_ohlcv
             )
 
-            print(f"[WS] WebSocket started for {self.p.dataname}")
+            print(f"[WS] WebSocket subscribed for {self.p.dataname} ({granularity})")
 
         except Exception as e:
             print(f"[WS] WebSocket start error: {e}")
@@ -191,6 +222,8 @@ class CCXTFeed(DataBase):
 
         try:
             with self._ws_lock:
+                was_disconnected = not self._ws_connected
+
                 for bar in ohlcv_data:
                     # bar format: [timestamp, open, high, low, close, volume]
                     if len(bar) >= 6 and bar[0] > self._last_ts:
@@ -205,6 +238,16 @@ class CCXTFeed(DataBase):
                                   f"L={bar[3]:.6f} C={bar[4]:.6f} V={bar[5]:.0f}")
 
                 self._ws_connected = True
+                self._ws_last_data_time = time.time()
+
+                # If we were disconnected and got data again, backfill might be needed
+                if was_disconnected and self._ws_disconnected_since > 0:
+                    gap_seconds = time.time() - self._ws_disconnected_since
+                    if gap_seconds > 60:  # Only backfill if gap > 1 minute
+                        self._ws_backfill_needed = True
+                        if self.p.debug:
+                            print(f"[WS] Reconnected after {gap_seconds:.0f}s gap, backfill needed")
+                    self._ws_disconnected_since = 0
 
         except Exception as e:
             print(f"[WS] Error processing WebSocket data: {e}")
@@ -223,10 +266,26 @@ class CCXTFeed(DataBase):
 
         while True:
             if self._state == self._ST_LIVE:
-                # WebSocket mode: data comes from background thread
-                if self.p.use_websocket and self._ws_connected:
-                    # Data is pushed by WebSocket callback
-                    return self._load_bar()
+                # WebSocket mode: check health and handle backfill
+                if self.p.use_websocket:
+                    self._check_ws_health()
+
+                    # Perform backfill if needed after WS reconnection
+                    if self._ws_backfill_needed:
+                        self._ws_backfill_needed = False
+                        if self.p.debug:
+                            print("[WS] Performing backfill after reconnection")
+                        self._update_bar(livemode=True)
+
+                    if self._ws_connected:
+                        # Data is pushed by WebSocket callback
+                        return self._load_bar()
+                    else:
+                        # WebSocket disconnected, fall back to REST polling
+                        if self.p.debug and self._ws_disconnected_since == 0:
+                            print("[WS] Disconnected, falling back to REST polling")
+                        if self._ws_disconnected_since == 0:
+                            self._ws_disconnected_since = time.time()
 
                 # REST polling mode: check if we need to fetch
                 timeframe = self._timeframe
@@ -266,13 +325,42 @@ class CCXTFeed(DataBase):
 
                         continue
 
+    def _check_ws_health(self):
+        """Check WebSocket connection health and detect stale connections.
+
+        If no data received for ws_health_check_interval seconds, mark as disconnected.
+        This catches cases where the WS connection is alive but not receiving data.
+        """
+        if not self._ws_connected or not self._websocket_manager:
+            return
+
+        now = time.time()
+        # Check if WebSocket manager reports disconnected
+        if hasattr(self._websocket_manager, 'is_connected') and not self._websocket_manager.is_connected():
+            self._ws_connected = False
+            return
+
+        # Check for stale data (no updates for too long)
+        if self._ws_last_data_time > 0:
+            silence = now - self._ws_last_data_time
+            if silence > self.p.ws_health_check_interval:
+                if self.p.debug:
+                    print(f"[WS] No data for {silence:.0f}s, marking as disconnected")
+                self._ws_connected = False
+
     def _update_bar(self, fromdate=None, livemode=False):
-        """Fetch OHLCV data into self._data queue.
+        """Fetch OHLCV data into self._data queue with error handling.
 
         Args:
             fromdate: Start datetime for fetching.
             livemode: True if in live mode (fetches less data).
         """
+        # Check connection before fetching
+        if hasattr(self.store, 'is_connected') and not self.store.is_connected():
+            if self.p.debug:
+                print("[CCXTFeed] Store disconnected, skipping fetch")
+            return
+
         granularity = self.store.get_granularity(self._timeframe, self._compression)
 
         if fromdate:
@@ -284,15 +372,26 @@ class CCXTFeed(DataBase):
         while True:
             dlen = self._data.qsize()
 
-            bars = sorted(
-                self.store.fetch_ohlcv(
-                    self.p.dataname,
-                    timeframe=granularity,
-                    since=self._last_ts,
-                    limit=limit,
-                    params=self.p.fetch_ohlcv_params,
+            try:
+                bars = sorted(
+                    self._fetch_ohlcv_with_retry(
+                        self.p.dataname,
+                        timeframe=granularity,
+                        since=self._last_ts,
+                        limit=limit,
+                        params=self.p.fetch_ohlcv_params,
+                    )
                 )
-            )
+                self._consecutive_fetch_errors = 0
+            except Exception as e:
+                self._consecutive_fetch_errors += 1
+                self._last_error_time = time.time()
+                if self._consecutive_fetch_errors <= 3 or self.p.debug:
+                    print(f"[CCXTFeed] Fetch error ({self._consecutive_fetch_errors}): {e}")
+                if self._consecutive_fetch_errors >= self._max_consecutive_errors:
+                    print(f"[CCXTFeed] Too many consecutive errors ({self._consecutive_fetch_errors}), "
+                          f"backing off...")
+                break
 
             # Drop newest bar if requested (may be incomplete)
             if self.p.drop_newest and len(bars) > 0:
@@ -321,6 +420,45 @@ class CCXTFeed(DataBase):
             # In live mode, only fetch once per call
             if livemode:
                 break
+
+    def _fetch_ohlcv_with_retry(self, symbol, timeframe, since, limit, params=None):
+        """Fetch OHLCV data with retry logic.
+
+        Args:
+            symbol: Trading pair symbol.
+            timeframe: Timeframe string.
+            since: Start timestamp in milliseconds.
+            limit: Maximum bars to fetch.
+            params: Additional parameters.
+
+        Returns:
+            List of OHLCV bars.
+
+        Raises:
+            The last exception if all retries fail.
+        """
+        last_exception = None
+        for attempt in range(self.p.max_fetch_retries):
+            try:
+                return self.store.fetch_ohlcv(
+                    symbol,
+                    timeframe=timeframe,
+                    since=since,
+                    limit=limit,
+                    params=params if params else {},
+                )
+            except (NetworkError, ExchangeNotAvailable) as e:
+                last_exception = e
+                if attempt < self.p.max_fetch_retries - 1:
+                    delay = self.p.fetch_retry_delay * (2 ** attempt)
+                    if self.p.debug:
+                        print(f"[CCXTFeed] Fetch retry {attempt + 1}/{self.p.max_fetch_retries} "
+                              f"in {delay:.1f}s: {e}")
+                    time.sleep(delay)
+            except ExchangeError as e:
+                # Exchange errors should not retry
+                raise
+        raise last_exception
 
     def _load_bar(self):
         """Load a single bar from the data queue.

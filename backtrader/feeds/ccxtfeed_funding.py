@@ -204,19 +204,31 @@ class CCXTFeedWithFunding(DataBase):
     def _start_websocket(self):
         """Start WebSocket connection for real-time data.
 
+        Uses the shared WebSocket manager from the store if available,
+        allowing multiple feeds (OHLCV + funding) to share one WS connection.
+        Falls back to creating a per-feed instance if store doesn't provide one.
+
         Raises:
             WebSocketRequiredError: If WebSocket connection fails.
         """
         try:
-            config = getattr(self.store.exchange, 'config', {})
-            # Pass pre-loaded markets from store to avoid REST API call in WebSocket
-            markets = getattr(self.store.exchange, 'markets', None)
-            self._websocket_manager = CCXTWebSocketManager(
-                self.store.exchange_id,
-                config,
-                markets=markets
-            )
-            self._websocket_manager.start()
+            # Try to use shared WebSocket manager from store
+            self._ws_is_shared = False
+            if hasattr(self.store, 'get_websocket_manager'):
+                self._websocket_manager = self.store.get_websocket_manager()
+                if self._websocket_manager:
+                    self._ws_is_shared = True
+
+            # Fallback: create a per-feed WebSocket manager
+            if self._websocket_manager is None:
+                config = getattr(self.store.exchange, 'config', {})
+                markets = getattr(self.store.exchange, 'markets', None)
+                self._websocket_manager = CCXTWebSocketManager(
+                    self.store.exchange_id,
+                    config,
+                    markets=markets
+                )
+                self._websocket_manager.start()
 
             # Wait for connection with timeout
             import time as t
@@ -258,7 +270,7 @@ class CCXTFeedWithFunding(DataBase):
                 if self.p.debug:
                     print(f"[WS] Subscribed to Funding Rate for {self.p.dataname}")
 
-            print(f"[WS] WebSocket started for {self.p.dataname} with funding rate")
+            print(f"[WS] WebSocket subscribed for {self.p.dataname} (OHLCV + funding)")
 
         except Exception as e:
             # Don't raise - fall back to REST polling like CCXTFeed does
@@ -622,16 +634,13 @@ class CCXTFeedWithFunding(DataBase):
 
     def stop(self):
         """Stop the data feed and cleanup resources."""
-        if self._websocket_manager:
+        if self._websocket_manager and not getattr(self, '_ws_is_shared', False):
             self._websocket_manager.stop()
-            self._websocket_manager = None
             print("[WS] WebSocket stopped")
+        self._websocket_manager = None
 
         if self._threaded_data_manager:
             self._threaded_data_manager.stop()
-
-        if hasattr(self.store, 'stop'):
-            self.store.stop()
 
 
 # Register with CCXTStore (optional - comment out to avoid affecting default behavior)

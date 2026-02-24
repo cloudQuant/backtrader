@@ -42,12 +42,14 @@ try:
     from backtrader.ccxt.ratelimit import RateLimiter, AdaptiveRateLimiter
     from backtrader.ccxt.connection import ConnectionManager
     from backtrader.ccxt.config import ExchangeConfig
+    from backtrader.ccxt.websocket import CCXTWebSocketManager
     HAS_CCXT_ENHANCEMENTS = True
 except ImportError:
     HAS_CCXT_ENHANCEMENTS = False
     RateLimiter = None
     ConnectionManager = None
     ExchangeConfig = None
+    CCXTWebSocketManager = None
 
 
 class CCXTStore(ParameterizedSingletonMixin):
@@ -156,6 +158,9 @@ class CCXTStore(ParameterizedSingletonMixin):
         if use_connection_manager and HAS_CCXT_ENHANCEMENTS and ConnectionManager:
             self._connection_manager = ConnectionManager(self)
             self._connection_manager.start_monitoring()
+
+        # Shared WebSocket manager (lazy-initialized on first request)
+        self._ws_manager = None
         
         # Fetch initial balance with retry logic for network resilience
         balance = 0
@@ -305,8 +310,54 @@ class CCXTStore(ParameterizedSingletonMixin):
         '''
         return getattr(self.exchange, endpoint)(params)
 
+    def get_websocket_manager(self):
+        """Get or create the shared WebSocket manager.
+
+        Multiple feeds and brokers can share a single WebSocket connection
+        through this manager, reducing connection overhead.
+
+        Returns:
+            CCXTWebSocketManager or None: The shared manager, or None if
+                ccxt.pro is not available.
+        """
+        if self._ws_manager is not None:
+            return self._ws_manager
+
+        if not HAS_CCXT_ENHANCEMENTS or not CCXTWebSocketManager:
+            return None
+
+        try:
+            config = {
+                'apiKey': getattr(self.exchange, 'apiKey', ''),
+                'secret': getattr(self.exchange, 'secret', ''),
+                'enableRateLimit': True,
+            }
+            password = getattr(self.exchange, 'password', None)
+            if password:
+                config['password'] = password
+            # Copy exchange options (defaultType, etc.)
+            options = getattr(self.exchange, 'options', {})
+            if options:
+                config['options'] = dict(options)
+
+            markets = getattr(self.exchange, 'markets', None)
+            self._ws_manager = CCXTWebSocketManager(
+                self.exchange_id, config, markets=markets
+            )
+            self._ws_manager.start()
+            if self.debug:
+                print(f"[CCXTStore] Shared WebSocket manager started for {self.exchange_id}")
+        except Exception as e:
+            print(f"[CCXTStore] Failed to create WebSocket manager: {e}")
+            self._ws_manager = None
+
+        return self._ws_manager
+
     def stop(self):
         """Stop the store and cleanup resources."""
+        if self._ws_manager:
+            self._ws_manager.stop()
+            self._ws_manager = None
         if self._connection_manager:
             self._connection_manager.stop_monitoring()
     
