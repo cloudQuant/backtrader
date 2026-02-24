@@ -15,7 +15,7 @@ Example:
 """
 
 # backtrader version number
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 
 # backtrader version number, tuple format
 __btversion__ = tuple(int(x) for x in __version__.split("."))

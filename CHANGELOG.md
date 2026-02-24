@@ -40,11 +40,35 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - TradeLogger observer for trade recording
   - HTML report generation
 
+- **WebSocket Order Push — P2-1** (`brokers/ccxtbroker.py`)
+  - `use_websocket_orders=True` enables `watch_my_trades` real-time fill push
+  - `_init_ws_order_manager()` / `_ws_subscribe_symbol()` / `_on_ws_my_trades()`
+  - `_process_ws_order_updates()` matches fills to open orders with dedup
+  - `next()` priority: WS push > ThreadedOrderManager > REST polling
+  - `_submit()` auto-subscribes WS for new symbols on order placement
+
+- **Multi-Symbol Shared WebSocket — P2-2** (`stores/ccxtstore.py` + `feeds/ccxtfeed.py`)
+  - `CCXTStore.get_websocket_manager()` — lazy-init shared WS manager
+  - Multiple feeds share single WS connection, each subscribing its own OHLCV channel
+  - Reduces connection count and exchange rate-limit pressure
+
+- **Funding Rate Real-Time Push — P2-3** (`feeds/ccxtfeed_funding.py`)
+  - `CCXTFeedWithFunding` uses shared WS for OHLCV + funding_rate + mark_price
+  - `_ws_is_shared` flag prevents `stop()` from killing shared connections
+
+- **Integration Test Framework** (`tests/integration/`)
+  - Sandbox/testnet integration tests for OKX (extendable to Binance/Bybit)
+  - `test_ccxt_connectivity.py` — REST API connectivity and data fetch validation
+  - `test_ccxt_websocket.py` — WS lifecycle, OHLCV/ticker/funding streaming, shared WS
+  - `test_ccxt_trading.py` — order lifecycle (place/cancel/fill), WS order push
+  - Graceful skip for IP whitelist and missing credentials
+
 - **Testing Infrastructure**
   - pytest fixtures and data factory pattern
   - Priority markers (P0-P3) for selective test execution
   - Test ID convention (`EPIC.STORY-LEVEL-SEQ`)
   - 34 new tests for CCXT error handling and reconnection
+  - 24 new tests for P2 WebSocket features
 
 - **Project Documentation**
   - `docs/PROJECT_STATUS.md` — consolidated project status
