@@ -102,7 +102,7 @@ class CTPData(DataBase):
                 symbol=symbol, period=str(self._compression)
             ).tail(self.p.num_init_backfill)
         # If daily timeframe
-        elif self._bar_timeframe == 5:
+        elif self._timeframe == 5:
             futures_sina_df = ak.futures_zh_daily_sina(symbol=symbol)
         # If other timeframes, default is one minute
         else:

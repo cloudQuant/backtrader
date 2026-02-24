@@ -17,8 +17,8 @@ Example:
     >>> cerebro.setbroker(store.getbroker())
 """
 
-# Remove MetaParams import since we'll eliminate metaclass usage
-# from backtrader.metabase import MetaParams
+import logging
+import threading
 from time import sleep
 
 import numpy as np
@@ -26,17 +26,27 @@ from ctpbee import CtpBee, CtpbeeApi
 from ctpbee.constant import (
     AccountData,
     BarData,
+    CancelRequest,
     ContractData,
+    Direction,
+    Exchange,
     LogData,
+    Offset,
     OrderData,
+    OrderRequest,
+    OrderType,
     PositionData,
+    Status,
     TickData,
     TradeData,
 )
+from ctpbee.func import Helper as CtpHelper
 from ctpbee.helpers import datetime2timestamp, get_last_timeframe_timestamp, timestamp2datetime
 
 from backtrader.mixins import ParameterizedSingletonMixin
 from backtrader.utils.py3 import queue
+
+logger = logging.getLogger(__name__)
 
 
 class MyCtpbeeApi(CtpbeeApi):
@@ -48,24 +58,14 @@ class MyCtpbeeApi(CtpbeeApi):
 
     Attributes:
         md_queue: Market data queue for distributing bar data to feeds.
+        order_queue: Queue for order status update events.
+        trade_queue: Queue for trade fill events.
         is_position_ok: Flag indicating if position data has been received.
         is_account_ok: Flag indicating if account data has been received.
-        _bar_timeframe: Bar timeframe (4=minutes, 5=days).
-        _bar_compression: Bar compression multiplier.
-        _bar_begin_time: Beginning timestamp of current bar.
-        _bar_end_time: Ending timestamp of current bar.
-        _bar_interval: Bar interval string (e.g., '1m', '5d').
-        _data_name: Name/symbol of the current data feed.
-        time_diff: Time difference in seconds for bar interval.
-        bar_datetime: Current bar's datetime.
-        bar_open_price: Current bar's open price.
-        bar_high_price: Current bar's high price.
-        bar_low_price: Current bar's low price.
-        bar_close_price: Current bar's close price.
-        bar_volume: Current bar's volume.
     """
 
-    def __init__(self, name, timeframe=None, compression=None, md_queue=None):
+    def __init__(self, name, timeframe=None, compression=None, md_queue=None,
+                 order_queue=None, trade_queue=None):
         """Initialize the MyCtpbeeApi instance.
 
         Args:
@@ -73,9 +73,13 @@ class MyCtpbeeApi(CtpbeeApi):
             timeframe: Bar timeframe (4=minutes, 5=days, others=1min default).
             compression: Bar compression multiplier (e.g., 5 for 5-minute bars).
             md_queue: Market data queue for distributing bar data to feeds.
+            order_queue: Queue for order status update events.
+            trade_queue: Queue for trade fill events.
         """
         super().__init__(name)
         self.md_queue = md_queue  # Market data queue
+        self.order_queue = order_queue
+        self.trade_queue = trade_queue
         self.is_position_ok = False
         self.is_account_ok = False
         self._bar_timeframe = timeframe
@@ -85,6 +89,8 @@ class MyCtpbeeApi(CtpbeeApi):
         self._bar_interval = None
         self._data_name = None
         self.time_diff = None
+        # Contract info cache: local_symbol -> ContractData
+        self.contracts = {}
         # Bar update market data
         self.bar_datetime = None
         self.bar_open_price = 0.0
@@ -126,13 +132,16 @@ class MyCtpbeeApi(CtpbeeApi):
                 self._bar_interval = "1m"
 
     def on_contract(self, contract: ContractData):
-        """Handle pushed contract information"""
-        # print(contract)
-        pass
+        """Handle pushed contract information, cache for later use."""
+        if hasattr(contract, 'local_symbol') and contract.local_symbol:
+            self.contracts[contract.local_symbol] = contract
+        if hasattr(contract, 'symbol') and contract.symbol:
+            self.contracts[contract.symbol] = contract
 
     def on_log(self, log: LogData):
-        """Handle log messages, only used for special requirements"""
-        pass
+        """Handle log messages."""
+        if hasattr(log, 'msg'):
+            logger.debug(f"[CTP] {log.msg}")
 
     def on_tick(self, tick: TickData) -> None:
         """Handle pushed tick data"""
@@ -205,25 +214,26 @@ class MyCtpbeeApi(CtpbeeApi):
         pass
 
     def on_order(self, order: OrderData) -> None:
-        """Handle order response"""
-        print("on_order: ", order)
-        # Should convert ctpbee order type to backtrader order type, then notify strategy via notify_order
-        pass
+        """Handle order response — push to order_queue for CTPBroker to process."""
+        logger.debug(f"[CTP] on_order: {order.order_id} status={order.status} "
+                     f"symbol={order.symbol} dir={order.direction} "
+                     f"price={order.price} vol={order.volume}")
+        if self.order_queue is not None:
+            self.order_queue.put(order)
 
     def on_trade(self, trade: TradeData) -> None:
-        """Handle trade response"""
-        print("on_trade: ", trade)
-        # Should update backtrader order through ctpbee trade, then notify strategy via notify_order
-        pass
+        """Handle trade response — push to trade_queue for CTPBroker to process."""
+        logger.debug(f"[CTP] on_trade: {trade.order_id} symbol={trade.symbol} "
+                     f"dir={trade.direction} price={trade.price} vol={trade.volume}")
+        if self.trade_queue is not None:
+            self.trade_queue.put(trade)
 
     def on_position(self, position: PositionData) -> None:
-        """Handle position response"""
-        # print('on_position', position)
+        """Handle position response."""
         self.is_position_ok = True
 
     def on_account(self, account: AccountData) -> None:
-        """Handle account information"""
-        # print('on_account', account)
+        """Handle account information."""
         self.is_account_ok = True
 
 
@@ -251,7 +261,17 @@ class CTPStore(ParameterizedSingletonMixin):
         """Returns broker with *args, **kwargs from registered `BrokerCls`"""
         return cls.BrokerCls(*args, **kwargs)
 
-    def __init__(self, ctp_setting, *args, **kwargs):
+    # Exchange mapping: symbol suffix/prefix -> ctpbee Exchange enum
+    EXCHANGE_MAP = {
+        'SHFE': Exchange.SHFE,
+        'DCE': Exchange.DCE,
+        'CZCE': Exchange.CZCE,
+        'CFFEX': Exchange.CFFEX,
+        'INE': Exchange.INE,
+        'GFEX': Exchange.GFEX,
+    }
+
+    def __init__(self, ctp_setting=None, *args, **kwargs):
         """Initialize the CTPStore instance.
 
         Args:
@@ -266,24 +286,46 @@ class CTPStore(ParameterizedSingletonMixin):
         """
         super().__init__()
         # Connection settings
+        if ctp_setting is None:
+            ctp_setting = kwargs.get('ctp_setting', {})
         self.ctp_setting = ctp_setting
+        self._is_connected = False
+        self._stopped = False
         # Initial values
         self._cash = 0.0
         self._value = 0.0
-        # Feed market data queue dictionary, stores market data queue for each feed. Key is feed, value is corresponding market data queue
+        # Order/trade event queues for broker
+        self.order_queue = queue.Queue()
+        self.trade_queue = queue.Queue()
+        # Feed market data queue dictionary
         self.q_feed_qlive = dict()
-        self.main_ctpbee_api = MyCtpbeeApi("main_ctpbee_api", md_queue=self.q_feed_qlive)
+        # CTP order_id -> backtrader order ref mapping
+        self._order_id_map = {}  # ctp_order_id -> bt_order_ref
+        self._lock = threading.Lock()
+
+        self.main_ctpbee_api = MyCtpbeeApi(
+            "main_ctpbee_api",
+            md_queue=self.q_feed_qlive,
+            order_queue=self.order_queue,
+            trade_queue=self.trade_queue,
+        )
         self.app = CtpBee("ctpstore", __name__, refresh=True)
         self.app.config.from_mapping(ctp_setting)
         self.app.add_extension(self.main_ctpbee_api)
         self.app.start(log_output=True)
-        while True:
+        # Wait for account data to be ready
+        timeout = 30
+        waited = 0
+        while waited < timeout:
             sleep(1)
+            waited += 1
             if self.main_ctpbee_api.is_account_ok:
                 break
-        # Debug output
-        print("positions===>", self.main_ctpbee_api.center.positions)
-        print("account===>", self.main_ctpbee_api.center.account)
+        if not self.main_ctpbee_api.is_account_ok:
+            logger.warning("[CTPStore] Timeout waiting for account data")
+        self._is_connected = True
+        logger.info(f"[CTPStore] Connected. positions={self.main_ctpbee_api.center.positions}")
+        logger.info(f"[CTPStore] account={self.main_ctpbee_api.center.account}")
 
     def register(self, feed):
         """Register feed market data queue, pass feed, create a queue for it, and add to dictionary"""
@@ -297,52 +339,133 @@ class CTPStore(ParameterizedSingletonMixin):
     #         print(f"-----Successfully subscribed to data {data.p.dataname}--------")
 
     def stop(self):
-        """Stop the CTP store and disconnect from CTP.
+        """Stop the CTP store and disconnect from CTP."""
+        if self._stopped:
+            return
+        self._stopped = True
+        self._is_connected = False
+        try:
+            self.app.release()
+        except Exception as e:
+            logger.warning(f"[CTPStore] Error during release: {e}")
+        logger.info("[CTPStore] Stopped")
 
-        Note:
-            Currently a placeholder method. Implementation may include
-            cleanup operations and disconnection logic.
+    @property
+    def is_connected(self):
+        return self._is_connected and not self._stopped
+
+    def _detect_exchange(self, symbol):
+        """Detect the exchange for a given symbol.
+
+        Args:
+            symbol: Instrument symbol, e.g. 'rb2501.SHFE' or 'rb2501'
+
+        Returns:
+            Exchange enum value, or Exchange.SHFE as default.
         """
-        pass
+        if '.' in symbol:
+            parts = symbol.split('.')
+            exchange_str = parts[-1].upper()
+            if exchange_str in self.EXCHANGE_MAP:
+                return self.EXCHANGE_MAP[exchange_str]
+        # Try to detect from contract cache
+        pure_symbol = symbol.split('.')[0] if '.' in symbol else symbol
+        contract = self.main_ctpbee_api.contracts.get(pure_symbol)
+        if contract and hasattr(contract, 'exchange'):
+            return contract.exchange
+        # Default
+        return Exchange.SHFE
+
+    def send_order(self, symbol, direction, offset, order_type, volume, price):
+        """Send an order to CTP via ctpbee.
+
+        Args:
+            symbol: Instrument symbol (e.g. 'rb2501.SHFE' or 'rb2501').
+            direction: ctpbee Direction enum (LONG or SHORT).
+            offset: ctpbee Offset enum (OPEN, CLOSE, CLOSETODAY, CLOSEYESTERDAY).
+            order_type: ctpbee OrderType enum (LIMIT, MARKET).
+            volume: Number of contracts.
+            price: Order price.
+
+        Returns:
+            str: CTP order ID, or None on failure.
+        """
+        exchange = self._detect_exchange(symbol)
+        pure_symbol = symbol.split('.')[0] if '.' in symbol else symbol
+
+        req = OrderRequest(
+            symbol=pure_symbol,
+            exchange=exchange,
+            direction=direction,
+            offset=offset,
+            type=order_type,
+            volume=volume,
+            price=price,
+        )
+        try:
+            order_id = self.main_ctpbee_api.action.send_order(req)
+            logger.info(f"[CTPStore] send_order: {pure_symbol} {direction} {offset} "
+                        f"price={price} vol={volume} -> order_id={order_id}")
+            return order_id
+        except Exception as e:
+            logger.error(f"[CTPStore] send_order failed: {e}")
+            return None
+
+    def cancel_order(self, symbol, order_id):
+        """Cancel an order on CTP.
+
+        Args:
+            symbol: Instrument symbol.
+            order_id: CTP order ID string.
+
+        Returns:
+            bool: True if cancel request was sent successfully.
+        """
+        exchange = self._detect_exchange(symbol)
+        pure_symbol = symbol.split('.')[0] if '.' in symbol else symbol
+
+        req = CancelRequest(
+            symbol=pure_symbol,
+            exchange=exchange,
+            order_id=order_id,
+        )
+        try:
+            self.main_ctpbee_api.action.cancel_order(req)
+            logger.info(f"[CTPStore] cancel_order: {order_id} symbol={pure_symbol}")
+            return True
+        except Exception as e:
+            logger.error(f"[CTPStore] cancel_order failed: {e}")
+            return False
 
     def get_positions(self):
         """Get current positions from CTP.
 
         Returns:
-            PositionData: Dictionary or object containing current position
-            information from the CTP center.
+            list: Position data from CTP center.
         """
-        positions = self.main_ctpbee_api.center.positions
-        print("positions:", positions)
-        return positions
+        try:
+            positions = self.main_ctpbee_api.center.positions
+            return positions
+        except Exception as e:
+            logger.error(f"[CTPStore] get_positions failed: {e}")
+            return []
 
     def get_balance(self):
         """Get account balance information from CTP.
 
-        Updates the internal cash and value attributes from the CTP account
-        information.
-
-        Note:
-            This method updates self._cash with available capital and self._value
-            with total account balance.
+        Updates the internal cash and value attributes from the CTP account.
         """
-        account = self.main_ctpbee_api.center.account
-        print("account:", account)
-        self._cash = account.available
-        self._value = account.balance
+        try:
+            account = self.main_ctpbee_api.center.account
+            self._cash = account.available
+            self._value = account.balance
+        except Exception as e:
+            logger.error(f"[CTPStore] get_balance failed: {e}")
 
     def get_cash(self):
-        """Get available cash from the account.
-
-        Returns:
-            float: Available cash/capital in the account.
-        """
+        """Get available cash from the account."""
         return self._cash
 
     def get_value(self):
-        """Get total account value.
-
-        Returns:
-            float: Total account balance including cash and positions.
-        """
+        """Get total account value."""
         return self._value
