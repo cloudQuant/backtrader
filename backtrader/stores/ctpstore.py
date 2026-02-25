@@ -28,7 +28,7 @@ import os
 import tempfile
 import threading
 from datetime import datetime
-from time import sleep
+from time import sleep, time
 
 import ctp
 
@@ -95,6 +95,7 @@ class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
         self.order_ref = 0
         self.front_id = 0
         self.session_id = 0
+        self._id_lock = threading.Lock()
 
         # State flags
         self.connected = False
@@ -127,12 +128,14 @@ class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
         self.api.Join()
 
     def _next_request_id(self):
-        self.request_id += 1
-        return self.request_id
+        with self._id_lock:
+            self.request_id += 1
+            return self.request_id
 
     def _next_order_ref(self):
-        self.order_ref += 1
-        return str(self.order_ref)
+        with self._id_lock:
+            self.order_ref += 1
+            return str(self.order_ref)
 
     # --- Connection callbacks ---
     def OnFrontConnected(self):
@@ -335,8 +338,13 @@ class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
         field.OrderPriceType = order_price_type
         field.LimitPrice = float(price)
         field.VolumeTotalOriginal = int(volume)
-        field.TimeCondition = THOST_FTDC_TC_GFD
-        field.VolumeCondition = THOST_FTDC_VC_AV
+        if order_price_type == THOST_FTDC_OPT_AnyPrice:
+            field.TimeCondition = THOST_FTDC_TC_IOC
+            field.VolumeCondition = THOST_FTDC_VC_CV
+            field.LimitPrice = 0.0
+        else:
+            field.TimeCondition = THOST_FTDC_TC_GFD
+            field.VolumeCondition = THOST_FTDC_VC_AV
         field.MinVolume = 1
         field.ContingentCondition = THOST_FTDC_CC_Immediately
         field.ForceCloseReason = THOST_FTDC_FCC_NotForceClose
@@ -564,6 +572,10 @@ class CTPStore(ParameterizedSingletonMixin):
                 Can also pass these as **kwargs directly.
         """
         super().__init__()
+        if getattr(self, '_ctp_initialized', False):
+            return
+        self._ctp_initialized = True
+
         if ctp_setting is None:
             ctp_setting = kwargs
         self.ctp_setting = ctp_setting
@@ -582,6 +594,9 @@ class CTPStore(ParameterizedSingletonMixin):
         # Initial values
         self._cash = 0.0
         self._value = 0.0
+        self._last_balance_query = 0.0
+        self._balance_query_interval = 2.0  # CTP has 1s rate limit
+        self._feed_count = 0  # track active data feeds
 
         # Event queues (shared with broker)
         self.order_queue = queue.Queue()
@@ -633,6 +648,7 @@ class CTPStore(ParameterizedSingletonMixin):
 
     def register(self, feed):
         """Register a data feed — creates a tick queue for its instrument."""
+        self._feed_count += 1
         dataname = feed.p.dataname
         instrument = dataname.split('.')[0] if '.' in dataname else dataname
         return self.md_spi.register_instrument(instrument)
@@ -643,7 +659,13 @@ class CTPStore(ParameterizedSingletonMixin):
         self.md_spi.subscribe([instrument])
 
     def stop(self):
-        """Stop the CTP store and release all APIs."""
+        """Stop the CTP store and release all APIs.
+
+        Only actually releases when last feed/broker disconnects.
+        """
+        self._feed_count = max(0, self._feed_count - 1)
+        if self._feed_count > 0:
+            return
         if self._stopped:
             return
         self._stopped = True
@@ -696,7 +718,11 @@ class CTPStore(ParameterizedSingletonMixin):
 
     # --- Account / Position ---
     def get_balance(self):
-        """Query and update account balance."""
+        """Query and update account balance with rate limiting."""
+        now = time()
+        if now - self._last_balance_query < self._balance_query_interval:
+            return
+        self._last_balance_query = now
         try:
             self.trader_spi.query_account()
             if self.trader_spi._account_query_done.wait(timeout=5):

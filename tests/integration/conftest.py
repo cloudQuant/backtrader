@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""Shared fixtures for CCXT integration tests.
+"""Shared fixtures for CCXT and CTP integration tests.
 
 These tests require:
 1. Valid exchange API credentials in .env
@@ -10,6 +10,9 @@ These tests require:
 Usage:
     # Run all integration tests
     pytest tests/integration/ -m integration -v
+
+    # Run only CTP tests
+    pytest tests/integration/ -k ctp -m integration -v
 
     # Run only WS tests
     pytest tests/integration/ -m "integration and websocket" -v
@@ -60,6 +63,23 @@ def _has_binance_credentials():
     ])
 
 
+def _has_ctp_credentials():
+    """Check if CTP (SimNow) credentials are available."""
+    return all([
+        os.getenv('simnow_user_id'),
+        os.getenv('simnow_password'),
+    ])
+
+
+def _has_ctp_module():
+    """Check if ctp-python is installed."""
+    try:
+        import ctp
+        return True
+    except ImportError:
+        return False
+
+
 def _has_ccxtpro():
     """Check if ccxt.pro is available."""
     try:
@@ -94,6 +114,11 @@ skip_no_binance = pytest.mark.skipif(
 skip_no_ccxtpro = pytest.mark.skipif(
     not _has_ccxtpro(),
     reason="ccxt.pro (ccxt[async]) not installed"
+)
+
+skip_no_ctp = pytest.mark.skipif(
+    not (_has_ctp_credentials() and _has_ctp_module()),
+    reason="CTP credentials not found in .env or ctp-python not installed"
 )
 
 
@@ -179,3 +204,102 @@ def ccxt_pro_exchange(okx_config):
     if _use_sandbox():
         exchange.set_sandbox_mode(True)
     return exchange
+
+
+# ---- CTP Fixtures ----
+
+# CTP test server endpoints
+# ctp-python default (Tencent Cloud SimNow mirror, 7x24)
+CTP_TENCENT_TD = 'tcp://182.254.243.31:30001'
+CTP_TENCENT_MD = 'tcp://182.254.243.31:30011'
+# SimNow 7x24 test server
+CTP_SIMNOW_7X24_TD = 'tcp://180.168.146.187:10130'
+CTP_SIMNOW_7X24_MD = 'tcp://180.168.146.187:10131'
+# SimNow normal trading hours
+CTP_SIMNOW_TRADE_TD = 'tcp://180.168.146.187:10201'
+CTP_SIMNOW_TRADE_MD = 'tcp://180.168.146.187:10211'
+# OpenCTP 7x24
+CTP_OPENCTP_TD = 'tcp://121.37.80.177:20002'
+CTP_OPENCTP_MD = 'tcp://121.37.80.177:20004'
+
+
+def _find_reachable_ctp_server(timeout=3):
+    """Find a reachable CTP server from known SimNow/OpenCTP endpoints.
+
+    Also respects CTP_TD_FRONT / CTP_MD_FRONT env vars (highest priority).
+    """
+    import socket
+
+    # Check env overrides first
+    env_td = os.getenv('CTP_TD_FRONT')
+    env_md = os.getenv('CTP_MD_FRONT')
+    if env_td and env_md:
+        return 'env-override', env_td, env_md
+
+    servers = [
+        ('Tencent-SimNow', CTP_TENCENT_TD, CTP_TENCENT_MD),
+        ('SimNow-7x24', CTP_SIMNOW_7X24_TD, CTP_SIMNOW_7X24_MD),
+        ('SimNow-Trade', CTP_SIMNOW_TRADE_TD, CTP_SIMNOW_TRADE_MD),
+        ('OpenCTP', CTP_OPENCTP_TD, CTP_OPENCTP_MD),
+    ]
+    for name, td, md in servers:
+        try:
+            # Parse host:port from tcp://host:port
+            parts = td.replace('tcp://', '').split(':')
+            host, port = parts[0], int(parts[1])
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(timeout)
+            s.connect((host, port))
+            s.close()
+            return name, td, md
+        except (socket.timeout, socket.error, OSError):
+            continue
+    return None, None, None
+
+
+@pytest.fixture(scope="session")
+def ctp_config():
+    """CTP configuration for SimNow test environment."""
+    if not _has_ctp_credentials():
+        pytest.skip("CTP credentials not available")
+    if not _has_ctp_module():
+        pytest.skip("ctp-python not installed")
+
+    server_name, td_front, md_front = _find_reachable_ctp_server()
+    if td_front is None:
+        pytest.skip("No reachable CTP server found")
+
+    config = {
+        'td_front': td_front,
+        'md_front': md_front,
+        'broker_id': '9999',
+        'user_id': os.getenv('simnow_user_id'),
+        'password': os.getenv('simnow_password'),
+        'app_id': 'simnow_client_test',
+        'auth_code': '0000000000000000',
+        'server_name': server_name,
+    }
+    return config
+
+
+@pytest.fixture(scope="function")
+def ctp_store(ctp_config):
+    """Create a CTPStore connected to SimNow."""
+    from backtrader.stores.ctpstore import CTPStore
+
+    # Reset singleton for test isolation
+    CTPStore._reset_instance()
+
+    store = CTPStore(ctp_setting=ctp_config)
+    if not store.is_connected:
+        CTPStore._reset_instance()
+        pytest.skip("CTPStore failed to connect/login")
+
+    yield store
+
+    try:
+        store._feed_count = 0  # force full stop
+        store.stop()
+    except Exception:
+        pass
+    CTPStore._reset_instance()

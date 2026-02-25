@@ -147,6 +147,7 @@ class CTPData(DataBase):
 
     def stop(self):
         super().stop()
+        # Store tracks feed_count; safe to call even with multiple feeds
         self.o.stop()
 
     def haslivedata(self):
@@ -236,7 +237,8 @@ class CTPData(DataBase):
             if tick_dt >= self._bar_end_dt:
                 # Emit the completed bar
                 dt_num = date2num(self._bar_end_dt)
-                if dt_num <= self.lines.datetime[-1]:
+                prev_dt = self.lines.datetime[-1] if len(self) > 0 else 0.0
+                if dt_num <= prev_dt:
                     # Time already seen, skip
                     pass
                 else:
@@ -272,9 +274,10 @@ class CTPData(DataBase):
     def _load_candle_history(self, msg):
         """Load a historical bar from backfill data."""
         if msg.get("symbol") != self.p.dataname:
-            return
+            return False
         dt = date2num(msg["datetime"])
-        if dt <= self.lines.datetime[-1]:
+        prev_dt = self.lines.datetime[-1] if len(self) > 0 else 0.0
+        if dt <= prev_dt:
             return False
         self.lines.datetime[0] = dt
         self.lines.open[0] = msg["OpenPrice"]

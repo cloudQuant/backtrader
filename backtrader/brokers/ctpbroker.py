@@ -315,10 +315,18 @@ class CTPBroker(BrokerBase):
             )
 
             psize = fill_size if order.isbuy() else -fill_size
-            self.positions[order.data._dataname] = Position(
-                self.positions[order.data._dataname].size + psize,
-                fill_price,
-            )
+            old_pos = self.positions[order.data._dataname]
+            new_size = old_pos.size + psize
+            if new_size == 0:
+                new_price = 0.0
+            elif abs(new_size) > abs(old_pos.size):
+                # Adding to position: weighted average price
+                total_cost = old_pos.size * old_pos.price + psize * fill_price
+                new_price = total_cost / new_size if new_size != 0 else 0.0
+            else:
+                # Reducing position: keep old price
+                new_price = old_pos.price
+            self.positions[order.data._dataname] = Position(new_size, new_price)
 
             if order.executed.remsize == 0:
                 order.completed()
@@ -334,4 +342,3 @@ class CTPBroker(BrokerBase):
         self.o.get_balance()
         self._process_order_events()
         self._process_trade_events()
-        self.notifs.append(None)
