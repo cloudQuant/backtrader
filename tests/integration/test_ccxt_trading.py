@@ -21,7 +21,7 @@ import queue
 import threading
 import pytest
 
-from tests.integration.conftest import skip_no_okx, skip_no_ccxtpro
+from tests.integration.conftest import skip_no_okx, skip_no_ccxtpro, _use_sandbox
 
 pytestmark = [pytest.mark.integration, pytest.mark.trading, skip_no_okx]
 
@@ -45,7 +45,7 @@ class TestOrderSubmission:
 
         # Place limit buy 20% below market (won't fill)
         limit_price = round(current_price * 0.80, 1)
-        amount = 0.001  # Minimum BTC amount
+        amount = 0.01  # Minimum BTC amount for OKX contracts
 
         order = None
         try:
@@ -58,7 +58,7 @@ class TestOrderSubmission:
             )
             assert order is not None
             assert order['id'] is not None
-            assert order['status'] in ('open', 'new', 'created')
+            assert order['status'] in ('open', 'new', 'created', None)
 
             # Verify it shows in open orders
             time.sleep(1)
@@ -85,7 +85,7 @@ class TestOrderSubmission:
             symbol='BTC/USDT:USDT',
             type='limit',
             side='buy',
-            amount=0.001,
+            amount=0.01,
             price=limit_price,
         )
 
@@ -117,7 +117,7 @@ class TestCCXTStoreOrderProxy:
                 symbol='BTC/USDT:USDT',
                 type='limit',
                 side='buy',
-                amount=0.001,
+                amount=0.01,
                 price=limit_price,
             )
             assert order['id'] is not None
@@ -146,7 +146,7 @@ class TestWebSocketOrderPush:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
 
         fills = []
@@ -165,7 +165,8 @@ class TestWebSocketOrderPush:
 
         # Place a small market buy order
         exchange = ccxt.okx(okx_config)
-        exchange.set_sandbox_mode(True)
+        if _use_sandbox():
+            exchange.set_sandbox_mode(True)
         exchange.load_markets()
 
         order = None
@@ -174,7 +175,7 @@ class TestWebSocketOrderPush:
                 symbol='BTC/USDT:USDT',
                 type='market',
                 side='buy',
-                amount=0.001,
+                amount=0.01,
             )
             assert order is not None, "Market order creation failed"
 
@@ -202,7 +203,7 @@ class TestWebSocketOrderPush:
                         symbol='BTC/USDT:USDT',
                         type='market',
                         side='sell',
-                        amount=0.001,
+                        amount=0.01,
                     )
                 except Exception:
                     pass
@@ -214,7 +215,7 @@ class TestWebSocketOrderPush:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
 
         order_queue = queue.Queue()

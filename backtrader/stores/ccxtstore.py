@@ -141,6 +141,7 @@ class CCXTStore(ParameterizedSingletonMixin):
         
         self.exchange_id = exchange
         self.exchange = getattr(ccxt, exchange)(config)
+        self._sandbox = sandbox
         if sandbox:
             self.exchange.set_sandbox_mode(True)
         self.currency = currency
@@ -339,10 +340,27 @@ class CCXTStore(ParameterizedSingletonMixin):
             options = getattr(self.exchange, 'options', {})
             if options:
                 config['options'] = dict(options)
+            # Copy proxy settings if present
+            proxies = getattr(self.exchange, 'proxies', None)
+            if proxies:
+                config['proxies'] = dict(proxies)
+            aiohttp_proxy = getattr(self.exchange, 'aiohttp_proxy', None)
+            if aiohttp_proxy:
+                config['aiohttp_proxy'] = aiohttp_proxy
 
+            # Ensure markets are loaded before passing to WS manager
+            # This avoids WS loading ALL market types and hitting duplicate ID issues
             markets = getattr(self.exchange, 'markets', None)
+            if not markets:
+                try:
+                    self.exchange.load_markets()
+                    markets = self.exchange.markets
+                except Exception as e:
+                    if self.debug:
+                        print(f"[CCXTStore] load_markets for WS failed: {e}")
             self._ws_manager = CCXTWebSocketManager(
-                self.exchange_id, config, markets=markets
+                self.exchange_id, config, markets=markets,
+                sandbox=getattr(self, '_sandbox', False)
             )
             self._ws_manager.start()
             if self.debug:

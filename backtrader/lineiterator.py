@@ -1230,21 +1230,24 @@ class LineIterator(LineIteratorMixin, LineSeries):
             clock_len = len(self._clock)
         except (TypeError, AttributeError):
             # Clock is invalid (e.g., MinimalOwner), try to get length from owner's data
+            # PERF: Use EAFP instead of hasattr chain
             clock_len = 0
-            if hasattr(self, '_owner') and self._owner is not None:
-                if hasattr(self._owner, 'datas') and self._owner.datas:
+            try:
+                owner = self._owner
+                if owner is not None:
                     try:
-                        clock_len = len(self._owner.datas[0])
-                        # Also fix the clock for future calls
-                        self._clock = self._owner.datas[0]
+                        datas = owner.datas
+                        if datas:
+                            clock_len = len(datas[0])
+                            self._clock = datas[0]
                     except (TypeError, AttributeError):
-                        pass
-                elif hasattr(self._owner, '__len__'):
-                    try:
-                        clock_len = len(self._owner)
-                        self._clock = self._owner
-                    except (TypeError, AttributeError):
-                        pass
+                        try:
+                            clock_len = len(owner)
+                            self._clock = owner
+                        except (TypeError, AttributeError):
+                            pass
+            except AttributeError:
+                pass
         
         if clock_len != len(self):
             self.forward()
@@ -1653,12 +1656,14 @@ class LineIterator(LineIteratorMixin, LineSeries):
         Returns:
             int: Number of lines.
         """
-        if hasattr(self, "lines") and hasattr(self.lines, "size"):
+        # PERF: Use EAFP instead of 4x hasattr calls
+        try:
             return self.lines.size()
-        elif hasattr(self, "lines") and hasattr(self.lines, "__len__"):
-            return len(self.lines)
-        else:
-            return 1  # Default to 1 line if no lines object available
+        except (AttributeError, TypeError):
+            try:
+                return len(self.lines)
+            except (AttributeError, TypeError):
+                return 1
 
 
 # This 3 subclasses can be used for identification purposes within LineIterator

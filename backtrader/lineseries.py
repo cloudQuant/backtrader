@@ -395,27 +395,17 @@ class Lines:
 
     def __iter__(self):
         """Allow proper iteration over lines without calling __getitem__ for each index"""
-        # CRITICAL FIX: Ensure __iter__ properly iterates over lines
+        # PERF: Use EAFP instead of double hasattr
         try:
-            if hasattr(self, "lines") and hasattr(self.lines, "__iter__"):
-                return iter(self.lines)
-            else:
-                return iter([])
+            return iter(self.lines)
         except (TypeError, AttributeError):
             return iter([])
 
     def __len__(self):
         """Return the number of lines"""
-        # CRITICAL FIX: Ensure __len__ returns an integer count
+        # PERF: Use EAFP instead of double hasattr
         try:
-            if hasattr(self, "lines") and hasattr(self.lines, "__len__"):
-                line_count = len(self.lines)
-                # Ensure it's an integer
-                if isinstance(line_count, float):
-                    return int(line_count)
-                return line_count
-            else:
-                return 0
+            return len(self.lines)
         except (TypeError, AttributeError):
             return 0
 
@@ -699,172 +689,108 @@ class Lines:
         """
         return self.lines[line].buflen()
 
+    # PERF: Class-level frozenset avoids recreating on every __getattr__ call
+    _CRITICAL_STRATEGY_ATTRS = frozenset({
+        "datas", "data", "broker", "cerebro", "env", "position",
+        "analyzer", "analyzers", "observers", "writers", "trades",
+        "orders", "stats", "chkmin", "chkmax", "chkvals", "chkargs",
+        "runonce", "preload", "exactbars", "writer", "_id", "_sizer", "dnames",
+    })
+
+    # PERF: Pre-defined default line aliases tuple (avoid list recreation)
+    _DEFAULT_LINE_ALIASES = ("close", "low", "high", "open", "volume", "openinterest", "datetime")
+
     def __getattr__(self, name):
-        """Handle missing attributes, especially _owner for observers"""
-        # CRITICAL FIX: First check for class-level descriptors (like LineAlias)
-        # This must be done before any other checks to ensure descriptors work properly
-        if not name.startswith("_"):
-            cls = object.__getattribute__(self, "__class__")
-            # Performance optimization: try direct access, use getattr on failure
-            try:
-                class_attr = cls.__dict__.get(name)
-                if class_attr is None:
-                    # May be in parent class, use getattr to find
-                    try:
-                        class_attr = getattr(cls, name)
-                    except AttributeError:
-                        class_attr = None
+        """Handle missing attributes, especially _owner for observers.
 
-                if class_attr is not None:
-                    # If it's a descriptor, call its __get__
-                    try:
-                        get_method = class_attr.__get__
-                        return get_method(self, cls)
-                    except AttributeError:
-                        pass  # Not a descriptor
-            except (AttributeError, TypeError):
-                pass
-
-        # CRITICAL FIX: Handle _owner and other critical attributes first before delegating to lines
-        if name == "_owner":
-            # _owner is stored as _owner_ref to avoid recursion
-            try:
-                return object.__getattribute__(self, "_owner_ref")
-            except AttributeError:
-                return None
-        elif name == "_clock":
-            # Performance optimization: return owner's clock, use EAFP pattern
-            try:
-                owner = self._owner
-                if owner is not None:
-                    try:
-                        return owner._clock
-                    except AttributeError:
-                        pass
-            except AttributeError:
-                pass
-            return None
-        elif name == "_getlinealias":
-            # CRITICAL FIX: Provide a default _getlinealias method for data feeds that don't have one
-            def default_getlinealias(index):
-                """Default line alias getter for data feeds"""
-                # Common line aliases for data feeds
-                aliases = ["close", "low", "high", "open", "volume", "openinterest", "datetime"]
-                if 0 <= index < len(aliases):
-                    return aliases[index]
-                return f"line_{index}"
-
-            return default_getlinealias
-        elif name == "size":
-            # Performance optimization: provide size() method, use EAFP pattern
-            def size():
-                """Return the number of lines in this object"""
+        PERF OPTIMIZATIONS:
+        - Class-level frozenset for critical attrs (was recreated every call)
+        - name[0] == '_' instead of startswith (2-3x faster)
+        - Removed inspect.currentframe() stack walk (extremely expensive)
+        - Reduced hasattr chains with try/except EAFP
+        """
+        # PERF: Fast path for private attributes
+        if name and name[0] == "_":
+            if name == "_owner":
                 try:
-                    lines = self.lines
+                    return object.__getattribute__(self, "_owner_ref")
+                except AttributeError:
+                    return None
+            elif name == "_clock":
+                try:
+                    owner = object.__getattribute__(self, "_owner_ref")
+                    if owner is not None:
+                        return owner._clock
+                except AttributeError:
+                    pass
+                return None
+            elif name == "_getlinealias":
+                aliases = Lines._DEFAULT_LINE_ALIASES
+                def default_getlinealias(index, _aliases=aliases):
+                    if 0 <= index < len(_aliases):
+                        return _aliases[index]
+                    return f"line_{index}"
+                return default_getlinealias
+            # Other private attributes: fail fast
+            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
+
+        # PERF: Check class-level descriptors (like LineAlias) first
+        cls = object.__getattribute__(self, "__class__")
+        try:
+            class_attr = cls.__dict__.get(name)
+            if class_attr is None:
+                # May be in parent class
+                try:
+                    class_attr = getattr(cls, name)
+                except AttributeError:
+                    class_attr = None
+            if class_attr is not None:
+                try:
+                    return class_attr.__get__(self, cls)
+                except AttributeError:
+                    pass  # Not a descriptor
+        except (AttributeError, TypeError):
+            pass
+
+        # "size" special case
+        if name == "size":
+            def size(_self=self):
+                try:
+                    lines = _self.lines
                     try:
                         return lines.size()
                     except (AttributeError, TypeError):
-                        try:
-                            return len(lines)
-                        except (AttributeError, TypeError):
-                            return 1
-                except AttributeError:
-                    return 1  # Default to 1 line if no lines object available
-
+                        return len(lines)
+                except (AttributeError, TypeError):
+                    return 1
             return size
-        elif name.startswith("_"):
-            # For other private attributes, raise AttributeError immediately
+
+        # PERF: Fast reject for strategy attrs that should NOT delegate to lines
+        if name in Lines._CRITICAL_STRATEGY_ATTRS:
             raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
-        # CRITICAL FIX: Handle critical strategy attributes that should NOT be delegated to lines
-        # These attributes, if missing, should raise AttributeError immediately, not be looked up in lines
-        critical_strategy_attrs = {
-            "datas",
-            "data",
-            "broker",
-            "cerebro",
-            "env",
-            "position",
-            "analyzer",
-            "analyzers",
-            "observers",
-            "writers",
-            "trades",
-            "orders",
-            "stats",
-            "chkmin",
-            "chkmax",
-            "chkvals",
-            "chkargs",
-            "runonce",
-            "preload",
-            "exactbars",
-            "writer",
-            "_id",
-            "_sizer",
-            "dnames",
-        }
-
-        if name in critical_strategy_attrs:
-            # These are strategy attributes that should not be delegated to lines
-            # If they're not found as instance attributes, they're genuinely missing
-            raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
-
-        # If attribute is missing, try to delegate to lines
+        # Delegate to inner lines container
         try:
             lines = object.__getattribute__(self, "lines")
-            # CRITICAL FIX: Check for class-level descriptors (like LineAlias) first
             lines_class = lines.__class__
-            if hasattr(lines_class, name):
-                # Get the class attribute (might be a descriptor)
+            # PERF: Try descriptor lookup with EAFP instead of hasattr chain
+            try:
                 class_attr = getattr(lines_class, name)
-                # If it's a descriptor, call its __get__
-                if hasattr(class_attr, "__get__"):
-                    return class_attr.__get__(lines, lines_class)
-                else:
-                    return class_attr
-            # Then check instance attributes
-            elif hasattr(lines, name):
-                return getattr(lines, name)
-            elif hasattr(lines, "__getattr__"):
                 try:
-                    return lines.__getattr__(name)
-                except (AttributeError, TypeError):
-                    pass
+                    return class_attr.__get__(lines, lines_class)
+                except AttributeError:
+                    return class_attr  # Not a descriptor, return directly
+            except AttributeError:
+                pass
+            # Try instance attr on lines
+            try:
+                return getattr(lines, name)
+            except AttributeError:
+                pass
         except AttributeError:
             pass
 
-        # Check critical strategy attributes that might be accessed by analyzers
-        if name in ["datas", "broker", "data", "data0"]:
-            # These are critical attributes that should exist on strategies
-            # If missing, try to find them from the object hierarchy
-            import inspect
-
-            frame = inspect.currentframe()
-            try:
-                while frame:
-                    frame = frame.f_back
-                    if frame is None:
-                        break
-                    frame_locals = frame.f_locals
-
-                    # Look for objects that have the missing attribute
-                    for var_name, var_value in frame_locals.items():
-                        if hasattr(var_value, name):
-                            attr_value = getattr(var_value, name)
-                            if attr_value is not None:
-                                object.__setattr__(self, name, attr_value)
-                                return attr_value
-                            break
-
-                    if name in self.__dict__:
-                        break
-            except Exception:
-                pass
-            finally:
-                del frame
-
-        # Fallback: Let AttributeError bubble up for unknown attributes
+        # Fallback: raise AttributeError (removed expensive inspect.currentframe stack walk)
         raise AttributeError(f"'{self.__class__.__name__}' object has no attribute '{name}'")
 
     def __setattr__(self, name, value):
@@ -872,7 +798,7 @@ class Lines:
         if name == "_owner":
             # Store _owner as _owner_ref to avoid recursion
             object.__setattr__(self, "_owner_ref", value)
-        elif name.startswith("_") or name in ("lines", "size"):
+        elif (name and name[0] == "_") or name in ("lines", "size"):
             # Internal attributes - set directly
             object.__setattr__(self, name, value)
         else:

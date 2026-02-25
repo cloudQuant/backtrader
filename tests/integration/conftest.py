@@ -69,6 +69,12 @@ def _has_ccxtpro():
         return False
 
 
+def _use_sandbox():
+    """Check if sandbox/demo mode should be used (based on OKX_SANDBOX env var)."""
+    val = os.getenv('OKX_SANDBOX', 'false').strip().lower()
+    return val in ('true', '1', 'yes')
+
+
 # Load env at import time
 _load_env()
 
@@ -99,7 +105,7 @@ def okx_config():
     if not _has_okx_credentials():
         pytest.skip("OKX credentials not available")
 
-    return {
+    config = {
         'apiKey': os.getenv('OKX_API_KEY'),
         'secret': os.getenv('OKX_SECRET'),
         'password': os.getenv('OKX_PASSWORD'),
@@ -109,10 +115,23 @@ def okx_config():
         },
     }
 
+    # Apply proxy from .env if available (needed for GFW bypass)
+    proxy_url = os.getenv('HTTPS_PROXY') or os.getenv('HTTP_PROXY')
+    if proxy_url:
+        # REST API proxy (requests/urllib)
+        config['proxies'] = {
+            'http': proxy_url,
+            'https': proxy_url,
+        }
+        # Async WebSocket proxy (aiohttp)
+        config['aiohttp_proxy'] = proxy_url
+
+    return config
+
 
 @pytest.fixture(scope="function")
 def ccxt_store(okx_config):
-    """Create a CCXTStore connected to OKX (sandbox mode)."""
+    """Create a CCXTStore connected to OKX."""
     from backtrader.stores.ccxtstore import CCXTStore
     from ccxt.base.errors import PermissionDenied, AuthenticationError
 
@@ -126,7 +145,7 @@ def ccxt_store(okx_config):
             config=okx_config,
             retries=1,
             debug=True,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
     except (PermissionDenied, AuthenticationError) as e:
         pytest.skip(f"CCXTStore init failed (IP whitelist?): {e}")
@@ -140,21 +159,23 @@ def ccxt_store(okx_config):
 
 @pytest.fixture(scope="function")
 def ccxt_exchange(okx_config):
-    """Create a raw ccxt exchange instance for OKX sandbox."""
+    """Create a raw ccxt exchange instance for OKX."""
     import ccxt
     exchange = ccxt.okx(okx_config)
-    exchange.set_sandbox_mode(True)
+    if _use_sandbox():
+        exchange.set_sandbox_mode(True)
     return exchange
 
 
 @pytest.fixture(scope="function")
 def ccxt_pro_exchange(okx_config):
-    """Create a ccxt.pro exchange instance for OKX sandbox (async WebSocket)."""
+    """Create a ccxt.pro exchange instance for OKX."""
     try:
         import ccxt.pro as ccxtpro
     except (ImportError, AttributeError):
         pytest.skip("ccxt.pro not available")
 
     exchange = ccxtpro.okx(okx_config)
-    exchange.set_sandbox_mode(True)
+    if _use_sandbox():
+        exchange.set_sandbox_mode(True)
     return exchange

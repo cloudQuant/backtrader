@@ -521,58 +521,44 @@ class LineBuffer(LineSingle, LineRootMixin):
             value (variable): value to be set
             ago (int): Point of the array to which size will be added to return
             the slice
-        """
-        # CRITICAL FIX: Special handling for datetime lines - NEVER allow 0.0 for datetime!
-        is_datetime_line = (hasattr(self, "_name") and "datetime" in str(self._name).lower()) or (
-            hasattr(self, "__class__") and "datetime" in str(self.__class__.__name__).lower()
-        )
 
-        # CRITICAL FIX: Ensure we never store None values - convert appropriately
+        PERF: Uses pre-calculated _is_datetime_line and _default_value flags
+        instead of hasattr/isinstance checks on every call.
+        """
+        # PERF: Use pre-calculated flag instead of hasattr + string ops
+        is_dt = self._is_datetime_line
+
+        # Handle None/NaN values using fast detection
         if value is None:
-            value = 1.0 if is_datetime_line else 0.0
-        # CRITICAL FIX: Also convert NaN appropriately
-        elif isinstance(value, float) and math.isnan(value):
-            value = 1.0 if is_datetime_line else 0.0
-        # CRITICAL FIX: If setting invalid value on a datetime line, convert to valid ordinal
-        elif is_datetime_line and (not isinstance(value, (int, float)) or value < 1.0):
+            value = self._default_value
+        elif value != value:  # NaN detection (faster than isinstance + math.isnan)
+            value = self._default_value
+        elif is_dt and (not isinstance(value, (int, float)) or value < 1.0):
             value = 1.0
 
-        # CRITICAL FIX: Ensure array is initialized before accessing
-        if not hasattr(self, "array") or self.array is None:
-            import array
-
-            self.array = array.array("d")
-
-        # Ensure array has enough space
+        # Array is always initialized in __init__, use direct access
+        arr = self.array
         required_index = self.idx + ago
-        if required_index >= len(self.array):
-            # Extend the array to accommodate the required index
-            extend_size = required_index - len(self.array) + 1
-            # Use appropriate fill value based on line type
-            fill_value = 1.0 if is_datetime_line else 0.0
-            for _ in range(extend_size):
-                self.array.append(fill_value)
+        arr_len = len(arr)
+        if required_index >= arr_len:
+            fill_value = self._default_value
+            for _ in range(required_index - arr_len + 1):
+                arr.append(fill_value)
         elif required_index < 0:
-            # Handle negative indices gracefully
             return
 
-        self.array[required_index] = value
-        for binding in self.bindings:
-            # Apply same datetime protection to bindings
-            binding_is_datetime = (
-                hasattr(binding, "_name") and "datetime" in str(binding._name).lower()
-            ) or (
-                hasattr(binding, "__class__")
-                and "datetime" in str(binding.__class__.__name__).lower()
-            )
+        arr[required_index] = value
+        if self.bindings:
+            for binding in self.bindings:
+                try:
+                    b_is_dt = binding._is_datetime_line
+                except AttributeError:
+                    b_is_dt = False
 
-            binding_value = value
-            if binding_is_datetime and (
-                not isinstance(binding_value, (int, float)) or binding_value < 1.0
-            ):
-                binding_value = 1.0
-
-            binding[ago] = binding_value
+                b_val = value
+                if b_is_dt and (not isinstance(b_val, (int, float)) or b_val < 1.0):
+                    b_val = 1.0
+                binding[ago] = b_val
 
     # Return to the beginning
     def home(self):
@@ -662,12 +648,12 @@ class LineBuffer(LineSingle, LineRootMixin):
         Returns:
             bool: True if index is still >= 0 after moving, False otherwise.
         """
-        # CRITICAL FIX: Safe backward navigation
-        if not hasattr(self, "_idx") or self._idx is None:
+        # PERF: _idx is always initialized in __init__, skip hasattr
+        idx = self._idx
+        if idx is None:
             self._idx = -1
             return False
-
-        self._idx -= size
+        self._idx = idx - size
         return self._idx >= 0
 
     # Decrease idx and lencount by size
@@ -677,11 +663,9 @@ class LineBuffer(LineSingle, LineRootMixin):
         Args:
             size: Number of positions to rewind.
         """
-        # CRITICAL FIX: Safe attribute access
-        if hasattr(self, "idx"):
-            self.idx -= size
-        if hasattr(self, "lencount"):
-            self.lencount -= size
+        # PERF: idx and lencount are always initialized in __init__
+        self.idx -= size
+        self.lencount -= size
 
     # Increase idx and lencount by size
     def advance(self, size=1):

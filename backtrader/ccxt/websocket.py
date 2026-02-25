@@ -49,13 +49,15 @@ class CCXTWebSocketManager:
         'option': 'OPTION',   # 期权
     }
 
-    def __init__(self, exchange_id: str, config: dict, markets: dict = None):
+    def __init__(self, exchange_id: str, config: dict, markets: dict = None,
+                 sandbox: bool = False):
         """Initialize the WebSocket manager.
 
         Args:
             exchange_id: Exchange ID (e.g., 'binance', 'okx').
             config: Exchange configuration with API keys, etc.
             markets: Pre-loaded markets dict from store (optional, avoids REST call).
+            sandbox: If True, use exchange's sandbox/demo mode (default: False).
 
         Raises:
             ImportError: If ccxt.pro is not installed.
@@ -69,6 +71,7 @@ class CCXTWebSocketManager:
         self.exchange_id = exchange_id
         self.config = config
         self.exchange = None
+        self._sandbox = sandbox
         self._loop = None
         self._thread = None
         self._running = False
@@ -222,23 +225,30 @@ class CCXTWebSocketManager:
             exchange_class = getattr(ccxtpro, self.exchange_id)
             self.exchange = exchange_class(self.config)
 
-            # Use pre-loaded markets from store if available (avoids REST API call)
-            if self._preloaded_markets:
-                self.exchange.markets = self._preloaded_markets.copy()
-                # Build markets_by_id from markets
-                self.exchange.markets_by_id = {}
-                for symbol, market in self.exchange.markets.items():
-                    market_id = market.get('id')
-                    if market_id:
-                        self.exchange.markets_by_id[market_id] = market
-                print(f"[WS] Using {len(self.exchange.markets)} pre-loaded markets from store")
-            else:
-                # Try to load markets via REST, but don't fail if it doesn't work
-                try:
-                    await asyncio.wait_for(self.exchange.load_markets(), timeout=15.0)
-                    print(f"[WS] Markets loaded successfully ({len(self.exchange.markets or {})} markets)")
-                except Exception as e:
-                    print(f"[WS] load_markets failed: {e}")
+            # Enable sandbox/demo mode if requested
+            if self._sandbox:
+                self.exchange.set_sandbox_mode(True)
+
+            # Load markets — always use ccxt's own load_markets to build
+            # proper internal indices (markets_by_id, etc.)
+            # Pre-loaded markets from store are no longer manually injected
+            # because ccxt uses list-based markets_by_id that manual copy breaks.
+            try:
+                await asyncio.wait_for(self.exchange.load_markets(), timeout=15.0)
+                print(f"[WS] Markets loaded successfully ({len(self.exchange.markets or {})} markets)")
+            except Exception as e:
+                print(f"[WS] load_markets failed: {e}")
+                # Fallback: try pre-loaded markets with ccxt's set_markets if available
+                if self._preloaded_markets:
+                    try:
+                        self.exchange.set_markets(list(self._preloaded_markets.values()))
+                        print(f"[WS] Using {len(self.exchange.markets)} pre-loaded markets from store")
+                    except (AttributeError, TypeError):
+                        # set_markets not available, manually set minimal markets
+                        self.exchange.markets = self._preloaded_markets.copy()
+                        self.exchange.markets_by_id = {}
+                        print(f"[WS] Fallback: manually set {len(self.exchange.markets)} markets")
+                else:
                     print("[WS] Will create market entries on demand")
                     if self.exchange.markets is None:
                         self.exchange.markets = {}

@@ -18,7 +18,7 @@ import time
 import threading
 import pytest
 
-from tests.integration.conftest import skip_no_okx, skip_no_ccxtpro
+from tests.integration.conftest import skip_no_okx, skip_no_ccxtpro, _use_sandbox
 
 pytestmark = [pytest.mark.integration, pytest.mark.websocket, skip_no_okx, skip_no_ccxtpro]
 
@@ -33,7 +33,7 @@ class TestWebSocketManagerLifecycle:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
         ws.start()
         assert ws._running is True
@@ -51,7 +51,7 @@ class TestWebSocketManagerLifecycle:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
         ws.start()
         ws.stop()
@@ -77,7 +77,7 @@ class TestWebSocketOHLCV:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
         ws.start()
         time.sleep(2)  # Wait for connection
@@ -114,7 +114,7 @@ class TestWebSocketOHLCV:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
         ws.start()
         time.sleep(2)
@@ -150,7 +150,7 @@ class TestWebSocketTicker:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
         ws.start()
         time.sleep(2)
@@ -183,7 +183,7 @@ class TestWebSocketFundingRate:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
         ws.start()
         time.sleep(2)
@@ -211,7 +211,7 @@ class TestWebSocketFundingRate:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
         ws.start()
         time.sleep(2)
@@ -282,7 +282,7 @@ class TestWebSocketMyTrades:
         ws = CCXTWebSocketManager(
             exchange_id='okx',
             config=okx_config,
-            sandbox=True,
+            sandbox=_use_sandbox(),
         )
         ws.start()
         time.sleep(2)

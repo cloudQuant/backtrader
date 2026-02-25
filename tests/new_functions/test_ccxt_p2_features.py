@@ -298,7 +298,11 @@ class TestStoreSharedWebSocket(unittest.TestCase):
         store.exchange.password = None
         store.exchange.options = {}
         store.exchange.markets = {'BTC/USDT': {}}
+        store.exchange.proxies = None
+        store.exchange.aiohttp_proxy = None
+        store.exchange.load_markets = Mock(return_value={'BTC/USDT': {}})
         store.debug = False
+        store._sandbox = False
         store._ws_manager = None
         store._connection_manager = None
         store._rate_limiter = None
