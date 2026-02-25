@@ -74,7 +74,7 @@ class TestCTPOrderLifecycle:
     """Test CTP order submission, status tracking, and cancellation."""
 
     # Use gold futures on SimNow (typically available)
-    TEST_INSTRUMENT = 'au2506'
+    TEST_INSTRUMENT = 'au2606'
 
     def test_submit_limit_order_far_from_market(self, ctp_store):
         """Submit a limit buy order far below market price, then cancel it."""
@@ -193,7 +193,7 @@ class TestCTPOrderLifecycle:
 class TestCTPOrderErrors:
     """Test CTP order error handling."""
 
-    TEST_INSTRUMENT = 'au2506'
+    TEST_INSTRUMENT = 'au2606'
 
     def test_cancel_nonexistent_order(self, ctp_store):
         """Canceling a nonexistent order should not crash."""
@@ -235,7 +235,7 @@ class TestCTPOrderErrors:
 class TestCTPMarketOrder:
     """Test market order submission with correct TimeCondition/VolumeCondition."""
 
-    TEST_INSTRUMENT = 'au2506'
+    TEST_INSTRUMENT = 'au2606'
 
     def test_market_order_params(self, ctp_store):
         """Verify market order uses IOC time condition and CV volume condition.

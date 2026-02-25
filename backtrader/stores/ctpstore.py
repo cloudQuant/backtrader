@@ -37,6 +37,9 @@ from backtrader.utils.py3 import queue
 
 logger = logging.getLogger(__name__)
 
+# CTP uses DBL_MAX (1.7976931348623157e+308) for invalid prices
+_CTP_INVALID_PRICE = 1e300
+
 # ---------------------------------------------------------------------------
 # CTP constants for order direction / offset / order price type
 # ---------------------------------------------------------------------------
@@ -101,6 +104,7 @@ class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
         self.connected = False
         self.authed = False
         self.loggedin = False
+        self.login_error = None  # (error_id, error_msg) tuple on failure
 
         # Event queues (set by CTPStore)
         self.order_queue = queue.Queue()
@@ -147,6 +151,10 @@ class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
         logger.warning(f"[CTPTrader] OnFrontDisconnected reason={nReason}")
         self.connected = False
         self.loggedin = False
+        self.authed = False
+        # B1: CTP API will auto-reconnect and fire OnFrontConnected again.
+        # Our OnFrontConnected -> _do_auth -> _do_login chain handles re-login.
+        logger.info("[CTPTrader] Waiting for auto-reconnect...")
 
     # --- Auth / Login ---
     def _do_auth(self):
@@ -176,6 +184,7 @@ class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
     def OnRspUserLogin(self, pRspUserLogin, pRspInfo, nRequestID, bIsLast):
         if pRspInfo and pRspInfo.ErrorID == 0:
             self.loggedin = True
+            self.login_error = None
             self.front_id = pRspUserLogin.FrontID
             self.session_id = pRspUserLogin.SessionID
             logger.info(f"[CTPTrader] Login OK front={self.front_id} session={self.session_id}")
@@ -185,8 +194,10 @@ class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
             field.InvestorID = self.user_id
             self.api.ReqSettlementInfoConfirm(field, self._next_request_id())
         else:
-            err = pRspInfo.ErrorMsg if pRspInfo else 'unknown'
-            logger.error(f"[CTPTrader] Login failed: {err}")
+            err_id = pRspInfo.ErrorID if pRspInfo else -1
+            err_msg = pRspInfo.ErrorMsg if pRspInfo else 'unknown'
+            self.login_error = (err_id, err_msg)
+            logger.error(f"[CTPTrader] Login failed: ErrorID={err_id} {err_msg}")
 
     def OnRspSettlementInfoConfirm(self, pSettlementInfoConfirm, pRspInfo, nRequestID, bIsLast):
         logger.info("[CTPTrader] Settlement confirmed")
@@ -409,8 +420,12 @@ class CTPMdSpi(ctp.CThostFtdcMdSpi):
         self.password = password
 
         self.request_id = 0
+        self._id_lock = threading.Lock()  # B2: thread-safe request_id
         self.connected = False
         self.loggedin = False
+
+        # Subscribed instruments for re-subscribe on reconnect
+        self._subscribed = set()
 
         # Tick data queues: instrument -> queue.Queue
         self.tick_queues = {}
@@ -432,8 +447,9 @@ class CTPMdSpi(ctp.CThostFtdcMdSpi):
         self.api.Join()
 
     def _next_request_id(self):
-        self.request_id += 1
-        return self.request_id
+        with self._id_lock:  # B2: thread-safe
+            self.request_id += 1
+            return self.request_id
 
     def OnFrontConnected(self):
         logger.info("[CTPMd] OnFrontConnected")
@@ -448,11 +464,18 @@ class CTPMdSpi(ctp.CThostFtdcMdSpi):
         logger.warning(f"[CTPMd] OnFrontDisconnected reason={nReason}")
         self.connected = False
         self.loggedin = False
+        # B1: CTP API auto-reconnects; OnFrontConnected fires again
+        logger.info("[CTPMd] Waiting for auto-reconnect...")
 
     def OnRspUserLogin(self, pRspUserLogin, pRspInfo, nRequestID, bIsLast):
         if pRspInfo and pRspInfo.ErrorID == 0:
             self.loggedin = True
             logger.info("[CTPMd] Login OK")
+            # B1: Re-subscribe instruments after reconnect
+            if self._subscribed:
+                instruments = list(self._subscribed)
+                logger.info(f"[CTPMd] Re-subscribing {len(instruments)} instruments")
+                self.api.SubscribeMarketData(instruments)
         else:
             err = pRspInfo.ErrorMsg if pRspInfo else 'unknown'
             logger.error(f"[CTPMd] Login failed: {err}")
@@ -470,17 +493,32 @@ class CTPMdSpi(ctp.CThostFtdcMdSpi):
         if pDepthMarketData is None:
             return
         inst = pDepthMarketData.InstrumentID
+
+        # B3: Filter invalid prices (CTP uses DBL_MAX for missing data)
+        last_price = pDepthMarketData.LastPrice
+        try:
+            if last_price <= 0 or last_price >= _CTP_INVALID_PRICE:
+                return
+        except TypeError:
+            return
+
+        def _safe_price(p):
+            try:
+                return p if 0 < p < _CTP_INVALID_PRICE else 0.0
+            except TypeError:
+                return 0.0
+
         # Build a plain dict to avoid CTP memory management issues
         tick = {
             'instrument': inst,
-            'last_price': pDepthMarketData.LastPrice,
-            'open_price': pDepthMarketData.OpenPrice,
-            'high_price': pDepthMarketData.HighestPrice,
-            'low_price': pDepthMarketData.LowestPrice,
+            'last_price': last_price,
+            'open_price': _safe_price(pDepthMarketData.OpenPrice),
+            'high_price': _safe_price(pDepthMarketData.HighestPrice),
+            'low_price': _safe_price(pDepthMarketData.LowestPrice),
             'volume': pDepthMarketData.Volume,
             'open_interest': pDepthMarketData.OpenInterest,
-            'bid_price1': pDepthMarketData.BidPrice1,
-            'ask_price1': pDepthMarketData.AskPrice1,
+            'bid_price1': _safe_price(pDepthMarketData.BidPrice1),
+            'ask_price1': _safe_price(pDepthMarketData.AskPrice1),
             'bid_volume1': pDepthMarketData.BidVolume1,
             'ask_volume1': pDepthMarketData.AskVolume1,
             'update_time': pDepthMarketData.UpdateTime,
@@ -491,6 +529,12 @@ class CTPMdSpi(ctp.CThostFtdcMdSpi):
         with self._lock:
             q = self.tick_queues.get(inst)
         if q is not None:
+            # B4: Discard oldest tick if queue is full to prevent memory overflow
+            if q.full():
+                try:
+                    q.get_nowait()
+                except queue.Empty:
+                    pass
             q.put(tick)
 
     def subscribe(self, instruments):
@@ -501,13 +545,15 @@ class CTPMdSpi(ctp.CThostFtdcMdSpi):
         """
         if isinstance(instruments, str):
             instruments = [instruments]
+        self._subscribed.update(instruments)  # B1: track for re-subscribe
         self.api.SubscribeMarketData(instruments)
 
     def register_instrument(self, instrument):
         """Register a tick queue for an instrument."""
         with self._lock:
             if instrument not in self.tick_queues:
-                self.tick_queues[instrument] = queue.Queue()
+                # B4: Bounded queue (10000 ticks max per instrument)
+                self.tick_queues[instrument] = queue.Queue(maxsize=10000)
         return self.tick_queues[instrument]
 
     def OnRspError(self, pRspInfo, nRequestID, bIsLast):
@@ -540,9 +586,9 @@ class CTPStore(ParameterizedSingletonMixin):
 
     params = (("debug", False),)
 
-    # SimNow defaults
-    DEFAULT_TD_FRONT = 'tcp://180.168.146.187:10130'
-    DEFAULT_MD_FRONT = 'tcp://180.168.146.187:10131'
+    # SimNow defaults (第一组, 看穿式前置, 使用监控中心生产秘钥)
+    DEFAULT_TD_FRONT = 'tcp://182.254.243.31:30001'
+    DEFAULT_MD_FRONT = 'tcp://182.254.243.31:30011'
     DEFAULT_BROKER_ID = '9999'
     DEFAULT_APP_ID = 'simnow_client_test'
     DEFAULT_AUTH_CODE = '0000000000000000'
@@ -598,9 +644,9 @@ class CTPStore(ParameterizedSingletonMixin):
         self._balance_query_interval = 2.0  # CTP has 1s rate limit
         self._feed_count = 0  # track active data feeds
 
-        # Event queues (shared with broker)
-        self.order_queue = queue.Queue()
-        self.trade_queue = queue.Queue()
+        # B4: Bounded event queues to prevent memory overflow
+        self.order_queue = queue.Queue(maxsize=10000)
+        self.trade_queue = queue.Queue(maxsize=10000)
 
         # Create SPIs
         self.trader_spi = CTPTraderSpi(
@@ -627,7 +673,7 @@ class CTPStore(ParameterizedSingletonMixin):
         self._td_thread.start()
         self._md_thread.start()
 
-        # Wait for login
+        # Wait for login (break early on error to avoid CTP login ban)
         timeout = 15
         waited = 0
         while waited < timeout:
@@ -635,8 +681,18 @@ class CTPStore(ParameterizedSingletonMixin):
             waited += 1
             if self.trader_spi.loggedin and self.md_spi.loggedin:
                 break
+            # Break early if login failed with an error (avoid accumulating
+            # failed attempts that trigger CTP error 75 login ban)
+            trader_err = getattr(self.trader_spi, 'login_error', None)
+            if trader_err is not None:
+                logger.error(f"[CTPStore] Trader login error: {trader_err}")
+                break
         if not self.trader_spi.loggedin:
-            logger.warning("[CTPStore] Trader login timeout")
+            trader_err = getattr(self.trader_spi, 'login_error', None)
+            if trader_err:
+                logger.warning(f"[CTPStore] Trader login failed: {trader_err}")
+            else:
+                logger.warning("[CTPStore] Trader login timeout")
         if not self.md_spi.loggedin:
             logger.warning("[CTPStore] MD login timeout")
 

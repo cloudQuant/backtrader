@@ -209,10 +209,19 @@ def ccxt_pro_exchange(okx_config):
 # ---- CTP Fixtures ----
 
 # CTP test server endpoints
-# ctp-python default (Tencent Cloud SimNow mirror, 7x24)
-CTP_TENCENT_TD = 'tcp://182.254.243.31:30001'
-CTP_TENCENT_MD = 'tcp://182.254.243.31:30011'
-# SimNow 7x24 test server
+# SimNow 第一组 (看穿式前置, 使用监控中心生产秘钥, recommended)
+CTP_SIMNOW_SET1_TD = 'tcp://182.254.243.31:30001'
+CTP_SIMNOW_SET1_MD = 'tcp://182.254.243.31:30011'
+# SimNow 第二组
+CTP_SIMNOW_SET2_TD = 'tcp://182.254.243.31:30002'
+CTP_SIMNOW_SET2_MD = 'tcp://182.254.243.31:30012'
+# SimNow 第三组
+CTP_SIMNOW_SET3_TD = 'tcp://182.254.243.31:30003'
+CTP_SIMNOW_SET3_MD = 'tcp://182.254.243.31:30013'
+# SimNow 7x24 (2nd env, requires separate registration)
+CTP_SIMNOW_7X24_V2_TD = 'tcp://182.254.243.31:40001'
+CTP_SIMNOW_7X24_V2_MD = 'tcp://182.254.243.31:40011'
+# SimNow 7x24 test server (old)
 CTP_SIMNOW_7X24_TD = 'tcp://180.168.146.187:10130'
 CTP_SIMNOW_7X24_MD = 'tcp://180.168.146.187:10131'
 # SimNow normal trading hours
@@ -237,7 +246,10 @@ def _find_reachable_ctp_server(timeout=3):
         return 'env-override', env_td, env_md
 
     servers = [
-        ('Tencent-SimNow', CTP_TENCENT_TD, CTP_TENCENT_MD),
+        ('SimNow-Set1', CTP_SIMNOW_SET1_TD, CTP_SIMNOW_SET1_MD),
+        ('SimNow-Set2', CTP_SIMNOW_SET2_TD, CTP_SIMNOW_SET2_MD),
+        ('SimNow-Set3', CTP_SIMNOW_SET3_TD, CTP_SIMNOW_SET3_MD),
+        ('SimNow-7x24-v2', CTP_SIMNOW_7X24_V2_TD, CTP_SIMNOW_7X24_V2_MD),
         ('SimNow-7x24', CTP_SIMNOW_7X24_TD, CTP_SIMNOW_7X24_MD),
         ('SimNow-Trade', CTP_SIMNOW_TRADE_TD, CTP_SIMNOW_TRADE_MD),
         ('OpenCTP', CTP_OPENCTP_TD, CTP_OPENCTP_MD),
@@ -282,18 +294,25 @@ def ctp_config():
     return config
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def ctp_store(ctp_config):
-    """Create a CTPStore connected to SimNow."""
+    """Create a CTPStore connected to SimNow (session-scoped to avoid login ban).
+
+    CTP has strict rate-limiting on login attempts (error 75). Using session
+    scope ensures we only connect once for all integration tests.
+    """
     from backtrader.stores.ctpstore import CTPStore
 
-    # Reset singleton for test isolation
+    # Reset singleton for clean state
     CTPStore._reset_instance()
 
     store = CTPStore(ctp_setting=ctp_config)
     if not store.is_connected:
+        trader_err = getattr(store.trader_spi, 'login_error', None)
         CTPStore._reset_instance()
-        pytest.skip("CTPStore failed to connect/login")
+        if trader_err and trader_err[0] == 75:
+            pytest.skip(f"CTP login banned (error 75): {trader_err[1]}")
+        pytest.skip(f"CTPStore failed to connect/login: {trader_err}")
 
     yield store
 

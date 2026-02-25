@@ -110,8 +110,8 @@ class TestCTPAccount:
 class TestCTPMarketData:
     """Test market data subscription and tick reception."""
 
-    # Common test instruments available on SimNow
-    TEST_INSTRUMENTS = ['au2506', 'ag2506', 'rb2510', 'IF2506']
+    # Common test instruments available on SimNow (update yearly)
+    TEST_INSTRUMENTS = ['au2606', 'ag2606', 'rb2610', 'IF2603']
 
     def _find_active_instrument(self, ctp_store, instruments=None):
         """Try to subscribe to instruments and find one that returns ticks."""

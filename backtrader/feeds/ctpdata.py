@@ -47,6 +47,8 @@ class CTPData(DataBase):
     params = (
         ("historical", False),
         ("num_init_backfill", 100),
+        ("tick_mode", False),        # C2: emit raw ticks instead of bars
+        ("backfill_retries", 2),     # C4: number of backfill retry attempts
     )
 
     _store = CTPStore
@@ -106,41 +108,62 @@ class CTPData(DataBase):
             self.qhist.put({})
             return True
 
-        try:
-            import akshare as ak
-            symbol = self._instrument
-            if self._timeframe == 4:
-                futures_sina_df = ak.futures_zh_minute_sina(
-                    symbol=symbol, period=str(self._compression)
-                ).tail(self.p.num_init_backfill)
-            elif self._timeframe == 5:
-                futures_sina_df = ak.futures_zh_daily_sina(symbol=symbol)
-            else:
-                futures_sina_df = ak.futures_zh_minute_sina(
-                    symbol=symbol, period="1"
-                ).tail(self.p.num_init_backfill)
+        # C4: Retry backfill with resilience
+        retries = max(0, self.p.backfill_retries)
+        for attempt in range(retries + 1):
+            try:
+                import akshare as ak
+                symbol = self._instrument
+                if self._timeframe == 4:
+                    futures_sina_df = ak.futures_zh_minute_sina(
+                        symbol=symbol, period=str(self._compression)
+                    ).tail(self.p.num_init_backfill)
+                elif self._timeframe == 5:
+                    futures_sina_df = ak.futures_zh_daily_sina(symbol=symbol)
+                else:
+                    futures_sina_df = ak.futures_zh_minute_sina(
+                        symbol=symbol, period="1"
+                    ).tail(self.p.num_init_backfill)
 
-            futures_sina_df.columns = [
-                "datetime", "OpenPrice", "HighPrice", "LowPrice",
-                "LastPrice", "BarVolume", "hold",
-            ]
-            futures_sina_df["symbol"] = self.p.dataname
+                # C4: Flexible column mapping (handle akshare API changes)
+                if len(futures_sina_df.columns) >= 7:
+                    futures_sina_df.columns = [
+                        "datetime", "OpenPrice", "HighPrice", "LowPrice",
+                        "LastPrice", "BarVolume", "hold",
+                    ]
+                else:
+                    logger.warning(f"[CTPData] Unexpected columns: {list(futures_sina_df.columns)}")
+                    break
 
-            for i in range(min(self.p.num_init_backfill, len(futures_sina_df))):
-                msg = futures_sina_df.iloc[i].to_dict()
-                dt = datetime.strptime(msg["datetime"], "%Y-%m-%d %H:%M:%S")
-                dt = CHINA_TZ.localize(dt)
-                msg["datetime"] = dt
-                msg["OpenPrice"] = float(msg["OpenPrice"])
-                msg["HighPrice"] = float(msg["HighPrice"])
-                msg["LowPrice"] = float(msg["LowPrice"])
-                msg["LastPrice"] = float(msg["LastPrice"])
-                msg["BarVolume"] = int(msg["BarVolume"])
-                msg["hold"] = int(msg["hold"])
-                msg["OpenInterest"] = 0
-                self.qhist.put(msg)
-        except Exception as e:
-            logger.warning(f"[CTPData] Backfill failed: {e}")
+                futures_sina_df["symbol"] = self.p.dataname
+
+                for i in range(min(self.p.num_init_backfill, len(futures_sina_df))):
+                    msg = futures_sina_df.iloc[i].to_dict()
+                    try:
+                        dt = datetime.strptime(str(msg["datetime"]), "%Y-%m-%d %H:%M:%S")
+                    except ValueError:
+                        continue  # C4: skip rows with unparseable datetime
+                    dt = CHINA_TZ.localize(dt)
+                    msg["datetime"] = dt
+                    msg["OpenPrice"] = float(msg["OpenPrice"])
+                    msg["HighPrice"] = float(msg["HighPrice"])
+                    msg["LowPrice"] = float(msg["LowPrice"])
+                    msg["LastPrice"] = float(msg["LastPrice"])
+                    msg["BarVolume"] = int(msg["BarVolume"])
+                    msg["hold"] = int(msg["hold"])
+                    msg["OpenInterest"] = 0
+                    self.qhist.put(msg)
+                break  # success
+            except ImportError:
+                logger.warning("[CTPData] akshare not installed, skipping backfill")
+                break  # no point retrying
+            except Exception as e:
+                if attempt < retries:
+                    logger.warning(f"[CTPData] Backfill attempt {attempt+1} failed: {e}, retrying...")
+                    import time
+                    time.sleep(1)
+                else:
+                    logger.warning(f"[CTPData] Backfill failed after {retries+1} attempts: {e}")
 
         self.qhist.put({})
         return True
@@ -218,13 +241,24 @@ class CTPData(DataBase):
                 delta_vol = tick_volume
             self._last_tick_volume = tick_volume
 
+            # C2: Tick mode — emit every tick as a bar
+            if self.p.tick_mode:
+                dt_num = date2num(tick_dt)
+                prev_dt = self.lines.datetime[-1] if len(self) > 0 else 0.0
+                if dt_num <= prev_dt:
+                    continue
+                self.lines.datetime[0] = dt_num
+                self.lines.open[0] = last_price
+                self.lines.high[0] = last_price
+                self.lines.low[0] = last_price
+                self.lines.close[0] = last_price
+                self.lines.volume[0] = delta_vol
+                self.lines.openinterest[0] = open_interest
+                return True
+
             # Initialize bar if needed
             if self._bar_dt is None:
-                bar_secs = self._bar_compression_secs
-                ts = tick_dt.timestamp()
-                bar_start_ts = int(ts // bar_secs) * bar_secs
-                self._bar_dt = datetime.fromtimestamp(bar_start_ts, tz=CHINA_TZ)
-                self._bar_end_dt = self._bar_dt + timedelta(seconds=bar_secs)
+                self._bar_dt, self._bar_end_dt = self._align_bar_time(tick_dt)
                 self._bar_open = last_price
                 self._bar_high = last_price
                 self._bar_low = last_price
@@ -251,11 +285,7 @@ class CTPData(DataBase):
                     self.lines.openinterest[0] = self._bar_oi
 
                     # Start new bar
-                    bar_secs = self._bar_compression_secs
-                    ts = tick_dt.timestamp()
-                    bar_start_ts = int(ts // bar_secs) * bar_secs
-                    self._bar_dt = datetime.fromtimestamp(bar_start_ts, tz=CHINA_TZ)
-                    self._bar_end_dt = self._bar_dt + timedelta(seconds=bar_secs)
+                    self._bar_dt, self._bar_end_dt = self._align_bar_time(tick_dt)
                     self._bar_open = last_price
                     self._bar_high = last_price
                     self._bar_low = last_price
@@ -270,6 +300,46 @@ class CTPData(DataBase):
                 self._bar_close = last_price
                 self._bar_volume += delta_vol
                 self._bar_oi = open_interest
+
+    # C3: Trading session boundaries for bar alignment
+    # Each tuple is (start_hour, start_min, end_hour, end_min)
+    _TRADING_SESSIONS = [
+        (21, 0, 23, 0),    # Night session part 1
+        (23, 0, 2, 30),    # Night session part 2 (crosses midnight)
+        (9, 0, 10, 15),    # Morning session 1
+        (10, 30, 11, 30),  # Morning session 2
+        (13, 30, 15, 0),   # Afternoon session
+    ]
+
+    def _align_bar_time(self, tick_dt):
+        """C3: Align bar start/end to trading session boundaries.
+
+        Instead of simple modular arithmetic which creates bars spanning
+        session breaks (e.g., a bar from 10:14 to 10:31 crossing the
+        10:15-10:30 break), this aligns bars within session boundaries.
+        """
+        bar_secs = self._bar_compression_secs
+        ts = tick_dt.timestamp()
+        bar_start_ts = int(ts // bar_secs) * bar_secs
+        bar_start = datetime.fromtimestamp(bar_start_ts, tz=CHINA_TZ)
+        bar_end = bar_start + timedelta(seconds=bar_secs)
+
+        # C3: Clamp bar_end to next session boundary if it crosses a break
+        h, m = tick_dt.hour, tick_dt.minute
+        # Session end times that could clip the current bar
+        session_ends = [
+            tick_dt.replace(hour=10, minute=15, second=0, microsecond=0),
+            tick_dt.replace(hour=11, minute=30, second=0, microsecond=0),
+            tick_dt.replace(hour=15, minute=0, second=0, microsecond=0),
+            tick_dt.replace(hour=23, minute=0, second=0, microsecond=0),
+        ]
+        for se in session_ends:
+            if bar_start < se < bar_end:
+                # Bar would cross a session boundary — clip it
+                bar_end = se
+                break
+
+        return bar_start, bar_end
 
     def _load_candle_history(self, msg):
         """Load a historical bar from backfill data."""

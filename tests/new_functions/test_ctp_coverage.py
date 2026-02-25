@@ -573,12 +573,18 @@ class TestCTPBroker:
 
         broker = CTPBroker.__new__(CTPBroker)
         broker.orders = collections.OrderedDict()
-        broker.open_orders = []
+        broker.open_orders = {}  # dict for O(1) removal
         broker.notifs = collections.deque()
         broker._ref_to_bt = {}
         broker.startingcash = broker.cash = 100000.0
         broker.startingvalue = broker.value = 150000.0
         broker.positions = collections.defaultdict(lambda: MagicMock(size=0, price=0.0))
+        broker._pos_detail = collections.defaultdict(
+            lambda: {'today_long': 0, 'today_short': 0, 'yd_long': 0, 'yd_short': 0}
+        )
+        broker._pending_stops = []  # C1: pending stop orders
+        broker._params = {'use_positions': True, 'commission': 0.0}
+        broker.get_param = lambda k: broker._params.get(k)
 
         # Mock the store
         broker.o = MagicMock()
@@ -674,7 +680,7 @@ class TestCTPBroker:
         broker._process_order_events()
 
         assert order.status == Order.Canceled
-        assert order not in broker.open_orders
+        assert order.ref not in broker.open_orders
 
     def test_process_order_reject_event(self):
         broker = self._make_broker()
@@ -692,7 +698,7 @@ class TestCTPBroker:
         broker._process_order_events()
 
         assert order.status == Order.Rejected
-        assert order not in broker.open_orders
+        assert order.ref not in broker.open_orders
 
     def test_process_trade_fill(self):
         broker = self._make_broker()
@@ -815,13 +821,16 @@ class TestCTPBrokerStart:
         from backtrader.brokers.ctpbroker import CTPBroker
         broker = CTPBroker.__new__(CTPBroker)
         broker.orders = collections.OrderedDict()
-        broker.open_orders = []
+        broker.open_orders = {}  # dict for O(1) removal
         broker.notifs = collections.deque()
         broker._ref_to_bt = {}
         broker.startingcash = broker.cash = 0.0
         broker.startingvalue = broker.value = 0.0
         broker.positions = collections.defaultdict(
             lambda: MagicMock(size=0, price=0.0)
+        )
+        broker._pos_detail = collections.defaultdict(
+            lambda: {'today_long': 0, 'today_short': 0, 'yd_long': 0, 'yd_short': 0}
         )
         broker.o = MagicMock()
         broker.o.get_cash.return_value = 100000.0
@@ -836,7 +845,8 @@ class TestCTPBrokerStart:
         broker.get_param = lambda k: broker._params.get(k)
 
         broker.o.get_positions.return_value = [
-            {'instrument': 'rb2501', 'direction': '2', 'volume': 5, 'avg_price': 3500.0},
+            {'instrument': 'rb2501', 'direction': '2', 'volume': 5, 'avg_price': 3500.0,
+             'yd_volume': 5, 'today_volume': 0},
         ]
         with patch.object(type(broker).__bases__[0], 'start', return_value=None):
             broker.start()
@@ -886,3 +896,486 @@ class TestCTPDataSource:
         with open('backtrader/brokers/ctpbroker.py') as f:
             source = f.read()
         assert 'ctpbee' not in source, "ctpbroker.py still references ctpbee"
+
+
+# ---------------------------------------------------------------------------
+# Tests for A1: SHFE/INE CloseToday/CloseYesterday
+# ---------------------------------------------------------------------------
+
+class TestSHFECloseOffset:
+    """Tests for SHFE/INE CloseToday/CloseYesterday offset determination."""
+
+    def _make_broker(self):
+        from backtrader.brokers.ctpbroker import CTPBroker
+        from backtrader.position import Position
+
+        broker = CTPBroker.__new__(CTPBroker)
+        broker.orders = collections.OrderedDict()
+        broker.open_orders = {}
+        broker.notifs = collections.deque()
+        broker._ref_to_bt = {}
+        broker.startingcash = broker.cash = 100000.0
+        broker.startingvalue = broker.value = 150000.0
+        broker.positions = collections.defaultdict(Position)
+        broker._pos_detail = collections.defaultdict(
+            lambda: {'today_long': 0, 'today_short': 0, 'yd_long': 0, 'yd_short': 0}
+        )
+        broker._pending_stops = []
+        broker._params = {'use_positions': True, 'commission': 0.0}
+        broker.get_param = lambda k: broker._params.get(k)
+
+        broker.o = MagicMock()
+        broker.o.order_queue = queue.Queue()
+        broker.o.trade_queue = queue.Queue()
+        broker.o.send_order.return_value = '1'
+        broker.o.get_balance.return_value = None
+        broker.o.get_cash.return_value = 100000.0
+        broker.o.get_value.return_value = 150000.0
+        return broker
+
+    def test_close_today_shfe(self):
+        """SHFE sell close with today position should use CloseToday."""
+        from backtrader.brokers.ctpbroker import THOST_FTDC_OF_CloseToday
+        from backtrader.position import Position
+        broker = self._make_broker()
+        broker.positions['rb2501.SHFE'] = Position(5, 3500.0)
+        broker._pos_detail['rb2501'] = {
+            'today_long': 5, 'today_short': 0, 'yd_long': 0, 'yd_short': 0
+        }
+        owner = MagicMock()
+        data = _make_mock_data('rb2501.SHFE')
+
+        broker.sell(owner, data, size=3, price=3500.0, exectype=None)
+        call_kwargs = broker.o.send_order.call_args
+        assert call_kwargs[1].get('offset') == THOST_FTDC_OF_CloseToday
+
+    def test_close_yesterday_shfe(self):
+        """SHFE sell close with yd position should use CloseYesterday."""
+        from backtrader.brokers.ctpbroker import THOST_FTDC_OF_CloseYesterday
+        from backtrader.position import Position
+        broker = self._make_broker()
+        broker.positions['rb2501.SHFE'] = Position(5, 3500.0)
+        broker._pos_detail['rb2501'] = {
+            'today_long': 0, 'today_short': 0, 'yd_long': 5, 'yd_short': 0
+        }
+        owner = MagicMock()
+        data = _make_mock_data('rb2501.SHFE')
+
+        broker.sell(owner, data, size=3, price=3500.0, exectype=None)
+        call_kwargs = broker.o.send_order.call_args
+        assert call_kwargs[1].get('offset') == THOST_FTDC_OF_CloseYesterday
+
+    def test_non_shfe_uses_close(self):
+        """Non-SHFE exchange should use plain Close offset."""
+        broker = self._make_broker()
+        from backtrader.position import Position
+        broker.positions['IF2506.CFFEX'] = Position(5, 4000.0)
+        owner = MagicMock()
+        data = _make_mock_data('IF2506.CFFEX')
+
+        broker.sell(owner, data, size=3, price=4000.0, exectype=None)
+        call_kwargs = broker.o.send_order.call_args
+        assert call_kwargs[1].get('offset') == THOST_FTDC_OF_Close
+
+    def test_extract_exchange(self):
+        from backtrader.brokers.ctpbroker import _extract_exchange, _extract_instrument
+        assert _extract_exchange('rb2501.SHFE') == 'SHFE'
+        assert _extract_exchange('IF2506.CFFEX') == 'CFFEX'
+        assert _extract_exchange('rb2501') == ''
+        assert _extract_instrument('rb2501.SHFE') == 'rb2501'
+        assert _extract_instrument('rb2501') == 'rb2501'
+
+
+# ---------------------------------------------------------------------------
+# Tests for A2: Commission calculation
+# ---------------------------------------------------------------------------
+
+class TestCommissionCalc:
+    """Tests for commission calculation in trade processing."""
+
+    def _make_broker_with_commission(self, comm=1.5):
+        from backtrader.brokers.ctpbroker import CTPBroker
+        from backtrader.position import Position
+
+        broker = CTPBroker.__new__(CTPBroker)
+        broker.orders = collections.OrderedDict()
+        broker.open_orders = {}
+        broker.notifs = collections.deque()
+        broker._ref_to_bt = {}
+        broker.startingcash = broker.cash = 100000.0
+        broker.startingvalue = broker.value = 150000.0
+        broker.positions = collections.defaultdict(Position)
+        broker._pos_detail = collections.defaultdict(
+            lambda: {'today_long': 0, 'today_short': 0, 'yd_long': 0, 'yd_short': 0}
+        )
+        broker._pending_stops = []
+        broker._params = {'use_positions': True, 'commission': comm}
+        broker.get_param = lambda k: broker._params.get(k)
+
+        broker.o = MagicMock()
+        broker.o.order_queue = queue.Queue()
+        broker.o.trade_queue = queue.Queue()
+        broker.o.send_order.return_value = '1'
+        broker.o.get_balance.return_value = None
+        broker.o.get_cash.return_value = 100000.0
+        broker.o.get_value.return_value = 150000.0
+        return broker
+
+    def test_commission_applied_on_fill(self):
+        """Commission should be applied when processing trade fills."""
+        broker = self._make_broker_with_commission(comm=2.0)
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        order = broker.buy(owner, data, size=3, price=3500.0, exectype=None)
+        evt = _make_trade_event(order_ref='1', price=3500.0, volume=3)
+        broker.o.trade_queue.put(evt)
+        broker._process_trade_events()
+
+        # Commission = 2.0 * 3 = 6.0
+        assert order.executed.comm == 6.0
+
+    def test_zero_commission(self):
+        """Zero commission rate should produce zero commission."""
+        broker = self._make_broker_with_commission(comm=0.0)
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        order = broker.buy(owner, data, size=1, price=3500.0, exectype=None)
+        evt = _make_trade_event(order_ref='1', price=3500.0, volume=1)
+        broker.o.trade_queue.put(evt)
+        broker._process_trade_events()
+
+        assert order.executed.comm == 0.0
+
+
+# ---------------------------------------------------------------------------
+# Tests for B3: Invalid tick data filtering
+# ---------------------------------------------------------------------------
+
+class TestInvalidTickFiltering:
+    """Tests for invalid tick data filtering in CTPMdSpi."""
+
+    def _make_spi(self):
+        spi = CTPMdSpi.__new__(CTPMdSpi)
+        spi.front = 'tcp://127.0.0.1:0'
+        spi.broker_id = '9999'
+        spi.user_id = 'test'
+        spi.password = 'test'
+        spi.request_id = 0
+        spi._id_lock = threading.Lock()
+        spi.connected = False
+        spi.loggedin = False
+        spi._subscribed = set()
+        spi.tick_queues = {}
+        spi._lock = threading.Lock()
+        return spi
+
+    def test_dbl_max_price_filtered(self):
+        """Tick with DBL_MAX price should be filtered out."""
+        spi = self._make_spi()
+        spi.register_instrument('rb2501')
+        md = MagicMock()
+        md.InstrumentID = 'rb2501'
+        md.LastPrice = 1.7976931348623157e+308  # DBL_MAX
+        spi.OnRtnDepthMarketData(md)
+        assert spi.tick_queues['rb2501'].empty()
+
+    def test_zero_price_filtered(self):
+        """Tick with zero price should be filtered out."""
+        spi = self._make_spi()
+        spi.register_instrument('rb2501')
+        md = MagicMock()
+        md.InstrumentID = 'rb2501'
+        md.LastPrice = 0.0
+        spi.OnRtnDepthMarketData(md)
+        assert spi.tick_queues['rb2501'].empty()
+
+    def test_negative_price_filtered(self):
+        """Tick with negative price should be filtered out."""
+        spi = self._make_spi()
+        spi.register_instrument('rb2501')
+        md = MagicMock()
+        md.InstrumentID = 'rb2501'
+        md.LastPrice = -100.0
+        spi.OnRtnDepthMarketData(md)
+        assert spi.tick_queues['rb2501'].empty()
+
+    def test_valid_price_with_invalid_secondary(self):
+        """Valid last_price but invalid secondary price should still produce tick with 0.0."""
+        spi = self._make_spi()
+        spi.register_instrument('rb2501')
+        md = MagicMock()
+        md.InstrumentID = 'rb2501'
+        md.LastPrice = 3500.0
+        md.OpenPrice = 1.7976931348623157e+308  # invalid
+        md.HighestPrice = 3510.0
+        md.LowestPrice = 3470.0
+        md.Volume = 100
+        md.OpenInterest = 5000.0
+        md.BidPrice1 = 3499.0
+        md.AskPrice1 = 3501.0
+        md.BidVolume1 = 10
+        md.AskVolume1 = 12
+        md.UpdateTime = '10:00:00'
+        md.UpdateMillisec = 0
+        md.TradingDay = '20250301'
+        md.ActionDay = '20250301'
+        spi.OnRtnDepthMarketData(md)
+        assert not spi.tick_queues['rb2501'].empty()
+        tick = spi.tick_queues['rb2501'].get_nowait()
+        assert tick['open_price'] == 0.0  # sanitized to 0.0
+        assert tick['high_price'] == 3510.0  # valid
+
+
+# ---------------------------------------------------------------------------
+# Tests for B4: Bounded queue protection
+# ---------------------------------------------------------------------------
+
+class TestBoundedQueues:
+    """Tests for bounded queue protection."""
+
+    def test_md_tick_queue_has_maxsize(self):
+        """Registered tick queues should have maxsize."""
+        spi = CTPMdSpi.__new__(CTPMdSpi)
+        spi.tick_queues = {}
+        spi._lock = threading.Lock()
+        spi._subscribed = set()
+        q = spi.register_instrument('rb2501')
+        assert q.maxsize == 10000
+
+    def test_subscribe_tracks_instruments(self):
+        """Subscribe should track instruments for reconnect."""
+        spi = CTPMdSpi.__new__(CTPMdSpi)
+        spi._subscribed = set()
+        spi.api = MagicMock()
+        spi._id_lock = threading.Lock()
+        spi.request_id = 0
+        spi.subscribe(['rb2501', 'IF2506'])
+        assert 'rb2501' in spi._subscribed
+        assert 'IF2506' in spi._subscribed
+
+
+# ---------------------------------------------------------------------------
+# Tests for C1: Stop/StopLimit order support
+# ---------------------------------------------------------------------------
+
+class TestStopOrders:
+    """Tests for local stop order triggering."""
+
+    def _make_broker(self):
+        from backtrader.brokers.ctpbroker import CTPBroker
+        from backtrader.position import Position
+
+        broker = CTPBroker.__new__(CTPBroker)
+        broker.orders = collections.OrderedDict()
+        broker.open_orders = {}
+        broker.notifs = collections.deque()
+        broker._ref_to_bt = {}
+        broker.startingcash = broker.cash = 100000.0
+        broker.startingvalue = broker.value = 150000.0
+        broker.positions = collections.defaultdict(Position)
+        broker._pos_detail = collections.defaultdict(
+            lambda: {'today_long': 0, 'today_short': 0, 'yd_long': 0, 'yd_short': 0}
+        )
+        broker._pending_stops = []
+        broker._params = {'use_positions': True, 'commission': 0.0}
+        broker.get_param = lambda k: broker._params.get(k)
+
+        broker.o = MagicMock()
+        broker.o.order_queue = queue.Queue()
+        broker.o.trade_queue = queue.Queue()
+        broker.o.send_order.return_value = '1'
+        broker.o.get_balance.return_value = None
+        broker.o.get_cash.return_value = 100000.0
+        broker.o.get_value.return_value = 150000.0
+        return broker
+
+    def test_stop_order_held_locally(self):
+        """Stop order should be held locally, not sent to CTP immediately."""
+        from backtrader.order import Order
+        broker = self._make_broker()
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        order = broker.buy(owner, data, size=1, price=3600.0,
+                           exectype=Order.Stop)
+        assert len(broker._pending_stops) == 1
+        broker.o.send_order.assert_not_called()
+        assert order.ref in broker.open_orders
+
+    def test_stop_buy_triggered(self):
+        """Stop buy should trigger when price >= stop_price."""
+        from backtrader.order import Order
+        broker = self._make_broker()
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        order = broker.buy(owner, data, size=1, price=3600.0,
+                           exectype=Order.Stop)
+        # Simulate price reaching stop
+        data.close.__getitem__ = MagicMock(return_value=3600.0)
+        broker._check_stop_triggers()
+
+        assert len(broker._pending_stops) == 0
+        broker.o.send_order.assert_called_once()
+        assert order.triggered is True
+
+    def test_stop_sell_triggered(self):
+        """Stop sell should trigger when price <= stop_price."""
+        from backtrader.order import Order
+        broker = self._make_broker()
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        order = broker.sell(owner, data, size=1, price=3400.0,
+                            exectype=Order.Stop)
+        data.close.__getitem__ = MagicMock(return_value=3400.0)
+        broker._check_stop_triggers()
+
+        assert len(broker._pending_stops) == 0
+        broker.o.send_order.assert_called_once()
+
+    def test_stop_not_triggered_yet(self):
+        """Stop should NOT trigger if price hasn't reached stop level."""
+        from backtrader.order import Order
+        broker = self._make_broker()
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        broker.buy(owner, data, size=1, price=3600.0, exectype=Order.Stop)
+        data.close.__getitem__ = MagicMock(return_value=3500.0)  # below stop
+        broker._check_stop_triggers()
+
+        assert len(broker._pending_stops) == 1
+        broker.o.send_order.assert_not_called()
+
+    def test_stoplimit_uses_limit_price(self):
+        """StopLimit should send limit order when triggered."""
+        from backtrader.order import Order
+        broker = self._make_broker()
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        order = broker.buy(owner, data, size=1, price=3600.0,
+                           plimit=3610.0, exectype=Order.StopLimit)
+        data.close.__getitem__ = MagicMock(return_value=3600.0)
+        broker._check_stop_triggers()
+
+        call_kwargs = broker.o.send_order.call_args[1]
+        from backtrader.stores.ctpstore import THOST_FTDC_OPT_LimitPrice
+        assert call_kwargs['order_price_type'] == THOST_FTDC_OPT_LimitPrice
+        assert call_kwargs['price'] == 3610.0
+
+
+# ---------------------------------------------------------------------------
+# Tests for C3: Trading session-aware bar alignment
+# ---------------------------------------------------------------------------
+
+class TestSessionBarAlignment:
+    """Tests for trading session-aware bar time alignment."""
+
+    def test_align_bar_time_basic(self):
+        """Basic alignment should return reasonable bar start/end."""
+        from backtrader.feeds.ctpdata import CTPData, CHINA_TZ
+        data = CTPData.__new__(CTPData)
+        data._bar_compression_secs = 300  # 5 minutes
+        dt = CHINA_TZ.localize(datetime(2025, 3, 1, 10, 3, 0))
+        bar_start, bar_end = data._align_bar_time(dt)
+        assert bar_start <= dt
+        assert bar_end > bar_start
+
+    def test_align_clips_at_session_break(self):
+        """Bar crossing 10:15 session break should be clipped."""
+        from backtrader.feeds.ctpdata import CTPData, CHINA_TZ
+        data = CTPData.__new__(CTPData)
+        data._bar_compression_secs = 300  # 5 minutes
+        # Tick at 10:12 — 5-min bar would be 10:10-10:15
+        dt = CHINA_TZ.localize(datetime(2025, 3, 1, 10, 12, 0))
+        bar_start, bar_end = data._align_bar_time(dt)
+        # bar_end should be clipped to 10:15 session break
+        assert bar_end.hour == 10
+        assert bar_end.minute == 15
+
+    def test_align_no_clip_in_middle(self):
+        """Bar fully within a session should not be clipped."""
+        from backtrader.feeds.ctpdata import CTPData, CHINA_TZ
+        data = CTPData.__new__(CTPData)
+        data._bar_compression_secs = 300  # 5 minutes
+        # Tick at 10:02 — 5-min bar would be 10:00-10:05
+        dt = CHINA_TZ.localize(datetime(2025, 3, 1, 10, 2, 0))
+        bar_start, bar_end = data._align_bar_time(dt)
+        assert bar_end.hour == 10
+        assert bar_end.minute == 5
+
+
+# ---------------------------------------------------------------------------
+# Tests for position detail tracking in trade events
+# ---------------------------------------------------------------------------
+
+class TestPositionDetailTracking:
+    """Tests for today/yd position detail updates on trade fills."""
+
+    def _make_broker(self):
+        from backtrader.brokers.ctpbroker import CTPBroker
+        from backtrader.position import Position
+
+        broker = CTPBroker.__new__(CTPBroker)
+        broker.orders = collections.OrderedDict()
+        broker.open_orders = {}
+        broker.notifs = collections.deque()
+        broker._ref_to_bt = {}
+        broker.startingcash = broker.cash = 100000.0
+        broker.startingvalue = broker.value = 150000.0
+        broker.positions = collections.defaultdict(Position)
+        broker._pos_detail = collections.defaultdict(
+            lambda: {'today_long': 0, 'today_short': 0, 'yd_long': 0, 'yd_short': 0}
+        )
+        broker._pending_stops = []
+        broker._params = {'use_positions': True, 'commission': 0.0}
+        broker.get_param = lambda k: broker._params.get(k)
+
+        broker.o = MagicMock()
+        broker.o.order_queue = queue.Queue()
+        broker.o.trade_queue = queue.Queue()
+        broker.o.send_order.return_value = '1'
+        broker.o.get_balance.return_value = None
+        broker.o.get_cash.return_value = 100000.0
+        broker.o.get_value.return_value = 150000.0
+        return broker
+
+    def test_open_buy_updates_today_long(self):
+        """Opening a buy should increase today_long."""
+        broker = self._make_broker()
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        order = broker.buy(owner, data, size=3, price=3500.0, exectype=None)
+        evt = _make_trade_event(order_ref='1', price=3500.0, volume=3,
+                                offset=THOST_FTDC_OF_Open)
+        broker.o.trade_queue.put(evt)
+        broker._process_trade_events()
+
+        # _extract_instrument('rb2501.SHFE') -> 'rb2501'
+        assert broker._pos_detail['rb2501']['today_long'] == 3
+
+    def test_close_today_updates_detail(self):
+        """Closing today position should decrease today_long."""
+        from backtrader.stores.ctpstore import THOST_FTDC_OF_CloseToday
+        from backtrader.position import Position
+        broker = self._make_broker()
+        # _extract_instrument('rb2501.SHFE') -> 'rb2501'
+        broker._pos_detail['rb2501'] = {
+            'today_long': 5, 'today_short': 0, 'yd_long': 0, 'yd_short': 0
+        }
+        broker.positions['rb2501.SHFE'] = Position(5, 3500.0)
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        order = broker.sell(owner, data, size=2, price=3500.0, exectype=None)
+        evt = _make_trade_event(order_ref='1', price=3500.0, volume=2,
+                                offset=THOST_FTDC_OF_CloseToday)
+        broker.o.trade_queue.put(evt)
+        broker._process_trade_events()
+
+        assert broker._pos_detail['rb2501']['today_long'] == 3
