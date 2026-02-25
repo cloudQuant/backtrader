@@ -464,6 +464,11 @@ class TestCTPStore:
         store.md_spi.loggedin = True
         store.md_spi.tick_queues = {}
 
+        # Rate limiting and feed tracking (added in bug fix round)
+        store._last_balance_query = 0.0
+        store._balance_query_interval = 2.0
+        store._feed_count = 0
+
         return store
 
     def test_is_connected(self):

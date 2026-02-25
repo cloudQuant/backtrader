@@ -722,7 +722,6 @@ class CTPStore(ParameterizedSingletonMixin):
         now = time()
         if now - self._last_balance_query < self._balance_query_interval:
             return
-        self._last_balance_query = now
         try:
             self.trader_spi.query_account()
             if self.trader_spi._account_query_done.wait(timeout=5):
@@ -732,6 +731,8 @@ class CTPStore(ParameterizedSingletonMixin):
                     self._value = acc['balance']
         except Exception as e:
             logger.error(f"[CTPStore] get_balance failed: {e}")
+        finally:
+            self._last_balance_query = time()
 
     def get_positions(self):
         """Query and return current positions."""
