@@ -1,151 +1,101 @@
 #!/usr/bin/env python
-"""Python 2/3 Compatibility Module.
+"""Python 3 Compatibility Module.
 
-This module provides compatibility shims to support both Python 2 and Python 3.
-It defines common types and functions that work across Python versions.
+This module provides common type aliases and utility functions used
+throughout the backtrader framework. Originally a Python 2/3 shim,
+now simplified to Python 3 only.
 
 Exports:
-    PY2: Boolean indicating if running on Python 2.
-    string_types: Tuple of string types.
-    integer_types: Tuple of integer types.
-    range: Python 3 style range function.
-    zip: Python 3 style zip function.
-    map: Python 3 style map function.
-    filter: Python 3 style filter function.
-    MAXINT: Maximum integer value.
+    string_types: Tuple of string types — ``(str,)``.
+    integer_types: Tuple of integer types — ``(int,)``.
+    MAXINT / MININT / MAXFLOAT / MINFLOAT: Numeric limits.
+    range, zip, map, filter: Built-in references (kept for import compat).
+    queue: ``import queue``.
+    cmp, bytes, bstr: Helper functions.
+    iterkeys, itervalues, iteritems, keys, values, items: Dict helpers.
+    urlquote, urlopen, ProxyHandler, build_opener, install_opener: URL helpers.
+    winreg: Windows registry module (None on non-Windows).
+    with_metaclass: Metaclass helper.
 """
 
+import queue  # noqa: F401 — re-exported
 import sys
+import urllib.request as _urllib_request
+from urllib.parse import quote as _urlquote
 
-PY2 = sys.version_info.major == 2  # Get current Python version, check if it's python2
+# Kept for backward compat — always False
+PY2 = False
 
-# If python2
-if PY2:
-    # # Try to import _winreg module, if callable, it proves this system is Windows, can be used for Windows registry related operations;
-    # # If import raises an error, it means the system is not Windows, set winreg to None
-    # try:
-    #     import _winreg as winreg
-    # except ImportError:
-    #     winreg = None
-    # # Maximum integer allowed by the system
-    # MAXINT = sys.maxint
-    # # Minimum integer allowed by the system
-    # MININT = -sys.maxint - 1
-    # # Maximum float allowed by the system
-    # MAXFLOAT = sys.float_info.max
-    # # Minimum float allowed by the system
-    # MINFLOAT = sys.float_info.min
-    # # String types
-    # string_types = str, unicode
-    # # Integer types
-    # integer_types = int, long
-    # # Filter function
-    # filter = itertools.ifilter
-    # # Map function
-    # map = itertools.imap
-    # # Create integer iterator function range
-    # range = xrange
-    # # Function to pair elements into tuples
-    # zip = itertools.izip
-    # # Long integer
-    # long = long
-    # # Comparison function
-    # cmp = cmp
-    # # Generate bytes
-    # bytes = bytes
-    # bstr = bytes
-    # # String buffer
-    # from io import StringIO
-    # # Web crawler module
-    # from urllib2 import urlopen, ProxyHandler, build_opener, install_opener
-    # from urllib import quote as urlquote
-    # # Dictionary iteration
-    # def iterkeys(d): return d.iterkeys()
-    #
-    # def itervalues(d): return d.itervalues()
-    #
-    # def iteritems(d): return d.iteritems()
-    # # Dictionary values
-    # def keys(d): return d.keys()
-    #
-    # def values(d): return d.values()
-    #
-    # def items(d): return d.items()
-    #
-    # import Queue as queue
-    pass
+# --- Windows registry ---
+try:
+    import winreg  # noqa: F401
+except ImportError:
+    winreg = None
+
+# --- URL helpers (used by feeds like Quandl, Yahoo) ---
+def urlquote(s, *args, **kwargs):
+    return _urlquote(s, *args, **kwargs)
+
+def urlopen(*args, **kwargs):
+    return _urllib_request.urlopen(*args, **kwargs)
+
+def ProxyHandler(*args, **kwargs):  # noqa: N802 — keep legacy name
+    return _urllib_request.ProxyHandler(*args, **kwargs)
+
+def build_opener(*args, **kwargs):
+    return _urllib_request.build_opener(*args, **kwargs)
+
+def install_opener(*args, **kwargs):
+    return _urllib_request.install_opener(*args, **kwargs)
+
+# --- Numeric limits ---
+MAXINT = sys.maxsize
+MININT = -sys.maxsize - 1
+MAXFLOAT = sys.float_info.max
+MINFLOAT = sys.float_info.min
+
+# --- Type aliases ---
+string_types = (str,)
+integer_types = (int,)
+long = int
+
+# --- Built-in re-exports (kept so ``from .py3 import range`` still works) ---
+filter = filter
+map = map
+range = range
+zip = zip
 
 
-else:
-    # python3 comments are similar to the comments above
-    try:
-        import winreg
-    except ImportError:
-        winreg = None
+# --- Utility functions ---
+def cmp(a, b):
+    """Compare *a* and *b*, return 1 / 0 / -1."""
+    return (a > b) - (a < b)
 
-    # Python 3 URL helpers, used by some feeds (for example Quandl)
-    import urllib.request as _urllib_request
-    from urllib.parse import quote as _urlquote
+def bytes(x):
+    return x.encode("utf-8")
 
-    def urlquote(s, *args, **kwargs):
-        return _urlquote(s, *args, **kwargs)
+def bstr(x):
+    return str(x)
 
-    def urlopen(*args, **kwargs):
-        return _urllib_request.urlopen(*args, **kwargs)
 
-    def ProxyHandler(*args, **kwargs):  # noqa: N802 - keep legacy name
-        return _urllib_request.ProxyHandler(*args, **kwargs)
+# --- Dict iteration helpers ---
+def iterkeys(d):
+    return iter(d.keys())
 
-    def build_opener(*args, **kwargs):
-        return _urllib_request.build_opener(*args, **kwargs)
+def itervalues(d):
+    return iter(d.values())
 
-    def install_opener(*args, **kwargs):
-        return _urllib_request.install_opener(*args, **kwargs)
+def iteritems(d):
+    return iter(d.items())
 
-    MAXINT = sys.maxsize
-    MININT = -sys.maxsize - 1
+def keys(d):
+    return list(d.keys())
 
-    MAXFLOAT = sys.float_info.max
-    MINFLOAT = sys.float_info.min
+def values(d):
+    return list(d.values())
 
-    string_types = (str,)
-    integer_types = (int,)
-
-    filter = filter
-    map = map
-    range = range
-    zip = zip
-    long = int
-
-    # Note, this cmp is a custom function, return value is 1, 0, -1
-    def cmp(a, b):
-        return (a > b) - (a < b)
-
-    def bytes(x):
-        return x.encode("utf-8")
-
-    def bstr(x):
-        return str(x)
-
-    def iterkeys(d):
-        return iter(d.keys())
-
-    def itervalues(d):
-        return iter(d.values())
-
-    def iteritems(d):
-        return iter(d.items())
-
-    def keys(d):
-        return list(d.keys())
-
-    def values(d):
-        return list(d.values())
-
-    def items(d):
-        return list(d.items())
-
-    import queue as queue
+def items(d):
+    return list(d.items())
 
 
 # This is from Armin Ronacher from Flash simplified later by six

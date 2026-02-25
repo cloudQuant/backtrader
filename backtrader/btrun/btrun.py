@@ -554,67 +554,33 @@ def loadmodule(modpath, modname=""):
         chars = string.ascii_uppercase + string.digits
         modname = "".join(random.choice(chars) for _ in range(10))
 
-    version = (sys.version_info[0], sys.version_info[1])
-
-    if version < (3, 3):
-        mod, e = loadmodule2(modpath, modname)
-    else:
-        mod, e = loadmodule3(modpath, modname)
-
-    return mod, e
-
-
-def loadmodule2(modpath, modname):
-    """Load a Python module using the deprecated imp module (Python 2.x).
-
-    This function is used for Python versions < 3.3 to load modules from
-    file paths using the imp module, which is deprecated but was the standard
-    method before importlib.
-
-    Args:
-        modpath (str): Path to the Python module file.
-        modname (str): Name to assign to the loaded module.
-
-    Returns:
-        tuple: A tuple containing:
-            - mod (module or None): The loaded module object, or None if loading failed.
-            - e (Exception or None): Exception object if loading failed, None otherwise.
-    """
-    import imp
-
     try:
-        mod = imp.load_source(modname, modpath)
+        mod = _load_module_from_path(modpath, modname)
     except Exception as e:
         return None, e
 
     return mod, None
 
 
-def loadmodule3(modpath, modname):
-    """Load a Python module using importlib.machinery (Python 3.3+).
-
-    This function is used for Python versions >= 3.3 to load modules from
-    file paths using importlib.machinery.SourceFileLoader, which is the
-    modern replacement for the deprecated imp module.
+def _load_module_from_path(modpath, modname):
+    """Load a Python module from a file path using importlib.
 
     Args:
         modpath (str): Path to the Python module file.
         modname (str): Name to assign to the loaded module.
 
     Returns:
-        tuple: A tuple containing:
-            - mod (module or None): The loaded module object, or None if loading failed.
-            - e (Exception or None): Exception object if loading failed, None otherwise.
+        module: The loaded module object.
+
+    Raises:
+        Exception: If module loading fails.
     """
-    import importlib.machinery
+    import importlib.util
 
-    try:
-        loader = importlib.machinery.SourceFileLoader(modname, modpath)
-        mod = loader.load_module()
-    except Exception as e:
-        return None, e
-
-    return mod, None
+    spec = importlib.util.spec_from_file_location(modname, modpath)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def getobjects(iterable, clsbase, modbase, issignal=False):
