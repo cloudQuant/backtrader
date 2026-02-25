@@ -285,7 +285,7 @@ class TestWSOrderPaths:
         broker = _make_broker(use_ws=True)
         broker._ws_order_manager = None
 
-        with patch('backtrader.brokers.ccxtbroker.CCXTWebSocketManager', side_effect=Exception("no ccxtpro")):
+        with patch('backtrader.brokers.ccxtbroker.CCXTWebSocketManager', side_effect=ImportError("no ccxtpro")):
             broker._init_ws_order_manager()
             assert broker._ws_order_manager is None
             assert broker._use_ws_orders is False
@@ -331,7 +331,8 @@ class TestWSOrderPaths:
     def test_ws_subscribe_symbol_error_handled(self):
         """_ws_subscribe_symbol catches exceptions."""
         broker = _make_broker(use_ws=True)
-        broker._ws_order_manager.subscribe_my_trades.side_effect = Exception("ws error")
+        from ccxt.base.errors import NetworkError
+        broker._ws_order_manager.subscribe_my_trades.side_effect = NetworkError("ws error")
         broker._ws_subscribe_symbol('BTC/USDT:USDT')
         # Should not raise, symbol not added
         assert 'BTC/USDT:USDT' not in broker._ws_subscribed_symbols

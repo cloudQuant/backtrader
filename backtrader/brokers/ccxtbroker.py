@@ -301,7 +301,7 @@ class CCXTBroker(BrokerBase):
             )
             self._ws_order_manager.start()
             print("[CCXTBroker] WebSocket order tracking initialized")
-        except Exception as e:
+        except (NetworkError, ExchangeError, OSError, ImportError) as e:
             print(f"[CCXTBroker] WebSocket order init failed, falling back to REST: {e}")
             self._ws_order_manager = None
             self._use_ws_orders = False
@@ -322,7 +322,7 @@ class CCXTBroker(BrokerBase):
             self._ws_subscribed_symbols.add(symbol)
             if self.debug:
                 print(f"[CCXTBroker] WS subscribed to my_trades for {symbol}")
-        except Exception as e:
+        except (NetworkError, ExchangeError, OSError) as e:
             print(f"[CCXTBroker] WS subscribe_my_trades failed for {symbol}: {e}")
 
     def _on_ws_my_trades(self, trades):
@@ -346,7 +346,7 @@ class CCXTBroker(BrokerBase):
         for trade in trades:
             try:
                 self._ws_order_updates.put_nowait(trade)
-            except Exception:
+            except queue.Full:
                 pass  # Queue full, will catch up next cycle
 
     def _process_ws_order_updates(self):
@@ -359,7 +359,7 @@ class CCXTBroker(BrokerBase):
         while not self._ws_order_updates.empty():
             try:
                 trade = self._ws_order_updates.get_nowait()
-            except Exception:
+            except queue.Empty:
                 break
 
             order_id = trade.get('order')

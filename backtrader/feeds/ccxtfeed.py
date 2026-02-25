@@ -207,7 +207,7 @@ class CCXTFeed(DataBase):
 
             print(f"[WS] WebSocket subscribed for {self.p.dataname} ({granularity})")
 
-        except Exception as e:
+        except (NetworkError, ExchangeError, OSError, ImportError) as e:
             print(f"[WS] WebSocket start error: {e}")
             self._websocket_manager = None
 
@@ -249,7 +249,7 @@ class CCXTFeed(DataBase):
                             print(f"[WS] Reconnected after {gap_seconds:.0f}s gap, backfill needed")
                     self._ws_disconnected_since = 0
 
-        except Exception as e:
+        except (ValueError, TypeError, KeyError, queue.Full) as e:
             print(f"[WS] Error processing WebSocket data: {e}")
 
     def _load(self):
@@ -383,7 +383,7 @@ class CCXTFeed(DataBase):
                     )
                 )
                 self._consecutive_fetch_errors = 0
-            except Exception as e:
+            except (NetworkError, ExchangeError, ExchangeNotAvailable, OSError) as e:
                 self._consecutive_fetch_errors += 1
                 self._last_error_time = time.time()
                 if self._consecutive_fetch_errors <= 3 or self.p.debug:

@@ -273,7 +273,7 @@ class TestStartWebSocket:
 
     def test_ws_start_error_handled(self):
         feed = _make_feed(use_ws=True)
-        feed.store.get_websocket_manager.side_effect = Exception("ws init error")
+        feed.store.get_websocket_manager.side_effect = OSError("ws init error")
 
         feed._start_websocket()
         assert feed._websocket_manager is None
@@ -384,13 +384,15 @@ class TestUpdateBar:
 
     def test_fetch_error_tracked(self):
         feed = _make_feed()
-        feed.store.fetch_ohlcv.side_effect = Exception("API down")
+        from ccxt.base.errors import NetworkError
+        feed.store.fetch_ohlcv.side_effect = NetworkError("API down")
         feed._update_bar()
         assert feed._consecutive_fetch_errors == 1
 
     def test_many_fetch_errors_backs_off(self):
         feed = _make_feed()
-        feed.store.fetch_ohlcv.side_effect = Exception("API down")
+        from ccxt.base.errors import NetworkError
+        feed.store.fetch_ohlcv.side_effect = NetworkError("API down")
         feed._consecutive_fetch_errors = 9
         feed._update_bar()
         assert feed._consecutive_fetch_errors == 10
