@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 """Blaze Data Feed Module - Blaze data interface.
 
-This module provides the BlazeData feed for interfacing with Blaze
-Data objects for out-of-core analytics.
+.. deprecated::
+    The Blaze project (blaze.pydata.org) is no longer maintained.
+    This module is retained for backward compatibility but will be
+    removed in a future release. Consider using PandasData instead.
 
 Classes:
     BlazeData: Blaze Data object feed.
@@ -13,6 +15,15 @@ Example:
     >>> feed = bt.feeds.BlazeData(dataname=data)
     >>> cerebro.adddata(feed)
 """
+
+import warnings
+
+warnings.warn(
+    "backtrader.feeds.blaze is deprecated (Blaze is unmaintained). "
+    "Consider using PandasData instead.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 
 from ..feed import DataBase
 from ..utils import date2num

@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 """Quandl Data Feed Module - Quandl data parsing.
 
-This module provides data feeds for Quandl CSV data and
- Quandl API connection.
+.. deprecated::
+    Quandl was acquired by Nasdaq and the free API has been sunset.
+    Use Nasdaq Data Link or alternative data sources instead.
+    This module is retained for backward compatibility but will be
+    removed in a future release.
 
 Classes:
     QuandlCSV: Parses pre-downloaded Quandl CSV files.
@@ -14,6 +17,14 @@ Example:
 """
 
 import collections
+import warnings
+
+warnings.warn(
+    "backtrader.feeds.quandl is deprecated (Quandl free API sunset). "
+    "Consider using Nasdaq Data Link or alternative data sources.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 import io
 import itertools
 from datetime import date, datetime

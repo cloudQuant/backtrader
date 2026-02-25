@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 """OANDA Store Module - OANDA broker connection.
 
-This module provides the OandaStore for connecting to OANDA
-brokerage for trading and market data.
+.. deprecated::
+    This module uses the legacy OANDA REST API v1 via ``oandapy``,
+    which has been discontinued by OANDA. For new projects, use the
+    OANDA v20 REST API or a CCXT-based integration instead.
+    This module is retained for backward compatibility but will be
+    removed in a future release.
 
 Classes:
     OandaStore: Singleton store for OANDA connections.
@@ -18,6 +22,14 @@ Example:
 """
 
 import collections
+import warnings
+
+warnings.warn(
+    "backtrader.stores.oandastore uses the deprecated OANDA v1 API (oandapy). "
+    "Consider migrating to CCXT or OANDA v20.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 import json
 import threading
 import time as _time

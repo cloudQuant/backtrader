@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 """VisualChart Store Module - VisualChart connection.
 
-This module provides the VCStore for connecting to VisualChart
-for trading and market data.
+.. deprecated::
+    VisualChart is a legacy Windows-only COM-based data provider.
+    This module is retained for backward compatibility but will be
+    removed in a future release. Consider using CCXT, IB, or CTP
+    integrations instead.
 
 Classes:
     _SymInfo: Replica of SymbolInfo COM object.
@@ -14,6 +17,14 @@ Example:
 """
 
 import collections
+import warnings
+
+warnings.warn(
+    "backtrader.stores.vcstore (VisualChart) is deprecated. "
+    "Consider migrating to CCXT, IB, or CTP integrations.",
+    DeprecationWarning,
+    stacklevel=2,
+)
 import ctypes
 import os.path
 import threading
