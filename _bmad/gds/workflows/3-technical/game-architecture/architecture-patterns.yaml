@@ -1,0 +1,507 @@
+# Architecture Patterns - Common patterns identified from game design requirements
+# Used during Step 4 (decisions) to match GDD keywords to architectural needs
+#
+# ⚠️ CRITICAL: All version/feature info MUST be verified via WebSearch during workflow
+# This file only provides: triggers, relationships, and pattern identification logic
+
+requirement_patterns:
+  realtime_multiplayer:
+    triggers:
+      - "real-time multiplayer"
+      - "online multiplayer"
+      - "networked gameplay"
+      - "PvP"
+      - "co-op"
+      - "competitive"
+      - "synchronous multiplayer"
+    decisions_needed:
+      - networking_model
+      - netcode_solution
+      - server_authority
+      - state_synchronization
+      - lag_compensation
+      - matchmaking
+    suggested_stack:
+      - "Dedicated servers or relay for authoritative gameplay"
+      - "Client-side prediction with server reconciliation"
+      - "UDP-based transport (ENet, LiteNetLib, or engine-native)"
+      - "Matchmaking service (engine-native, PlayFab, or custom)"
+
+  turn_based_multiplayer:
+    triggers:
+      - "turn-based"
+      - "asynchronous multiplayer"
+      - "hotseat"
+      - "play-by-mail"
+      - "card game"
+      - "board game"
+    decisions_needed:
+      - session_persistence
+      - turn_validation
+      - game_state_storage
+      - player_notification
+      - reconnection_handling
+    suggested_stack:
+      - "REST or WebSocket API for turn submission"
+      - "Server-side turn validation and state management"
+      - "Database-backed game state (SQLite, PostgreSQL, or cloud)"
+      - "Push notifications for turn alerts"
+
+  physics_simulation:
+    triggers:
+      - "physics"
+      - "rigid body"
+      - "collision"
+      - "ragdoll"
+      - "destruction"
+      - "vehicle simulation"
+      - "fluid simulation"
+    decisions_needed:
+      - physics_engine
+      - simulation_fidelity
+      - determinism_requirements
+      - collision_layer_strategy
+      - physics_tick_rate
+    suggested_stack:
+      - "Engine-native physics (PhysX, Jolt, Godot Physics)"
+      - "Fixed timestep simulation decoupled from rendering"
+      - "Collision layer matrix for performance"
+      - "Physics materials system for surface interactions"
+
+  procedural_generation:
+    triggers:
+      - "procedural"
+      - "randomly generated"
+      - "roguelike"
+      - "roguelite"
+      - "infinite terrain"
+      - "wave function collapse"
+      - "dungeon generation"
+      - "world generation"
+    decisions_needed:
+      - generation_algorithm
+      - seed_management
+      - chunk_streaming
+      - content_validation
+      - generation_pipeline
+    suggested_stack:
+      - "Seeded PRNG for reproducibility"
+      - "Chunk-based or room-based generation depending on scope"
+      - "Constraint-based validation passes"
+      - "Async generation with loading strategies"
+
+  rpg_systems:
+    triggers:
+      - "RPG"
+      - "character stats"
+      - "inventory"
+      - "skill tree"
+      - "leveling"
+      - "experience points"
+      - "equipment"
+      - "loot"
+      - "crafting"
+    decisions_needed:
+      - stat_system_design
+      - inventory_architecture
+      - progression_model
+      - save_data_schema
+      - effect_and_buff_system
+    suggested_stack:
+      - "Data-driven stat and item definitions (JSON, YAML, or ScriptableObjects)"
+      - "Component or ECS-based character system"
+      - "Serializable save system with versioning"
+      - "Observer pattern for stat change propagation"
+
+  platformer_mechanics:
+    triggers:
+      - "platformer"
+      - "2D physics"
+      - "jumping"
+      - "side-scrolling"
+      - "metroidvania"
+      - "precision movement"
+    decisions_needed:
+      - character_controller_type
+      - camera_system
+      - level_design_tools
+      - animation_system
+      - input_buffering
+    suggested_stack:
+      - "Custom character controller (not physics-driven rigidbody)"
+      - "Coyote time and input buffering for feel"
+      - "Tilemap or modular level construction"
+      - "State machine for character states"
+
+  strategy_rts:
+    triggers:
+      - "strategy"
+      - "RTS"
+      - "4X"
+      - "base building"
+      - "unit management"
+      - "resource management"
+      - "fog of war"
+      - "tower defense"
+    decisions_needed:
+      - pathfinding_solution
+      - unit_selection_system
+      - ai_architecture
+      - fog_of_war_approach
+      - resource_economy_model
+    suggested_stack:
+      - "A* or flow field pathfinding depending on unit count"
+      - "Spatial partitioning for unit queries (quadtree, spatial hash)"
+      - "Command pattern for unit orders"
+      - "ECS or data-oriented design for large unit counts"
+
+  puzzle_mechanics:
+    triggers:
+      - "puzzle"
+      - "logic game"
+      - "match-3"
+      - "word game"
+      - "brain teaser"
+      - "sokoban"
+    decisions_needed:
+      - puzzle_state_representation
+      - undo_redo_system
+      - hint_system
+      - difficulty_progression
+      - solution_validation
+    suggested_stack:
+      - "Immutable state snapshots for undo/redo"
+      - "Rule engine for move validation"
+      - "Data-driven puzzle definitions"
+      - "Analytics-informed difficulty tuning"
+
+  open_world:
+    triggers:
+      - "open world"
+      - "sandbox"
+      - "seamless world"
+      - "large map"
+      - "exploration"
+      - "survival"
+      - "crafting"
+    decisions_needed:
+      - world_streaming
+      - lod_strategy
+      - persistence_model
+      - ai_budget_management
+      - day_night_cycle
+    suggested_stack:
+      - "Chunk-based world streaming with async loading"
+      - "Multi-level LOD for terrain, objects, and AI"
+      - "Zone-based save system with dirty tracking"
+      - "Spatial partitioning for active entity management"
+
+  narrative_driven:
+    triggers:
+      - "story"
+      - "dialogue"
+      - "branching narrative"
+      - "visual novel"
+      - "quest system"
+      - "cutscenes"
+      - "choices matter"
+    decisions_needed:
+      - dialogue_system
+      - narrative_scripting_tool
+      - quest_tracking
+      - branching_logic
+      - localization_pipeline
+    suggested_stack:
+      - "Dialogue graph tool (Yarn Spinner, Ink, or custom)"
+      - "Event-driven quest state machine"
+      - "Flag/variable system for world state tracking"
+      - "Localization table with string keys"
+
+  mobile_casual:
+    triggers:
+      - "mobile"
+      - "casual"
+      - "free-to-play"
+      - "F2P"
+      - "hyper-casual"
+      - "idle game"
+      - "touch controls"
+    decisions_needed:
+      - monetization_model
+      - session_design
+      - save_and_sync
+      - performance_budget
+      - input_abstraction
+    suggested_stack:
+      - "Lightweight engine or framework (Unity Mobile, Godot, or custom)"
+      - "Cloud save with offline-first design"
+      - "Ad mediation SDK and IAP integration"
+      - "Aggressive memory and draw call budgeting"
+
+  vr_xr:
+    triggers:
+      - "VR"
+      - "virtual reality"
+      - "AR"
+      - "augmented reality"
+      - "XR"
+      - "mixed reality"
+      - "motion controls"
+      - "room-scale"
+    decisions_needed:
+      - xr_runtime
+      - interaction_system
+      - locomotion_method
+      - comfort_settings
+      - performance_target
+    suggested_stack:
+      - "OpenXR for cross-platform headset support"
+      - "Engine XR toolkit (XR Interaction Toolkit, XR Tools)"
+      - "Fixed foveated rendering and LOD for performance"
+      - "Comfort options (vignette, snap turn, teleport)"
+
+  fighting_action:
+    triggers:
+      - "fighting game"
+      - "action combat"
+      - "combo system"
+      - "hitbox"
+      - "frame data"
+      - "hack and slash"
+      - "beat-em-up"
+    decisions_needed:
+      - combat_system_architecture
+      - hitbox_hurtbox_system
+      - animation_canceling
+      - frame_data_model
+      - input_handling
+    suggested_stack:
+      - "Frame-based combat state machine"
+      - "Data-driven hitbox/hurtbox definitions"
+      - "Input buffer with command parsing"
+      - "Deterministic simulation for rollback netcode"
+
+  racing_vehicle:
+    triggers:
+      - "racing"
+      - "driving"
+      - "vehicle physics"
+      - "kart"
+      - "flight sim"
+      - "space sim"
+    decisions_needed:
+      - vehicle_physics_model
+      - track_design_tools
+      - camera_system
+      - ai_racing_line
+      - replay_system
+    suggested_stack:
+      - "Custom vehicle physics or engine-provided vehicle controller"
+      - "Spline-based track and AI path definition"
+      - "Ghost replay via input or transform recording"
+      - "Multiple camera modes (chase, cockpit, replay)"
+
+# Quality attribute patterns
+quality_attributes:
+  high_framerate:
+    triggers:
+      - "60 FPS"
+      - "120 FPS"
+      - "low latency"
+      - "performance critical"
+      - "competitive"
+      - "VR"
+    architectural_needs:
+      - frame_budget_allocation
+      - profiling_pipeline
+      - object_pooling
+      - batching_strategy
+      - gc_pressure_management
+
+  cross_platform:
+    triggers:
+      - "cross-platform"
+      - "PC and console"
+      - "mobile and desktop"
+      - "multi-platform"
+      - "Nintendo Switch"
+      - "Steam Deck"
+    architectural_needs:
+      - input_abstraction_layer
+      - resolution_scaling
+      - platform_capability_detection
+      - build_pipeline_per_platform
+      - platform_specific_apis
+
+  scalable_multiplayer:
+    triggers:
+      - "MMO"
+      - "hundreds of players"
+      - "massively multiplayer"
+      - "persistent world"
+      - "server scaling"
+    architectural_needs:
+      - server_fleet_management
+      - interest_management
+      - database_sharding
+      - zone_instancing
+      - load_balancing
+
+  mod_support:
+    triggers:
+      - "modding"
+      - "user-generated content"
+      - "UGC"
+      - "mod support"
+      - "workshop"
+      - "custom content"
+    architectural_needs:
+      - data_driven_architecture
+      - asset_loading_abstraction
+      - scripting_api
+      - sandboxed_execution
+      - content_validation
+
+  accessibility:
+    triggers:
+      - "accessibility"
+      - "colorblind"
+      - "subtitles"
+      - "remappable controls"
+      - "difficulty options"
+      - "assist mode"
+    architectural_needs:
+      - input_remapping_system
+      - text_scaling_and_narration
+      - color_palette_alternatives
+      - difficulty_modifier_system
+      - settings_persistence
+
+# Game service integration patterns
+integration_requirements:
+  player_services:
+    common_choices:
+      - "Steam API - PC standard (achievements, leaderboards, matchmaking)"
+      - "PlayFab - cross-platform backend services"
+      - "Epic Online Services - free cross-platform (auth, lobbies, voice)"
+      - "GameSparks or AccelByte - full-featured game backend"
+      - "Engine-native (Unity Gaming Services, Unreal Online Subsystem)"
+    considerations:
+      - platform_requirements
+      - cross_platform_needs
+      - cost_at_scale
+      - feature_completeness
+
+  monetization:
+    common_choices:
+      - "Steam IAP - PC purchases and DLC"
+      - "Platform stores - console-mandated (PSN, Xbox, Nintendo)"
+      - "Unity IAP or Godot IAP plugins - mobile"
+      - "Custom storefront - web-based games"
+    considerations:
+      - platform_revenue_share
+      - regional_pricing
+      - refund_policies
+      - receipt_validation
+
+  analytics_telemetry:
+    common_choices:
+      - "Unity Analytics or Unreal Insights - engine-native"
+      - "GameAnalytics - free tier, game-focused"
+      - "Amplitude or Mixpanel - product analytics"
+      - "Custom telemetry with time-series database"
+    considerations:
+      - privacy_compliance
+      - data_granularity
+      - real_time_vs_batch
+      - cost_per_event
+
+  voice_chat:
+    common_choices:
+      - "Vivox - industry standard (Unity/Unreal integration)"
+      - "Discord SDK - community-focused"
+      - "Photon Voice - Photon ecosystem"
+      - "Epic Online Services voice"
+    considerations:
+      - platform_compatibility
+      - spatial_audio_support
+      - moderation_tools
+      - bandwidth_overhead
+
+  cloud_saves:
+    common_choices:
+      - "Steam Cloud - PC standard"
+      - "Platform cloud (PSN, Xbox, iCloud)"
+      - "PlayFab or custom backend - cross-platform"
+      - "Engine services (Unity Cloud Save)"
+    considerations:
+      - conflict_resolution
+      - save_size_limits
+      - offline_support
+      - migration_between_versions
+
+  anti_cheat:
+    common_choices:
+      - "Easy Anti-Cheat - widely adopted, free for some engines"
+      - "BattlEye - AAA standard"
+      - "Custom server authority - indie/small scale"
+      - "VAC - Steam-integrated"
+    considerations:
+      - server_authority_level
+      - client_trust_model
+      - performance_impact
+      - platform_support
+
+# Decision heuristics
+decision_rules:
+  engine_selection:
+    if_requirements_include:
+      - 3d_high_fidelity: "Unreal Engine"
+      - 2d_focused: "Godot or Unity"
+      - cross_platform_mobile: "Unity or Godot"
+      - open_source_priority: "Godot"
+      - aaa_pipeline: "Unreal Engine"
+      - rapid_prototype: "Godot"
+      - web_browser_target: "Godot (HTML5), Phaser, or PlayCanvas"
+      - vr_xr: "Unity (XR Toolkit) or Unreal (OpenXR)"
+
+  networking_model:
+    if_requirements_include:
+      - competitive_pvp: "Dedicated servers with rollback or server reconciliation"
+      - cooperative_pve: "Host-migration capable peer-to-peer or listen servers"
+      - turn_based: "Client-server REST/WebSocket with authoritative state"
+      - mmo_scale: "Dedicated server fleet with spatial partitioning"
+      - local_multiplayer: "Shared-screen input splitting (no networking)"
+
+  physics_solution:
+    if_requirements_include:
+      - standard_3d: "Engine-native physics (PhysX, Jolt, Godot 3D)"
+      - deterministic_required: "Custom fixed-point or deterministic physics library"
+      - 2d_platformer: "Custom character controller with raycasts"
+      - vehicle_sim: "Specialized vehicle physics (engine-provided or custom)"
+      - destruction: "Engine destructibles or Chaos (Unreal) / custom solution"
+
+  audio_solution:
+    if_requirements_include:
+      - simple_sfx: "Engine-native audio system"
+      - adaptive_music: "FMOD or Wwise middleware"
+      - spatial_3d_audio: "Engine spatial audio or middleware (Wwise Spatial)"
+      - large_sound_library: "FMOD or Wwise for memory management and streaming"
+      - procedural_audio: "Custom DSP or middleware with scripting"
+
+  ai_approach:
+    if_requirements_include:
+      - simple_enemies: "Finite state machines"
+      - complex_behaviors: "Behavior trees"
+      - emergent_ai: "Utility AI or GOAP (Goal-Oriented Action Planning)"
+      - large_scale_rts: "Hierarchical AI with strategic and tactical layers"
+      - companion_npcs: "Behavior trees with context awareness"
+      - open_world_npcs: "Scheduler-based AI with daily routines"
+
+  save_system:
+    if_requirements_include:
+      - simple_progress: "Key-value storage (PlayerPrefs, config files)"
+      - complex_world_state: "Serialized scene graph with versioned schema"
+      - cloud_sync: "Platform cloud saves with local fallback"
+      - roguelike_runs: "Run state snapshot with permadeath logic"
+      - sandbox_world: "Chunk-based world serialization"

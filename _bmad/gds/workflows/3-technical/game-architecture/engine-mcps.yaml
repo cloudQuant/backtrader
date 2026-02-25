@@ -1,0 +1,270 @@
+# Engine MCP Servers - Game engine MCP integrations for AI-assisted development
+# Used during Step 3 (engine selection) to recommend relevant MCP servers
+#
+# ⚠️ CRITICAL: All MCP availability and versions MUST be verified via WebSearch
+# This file provides: known MCPs, search terms for discovery, and capability descriptions
+# MCP ecosystem evolves rapidly - always verify repos are active and maintained
+#
+# MCP (Model Context Protocol) servers give AI agents direct access to game engine
+# features like scene inspection, asset queries, and live debugging - dramatically
+# improving AI-assisted game development.
+
+engine_mcps:
+  unity:
+    engine: "Unity"
+    mcps:
+      mcp_unity:
+        name: "MCP Unity (CoderGamester)"
+        repo: "CoderGamester/mcp-unity"
+        search_term: "CoderGamester mcp-unity github"
+        description: "Full-featured MCP bridge for Unity Editor with 30+ tools for scene, asset, and component management"
+        capabilities:
+          - "Create, load, save, and delete scenes"
+          - "Create, select, update, duplicate, delete, and reparent GameObjects"
+          - "Add and update components with property access"
+          - "Create, assign, and modify materials"
+          - "Add assets to scenes, manage packages"
+          - "Run Unity Test Runner tests"
+          - "Recompile scripts, execute menu items"
+          - "Batch execute multiple commands atomically"
+          - "Access Unity console logs and output"
+        install_type: "Unity Package Manager (git URL) + Node.js MCP server"
+        install_steps:
+          - "Install Node.js 18+"
+          - "In Unity: Window > Package Manager > + > Add package from git URL"
+          - "URL: https://github.com/CoderGamester/mcp-unity.git"
+          - "In Unity: Tools > MCP Unity > Server Window > Configure"
+          - "Click Start Server"
+        requirements: "Unity 6+, Node.js 18+, npm 9+"
+        supported_clients: ["Claude Desktop", "Claude Code", "Cursor", "Windsurf", "Codex CLI", "GitHub Copilot"]
+        license: "MIT"
+        benefit_summary: "AI agents get 30+ tools to directly inspect and modify your Unity scenes, GameObjects, components, and materials - no copy-pasting descriptions needed."
+
+      unity_mcp_coplay:
+        name: "Unity MCP (CoplayDev)"
+        repo: "CoplayDev/unity-mcp"
+        search_term: "CoplayDev unity-mcp github"
+        description: "AI bridge for Unity Editor with natural language control, asset and scene management, and batch operations"
+        capabilities:
+          - "Natural language control of Unity Editor"
+          - "Manage assets, scenes, materials, and scripts"
+          - "Batch execute operations (10-100x faster than individual calls)"
+          - "Two-way communication between AI and Unity"
+        install_type: "Unity Package Manager (git URL) or Unity Asset Store or OpenUPM"
+        install_steps:
+          - "In Unity: Window > Package Manager > + > Add package from git URL"
+          - "URL: https://github.com/CoplayDev/unity-mcp.git?path=/MCPForUnity"
+          - "Configure your MCP client to connect"
+        requirements: "Unity 2021.3 LTS+"
+        supported_clients: ["Claude Desktop", "Cursor", "Windsurf"]
+        license: "MIT"
+        benefit_summary: "Broad Unity version support (2021.3+) with natural language control and fast batch operations for AI-driven scene building."
+
+  unreal:
+    engine: "Unreal Engine"
+    mcps:
+      unreal_mcp:
+        name: "Unreal MCP (chongdashu)"
+        repo: "chongdashu/unreal-mcp"
+        search_term: "chongdashu unreal-mcp github"
+        description: "Enables AI assistants to control Unreal Engine through natural language via C++ plugin and Python server"
+        capabilities:
+          - "Create, delete, and transform actors in levels"
+          - "Query actor properties and list level contents"
+          - "Create Blueprint classes with custom components"
+          - "Configure Blueprint properties and compile"
+          - "Add event nodes, function calls, and variables to Blueprint graphs"
+          - "Focus viewport on actors, control camera orientation"
+          - "Create input action mappings"
+        install_type: "Unreal plugin (C++) + Python MCP server"
+        install_steps:
+          - "Copy UnrealMCP plugin to your project's Plugins folder"
+          - "Enable via Edit > Plugins > search 'UnrealMCP'"
+          - "Generate Visual Studio files and build (Development Editor)"
+          - "Install Python 3.12+ and set up the Python server per Python/README.md"
+          - "Configure MCP client with provided JSON config"
+        requirements: "Unreal Engine 5.5+, Python 3.12+"
+        supported_clients: ["Claude Desktop", "Cursor", "Windsurf"]
+        license: "MIT"
+        note: "Experimental status - breaking changes possible between versions"
+        benefit_summary: "AI agents can create actors, build Blueprints, edit node graphs, and control the viewport directly in Unreal Editor."
+
+      unreal_mcp_comprehensive:
+        name: "Unreal MCP (ChiR24)"
+        repo: "ChiR24/Unreal_mcp"
+        search_term: "ChiR24 Unreal_mcp github"
+        description: "Comprehensive MCP server with C++ Automation Bridge, TypeScript server, and optional WASM acceleration"
+        capabilities:
+          - "Manage Blueprints, Materials, Textures, Static Meshes, Skeletal Meshes"
+          - "C++ native automation bridge for high-performance operations"
+          - "Optional WASM acceleration for compute-intensive tasks"
+          - "Optional GraphQL endpoint for complex queries"
+          - "Asset type management across the project"
+        install_type: "Unreal plugin (C++) + TypeScript MCP server"
+        install_steps:
+          - "Clone repo and copy plugin to project Plugins folder"
+          - "Build the TypeScript MCP server"
+          - "Configure MCP client"
+        requirements: "Unreal Engine 5.5+"
+        supported_clients: ["Claude Desktop", "Cursor", "Windsurf"]
+        license: "MIT"
+        benefit_summary: "High-performance C++ bridge with broad asset type support and optional WASM acceleration for heavy operations."
+
+  godot:
+    engine: "Godot"
+    mcps:
+      godot_mcp_bradypp:
+        name: "Godot MCP (bradypp)"
+        repo: "bradypp/godot-mcp"
+        search_term: "bradypp godot-mcp github"
+        description: "Comprehensive MCP server for Godot with project management, scene editing, and optional read-only mode"
+        capabilities:
+          - "Launch Godot Editor and execute projects in debug mode"
+          - "Generate scenes with specified root node types"
+          - "Insert, modify, and remove nodes with customizable properties"
+          - "Modify positions, scales, textures, and node attributes"
+          - "Auto-load textures into Sprite2D nodes"
+          - "Convert 3D scenes to MeshLibrary for GridMap"
+          - "Retrieve console output and error messages in real time"
+          - "UID management for resource links (Godot 4.4+)"
+          - "Read-only mode for safe analysis (CI/CD, code reviews)"
+        install_type: "Node.js MCP server (no Godot plugin needed)"
+        install_steps:
+          - "git clone https://github.com/bradypp/godot-mcp.git"
+          - "cd godot-mcp && npm install && npm run build"
+          - "Configure MCP client to point to the built index.js"
+        requirements: "Godot 3.5+ or 4.0+ (4.4+ for UID features), Node.js"
+        supported_clients: ["Claude Desktop", "Cursor", "Cline", "Roo Code"]
+        license: "MIT"
+        benefit_summary: "Broad Godot version support (3.5+/4.0+) with scene editing, debug output capture, and a read-only mode for safe project analysis."
+
+      godot_mcp_ee0pdt:
+        name: "Godot MCP (ee0pdt)"
+        repo: "ee0pdt/Godot-MCP"
+        search_term: "ee0pdt Godot-MCP github"
+        description: "Bidirectional AI bridge for Godot with full project access for scripts, scenes, nodes, and resources"
+        capabilities:
+          - "Create, delete, and modify nodes in scenes"
+          - "Edit and analyze scripts"
+          - "Manipulate scenes and project resources"
+          - "Access and modify project configuration"
+          - "Run projects from the editor"
+          - "Two-way communication between AI and Godot"
+        install_type: "Node.js MCP server + Godot addon"
+        install_steps:
+          - "git clone https://github.com/ee0pdt/Godot-MCP.git"
+          - "npm install && npm run build"
+          - "Copy Godot addon folder to your project's addons directory"
+          - "Enable addon in Project > Project Settings > Plugins"
+          - "Configure MCP client with server path"
+        requirements: "Godot 4.x, Node.js"
+        supported_clients: ["Claude Desktop", "Cursor"]
+        license: "MIT"
+        benefit_summary: "Full bidirectional Godot integration - AI agents can read and write scripts, scenes, and nodes directly."
+
+      godot_mcp_docs:
+        name: "Godot MCP Docs"
+        repo: "Nihilantropy/godot-mcp-docs"
+        search_term: "Nihilantropy godot-mcp-docs github"
+        description: "Serves the complete Godot Engine documentation to AI assistants via MCP"
+        capabilities:
+          - "Query Godot class reference documentation"
+          - "Look up tutorials and feature guides"
+          - "Search across all Godot documentation"
+          - "Retrieve API signatures and usage examples"
+        install_type: "Docker container"
+        install_steps:
+          - "Clone repo and build Docker image"
+          - "Configure MCP client to run the containerized server"
+        requirements: "Docker, Godot 4.x documentation"
+        supported_clients: ["Claude Desktop", "Cursor"]
+        license: "MIT"
+        benefit_summary: "AI agents get access to the full Godot documentation for accurate API usage without relying on training data."
+
+  general:
+    engine: "Any"
+    description: "General-purpose MCPs useful for any game engine"
+    mcps:
+      context7:
+        name: "Context7"
+        repo: "upstash/context7"
+        search_term: "upstash context7 MCP github"
+        description: "Pulls up-to-date, version-specific documentation and code examples for any library directly into AI prompts"
+        capabilities:
+          - "Resolve library names to documentation sources"
+          - "Retrieve current API documentation for any library or framework"
+          - "Pull version-specific code examples and usage patterns"
+          - "Verify API signatures against current docs"
+        install_type: "npx command or Docker"
+        install_steps:
+          - "claude mcp add context7 -- npx -y @upstash/context7-mcp"
+          - "Or configure in claude_desktop_config.json / .mcp.json"
+          - "Optional: get API key at context7.com/dashboard for higher rate limits"
+        requirements: "Node.js (for npx) or Docker"
+        supported_clients: ["Claude Desktop", "Claude Code", "Cursor", "Windsurf", "Zed"]
+        license: "Apache-2.0"
+        benefit_summary: "AI agents look up current library documentation instead of relying on training data - reduces outdated API usage across any engine or framework."
+
+# Recommendation logic used by the workflow
+recommendation_rules:
+  always_recommend:
+    - "Engine-specific MCP if one exists for the chosen engine"
+    - "Context7 for up-to-date API documentation lookup"
+
+  multiple_options:
+    note: "When multiple MCPs exist for an engine, present the top 1-2 options and let the user choose"
+    unity_default: "mcp_unity"
+    unity_alternative: "unity_mcp_coplay"
+    unreal_default: "unreal_mcp"
+    godot_default: "godot_mcp_bradypp"
+    godot_alternative: "godot_mcp_ee0pdt"
+
+  recommend_if:
+    godot_docs_needed:
+      trigger: "Godot selected AND beginner game_dev_experience"
+      recommend: "godot_mcp_docs for built-in documentation access"
+
+  presentation_order:
+    - "engine_specific"
+    - "documentation"
+
+# How to present MCPs based on skill level
+presentation_guidance:
+  expert:
+    style: "Concise list with repo links and capabilities"
+    example: |
+      Available MCPs for {{engine}}:
+      - **{{mcp_name}}** ({{repo}}): {{one_line_description}}
+        Install: {{install_type}}
+      Want to include MCP setup in your architecture? [y/n]
+
+  intermediate:
+    style: "Brief explanation with benefits"
+    example: |
+      **AI Development Tools (MCP Servers)**
+
+      MCP servers let your AI assistant interact directly with {{engine}}.
+      For your project, I'd recommend:
+
+      - **{{mcp_name}}**: {{benefit_summary}}
+        Repo: {{repo}}
+
+      These are optional but significantly improve AI-assisted development.
+      Include MCP setup in your architecture? [y/n]
+
+  beginner:
+    style: "Full explanation of what MCPs are and why they help"
+    example: |
+      **AI Development Tools**
+
+      There's a way to give your AI assistant "eyes" into {{engine}} -
+      called MCP (Model Context Protocol) servers. Think of it like giving
+      your AI assistant a window into your game editor.
+
+      For {{engine}}, there's **{{mcp_name}}** which lets the AI:
+      {{friendly_capability_list}}
+
+      This means instead of describing your scene layout in chat,
+      the AI can just look at it directly.
+
+      Want to set this up? [y/n]

@@ -1,226 +1,223 @@
-"""CTP sample trading script for backtrader.
+"""CTP sample trading script for backtrader using ctp-python.
 
 This module demonstrates backtrader CTP integration for live Chinese
-futures market trading with real-time data feeds.
+futures market trading with real-time tick data via ctp-python.
+
+Usage:
+    python test_ctp_sample.py
+
+Credentials are loaded from .env file (simnow_user_id / simnow_password).
+Uses SimNow 7x24 environment by default for testing outside trading hours.
 """
 
-import json
+import logging
+import os
+import sys
 from datetime import datetime, time
+from pathlib import Path
 
 import backtrader as bt
-from backtrader.brokers.ctpbroker import *
-from backtrader.feeds.ctpdata import *
-from backtrader.stores.ctpstore import *
+from backtrader.stores.ctpstore import CTPStore
+
+# Enable CTP debug logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s [%(name)s] %(levelname)s: %(message)s',
+    stream=sys.stdout,
+)
 
 
-# Do not delete Origin definition, ctpbee interface requires it
-class Origin:
-    """Origin class for CTP order identification.
-
-    This class is required by the ctpbee interface to identify the
-    symbol and exchange for order placement.
-
-    Attributes:
-        symbol: The futures contract symbol (e.g., 'rb2405').
-        exchange: The exchange code (e.g., 'SHFE').
-    """
-
-    def __init__(self, data):
-        """Initialize Origin with data feed information.
-
-        Args:
-            data: Backtrader data feed object.
-        """
-        self.symbol = data._dataname.split(".")[0]
-        self.exchange = data._name.split(".")[1]
+# Load .env file
+def load_env(env_path=None):
+    """Load environment variables from .env file."""
+    if env_path is None:
+        env_path = Path(__file__).resolve().parent.parent / '.env'
+    if not env_path.exists():
+        print(f"WARNING: .env file not found at {env_path}")
+        return
+    with open(env_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith('#'):
+                continue
+            if '=' in line:
+                key, val = line.split('=', 1)
+                os.environ[key.strip()] = val.strip()
 
 
-# Trading hours: 8:45 AM to 3:00 PM, and 8:45 PM to 2:45 AM for live simulation trading.
-# Chinese futures trading hours (day session/night session), live simulation is only available during trading hours.
-# Other times only support non-real-time simulation. Weekends do not support simulation.
-DAY_START = time(8, 45)  # Day session starts at 8:45
-DAY_END = time(15, 0)  # Day session ends at 3:00 PM
-NIGHT_START = time(20, 45)  # Night session starts at 8:45 PM
-NIGHT_END = time(2, 45)  # Night session ends at 2:45 AM
+load_env()
+
+# ---- Server address presets ----
+# SimNow 7x24:  TD 180.168.146.187:10130  MD 180.168.146.187:10131
+# SimNow Trade: TD 180.168.146.187:10201  MD 180.168.146.187:10211
+# OpenCTP 7x24: TD 121.37.80.177:20002   MD 121.37.80.177:20004  (free, no auth needed)
+SERVER_PRESETS = {
+    'simnow_24h': {
+        'td_front': 'tcp://180.168.146.187:10130',
+        'md_front': 'tcp://180.168.146.187:10131',
+    },
+    'simnow_trade': {
+        'td_front': 'tcp://180.168.146.187:10201',
+        'md_front': 'tcp://180.168.146.187:10211',
+    },
+    'openctp': {
+        'td_front': 'tcp://121.37.80.177:20002',
+        'md_front': 'tcp://121.37.80.177:20004',
+    },
+}
+
+DAY_START = time(8, 45)
+DAY_END = time(15, 15)
+NIGHT_START = time(20, 45)
+NIGHT_END = time(2, 45)
 
 
-# Check if currently in trading period
 def is_trading_period():
-    """Check if current time is within trading hours.
-
-    Returns:
-        bool: True if current time is within day or night trading sessions.
-    """
-    current_time = datetime.now().time()
-    trading = False
-    if (
-        (current_time >= DAY_START and current_time <= DAY_END)
-        or (current_time >= NIGHT_START)
-        or (current_time <= NIGHT_END)
-    ):
-        trading = True
-    return trading
+    """Check if current time is within SimNow trading hours."""
+    t = datetime.now().time()
+    return (DAY_START <= t <= DAY_END) or (t >= NIGHT_START) or (t <= NIGHT_END)
 
 
-class SmaCross(bt.Strategy):
-    """Simple moving average crossover strategy for CTP futures trading.
+class GoldQuoteStrategy(bt.Strategy):
+    """Strategy that prints gold futures quotes and account balance each bar."""
 
-    This strategy demonstrates basic data access and order placement
-    using the CTP store for live futures trading.
-
-    Attributes:
-        beeapi: CTP bee API interface for order management.
-        buy_order: Reference to current buy order.
-        live_data: Flag indicating if live data is being received.
-    """
-
-    lines = ("sma",)
-    params = dict(
-        smaperiod=5,
-        store=None,
-    )
+    params = dict(smaperiod=5)
 
     def __init__(self):
-        """Initialize the strategy with CTP API reference."""
-        self.beeapi = self.p.store.main_ctpbee_api
-        self.buy_order = None
         self.live_data = False
-        # self.move_average = bt.ind.MovingAverageSimple(self.data, period=self.params.smaperiod)
+        self.bar_count = 0
 
     def prenext(self):
-        """Called before minimum period is reached."""
-        print("in prenext")
         for d in self.datas:
-            data_name = d._name
-            print(f"data_name={data_name},datetime={d.datetime.datetime(0)}, close={d.close[0]}")
+            print(f"[prenext] {d._name} dt={d.datetime.datetime(0)} close={d.close[0]:.2f}")
 
     def next(self):
-        """Called on each bar with data.
-
-        Prints market data, position, trades, and account information.
-        Only executes trading logic when live data is received.
-        """
-        print("--------next start-------")
+        self.bar_count += 1
         for d in self.datas:
-            data_name = d._name
             print(
-                f"data_name={data_name},datetime={d.datetime.datetime(0)}, open={d.open[0]}, high={d.high[0]}, "
-                f"low = {d.low[0]}, close={d.close[0]}"
+                f"[next] bar#{self.bar_count} {d._name} "
+                f"dt={d.datetime.datetime(0)} "
+                f"O={d.open[0]:.2f} H={d.high[0]:.2f} "
+                f"L={d.low[0]:.2f} C={d.close[0]:.2f} V={d.volume[0]}"
             )
-            pos = self.beeapi.app.center.get_position(data_name)
-            print("position", pos)
-            # Can access position, trades, orders and other live trading information
-            # Refer to http://docs.ctpbee.com/modules/rec.html for access methods
-            trades = self.beeapi.app.center.trades
-            print("trades", trades)
-            account = self.beeapi.app.center.account
-            print("account", account)
 
-        if not self.live_data:  # Not live data (still in historical data backfilling), skip order logic
-            return
+        # Query and print account balance each bar
+        cash = self.broker.getcash()
+        value = self.broker.getvalue()
+        print(f"  >> Account: cash={cash:.2f}, value={value:.2f}")
 
-        # Open long position
-        print("live buy")
-        # self.open_long(self.data0.close[0] + 3, 1, self.data0)
-        print("---------------------------------------------------")
+        if self.live_data:
+            print("  >> [LIVE bar received]")
 
     def notify_order(self, order):
-        """Called when order status changes.
-
-        Args:
-            order: Order object with updated status.
-        """
-        print("Order status %s" % order.getstatusname())
+        print(f"[Order] ref={order.ref} status={order.getstatusname()}")
 
     def notify_data(self, data, status, *args, **kwargs):
-        """Called when data feed status changes.
+        status_name = data._getstatusname(status)
+        print(f"[notify_data] {data._name}: {status_name}")
+        self.live_data = (status_name == 'LIVE')
 
-        Args:
-            data: Data feed object.
-            status: New status code.
-            *args: Additional positional arguments.
-            **kwargs: Additional keyword arguments.
-        """
-        dn = data._name
-        dt = datetime.now()
-        msg = f"notify_data Data Status: {data._getstatusname(status)}"
-        print(dt, dn, msg)
-        if data._getstatusname(status) == "LIVE":
-            self.live_data = True
+
+def check_tcp_connectivity(host, port, timeout=3):
+    """Quick TCP connectivity check."""
+    import socket
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(timeout)
+    try:
+        s.connect((host, port))
+        s.close()
+        return True
+    except Exception:
+        s.close()
+        return False
+
+
+def find_reachable_server(presets):
+    """Try each preset and return the first reachable one."""
+    for name, addrs in presets.items():
+        td = addrs['td_front']
+        # Extract host:port from tcp://host:port
+        hp = td.replace('tcp://', '')
+        host, port = hp.rsplit(':', 1)
+        print(f"  Probing {name} ({host}:{port})... ", end='', flush=True)
+        if check_tcp_connectivity(host, int(port)):
+            print("OK")
+            return name, addrs
         else:
-            self.live_data = False
-
-    # Following are order placement functions
-    def open_long(self, price, size, data):
-        """Open a long position.
-
-        Args:
-            price: Order price.
-            size: Order size.
-            data: Data feed object.
-        """
-        self.beeapi.action.buy(price, size, Origin(data))
-
-    def open_short(self, price, size, data):
-        """Open a short position.
-
-        Args:
-            price: Order price.
-            size: Order size.
-            data: Data feed object.
-        """
-        self.beeapi.action.short(price, size, Origin(data))
-
-    def close_long(self, price, size, data):
-        """Close a long position.
-
-        Args:
-            price: Order price.
-            size: Order size.
-            data: Data feed object.
-        """
-        self.beeapi.action.cover(price, size, Origin(data))
-
-    def close_short(self, price, size, data):
-        """Close a short position.
-
-        Args:
-            price: Order price.
-            size: Order size.
-            data: Data feed object.
-        """
-        self.beeapi.action.sell(price, size, Origin(data))
+            print("unreachable")
+    return None, None
 
 
-# Main program starts
 if __name__ == "__main__":
-    with open("./params_01.json") as f:
-        ctp_setting = json.load(f)
-    backtrader_params = {"live": True}
-    cerebro = bt.Cerebro(**backtrader_params)
+    user_id = os.environ.get('simnow_user_id', '')
+    password = os.environ.get('simnow_password', '')
+    if not user_id or not password:
+        print("ERROR: simnow_user_id and simnow_password must be set in .env")
+        sys.exit(1)
 
-    store = CTPStore(ctp_setting, debug=True)
-    cerebro.addstrategy(SmaCross, store=store)
+    # --- Select server ---
+    # Override: set CTP_SERVER env var to force a preset (simnow_24h / simnow_trade / openctp)
+    forced = os.environ.get('CTP_SERVER', '').strip()
+    if forced and forced in SERVER_PRESETS:
+        server_name = forced
+        server_addrs = SERVER_PRESETS[forced]
+        print(f"Using forced server preset: {server_name}")
+    else:
+        print("Auto-detecting reachable CTP server...")
+        server_name, server_addrs = find_reachable_server(SERVER_PRESETS)
+        if server_addrs is None:
+            print("ERROR: No CTP server is reachable. Check network/VPN.")
+            sys.exit(1)
+        print(f"Using server: {server_name}")
 
-    # Since historical backfill data comes from akshare, finest granularity is 1-minute bar
-    # So live trading also only receives 1-minute bars
-    # https://www.akshare.xyz/zh_CN/latest/data/futures/futures.html#id106
+    td_front = server_addrs['td_front']
+    md_front = server_addrs['md_front']
 
-    # data0 = store.getdata(dataname='ag2401.SHFE', timeframe=bt.TimeFrame.Ticks,  # Note: symbol must include exchange code.
-    #                       num_init_backfill=0)  # Initial backfill bar count, set to 0 when using TEST server for simulation
+    print(f"SimNow user_id={user_id}")
+    print(f"TD front: {td_front}")
+    print(f"MD front: {md_front}")
+
+    ctp_setting = {
+        'td_front': td_front,
+        'md_front': md_front,
+        'broker_id': '9999',
+        'user_id': user_id,
+        'password': password,
+        'app_id': 'simnow_client_test',
+        'auth_code': '0000000000000000',
+    }
+
+    # Gold futures main contract on SHFE
+    gold_instrument = 'au2506'
+
+    print(f"Subscribing to: {gold_instrument}")
+    print("Waiting for CTP connection...")
+
+    store = CTPStore(ctp_setting)
+
+    if not store.is_connected:
+        print("ERROR: CTP connection/login failed. Check credentials and network.")
+        store.stop()
+        sys.exit(1)
+
+    print("CTP connected and logged in successfully!")
+
+    cerebro = bt.Cerebro(live=True)
+    cerebro.setbroker(store.getbroker())
+    cerebro.addstrategy(GoldQuoteStrategy)
 
     data1 = store.getdata(
-        dataname="rb2405.SHFE",
+        dataname=f'{gold_instrument}.SHFE',
         timeframe=bt.TimeFrame.Minutes,
-        compression=1,  # Note: symbol must include exchange code.
-        num_init_backfill=5 if is_trading_period() else 0,
-    )  # Initial backfill bar count, set to 0 when using TEST server for simulation
-
-    # data1 = store.getdata(dataname='rb2401.SHFE', timeframe=bt.TimeFrame.Minutes,  # Note: symbol must include exchange code.
-    #                       num_init_backfill=0)  # Initial backfill bar count, set to 0 when using TEST server for simulation
-
-    # cerebro.adddata(data0)
+        compression=1,
+        num_init_backfill=0,
+    )
     cerebro.adddata(data1)
-    # cerebro.resampledata(data0, timeframe=bt.TimeFrame.Minutes, compression=1, name="1m")
 
-    cerebro.run()
+    print("Starting cerebro... (Ctrl+C to stop)")
+    try:
+        cerebro.run()
+    except KeyboardInterrupt:
+        print("\nStopped by user.")
+    finally:
+        store.stop()

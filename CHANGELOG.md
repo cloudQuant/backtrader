@@ -70,12 +70,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - 34 new tests for CCXT error handling and reconnection
   - 24 new tests for P2 WebSocket features
 
+- **CTP Futures Trading Refactor** (`stores/ctpstore.py`, `brokers/ctpbroker.py`, `feeds/ctpdata.py`)
+  - Complete rewrite from `ctpbee` to native `ctp-python` (SWIG wrapper for CTP C++ API)
+  - `CTPStore` — singleton managing TraderSpi/MdSpi connections with thread-safe callbacks
+  - `CTPBroker` — order submission/cancellation, account/position queries via CTP TraderApi
+  - `CTPData` — live tick aggregation into bars, market data subscription via CTP MdApi
+  - Lazy import for `DataCls`/`BrokerCls` in `CTPStore.getdata()`/`getbroker()`
+  - Auto-detect reachable CTP server (SimNow 7x24 / SimNow Trade / OpenCTP)
+  - 66 unit tests for CTP store, broker, and data feed
+  - Example scripts: `test_ctp_sample.py` (gold futures), `ctp_sa_dual_ma_strategy.py` (SA dual-MA)
+
 - **Project Documentation**
   - `docs/PROJECT_STATUS.md` — consolidated project status
   - `CHANGELOG.md` — this file
   - `CONTRIBUTING.md` — contribution guidelines
   - `docs/ARCHITECTURE.md` — system architecture overview
   - `docs/CCXT_LIVE_TRADING_GUIDE.md` — CCXT live trading user guide
+  - `docs/opts/优化需求/INDEX.md` — categorized index for 80+ optimization requirement docs
 
 ### Changed
 - **Performance**: 45% faster execution vs original backtrader
@@ -96,6 +107,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   - `_load()` performs WS health check and handles fallback
   - `_update_bar()` checks connection before fetching
   - `_on_websocket_ohlcv()` detects reconnection gaps for backfill
+
+### Removed
+- `docs/opts/project_status_summary.md` — severely outdated (2024), replaced by `docs/PROJECT_STATUS.md`
 
 ### Fixed
 - Multiple data length inconsistency causing early strategy termination

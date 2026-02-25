@@ -1,471 +1,724 @@
 #!/usr/bin/env python
-"""CTP Store Module - CTP futures trading.
+"""CTP Store Module - CTP futures trading via ctp-python.
 
 This module provides the CTPStore for connecting to CTP (China Futures)
-through ctpbee for futures trading.
+using the ctp-python package (native SWIG wrapper around official CTP C++ API).
 
 Classes:
-    MyCtpbeeApi: Custom CTP API wrapper.
-    CTPStore: Singleton store for CTP connections.
+    CTPTraderSpi: Trader callback handler.
+    CTPMdSpi: Market data callback handler.
+    CTPStore: Singleton store managing both trader and market data connections.
 
 Example:
     >>> store = bt.stores.CTPStore(
-    ...     userid='your_id',
+    ...     td_front='tcp://180.168.146.187:10130',
+    ...     md_front='tcp://180.168.146.187:10131',
+    ...     broker_id='9999',
+    ...     user_id='your_id',
     ...     password='your_password',
-    ...     brokerid='your_broker'
+    ...     app_id='simnow_client_test',
+    ...     auth_code='0000000000000000',
     ... )
     >>> cerebro.setbroker(store.getbroker())
 """
 
+import hashlib
 import logging
+import os
+import tempfile
 import threading
+from datetime import datetime
 from time import sleep
 
-import numpy as np
-from ctpbee import CtpBee, CtpbeeApi
-from ctpbee.constant import (
-    AccountData,
-    BarData,
-    CancelRequest,
-    ContractData,
-    Direction,
-    Exchange,
-    LogData,
-    Offset,
-    OrderData,
-    OrderRequest,
-    OrderType,
-    PositionData,
-    Status,
-    TickData,
-    TradeData,
-)
-from ctpbee.func import Helper as CtpHelper
-from ctpbee.helpers import datetime2timestamp, get_last_timeframe_timestamp, timestamp2datetime
+import ctp
 
 from backtrader.mixins import ParameterizedSingletonMixin
 from backtrader.utils.py3 import queue
 
 logger = logging.getLogger(__name__)
 
+# ---------------------------------------------------------------------------
+# CTP constants for order direction / offset / order price type
+# ---------------------------------------------------------------------------
+# Direction
+THOST_FTDC_D_Buy = '0'
+THOST_FTDC_D_Sell = '1'
+# Offset
+THOST_FTDC_OF_Open = '0'
+THOST_FTDC_OF_Close = '1'
+THOST_FTDC_OF_CloseToday = '3'
+THOST_FTDC_OF_CloseYesterday = '4'
+# Order price type
+THOST_FTDC_OPT_LimitPrice = '2'
+THOST_FTDC_OPT_AnyPrice = '1'
+# Hedge flag
+THOST_FTDC_HF_Speculation = '1'
+# Time condition
+THOST_FTDC_TC_GFD = '3'  # Good for day
+THOST_FTDC_TC_IOC = '1'  # Immediate or cancel
+# Volume condition
+THOST_FTDC_VC_AV = '1'   # Any volume
+THOST_FTDC_VC_CV = '3'   # Complete volume
+# Contingent condition
+THOST_FTDC_CC_Immediately = '1'
+# Force close reason
+THOST_FTDC_FCC_NotForceClose = '0'
+# Action flag
+THOST_FTDC_AF_Delete = '0'
+# Order status
+THOST_FTDC_OST_AllTraded = '0'
+THOST_FTDC_OST_PartTradedQueueing = '1'
+THOST_FTDC_OST_PartTradedNotQueueing = '2'
+THOST_FTDC_OST_NoTradeQueueing = '3'
+THOST_FTDC_OST_NoTradeNotQueueing = '4'
+THOST_FTDC_OST_Canceled = '5'
+THOST_FTDC_OST_Unknown = 'a'
 
-class MyCtpbeeApi(CtpbeeApi):
-    """Custom CTP API wrapper for handling CTP events and market data.
 
-    This class extends CtpbeeApi to provide custom handling for tick data,
-    bar data, orders, trades, positions, and account information from the
-    CTP (China Futures) market.
+# ---------------------------------------------------------------------------
+# CTPTraderSpi: Trader callback handler
+# ---------------------------------------------------------------------------
 
-    Attributes:
-        md_queue: Market data queue for distributing bar data to feeds.
-        order_queue: Queue for order status update events.
-        trade_queue: Queue for trade fill events.
-        is_position_ok: Flag indicating if position data has been received.
-        is_account_ok: Flag indicating if account data has been received.
-    """
+class CTPTraderSpi(ctp.CThostFtdcTraderSpi):
+    """CTP Trader SPI — handles order/trade/account/position callbacks."""
 
-    def __init__(self, name, timeframe=None, compression=None, md_queue=None,
-                 order_queue=None, trade_queue=None):
-        """Initialize the MyCtpbeeApi instance.
+    def __init__(self, front, broker_id, user_id, password, app_id, auth_code):
+        super().__init__()
+        self.front = front
+        self.broker_id = broker_id
+        self.user_id = user_id
+        self.password = password
+        self.app_id = app_id
+        self.auth_code = auth_code
 
-        Args:
-            name: Name/identifier for this API instance.
-            timeframe: Bar timeframe (4=minutes, 5=days, others=1min default).
-            compression: Bar compression multiplier (e.g., 5 for 5-minute bars).
-            md_queue: Market data queue for distributing bar data to feeds.
-            order_queue: Queue for order status update events.
-            trade_queue: Queue for trade fill events.
-        """
-        super().__init__(name)
-        self.md_queue = md_queue  # Market data queue
-        self.order_queue = order_queue
-        self.trade_queue = trade_queue
-        self.is_position_ok = False
-        self.is_account_ok = False
-        self._bar_timeframe = timeframe
-        self._bar_compression = compression
-        self._bar_begin_time = None
-        self._bar_end_time = None
-        self._bar_interval = None
-        self._data_name = None
-        self.time_diff = None
-        # Contract info cache: local_symbol -> ContractData
-        self.contracts = {}
-        # Bar update market data
-        self.bar_datetime = None
-        self.bar_open_price = 0.0
-        self.bar_high_price = -np.inf
-        self.bar_low_price = np.inf
-        self.bar_close_price = 0.0
-        self.bar_volume = 0.0
+        self.request_id = 0
+        self.order_ref = 0
+        self.front_id = 0
+        self.session_id = 0
 
-    def subscribe(self, dataname, timeframe, compression):
-        """Subscribe to market data for a specific instrument.
+        # State flags
+        self.connected = False
+        self.authed = False
+        self.loggedin = False
 
-        Args:
-            dataname: Instrument symbol to subscribe to.
-            timeframe: Bar timeframe code (4=minutes, 5=days).
-            compression: Bar compression multiplier (e.g., 5 for 5-minute bars).
+        # Event queues (set by CTPStore)
+        self.order_queue = queue.Queue()
+        self.trade_queue = queue.Queue()
 
-        Note:
-            This sets up the bar interval calculation based on the timeframe and
-            compression. Timeframe 4 is for minutes, 5 is for days, and any other
-            value defaults to 1-minute bars.
-        """
-        # print(f"------Start subscribing to data------")  # Removed for performance
-        if dataname is not None:
-            self.action.subscribe(dataname)
-            self._bar_timeframe = timeframe
-            self._bar_compression = compression
-            self._data_name = dataname
-            # print(f"-----Successfully subscribed to data {dataname},{timeframe},{compression}--------")  # Removed for performance
-            if self._bar_timeframe == 4:
-                self.time_diff = 60 * self._bar_compression
-                self._bar_interval = str(self._bar_compression) + "m"
-            # If daily timeframe
-            elif self._bar_timeframe == 5:
-                self.time_diff = 86400 * self._bar_compression
-                self._bar_interval = str(self._bar_compression) + "d"
-            # If other timeframes, default is one minute
-            else:
-                self.time_diff = 60
-                self._bar_interval = "1m"
+        # Account / position query results
+        self._account = None
+        self._positions = []
+        self._position_query_done = threading.Event()
+        self._account_query_done = threading.Event()
 
-    def on_contract(self, contract: ContractData):
-        """Handle pushed contract information, cache for later use."""
-        if hasattr(contract, 'local_symbol') and contract.local_symbol:
-            self.contracts[contract.local_symbol] = contract
-        if hasattr(contract, 'symbol') and contract.symbol:
-            self.contracts[contract.symbol] = contract
+        # Create API
+        dir_name = ''.join(('ctp', broker_id, user_id)).encode('UTF-8')
+        dir_name = hashlib.md5(dir_name).hexdigest()
+        dir_path = os.path.join(tempfile.gettempdir(), dir_name, 'Trader') + os.sep
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+        self.api = ctp.CThostFtdcTraderApi.CreateFtdcTraderApi(dir_path)
 
-    def on_log(self, log: LogData):
-        """Handle log messages."""
-        if hasattr(log, 'msg'):
-            logger.debug(f"[CTP] {log.msg}")
+    def run(self):
+        """Start the trader API in current thread (blocking)."""
+        self.api.RegisterSpi(self)
+        self.api.RegisterFront(self.front)
+        self.api.Init()
+        self.api.Join()
 
-    def on_tick(self, tick: TickData) -> None:
-        """Handle pushed tick data"""
-        # print('on_tick: ', tick)
-        # print(f"Enter on_tick, {tick.datetime}")
-        # If bar end time is None, need to calculate bar end time
-        if self._bar_end_time is None:
-            # Get the most recent bar update time, then calculate bar end time
-            nts = datetime2timestamp(tick.datetime)
-            self._bar_begin_time = get_last_timeframe_timestamp(int(nts), self.time_diff)
-            self._bar_end_time = self._bar_begin_time + self.time_diff
-            self._bar_end_time = timestamp2datetime(self._bar_begin_time)
+    def _next_request_id(self):
+        self.request_id += 1
+        return self.request_id
 
-        # If current tick time is greater than or equal to bar end time, push bar to queue, otherwise update kline
-        nts = tick.datetime
-        # print(f"nts = {nts}, self._bar_begin_time = {self._bar_begin_time}, self._bar_end_time = {self._bar_end_time}")
-        if nts >= self._bar_end_time:
-            bar = BarData._create_class(
-                {
-                    "symbol": tick.symbol,
-                    "exchange": tick.exchange,
-                    "datetime": tick.datetime,
-                    "interval": self._bar_interval,
-                    "volume": self.bar_volume,
-                    "open_price": self.bar_open_price,
-                    "high_price": self.bar_high_price,
-                    "low_price": self.bar_low_price,
-                    "close_price": self.bar_close_price,
-                }
-            )
-            self.md_queue[self._data_name].put(bar)
-            self.bar_datetime = self._bar_begin_time
-            self.bar_open_price = tick.last_price
-            self.bar_high_price = tick.last_price
-            self.bar_low_price = tick.last_price
-            self.bar_close_price = tick.last_price
-            self.bar_volume = tick.volume
-            self._bar_begin_time = self._bar_end_time
-            self._bar_end_time = timestamp2datetime(
-                datetime2timestamp(self._bar_end_time) + self.time_diff
-            )
+    def _next_order_ref(self):
+        self.order_ref += 1
+        return str(self.order_ref)
+
+    # --- Connection callbacks ---
+    def OnFrontConnected(self):
+        logger.info("[CTPTrader] OnFrontConnected")
+        self.connected = True
+        self._do_auth()
+
+    def OnFrontDisconnected(self, nReason):
+        logger.warning(f"[CTPTrader] OnFrontDisconnected reason={nReason}")
+        self.connected = False
+        self.loggedin = False
+
+    # --- Auth / Login ---
+    def _do_auth(self):
+        field = ctp.CThostFtdcReqAuthenticateField()
+        field.BrokerID = self.broker_id
+        field.UserID = self.user_id
+        field.AppID = self.app_id
+        field.AuthCode = self.auth_code
+        self.api.ReqAuthenticate(field, self._next_request_id())
+
+    def OnRspAuthenticate(self, pRspAuthenticateField, pRspInfo, nRequestID, bIsLast):
+        if pRspInfo and pRspInfo.ErrorID == 0:
+            logger.info("[CTPTrader] Auth OK")
+            self.authed = True
+            self._do_login()
         else:
-            self.bar_datetime = self._bar_begin_time
-            self.bar_high_price = max(self.bar_high_price, tick.last_price)
-            self.bar_low_price = min(self.bar_low_price, tick.last_price)
-            self.bar_close_price = tick.last_price
-            self.bar_volume += tick.volume
+            err = pRspInfo.ErrorMsg if pRspInfo else 'unknown'
+            logger.error(f"[CTPTrader] Auth failed: {err}")
 
-    def on_bar(self, bar: BarData) -> None:
-        """Handle bar generated by ctpbee"""
-        print(
-            "on_bar: ",
-            bar.local_symbol,
-            bar.datetime,
-            bar.open_price,
-            bar.high_price,
-            bar.low_price,
-            bar.close_price,
-            bar.volume,
-            bar.interval,
-        )
-        self.md_queue[bar.local_symbol].put(bar)  # Distribute market data to corresponding queue
+    def _do_login(self):
+        field = ctp.CThostFtdcReqUserLoginField()
+        field.BrokerID = self.broker_id
+        field.UserID = self.user_id
+        field.Password = self.password
+        self.api.ReqUserLogin(field, self._next_request_id())
 
-    def on_init(self, init):
-        """Handle initialization event from CTP API.
+    def OnRspUserLogin(self, pRspUserLogin, pRspInfo, nRequestID, bIsLast):
+        if pRspInfo and pRspInfo.ErrorID == 0:
+            self.loggedin = True
+            self.front_id = pRspUserLogin.FrontID
+            self.session_id = pRspUserLogin.SessionID
+            logger.info(f"[CTPTrader] Login OK front={self.front_id} session={self.session_id}")
+            # Confirm settlement
+            field = ctp.CThostFtdcSettlementInfoConfirmField()
+            field.BrokerID = self.broker_id
+            field.InvestorID = self.user_id
+            self.api.ReqSettlementInfoConfirm(field, self._next_request_id())
+        else:
+            err = pRspInfo.ErrorMsg if pRspInfo else 'unknown'
+            logger.error(f"[CTPTrader] Login failed: {err}")
+
+    def OnRspSettlementInfoConfirm(self, pSettlementInfoConfirm, pRspInfo, nRequestID, bIsLast):
+        logger.info("[CTPTrader] Settlement confirmed")
+
+    # --- Order callbacks ---
+    def OnRtnOrder(self, pOrder):
+        """Order status update from exchange."""
+        if pOrder is None:
+            return
+        info = {
+            'order_ref': pOrder.OrderRef,
+            'order_sys_id': pOrder.OrderSysID.strip() if pOrder.OrderSysID else '',
+            'front_id': pOrder.FrontID,
+            'session_id': pOrder.SessionID,
+            'instrument': pOrder.InstrumentID,
+            'direction': pOrder.Direction,
+            'offset': pOrder.CombOffsetFlag,
+            'price': pOrder.LimitPrice,
+            'volume': pOrder.VolumeTotalOriginal,
+            'volume_traded': pOrder.VolumeTraded,
+            'volume_remaining': pOrder.VolumeTotal,
+            'status': pOrder.OrderStatus,
+            'status_msg': pOrder.StatusMsg if hasattr(pOrder, 'StatusMsg') else '',
+        }
+        logger.debug(f"[CTPTrader] OnRtnOrder: {info}")
+        self.order_queue.put(info)
+
+    def OnRtnTrade(self, pTrade):
+        """Trade fill notification from exchange."""
+        if pTrade is None:
+            return
+        info = {
+            'order_ref': pTrade.OrderRef,
+            'order_sys_id': pTrade.OrderSysID.strip() if pTrade.OrderSysID else '',
+            'instrument': pTrade.InstrumentID,
+            'direction': pTrade.Direction,
+            'offset': pTrade.OffsetFlag,
+            'price': pTrade.Price,
+            'volume': pTrade.Volume,
+            'trade_id': pTrade.TradeID.strip() if pTrade.TradeID else '',
+            'trade_time': pTrade.TradeTime if hasattr(pTrade, 'TradeTime') else '',
+        }
+        logger.debug(f"[CTPTrader] OnRtnTrade: {info}")
+        self.trade_queue.put(info)
+
+    def OnRspOrderInsert(self, pInputOrder, pRspInfo, nRequestID, bIsLast):
+        """Order insert error response."""
+        if pRspInfo and pRspInfo.ErrorID != 0:
+            logger.error(f"[CTPTrader] OrderInsert error: {pRspInfo.ErrorMsg}")
+            if pInputOrder:
+                info = {
+                    'order_ref': pInputOrder.OrderRef,
+                    'instrument': pInputOrder.InstrumentID,
+                    'status': THOST_FTDC_OST_Canceled,
+                    'status_msg': pRspInfo.ErrorMsg,
+                    'direction': pInputOrder.Direction,
+                    'offset': pInputOrder.CombOffsetFlag,
+                    'price': pInputOrder.LimitPrice,
+                    'volume': pInputOrder.VolumeTotalOriginal,
+                    'volume_traded': 0,
+                    'volume_remaining': pInputOrder.VolumeTotalOriginal,
+                    'front_id': 0,
+                    'session_id': 0,
+                    'order_sys_id': '',
+                    'rejected': True,
+                }
+                self.order_queue.put(info)
+
+    def OnRspOrderAction(self, pInputOrderAction, pRspInfo, nRequestID, bIsLast):
+        """Cancel order error response."""
+        if pRspInfo and pRspInfo.ErrorID != 0:
+            logger.error(f"[CTPTrader] OrderAction error: {pRspInfo.ErrorMsg}")
+
+    def OnRspError(self, pRspInfo, nRequestID, bIsLast):
+        if pRspInfo:
+            logger.error(f"[CTPTrader] RspError: {pRspInfo.ErrorID} {pRspInfo.ErrorMsg}")
+
+    # --- Account query ---
+    def query_account(self):
+        """Send account query request."""
+        self._account_query_done.clear()
+        field = ctp.CThostFtdcQryTradingAccountField()
+        field.BrokerID = self.broker_id
+        field.InvestorID = self.user_id
+        self.api.ReqQryTradingAccount(field, self._next_request_id())
+
+    def OnRspQryTradingAccount(self, pTradingAccount, pRspInfo, nRequestID, bIsLast):
+        if pTradingAccount:
+            self._account = {
+                'available': pTradingAccount.Available,
+                'balance': pTradingAccount.Balance,
+                'margin': pTradingAccount.CurrMargin,
+                'commission': pTradingAccount.Commission,
+                'frozen_margin': pTradingAccount.FrozenMargin,
+                'frozen_cash': pTradingAccount.FrozenCash,
+            }
+        if bIsLast:
+            self._account_query_done.set()
+
+    # --- Position query ---
+    def query_positions(self):
+        """Send position query request."""
+        self._positions = []
+        self._position_query_done.clear()
+        field = ctp.CThostFtdcQryInvestorPositionField()
+        field.BrokerID = self.broker_id
+        field.InvestorID = self.user_id
+        self.api.ReqQryInvestorPosition(field, self._next_request_id())
+
+    def OnRspQryInvestorPosition(self, pInvestorPosition, pRspInfo, nRequestID, bIsLast):
+        if pInvestorPosition and pInvestorPosition.InstrumentID:
+            self._positions.append({
+                'instrument': pInvestorPosition.InstrumentID,
+                'direction': pInvestorPosition.PosiDirection,  # '2'=Long, '3'=Short
+                'volume': pInvestorPosition.Position,
+                'yd_volume': pInvestorPosition.YdPosition,
+                'today_volume': pInvestorPosition.TodayPosition,
+                'avg_price': pInvestorPosition.OpenCost / max(pInvestorPosition.Position, 1),
+                'position_profit': pInvestorPosition.PositionProfit,
+            })
+        if bIsLast:
+            self._position_query_done.set()
+
+    # --- Order submission ---
+    def send_order(self, instrument, direction, offset, price, volume,
+                   order_price_type=THOST_FTDC_OPT_LimitPrice):
+        """Submit an order to CTP.
 
         Args:
-            init: Initialization status/information from CTP.
+            instrument: Instrument ID (e.g. 'rb2501').
+            direction: '0'=Buy, '1'=Sell.
+            offset: '0'=Open, '1'=Close, '3'=CloseToday, '4'=CloseYesterday.
+            price: Order price.
+            volume: Number of contracts.
+            order_price_type: '2'=Limit (default), '1'=Market.
+
+        Returns:
+            str: order_ref string, or None on failure.
         """
-        pass
+        order_ref = self._next_order_ref()
+        field = ctp.CThostFtdcInputOrderField()
+        field.BrokerID = self.broker_id
+        field.InvestorID = self.user_id
+        field.InstrumentID = instrument
+        field.OrderRef = order_ref
+        field.Direction = direction
+        field.CombOffsetFlag = offset
+        field.CombHedgeFlag = THOST_FTDC_HF_Speculation
+        field.OrderPriceType = order_price_type
+        field.LimitPrice = float(price)
+        field.VolumeTotalOriginal = int(volume)
+        field.TimeCondition = THOST_FTDC_TC_GFD
+        field.VolumeCondition = THOST_FTDC_VC_AV
+        field.MinVolume = 1
+        field.ContingentCondition = THOST_FTDC_CC_Immediately
+        field.ForceCloseReason = THOST_FTDC_FCC_NotForceClose
+        field.IsAutoSuspend = 0
 
-    def on_order(self, order: OrderData) -> None:
-        """Handle order response — push to order_queue for CTPBroker to process."""
-        logger.debug(f"[CTP] on_order: {order.order_id} status={order.status} "
-                     f"symbol={order.symbol} dir={order.direction} "
-                     f"price={order.price} vol={order.volume}")
-        if self.order_queue is not None:
-            self.order_queue.put(order)
+        try:
+            ret = self.api.ReqOrderInsert(field, self._next_request_id())
+            if ret == 0:
+                logger.info(f"[CTPTrader] send_order: {instrument} dir={direction} "
+                            f"offset={offset} price={price} vol={volume} ref={order_ref}")
+                return order_ref
+            else:
+                logger.error(f"[CTPTrader] send_order failed ret={ret}")
+                return None
+        except Exception as e:
+            logger.error(f"[CTPTrader] send_order exception: {e}")
+            return None
 
-    def on_trade(self, trade: TradeData) -> None:
-        """Handle trade response — push to trade_queue for CTPBroker to process."""
-        logger.debug(f"[CTP] on_trade: {trade.order_id} symbol={trade.symbol} "
-                     f"dir={trade.direction} price={trade.price} vol={trade.volume}")
-        if self.trade_queue is not None:
-            self.trade_queue.put(trade)
+    def cancel_order_by_ref(self, instrument, order_ref, front_id=None, session_id=None,
+                            exchange_id=''):
+        """Cancel an order by order_ref."""
+        field = ctp.CThostFtdcInputOrderActionField()
+        field.BrokerID = self.broker_id
+        field.InvestorID = self.user_id
+        field.InstrumentID = instrument
+        field.OrderRef = str(order_ref)
+        field.FrontID = front_id or self.front_id
+        field.SessionID = session_id or self.session_id
+        field.ActionFlag = THOST_FTDC_AF_Delete
+        if exchange_id:
+            field.ExchangeID = exchange_id
 
-    def on_position(self, position: PositionData) -> None:
-        """Handle position response."""
-        self.is_position_ok = True
+        try:
+            ret = self.api.ReqOrderAction(field, self._next_request_id())
+            logger.info(f"[CTPTrader] cancel_order ref={order_ref} ret={ret}")
+            return ret == 0
+        except Exception as e:
+            logger.error(f"[CTPTrader] cancel_order exception: {e}")
+            return False
 
-    def on_account(self, account: AccountData) -> None:
-        """Handle account information."""
-        self.is_account_ok = True
+    def release(self):
+        """Release the trader API."""
+        try:
+            self.api.RegisterSpi(None)
+            self.api.Release()
+        except Exception as e:
+            logger.warning(f"[CTPTrader] release error: {e}")
 
+
+# ---------------------------------------------------------------------------
+# CTPMdSpi: Market data callback handler
+# ---------------------------------------------------------------------------
+
+class CTPMdSpi(ctp.CThostFtdcMdSpi):
+    """CTP Market Data SPI — handles tick data callbacks."""
+
+    def __init__(self, front, broker_id, user_id, password):
+        super().__init__()
+        self.front = front
+        self.broker_id = broker_id
+        self.user_id = user_id
+        self.password = password
+
+        self.request_id = 0
+        self.connected = False
+        self.loggedin = False
+
+        # Tick data queues: instrument -> queue.Queue
+        self.tick_queues = {}
+        self._lock = threading.Lock()
+
+        # Create API
+        dir_name = ''.join(('ctp', broker_id, user_id)).encode('UTF-8')
+        dir_name = hashlib.md5(dir_name).hexdigest()
+        dir_path = os.path.join(tempfile.gettempdir(), dir_name, 'Md') + os.sep
+        if not os.path.isdir(dir_path):
+            os.makedirs(dir_path)
+        self.api = ctp.CThostFtdcMdApi.CreateFtdcMdApi(dir_path)
+
+    def run(self):
+        """Start the MD API in current thread (blocking)."""
+        self.api.RegisterSpi(self)
+        self.api.RegisterFront(self.front)
+        self.api.Init()
+        self.api.Join()
+
+    def _next_request_id(self):
+        self.request_id += 1
+        return self.request_id
+
+    def OnFrontConnected(self):
+        logger.info("[CTPMd] OnFrontConnected")
+        self.connected = True
+        field = ctp.CThostFtdcReqUserLoginField()
+        field.BrokerID = self.broker_id
+        field.UserID = self.user_id
+        field.Password = self.password
+        self.api.ReqUserLogin(field, self._next_request_id())
+
+    def OnFrontDisconnected(self, nReason):
+        logger.warning(f"[CTPMd] OnFrontDisconnected reason={nReason}")
+        self.connected = False
+        self.loggedin = False
+
+    def OnRspUserLogin(self, pRspUserLogin, pRspInfo, nRequestID, bIsLast):
+        if pRspInfo and pRspInfo.ErrorID == 0:
+            self.loggedin = True
+            logger.info("[CTPMd] Login OK")
+        else:
+            err = pRspInfo.ErrorMsg if pRspInfo else 'unknown'
+            logger.error(f"[CTPMd] Login failed: {err}")
+
+    def OnRspSubMarketData(self, pSpecificInstrument, pRspInfo, nRequestID, bIsLast):
+        if pRspInfo and pRspInfo.ErrorID == 0:
+            inst = pSpecificInstrument.InstrumentID if pSpecificInstrument else '?'
+            logger.info(f"[CTPMd] Subscribed: {inst}")
+        else:
+            err = pRspInfo.ErrorMsg if pRspInfo else 'unknown'
+            logger.error(f"[CTPMd] Subscribe failed: {err}")
+
+    def OnRtnDepthMarketData(self, pDepthMarketData):
+        """Tick data callback — put into instrument-specific queue."""
+        if pDepthMarketData is None:
+            return
+        inst = pDepthMarketData.InstrumentID
+        # Build a plain dict to avoid CTP memory management issues
+        tick = {
+            'instrument': inst,
+            'last_price': pDepthMarketData.LastPrice,
+            'open_price': pDepthMarketData.OpenPrice,
+            'high_price': pDepthMarketData.HighestPrice,
+            'low_price': pDepthMarketData.LowestPrice,
+            'volume': pDepthMarketData.Volume,
+            'open_interest': pDepthMarketData.OpenInterest,
+            'bid_price1': pDepthMarketData.BidPrice1,
+            'ask_price1': pDepthMarketData.AskPrice1,
+            'bid_volume1': pDepthMarketData.BidVolume1,
+            'ask_volume1': pDepthMarketData.AskVolume1,
+            'update_time': pDepthMarketData.UpdateTime,
+            'update_millisec': pDepthMarketData.UpdateMillisec,
+            'trading_day': pDepthMarketData.TradingDay,
+            'action_day': pDepthMarketData.ActionDay if hasattr(pDepthMarketData, 'ActionDay') else '',
+        }
+        with self._lock:
+            q = self.tick_queues.get(inst)
+        if q is not None:
+            q.put(tick)
+
+    def subscribe(self, instruments):
+        """Subscribe to market data for instruments.
+
+        Args:
+            instruments: list of instrument IDs, e.g. ['rb2501', 'IF2506'].
+        """
+        if isinstance(instruments, str):
+            instruments = [instruments]
+        self.api.SubscribeMarketData(instruments)
+
+    def register_instrument(self, instrument):
+        """Register a tick queue for an instrument."""
+        with self._lock:
+            if instrument not in self.tick_queues:
+                self.tick_queues[instrument] = queue.Queue()
+        return self.tick_queues[instrument]
+
+    def OnRspError(self, pRspInfo, nRequestID, bIsLast):
+        if pRspInfo:
+            logger.error(f"[CTPMd] RspError: {pRspInfo.ErrorID} {pRspInfo.ErrorMsg}")
+
+    def release(self):
+        """Release the MD API."""
+        try:
+            self.api.RegisterSpi(None)
+            self.api.Release()
+        except Exception as e:
+            logger.warning(f"[CTPMd] release error: {e}")
+
+
+# ---------------------------------------------------------------------------
+# CTPStore: Singleton store managing both connections
+# ---------------------------------------------------------------------------
 
 class CTPStore(ParameterizedSingletonMixin):
-    """
-    Singleton class wrapping CTP connection using ParameterizedSingletonMixin.
+    """Singleton store for CTP futures trading via ctp-python.
 
-    This class now uses ParameterizedSingletonMixin instead of MetaSingleton metaclass
-    to implement the singleton pattern. This provides the same functionality without
-    metaclasses while maintaining full backward compatibility.
+    Manages both Trader and MarketData connections, provides order
+    submission/cancellation, account/position queries, and tick data
+    distribution to data feeds.
     """
 
     BrokerCls = None  # broker class will auto register
-    DataCls = None  # data class will auto register
+    DataCls = None    # data class will auto register
 
     params = (("debug", False),)
 
+    # SimNow defaults
+    DEFAULT_TD_FRONT = 'tcp://180.168.146.187:10130'
+    DEFAULT_MD_FRONT = 'tcp://180.168.146.187:10131'
+    DEFAULT_BROKER_ID = '9999'
+    DEFAULT_APP_ID = 'simnow_client_test'
+    DEFAULT_AUTH_CODE = '0000000000000000'
+
     @classmethod
     def getdata(cls, *args, **kwargs):
-        """Returns `DataCls` with args, kwargs"""
+        """Returns `DataCls` with args, kwargs."""
+        if cls.DataCls is None:
+            from backtrader.feeds.ctpdata import CTPData
+            cls.DataCls = CTPData
         return cls.DataCls(*args, **kwargs)
 
     @classmethod
     def getbroker(cls, *args, **kwargs):
-        """Returns broker with *args, **kwargs from registered `BrokerCls`"""
+        """Returns broker with *args, **kwargs from registered `BrokerCls`."""
+        if cls.BrokerCls is None:
+            from backtrader.brokers.ctpbroker import CTPBroker
+            cls.BrokerCls = CTPBroker
         return cls.BrokerCls(*args, **kwargs)
-
-    # Exchange mapping: symbol suffix/prefix -> ctpbee Exchange enum
-    EXCHANGE_MAP = {
-        'SHFE': Exchange.SHFE,
-        'DCE': Exchange.DCE,
-        'CZCE': Exchange.CZCE,
-        'CFFEX': Exchange.CFFEX,
-        'INE': Exchange.INE,
-        'GFEX': Exchange.GFEX,
-    }
 
     def __init__(self, ctp_setting=None, *args, **kwargs):
         """Initialize the CTPStore instance.
 
         Args:
-            ctp_setting: Dictionary containing CTP connection settings including
-                userid, password, brokerid, and other connection parameters.
-            *args: Additional positional arguments (unused).
-            **kwargs: Additional keyword arguments (unused).
-
-        Note:
-            This initializes the CtpBee app with the provided settings and waits
-            for the account information to be loaded before returning.
+            ctp_setting: Dict with keys: td_front, md_front, broker_id,
+                user_id, password, app_id, auth_code.
+                Can also pass these as **kwargs directly.
         """
         super().__init__()
-        # Connection settings
         if ctp_setting is None:
-            ctp_setting = kwargs.get('ctp_setting', {})
+            ctp_setting = kwargs
         self.ctp_setting = ctp_setting
         self._is_connected = False
         self._stopped = False
+
+        # Extract config
+        self._td_front = ctp_setting.get('td_front', self.DEFAULT_TD_FRONT)
+        self._md_front = ctp_setting.get('md_front', self.DEFAULT_MD_FRONT)
+        self._broker_id = ctp_setting.get('broker_id', self.DEFAULT_BROKER_ID)
+        self._user_id = ctp_setting.get('user_id', '')
+        self._password = ctp_setting.get('password', '')
+        self._app_id = ctp_setting.get('app_id', self.DEFAULT_APP_ID)
+        self._auth_code = ctp_setting.get('auth_code', self.DEFAULT_AUTH_CODE)
+
         # Initial values
         self._cash = 0.0
         self._value = 0.0
-        # Order/trade event queues for broker
+
+        # Event queues (shared with broker)
         self.order_queue = queue.Queue()
         self.trade_queue = queue.Queue()
-        # Feed market data queue dictionary
-        self.q_feed_qlive = dict()
-        # CTP order_id -> backtrader order ref mapping
-        self._order_id_map = {}  # ctp_order_id -> bt_order_ref
-        self._lock = threading.Lock()
 
-        self.main_ctpbee_api = MyCtpbeeApi(
-            "main_ctpbee_api",
-            md_queue=self.q_feed_qlive,
-            order_queue=self.order_queue,
-            trade_queue=self.trade_queue,
+        # Create SPIs
+        self.trader_spi = CTPTraderSpi(
+            front=self._td_front,
+            broker_id=self._broker_id,
+            user_id=self._user_id,
+            password=self._password,
+            app_id=self._app_id,
+            auth_code=self._auth_code,
         )
-        self.app = CtpBee("ctpstore", __name__, refresh=True)
-        self.app.config.from_mapping(ctp_setting)
-        self.app.add_extension(self.main_ctpbee_api)
-        self.app.start(log_output=True)
-        # Wait for account data to be ready
-        timeout = 30
+        self.trader_spi.order_queue = self.order_queue
+        self.trader_spi.trade_queue = self.trade_queue
+
+        self.md_spi = CTPMdSpi(
+            front=self._md_front,
+            broker_id=self._broker_id,
+            user_id=self._user_id,
+            password=self._password,
+        )
+
+        # Start in daemon threads
+        self._td_thread = threading.Thread(target=self.trader_spi.run, daemon=True)
+        self._md_thread = threading.Thread(target=self.md_spi.run, daemon=True)
+        self._td_thread.start()
+        self._md_thread.start()
+
+        # Wait for login
+        timeout = 15
         waited = 0
         while waited < timeout:
             sleep(1)
             waited += 1
-            if self.main_ctpbee_api.is_account_ok:
+            if self.trader_spi.loggedin and self.md_spi.loggedin:
                 break
-        if not self.main_ctpbee_api.is_account_ok:
-            logger.warning("[CTPStore] Timeout waiting for account data")
-        self._is_connected = True
-        logger.info(f"[CTPStore] Connected. positions={self.main_ctpbee_api.center.positions}")
-        logger.info(f"[CTPStore] account={self.main_ctpbee_api.center.account}")
+        if not self.trader_spi.loggedin:
+            logger.warning("[CTPStore] Trader login timeout")
+        if not self.md_spi.loggedin:
+            logger.warning("[CTPStore] MD login timeout")
+
+        self._is_connected = self.trader_spi.loggedin
+        if self._is_connected:
+            logger.info("[CTPStore] Connected and logged in")
+            # Query initial balance
+            self.get_balance()
 
     def register(self, feed):
-        """Register feed market data queue, pass feed, create a queue for it, and add to dictionary"""
-        self.q_feed_qlive[feed.p.dataname] = queue.Queue()
-        return self.q_feed_qlive[feed.p.dataname]
+        """Register a data feed — creates a tick queue for its instrument."""
+        dataname = feed.p.dataname
+        instrument = dataname.split('.')[0] if '.' in dataname else dataname
+        return self.md_spi.register_instrument(instrument)
 
-    # def subscribe(self, data):
-    #     print(f"------Start subscribing to data------")
-    #     if data is not None:
-    #         self.main_ctpbee_api.action.subscribe(data.p.dataname)
-    #         print(f"-----Successfully subscribed to data {data.p.dataname}--------")
+    def subscribe(self, dataname):
+        """Subscribe to market data for an instrument."""
+        instrument = dataname.split('.')[0] if '.' in dataname else dataname
+        self.md_spi.subscribe([instrument])
 
     def stop(self):
-        """Stop the CTP store and disconnect from CTP."""
+        """Stop the CTP store and release all APIs."""
         if self._stopped:
             return
         self._stopped = True
         self._is_connected = False
-        try:
-            self.app.release()
-        except Exception as e:
-            logger.warning(f"[CTPStore] Error during release: {e}")
+        self.trader_spi.release()
+        self.md_spi.release()
         logger.info("[CTPStore] Stopped")
 
     @property
     def is_connected(self):
         return self._is_connected and not self._stopped
 
-    def _detect_exchange(self, symbol):
-        """Detect the exchange for a given symbol.
+    # --- Order submission ---
+    def send_order(self, symbol, direction, offset, price, volume,
+                   order_price_type=THOST_FTDC_OPT_LimitPrice):
+        """Send an order to CTP.
 
         Args:
-            symbol: Instrument symbol, e.g. 'rb2501.SHFE' or 'rb2501'
-
-        Returns:
-            Exchange enum value, or Exchange.SHFE as default.
-        """
-        if '.' in symbol:
-            parts = symbol.split('.')
-            exchange_str = parts[-1].upper()
-            if exchange_str in self.EXCHANGE_MAP:
-                return self.EXCHANGE_MAP[exchange_str]
-        # Try to detect from contract cache
-        pure_symbol = symbol.split('.')[0] if '.' in symbol else symbol
-        contract = self.main_ctpbee_api.contracts.get(pure_symbol)
-        if contract and hasattr(contract, 'exchange'):
-            return contract.exchange
-        # Default
-        return Exchange.SHFE
-
-    def send_order(self, symbol, direction, offset, order_type, volume, price):
-        """Send an order to CTP via ctpbee.
-
-        Args:
-            symbol: Instrument symbol (e.g. 'rb2501.SHFE' or 'rb2501').
-            direction: ctpbee Direction enum (LONG or SHORT).
-            offset: ctpbee Offset enum (OPEN, CLOSE, CLOSETODAY, CLOSEYESTERDAY).
-            order_type: ctpbee OrderType enum (LIMIT, MARKET).
-            volume: Number of contracts.
+            symbol: e.g. 'rb2501.SHFE' or 'rb2501'.
+            direction: THOST_FTDC_D_Buy ('0') or THOST_FTDC_D_Sell ('1').
+            offset: THOST_FTDC_OF_Open ('0'), _Close ('1'), etc.
             price: Order price.
+            volume: Number of contracts.
+            order_price_type: Limit or Market.
 
         Returns:
-            str: CTP order ID, or None on failure.
+            str: order_ref, or None on failure.
         """
-        exchange = self._detect_exchange(symbol)
-        pure_symbol = symbol.split('.')[0] if '.' in symbol else symbol
-
-        req = OrderRequest(
-            symbol=pure_symbol,
-            exchange=exchange,
+        instrument = symbol.split('.')[0] if '.' in symbol else symbol
+        return self.trader_spi.send_order(
+            instrument=instrument,
             direction=direction,
             offset=offset,
-            type=order_type,
-            volume=volume,
             price=price,
+            volume=volume,
+            order_price_type=order_price_type,
         )
-        try:
-            order_id = self.main_ctpbee_api.action.send_order(req)
-            logger.info(f"[CTPStore] send_order: {pure_symbol} {direction} {offset} "
-                        f"price={price} vol={volume} -> order_id={order_id}")
-            return order_id
-        except Exception as e:
-            logger.error(f"[CTPStore] send_order failed: {e}")
-            return None
 
-    def cancel_order(self, symbol, order_id):
-        """Cancel an order on CTP.
-
-        Args:
-            symbol: Instrument symbol.
-            order_id: CTP order ID string.
-
-        Returns:
-            bool: True if cancel request was sent successfully.
-        """
-        exchange = self._detect_exchange(symbol)
-        pure_symbol = symbol.split('.')[0] if '.' in symbol else symbol
-
-        req = CancelRequest(
-            symbol=pure_symbol,
-            exchange=exchange,
-            order_id=order_id,
+    def cancel_order(self, symbol, order_ref, front_id=None, session_id=None):
+        """Cancel an order."""
+        instrument = symbol.split('.')[0] if '.' in symbol else symbol
+        exchange_id = symbol.split('.')[1] if '.' in symbol else ''
+        return self.trader_spi.cancel_order_by_ref(
+            instrument=instrument,
+            order_ref=order_ref,
+            front_id=front_id,
+            session_id=session_id,
+            exchange_id=exchange_id,
         )
-        try:
-            self.main_ctpbee_api.action.cancel_order(req)
-            logger.info(f"[CTPStore] cancel_order: {order_id} symbol={pure_symbol}")
-            return True
-        except Exception as e:
-            logger.error(f"[CTPStore] cancel_order failed: {e}")
-            return False
 
-    def get_positions(self):
-        """Get current positions from CTP.
-
-        Returns:
-            list: Position data from CTP center.
-        """
-        try:
-            positions = self.main_ctpbee_api.center.positions
-            return positions
-        except Exception as e:
-            logger.error(f"[CTPStore] get_positions failed: {e}")
-            return []
-
+    # --- Account / Position ---
     def get_balance(self):
-        """Get account balance information from CTP.
-
-        Updates the internal cash and value attributes from the CTP account.
-        """
+        """Query and update account balance."""
         try:
-            account = self.main_ctpbee_api.center.account
-            self._cash = account.available
-            self._value = account.balance
+            self.trader_spi.query_account()
+            if self.trader_spi._account_query_done.wait(timeout=5):
+                acc = self.trader_spi._account
+                if acc:
+                    self._cash = acc['available']
+                    self._value = acc['balance']
         except Exception as e:
             logger.error(f"[CTPStore] get_balance failed: {e}")
 
+    def get_positions(self):
+        """Query and return current positions."""
+        try:
+            self.trader_spi.query_positions()
+            if self.trader_spi._position_query_done.wait(timeout=5):
+                return self.trader_spi._positions
+        except Exception as e:
+            logger.error(f"[CTPStore] get_positions failed: {e}")
+        return []
+
     def get_cash(self):
-        """Get available cash from the account."""
         return self._cash
 
     def get_value(self):
-        """Get total account value."""
         return self._value

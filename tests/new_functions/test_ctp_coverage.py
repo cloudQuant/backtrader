@@ -1,279 +1,435 @@
-"""Unit tests for CTP futures live trading modules.
+"""Unit tests for CTP futures live trading modules (ctp-python based).
 
 Tests cover:
-- CTPStore: initialization, send_order, cancel_order, stop, exchange detection
+- CTPTraderSpi: order/trade callbacks, auth/login flow
+- CTPMdSpi: tick data callbacks, subscribe
+- CTPStore: send_order, cancel_order, stop, get_balance, get_positions
 - CTPBroker: buy, sell, cancel, next, order/trade event processing
-- MyCtpbeeApi: on_order, on_trade, on_contract callbacks
-- CTPData: bug fix verification
+- CTPData: tick-to-bar aggregation, backfill, no _bar_timeframe reference
 
-All ctpbee dependencies are mocked to avoid live CTP connections.
+All ctp dependencies are mocked to avoid live CTP connections.
 """
 
 import collections
-import enum
 import sys
 import threading
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch, PropertyMock
 
 import pytest
 
 # ---------------------------------------------------------------------------
-# Mock entire ctpbee module tree BEFORE any CTP imports
+# Mock the `ctp` C extension module BEFORE any CTP imports
 # ---------------------------------------------------------------------------
 
+_mock_ctp = MagicMock()
 
-class _MockDirection(enum.Enum):
-    LONG = "\u591a"
-    SHORT = "\u7a7a"
-    NET = "\u51c0"
+# CThostFtdcTraderSpi / CThostFtdcMdSpi: base classes for SPI subclassing
+_mock_ctp.CThostFtdcTraderSpi = object
+_mock_ctp.CThostFtdcMdSpi = object
 
+# Mock API factory classes
+_mock_ctp.CThostFtdcTraderApi = MagicMock()
+_mock_ctp.CThostFtdcMdApi = MagicMock()
 
-class _MockOffset(enum.Enum):
-    NONE = ""
-    OPEN = "\u5f00"
-    CLOSE = "\u5e73"
-    CLOSETODAY = "\u5e73\u4eca"
-    CLOSEYESTERDAY = "\u5e73\u6628"
+# Mock all CTP field structs as simple MagicMock factories
+for _field_name in [
+    'CThostFtdcReqAuthenticateField',
+    'CThostFtdcReqUserLoginField',
+    'CThostFtdcSettlementInfoConfirmField',
+    'CThostFtdcInputOrderField',
+    'CThostFtdcInputOrderActionField',
+    'CThostFtdcQryTradingAccountField',
+    'CThostFtdcQryInvestorPositionField',
+    'CThostFtdcRspInfoField',
+    'CThostFtdcDepthMarketDataField',
+    'CThostFtdcSpecificInstrumentField',
+]:
+    setattr(_mock_ctp, _field_name, MagicMock)
 
+sys.modules['ctp'] = _mock_ctp
 
-class _MockStatus(enum.Enum):
-    SUBMITTING = "\u63d0\u4ea4\u4e2d"
-    NOTTRADED = "\u672a\u6210\u4ea4"
-    PARTTRADED = "\u90e8\u5206\u6210\u4ea4"
-    ALLTRADED = "\u5168\u90e8\u6210\u4ea4"
-    CANCELLED = "\u5df2\u64a4\u9500"
-    REJECTED = "\u62d2\u5355"
-
-
-class _MockOrderType(enum.Enum):
-    LIMIT = "\u9650\u4ef7"
-    MARKET = "\u5e02\u4ef7"
-    STOP = "STOP"
-    FAK = "FAK"
-    FOK = "FOK"
-
-
-class _MockExchange(enum.Enum):
-    CFFEX = "CFFEX"
-    SHFE = "SHFE"
-    CZCE = "CZCE"
-    DCE = "DCE"
-    INE = "INE"
-    GFEX = "GFEX"
-    CTP = "ctp"
-    TTS = "tts"
-
-
-class _MockOrderRequest:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-
-class _MockCancelRequest:
-    def __init__(self, **kwargs):
-        for k, v in kwargs.items():
-            setattr(self, k, v)
-
-
-class _MockCtpbeeApi:
-    def __init__(self, name, *args, **kwargs):
-        self.name = name
-        self.action = MagicMock()
-        self.center = MagicMock()
-
-
-class _MockCtpBee:
-    def __init__(self, *args, **kwargs):
-        self.config = MagicMock()
-
-    def add_extension(self, ext):
-        pass
-
-    def start(self, **kwargs):
-        pass
-
-    def release(self):
-        pass
-
-
-# Build mock module tree
-_mock_ctpbee = MagicMock()
-_mock_ctpbee.CtpBee = _MockCtpBee
-_mock_ctpbee.CtpbeeApi = _MockCtpbeeApi
-
-_mock_constant = MagicMock()
-_mock_constant.Direction = _MockDirection
-_mock_constant.Offset = _MockOffset
-_mock_constant.Status = _MockStatus
-_mock_constant.OrderType = _MockOrderType
-_mock_constant.Exchange = _MockExchange
-_mock_constant.OrderRequest = _MockOrderRequest
-_mock_constant.CancelRequest = _MockCancelRequest
-_mock_constant.AccountData = MagicMock
-_mock_constant.BarData = MagicMock
-_mock_constant.ContractData = MagicMock
-_mock_constant.LogData = MagicMock
-_mock_constant.OrderData = MagicMock
-_mock_constant.PositionData = MagicMock
-_mock_constant.TickData = MagicMock
-_mock_constant.TradeData = MagicMock
-
-_mock_func = MagicMock()
-_mock_func.Helper = MagicMock()
-
-_mock_helpers = MagicMock()
-_mock_helpers.datetime2timestamp = MagicMock(return_value=0)
-_mock_helpers.get_last_timeframe_timestamp = MagicMock(return_value=0)
-_mock_helpers.timestamp2datetime = MagicMock(return_value=datetime.now())
-
-# Inject into sys.modules
-sys.modules['ctpbee'] = _mock_ctpbee
-sys.modules['ctpbee.constant'] = _mock_constant
-sys.modules['ctpbee.func'] = _mock_func
-sys.modules['ctpbee.helpers'] = _mock_helpers
-
-# NOW import backtrader CTP modules
+# NOW import backtrader CTP modules (they will pick up the mocked ctp)
 from backtrader.utils.py3 import queue
+from backtrader.stores.ctpstore import (
+    CTPTraderSpi, CTPMdSpi, CTPStore,
+    THOST_FTDC_D_Buy, THOST_FTDC_D_Sell,
+    THOST_FTDC_OF_Open, THOST_FTDC_OF_Close,
+    THOST_FTDC_OPT_LimitPrice, THOST_FTDC_OPT_AnyPrice,
+    THOST_FTDC_OST_AllTraded, THOST_FTDC_OST_Canceled,
+)
 
 
 # ---------------------------------------------------------------------------
-# Helpers to mock ctpbee event objects
+# Helpers
 # ---------------------------------------------------------------------------
 
-def _make_mock_ctp_order(order_id='1_2_3', status=None, symbol='rb2501',
-                         direction=None, price=3500.0, volume=1):
-    """Create a mock CTP OrderData."""
-    o = MagicMock()
-    o.order_id = order_id
-    o.local_order_id = order_id
-    o.status = status
-    o.symbol = symbol
-    o.direction = direction
-    o.price = price
-    o.volume = volume
-    return o
+def _make_order_event(order_ref='1', status='3', rejected=False, **kwargs):
+    """Create a dict mimicking CTPTraderSpi.OnRtnOrder output."""
+    evt = {
+        'order_ref': order_ref,
+        'order_sys_id': '',
+        'front_id': 0,
+        'session_id': 0,
+        'instrument': 'rb2501',
+        'direction': THOST_FTDC_D_Buy,
+        'offset': THOST_FTDC_OF_Open,
+        'price': 3500.0,
+        'volume': 1,
+        'volume_traded': 0,
+        'volume_remaining': 1,
+        'status': status,
+        'status_msg': '',
+    }
+    if rejected:
+        evt['rejected'] = True
+    evt.update(kwargs)
+    return evt
 
 
-def _make_mock_ctp_trade(order_id='1_2_3', symbol='rb2501',
-                         direction=None, price=3500.0, volume=1):
-    """Create a mock CTP TradeData."""
-    t = MagicMock()
-    t.order_id = order_id
-    t.local_order_id = order_id
-    t.symbol = symbol
-    t.direction = direction
-    t.price = price
-    t.volume = volume
-    return t
+def _make_trade_event(order_ref='1', price=3500.0, volume=1, **kwargs):
+    """Create a dict mimicking CTPTraderSpi.OnRtnTrade output."""
+    evt = {
+        'order_ref': order_ref,
+        'order_sys_id': '',
+        'instrument': 'rb2501',
+        'direction': THOST_FTDC_D_Buy,
+        'offset': THOST_FTDC_OF_Open,
+        'price': price,
+        'volume': volume,
+        'trade_id': '001',
+        'trade_time': '10:00:00',
+    }
+    evt.update(kwargs)
+    return evt
+
+
+def _make_mock_data(dataname='rb2501.SHFE'):
+    """Create a mock data feed that Order constructor can use."""
+    import datetime as dt
+    from backtrader.utils import date2num
+
+    data = MagicMock()
+    data.p.dataname = dataname
+    data._dataname = dataname
+    data.p.sessionend = dt.time(15, 0, 0)
+    data.p.simulated = False
+
+    now_num = date2num(dt.datetime(2025, 3, 1, 10, 0, 0))
+    mock_dt_line = MagicMock()
+    mock_dt_line.__getitem__ = MagicMock(return_value=now_num)
+    mock_dt_line.datetime = MagicMock(return_value=dt.datetime(2025, 3, 1, 10, 0, 0))
+    mock_dt_line.date = MagicMock(return_value=dt.date(2025, 3, 1))
+    data.datetime = mock_dt_line
+    data.date2num = date2num
+
+    mock_close = MagicMock()
+    mock_close.__getitem__ = MagicMock(return_value=3500.0)
+    data.close = mock_close
+    return data
 
 
 # ---------------------------------------------------------------------------
-# Test MyCtpbeeApi callbacks
+# Test CTPTraderSpi
 # ---------------------------------------------------------------------------
 
-class TestMyCtpbeeApi:
-    """Tests for MyCtpbeeApi event callbacks."""
+class TestCTPTraderSpi:
+    """Tests for CTPTraderSpi callbacks."""
 
-    def _make_api(self):
-        """Create a MyCtpbeeApi with mocked queues."""
-        # Force reimport with mocked ctpbee
-        from backtrader.stores.ctpstore import MyCtpbeeApi
+    def _make_spi(self):
+        spi = CTPTraderSpi(
+            front='tcp://127.0.0.1:10130',
+            broker_id='9999',
+            user_id='test',
+            password='test',
+            app_id='test_app',
+            auth_code='0000000000000000',
+        )
+        return spi
 
-        api = object.__new__(MyCtpbeeApi)
-        # Manually set attributes that __init__ would set
-        api.md_queue = {}
-        api.order_queue = queue.Queue()
-        api.trade_queue = queue.Queue()
-        api.is_position_ok = False
-        api.is_account_ok = False
-        api.contracts = {}
-        api._bar_timeframe = None
-        api._bar_compression = None
-        api._bar_begin_time = None
-        api._bar_end_time = None
-        api._bar_interval = None
-        api._data_name = None
-        api.time_diff = None
-        api.bar_datetime = None
-        api.bar_open_price = 0.0
-        api.bar_high_price = float('-inf')
-        api.bar_low_price = float('inf')
-        api.bar_close_price = 0.0
-        api.bar_volume = 0.0
-        api.action = MagicMock()
-        return api
+    def test_initial_state(self):
+        spi = self._make_spi()
+        assert spi.connected is False
+        assert spi.authed is False
+        assert spi.loggedin is False
+        assert spi.order_ref == 0
 
-    def test_on_order_pushes_to_queue(self):
-        api = self._make_api()
-        mock_order = _make_mock_ctp_order()
-        api.on_order(mock_order)
-        assert not api.order_queue.empty()
-        result = api.order_queue.get_nowait()
-        assert result.order_id == '1_2_3'
+    def test_on_front_connected(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        spi.OnFrontConnected()
+        assert spi.connected is True
+        spi.api.ReqAuthenticate.assert_called_once()
 
-    def test_on_order_no_queue(self):
-        api = self._make_api()
-        api.order_queue = None
-        # Should not raise
-        api.on_order(_make_mock_ctp_order())
+    def test_on_rsp_authenticate_success(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        rsp_info = MagicMock()
+        rsp_info.ErrorID = 0
+        spi.OnRspAuthenticate(None, rsp_info, 1, True)
+        assert spi.authed is True
+        spi.api.ReqUserLogin.assert_called_once()
 
-    def test_on_trade_pushes_to_queue(self):
-        api = self._make_api()
-        mock_trade = _make_mock_ctp_trade(price=3600.0, volume=2)
-        api.on_trade(mock_trade)
-        assert not api.trade_queue.empty()
-        result = api.trade_queue.get_nowait()
-        assert result.price == 3600.0
-        assert result.volume == 2
+    def test_on_rsp_authenticate_failure(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        rsp_info = MagicMock()
+        rsp_info.ErrorID = 1
+        rsp_info.ErrorMsg = 'auth error'
+        spi.OnRspAuthenticate(None, rsp_info, 1, True)
+        assert spi.authed is False
 
-    def test_on_trade_no_queue(self):
-        api = self._make_api()
-        api.trade_queue = None
-        api.on_trade(_make_mock_ctp_trade())
+    def test_on_rsp_user_login_success(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        login = MagicMock()
+        login.FrontID = 1
+        login.SessionID = 2
+        rsp_info = MagicMock()
+        rsp_info.ErrorID = 0
+        spi.OnRspUserLogin(login, rsp_info, 1, True)
+        assert spi.loggedin is True
+        assert spi.front_id == 1
+        assert spi.session_id == 2
+        spi.api.ReqSettlementInfoConfirm.assert_called_once()
 
-    def test_on_contract_caches(self):
-        api = self._make_api()
-        contract = MagicMock()
-        contract.local_symbol = 'rb2501.SHFE'
-        contract.symbol = 'rb2501'
-        api.on_contract(contract)
-        assert api.contracts['rb2501.SHFE'] is contract
-        assert api.contracts['rb2501'] is contract
+    def test_on_rtn_order_pushes_to_queue(self):
+        spi = self._make_spi()
+        pOrder = MagicMock()
+        pOrder.OrderRef = '1'
+        pOrder.OrderSysID = '  SYS001  '
+        pOrder.FrontID = 1
+        pOrder.SessionID = 2
+        pOrder.InstrumentID = 'rb2501'
+        pOrder.Direction = THOST_FTDC_D_Buy
+        pOrder.CombOffsetFlag = THOST_FTDC_OF_Open
+        pOrder.LimitPrice = 3500.0
+        pOrder.VolumeTotalOriginal = 1
+        pOrder.VolumeTraded = 0
+        pOrder.VolumeTotal = 1
+        pOrder.OrderStatus = THOST_FTDC_OST_Canceled
+        pOrder.StatusMsg = 'cancelled'
+        spi.OnRtnOrder(pOrder)
+        assert not spi.order_queue.empty()
+        evt = spi.order_queue.get_nowait()
+        assert evt['order_ref'] == '1'
+        assert evt['status'] == THOST_FTDC_OST_Canceled
 
-    def test_on_position_sets_flag(self):
-        api = self._make_api()
-        assert not api.is_position_ok
-        api.on_position(MagicMock())
-        assert api.is_position_ok
+    def test_on_rtn_order_none(self):
+        spi = self._make_spi()
+        spi.OnRtnOrder(None)  # should not raise
+        assert spi.order_queue.empty()
 
-    def test_on_account_sets_flag(self):
-        api = self._make_api()
-        assert not api.is_account_ok
-        api.on_account(MagicMock())
-        assert api.is_account_ok
+    def test_on_rtn_trade_pushes_to_queue(self):
+        spi = self._make_spi()
+        pTrade = MagicMock()
+        pTrade.OrderRef = '1'
+        pTrade.OrderSysID = ' SYS001 '
+        pTrade.InstrumentID = 'rb2501'
+        pTrade.Direction = THOST_FTDC_D_Buy
+        pTrade.OffsetFlag = THOST_FTDC_OF_Open
+        pTrade.Price = 3500.0
+        pTrade.Volume = 1
+        pTrade.TradeID = ' T001 '
+        pTrade.TradeTime = '10:00:00'
+        spi.OnRtnTrade(pTrade)
+        assert not spi.trade_queue.empty()
+        evt = spi.trade_queue.get_nowait()
+        assert evt['price'] == 3500.0
+        assert evt['volume'] == 1
 
-    def test_subscribe_minutes(self):
-        api = self._make_api()
-        api.subscribe('rb2501', 4, 5)
-        assert api._data_name == 'rb2501'
-        assert api._bar_timeframe == 4
-        assert api._bar_compression == 5
-        assert api.time_diff == 300  # 60 * 5
-        assert api._bar_interval == '5m'
+    def test_on_rsp_order_insert_error(self):
+        spi = self._make_spi()
+        pInputOrder = MagicMock()
+        pInputOrder.OrderRef = '1'
+        pInputOrder.InstrumentID = 'rb2501'
+        pInputOrder.Direction = THOST_FTDC_D_Buy
+        pInputOrder.CombOffsetFlag = THOST_FTDC_OF_Open
+        pInputOrder.LimitPrice = 3500.0
+        pInputOrder.VolumeTotalOriginal = 1
+        rsp_info = MagicMock()
+        rsp_info.ErrorID = 42
+        rsp_info.ErrorMsg = 'order rejected'
+        spi.OnRspOrderInsert(pInputOrder, rsp_info, 1, True)
+        assert not spi.order_queue.empty()
+        evt = spi.order_queue.get_nowait()
+        assert evt['rejected'] is True
 
-    def test_subscribe_daily(self):
-        api = self._make_api()
-        api.subscribe('rb2501', 5, 1)
-        assert api.time_diff == 86400
-        assert api._bar_interval == '1d'
+    def test_next_order_ref(self):
+        spi = self._make_spi()
+        ref1 = spi._next_order_ref()
+        ref2 = spi._next_order_ref()
+        assert ref1 == '1'
+        assert ref2 == '2'
 
-    def test_subscribe_default(self):
-        api = self._make_api()
-        api.subscribe('rb2501', 99, 1)
-        assert api.time_diff == 60
-        assert api._bar_interval == '1m'
+    def test_send_order_success(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        spi.api.ReqOrderInsert.return_value = 0
+        ref = spi.send_order('rb2501', THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 3500.0, 1)
+        assert ref is not None
+        spi.api.ReqOrderInsert.assert_called_once()
+
+    def test_send_order_failure(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        spi.api.ReqOrderInsert.return_value = -1
+        ref = spi.send_order('rb2501', THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 3500.0, 1)
+        assert ref is None
+
+    def test_cancel_order_by_ref(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        spi.api.ReqOrderAction.return_value = 0
+        spi.front_id = 1
+        spi.session_id = 2
+        result = spi.cancel_order_by_ref('rb2501', '1')
+        assert result is True
+
+    def test_query_account(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        spi.query_account()
+        spi.api.ReqQryTradingAccount.assert_called_once()
+
+    def test_on_rsp_qry_trading_account(self):
+        spi = self._make_spi()
+        acc = MagicMock()
+        acc.Available = 100000.0
+        acc.Balance = 150000.0
+        acc.CurrMargin = 5000.0
+        acc.Commission = 10.0
+        acc.FrozenMargin = 0.0
+        acc.FrozenCash = 0.0
+        spi.OnRspQryTradingAccount(acc, None, 1, True)
+        assert spi._account['available'] == 100000.0
+        assert spi._account['balance'] == 150000.0
+        assert spi._account_query_done.is_set()
+
+    def test_on_rsp_qry_position(self):
+        spi = self._make_spi()
+        pos = MagicMock()
+        pos.InstrumentID = 'rb2501'
+        pos.PosiDirection = '2'  # Long
+        pos.Position = 5
+        pos.YdPosition = 3
+        pos.TodayPosition = 2
+        pos.OpenCost = 17500.0
+        pos.PositionProfit = 100.0
+        spi.OnRspQryInvestorPosition(pos, None, 1, True)
+        assert len(spi._positions) == 1
+        assert spi._positions[0]['instrument'] == 'rb2501'
+        assert spi._position_query_done.is_set()
+
+    def test_on_front_disconnected(self):
+        spi = self._make_spi()
+        spi.connected = True
+        spi.loggedin = True
+        spi.OnFrontDisconnected(1001)
+        assert spi.connected is False
+        assert spi.loggedin is False
+
+
+# ---------------------------------------------------------------------------
+# Test CTPMdSpi
+# ---------------------------------------------------------------------------
+
+class TestCTPMdSpi:
+    """Tests for CTPMdSpi callbacks."""
+
+    def _make_spi(self):
+        spi = CTPMdSpi(
+            front='tcp://127.0.0.1:10131',
+            broker_id='9999',
+            user_id='test',
+            password='test',
+        )
+        return spi
+
+    def test_initial_state(self):
+        spi = self._make_spi()
+        assert spi.connected is False
+        assert spi.loggedin is False
+        assert len(spi.tick_queues) == 0
+
+    def test_on_front_connected(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        spi.OnFrontConnected()
+        assert spi.connected is True
+        spi.api.ReqUserLogin.assert_called_once()
+
+    def test_on_rsp_user_login_success(self):
+        spi = self._make_spi()
+        rsp = MagicMock()
+        rsp.ErrorID = 0
+        spi.OnRspUserLogin(None, rsp, 1, True)
+        assert spi.loggedin is True
+
+    def test_register_instrument(self):
+        spi = self._make_spi()
+        q = spi.register_instrument('rb2501')
+        assert isinstance(q, queue.Queue)
+        assert 'rb2501' in spi.tick_queues
+        # Registering same instrument returns same queue
+        q2 = spi.register_instrument('rb2501')
+        assert q is q2
+
+    def test_on_rtn_depth_market_data(self):
+        spi = self._make_spi()
+        spi.register_instrument('rb2501')
+        md = MagicMock()
+        md.InstrumentID = 'rb2501'
+        md.LastPrice = 3500.0
+        md.OpenPrice = 3480.0
+        md.HighestPrice = 3510.0
+        md.LowestPrice = 3470.0
+        md.Volume = 1000
+        md.OpenInterest = 50000.0
+        md.BidPrice1 = 3499.0
+        md.AskPrice1 = 3501.0
+        md.BidVolume1 = 10
+        md.AskVolume1 = 12
+        md.UpdateTime = '10:00:00'
+        md.UpdateMillisec = 500
+        md.TradingDay = '20250301'
+        md.ActionDay = '20250301'
+        spi.OnRtnDepthMarketData(md)
+        assert not spi.tick_queues['rb2501'].empty()
+        tick = spi.tick_queues['rb2501'].get_nowait()
+        assert tick['last_price'] == 3500.0
+        assert tick['instrument'] == 'rb2501'
+
+    def test_on_rtn_depth_market_data_unregistered(self):
+        spi = self._make_spi()
+        md = MagicMock()
+        md.InstrumentID = 'unknown'
+        md.LastPrice = 100.0
+        spi.OnRtnDepthMarketData(md)  # should not raise
+
+    def test_on_rtn_depth_market_data_none(self):
+        spi = self._make_spi()
+        spi.OnRtnDepthMarketData(None)  # should not raise
+
+    def test_subscribe(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        spi.subscribe(['rb2501', 'IF2506'])
+        spi.api.SubscribeMarketData.assert_called_once_with(['rb2501', 'IF2506'])
+
+    def test_subscribe_string(self):
+        spi = self._make_spi()
+        spi.api = MagicMock()
+        spi.subscribe('rb2501')
+        spi.api.SubscribeMarketData.assert_called_once_with(['rb2501'])
+
+    def test_on_front_disconnected(self):
+        spi = self._make_spi()
+        spi.connected = True
+        spi.loggedin = True
+        spi.OnFrontDisconnected(2001)
+        assert spi.connected is False
+        assert spi.loggedin is False
 
 
 # ---------------------------------------------------------------------------
@@ -281,12 +437,10 @@ class TestMyCtpbeeApi:
 # ---------------------------------------------------------------------------
 
 class TestCTPStore:
-    """Tests for CTPStore (mocked ctpbee)."""
+    """Tests for CTPStore."""
 
     def _make_store(self):
-        """Create a CTPStore with fully mocked ctpbee."""
-        from backtrader.stores.ctpstore import CTPStore
-
+        """Create a CTPStore with fully mocked internals."""
         store = CTPStore.__new__(CTPStore)
         store.ctp_setting = {}
         store._is_connected = True
@@ -295,19 +449,20 @@ class TestCTPStore:
         store._value = 150000.0
         store.order_queue = queue.Queue()
         store.trade_queue = queue.Queue()
-        store.q_feed_qlive = {}
-        store._order_id_map = {}
-        store._lock = threading.Lock()
 
-        # Mock the main_ctpbee_api
-        store.main_ctpbee_api = MagicMock()
-        store.main_ctpbee_api.contracts = {}
-        store.main_ctpbee_api.center.positions = []
-        store.main_ctpbee_api.center.account.available = 100000.0
-        store.main_ctpbee_api.center.account.balance = 150000.0
+        # Mock SPIs
+        store.trader_spi = MagicMock()
+        store.trader_spi.loggedin = True
+        store.trader_spi._account = {'available': 100000.0, 'balance': 150000.0}
+        store.trader_spi._account_query_done = threading.Event()
+        store.trader_spi._account_query_done.set()
+        store.trader_spi._positions = []
+        store.trader_spi._position_query_done = threading.Event()
+        store.trader_spi._position_query_done.set()
 
-        # Mock the app
-        store.app = MagicMock()
+        store.md_spi = MagicMock()
+        store.md_spi.loggedin = True
+        store.md_spi.tick_queues = {}
 
         return store
 
@@ -323,13 +478,7 @@ class TestCTPStore:
     def test_stop_idempotent(self):
         store = self._make_store()
         store.stop()
-        store.stop()  # second call should be no-op
-        assert store._stopped is True
-
-    def test_stop_release_error(self):
-        store = self._make_store()
-        store.app.release.side_effect = RuntimeError("release failed")
-        store.stop()  # should not raise
+        store.stop()
         assert store._stopped is True
 
     def test_get_cash(self):
@@ -342,97 +491,69 @@ class TestCTPStore:
 
     def test_get_balance(self):
         store = self._make_store()
-        store.main_ctpbee_api.center.account.available = 88000.0
-        store.main_ctpbee_api.center.account.balance = 99000.0
+        store.trader_spi._account = {'available': 88000.0, 'balance': 99000.0}
         store.get_balance()
         assert store.get_cash() == 88000.0
         assert store.get_value() == 99000.0
 
     def test_get_balance_error(self):
         store = self._make_store()
-        store.main_ctpbee_api.center.account = None
+        store.trader_spi.query_account.side_effect = Exception('err')
         store.get_balance()  # should not raise
-        # Cash/value unchanged
         assert store.get_cash() == 100000.0
 
     def test_get_positions(self):
         store = self._make_store()
-        store.main_ctpbee_api.center.positions = [{'local_symbol': 'rb2501.SHFE'}]
+        store.trader_spi._positions = [
+            {'instrument': 'rb2501', 'direction': '2', 'volume': 5}
+        ]
         pos = store.get_positions()
         assert len(pos) == 1
+        assert pos[0]['instrument'] == 'rb2501'
 
     def test_get_positions_error(self):
         store = self._make_store()
-        type(store.main_ctpbee_api.center).positions = PropertyMock(side_effect=Exception("err"))
+        store.trader_spi.query_positions.side_effect = Exception('err')
         pos = store.get_positions()
         assert pos == []
+
+    def test_send_order_success(self):
+        store = self._make_store()
+        store.trader_spi.send_order.return_value = '1'
+        ref = store.send_order(
+            symbol='rb2501.SHFE',
+            direction=THOST_FTDC_D_Buy,
+            offset=THOST_FTDC_OF_Open,
+            price=3500.0,
+            volume=1,
+        )
+        assert ref == '1'
+        store.trader_spi.send_order.assert_called_once()
+
+    def test_send_order_extracts_instrument(self):
+        store = self._make_store()
+        store.trader_spi.send_order.return_value = '1'
+        store.send_order('rb2501.SHFE', THOST_FTDC_D_Buy, THOST_FTDC_OF_Open, 3500.0, 1)
+        call_kwargs = store.trader_spi.send_order.call_args
+        assert call_kwargs[1]['instrument'] == 'rb2501'
+
+    def test_cancel_order(self):
+        store = self._make_store()
+        store.trader_spi.cancel_order_by_ref.return_value = True
+        result = store.cancel_order('rb2501.SHFE', '1')
+        assert result is True
 
     def test_register_feed(self):
         store = self._make_store()
         feed = MagicMock()
         feed.p.dataname = 'rb2501.SHFE'
-        q = store.register(feed)
-        assert isinstance(q, queue.Queue)
-        assert 'rb2501.SHFE' in store.q_feed_qlive
+        store.register(feed)
+        store.md_spi.register_instrument.assert_called_once_with('rb2501')
 
-    def test_detect_exchange_with_suffix(self):
+    def test_subscribe(self):
         store = self._make_store()
-        assert store._detect_exchange('rb2501.SHFE') == _MockExchange.SHFE
-        assert store._detect_exchange('IF2501.CFFEX') == _MockExchange.CFFEX
-        assert store._detect_exchange('m2501.DCE') == _MockExchange.DCE
-
-    def test_detect_exchange_from_contract_cache(self):
-        store = self._make_store()
-        contract = MagicMock()
-        contract.exchange = _MockExchange.CZCE
-        store.main_ctpbee_api.contracts = {'SR501': contract}
-        assert store._detect_exchange('SR501') == _MockExchange.CZCE
-
-    def test_detect_exchange_default(self):
-        store = self._make_store()
-        # No suffix, no cache -> default SHFE
-        assert store._detect_exchange('unknown') == _MockExchange.SHFE
-
-    def test_send_order_success(self):
-        store = self._make_store()
-        store.main_ctpbee_api.action.send_order.return_value = '1_2_3'
-
-        result = store.send_order(
-            symbol='rb2501.SHFE',
-            direction=_MockDirection.LONG,
-            offset=_MockOffset.OPEN,
-            order_type=_MockOrderType.LIMIT,
-            volume=1,
-            price=3500.0,
-        )
-        assert result == '1_2_3'
-        store.main_ctpbee_api.action.send_order.assert_called_once()
-
-    def test_send_order_failure(self):
-        store = self._make_store()
-        store.main_ctpbee_api.action.send_order.side_effect = Exception("fail")
-
-        result = store.send_order(
-            symbol='rb2501.SHFE',
-            direction=_MockDirection.LONG,
-            offset=_MockOffset.OPEN,
-            order_type=_MockOrderType.LIMIT,
-            volume=1,
-            price=3500.0,
-        )
-        assert result is None
-
-    def test_cancel_order_success(self):
-        store = self._make_store()
-        store.main_ctpbee_api.action.cancel_order.return_value = None
-        result = store.cancel_order('rb2501.SHFE', '1_2_3')
-        assert result is True
-
-    def test_cancel_order_failure(self):
-        store = self._make_store()
-        store.main_ctpbee_api.action.cancel_order.side_effect = Exception("fail")
-        result = store.cancel_order('rb2501.SHFE', '1_2_3')
-        assert result is False
+        store.subscribe('rb2501.SHFE')
+        store.md_spi.subscribe.assert_called_once_with(['rb2501'])
 
 
 # ---------------------------------------------------------------------------
@@ -443,14 +564,13 @@ class TestCTPBroker:
     """Tests for CTPBroker order lifecycle."""
 
     def _make_broker(self):
-        """Create a CTPBroker with mocked store."""
         from backtrader.brokers.ctpbroker import CTPBroker
 
         broker = CTPBroker.__new__(CTPBroker)
         broker.orders = collections.OrderedDict()
         broker.open_orders = []
         broker.notifs = collections.deque()
-        broker._ctp_to_bt = {}
+        broker._ref_to_bt = {}
         broker.startingcash = broker.cash = 100000.0
         broker.startingvalue = broker.value = 150000.0
         broker.positions = collections.defaultdict(lambda: MagicMock(size=0, price=0.0))
@@ -459,53 +579,25 @@ class TestCTPBroker:
         broker.o = MagicMock()
         broker.o.order_queue = queue.Queue()
         broker.o.trade_queue = queue.Queue()
-        broker.o.send_order.return_value = '1_2_3'
+        broker.o.send_order.return_value = '1'
         broker.o.cancel_order.return_value = True
         broker.o.get_balance.return_value = None
         broker.o.get_cash.return_value = 100000.0
         broker.o.get_value.return_value = 150000.0
-
         return broker
-
-    def _make_data(self, dataname='rb2501.SHFE'):
-        """Create a mock data feed that Order constructor can use."""
-        import datetime as dt
-        from backtrader.utils import date2num
-
-        data = MagicMock()
-        data.p.dataname = dataname
-        data._dataname = dataname
-        data.p.sessionend = dt.time(15, 0, 0)
-        data.p.simulated = False
-
-        # datetime line must support [0] returning a float (date2num format)
-        now_num = date2num(dt.datetime(2025, 3, 1, 10, 0, 0))
-        mock_dt_line = MagicMock()
-        mock_dt_line.__getitem__ = MagicMock(return_value=now_num)
-        mock_dt_line.datetime = MagicMock(return_value=dt.datetime(2025, 3, 1, 10, 0, 0))
-        mock_dt_line.date = MagicMock(return_value=dt.date(2025, 3, 1))
-        data.datetime = mock_dt_line
-        data.date2num = date2num
-
-        # close line
-        mock_close = MagicMock()
-        mock_close.__getitem__ = MagicMock(return_value=3500.0)
-        data.close = mock_close
-
-        return data
 
     def test_buy_creates_order(self):
         broker = self._make_broker()
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
         order = broker.buy(owner, data, size=1, price=3500.0,
                            exectype=None, parent=None, transmit=True)
         assert order is not None
         assert order.ref in broker.orders
-        assert order._ctp_order_id == '1_2_3'
+        assert order._ctp_order_ref == '1'
         assert len(broker.open_orders) == 1
 
     def test_sell_creates_order(self):
@@ -513,22 +605,22 @@ class TestCTPBroker:
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
         order = broker.sell(owner, data, size=1, price=3500.0,
                             exectype=None, parent=None, transmit=True)
         assert order is not None
         assert order.issell()
-        assert order._ctp_order_id == '1_2_3'
+        assert order._ctp_order_ref == '1'
 
     def test_buy_rejected_on_send_failure(self):
         broker = self._make_broker()
         from backtrader.position import Position
         from backtrader.order import Order
         broker.positions = collections.defaultdict(Position)
-        broker.o.send_order.return_value = None  # Simulate failure
+        broker.o.send_order.return_value = None
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
         order = broker.buy(owner, data, size=1, price=3500.0,
                            exectype=None, parent=None, transmit=True)
@@ -540,7 +632,7 @@ class TestCTPBroker:
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
         order = broker.buy(owner, data, size=1, price=3500.0,
                            exectype=None, parent=None, transmit=True)
@@ -548,18 +640,16 @@ class TestCTPBroker:
         assert result is order
         broker.o.cancel_order.assert_called_once()
 
-    def test_cancel_no_ctp_id(self):
+    def test_cancel_no_ctp_ref(self):
         broker = self._make_broker()
         order = MagicMock()
         order.ref = 999
-        # No _ctp_order_id attribute
-        del order._ctp_order_id
+        order._ctp_order_ref = None
         result = broker.cancel(order)
         assert result is order
 
     def test_next_processes_events(self):
         broker = self._make_broker()
-        # next() should not raise even with empty queues
         broker.next()
         broker.o.get_balance.assert_called_once()
 
@@ -569,17 +659,13 @@ class TestCTPBroker:
         from backtrader.order import Order
         broker.positions = collections.defaultdict(Position)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
-        # Create an order first
         order = broker.buy(owner, data, size=1, price=3500.0,
                            exectype=None, parent=None, transmit=True)
 
-        # Simulate CTP cancel event
-        ctp_order = _make_mock_ctp_order(
-            order_id='1_2_3', status=_MockStatus.CANCELLED
-        )
-        broker.o.order_queue.put(ctp_order)
+        evt = _make_order_event(order_ref='1', status=THOST_FTDC_OST_Canceled)
+        broker.o.order_queue.put(evt)
         broker._process_order_events()
 
         assert order.status == Order.Canceled
@@ -591,15 +677,13 @@ class TestCTPBroker:
         from backtrader.order import Order
         broker.positions = collections.defaultdict(Position)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
         order = broker.buy(owner, data, size=1, price=3500.0,
                            exectype=None, parent=None, transmit=True)
 
-        ctp_order = _make_mock_ctp_order(
-            order_id='1_2_3', status=_MockStatus.REJECTED
-        )
-        broker.o.order_queue.put(ctp_order)
+        evt = _make_order_event(order_ref='1', rejected=True)
+        broker.o.order_queue.put(evt)
         broker._process_order_events()
 
         assert order.status == Order.Rejected
@@ -610,39 +694,33 @@ class TestCTPBroker:
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
         order = broker.buy(owner, data, size=1, price=3500.0,
                            exectype=None, parent=None, transmit=True)
 
-        # Simulate trade fill
-        ctp_trade = _make_mock_ctp_trade(
-            order_id='1_2_3', price=3500.0, volume=1
-        )
-        broker.o.trade_queue.put(ctp_trade)
+        evt = _make_trade_event(order_ref='1', price=3500.0, volume=1)
+        broker.o.trade_queue.put(evt)
         broker._process_trade_events()
 
-        # Position should be updated
         pos = broker.positions['rb2501.SHFE']
         assert pos.size == 1
 
     def test_process_unknown_order_event(self):
         broker = self._make_broker()
-        # Put an event with unknown order_id
-        ctp_order = _make_mock_ctp_order(order_id='unknown_999')
-        broker.o.order_queue.put(ctp_order)
+        evt = _make_order_event(order_ref='unknown')
+        broker.o.order_queue.put(evt)
         broker._process_order_events()  # should not raise
 
     def test_process_unknown_trade_event(self):
         broker = self._make_broker()
-        ctp_trade = _make_mock_ctp_trade(order_id='unknown_999')
-        broker.o.trade_queue.put(ctp_trade)
+        evt = _make_trade_event(order_ref='unknown')
+        broker.o.trade_queue.put(evt)
         broker._process_trade_events()  # should not raise
 
     def test_get_notification(self):
         broker = self._make_broker()
         assert broker.get_notification() is None
-        from backtrader.order import Order
         mock_order = MagicMock()
         broker.notifs.append(mock_order)
         assert broker.get_notification() is mock_order
@@ -652,7 +730,7 @@ class TestCTPBroker:
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
         order = broker.buy(owner, data, size=1, price=3500.0,
                            exectype=None, parent=None, transmit=True)
@@ -674,7 +752,7 @@ class TestCTPBroker:
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
         broker.positions['rb2501.SHFE'] = Position(5, 3500.0)
-        data = self._make_data()
+        data = _make_mock_data()
         pos = broker.getposition(data, clone=True)
         assert pos.size == 5
 
@@ -683,33 +761,42 @@ class TestCTPBroker:
         broker = self._make_broker()
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
-        broker.positions['rb2501.SHFE'] = Position(-3, 3400.0)  # Short 3
+        broker.positions['rb2501.SHFE'] = Position(-3, 3400.0)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
-        order = broker.buy(owner, data, size=1, price=3500.0,
-                           exectype=None, parent=None, transmit=True)
-        # Verify send_order was called with CLOSE offset
+        broker.buy(owner, data, size=1, price=3500.0,
+                   exectype=None, parent=None, transmit=True)
         call_kwargs = broker.o.send_order.call_args
-        from ctpbee.constant import Offset as CTPOffset
-        assert call_kwargs.kwargs.get('offset') == CTPOffset.CLOSE or \
-               call_kwargs[1].get('offset') == CTPOffset.CLOSE
+        assert call_kwargs[1].get('offset') == THOST_FTDC_OF_Close
 
     def test_sell_close_long(self):
         """Sell when long position exists should use CLOSE offset."""
         broker = self._make_broker()
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
-        broker.positions['rb2501.SHFE'] = Position(5, 3400.0)  # Long 5
+        broker.positions['rb2501.SHFE'] = Position(5, 3400.0)
         owner = MagicMock()
-        data = self._make_data()
+        data = _make_mock_data()
 
-        order = broker.sell(owner, data, size=1, price=3500.0,
-                            exectype=None, parent=None, transmit=True)
+        broker.sell(owner, data, size=1, price=3500.0,
+                    exectype=None, parent=None, transmit=True)
         call_kwargs = broker.o.send_order.call_args
-        from ctpbee.constant import Offset as CTPOffset
-        assert call_kwargs.kwargs.get('offset') == CTPOffset.CLOSE or \
-               call_kwargs[1].get('offset') == CTPOffset.CLOSE
+        assert call_kwargs[1].get('offset') == THOST_FTDC_OF_Close
+
+    def test_buy_open_long(self):
+        """Buy with no position should use OPEN offset."""
+        broker = self._make_broker()
+        from backtrader.position import Position
+        broker.positions = collections.defaultdict(Position)
+        owner = MagicMock()
+        data = _make_mock_data()
+
+        broker.buy(owner, data, size=1, price=3500.0,
+                   exectype=None, parent=None, transmit=True)
+        call_kwargs = broker.o.send_order.call_args
+        assert call_kwargs[1].get('offset') == THOST_FTDC_OF_Open
+        assert call_kwargs[1].get('direction') == THOST_FTDC_D_Buy
 
 
 # ---------------------------------------------------------------------------
@@ -725,67 +812,72 @@ class TestCTPBrokerStart:
         broker.orders = collections.OrderedDict()
         broker.open_orders = []
         broker.notifs = collections.deque()
-        broker._ctp_to_bt = {}
+        broker._ref_to_bt = {}
         broker.startingcash = broker.cash = 0.0
         broker.startingvalue = broker.value = 0.0
         broker.positions = collections.defaultdict(
             lambda: MagicMock(size=0, price=0.0)
         )
-
         broker.o = MagicMock()
         broker.o.get_cash.return_value = 100000.0
         broker.o.get_value.return_value = 150000.0
         return broker
 
-    def test_start_with_dict_positions(self):
+    def test_start_with_positions(self):
         broker = self._make_broker_for_start()
         from backtrader.position import Position
         broker.positions = collections.defaultdict(Position)
-
-        # Set param
         broker._params = {'use_positions': True}
         broker.get_param = lambda k: broker._params.get(k)
 
         broker.o.get_positions.return_value = [
-            {'direction': 'long', 'volume': 5, 'price': 3500.0,
-             'local_symbol': 'rb2501.SHFE'},
+            {'instrument': 'rb2501', 'direction': '2', 'volume': 5, 'avg_price': 3500.0},
         ]
-
-        # Call start (skip super().start())
         with patch.object(type(broker).__bases__[0], 'start', return_value=None):
             broker.start()
-
-        assert broker.positions['rb2501.SHFE'].size == 5
-        assert broker.positions['rb2501.SHFE'].price == 3500.0
+        assert broker.positions['rb2501'].size == 5
 
     def test_start_with_empty_positions(self):
         broker = self._make_broker_for_start()
         broker._params = {'use_positions': True}
         broker.get_param = lambda k: broker._params.get(k)
         broker.o.get_positions.return_value = []
-
         with patch.object(type(broker).__bases__[0], 'start', return_value=None):
             broker.start()
-        # Should not error
 
 
 # ---------------------------------------------------------------------------
-# Test CTPData bug fix
+# Test CTPData source code verification
 # ---------------------------------------------------------------------------
 
-class TestCTPDataBugFix:
-    """Verify the _bar_timeframe → _timeframe bug fix in ctpdata.py."""
+class TestCTPDataSource:
+    """Verify CTPData source code correctness."""
 
-    def test_no_bar_timeframe_attribute_in_get_backfill(self):
-        """The code should reference self._timeframe, not self._bar_timeframe."""
+    def test_no_bar_timeframe_in_backfill(self):
+        """_get_backfill_data should use _timeframe not _bar_timeframe."""
         import ast
         with open('backtrader/feeds/ctpdata.py') as f:
             source = f.read()
-
         tree = ast.parse(source)
-        # Find _get_backfill_data method and check it doesn't use _bar_timeframe
         for node in ast.walk(tree):
             if isinstance(node, ast.Attribute):
                 if isinstance(node.attr, str) and node.attr == '_bar_timeframe':
-                    # Check if it's inside _get_backfill_data
-                    pytest.fail("Found _bar_timeframe reference in ctpdata.py - bug not fixed!")
+                    pytest.fail("Found _bar_timeframe reference in ctpdata.py")
+
+    def test_no_ctpbee_imports(self):
+        """CTPData should not import ctpbee."""
+        with open('backtrader/feeds/ctpdata.py') as f:
+            source = f.read()
+        assert 'ctpbee' not in source, "ctpdata.py still references ctpbee"
+
+    def test_no_ctpbee_in_store(self):
+        """CTPStore should not import ctpbee."""
+        with open('backtrader/stores/ctpstore.py') as f:
+            source = f.read()
+        assert 'ctpbee' not in source, "ctpstore.py still references ctpbee"
+
+    def test_no_ctpbee_in_broker(self):
+        """CTPBroker should not import ctpbee."""
+        with open('backtrader/brokers/ctpbroker.py') as f:
+            source = f.read()
+        assert 'ctpbee' not in source, "ctpbroker.py still references ctpbee"

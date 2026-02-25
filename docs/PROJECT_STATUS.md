@@ -1,6 +1,6 @@
 # Backtrader 项目状态报告
 
-> 更新日期: 2026-02-24
+> 更新日期: 2026-02-25
 
 ## 1. 项目概况
 
@@ -8,8 +8,9 @@
 |------|------|
 | **活跃分支** | `dev` (当前开发) |
 | **Python文件** | ~1024 个 |
-| **测试用例** | 579 个 (collected) |
+| **测试用例** | 917 个 (collected) |
 | **2025年以来提交** | 623+ commits |
+| **测试覆盖率** | 50% (29565 stmts, 14749 missed) |
 | **核心性能提升** | 比原版 backtrader 快 45% |
 | **CI/CD** | GitHub Actions (test.yml, docs.yml) |
 
@@ -76,7 +77,17 @@
 | TradeLogger 交易记录器 | ✅ |
 | HTML 报告生成 | ✅ |
 
-### 2.4 测试体系 ✅
+### 2.4 CTP 中国期货接入 ✅
+
+**核心改动** (`stores/ctpstore.py`, `brokers/ctpbroker.py`, `feeds/ctpdata.py`):
+- 从 `ctpbee` 完全重写为原生 `ctp-python` (SWIG C++ API 封装)
+- `CTPStore` — 单例管理 TraderSpi/MdSpi 线程安全连接
+- `CTPBroker` — 下单/撤单、资金/持仓查询
+- `CTPData` — 实时 Tick 聚合为 Bar
+- 66 个 CTP 单元测试
+- 示例脚本: 黄金期货行情 + SA 双均线策略
+
+### 2.5 测试体系 ✅
 
 | 分类 | 路径 | 数量 |
 |------|------|------|
@@ -85,6 +96,24 @@
 | 新功能测试 | `tests/new_functions/` | 6 文件 (98 tests) |
 | 策略测试 | `tests/strategies/` | ~119 文件 |
 | 重构测试 | `tests/refactor_tests/` | 14 文件 |
+| CTP 测试 | `tests/new_functions/test_ctp_*.py` | 66 tests |
+| 集成测试 | `tests/integration/` | 5 文件 (需网络) |
+
+**覆盖率 Baseline (2026-02-25)**:
+
+| 核心模块 | 覆盖率 |
+|----------|--------|
+| `strategy.py` | 76% |
+| `cerebro.py` | 71% |
+| `order.py` | 83% |
+| `feed.py` | 63% |
+| `linebuffer.py` | 56% |
+| `lineseries.py` | 55% |
+| `lineiterator.py` | 43% |
+| `lineroot.py` | 45% |
+| `indicator.py` | 59% |
+| `broker.py` | 91% |
+| **整体** | **50%** |
 
 **测试基础设施**: pytest fixtures, 数据工厂, 优先级标记 (P0-P3), 测试 ID 规范
 
@@ -159,8 +188,8 @@ backtrader/
 
 | 文档 | 重要性 | 说明 |
 |------|--------|------|
-| **CHANGELOG.md** | 🔴 高 | 无变更日志，623 commits 无版本追踪 |
-| **CONTRIBUTING.md** | 🔴 高 | 根目录无贡献指南 |
+| `CHANGELOG.md` | ✅ | 已创建，包含 CCXT/CTP/性能优化/Bug修复记录 |
+| **CONTRIBUTING.md** | ✅ | 已创建 |
 | **ARCHITECTURE.md** | 🟡 中 | 无独立架构文档，散落在多处 |
 | **CCXT 集成指南** | 🟡 中 | ccxt/ 模块无用户文档 |
 | **API Reference** | 🟡 中 | README 提到但实际不存在 |
@@ -168,9 +197,9 @@ backtrader/
 
 ### ⚠️ 文档问题
 
-1. **project_status_summary.md 严重过时** — 写于 2024 年，提到的问题多已解决
-2. **根目录文档混乱** — 6 个 `DOGS_STRATEGY_*.md` + `OKX_*.md` 散落在根目录
-3. **需求文档过载** — `docs/opts/优化需求/` 有 90+ 文件，无索引和优先级
+1. ~~project_status_summary.md 严重过时~~ — **已删除** (2026-02-25)
+2. ~~根目录文档混乱~~ — 根目录已清理，仅保留标准文件
+3. ~~需求文档过载~~ — **已创建 INDEX.md** 分类索引 (2026-02-25)
 4. **无版本号管理** — `version.py` 存在但无 release tag/changelog 流程
 
 ---
@@ -179,10 +208,10 @@ backtrader/
 
 | 类别 | 项目 | 优先级 |
 |------|------|--------|
-| 文档 | 缺少 CHANGELOG / CONTRIBUTING / ARCHITECTURE | 🔴 高 |
-| 文档 | project_status_summary.md 过时 | 🔴 高 |
-| 代码 | 根目录散落临时 .md / .py 文件 | 🟡 中 |
-| 测试 | 579 测试但无覆盖率报告 baseline | 🟡 中 |
+| ~~文档~~ | ~~缺少 CHANGELOG / CONTRIBUTING / ARCHITECTURE~~ | ✅ 已完成 |
+| ~~文档~~ | ~~project_status_summary.md 过时~~ | ✅ 已删除 |
+| ~~代码~~ | ~~根目录散落临时 .md / .py 文件~~ | ✅ 已清理 |
+| ~~测试~~ | ~~579 测试但无覆盖率报告 baseline~~ | ✅ 917 tests, 50% 覆盖率 |
 | CI/CD | 无自动 changelog 生成 | 🟡 中 |
 | 分支 | crypto/ctp 分支待合并或归档 | 🟠 低 |
 
