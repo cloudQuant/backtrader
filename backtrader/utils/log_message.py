@@ -1,14 +1,15 @@
 """Log Message Module - Logging utilities for backtrader.
 
-This module provides logging functionality using spdlog if available,
-with a fallback to simple console logging. It supports daily log file
-rotation and configurable output sinks.
+This module provides a unified logging interface using the Python
+standard ``logging`` module. It supports file logging with daily
+rotation and optional console output.
+
+The ``SpdLogManager`` class is kept for backward compatibility but
+now wraps ``logging.getLogger`` internally instead of requiring
+the third-party ``spdlog`` package.
 
 Classes:
-    SpdLogManager: Manager for creating spdlog-based loggers.
-    SimpleLogger: Fallback logger that prints to console.
-    DummyLogger: Dummy logger used when spdlog is not available.
-    DummySpdLog: Dummy spdlog module for import fallback.
+    SpdLogManager: Logger factory (stdlib ``logging`` under the hood).
 
 Example:
     >>> log_manager = SpdLogManager(file_name="mylog.log")
@@ -16,102 +17,16 @@ Example:
     >>> logger.info("Strategy started")
 """
 
-try:
-    import spdlog
-
-    SPDLOG_AVAILABLE = True
-except ImportError:
-    SPDLOG_AVAILABLE = False
-
-    # Create a dummy spdlog module to prevent errors
-    class DummySpdLog:
-        """Dummy spdlog module for when spdlog is not installed.
-
-        Provides stub implementations of spdlog functions to prevent
-        import errors when the spdlog package is not available.
-        """
-
-        @staticmethod
-        def stdout_sink_st():
-            """Create a dummy stdout sink.
-
-            Returns:
-                None: Dummy sink implementation.
-            """
-            return None
-
-        @staticmethod
-        def daily_file_sink_st(filename, hour, minute):
-            """Create a dummy daily file sink.
-
-            Args:
-                filename: Name of the log file.
-                hour: Hour for daily rotation.
-                minute: Minute for daily rotation.
-
-            Returns:
-                None: Dummy sink implementation.
-            """
-            return None
-
-        @staticmethod
-        def SinkLogger(name, sinks):
-            """Create a dummy logger.
-
-            Args:
-                name: Logger name.
-                sinks: List of sinks (ignored).
-
-            Returns:
-                DummyLogger: A logger that prints to console.
-            """
-
-            class DummyLogger:
-                """Fallback logger that prints to console."""
-
-                def info(self, msg):
-                    """Log an info message.
-
-                    Args:
-                        msg: Message to log.
-                    """
-                    print(f"[INFO] {msg}")
-
-                def warning(self, msg):
-                    """Log a warning message.
-
-                    Args:
-                        msg: Message to log.
-                    """
-                    print(f"[WARNING] {msg}")
-
-                def error(self, msg):
-                    """Log an error message.
-
-                    Args:
-                        msg: Message to log.
-                    """
-                    print(f"[ERROR] {msg}")
-
-                def debug(self, msg):
-                    """Log a debug message.
-
-                    Args:
-                        msg: Message to log.
-                    """
-                    print(f"[DEBUG] {msg}")
-
-            return DummyLogger()
-
-    spdlog = DummySpdLog()
+import logging
+import os
+from logging.handlers import TimedRotatingFileHandler
 
 
 class SpdLogManager:
-    """Manager for creating spdlog-based loggers.
+    """Logger factory using the Python standard ``logging`` module.
 
-    Creates loggers with daily file rotation. Requires the spdlog
-    package to be installed. Falls back to console logging if
-    spdlog is unavailable.
+    Creates loggers with daily file rotation and optional console output.
+    API is kept compatible with the previous spdlog-based implementation.
 
     Attributes:
         file_name: Name of the log file.
@@ -119,8 +34,9 @@ class SpdLogManager:
         rotation_hour: Hour of day for log rotation (0-23).
         rotation_minute: Minute of hour for log rotation (0-59).
         print_info: Whether to also print to console.
-        spdlog_available: Whether spdlog is installed.
     """
+
+    _LOG_FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
     def __init__(
         self,
@@ -144,70 +60,48 @@ class SpdLogManager:
         self.rotation_hour = rotation_hour
         self.rotation_minute = rotation_minute
         self.print_info = print_info
-        self.spdlog_available = SPDLOG_AVAILABLE
 
     def create_logger(self):
-        """Create a logger instance.
+        """Create and return a configured ``logging.Logger`` instance.
 
         Returns:
-            A logger object (spdlog SinkLogger if available,
-            otherwise SimpleLogger).
+            logging.Logger: Logger with file handler (daily rotation)
+            and optionally a console handler.
         """
-        if not self.spdlog_available:
-            # Return a simple logger that prints to console
-            class SimpleLogger:
-                """Fallback logger that prints to console."""
+        logger = logging.getLogger(f"backtrader.{self.logger_name}")
 
-                def info(self, msg):
-                    """Log an info message.
+        # Avoid adding duplicate handlers on repeated calls
+        if logger.handlers:
+            return logger
 
-                    Args:
-                        msg: Message to log.
-                    """
-                    print(f"[INFO] {msg}")
+        logger.setLevel(logging.DEBUG)
+        formatter = logging.Formatter(self._LOG_FORMAT)
 
-                def warning(self, msg):
-                    """Log a warning message.
+        # File handler with daily rotation
+        if self.file_name:
+            # Ensure the log directory exists
+            log_dir = os.path.dirname(self.file_name)
+            if log_dir and not os.path.exists(log_dir):
+                os.makedirs(log_dir, exist_ok=True)
 
-                    Args:
-                        msg: Message to log.
-                    """
-                    print(f"[WARNING] {msg}")
+            at_time = None
+            if self.rotation_hour or self.rotation_minute:
+                from datetime import time
+                at_time = time(self.rotation_hour, self.rotation_minute)
 
-                def error(self, msg):
-                    """Log an error message.
+            fh = TimedRotatingFileHandler(
+                self.file_name, when="midnight", interval=1,
+                backupCount=30, encoding="utf-8", atTime=at_time,
+            )
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(formatter)
+            logger.addHandler(fh)
 
-                    Args:
-                        msg: Message to log.
-                    """
-                    print(f"[ERROR] {msg}")
-
-                def debug(self, msg):
-                    """Log a debug message.
-
-                    Args:
-                        msg: Message to log.
-                    """
-                    print(f"[DEBUG] {msg}")
-
-            return SimpleLogger()
-
+        # Console handler
         if self.print_info:
-            sinks = [
-                spdlog.stdout_sink_st(),
-                # spdlog.stdout_sink_mt(),
-                # spdlog.stderr_sink_st(),
-                # spdlog.stderr_sink_mt(),
-                # spdlog.daily_file_sink_st("DailySinkSt.log", 0, 0),
-                # spdlog.daily_file_sink_mt("DailySinkMt.log", 0, 0),
-                # spdlog.rotating_file_sink_st("RotSt.log", 1024, 1024),
-                # spdlog.rotating_file_sink_mt(self.file_name, 1024, 1024),
-                spdlog.daily_file_sink_st(self.file_name, self.rotation_hour, self.rotation_minute),
-            ]
-        else:
-            sinks = [
-                spdlog.daily_file_sink_st(self.file_name, self.rotation_hour, self.rotation_minute)
-            ]
-        logger = spdlog.SinkLogger(self.logger_name, sinks)
-        # logger = spdlog.create(self.logger_name, sinks)
+            ch = logging.StreamHandler()
+            ch.setLevel(logging.INFO)
+            ch.setFormatter(formatter)
+            logger.addHandler(ch)
+
         return logger
