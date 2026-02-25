@@ -1113,28 +1113,21 @@ class ParamsMixin(BaseMixin):
                                 self.datas = temp_datas
                                 self.data = temp_datas[0]
                     else:
-                        # CRITICAL FIX: If indicator created with no data, search call stack for data
+                        # If indicator created with no data, use OwnerContext to find data owner
                         # This handles cases like AwesomeOscillator() inside AccDecOscillator.__init__
                         if not hasattr(self, "datas") or not self.datas:
-                            # Search the call stack for an object with data
-                            import inspect
-
-                            for frame_info in inspect.stack():
-                                frame_locals = frame_info.frame.f_locals
-                                # Look for 'self' in the frame
-                                if "self" in frame_locals:
-                                    potential_owner = frame_locals["self"]
-                                    # Skip if it's the same object
+                            # Walk the OwnerContext stack for any owner with data
+                            stack = getattr(_owner_context, "owner_stack", None)
+                            if stack:
+                                for potential_owner in reversed(stack):
                                     if potential_owner is self:
                                         continue
-                                    # Check if this object has datas
                                     if hasattr(potential_owner, "datas") and potential_owner.datas:
                                         self.datas = potential_owner.datas
                                         self.data = potential_owner.datas[0]
                                         for d, data in enumerate(potential_owner.datas):
                                             setattr(self, f"data{d}", data)
                                         break
-                                    # Or just data
                                     elif (
                                         hasattr(potential_owner, "data")
                                         and potential_owner.data is not None
