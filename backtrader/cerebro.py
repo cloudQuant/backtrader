@@ -803,11 +803,11 @@ class Cerebro(ParameterizedBase):
         """Add an Indicator class to be instantiated at run time."""
         self.indicators.append((indcls, args, kwargs))
 
-    def addanalyzer(self, ancls, *args, **kwargs):
+    def addanalyzer(self, ancls: type, *args, **kwargs) -> None:
         """Add an Analyzer class to be instantiated at run time."""
         self.analyzers.append((ancls, args, kwargs))
 
-    def addobserver(self, obscls, *args, **kwargs):
+    def addobserver(self, obscls: type, *args, **kwargs) -> None:
         """
         Adds an ``Observer`` class to the mix. Instantiation will be done at
         ``run`` time
@@ -911,7 +911,7 @@ class Cerebro(ParameterizedBase):
         """
         pass
 
-    def adddata(self, data, name=None):
+    def adddata(self, data, name: str = None):
         """
         Adds a ``Data Feed`` instance to the mix.
 
@@ -1072,7 +1072,7 @@ class Cerebro(ParameterizedBase):
         it = itertools.product([strategy], optargs, optkwargs)
         self.strats.append(it)
 
-    def addstrategy(self, strategy, *args, **kwargs):
+    def addstrategy(self, strategy: type, *args, **kwargs) -> int:
         """
         Adds a ``Strategy`` class to the mix for a single pass run.
         Instantiation will happen during ``run`` time.
@@ -1086,7 +1086,7 @@ class Cerebro(ParameterizedBase):
         self.strats.append([(strategy, args, kwargs)])
         return len(self.strats) - 1
 
-    def setbroker(self, broker):
+    def setbroker(self, broker) -> None:
         """
         Sets a specific ``broker`` instance for this strategy, replacing the
         one inherited from cerebro.
@@ -1235,7 +1235,7 @@ class Cerebro(ParameterizedBase):
 
     # Core method for backtesting. Any passed kwargs affect cerebro standard parameters.
     # If no data added, will stop immediately. Return value differs based on optimization.
-    def run(self, **kwargs):
+    def run(self, **kwargs) -> list:
         """The core method to perform backtesting. Any ``kwargs`` passed to it
         will affect the value of the standard parameters ``Cerebro`` was
         instantiated with.
